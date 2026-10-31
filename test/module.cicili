@@ -21,6 +21,10 @@
 ;;;   machine does -- because the count that guards it lives on the store.
 ;;;
 ;;;   A failing module predicate leaves NO bindings behind.
+;;;
+;;;   A loaded module's raise names the module (3.0.2), and one compiled in
+;;;   names nothing; the module the seam called is cleared when its call
+;;;   returns.
 
 (source "module.c"
   (make :std #t
@@ -365,6 +369,31 @@
              (cast llong (count (aof e) "via(kb)" 10)) 0)
       (check "nor is the module's name stamped as a plain predicate"
              (stamped (aof m) "late" 1) 0)
+
+      (coco_engine_free (aof e)) (coco_store_free (aof st)) (coco_machine_free (aof m)))
+
+    ;; ================================================================
+    ;; A loaded module's errors name it (3.0.2): `one' raises with the
+    ;; context unbound as a module compiled in, and names itself once it is
+    ;; marked as a `.so''s (what `lb_load_so' does), here through the owner
+    ;; the functor remembers since the first call; the step clears the
+    ;; module it called when the call returns.
+    ;; ================================================================
+    (let ((coco_machine m) (coco_store st) (coco_engine e))
+      (coco_machine_init (aof m)) (coco_store_init (aof st))
+      (coco_engine_init (aof e) (aof m) (aof st))
+      (set ($ e max_steps) 1000000)
+
+      (coco_module_init)
+      (check "registered the first once more" (cast llong (tm_module_one)) 1)
+      (check "a module compiled in names nothing"
+             (cast llong (count (aof e) "catch(twice(a, _), error(_, C), true), var(C)" 10)) 1)
+      (coco_module_set_foreign 0)
+      ;; read back, never matched in the catch: an unbound context would
+      ;; unify with any pattern there, and the check would hold of 3.0.1
+      (check "a loaded one names itself, Module:Name/Arity"
+             (cast llong (count (aof e) "catch(twice(a, _), error(_, C), true), nonvar(C), C = context(Q, _), Q == one:twice/2" 10)) 1)
+      (check "and the step has cleared the module it called" (cast llong ($ e kmod)) 0)
 
       (coco_engine_free (aof e)) (coco_store_free (aof st)) (coco_machine_free (aof m)))
 

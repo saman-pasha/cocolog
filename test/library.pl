@@ -100,7 +100,8 @@ shared_object(D) :-
         ->  sh_join([Compiler, ' -shared -fPIC -O3 -o ', PLib, '/hoot.so test/hoot.c > ', D, '/cc.log 2>&1'], Cc),
             (   sh_exit(Cc, 0)
             ->  written(( use_module(library(hoot)), hoot(X1), double_hoot(X1, X1) ), X1, G1),
-                check('a compiled Cicili module loads, both halves', G1, hoot_from_c)
+                check('a compiled Cicili module loads, both halves', G1, hoot_from_c),
+                module_context
             ;   atom_concat(D, '/cc.log', Log), read_file_to_codes(Log, Cs), atom_codes(Why, Cs),
                 check('the hoot fixture compiles', Why, compiled)
             )
@@ -108,6 +109,40 @@ shared_object(D) :-
         )
     ;   format("     (skipped: .so -- no sbcl or no CICILI checkout)~n", [])
     ).
+
+%% A LOADED MODULE'S ERRORS NAME IT (3.0.2), as swipl names a foreign
+%% predicate's by the module that defines it: hoot_bad/1 raises through the
+%% SDK, and its context is hoot:hoot_bad/1 -- caught, and as the message of
+%% an error nothing caught, in a child (test/files/module_context.pl holds
+%% the caught ones and print_message/2's text to swipl). A compiled-in
+%% module's predicate that no row of *error-contexts* names keeps its
+%% context unbound, as swipl's library predicates written over must_be/2
+%% do (nth0/3).
+module_context :-
+    use_module(library(hoot)),
+    % cocolint: C2 -- the check reads the context a loaded module's raise names
+    answer(catch(hoot_bad(f(x)), error(F2, context(C2, _)), true), [F2, C2], A2),
+    format(atom(G2), "~q", [A2]),
+    check('a loaded module''s error names it', G2, '[type_error(hoot,f(x)),hoot:hoot_bad/1]'),
+    % cocolint: C2 -- and an unbound culprit's
+    answer(catch(hoot_bad(_), error(F3, context(C3, _)), true), [F3, C3], A3),
+    format(atom(G3), "~q", [A3]),
+    check('and an unbound culprit''s, an instantiation error', G3, '[instantiation_error,hoot:hoot_bad/1]'),
+    % cocolint: C2 -- and an atom goal's
+    answer(catch(hoot_none, error(F6, context(C6, _)), true), [F6, C6], A6),
+    format(atom(G6), "~q", [A6]),
+    check('an atom goal''s too, which the modules are asked in turn', G6,
+          '[existence_error(hoot,none),hoot:hoot_none/0]'),
+    cocolog_out('query "use_module(library(hoot)), hoot_bad(f(x))"', Out4),
+    atom_codes(O4, Out4),
+    (   sub_atom(O4, _, _, _, 'hoot:hoot_bad/1: Type error: `hoot'' expected, found `f(x)'' (a compound)')
+    ->  G4 = prefixed
+    ;   G4 = O4
+    ),
+    check('uncaught, its message begins Module:Name/Arity', G4, prefixed),
+    answer(catch(nth0(a, [x], _), error(_, C5), true), C5, A5),
+    ( var(A5) -> G5 = unbound ; format(atom(G5), "~q", [A5]) ),
+    check('a compiled-in module''s predicate names nothing new', G5, unbound).
 
 across_processes(D) :-
     section('process-local, proven across processes'),

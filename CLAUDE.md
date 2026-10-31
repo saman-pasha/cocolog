@@ -462,9 +462,12 @@ line said only `BUILD FAILED`, over a tail ending on clang's command line.
   9.0.4** and SKIPs by name on another: 10.x writes a float
   (`9007199254740992.0`), orders a NaN and picks it in max/min, checks a
   float flag and quotes a write differently, so the 9.0.4 answers the cases
-  hold would be reported as cocolog's failures. **Count the SKIPs and run
-  `pgrep ziguratip`** before believing a green run; the number of SKIPs is a
-  fact about the machine.
+  hold would be reported as cocolog's failures. Its `module_context` case
+  (3.0.2) builds a fixture module from `test/md5.cicili` with Cicili, as
+  `library` builds hoot, and is skipped by name, indented, without Cicili,
+  sbcl or a compiler; it also loads `library/thread.so`. **Count the SKIPs
+  and run `pgrep ziguratip`** before believing a green run; the number of
+  SKIPs is a fact about the machine.
 * **CI runs the whole suite on GitHub** (`.github/workflows/ci.yml`, 2026-10-29):
   every push to master and pull request into master (not one that changes
   only the top-level `*.md` or the Docker files), and by hand with Cicili's
@@ -1049,8 +1052,20 @@ cocolint index offers no import of it.
   `'$bags':findall_loop/4`), and `:ATOM`, `:INT` or `:FUN` for a C half
   shared by several predicates, chosen by one of its arguments. The row
   is kept on the functor (`ectx`). A goal no row names raises with the
-  context unbound: a library's clause, a program's, a loadable module's.
-  **A new builtin gets its row**, or its errors name nothing. The message
+  context unbound -- a library's clause, a program's, a compiled-in
+  module's -- **unless a loadable module answered it** (3.0.2): a `.so`'s
+  own predicate names itself, `context(Module:Name/Arity, _)`, as swipl
+  names a foreign predicate (`coco_m_module_ctx`). The seam puts the module
+  it calls on the engine (`kmod`, before each dispatcher, in
+  `coco_module_call`, `_resolving` and `_at`), the step clears it when the
+  module's call returns (so `_at` keeps its tail call: putting it back
+  there cost a module call 11 instructions), and the loader marks what a
+  `.so`'s entry registered (`foreign`, `coco_module_set_foreign`). A row
+  wins over the module: library(thread)'s mutex predicates are
+  `system:mutex_lock/1`, swipl's builtins. **A new builtin gets its row**,
+  or its errors name nothing; a new way to call a module's dispatcher sets
+  `kmod` before it and clears it after, or its raises name nothing, or the
+  wrong module. The message
   of an uncaught error, and print_message/2's, begin `Name/Arity: `
   (`coco_err_caller`, library(print_message)'s `'$pm_caller'`), so a case
   that holds stderr to the letter holds the prefix too. An unbound

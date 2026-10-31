@@ -42,9 +42,10 @@ And a Cicili module lives in one of two places:
   instead of `lib/module.cicili` (same macros, same API, opaque engine
   types), emitted to C by Cicili, built with `gcc -shared -fPIC`, and
   loaded at run time by `use_module(library(Name))`. `test/hoot.cicili`
-  is the complete worked example, twenty lines. This is how a project
-  that USES cocolog — The Coco — ships its own C-half predicates
-  without cocolog carrying them.
+  is the complete worked example, three predicates, two of which raise
+  (and their errors name the module, `hoot:hoot_bad/1`, below). This is
+  how a project that USES cocolog — The Coco — ships its own C-half
+  predicates without cocolog carrying them.
 
 Both places obey every rule below; a loadable module is not a way
 around the seam, it is the seam, reached later.
@@ -153,12 +154,23 @@ The second argument of `error/2` is the **engine's**: SWI puts a
 `context(Module:Name/Arity, Message)` there, and since 3.0.0 so does cocolog
 for a predicate a row of `*error-contexts*` names -- the core builtins and
 the compiled-in modules (`char_type/2`, `length/2`), each as swipl 9.0.4
-names it. A loadable module's own predicate raises with the context
-**unbound**, as every one did through 2.16; matching on `error(Formal, _)` is
-what portable code does, and an uncaught error then prints no `Name/Arity: `
-before its message. And `coco_m_type_error` given an **unbound culprit**
-raises `instantiation_error` (3.0.0), as swipl's `PL_error()` does for a type
-error of a variable; `type_error(variable, T)` is raised as it is.
+names it. **A loadable module's own predicate names its module** (3.0.2),
+as swipl names a foreign predicate's errors by the module that defines it:
+a `.so` registered as `md5` whose `md5_hash/3` raises through these helpers
+raises `error(type_error(text, f(x)), context(md5:md5_hash/3, _))`, and an
+uncaught one prints `md5:md5_hash/3: ` before its message (the module is
+left out for `user`, `system` and a `$` one, as swipl leaves it). The name
+is the one the module registered (`coco-deflibrary`), and the predicate the
+C predicate that raised -- a `$` helper too, as swipl names its own
+(`system:'$on_signal'/4`). A row still wins: library(thread)'s mutexes are
+swipl's builtins and are named `system:mutex_lock/1`, as swipl names them.
+Nothing is asked of the module for this -- no new call and no rebuild: the
+engine knows which module it called and that the loader dlopened it. A
+module compiled into the binary keeps what its rows name, and the context
+of the rest unbound. Matching on `error(Formal, _)` is still what portable
+code does. And `coco_m_type_error` given an **unbound culprit** raises
+`instantiation_error` (3.0.0), as swipl's `PL_error()` does for a type error
+of a variable; `type_error(variable, T)` is raised as it is.
 
 ## Writing one
 
