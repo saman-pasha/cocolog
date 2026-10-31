@@ -53,7 +53,7 @@
     ("length"     2 coco_l_length :declines)
     ("nth0"       3 coco_l_nth0_at :declines)
     ("nth1"       3 coco_l_nth1_at :declines)
-    ("last"       2 coco_l_last)
+    ("last"       2 coco_l_last :declines)
     ("reverse"    2 coco_l_reverse :declines)
 
     ("$len"       2 coco_l_len)
@@ -64,8 +64,7 @@
     ("$sum"       3 coco_l_sum)
     ("$maxl"      3 coco_l_maxl)
     ("$minl"      3 coco_l_minl)
-    ("$numlist"   3 coco_l_numlist)
-    ("$last"      2 coco_l_last)))
+    ("$numlist"   3 coco_l_numlist)))
 
 ;;;; ------------------------------------------------------------------
 ;;;; The Coco half
@@ -139,7 +138,20 @@
            "'$nth_sel'([H|T], B, B, H, T)."
            "'$nth_sel'([H|T], B, N, E, [H|R]) :- C is B + 1, '$nth_sel'(T, C, N, E, R)."
 
-           ;; last/2 is the C half's alone (1.12.2): it never enumerated
+           ;; ---- last/2 ---------------------------------------------------
+           ;; swipl's clauses (3.0.1). The C half answers a proper list in
+           ;; one step and declines a partial list -- an unbound List among
+           ;; them -- to this clause, the only call that reaches it, which
+           ;; enumerates as swipl's does, the shortest list first: `[X]',
+           ;; then `[_, X]', and for `[a|T]' T = [], then T = [X]. Nothing
+           ;; is checked here: the C half asked once, and the helper the
+           ;; recursion comes back to tests nothing, so each answer after
+           ;; the first is one step (between/3's `'$between_up'/3').
+           ;; Through 3.0.0 last/2 was the C half's alone, and a partial
+           ;; list failed
+           "last([X|Xs], L) :- '$last_gen'(Xs, X, L)."
+           "'$last_gen'([], L, L)."
+           "'$last_gen'([X|Xs], _, L) :- '$last_gen'(Xs, X, L)."
            "nextto(X, Y, [X,Y|_])."
            "nextto(X, Y, [_|T]) :- nextto(X, Y, T)."
            "prefix(P, L) :- append(P, _, L)."
@@ -599,9 +611,9 @@
 
   ;;; ---- the arithmetic walks ---------------------------------------------
   ;;;
-  ;;; `sum_list/2', `max_list/2', `min_list/2', `numlist/3' and `last/2' keep
-  ;;; the clauses they always had and lose the PROLOG ACCUMULATORS under
-  ;;; them: `'$sum'/3' and the rest were two clauses each, recursing once per
+  ;;; `sum_list/2', `max_list/2', `min_list/2' and `numlist/3' keep the
+  ;;; clauses they always had and lose the PROLOG ACCUMULATORS under them:
+  ;;; `'$sum'/3' and the rest were two clauses each, recursing once per
   ;;; element. Measured on a 200-element list, the same walk costs about
   ;;; 1.5us an element in Prolog and about 20ns in C -- `memberchk/2' answers
   ;;; in 4us where the same predicate written in Prolog takes 311, and
@@ -778,18 +790,6 @@
             (free v)
             (return (coco_m_unify e (coco_m_arg e g 2) out)))))
 
-  ;;; `'$last'(List, Last)'. Fails on the empty list and on anything that is
-  ;;; not a proper one, which is what the two clauses did.
-  (func coco_l_last ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t p . #'(coco_m_arg e g 0)) (size_t n . 0)
-              (size_t h . 0) (size_t t . 0) (size_t best . 0) (int any . 0))
-          (if (not (coco_m_list_length e (coco_m_arg e g 0) (aof n))) (return 0))
-          (while (coco_l_step m p (aof h) (aof t))
-            (set best h) (set any 1) (set p t))
-          (if (not any) (return 0))
-          (return (coco_m_unify e (coco_m_arg e g 1) best))))
-
   ;;; ---- one step for the modes that answer once (1.12.2) ----------------
   ;;;
   ;;; length/2, nth0/3, nth1/3, last/2 and reverse/2 were each a clause
@@ -799,7 +799,9 @@
   ;;; that ENUMERATES is declined (`coco_m_decline', the `:declines' row) to
   ;;; the clause of the same name in the Coco half, which nothing else
   ;;; reaches. Every answer is the clauses' -- a failure where SWI raises
-  ;;; included -- but where they went on for ever.
+  ;;; included -- but where they went on for ever, and but last/2 of a
+  ;;; partial list, which its clause failed and swipl's enumerates: since
+  ;;; 3.0.1 its row declines that too, to swipl's clause.
 
   ;;; What a list argument is, in one walk: 1 a proper list of N cells, 2 a
   ;;; partial one -- N cells, then the unbound TAIL --, 0 neither (`foo',
@@ -919,6 +921,32 @@
               (set r (coco_cons m (coco_arg m p 0) r))
               (set p (coco_arg m p 1)))
             (return (coco_m_unify e (coco_m_arg e g 1) r)))))
+
+  ;;; `last(?List, ?Last)': a proper list's last element, in one walk that
+  ;;; keeps the last cell it passed. The empty list and what is no list --
+  ;;; `foo', `[a|foo]', `'[]'' -- fail, as swipl's clause does, raising
+  ;;; nothing, and so does a list that is its own tail, which swipl's walks
+  ;;; for ever. A PARTIAL LIST ENUMERATES, an unbound List among them
+  ;;; (3.0.1): `last(L, X)' is L = [X], then [_, X], ..., and
+  ;;; `last([a|T], X)' T = [] with X = a, then T = [X], ... -- declined to
+  ;;; the clause. Through 3.0.0 the row was '$last''s walk, which failed
+  ;;; there, and '$last'/2, which nothing had called since 1.12.2, went
+  ;;; with it.
+  (func coco_l_last ((coco_engine * e) (size_t g) (int * found)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t p . #'(coco_m_arg e g 0)) (size_t cell . 0)
+              (size_t k . 0) (size_t lim . #'(-> m heap_len)))
+          (while 1
+            (set p (coco_deref m p))
+            (if (not (coco_is_cons m p)) break)
+            (set k (+ k 1))
+            (if (> k lim) (return 0))
+            (set cell p)
+            (set p (coco_arg m p 1)))
+          (if (coco-tag-is REF (nth p (-> m heap)))
+              (block (coco_m_decline e) (set (cof found) 0) (return 0)))
+          (if (or (== k 0) (not (coco_is_nil m p))) (return 0))
+          (return (coco_m_unify e (coco_m_arg e g 1) (coco_arg m cell 0)))))
 
   ;;; ---- the module -----------------------------------------------------
 

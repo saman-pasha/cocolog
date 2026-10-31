@@ -20,7 +20,6 @@ an existence error, an instantiation error, a refusal by name.
 | a control character with no letter of its own (1-6, 14-31, 127) in a quoted atom or string | `writeq('\x1\')` is `'\x1\'`, print/1's `'\u0001'` | the character itself between the quotes, which reads back here; this reader has no `\x..\` escape (cocolint E1). The four with a letter are written `\a` `\b` `\v` `\f` as swipl's since 2.2.5. term_to_atom/2 writes a newline or a tab as it is in swipl, `\n` and `\t` here | — |
 | an integer before an infix operator written quoted | `1 'x\'y' 2` | `1'x\'y'2`, and after a 0 it reads back as a character code (`0'x`) | an unquoted operator name |
 | a `portray/1` hook | `print/1` and `~p` call it for each subterm | not called: `print/1` is `writeq/1` | write the term yourself |
-| `last(L, X)` with `L` unbound | enumerates: `[X]`, then `[_, X]`, ... | fails | bind the list first |
 | `write_canonical/1` of a term with variables | names them: `f(A,_,A)` for `f(X,Y,X)` | writes each one's own name, `f(_G0,_G1,_G0)`; both read back as the same term | `numbervars`-style names of your own |
 | an error's context, in two places | a loadable module's predicate and an unknown procedure a clause body calls name a predicate, `context(Name/Arity, _)`, and the message begins `Name/Arity: ` | the context is unbound and the message has no prefix. A core builtin, a compiled-in module's row and an unknown procedure under a meta-call or a search name swipl's since 3.0.0 (through 2.16 every one was unbound) | match `error(Formal, _)` |
 

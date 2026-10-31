@@ -117,6 +117,7 @@ flow_mode(reverse, 2, ['+', '-'], det).
 flow_mode(nth0, 3, ['?', '+', '?'], nondet).
 flow_mode(nth1, 3, ['?', '+', '?'], nondet).
 flow_mode(last, 2, ['+', '-'], semidet).
+flow_mode(last, 2, ['?', '?'], nondet).
 flow_mode(sum_list, 2, ['+', '-'], det).
 flow_mode(sumlist, 2, ['+', '-'], det).
 flow_mode(max_list, 2, ['+', '-'], semidet).

@@ -1075,8 +1075,10 @@ shared_globals(D) :-
 %% are C rows in every mode that answers once -- through 1.12.1 a clause
 %% around '$len', '$nth0', '$rev', '$last' or '$atom_join' made each 2 to
 %% 13 steps -- and the modes that can answer again are the clauses they
-%% were. A literal `true' and `=/2' are no inference, as in SWI, wherever
-%% they stand: called, in a body, in an environment, in a nested engine.
+%% were (last/2's, a partial list, swipl's clause since 3.0.1: through
+%% 3.0.0 the row failed it). A literal `true' and `=/2' are no inference,
+%% as in SWI, wherever they stand: called, in a body, in an environment,
+%% in a nested engine.
 %% They are still steps of the clock a window numbers its goals by
 %% (test/window.pl): statistics/2, call_metered/4, call_limited/3 and
 %% `cocolog step' leave them out, and a limit in inferences lets them by.
@@ -1103,6 +1105,11 @@ small_steps :-
     findall(R2e, ( reverse([a, b|T2e], R2e), T2e = [x|_], ! ), M2e),
     check('...and each that can answer again enumerates as its clauses did',
           [M2a, M2b, M2c, M2d, M2e], [[2], [3], [1-a, 2-b, 3-c], [0, 2], [[x, b, a]]]),
+    findall(N2f, ( last(L2f, z), length(L2f, N2f), N2f >= 3, ! ), M2f),
+    findall(T2g-X2g, ( last([a|T2g], X2g), T2g = [b|_], ! ), M2g),
+    findall(N2h, ( last([a, b|T2h], _), length(T2h, N2h), N2h >= 2, ! ), M2h),
+    check('...and so does last/2 of a partial list, as swipl\'s: an unbound one, [a|T], [a, b|T]',
+          [M2f, M2g, M2h], [[3], [[b]-b], [2]]),
     gd_inferences(true, I3a), gd_inferences(_ = a, I3b), gd_inferences(ss_t(_), I3c),
     gd_inferences(ss_e(_, _), I3d), gd_inferences(ss_w(_), I3e),
     %% beside the call/1 and the statistics/2: ss_t/1 and its `==/2';
