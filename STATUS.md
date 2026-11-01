@@ -10827,3 +10827,73 @@ string, gc, trace, journal, reason, translate and the solve and state
 binaries, each GREEN; lessons 07, 10, 11 of the basics and 03, 04, 05, 18,
 37 and 43 of the library, which read clauses back, each ending `done`; the
 card's cites checked.
+
+## A quoted operator, the spaces around it, and term_to_atom/2's control characters, as swipl's (3.15.1)
+
+Four corners test/files/write.pl had left out, each where cocolog read or
+wrote what swipl does not.
+
+- A QUOTED NAME IS AN OPERATOR ONLY WHERE IT CANNOT BE WRITTEN WITHOUT ITS
+  QUOTES (`coco_quoted_op` in lib/syntax.cicili, asked by the primary's
+  prefix test, the term loop's infix test and `coco_starts_term`): `'p\'q'
+  a` applies the prefix operator, `a 'x\'y' b` and `a ',' b` the infix one,
+  `'[]' x` the operator op/3 declared for the atom `'[]'`, and `- 'x\'y' a`
+  is `'x\'y'(-, a)` as `- = a` is; `'-' a`, `a '-' b` and `a '@@@' b` are
+  no terms. Through 3.15.0 a quoted atom was never a prefix operator, so
+  `'p\'q' a` was `operator expected`, and always an infix one, so `a '-' b`
+  read as `a - b`. An operator's term is named as an application is
+  (`coco_parse_fid`), so `a '[]' b` is `'[]'(a, b)`, the atom's, and not the
+  list's end's.
+- A QUOTE AFTER A DIGIT, AND A QUOTE AFTER A QUOTE, TAKE A SPACE
+  (`coco_needs_gap`, pl-write.c's PutOpenToken): `x1 'x\'y' 2`, `'A' 'x\'y'
+  'B'`, `'p\'q' 'A'`, where 3.15.0 wrote `x1'x\'y'2`, which reads back as a
+  character code, and `'A''x\'y''B'`, one atom. AN OPENING PARENTHESIS OR
+  BRACE AFTER ANY PREFIX OPERATOR TAKES ONE TOO: `pq (a,b)`, `dynamic (a:-b)`,
+  `'p\'q' (-)`, `\+ {a}`, `- {}`, where 3.15.0 wrote `pq(a,b)`, which reads
+  back as pq/2, and a space before `(` only after a symbolic operator.
+- THE ATOM `'[]'` AS AN OPERATOR IS WRITTEN QUOTED, `a'[]'b` and `'[]'a`, and
+  the list's end is no operator (`[](a,b)`), as op/3 of `'[]'` declares the
+  atom. functor/3 and =../2 name the compound they build by the atom's id,
+  so `functor(T, '[]', 2)` and `T =.. ['[]', a, b]` are the atom's
+  compound, as compound_name_arguments/3 already was; through 3.15.0 both
+  were named by the list's end.
+- term_to_atom/2 AND term_string/2 WRITE A NEWLINE, A TAB AND A RETURN AS
+  THEY ARE, in an atom and in a string, as swipl's PL_WRT_QUOTED alone
+  writes them (the writer's mode bit 256, `coco_tx_term_text` writing with
+  257); writeq/1, print/1, `~q` and term_string/3 still escape them. Through
+  3.15.0 term_to_atom(f('a\nb'), A) gave `f('a\\nb')`; both read back as the
+  same term.
+
+CHECKS: test/files/quoted_ops.pl, new, beside swipl 9.0.4 byte for byte:
+the reads of quoted prefix and infix operators (`'p\'q'`, `'Ab'`, `'a b'`,
+`'[]'`, `','`, `'|'`, and `'-'`, `'='`, `'@@@'`, `'dynamic'`, `'mod'` as
+atoms), the writes of every operator kind beside a digit, a quote, a
+bracket and a brace by writeq/1, print/1, `~q` and term_to_atom/2 with each
+read back, the control characters through term_to_atom/2 and term_string/2
+in an atom, a string, a compound, a list, a functor's name and an operand,
+and functor/3 and =../2 with `'[]'` and `[]`; test/files/write.pl's header
+no longer leaves these out.
+
+ARMS: twenty-two, one a rule, each taken out in a copy of the tree built as
+the release is and run on test/files/quoted_ops.pl, and each red there: the
+quoted-name test at the prefix, at the infix and at a term's start, `'[]'`
+as a quoted operator's name, the prefix and the infix term named as an
+application is, the quote after a digit and the quote after a quote, the
+parenthesis and the brace after a prefix operator, the raw newline and tab
+in an atom and in a string, the 257 term_to_atom/2 writes with, the five
+masks that hand bit 256 on (a list's items, a compound's name and its
+arguments, an operand, a plain atom), the quoted `'[]'` functor, the list's
+end as no operator, and functor/3's and =../2's naming by id. Two cuts of
+the first draft had green arms and are gone: a mask at the `'[]'` atom's own
+site, and a space before a double quote or a backquote after a quote, which
+no write reaches.
+
+NOT SWIPL'S YET: `-{}` reads as `-({})`, where swipl reads a dict (dicts
+are not there at all, COMPAT.md).
+
+PROVED: THE NARROW CASES: lint first (0 HARD, 0 WARN), then files beside
+the reference swipl 9.0.4 (quoted_ops and write among them), syntax, string,
+engine, errors, library, directives, backtrace, flowdebug, module,
+reconsult, flowchart, cyclic, units, gc, trace, journal, reason, translate,
+stream, serialize, thread and the solve and state binaries, each GREEN; the
+card's cites checked by the lint case.

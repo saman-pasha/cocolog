@@ -1259,7 +1259,12 @@ cocolint index offers no import of it.
   (3.12.0): `[](a)` and `[ ](a)` are named by the list's end, a quoted
   `'[]'(a)` by the atom (the reader's `bnil`, `coco_parse_fid`), and the
   writer writes the first bare and the second quoted; through 3.11.0 both
-  read and wrote as `'[]'(a)`, named by the list's end.
+  read and wrote as `'[]'(a)`, named by the list's end. **A compound built
+  from an atom is named by the atom's ID, never its name** (3.15.1):
+  functor/3, =../2 and an operator the reader applies (`coco_parse_fid`)
+  name `'[]'`'s compound by the atom, where `coco_make` with `"[]"` names
+  the list's end's; an operator written is the atom `'[]'` quoted
+  (`a'[]'b`), and the list's end is no operator.
 * **A compound of no arguments, `f()`, is a FUN cell of arity 0** (3.12.0,
   swipl 7's): the header and no argument after it, its functor the name and
   0. It is no atom (`f() \== f`, compound/1 holds), and as a goal it calls
@@ -1436,7 +1441,11 @@ cocolint index offers no import of it.
   stay in registers**: quoted, ignore_ops, operand, (2.2.4) numbervars and
   (2.2.5) swipl's character escapes are one `mode` word (1, 2, 4, 8, 16;
   what a compound hands its arguments is `mode & 27`, the operand's 4
-  being each operand's own, and what an atom reads `mode & 17`), and a compound
+  being each operand's own, and what an atom reads `mode & 17`; since then
+  64 unicode escapes, 128 write_canonical/1's curly terms and, 3.15.1, 256 a
+  control character as it is, term_to_atom/2's and term_string/2's, so a
+  compound hands on `mode & 475` and an atom reads `mode & 337`: a new bit
+  goes into both masks), and a compound
   is `coco_write_fun`, always inlined, so the
   guard's slow path returns rather than rejoining -- rejoined, every
   compound read its tag and functor again (21 instructions each).
@@ -2611,8 +2620,13 @@ cocolint index offers no import of it.
   `stop` lets them be. **An unquoted prefix operator's atom, read as a plain
   atom, is a left operand at its prefix priority** (`outprec`: `- = a`
   reads, `\+ = a` and `dynamic ; a` do not), quoted or bracketed at 0, and
-  never before an infix bar. **The bar is '|'/2 at 1105 xfy**, written
-  `a|b`, and `;` where it is a goal: a clause's body is stored with `;`
+  never before an infix bar. **A quoted name is an operator only where it
+  cannot be written without its quotes** (3.15.1, swipl's; `coco_quoted_op`,
+  asked by the primary's prefix test, the term loop's infix test and
+  `coco_starts_term`): `'p\'q' a`, `a 'x\'y' b`, `a ',' b`, `'[]' x`; `'-' a`
+  and `a '@@@' b` are no terms. Through 3.15.0 a quoted atom was never a
+  prefix operator and always an infix one. **The bar is '|'/2 at 1105
+  xfy**, written `a|b`, and `;` where it is a goal: a clause's body is stored with `;`
   (`coco_clause_compile` at the assert, so clause/2 hands back `;`), a call of
   '|'/2 runs as `;` (the construct, `coco_goal_leaves`), a program's own
   clause for it is kept and never called. **A walk of the control

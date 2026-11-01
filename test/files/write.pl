@@ -15,17 +15,17 @@
 %  letter as the letter (\a \b \v \f, and \r in a string as in an atom).
 %  Through 2.2.4 cocolog doubled the quote, 'don''t', which reads back as
 %  the same atom, and wrote the four as they are. term_to_atom/2 doubles
-%  the quote in both systems, and is held to it here. Left out: a newline
-%  or a tab through term_to_atom/2, which swipl writes as it is and cocolog
-%  as \n and \t. write_canonical/1 writes an operator as its compound,
-%  as swipl's does, since cocolog 3.1.0, and a control character with no
-%  letter as \x1\.
+%  the quote in both systems, and is held to it here; it writes a newline, a
+%  tab and a return as they are, in both since cocolog 3.15.1
+%  (test/files/quoted_ops.pl holds them). write_canonical/1 writes an
+%  operator as its compound, as swipl's does, since cocolog 3.1.0, and a
+%  control character with no letter as \x1\.
 %
 %  AN OPERATOR WHOSE NAME HOLDS A QUOTE is escaped where it is the operator
 %  and where it is an operand in brackets. The prefix one is built with
-%  =../2, because cocolog's reader takes no quoted atom as a prefix
-%  operator; left out, an integer before a quoted infix operator, which
-%  swipl spaces (1 'x\'y' 2) and cocolog does not.
+%  =../2, as it had to be while cocolog's reader took no quoted atom as
+%  a prefix operator (through 3.15.0); test/files/quoted_ops.pl holds the
+%  reads, and the spaces swipl puts around a quoted infix operator.
 
 :- op(700, xfx, 'x''y').
 :- op(200, fy, 'p''q').

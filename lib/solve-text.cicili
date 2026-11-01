@@ -61,8 +61,9 @@
               (if (== n 0) (return (? (coco_unify m (coco_arg m g 0) nt) 1 0)))
               (if (not (coco-tag-is ATOM (nth nt (-> m heap))))
                   (return (coco_type_error e "atom" nt)))
-              (let ((size_t h . #'(coco_open_struct m (coco_atom_name m (coco_name_of m nt))
-                                                 (cast u32 n))))
+              ;; by the atom's id, not its name: `functor(T, '[]', 2)' is named by
+              ;; the atom `'[]'', apart from the list's end (3.15.1, swipl's)
+              (let ((size_t h . #'(coco_push m (coco-cell FUN (coco_functor_id m (coco_name_of m nt) (cast u32 n))))))
                 (for ((i64 i . 0)) (< i n) ((++ i)) (coco_new_var m))
                 (return (? (coco_unify m (coco_arg m g 0) h) 1 0)))))))
 
@@ -334,8 +335,10 @@
                 (block
                  (if (not (coco-tag-is ATOM (nth hd (-> m heap))))
                      (block (free items) (return (coco_type_error e "atom" hd))))
-                 (set built (coco_make m (coco_atom_name m (coco_name_of m hd)) (cast u32 (- n 1))
-                                     (+ items 1)))))
+                 ;; by the atom's id, as functor/3 (3.15.1): `['[]', a]' names the
+                 ;; atom `'[]'', `[[], a]' the list's end
+                 (set built (coco_make_f m (coco_functor_id m (coco_name_of m hd) (cast u32 (- n 1)))
+                                         (cast u32 (- n 1)) (+ items 1)))))
               (free items)
               (return (? (coco_unify m (coco_arg m g 0) built) 1 0))))))
 
@@ -1361,7 +1364,9 @@
               (coco_strbuf b) (int r . 0) (size_t t . 0))
           (if (coco-tag-is REF (nth x (-> m heap)))
               (block (coco_sb_init (aof b))
-                     (coco_write_term m (aof b) (coco_arg m g 0) 1 0)
+                     ;; quoted, a control character as it is (257, 3.15.1:
+                     ;; swipl's PL_WRT_QUOTED, `'a<LF>b'')
+                     (coco_write_mode m (aof b) (coco_arg m g 0) 257 1)
                      (set r (? (coco_unify m x (coco_tx_make m (aof b) as_string)) 1 0))
                      (coco_sb_free (aof b))
                      (return r)))
