@@ -292,7 +292,7 @@ flow_graph(Spec, graph(Title, Src, Panels, Ids, Docs), Opts) :-
     ;   flow_kind(Root, ctx(Prog, none, How), RK), RK \== unknown -> true
     ;   throw(error(existence_error(procedure, Name/Arity), flow_graph/3))
     ),
-    flow_doc_sigs(Src, Docs0),
+    flow_source_docs(Src, Docs0),
     empty_assoc(Memo0),
     Ctx = ctx(Prog, Memo0, How),
     flow_progress_phase('the analysis'),

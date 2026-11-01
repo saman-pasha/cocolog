@@ -267,6 +267,25 @@ a non-ISO one over and the load refuses an ISO one). A clause-defined one is
 consulted into the same store and consult **appends**, so redefining one
 merges the two sets of clauses. The rules say different things.
 
+## An included file is part of the file that includes it
+
+Since 3.13.1, cocolint reads a file the way the engine reads it: a
+`:- include(F).` is text read where it stands (lib/kb-consult.cicili), as
+swipl's include/1 is. So the files a run lints are taken in UNITS -- a file
+and every file it includes, at any depth -- and each file of a unit is
+linted with the imports of the whole unit. An included file that calls
+`close/2` under an includer that loads `library(stream)` is no X2, and an
+includer is lifted by a `use_module` its included file makes. A file the run
+lists that another listed file includes is linted inside that unit, once,
+and one name in the includer and in the included file is no C2: it is one
+file's text. Each finding keeps its own file's line. Where an include finds
+its file is the engine's -- beside the includer, then the working directory,
+a Prolog source by `absolute_file_name/3` -- and an include it cannot find,
+or of a file already in the unit, adds nothing. Through 3.13.0 each file was
+linted alone, and an included file's calls were judged without its
+includer's imports. `test/lint.pl`'s include section holds it, thirteen arms
+red.
+
 ## Hooks are not collisions
 
 `library/httpd.pl:683` is `httpd_page(_, _, _) :- fail.` — a **declared

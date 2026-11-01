@@ -150,12 +150,17 @@ cl_file(File, Imports0, Findings) :-
     cl_file(File, Imports0, Findings, _).
 
 cl_file(File, Imports0, Findings, NAck) :-
+    cl_file(File, Imports0, Findings, NAck, _, _).
+
+%% and the libraries the file itself imports, and the files it includes
+cl_file(File, Imports0, Findings, NAck, Imports1, Incs) :-
     read_file_to_codes(File, Codes),
     cl_kept(Clauses, cc_clauses_of(File, Clauses)),
     cl_kept(Regions, cc_regions(Codes, Regions)),
     cl_kept(Texts, cl_texts(Clauses, Codes, Texts)),
     cl_zip(Clauses, Texts, Pairs),
     cl_kept(Imports1, cl_imports(Pairs, Codes, Regions, Imports1)),
+    cl_kept(Incs, cl_includes(File, Pairs, Incs)),
     append(Imports0, Imports1, Imports),
     cl_kept(F2, cl_rule_t1(File, Pairs, F2)),
     cl_kept(F3, cl_rule_n(File, Clauses, Imports, F3)),
@@ -165,6 +170,100 @@ cl_file(File, Imports0, Findings, NAck) :-
     cl_kept(Acks, cl_acks(Codes, Regions, Acks)),
     cl_acknowledge(File, Codes, Acks, All, Kept, NAck),
     cl_sort_findings(Kept, Findings).
+
+%% ---- includes: one file of a program, read in another ---------------------
+%%
+%% AN INCLUDED FILE IS PART OF THE FILE THAT INCLUDES IT (3.13.1), as the
+%% engine reads it where its `:- include' stands (lib/kb-consult.cicili) and
+%% as swipl's include/1 is textual. So a file a run lints is linted with the
+%% files it includes, at any depth, as one unit: each file's findings at its
+%% own lines, each with the imports of the whole unit -- an included file
+%% that calls close/2 under an includer that loads library(stream) is no X2,
+%% and an includer is lifted by what its include loads -- a file another
+%% file of the run includes is linted once, as part of that one, and one
+%% name in two files of a unit is no C2. Through 3.13.0 the linter read each
+%% file alone. Where an include finds its file is the engine's (beside the
+%% includer, then the working directory, a Prolog source by
+%% absolute_file_name/3); one it cannot find, or a file already in the
+%% unit, adds nothing.
+cl_includes(File, Pairs, Incs) :-
+    findall(P, ( member(cc_clause(_, _, directive(include, 1))-Text, Pairs),
+                 atom_codes(A, Text),
+                 catch(term_to_atom(T, A), _, fail),
+                 nonvar(T), T = (:- D), nonvar(D), D = include(Spec),
+                 cl_include_file(Spec, File, P) ), Incs).
+
+cl_include_file(Spec, From, Path) :-
+    nonvar(Spec),
+    file_directory_name(From, D0),
+    absolute_file_name(D0, D),
+    absolute_file_name(Spec, Path, [file_type(prolog), access(read), relative_to(D),
+                                    file_errors(fail)]), !.
+
+%% the run's files as units u(Top, Members), each member m(File, Findings,
+%% NAck): a file another file of the run includes is no unit of its own,
+%% unless nothing of the run reached it (two that include each other)
+cl_units(Rs, Units) :-
+    findall(A, ( member(_-r(_, _, _, Incs), Rs), cl_reach(Incs, [], R), member(A, R) ), Inc0),
+    sort(Inc0, Inc),
+    cl_units_(Rs, Inc, [], Done, Units0),
+    findall(F-R, ( member(F-R, Rs), absolute_file_name(F, FA), \+ memberchk(FA, Done) ), Left),
+    cl_units_(Left, [], Done, _, Units1),
+    append(Units0, Units1, Units).
+
+cl_units_([], _, Done, Done, []).
+cl_units_([File-R|Rs], Inc, Done0, Done, Units) :-
+    absolute_file_name(File, FA),
+    (   ( memberchk(FA, Inc) ; memberchk(FA, Done0) )
+    ->  cl_units_(Rs, Inc, Done0, Done, Units)
+    ;   cl_unit(File, FA, R, Done0, U, Done1),
+        Units = [U|Units1],
+        cl_units_(Rs, Inc, Done1, Done, Units1)
+    ).
+
+%% every file the queue includes, at any depth
+cl_reach([], Seen, Seen).
+cl_reach([F|Fs], Seen, All) :-
+    (   memberchk(F, Seen)
+    ->  cl_reach(Fs, Seen, All)
+    ;   cl_file_includes(F, Incs),
+        append(Fs, Incs, Q),
+        cl_reach(Q, [F|Seen], All)
+    ).
+
+cl_file_includes(File, Incs) :-
+    catch(read_file_to_codes(File, Codes), _, fail), !,
+    cl_kept(Clauses, cc_clauses_of(File, Clauses)),
+    cl_kept(Texts, cl_texts(Clauses, Codes, Texts)),
+    cl_zip(Clauses, Texts, Pairs),
+    cl_includes(File, Pairs, Incs).
+cl_file_includes(_, []).
+
+%% a unit: its top, then each file it includes not linted before, each
+%% linted again with the unit's imports where they add to its own
+cl_unit(File, FA, r(Fs, K, Imps, Incs), Done0, u(File, [M0|MIs]), Done) :-
+    cl_unit_walk(Incs, [FA|Done0], Done, Ins),
+    findall(I, ( member(m0(_, _, _, IIs), Ins), member(I, IIs) ), IAll),
+    append(Imps, IAll, U0),
+    sort(U0, UImps),
+    cl_unit_member(File, Fs, K, Imps, UImps, M0),
+    findall(M, ( member(m0(IF, IFs, IK, IIs), Ins), cl_unit_member(IF, IFs, IK, IIs, UImps, M) ), MIs).
+
+cl_unit_walk([], Done, Done, []).
+cl_unit_walk([P|Ps], Done0, Done, Ins) :-
+    (   ( memberchk(P, Done0) ; cl_vendored(P) )
+    ->  cl_unit_walk(Ps, Done0, Done, Ins)
+    ;   cl_file(P, [], PFs, PK, PImps, PIncs),
+        Ins = [m0(P, PFs, PK, PImps)|Ins1],
+        append(Ps, PIncs, Ps1),
+        cl_unit_walk(Ps1, [P|Done0], Done, Ins1)
+    ).
+
+cl_unit_member(F, Fs, K, Own, UImps, m(F, Fs1, K1)) :-
+    (   subtract(UImps, Own, [])
+    ->  Fs1 = Fs, K1 = K
+    ;   cl_file(F, UImps, Fs1, K1)
+    ).
 
 %% cl_kept(?X, :Goal) is semidet.
 %% Goal proved once, X bound to a COPY of what it bound there, and the heap
@@ -545,9 +644,11 @@ cl_trim(Cs, Out) :-
 %% ONLY UNDER A MANIFEST. C2 asks whether two files of ONE PROGRAM define the
 %% same name, and a bag of unrelated files is not a program: run over all 47
 %% tutorials it reports main/0 forty-five times, which is true and useless.
-cl_rule_c2(Files, Findings) :-
-    findall(K-File,
-            ( member(File, Files), cc_heads_of(File, Ks), member(K, Ks) ),
+%% A UNIT IS ONE FILE (3.13.1): its includes' heads are its own
+cl_rule_c2(Units, Findings) :-
+    findall(K-Top,
+            ( member(u(Top, Ms), Units), member(m(File, _, _), Ms),
+              cc_heads_of(File, Ks), member(K, Ks) ),
             Pairs),
     keysort(Pairs, Sorted),
     findall(F,
@@ -556,7 +657,7 @@ cl_rule_c2(Files, Findings) :-
               cl_join(Wheres, ' and ', Joined),
               format(atom(Msg),
                      "`~w' is defined in ~w. One run consults them all into one store and consult appends.", [K, Joined]),
-              Files = [First|_],
+              Units = [u(First, _)|_],
               F = cl_finding(First, 1, 1, c2, hard, none, Msg,
                              'keep it in one file', none) ),
             Findings).
@@ -792,20 +893,22 @@ cl_lint(Files0) :-
     findall(F, ( member(F, Files0), \+ cl_vendored(F) ), Files),
     length(Files0, NF0), length(Files, NF1), NVend is NF0 - NF1,
     cl_manifest(Files, Manifest),
-    findall(Fs-K, ( member(File, Files), cl_file(File, [], Fs, K) ), PerFile),
+    findall(File-r(Fs, K, Imps, Incs), ( member(File, Files), cl_file(File, [], Fs, K, Imps, Incs) ), Rs),
+    cl_units(Rs, Units),
+    findall(Fs-K, ( member(u(_, Ms), Units), member(m(_, Fs, K), Ms) ), PerFile),
     findall(Fs, member(Fs-_, PerFile), FsLists),
     append(FsLists, Findings0),
     findall(K, member(_-K, PerFile), Ks),
     sum_list(Ks, NAck),
     (   Manifest == yes
-    ->  cl_rule_c2(Files, C2), append(Findings0, C2, Findings)
+    ->  cl_rule_c2(Units, C2), append(Findings0, C2, Findings)
     ;   Findings = Findings0
     ),
     forall(member(F, Findings), cl_render(F)),
     ( Findings == [] -> true ; nl ),
     cl_count(Findings, hard, Hard),
     cl_count(Findings, warn, Warn),
-    length(Files, NF),
+    length(PerFile, NF),
     format("cocolint: ~w HARD, ~w WARN over ~w file(s)", [Hard, Warn, NF]),
     ( NAck =:= 0 -> true ; format(", ~w acknowledged", [NAck]) ),
     ( NVend =:= 0 -> true ; format(", ~w vendored and not read", [NVend]) ),

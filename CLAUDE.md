@@ -402,9 +402,21 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   the way down to it, or sixty-four deep, is refused with
   error(permission_error(include, source_sink, Spec), _) (swipl reads it
   again for ever). As a goal include/1 is an unknown procedure, as swipl's.
-  Not swipl's: `include([0'a])` reads the codes as a name, swipl's is
-  ``source_sink `[97]'``; an include of a library cocolog compiles in
-  (`library(lists)`) is existence_error, where swipl reads its source.
+  **A list is no name to include/1** (3.13.1, `lb_include`), a list of codes
+  among them: `include([0'a])` is ``source_sink `[97]'``, as swipl's
+  (through 3.13.0 it read `a.pl`), and so is `include("a")` while
+  `double_quotes` is `codes`, where swipl's `"a"` is a string; every other
+  load keeps reading a list of codes as one name. **library(flow/chart) and
+  cocolint read an included file where its include stands** (3.13.1;
+  `flow_include_file/3` in library/flow/read.pl, `cl_include_file/3` in
+  tools/cocolint/lint.pl, each absolute_file_name/3 relative to the
+  including file's directory): the chart's clauses, kinds, findings and
+  promises take the included file's lines (`inc.pl:2` for a place in
+  another file), and cocolint lints a file with the imports of the whole
+  unit of includes it stands in, a listed file another listed file includes
+  linted inside that unit. Not swipl's: an include of a library cocolog
+  compiles in (`library(lists)`) is existence_error, where swipl reads its
+  source.
 * **A load directive's load runs AT THE DIRECTIVE** (3.6.0, swipl's;
   `lb_directive_one` in lib/library.cicili gives `coco_library_load` an
   engine of its own for a module's init): `:- use_module(F)`, `:-

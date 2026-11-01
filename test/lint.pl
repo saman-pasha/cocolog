@@ -24,6 +24,9 @@
 %%      alone; one with no reason, or whose finding has gone, is a U1
 %%   3e. N1 knows the libraries preloaded at start-up, read from the
 %%      engine's own list
+%%   3g. a file is linted with the files it includes, as one unit: each
+%%      finding at its own file and line, the imports shared both ways, a
+%%      listed included file linted once, no C2 between them
 %%   3f. auto mode reads git, in a fixture repository of its own: --auto
 %%      lints the working tree, --staged the index after the file on disk
 %%      is clean, --quiet is silent with nothing staged, and a .cicili and
@@ -57,6 +60,7 @@ main :-
     ( sh_exit('sh tools/cocolint/tool.sh card --facts >/dev/null 2>&1', 0) -> true ; skip('traps.pl would not build') ),
     the_reader(Agent), the_escapes(Agent), the_lifts(Agent), the_acks(Agent),
     the_preloads(Agent),
+    the_includes(Agent),
     the_auto(Agent),
     the_findings(Agent),
     checks_done.
@@ -292,6 +296,69 @@ the_preloads(Agent) :-
     ( sub_atom(Out2, _, _, _, 'cocolint: 0 HARD, 0 WARN') -> Clean2 = yes ; Clean2 = Out2 ),
     check('library(async) and library(print_message) lint clean on their own heads', Clean2, yes),
     shl(['rm -rf ', T]).
+
+%% ---- 3g. includes: a file and the files it includes are one unit ----------
+%%
+%% AN INCLUDED FILE IS READ WHERE ITS INCLUDE STANDS (3.13.1), by the engine
+%% and by swipl, so the linter lints it as part of the file that includes
+%% it: its findings at its own lines, with the imports of the whole unit --
+%% an includer's library(stream) lifts an included close/2, and an
+%% included file's lifts the includer's -- found beside the includer, at
+%% any depth, each file once; a file another of the run includes is linted
+%% only as part of it; two that include each other are both linted; a
+%% vendored file is not read; and one name in two files of a unit is no C2.
+the_includes(Agent) :-
+    section('a file is linted with the files it includes, as one unit'),
+    scratch(T), shl(['mkdir -p ', T]),
+    sh_join([T, '/'], P),
+    forall(member(N-Ls, [ i_top-[':- use_module(library(stream)).', ':- include(i_part).'],
+                          i_part-['ended(M) :- M = close(_, _).', ':- include(i_deep).'],
+                          i_deep-['member(X, [X]).'],
+                          i_up-[':- include(i_lib).', 'ended(M) :- M = close(_, _).'],
+                          i_lib-[':- use_module(library(stream)).'],
+                          i_self-['s(1).', ':- include(i_self).', ':- include(_).'],
+                          i_a-[':- include(i_b).', 'a(1).'],
+                          i_b-[':- include(i_a).', 'b(1).'],
+                          i_vend-[':- include(''lib/swipl/pairs.pl'').'],
+                          i_c2-[':- include(i_c2b).', 'k(1).'],
+                          i_c2b-['k(2).'] ]),
+           ( sh_join([P, N, '.pl'], F), fixture(F, Ls) )),
+    findall(Name-Got,
+            ( member(Name-Fs, [ top-[i_top], part-[i_part], up-[i_up], both-[i_part, i_top],
+                                self-[i_self], cycle-[i_a, i_b], vend-[i_vend] ]),
+              findall(A, ( member(F0, Fs), sh_join([P, F0, '.pl'], A) ), As),
+              inc_lint(Agent, As, '', Got) ),
+            Got1),
+    check('each finding at its own file and line, the imports shared both ways, each file once (findings, files)',
+          Got1,
+          [top-(['i_deep.pl:1 N1']-3), part-(['i_part.pl:1 S1 [X2]', 'i_deep.pl:1 N1']-2), up-([]-2),
+           both-(['i_deep.pl:1 N1']-3), self-([]-1), cycle-([]-2), vend-([]-1)]),
+    sh_join([P, 'i_c2.pl'], C2F),
+    inc_lint(Agent, [C2F], 'COCO_LINT_MANIFEST=1 ', Got2),
+    check('one name in a file and its include is no C2', Got2, []-2),
+    shl(['rm -rf ', T]).
+
+%% the findings of a lint over Files, `base:line RULE', and the files it read
+inc_lint(Agent, Files, Env, Lines-NF) :-
+    atomic_list_concat(Files, ' ', FA),
+    sh_join([Env, 'sh ', Agent, '/lint.sh ', FA, ' 2>&1'], Cmd), shell(Cmd, Out, _),
+    atom_codes(Out, OCs), codes_lines(OCs, OLines),
+    findall(R, ( member(L, OLines), atom_codes(LA, L),
+                 re_match('^[^ ]+:[0-9]+:[0-9]+ (HARD|WARN) ', LA),
+                 re_replace_atom('^([^ ]+):([0-9]+):[0-9]+ [A-Z]+ (S1 \\[[A-Z0-9]+\\]|[A-Z0-9]+).*',
+                                 '\\1:\\2 \\3', LA, R0),
+                 inc_base(R0, R) ), Lines),
+    (   member(L, OLines), atom_codes(LA, L),
+        re_match('^cocolint: [0-9]+ HARD, [0-9]+ WARN over [0-9]+ file', LA)
+    ->  re_replace_atom('^.* over ([0-9]+) file.*', '\\1', LA, NA), atom_number(NA, NF)
+    ;   NF = none
+    ).
+
+inc_base(R, B) :-
+    (   sub_atom(R, Bf, 1, _, '/'), \+ ( sub_atom(R, B2, 1, _, '/'), B2 > Bf )
+    ->  Bf1 is Bf + 1, sub_atom(R, Bf1, _, 0, B)
+    ;   B = R
+    ).
 
 %% ---- 3f. auto mode: the changes, not a file list -------------------------
 %%

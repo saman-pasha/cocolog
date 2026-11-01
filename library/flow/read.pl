@@ -48,10 +48,7 @@ flow_tables :-
 %% both, and it is the one every goal of the program's own costs anyway.
 
 flow_read_source(File, Prog) :-
-    read_file_to_codes(File, Codes),
-    open(File, read, S),
-    flow_read_terms(S, File, Codes, 0, 1, 1, Pairs, Dyn0),
-    close(S),
+    flow_read_file(File, [], Pairs, Dyn0),
     keysort(Pairs, Sorted),
     flow_group(Sorted, Grouped),
     list_to_assoc(Grouped, Prog0),
@@ -64,8 +61,18 @@ flow_mark_dynamic([K|Ks], Prog0, Prog) :-
     put_assoc(K, Prog0, dyn(Cls), Prog1),
     flow_mark_dynamic(Ks, Prog1, Prog).
 
+%% one file's clauses and dynamic keys, in file order, an included file's
+%% where its include stands; Open is the files being read on the way down
+%% to this one (flow_include_here/4)
+flow_read_file(File, Open, Pairs, Dyn) :-
+    read_file_to_codes(File, Codes),
+    absolute_file_name(File, FA),
+    open(File, read, S),
+    flow_read_terms(S, File, [FA|Open], Codes, 0, 1, 1, Pairs, Dyn),
+    close(S).
+
 %% Rest is the file from byte Off on, which is line L, column K
-flow_read_terms(S, File, Rest, Off, L, K, Pairs, Dyn) :-
+flow_read_terms(S, File, Open, Rest, Off, L, K, Pairs, Dyn) :-
     read_term(S, T0, [variable_names(Vs)]),
     flow_bar_clause(T0, T),
     stream_position(S, Off1),
@@ -74,6 +81,11 @@ flow_read_terms(S, File, Rest, Off, L, K, Pairs, Dyn) :-
     flow_advance(Text0, L, K, L1, K1),
     (   T == end_of_file
     ->  Pairs = [], Dyn = []
+    ;   flow_include_here(T, File, Open, IF)
+    ->  flow_read_file(IF, Open, IPairs, IDyn),
+        append(IPairs, Pairs1, Pairs),
+        append(IDyn, Dyn1, Dyn),
+        flow_read_terms(S, File, Open, Rest1, Off1, L1, K1, Pairs1, Dyn1)
     ;   flow_skip_layout(Text0, L, K, Text, LS, KS),
         (   catch(flow_source_clause(T, Vs, File, Text, LS, KS, Pair), _, fail)
         ->  Pairs = [Pair|Pairs1]
@@ -83,8 +95,38 @@ flow_read_terms(S, File, Rest, Off, L, K, Pairs, Dyn) :-
         ->  flow_dynamic_keys(Spec, Ks), append(Ks, Dyn1, Dyn)
         ;   Dyn = Dyn1
         ),
-        flow_read_terms(S, File, Rest1, Off1, L1, K1, Pairs1, Dyn1)
+        flow_read_terms(S, File, Open, Rest1, Off1, L1, K1, Pairs1, Dyn1)
     ).
+
+%% AN INCLUDED FILE IS READ WHERE ITS INCLUDE STANDS (cocolog 3.13.1), as
+%% the engine reads it (lib/kb-consult.cicili's include branch) and as
+%% swipl's include/1 is textual: its clauses are the including file's, in
+%% place -- one predicate's clauses on either side of an include that
+%% defines another are not together, as swipl warns -- its declarations
+%% count, and each clause names its own file and line. What the engine
+%% refuses is passed over here: a spec that names no file the chart can
+%% read, or an include of a file open on the way down to it, which the
+%% engine refuses and which would otherwise be read again and again
+%% (every chain of other files ends). Through 3.13.0 the chart read the
+%% source alone, and an included file's predicates were boxes of
+%% `library(loaded)' with no clauses.
+flow_include_here(T, From, Open, Path) :-
+    nonvar(T), T = (:- D), nonvar(D), D = include(Spec),
+    flow_include_file(Spec, From, Path),
+    \+ memberchk(Path, Open).
+
+%% WHERE AN INCLUDE FINDS ITS FILE, as lib/library.cicili's lb_include
+%% does: absolute_file_name/3 of a Prolog source relative to the file that
+%% includes it -- beside it, then in the working directory, as swipl's
+%% '$chk_file'/5 looks; .pl, .prolog, then the name as it is, never a
+%% directory; an absolute name as it is, a path written Dir/File,
+%% library(L) on the library path.
+flow_include_file(Spec, From, Path) :-
+    nonvar(Spec),
+    file_directory_name(From, D0),
+    absolute_file_name(D0, D),
+    absolute_file_name(Spec, Path, [file_type(prolog), access(read), relative_to(D),
+                                    file_errors(fail)]), !.
 
 %% A BODY'S BAR IS ITS DISJUNCTION (cocolog 3.2.0, swipl's): the reader
 %% reads `a | b' as '|'(a, b), which the store and swipl's compiler hold as
@@ -211,26 +253,36 @@ flow_scan_files([P|Ps], Seen, Cls) :-
         flow_scan_files(Ps1, [P|Seen], Cls1)
     ).
 
-%% a file's clauses, c(Key, File, Head, Body), and what its directives load;
-%% a term the reader refuses ends the file there, as it ends a consult
+%% a file's clauses, c(Key, File, Head, Body), and what its directives load,
+%% an included file's where its include stands, each clause naming its own
+%% file (flow_include_here/4); a term the reader refuses ends the file there
 flow_scan_file(P, Cls, Specs) :-
-    catch(open(P, read, S), _, fail), !,
-    flow_scan_terms(S, P, Cls, Specs),
-    close(S).
-flow_scan_file(_, [], []).
+    flow_scan_file(P, [], Cls, Specs).
 
-flow_scan_terms(S, P, Cls, Specs) :-
+flow_scan_file(P, Open, Cls, Specs) :-
+    catch(open(P, read, S), _, fail), !,
+    absolute_file_name(P, PA),
+    flow_scan_terms(S, P, [PA|Open], Cls, Specs),
+    close(S).
+flow_scan_file(_, _, [], []).
+
+flow_scan_terms(S, P, Open, Cls, Specs) :-
     catch(read_term(S, T, []), _, T = end_of_file),
     (   T == end_of_file
     ->  Cls = [], Specs = []
+    ;   flow_include_here(T, P, Open, IF)
+    ->  flow_scan_file(IF, Open, ICls, ISpecs),
+        append(ICls, Cls1, Cls),
+        append(ISpecs, Specs1, Specs),
+        flow_scan_terms(S, P, Open, Cls1, Specs1)
     ;   nonvar(T), T = (:- D)
     ->  Cls = Cls1,
         (   nonvar(D), flow_load_specs(D, Ss) -> append(Ss, Specs1, Specs) ; Specs = Specs1 ),
-        flow_scan_terms(S, P, Cls1, Specs1)
+        flow_scan_terms(S, P, Open, Cls1, Specs1)
     ;   flow_scan_clause(T, P, C)
     ->  Cls = [C|Cls1],
-        flow_scan_terms(S, P, Cls1, Specs)
-    ;   flow_scan_terms(S, P, Cls, Specs)
+        flow_scan_terms(S, P, Open, Cls1, Specs)
+    ;   flow_scan_terms(S, P, Open, Cls, Specs)
     ).
 
 flow_load_specs(use_module(X), Ss) :- flow_spec_list(X, Ss).
@@ -1081,11 +1133,52 @@ flow_take(Rest, _, [], Rest).
 %% what makes it worth checking (findings.pl).
 flow_doc_sigs(File, Docs) :-
     catch(read_file_to_codes(File, Cs), _, Cs = []),
-    flow_lines(Cs, 1, Lines),
-    findall(N/A-sig(Ms, Ns, P), ( member(LN-L, Lines), flow_doc_line(L, N, A, Ms, Ns, Rest),
-                                  flow_doc_promise(Rest, LN, P) ), Pairs),
+    flow_doc_pairs(Cs, none, Pairs),
     flow_first_per_key(Pairs, [], Firsts),
     list_to_assoc(Firsts, Docs).
+
+%% a program's: its own comments, then those of each file it includes, at
+%% any depth (flow_include_here/4), whose promises are placed File:Line --
+%% the files walked only where the text names an include at all
+flow_source_docs(Src, Docs) :-
+    catch(read_file_to_codes(Src, Cs), _, Cs = []),
+    flow_doc_pairs(Cs, none, P0),
+    (   append(_, [0'i, 0'n, 0'c, 0'l, 0'u, 0'd, 0'e, 0'(|_], Cs)
+    ->  flow_included_files(Src, [], Incs)
+    ;   Incs = []
+    ),
+    findall(P, ( member(F, Incs),
+                 catch(read_file_to_codes(F, FCs), _, FCs = []),
+                 flow_doc_pairs(FCs, F, Ps), member(P, Ps) ), P1),
+    append(P0, P1, Pairs),
+    flow_first_per_key(Pairs, [], Firsts),
+    list_to_assoc(Firsts, Docs).
+
+flow_doc_pairs(Cs, In, Pairs) :-
+    flow_lines(Cs, 1, Lines),
+    findall(N/A-sig(Ms, Ns, P), ( member(LN-L, Lines), flow_doc_line(L, N, A, Ms, Ns, Rest),
+                                  ( In == none -> At = LN ; At = In:LN ),
+                                  flow_doc_promise(Rest, At, P) ), Pairs).
+
+%% every file File includes, at any depth, in the order they are read
+flow_included_files(File, Open, Fs) :-
+    absolute_file_name(File, FA),
+    (   catch(open(File, read, S), _, fail)
+    ->  flow_include_walk(S, File, [FA|Open], Fs),
+        close(S)
+    ;   Fs = []
+    ).
+
+flow_include_walk(S, File, Open, Fs) :-
+    catch(read_term(S, T, []), _, T = end_of_file),
+    (   T == end_of_file
+    ->  Fs = []
+    ;   flow_include_here(T, File, Open, IF)
+    ->  flow_included_files(IF, Open, Fs1),
+        append([IF|Fs1], Fs2, Fs),
+        flow_include_walk(S, File, Open, Fs2)
+    ;   flow_include_walk(S, File, Open, Fs)
+    ).
 
 %% a comment line at column 0: `%' in Prolog, `;;' in a module's Cicili
 %% (one `;' could open a line of code); Rest is what follows the signature

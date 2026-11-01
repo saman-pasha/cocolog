@@ -10520,3 +10520,81 @@ first (0 HARD, 0 WARN), then files beside the reference swipl 9.0.4
 syntax, reconsult, string, engine, flowchart and the solve binary, each
 GREEN; lesson 05 ends on `done'; the card's cites checked (28 rows, 40
 cites).
+
+## The chart and the linter read an included file where its include stands, and include/1 of a list of codes is swipl's (3.13.1)
+
+Since 3.5.0 the engine reads a `:- include(F).` where it stands, the
+included file's clauses the including file's, as swipl's include/1 is
+textual. library(flow/chart) and cocolint did not: each read the file it
+was given alone, so a predicate whose clauses an included file held was
+undefined to the chart and to the linter, a call there was charted as an
+unknown procedure, and an included file's calls were judged without the
+imports of the file that included it. Now both read what the engine reads.
+
+- library(flow/chart): the reader (`flow_read_source/2`, by
+  `flow_read_file/4`), the scan that finds the program's specs
+  (`flow_scan_file/4`), the sequence the `discontiguous` and
+  `defined_twice` findings walk (`flow_clause_seq_file/5` in
+  library/flow/findings.pl) and the documented promises
+  (`flow_source_docs/2`) each take an included file's clauses where its
+  include stands. A place in another file is written `inc.pl:2` (the
+  file's base name and the line), one in the charted file `line 2` as
+  before: `a26/1 comes after m26/1 at inc26_b.pl:2`, `d26/1 is documented
+  as det (inc26_c.pl:2) but ...`, `clause 2 (inc26_b.pl:2) repeats clause
+  1 (line 4)`. A dynamic declaration in an included file makes its
+  predicate dynamic. A file is found as the engine finds it -- beside the
+  including file, then the working directory, `.pl`, `.prolog` or the name
+  as it is, `Dir/File`, an absolute name, `library(L)` -- by one call,
+  absolute_file_name/3 relative to the including file's directory
+  (`flow_include_file/3`), and an include of a file open on the way down
+  to it reads nothing, so a file that includes itself is read once.
+- cocolint (tools/cocolint/lint.pl): the files a run lints are taken in
+  units, a file and the files it includes at any depth (`cl_units/2`,
+  `cl_unit/6`), and each file is linted with the imports of the whole unit
+  -- an included file that calls `close/2` under an includer that loads
+  library(stream) is no X2, and an includer is lifted by what its included
+  file loads; a listed file another listed file includes is linted inside
+  that unit, once; and C2, one name in two files of a run, takes a unit
+  for one file (`cl_rule_c2/2`). A vendored file a unit includes is not
+  linted. tools/cocolint/README.md has the section.
+- include/1 (lib/library.cicili, `lb_include`): a list is no name to it,
+  a list of codes among them, so `:- include([0'a]).' ends the load with
+  existence_error(source_sink, [97]), as swipl's (through 3.13.0 the codes
+  were read as the name, and `a.pl' was included). Every other load keeps
+  a list of codes as one name (3.4.0's rule): consult/1, use_module/1 and
+  ensure_loaded/1 are unchanged. So `:- include("a").' is refused too
+  while double_quotes is `codes', cocolog's default, where swipl's `"a"' is
+  a string and reads a.pl: the two are one term here (no file in the tree
+  writes it).
+
+ARMS: thirty-one, one a rule, thirty of them red. The chart's
+seventeen, each a copy of library/flow/ with its rule taken out, run on
+test/flowchart.pl's include section: the reader's include, the dynamic
+declarations an included file makes, the scan's include, the sequence's
+include and its place, the documented promises' walk and their place, the
+promise finding's place, the place's text, the include of a file open on
+the way down, the open list each of the reader, the scan, the sequence and
+the walk keeps, a file beside the including one, and a spec that is a
+variable -- sixteen red, and the guard that walks no include when a file's
+text holds no `include(' green: it is one of cost, the promises the same
+without it. cocolint's thirteen, each a copy of tools/cocolint with its
+rule taken out, run on test/lint.pl's include section: the include read,
+the unit's imports both ways, the second lint of a file the union lifted,
+a listed file another includes, the files a cycle leaves over, a file the
+unit holds already, a vendored file, the reach of a unit, C2 by the unit,
+the count of files, a file beside the including one, and a variable spec
+-- each red. And the engine's one: lb_include without the list clause,
+built as the release is, puts test/files/include.pl at odds with swipl.
+
+PROVED: test/files/include.pl beside the reference swipl 9.0.4 (57 lines, the
+engine's arm red on it); THE NARROW CASES (the owner's choice; CI runs the
+whole suite): lint first (0 HARD, 0 WARN, its include section among it),
+then files, flowchart (its include section among it), directives, library,
+errors, module and reconsult, each GREEN; lessons 37 (lint) and 50 (the
+flow chart), and every lesson that includes, charts or lints, end on
+`done'; the card's cites checked, three renumbered after the edit above
+them in lib/library.cicili.
+
+NOT DONE, and stated: an include of a library cocolog compiles in
+(library(lists)) is existence_error, where swipl reads its source, and the
+chart and cocolint read nothing for it either.

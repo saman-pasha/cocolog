@@ -1342,9 +1342,12 @@
              (if (and (lb_spec_text m (coco_arg m spec 0) name (sizeof name))
                       (and (lb_find name dir (sizeof dir) (aof kind)) (== kind 2)))
                  (block (lb_absolute dir path pathlen) (set why 0))))
-            ;; any other list is no name -- a list of files, which a load
-            ;; takes and an include does not, swipl's source_sink -- as a
-            ;; term that is no text is none (`lb_seg_put' takes codes alone)
+            ;; A LIST IS NO NAME TO include/1 (3.13.1), a list of codes among
+            ;; them: a list of files, which a load takes and an include does
+            ;; not, and `[0'a]', which a load reads as one name (`lb_seg_put'),
+            ;; is swipl's source_sink `[97]' -- through 3.13.0 it read a.pl
+            ((coco_is_cons m spec) (set why 1))
+            ;; as a term that is no text is none
             ((not (lb_spec_text m spec name (sizeof name)))
              (set why 1))
             ((lb_resolve m name path pathlen) (set why 0))

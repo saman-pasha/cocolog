@@ -34,8 +34,9 @@ main :-
     findall(X2, p(X2), L2), writeln(again(L2)),
     findall(Y2, q(Y2), M2), writeln(again_q(M2)),
     %% what names nothing it can read: no file, a variable, a list of
-    %% files, a directory, a number, `[]', a list of characters
-    forall(member(N, [1, 2, 3, 5, 6, 7, 8]), err(N)),
+    %% files, a directory, a number, `[]', a list of characters, a list of
+    %% codes (3.13.1: through 3.13.0 `[0'a]' read a.pl)
+    forall(member(N, [1, 2, 3, 5, 6, 7, 8, 9]), err(N)),
     yes_no(x1),
     yes_no(x2),
     %% a directive, never a goal: as one it is an unknown procedure
