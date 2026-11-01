@@ -109,26 +109,38 @@
   ;;; BUDGET is the control terms it may walk before it answers -1, and the
   ;;; caller asks whether the body is cyclic (1.10.19): `B = (a, B)' went
   ;;; down its right side for ever, `B = (B, a)' recursed until the C stack
-  ;;; ran out.
+  ;;; ran out. The right arms wait on a worklist and the left is taken
+  ;;; first, as the recursion took it (3.15.1): `assertz((p :- B))' with B
+  ;;; nested 200 000 deep on its left recursed that deep, past the 8 MB C
+  ;;; stack of GitHub's Apple silicon Mac (6 MB here). -2 is no memory.
   (static)
   (func coco_body_callable ((coco_machine * m) (size_t b) (size_t * budget)) (out int)
-        (while 1
-          (set b (coco_deref m b))
-          (if (coco-tag-is REF (nth b (-> m heap))) (return 1))
-          (if (not (coco_is_callable m b)) (return 0))
-          (let ((u64 nid . #'(coco_name_of m b)) (u32 n . #'(coco_arity m b)))
-            (if (== (cof budget) 0) (return -1))
-            (set (cof budget) (- (cof budget) 1))
-            (if (and (== n 1) (== nid (coco-id m "\\+")))
-                (block (set b (coco_arg m b 0)) continue))
-            (if (not (and (== n 2) (or (or (== nid (coco-id m ",")) (== nid (coco-id m ";")))
-                                         (or (== nid (coco-id m "->")) (== nid (coco-id m "*->")))
-                                         (== nid (coco-id m "|")))))
-                (return 1))
-            (let ((int r . #'(coco_body_callable m (coco_arg m b 0) budget)))
-              (if (!= r 1) (return r)))
-            (set b (coco_arg m b 1))))
-        (return 1))
+        (let ((size_t * wl . nil) (size_t wlen . 0) (size_t wcap . 0) (int r . 1))
+          (while 1
+            (set b (coco_deref m b))
+            (if (not (coco-tag-is REF (nth b (-> m heap))))
+                (let ((u64 nid . 0) (u32 n . 0))
+                  (if (not (coco_is_callable m b)) (block (set r 0) break))
+                  (set nid (coco_name_of m b))
+                  (set n (coco_arity m b))
+                  (if (== (cof budget) 0) (block (set r -1) break))
+                  (set (cof budget) (- (cof budget) 1))
+                  (if (and (== n 1) (== nid (coco-id m "\\+")))
+                      (block (set b (coco_arg m b 0)) continue))
+                  (if (and (== n 2) (or (or (== nid (coco-id m ",")) (== nid (coco-id m ";")))
+                                          (or (== nid (coco-id m "->")) (== nid (coco-id m "*->")))
+                                          (== nid (coco-id m "|"))))
+                      (block
+                       (if (not (coco_cells_push (aof wl) (aof wlen) (aof wcap) (coco_arg m b 1)))
+                           (block (set r -2) break))
+                       (set b (coco_arg m b 0))
+                       continue))))
+            ;; a goal, or a variable: the next arm that waits
+            (if (== wlen 0) break)
+            (set wlen (- wlen 1))
+            (set b (nth wlen wl)))
+          (free wl)
+          (return r)))
 
   ;;; `representation_error(cyclic_term)', what SWI's assert raises over a
   ;;; cyclic clause (1.10.19)
@@ -172,6 +184,7 @@
                      (if (!= 1 (coco_acyclic m body)) (return (coco_cyclic_error e)))
                      (set budget (cast size_t -1))
                      (set bc (coco_body_callable m body (aof budget)))))
+                (if (== bc -2) (return (coco_mem_error e)))
                 (if (== bc 0)
                     (return (coco_type_error e "callable" (coco_deref m body))))))
           (return 0)))

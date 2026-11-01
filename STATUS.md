@@ -10897,3 +10897,24 @@ engine, errors, library, directives, backtrace, flowdebug, module,
 reconsult, flowchart, cyclic, units, gc, trace, journal, reason, translate,
 stream, serialize, thread and the solve and state binaries, each GREEN; the
 card's cites checked by the lint case.
+
+## assert/1's callable check walks with a worklist (3.15.2)
+
+CI run 41316941760 on 3.15.0 ended GitHub's Apple silicon job with a
+segmentation fault in test/engine.pl, in the suite and alone: its new
+`compiled` section asserts a body nested 200 000 deep on its left, and
+assert's callable check (`coco_body_callable` in lib/solve-db.cicili)
+recursed down every left arm. Here the recursion needed 6 to 8 MB of C
+stack (it died at 6, and at 1 MB, under `ulimit -s`); the Mac's main thread
+has 8 MB and wider frames. The check takes the left arm first and keeps the
+right ones on a worklist (`coco_cells_push`), so its budget and its first
+answer are the recursion's; a worklist that cannot grow raises
+resource_error(memory). The same assert runs on 512 KB now.
+
+CHECK: test/engine.pl's `compiled` runs the 200 000-deep assert in a child
+on 1 MB of C stack (`ulimit -s 1024`), so a recursion there is red on Linux
+too; on 3.15.1 that child died with SIGSEGV. ARM: the recursion back, the
+check red (the 3.15.1 binary, rc 139 at 1 MB). PROVED: engine, errors,
+files and cyclic GREEN, and groups and ruler three times each with a server
+up (3.14.0's Intel job lost its server during groups, CI run 41309307439;
+not reproduced here, and the server's log is only in that run's artifact).

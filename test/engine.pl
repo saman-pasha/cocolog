@@ -1808,9 +1808,6 @@ uv_stepped(C, D, F, G, O) :-
 cc_static(1).
 
 %% a conjunction N deep on its left: ((((a, a), a), ...), a)
-cc_nest(0, a) :- !.
-cc_nest(N, (G, a)) :- N1 is N - 1, cc_nest(N1, G).
-
 compiled(D) :-
     section('the clause as the compiler keeps it: what swipl cannot be asked (3.15.0)'),
     %% swipl's compiler moves X = 1 into the head and shows the later goal
@@ -1821,10 +1818,19 @@ compiled(D) :-
     ( cc_a(_) -> S1 = succeeded ; S1 = failed ),
     check('a head variable the body names again keeps its unification, and the clause fails', R1-S1, kept-failed),
     %% below 256 levels a body is made one, past it kept as it was written:
-    %% the walk recurses, and a body 200 000 deep would take the C stack
-    cc_nest(200000, B2), assertz((cc_deep :- B2)),
-    ( clause(cc_deep, C2), C2 = (X2, _), X2 = (_, _) -> R2 = nested ; R2 = flat ),
-    check('a body nested 200 000 deep is stored, its depth past 256 levels as written', R2, nested),
+    %% the walk recurses, and a body 200 000 deep would take the C stack.
+    %% In a child on 1 MB of it: assert's callable check recursed down the
+    %% left arm through 3.15.0, past the 8 MB of GitHub's Apple silicon Mac
+    %% (CI run 41316941760) and the 6 MB it needs here
+    atom_concat(D, '/deep_body.pl', F2),
+    fixture(F2, [ 'cc_nest(0, a) :- !.',
+                  'cc_nest(N, (G, a)) :- N1 is N - 1, cc_nest(N1, G).',
+                  'main :- cc_nest(200000, B), assertz((cc_deep :- B)),',
+                  '    ( clause(cc_deep, C), C = (X, _), X = (_, _) -> write(nested) ; write(flat) ), nl.' ]),
+    cocolog(C2),
+    sh_join(['ulimit -s 1024; ', C2, ' run ', F2, ' main 2>&1'], Cmd2),
+    proc_run(Cmd2, 60000, Out2, _), atom_codes(R2, Out2),
+    check('a body nested 200 000 deep is stored on 1 MB of C stack, its depth past 256 levels as written', R2, 'nested\n'),
     %% retractall/1 declares only a predicate with no clauses that nothing
     %% implements: swipl raises for the other two, cocolog keeps facts
     %% under a builtin's name (`number(dos)') and leaves a static one so
