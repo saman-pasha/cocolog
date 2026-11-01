@@ -306,7 +306,7 @@ contributes `smallest_country/2`.
 
 | id | severity | checks | message shape |
 |---|---|---|---|
-| **P1** parse | HARD | Reads every clause. Reports `line:col`. Since cocolog 1.11.9 a load says `ERROR: FILE:LINE:COL: Syntax error: REASON` itself, the column from 0 in bytes as swipl's (`coco_reader_place`, lib/syntax.cicili); through 1.11.8 the interpreter said only `syntax error at offset %lu: %s`, a byte offset. | `gen/solver.pl:14:23 expected . ending a clause` |
+| **P1** parse | HARD | Reads every clause. Reports `line:col`. Since cocolog 1.11.9 a load says `ERROR: FILE:LINE:COL: Syntax error: REASON` itself, the column from 0 in bytes as swipl's (`coco_reader_place` then, `coco_reader_load_error` since 3.10.0, which says swipl's words at swipl's place, lib/syntax.cicili); through 1.11.8 the interpreter said only `syntax error at offset %lu: %s`, a byte offset. | `gen/solver.pl:14:23 expected . ending a clause` |
 | **N1** collision-append | HARD | Defined heads ∩ clause-defined reserved set. | *"`step/4` is `lib/swipl/aggregate.pl`'s and `lib/swipl/ugraphs.pl`'s. Consult appends — see §6 for which set of clauses is tried first, and note that it depends on how the file is run. Rename to `solver_step/4`."* |
 | **N2** collision-dead | HARD | Defined heads ∩ C-table set (141 + imported modules' 109 + torch/bigint's 54). | *"`memberchk/2` is dispatched before the knowledge base (`lib/solve.cicili:1352-1386`). Your clauses will never run."* |
 | **N3** collision-construct | HARD | Defined head names ∩ the 22 construct names, **any arity**. | *"`once` is a control construct matched by interned id (`lib/solve.cicili:151-154`) before the builtin table and before the store. Your clauses are unreachable and no runtime check can see them."* |
@@ -479,7 +479,7 @@ Signals:
 | stderr / exit | meaning |
 |---|---|
 | exit 0 and a `coco_oracle_end` line | consulted cleanly; oracle output is complete |
-| `ERROR: FILE:LINE:COL: Syntax error: <one of twelve reasons>` (through 1.11.8 `cocolog: FILE: syntax error at offset N: ...`) | **G1 escape** — log it as a linter bug, repair at LINE:COL |
+| `ERROR: FILE:LINE:COL: Syntax error: <swipl's sentence>` (cocolog's twelve reasons through 3.9.0; through 1.11.8 `cocolog: FILE: syntax error at offset N: ...`) | **G1 escape** — log it as a linter bug, repair at LINE:COL |
 | `ERROR: FILE:N:` then `ERROR:    Unknown procedure: N/A` | a directive that threw; the load CARRIED ON, so this is advice and not a stop |
 | `ERROR: FILE:LINE: not a clause` (through 1.11.8 `cocolog: FILE: not a clause`) | a term the asserter refused |
 
@@ -758,7 +758,7 @@ evidence is about behaviour and the file is the subject.
 
 | class | fingerprint | response |
 |---|---|---|
-| **A** syntax | `Syntax error: <one of twelve reasons>` after `FILE:LINE:COL:` (`syntax error at offset N` through 1.11.8) | **regenerate** with the reason; a G1 escape is logged as a linter bug |
+| **A** syntax | `Syntax error: <swipl's sentence>` after `FILE:LINE:COL:` (one of cocolog's twelve reasons through 3.9.0, `syntax error at offset N` through 1.11.8) | **regenerate** with the reason; a G1 escape is logged as a linter bug |
 | **B** directive that threw | `ERROR: FILE:N:` + the ball | not a stop: the file loaded. Repair the goal the directive names, or move it into `:- initialization(…)` if it calls something defined lower down |
 | **C** existence_error | exact predicate named | **first decide whether the environment is wrong.** If the name matches a tier-2 library's documented surface and its `.so` is absent, this is an environment failure: report `sh modules/X/build.sh` and **stop**. Repairing here is the worst outcome — the model removes the correct call. Otherwise repair as a typo |
 | **D** failed check | `Label = Got  BUT THIS LESSON SAYS Want` | cheapest and most common; needs no trace |

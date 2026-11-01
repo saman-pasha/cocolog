@@ -1221,12 +1221,17 @@
   ;;; A SYNTAX ERROR IS REPORTED WHERE IT STANDS AND THE LOAD GOES ON (3.1.0),
   ;;; on one line as swipl places it (1.11.9): the file, the line from 1 and
   ;;; the column from 0 -- in bytes, as swipl's -- of the token the reader
-  ;;; failed at, and the reason. Through 3.0.4 it ended the consult.
+  ;;; failed at, and the reason. Through 3.0.4 it ended the consult. The
+  ;;; reason is swipl's sentence for its id (3.10.0, messages.pl's
+  ;;; syntax_error//1: `Operator expected', `Unbalanced operator'), at the
+  ;;; column swipl gives it -- an operator clash at the operator before it
+  ;;; -- where through 3.9.0 it was the reader's own words.
   (static)
-  (func coco_consult_syntax_say ((coco_reader * r) (const char * origin))
-        (let ((int eline . 1) (int ecol . 0) (char what [1100])
-              (const char * why . #'(? (== (-> r ewhat) nil) "unreadable" (-> r ewhat))))
-          (coco_reader_place r (aof eline) (aof ecol))
+  (func coco_consult_syntax_say ((coco_machine * m) (coco_reader * r) (const char * origin))
+        (let ((int eline . 1) (int ecol . 0) (char what [1100]) (char why [600])
+              (int a1 . 0) (int a2 . 0)
+              (const char * id . #'(coco_reader_load_error r (aof eline) (aof ecol) (aof a1) (aof a2))))
+          (coco_syntax_sentence id a1 a2 (-> m double_quotes) why (sizeof why))
           (if (!= origin nil)
               (snprintf what (sizeof what) "%s:%d:%d: Syntax error: %s" origin eline ecol why)
             (snprintf what (sizeof what) "line %d, column %d: Syntax error: %s" eline ecol why))
@@ -1416,7 +1421,7 @@
             ;; was not read: one typo near the top and nothing under it loaded.
             (if (== rc -1)
                 (block
-                  (coco_consult_syntax_say (aof r) origin)
+                  (coco_consult_syntax_say m (aof r) origin)
                   (set (-> m heap_len) mark)
                   (coco_reader_resync (aof r))
                   (set rc 1)

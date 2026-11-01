@@ -67,7 +67,68 @@ main :-
     read_that_failed,
     recursive_message,
     near_names,
+    text_read_here,
+    text_read_own,
     checks_done.
+
+%% ---- where a text would not read, uncaught (3.10.0) -------------------------
+%%
+%% An error(syntax_error(Id), string(Raw, Pos)) nothing caught is said as
+%% swipl's -g main says it: the sentence, then the text before Pos, `** here
+%% **' and the rest, the prefix before each line (messages.pl's
+%% syntax_error_string//2; print_message/2's, which test/files/syntax_text.pl
+%% holds to swipl, is library(print_message)'s and not this printer). Through
+%% 3.9.0 the ball had no string(...) to say.
+text_read_here :-
+    section('a text that would not read is said with its ** here ** lines, uncaught'),
+    scratch(D),
+    atom_concat(D, '/here.pl', F),
+    fixture(F, [ 'main :- term_to_atom(_, ''f(a b)'').' ]),
+    cocolog(C),
+    sh_join([C, ' --no-backtrace --local -s ', F, ' 2>&1'], Cmd),
+    shell(Cmd, Out, Rc),
+    check('the program ends with the uncaught error', Rc, 2),
+    has('the sentence, the text before, ** here ** and the rest',
+        'Syntax error: Operator expected\nERROR: f(a\nERROR: ** here **\nERROR:  b) . ', Out),
+    here_said(D, 'punct.pl', 'a,',
+              'an id with arguments is said with its characters',
+              'Syntax error: Unexpected `,\' before `.\'\nERROR: a,\nERROR: ** here **\nERROR:  . '),
+    here_said(D, 'chars.pl', 'f(''é'' b)',
+              'the place is counted in characters',
+              'Syntax error: Operator expected\nERROR: f(\'é\'\nERROR: ** here **\nERROR:  b) . '),
+    shl(['rm -rf ', D]).
+
+%% What test/files/syntax_text.pl leaves out because swipl answers it
+%% otherwise (COMPAT.md), held to cocolog's answer: an integer past 64
+%% bits, which swipl makes a bignum of, and a raw read's text quoted from
+%% a letter past ASCII, which swipl quotes as its first byte. A letter past
+%% ASCII before digits continues a name, so its quote opens a quoted item.
+text_read_own :-
+    section('a text that would not read where swipl answers otherwise'),
+    own_read('99999999999999999999', R1),
+    check('an integer past 64 bits is integer_overflow', R1,
+          integer_overflow-"99999999999999999999 . "-0),
+    own_read('á "b', R2),
+    check('the raw read quotes a first letter past ASCII whole', R2,
+          end_of_file_in_quoted('"')-"á"-0),
+    own_read('é16\'a', R3),
+    check('a letter past ASCII before 16\' makes no radix of it', R3,
+          end_of_file_in_quoted('\'')-"é"-0).
+
+%% the ball's id, its raw text's codes and its place
+own_read(Text, Id-Codes-Pos) :-
+    catch(term_to_atom(_, Text), error(syntax_error(Id), string(S, Pos)), true),
+    string_codes(S, Codes).
+
+%% swipl's -g main says each of these so (9.0.4, LANG=C.UTF-8)
+here_said(D, Name, Text, What, Want) :-
+    atomic_list_concat([D, '/', Name], F),
+    format(atom(Line), 'main :- term_to_atom(_, ~q).', [Text]),
+    fixture(F, [Line]),
+    cocolog(C),
+    sh_join([C, ' --no-backtrace --local -s ', F, ' 2>&1'], Cmd),
+    shell(Cmd, Out, _),
+    has(What, Want, Out).
 
 %% ---- what an unknown procedure's name is near (3.3.0) -----------------------
 %%

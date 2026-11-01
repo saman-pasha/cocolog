@@ -167,14 +167,14 @@ syntax_error(D) :-
     %% missing (through 3.1.0 it stopped at the `:-', no argument then
     %% holding it); under_swipl/1 holds the place to swipl's in files where
     %% the two stop at one token.
-    atomic_list_concat(['ERROR: ', F, ':2:7: Syntax error: expected a term'], W1),
+    atomic_list_concat(['ERROR: ', F, ':2:7: Syntax error: Unexpected end of clause'], W1),
     has('run names the file, the line, the column and the reason', W1, Out),
     atomic_list_concat(['ERROR: ', F, ':6:7: Syntax error: '], W1b),
     has('and so each later one, where swipl places it', W1b, Out),
     atom_concat(D, '/synat.pl', At),
     fixture(At, ['p(1).', 'q(2) :- .']),
     ran(At, true, OutAt, _),
-    atomic_list_concat(['ERROR: ', At, ':2:8: Syntax error: expected a term'], WAt),
+    atomic_list_concat(['ERROR: ', At, ':2:8: Syntax error: Unbalanced operator'], WAt),
     has('the token it failed at, counted from 0', WAt, OutAt),
     %% THE CLAUSE BEFORE A BAD FIRST TOKEN IS KEPT: the reader is one token
     %% ahead, and through 3.0.4 a token that would not read straight after a
@@ -196,7 +196,7 @@ syntax_error(D) :-
     atomic_list_concat([':- use_module(''', ModSpec, ''').'], UseMod),
     fixture(Top, [UseMod, 'main :- findall(X, m(X), L), write(L), nl.']),
     sh_join(['--local -s ', Top, ' 2>&1'], A2), cocolog_run(A2, Out2, Rc2),
-    atomic_list_concat(['ERROR: ', Mod, ':2:8: Syntax error: expected a term'], W2),
+    atomic_list_concat(['ERROR: ', Mod, ':2:8: Syntax error: Unbalanced operator'], W2),
     has('-s names the module''s file and where', W2, Out2),
     has('and the module''s other clauses load', '[1,3]', Out2),
     check('and main runs', Rc2, 0),
@@ -207,6 +207,16 @@ syntax_error(D) :-
     ran(U, true, Out4, _),
     atomic_list_concat(['ERROR: ', U, ':2:12: Syntax error: '], W4),
     has('a column counts bytes, as swipl''s does', W4, Out4),
+    %% on a later line of its clause too, and a comment's character is one
+    %% column, its raw text's space (3.10.0; swipl 9.0.4 under C.UTF-8 says
+    %% 3:5 and 4:12, and the files case's swipl reads no UTF-8)
+    atom_concat(D, '/synutf2.pl', Uw),
+    fixture(Uw, ['x(1).', 'z(1,', ' ''é'' x y).', 'w(/* é */ a b).']),
+    ran(Uw, true, Outw, _),
+    atomic_list_concat(['ERROR: ', Uw, ':3:5: Syntax error: '], Ww1),
+    has('a later line''s column counts bytes', Ww1, Outw),
+    atomic_list_concat(['ERROR: ', Uw, ':4:12: Syntax error: '], Ww2),
+    has('a comment''s character is one column', Ww2, Outw),
     %% THE CONSULT'S OTHER STOPS ARE REPORTS NOW TOO, each in swipl's words
     %% (under_swipl/1 holds the three files' stderr to swipl's, word for
     %% word): an endif, else or elif with no if open is passed over; an if
@@ -762,27 +772,22 @@ under_swipl(D) :-
                  shell(Cb6, B6r, _), norm(D, B6r, B6n), vnorm(B6n, B6),
                  sh_join(['swipl says the same, word for word, of ', W, '.pl'], L6),
                  check(L6, A6, B6) )),
-        %% A SYNTAX ERROR'S PLACE (1.11.9): the file, the line and the column
-        %% before `Syntax error: '. The reasons are each system's own words
-        %% (`expected a term' where swipl says `Unbalanced operator'). A bad
-        %% escape is placed at its letter, as swipl's (3.1.0, synnext:
-        %% `'a\qb'.' at 2:3; through 3.0.4 at the quote, 2:0)
+        %% A SYNTAX ERROR'S PLACE (1.11.9) AND ITS REASON (3.10.0): the
+        %% file, the line, the column and swipl's sentence, the whole line --
+        %% through 3.9.0 the reasons were each system's own words (`expected a
+        %% term' where swipl says `Unbalanced operator') and only the place
+        %% before `Syntax error: ' was held. A bad escape is placed at its
+        %% letter, as swipl's (3.1.0, synnext: `'a\qb'.' at 2:3; through 3.0.4
+        %% at the quote, 2:0)
         forall(member(S, [synat, synutf, synnext]),
                ( sh_join([D, '/', S, '.pl'], SPl),
                  sh_join([C, ' --local run ', SPl, ' true 2>&1 >/dev/null'], Ca5), shell(Ca5, A5r, _),
-                 norm(D, A5r, A5n), first(A5n, A5l), syntax_place(A5l, A5),
+                 norm(D, A5r, A5n), first(A5n, A5),
                  sh_join(['LANG=C.UTF-8 swipl -q -g true -t halt ', SPl, ' 2>&1 >/dev/null'], Cb5),
-                 shell(Cb5, B5r, _), norm(D, B5r, B5n), first(B5n, B5l), syntax_place(B5l, B5),
-                 sh_join(['...and places a syntax error where swipl does in ', S, '.pl'], L5),
+                 shell(Cb5, B5r, _), norm(D, B5r, B5n), first(B5n, B5),
+                 sh_join(['...and places and words a syntax error as swipl does in ', S, '.pl'], L5),
                  check(L5, A5, B5) ))
     ;   format("     (skipped: swipl is not here, so the diff did not run)~n", [])
-    ).
-
-%% `ERROR: FILE:LINE:COL: ' -- a syntax error's line up to its reason
-syntax_place(Line, Place) :-
-    (   sub_atom(Line, B, _, _, 'Syntax error: ')
-    ->  sub_atom(Line, 0, B, _, Place)
-    ;   Place = Line
     ).
 
 %% a variable's name taken out: `_G12' and swipl's `_2132' are both `_'

@@ -10132,3 +10132,95 @@ PROVED:
 - test/stream.pl's ISO section: writeln/2 into a file, read back.
 - 2 arms, each red in both cases: the clause taken out (an unknown
   procedure) and the newline taken out (the lines run together).
+
+## A syntax error as swipl's: the text's ball, the load's words and place (3.10.0)
+
+Through 3.9.0 a text that would not read (term_to_atom/2, term_string/2,
+atom_to_term/3, read_term_from_atom/3) raised `syntax_error(Id)` with the
+predicate's context, Id one of three (operator_expected, illegal_number,
+end_of_string), and `a. b` was operator_expected; a load said cocolog's own
+words (`expected a term`) at the token it stopped at. Now both are swipl
+9.0.4's.
+
+WHAT SWIPL CALLS THE FAILURE is decided where the reader fails, as
+pl-read.c's complex_term decides it over its stack of operators (the reader
+is recursive, so the decision is made where the failure comes back up to
+its bracket; lib/syntax.cicili, the reader's `esyn', `eopen', `eops',
+`eopc', `epn', `clash_*'):
+- a term wanted and not there is settled at its bracket
+  (`coco_term_close'): operators pending and a token that ends the bracket
+  is punct(Op, Next) when the one left is a comma or a semicolon, else
+  operator_balance; the end of the clause, end_of_clause; a closing bracket,
+  cannot_start_term; a comma or a bar where an operand stands,
+  quoted_punctuation;
+- a bracket that does not close at its token (`coco_close_fail'): an
+  operator_clash there, a comma or a bar after a list's tail list_rest, a
+  closing bracket of another kind cannot_start_term, else
+  operator_expected; and a token after a whole term the same way
+  (`coco_reader_junk');
+- an operator that cannot take what is before it is a clash, placed at the
+  end of the operator before it (`coco_clash'; the first one a read meets);
+- the lexer's reasons in swipl's words (`coco_reader_id'): illegal_number
+  (and an escape that is no escape in `0'c'), float_overflow (`1.0e400',
+  which read as the infinity through 3.9.0), `numeric constant out of
+  range' (`1.0NaN'; a NaN outside 1 and 2 is no part of the number, so
+  `2.5NaN' is operator_expected), undefined_char_escape(C), the `\u' and
+  character-code sentences, illegal_character, quoted_punctuation;
+  `0'\c' is 99, swipl's.
+
+ONE RAW WALK (`coco_raw_walk', pl-read.c's raw_read2) serves the resync
+past a clause that will not read, a load's place, and a text's Raw: layout
+before the clause dropped, a comment a space a character (a newline kept),
+quoted text walked with swipl's escapes (an octal or hex escape takes the
+character after its digits, so `'\x41\''` is closed), `0'c' and a radix's
+quote no quoted item, a run of symbols one token, a full stop a `.' before
+layout, a `%' or the end. It refuses, before anything is parsed, a text that
+ends in a quoted item (end_of_file_in_quoted(Q)) or a block comment, a text
+straight after `0'' or a radix's quote (end_of_file), and a full stop with
+nothing before it (end_of_clause).
+
+A TEXT raises error(syntax_error(Id), string(Raw, Pos)) (`coco_tx_syntax',
+lib/solve-text.cicili): Raw the raw read's text (`a b' is "a b . "), Pos its
+characters before the token less one, as ptr_to_location counts. One term is
+read and a full stop ends it: `a. b' is `a', as swipl's. An uncaught one is
+said with its `** here **' lines (`coco_err_extra'), the sentence and its
+arguments' characters (`coco_syntax_say').
+
+A LOAD says messages.pl's sentence for the id at swipl's place
+(`coco_reader_load_error', `coco_syntax_sentence'): the clause's raw text
+walked from one column past its first character for the error's characters
+less one -- columns in bytes, a comment's character one -- so a token on a
+later line of its clause is one column short (`g(x\n  y).' is 2:1), the raw
+read's refusals at the first character's column plus one, no full stop
+before the end end_of_file at the last character, and a block comment open
+before anything was read 0:1. `q(x :- .' is 2:7 `Unexpected end of
+clause', as swipl's, where through 3.9.0 it was 2:4 `expected a term'.
+
+PROVED:
+- test/files/syntax_text.pl, 345 lines of swipl 9.0.4's output to the byte:
+  262 texts through term_to_atom/2, six past ASCII, the other three readers, and
+  seventeen said by print_message/2; the texts past ASCII written with
+  escapes and their Raw said as codes, the case's swipl reading no UTF-8.
+- test/files/syntax_load.pl, 47 lines: fourteen files with errors on every
+  rule above, the clauses either side of each asked for.
+- test/directives.pl: the sentences and places its cases held in
+  cocolog's words through 3.9.0, and two places past ASCII (a later line, a
+  comment's character) held to what swipl says under C.UTF-8.
+- test/errors.pl: the uncaught `** here **' lines, an id with arguments,
+  the place in characters, and three answers left to cocolog (below).
+- 139 arms, one per rule. Of the 136 run, 119 are red; 17 stay green
+  (a pending operator's count, a clash's token, the innermost mark, a
+  fresh clause's clash, two raw-walk guards, ...), and their code is
+  settled in the next commit -- a check that holds it to swipl, or the
+  code taken out -- with the three arms left to run.
+- The narrow cases (files, errors, directives, rationals, reconsult, repl,
+  serialize, stream, template, string, lint) red: 0; lint 0 HARD 0 WARN;
+  the card's cites checked, one renumbered.
+
+NOT SWIPL'S (COMPAT.md): a dict (`a.b', `1.e'), `[|]', a letter past ASCII
+outside quotes, an integer past 64 bits (integer_overflow, where swipl makes
+a bignum), a NUL byte; `\+ = a' and `dynamic ; a' refused with swipl's id at
+another place; Raw quoted from a first letter past ASCII whole, where swipl
+quotes its first byte as a character; and `read_term/2,3' from a stream,
+whose error is still 3.9.0's -- the next of these, with library(stream)'s
+other errors.

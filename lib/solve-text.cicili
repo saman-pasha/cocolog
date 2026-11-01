@@ -1246,47 +1246,114 @@
               (set lst (coco_cons m (coco_make m "=" 2 args) lst))))
           (return lst)))
 
-  ;;; A READER THAT FAILED, in SWI's syntax_error atom: the reader's own
-  ;;; reason where it has one (2.5.0) -- illegal_number -- else
-  ;;; end_of_clause for a text that ended inside the term (3.0.0, swipl's
-  ;;; term_to_atom(T, 'f(')), and operator_expected otherwise.
+  ;;; THE UNITS OF S FROM A TO B: characters (a byte that begins one) when
+  ;;; CHARS, else bytes.
   (static)
-  (func coco_reader_syntax ((coco_reader * r)) (out const char *)
-        (let ((const char * w . #'(-> r ewhat)))
-          (if (and (!= w nil) (== 0 (strcmp w "illegal number"))) (return "illegal_number"))
-          (if (>= (-> r epos) (-> r len)) (return "end_of_clause"))
-          (return "operator_expected")))
+  (func coco_tx_count ((const char * s) (size_t a) (size_t b) (int chars)) (out i64)
+        (let ((i64 k . 0))
+          (for ((size_t i . a)) (< i b) ((++ i))
+            (if (or (not chars) (!= (bitand (cast int (nth i s)) 192) 128)) (set k (+ k 1))))
+          (return k)))
+
+  ;;; A CHARACTER'S ATOM, from its code.
+  (static)
+  (func coco_tx_char_atom ((coco_machine * m) (int c)) (out size_t)
+        (let ((coco_strbuf b) (size_t a . 0))
+          (coco_sb_init (aof b))
+          (coco_utf8_put (aof b) (cast i64 c))
+          (set a (coco_new_atom m (coco_tx_s (aof b))))
+          (coco_sb_free (aof b))
+          (return a)))
+
+  ;;; A TEXT THAT WILL NOT READ RAISES SWIPL'S SYNTAX ERROR (3.10.0):
+  ;;; error(syntax_error(Id), string(Raw, Pos)), as pl-read.c's
+  ;;; makeErrorTerm makes it for a text. Raw is the text swipl's raw read
+  ;;; made of the clause (`coco_raw_walk': from its first character, the
+  ;;; comments spaces, and its full stop -- `a b' is "a b . "), Pos the
+  ;;; characters of Raw before the token the read failed at, less one
+  ;;; (ptr_to_location counts a character whose end is before the token,
+  ;;; so `a b' is at 1). What swipl's raw read refuses comes first, as it
+  ;;; does there before anything is parsed: a text that ends in a quoted
+  ;;; item or a block comment -- Raw its first character, Pos 0 -- or
+  ;;; straight after `0'' (end_of_file, Raw the text read, Pos its last
+  ;;; character), and a full stop with nothing before it (end_of_clause,
+  ;;; "."). Through 3.9.0 the ball was syntax_error(Id) with the
+  ;;; predicate's context, Id one of three. RD is freed here.
+  (static)
+  (func coco_tx_syntax ((coco_engine * e) (coco_reader * rd)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (coco_strbuf raw) (int kind . 0) (int q . 0)
+              (size_t at0 . 0) (int a1 . 0) (int a2 . 0) (const char * id . nil)
+              (size_t at . 0) (i64 pos . 0) (size_t idt . 0) (size_t ctx . 0)
+              (const char * s . #'(-> rd src)) (size_t n . #'(-> rd len))
+              (int chars . #'(-> m text_chars)))
+          (coco_sb_init (aof raw))
+          (coco_raw_walk s n 0 (aof raw) chars (aof kind) (aof q) (aof at0))
+          (cond
+            ((or (== kind 3) (== kind 4))
+             (set id (? (== kind 3) "end_of_file_in_quoted" "end_of_file_in_block_comment"))
+             (set a1 q)
+             ;; swipl quotes the clause's first character alone
+             (if (> ($ raw len) 0)
+                 (let ((size_t k . 1))
+                   (if chars
+                       (while (and (< k ($ raw len))
+                                   (== (bitand (cast int (nth k ($ raw s))) 192) 128))
+                         (set k (+ k 1))))
+                   (set ($ raw len) k)
+                   (set (nth k ($ raw s)) (cast char 0)))))
+            ((== kind 5)
+             (set id "end_of_file")
+             (set pos (- (coco_tx_count (coco_tx_s (aof raw)) 0 ($ raw len) chars) 1)))
+            ((== kind 6) (set id "end_of_clause"))
+            (#t
+             (set id (coco_reader_id rd (aof a1) (aof a2)))
+             (set at (coco_reader_errat rd))
+             (if (> at n) (set at n))
+             (cond
+               ;; at the end of a text with no full stop: at the `.' swipl put there
+               ((and (>= at n) (== kind 1))
+                (set pos (- (coco_tx_count (coco_tx_s (aof raw)) 0 ($ raw len) chars) 2)))
+               ((> at at0) (set pos (coco_tx_count s at0 at chars))))
+             (set pos (- pos 1))))
+          (if (< pos 0) (set pos 0))
+          (cond
+            ((== 0 (strcmp id "punct"))
+             (set idt (coco_make2 m "punct" (coco_tx_char_atom m a1) (coco_tx_char_atom m a2))))
+            ((or (== 0 (strcmp id "undefined_char_escape")) (== 0 (strcmp id "end_of_file_in_quoted")))
+             (set idt (coco_make1 m id (coco_tx_char_atom m a1))))
+            (#t (set idt (coco_new_atom m id))))
+          (set ctx (coco_make2 m "string" (coco_new_string m (coco_tx_s (aof raw)) ($ raw len))
+                               (coco_new_int m pos)))
+          (coco_sb_free (aof raw))
+          (coco_reader_free rd)
+          (return (coco_raise_ctx e (coco_make1 m "syntax_error" idt) ctx))))
 
   ;;; ONE TERM FROM B'S TEXT (3.0.0), as swipl's term_to_atom/2,
   ;;; term_string/2, atom_to_term/3 and read_term_from_atom/3 read it: a text
   ;;; of layout alone is `end_of_file' with no bindings (through 2.16.1
   ;;; atom_to_term/3 raised syntax_error(end_of_string) for an empty one),
-  ;;; a period may end it and anything after the term is
-  ;;; syntax_error(operator_expected). Answers 1 with the term in *T and,
-  ;;; when NAMES is not nil, its bindings there; else the raise's answer.
+  ;;; and a full stop ends it -- WHAT COMES AFTER IS NOT READ (3.10.0),
+  ;;; swipl's: `a. b' is a, where through 3.9.0 it was operator_expected --
+  ;;; and anything else after the term is swipl's syntax error
+  ;;; (`coco_tx_syntax'). Answers 1 with the term in *T and, when NAMES is
+  ;;; not nil, its bindings there; else the raise's answer.
   (static)
   (func coco_tx_read ((coco_engine * e) (coco_strbuf * b) (size_t * t) (size_t * names)) (out int)
         (let ((coco_machine * m . #'(-> e m)) (coco_reader rd))
           ;; the reader keeps SRC by pointer, so the buffer outlives it
           (coco_reader_init (aof rd) m (coco_tx_s b))
-          (if ($ rd failed)
-              (let ((const char * why . #'(coco_reader_syntax (aof rd))))
-                (coco_reader_free (aof rd))
-                (return (coco_syntax_err e why))))
+          (if ($ rd failed) (return (coco_tx_syntax e (aof rd))))
           (if (== ($ rd tok) COCO_TK_EOF)
               (block (coco_reader_free (aof rd))
                      (set (cof t) (coco_new_atom m "end_of_file"))
                      (if (!= names nil) (set (cof names) (coco_new_nil m)))
                      (return 1)))
           (if (not (coco_read_goal (aof rd) t))
-              (let ((const char * why . #'(coco_reader_syntax (aof rd))))
-                (coco_reader_free (aof rd))
-                (return (coco_syntax_err e why))))
-          ;; a period may end it; anything else is junk
-          (if (== ($ rd tok) COCO_TK_END) (coco_next_token (aof rd)))
-          (if (!= ($ rd tok) COCO_TK_EOF)
-              (block (coco_reader_free (aof rd))
-                     (return (coco_syntax_err e "operator_expected"))))
+              (block (coco_reader_close_top (aof rd))
+                     (return (coco_tx_syntax e (aof rd)))))
+          (if (and (!= ($ rd tok) COCO_TK_END) (!= ($ rd tok) COCO_TK_EOF))
+              (block (coco_reader_junk (aof rd))
+                     (return (coco_tx_syntax e (aof rd)))))
           (if (!= names nil) (set (cof names) (coco_reader_names m (aof rd))))
           (coco_reader_free (aof rd))
           (return 1)))

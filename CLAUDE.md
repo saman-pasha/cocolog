@@ -1389,7 +1389,7 @@ cocolint index offers no import of it.
   thing that ended a consult): the clause is reported and passed over, the
   reader taken up after the full stop that ends it, walked from the
   clause's first byte as swipl's raw read walks it (`coco_reader_resync`,
-  the reader's `cstart`). So are an endif, else or elif with no if open,
+  the reader's `cstart`, over `coco_raw_walk` since 3.10.0). So are an endif, else or elif with no if open,
   an if the file never closes (named at its end), and a term that is no
   clause -- `3.`, `foo :- 3.`, `bar :- (a, 1).` in swipl's words;
   `[].` passes in silence, and a variable is reported where swipl's load
@@ -1490,9 +1490,37 @@ cocolint index offers no import of it.
   ITS file, through `use_module` and through the load a goal's ask makes
   (`load_err` on the store) -- and since 3.1.0 the load goes on past it.
   Through 1.11.8 `run` said a byte offset and `-s` only `its clauses would
-  not consult`. The REASON is cocolog's own words, and the place swipl's
-  where the two readers stop at one token; a bad escape is placed at its
-  letter (`c('a\qb')` at 5), as swipl's.
+  not consult`. **The REASON and the place are swipl's since 3.10.0**
+  (`coco_reader_load_error`, `coco_syntax_sentence` in lib/syntax.cicili):
+  messages.pl's sentence for swipl's id, and swipl's place, the clause's
+  RAW text walked from one column past its first character for the
+  error's characters less one -- columns in bytes, a comment's character
+  one, so a token on a later line of its clause is a column short
+  (`g(x\n  y).' says 2:1); what the raw read refuses is the first
+  character's column plus one, no full stop before the end is
+  end_of_file at the last character, and a block comment open before
+  anything was read is 0:1. Through 3.9.0 cocolog's words (`expected a
+  term`) at the token. **Swipl's id is decided where the reader fails**,
+  as pl-read.c's complex_term decides it (the reader's `esyn`, `eopen`,
+  `eops`, `eopc`, `epn`, `clash_*`): a term wanted and not there is settled
+  at its bracket (`coco_term_close`: punct(Op, Next), operator_balance,
+  end_of_clause, cannot_start_term, quoted_punctuation), a bracket that
+  does not close at its token (`coco_close_fail`: operator_clash,
+  list_rest, cannot_start_term, operator_expected), a clash placed at the
+  end of the operator before it, and the lexer's reasons named by
+  `coco_reader_id`. **A new way for the parser to fail decides its id
+  there too**, or it says operator_expected. **ONE raw walk serves the
+  resync, a load's place and a text read's Raw** (`coco_raw_walk`,
+  pl-read.c's raw_read2): a quoted item walked with swipl's escapes (an
+  octal or hex escape takes the character after its digits), `0'c` and a
+  radix's quote no quoted item, a run of symbols one token, a full stop a
+  `.` before layout, a `%` or the end. **A text read raises
+  error(syntax_error(Id), string(Raw, Pos))** (3.10.0, `coco_tx_syntax`
+  in lib/solve-text.cicili; term_to_atom/2 and its three kin): Raw the
+  raw read's text, Pos its characters before the token less one, one term
+  read and a full stop ending it (`a. b` is `a`); an uncaught one is said
+  with its `** here **` lines (`coco_err_extra`). test/files/syntax_text.pl
+  holds 345 lines of it to swipl, test/files/syntax_load.pl 47.
 * **`atomic_list_concat/3` with a bound third argument and a non-ground list
   SPLITS**; `/2` cannot split; `atom_concat/3` has `(+,-,+)` and `(-,+,+)` but
   no `(-,-,+)`; `string_concat/3` only `(+,+,-)`. **`sub_atom/5` and

@@ -2420,13 +2420,6 @@
   (func coco_instantiation_error ((coco_engine * e)) (out int)
         (return (coco_raise e (coco_new_atom (-> e m) "instantiation_error"))))
 
-  ;;; syntax_error(WHAT), as SWI's text predicates raise it (2.5.0):
-  ;;; end_of_string, illegal_number, operator_expected
-  (static)
-  (func coco_syntax_err ((coco_engine * e) (const char * what)) (out int)
-        (return (coco_raise e (coco_make1 (-> e m) "syntax_error"
-                                      (coco_new_atom (-> e m) what)))))
-
   (static)
   (func coco_evaluation_error ((coco_engine * e) (const char * what)) (out int)
         (return (coco_raise e (coco_make1 (-> e m) "evaluation_error"

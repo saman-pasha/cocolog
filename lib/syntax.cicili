@@ -266,7 +266,7 @@
        (while 1
          (let ((size_t item))
            (if (not (,TERM r 1200 (aof item) (aof prec)))
-               (block (set ok 0) break))
+               (block (coco_term_close r 93 ",|]") (set ok 0) break))
            ;; GROWN THROUGH A SECOND POINTER (2.11.1): set from `realloc'
            ;; itself, a refusal left nil where the old block was -- leaked,
            ;; and the read failed saying nothing of why
@@ -294,12 +294,12 @@
        (if (coco_is_punct r (coco-ch "|"))
            (block (if (not (coco_next_token r)) (block (free items) (if ,P (free ps)) (return 0)))
                   (if (not (,TERM r 1200 (aof tail) (aof prec)))
-                      (block (free items) (if ,P (free ps)) (return 0)))
+                      (block (coco_term_close r 93 "]") (free items) (if ,P (free ps)) (return 0)))
                   (set bar 1))
          (set tail (coco_new_nil (-> r m))))
        (set (-> r stop) ostop)
        (if (not (coco_is_punct r (coco-ch "]")))
-           (block (free items) (if ,P (free ps)) (return (coco_fail r "expected ] closing a list"))))
+           (block (free items) (if ,P (free ps)) (return (coco_close_fail r "expected ] closing a list" bar))))
        ;; the tail's position is the term parsed last, `none' with no bar
        (if ,P
            (block
@@ -329,7 +329,8 @@
      (set (-> r stop) 1)
      (while 1
        (let ((size_t a))
-         (if (not (,TERM r 1200 (aof a) (aof prec))) (block (set ok 0) break))
+         (if (not (,TERM r 1200 (aof a) (aof prec)))
+             (block (coco_term_close r 41 ",)") (set ok 0) break))
          ;; grown through a second pointer, as the list's are (2.11.1)
          (if (>= n cap)
              (let ((size_t ncap . #'(? (== cap 0) 8 (* cap 2)))
@@ -352,7 +353,7 @@
                 (if oom (return (coco_fail r "out of memory reading an argument list")))
                 (return 0)))
      (if (not (coco_is_punct r (coco-ch ")")))
-         (block (free args) (if ,P (free ps)) (return (coco_fail r "expected ) closing an argument list"))))
+         (block (free args) (if ,P (free ps)) (return (coco_close_fail r "expected ) closing an argument list" 0))))
      (if ,P (block (coco_pos_term r nf (-> r pos) nf nt ps n) (free ps)))
      (if (not (coco_next_token r)) (block (free args) (return 0)))
      (set (cof out) (coco_make (-> r m) name (cast u32 n) args))
@@ -401,9 +402,9 @@
           (if (not (coco_next_token r)) (return 0))
           (let ((int p) (int ostop . #'(-> r stop)))
             (set (-> r stop) 0)
-            (if (not (,TERM r 1200 out (aof p))) (return 0))
+            (if (not (,TERM r 1200 out (aof p))) (block (coco_term_close r 41 ")") (return 0)))
             (set (-> r stop) ostop))
-          (if (not (coco_is_punct r (coco-ch ")"))) (return (coco_fail r "expected )")))
+          (if (not (coco_is_punct r (coco-ch ")"))) (return (coco_close_fail r "expected )" 0)))
           (if ,P (coco_pos_wrap r "parentheses_term_position" f (-> r pos)))
           (return (coco_next_token r))))
 
@@ -426,9 +427,9 @@
                (return (coco_next_token r))))
           (let ((size_t inner) (int p) (int ostop . #'(-> r stop)))
             (set (-> r stop) 0)
-            (if (not (,TERM r 1200 (aof inner) (aof p))) (return 0))
+            (if (not (,TERM r 1200 (aof inner) (aof p))) (block (coco_term_close r 125 "}") (return 0)))
             (set (-> r stop) ostop)
-            (if (not (coco_is_punct r (coco-ch "}"))) (return (coco_fail r "expected }")))
+            (if (not (coco_is_punct r (coco-ch "}"))) (return (coco_close_fail r "expected }" 0)))
             (if ,P (coco_pos_wrap r "brace_term_position" f (-> r pos)))
             (if (not (coco_next_token r)) (return 0))
             (set (cof out) (coco_make1 (-> r m) "{}" inner))
@@ -451,7 +452,10 @@
           (free heap)
           (return ok)))
 
-       (#t (return (coco_fail r "expected a term"))))))
+       (#t (coco_fail r "expected a term")
+           ;; settled at its bracket (3.10.0, `coco_term_close')
+           (set (-> r eopen) 1) (set (-> r eops) 0) (set (-> r eopc) 0)
+           (return 0)))))
 
 ;;; A NAME token that has already been copied out: an atom, a compound, a
 ;;; prefix operator applied to what follows, or the negative-number spelling.
@@ -502,11 +506,21 @@
        (if (and prefix (and (<= prec maxprec) (coco_starts_term r)))
            (let ((size_t arg) (int argprec)
                  (int argmax . #'(? (== type COCO_FY) prec (- prec 1))))
-             (if (not (,TERM r argmax (aof arg) (aof argprec))) (return 0))
+             ;; its operand is what an operator clash in it is placed after
+             (set (-> r lopend) nt)
+             (if (not (,TERM r argmax (aof arg) (aof argprec)))
+                 (block (coco_op_failed r name) (return 0)))
              (set (cof out) (coco_make1 (-> r m) name arg))
              (set (cof outprec) prec)
              (if ,P (coco_pos_prefix r nf nf nt))
              (return 1)))
+
+       ;; A PREFIX OPERATOR OVER THE PRIORITY HERE, BEFORE A TERM (3.10.0):
+       ;; `a = \+ b', `a :- :- b' -- swipl's operator clash, at the token
+       ;; after it and placed after the operator before it; the read fails
+       ;; at that token, which no operator here can take
+       (if (and prefix (and (> prec maxprec) (coco_starts_term r)))
+           (coco_clash r (-> r lopend)))
 
        ;; Otherwise a plain atom -- AT ITS PREFIX PRIORITY when it is an
        ;; unquoted prefix operator, and 0 else (3.2.0, swipl's): so it is
@@ -537,7 +551,7 @@
 ;;; correctly anyway, for the same reason a long atom now is: the reader
 ;;; should not be where a name quietly changes.
 (DEFMACRO coco-parse-term-body (P TERM PRIMARY)
-  `(let ((size_t left) (int leftprec)
+  `(let ((size_t left) (int leftprec) (size_t lopt . 0)
          (char small [256]) (char * heap . nil) (size_t hcap . 0))
      (if (not (,PRIMARY r maxprec (aof left) (aof leftprec)))
          (block (free heap) (return 0)))
@@ -564,16 +578,21 @@
          (if (> prec maxprec) break)
          (let ((int lmax . #'(? (== type COCO_YFX) prec (- prec 1)))
                (int rmax . #'(? (== type COCO_XFY) prec (- prec 1))))
-           (if (> leftprec lmax) break)
+           ;; a clash (3.10.0), placed after this level's last operator -- or
+           ;; none, when the left came from the primary: `\+ = a' is swipl's
+           ;; operator_expected
+           (if (> leftprec lmax)
+               (block (if (!= lopt 0) (coco_clash r lopt)) break))
            ;; for positions: where the operator stands, and the left
            ;; operand's position and start, which the term built on it
            ;; begins with -- the term parsed last, so far
            (let ((size_t opf . #'(-> r tstart)) (size_t opt . #'(-> r pos))
                  (size_t lp . #'(-> r lpos)) (size_t lf . #'(-> r lfrom)))
+             (set lopt opt) (set (-> r lopend) opt)
              (if (not (coco_next_token r)) (block (free heap) (return 0)))
              (let ((size_t right) (int rightprec))
                (if (not (,TERM r rmax (aof right) (aof rightprec)))
-                   (block (free heap) (return 0)))
+                   (block (coco_op_failed r name) (free heap) (return 0)))
                (set left (coco_make2 (-> r m) name left right))
                (set leftprec prec)
                (if ,P (coco_pos_infix r lp lf opf opt)))))))
@@ -719,7 +738,7 @@
     ;; WHERE AND WHY IT STOPPED (1.11.9): the first byte of the token in hand
     ;; when the reader failed, and the reason alone -- `err' says both as a
     ;; byte offset, for every reader of a term; a load says them as SWI
-    ;; does, by the line and column (`coco_reader_place')
+    ;; does, by the line and column (`coco_reader_load_error')
     (member size_t       epos)
     (member const char * ewhat)
     ;; WHERE THE CLAUSE BEING READ BEGAN (3.1.0): the first byte of its first
@@ -730,15 +749,48 @@
     ;; WHAT ENDS THE TERM BEING READ (3.2.0), past its priority: 0 nothing,
     ;; 1 a comma (an argument), 2 a comma or a bar (a list element); each
     ;; bracket sets its own and puts the one around it back
-    (member int          stop))
+    (member int          stop)
+    ;; WHAT SWIPL WOULD CALL THE FAILURE (3.10.0), decided where the reader
+    ;; failed, as pl-read.c's complex_term decides it -- nil for a reason
+    ;; the lexer's words name (`coco_reader_id'). A term that was
+    ;; wanted and not there (EOPEN) is settled at its bracket
+    ;; (`coco_term_close'): EOPS operators were passed on the way up to it,
+    ;; EOPC the innermost's character when it is a comma or a semicolon,
+    ;; and EPN the token it stopped at, for punct(Op, Next). An operator
+    ;; that could not take what came before it is a CLASH at CLASH_TOK,
+    ;; placed at CLASH_AT, the end of the operator before it (swipl's
+    ;; last_token_start there); LOPEND is the end of the last operator
+    ;; whose operand is being read. ECOMMENT is a block comment the text
+    ;; ended in, at its first byte plus one.
+    (member const char * esyn)
+    (member int          eopen)
+    (member int          eops)
+    (member int          eopc)
+    (member int          epn)
+    (member int          clash_set)
+    (member size_t       clash_tok)
+    (member size_t       clash_at)
+    (member size_t       lopend)
+    (member size_t       ecomment))
 
   (decl) (func coco_reader_init ((coco_reader * r) (coco_machine * m) (const char * src)))
 
-  ;;; Where a reader that failed stopped, as SWI places a syntax error: the
-  ;;; line from 1, and the column from 0 of the token it failed at, counted
-  ;;; in BYTES as swipl 9 counts it -- `z('áá', b c).' fails at column 12,
-  ;;; where the same line with `aa' fails at 10 (1.11.9).
-  (decl) (func coco_reader_place ((coco_reader * r) (int * line) (int * col)))
+  ;;; WHAT A LOAD SAYS OF A CLAUSE THAT WOULD NOT READ, AND WHERE (3.10.0),
+  ;;; as swipl's raw read of a stream and its parse say it: the id (A1, A2 as
+  ;;; `coco_reader_id' answers them) -- what the raw read refuses first, a
+  ;;; text that ends in a quoted item or a block comment, a clause with no
+  ;;; full stop before the end (end_of_file) or a full stop with nothing
+  ;;; before it (end_of_clause) -- and the line from 1 and the column from
+  ;;; 0, in BYTES as swipl 9 counts them (`z('áá', b c).' fails at column
+  ;;; 12, 1.11.9). swipl places it by walking the clause's raw text from one
+  ;;; column past its first character for one character less than the
+  ;;; error's place, so a token on a later line of the clause is one column
+  ;;; short of where it stands (`g(x\n  y).' says 2:1), and the refusals of
+  ;;; the raw read are at the first character's column plus one; a block
+  ;;; comment open before anything was read is at 0:1. Through 3.9.0 the
+  ;;; place was the token's own (`coco_reader_place').
+  (decl) (func coco_reader_load_error ((coco_reader * r) (int * line) (int * col)
+                                        (int * a1) (int * a2)) (out const char *))
   (decl) (func coco_reader_free ((coco_reader * r)))
 
   ;;; Reads one clause, up to and including its terminating `.'. Answers 1 and
@@ -751,6 +803,53 @@
   ;;; failed in, the next token in hand. 1, or 0 when that token would not
   ;;; read either -- the reader has failed again, further on.
   (decl) (func coco_reader_resync ((coco_reader * r)) (out int))
+
+  ;;; SWIPL'S NAME FOR WHERE A READER FAILED (3.10.0): the syntax_error
+  ;;; id, and its arguments as characters into A1 and A2 -- punct(A1, A2),
+  ;;; undefined_char_escape(A1), end_of_file_in_quoted(A1) -- or 0. The
+  ;;; parser's decision where it made one, else the lexer's reason in
+  ;;; swipl's word.
+  (decl) (func coco_reader_id ((coco_reader * r) (int * a1) (int * a2)) (out const char *))
+  ;;; The byte swipl places that failure at: the token's first, or for a
+  ;;; priority clash the end of the operator before it.
+  (decl) (func coco_reader_errat ((coco_reader * r)) (out size_t))
+  ;;; A term read, and a token after it that ends nothing (3.10.0): the
+  ;;; reader failed there, as swipl's says it (operator_expected,
+  ;;; cannot_start_term, operator_clash). 0.
+  (decl) (func coco_reader_junk ((coco_reader * r)) (out int))
+  ;;; A term read at the top that failed: a term wanted and not there is
+  ;;; settled as the top's (end_of_clause, punct, operator_balance, ...).
+  (decl) (func coco_reader_close_top ((coco_reader * r)))
+  ;;; SWIPL'S SENTENCE FOR AN ID (3.10.0), messages.pl's syntax_error//1,
+  ;;; into OUT: A1 and A2 as `coco_reader_id' answers them, DQ the
+  ;;; double_quotes flag (0 codes, 1 chars, 2 atom, 3 string) for a quoted
+  ;;; string the text ended in. An id it does not know is said as it is.
+  (decl) (func coco_syntax_sentence ((const char * id) (int a1) (int a2) (int dq)
+                                      (char * out) (size_t len)))
+
+  ;;; SWIPL'S RAW READ OF ONE CLAUSE'S TEXT (3.10.0), pl-read.c's
+  ;;; raw_read2: from FROM in S (N bytes), the end of the clause there, as
+  ;;; swipl's reader finds it before it parses -- the byte after the `.'
+  ;;; that ends it, or N. Layout and comments before the clause are passed
+  ;;; over; inside it a comment is a space a character (a newline stays a
+  ;;; newline), quoted text is walked with swipl's escapes (an octal or a
+  ;;; hex escape takes the character after its digits, its closing
+  ;;; backslash, and a quote there closes the item), `0'c' and a radix's
+  ;;; quote (`16'ff') are no quoted items, a run of symbol characters is
+  ;;; one token whatever it holds, and a full stop is a `.' that begins a
+  ;;; token and is followed by layout, a `%' or the end. KIND: 0 a full
+  ;;; stop ended it, 1 the end of the text did with something read, 2
+  ;;; nothing was read, 3 the text ended in a quoted item (*Q its quote),
+  ;;; 4 in a block comment, 5 straight after `0'' or a radix's quote
+  ;;; (swipl's end_of_file), 6 a full stop with nothing before it. RAW,
+  ;;; when not nil, gets the text swipl's syntax error quotes: from the
+  ;;; clause's first character, the comments made spaces, and ending `. '
+  ;;; -- after the full stop, or after a space put on the end when the
+  ;;; text ended on no layout -- or, for 3 to 5, as far as the walk got.
+  ;;; CHARS counts a comment's character as one space, else each byte.
+  ;;; *AT0 is where the clause's first character is.
+  (decl) (func coco_raw_walk ((const char * s) (size_t n) (size_t from) (coco_strbuf * raw)
+                              (int chars) (int * kind) (int * q) (size_t * at0)) (out size_t))
 
   ;;; Reads one term from a reader that is already going, and does NOT insist
   ;;; on a terminating `.'. The point of taking the reader rather than the text
@@ -1081,8 +1180,9 @@
   ;;; which is what a caller loading a clause out of the database needs in
   ;;; order to say which clause would not read.
   ;;; The token's first byte and the bare reason are kept too (1.11.9),
-  ;;; which a load turns into SWI's FILE:LINE:COL (`coco_reader_place'):
-  ;;; every WHAT here is a literal, so the pointer outlives the reader.
+  ;;; which a load turns into SWI's FILE:LINE:COL (`coco_reader_load_error')
+  ;;; and swipl's id (`coco_reader_id'): every WHAT here is a literal, so
+  ;;; the pointer outlives the reader.
   (static)
   (func coco_fail ((coco_reader * r) (const char * what)) (out int)
         (snprintf (-> r err) 192 "syntax error at offset %lu: %s"
@@ -1092,15 +1192,167 @@
         (set (-> r failed) 1)
         (return 0))
 
-  (func coco_reader_place ((coco_reader * r) (int * line) (int * col))
-        (let ((size_t p . #'(-> r epos)) (int ln . 1) (int c . 0))
-          (if (> p (-> r len)) (set p (-> r len)))
-          (for ((size_t i . 0)) (< i p) ((++ i))
-            (if (== (nth i (-> r src)) (cast char 10))
-                (block (set ln (+ ln 1)) (set c 0))
-              (set c (+ c 1))))
+  ;;; THE READER'S REASON IN SWIPL'S WORD (3.10.0). It SETTLES the
+  ;;; failure -- an escape that is no escape in a `0'c' is swipl's illegal
+  ;;; number, placed at the number -- so it is asked before
+  ;;; `coco_reader_errat'.
+  (func coco_reader_id ((coco_reader * r) (int * a1) (int * a2)) (out const char *)
+        (let ((const char * w . #'(-> r ewhat)) (const char * s . #'(-> r src))
+              (size_t t . #'(-> r tstart)) (int zq . 0))
+          (set (cof a1) 0) (set (cof a2) 0)
+          (if (!= (-> r esyn) nil)
+              (block (if (== 0 (strcmp (-> r esyn) "punct"))
+                         (block (set (cof a1) (-> r eopc)) (set (cof a2) (-> r epn))))
+                     (return (-> r esyn))))
+          (if (== w nil) (return "operator_expected"))
+          (set zq (and (< (+ t 1) (-> r len))
+                       (and (== (nth t s) (cast char 48)) (== (nth (+ t 1) s) (cast char 39)))))
+          (if (and zq (or (== 0 (strcmp w "unknown escape"))
+                          (or (== 0 (strcmp w "undefined escape \\x"))
+                              (or (== 0 (strcmp w "illegal character code"))
+                                  (== 0 (strcmp w "illegal \\u or \\U sequence"))))))
+              (block (set (-> r epos) t) (set (-> r esyn) "illegal_number")
+                     (return "illegal_number")))
+          (cond
+            ((or (== 0 (strcmp w "illegal number"))
+                 (== 0 (strcmp w "digits expected after radix prefix")))
+             (return "illegal_number"))
+            ;; swipl makes a bignum; with bounded integers it says this
+            ((== 0 (strcmp w "integer out of range")) (return "integer_overflow"))
+            ((== 0 (strcmp w "float overflow")) (return "float_overflow"))
+            ((== 0 (strcmp w "numeric constant out of range"))
+             (return "numeric constant out of range"))
+            ((or (== 0 (strcmp w "unknown escape")) (== 0 (strcmp w "undefined escape \\x")))
+             (let ((size_t i . #'(-> r epos)))
+               (if (< i (-> r len))
+                   (set (cof a1) (cast int (coco_utf8_get s (-> r len) (aof i)))))
+               (return "undefined_char_escape")))
+            ((== 0 (strcmp w "illegal \\u or \\U sequence")) (return "Illegal \\u or \\U sequence"))
+            ((== 0 (strcmp w "illegal character code")) (return "Illegal character code"))
+            ((== 0 (strcmp w "unexpected character")) (return "illegal_character"))
+            ;; a prefix operator's atom before an infix bar
+            ((== 0 (strcmp w "operator expected")) (return "quoted_punctuation"))
+            ((== 0 (strcmp w "unterminated quoted item"))
+             (if (< t (-> r len)) (set (cof a1) (bitand (cast int (nth t s)) 255)))
+             (return "end_of_file_in_quoted"))
+            ((== 0 (strcmp w "unterminated character code")) (return "end_of_file"))
+            ((== 0 (strcmp w "end of file in a block comment"))
+             (return "end_of_file_in_block_comment")))
+          (return "operator_expected")))
+
+  (func coco_syntax_sentence ((const char * id) (int a1) (int a2) (int dq)
+                              (char * out) (size_t len))
+        (let ((const char * w . nil) (coco_strbuf c))
+          (cond ((== 0 (strcmp id "end_of_clause")) (set w "Unexpected end of clause"))
+                ((== 0 (strcmp id "end_of_clause_expected")) (set w "End of clause expected"))
+                ((== 0 (strcmp id "end_of_file")) (set w "Unexpected end of file"))
+                ((== 0 (strcmp id "end_of_file_in_block_comment"))
+                 (set w "End of file in /* ... */ comment"))
+                ((== 0 (strcmp id "illegal_number")) (set w "Illegal number"))
+                ((== 0 (strcmp id "long_atom")) (set w "Atom too long (see style_check/1)"))
+                ((== 0 (strcmp id "long_string")) (set w "String too long (see style_check/1)"))
+                ((== 0 (strcmp id "operator_clash")) (set w "Operator priority clash"))
+                ((== 0 (strcmp id "operator_expected")) (set w "Operator expected"))
+                ((== 0 (strcmp id "operator_balance")) (set w "Unbalanced operator"))
+                ((== 0 (strcmp id "quoted_punctuation"))
+                 (set w "Operand expected, unquoted comma or bar found"))
+                ((== 0 (strcmp id "list_rest")) (set w "Unexpected comma or bar in rest of list"))
+                ((== 0 (strcmp id "cannot_start_term")) (set w "Illegal start of term"))
+                ((== 0 (strcmp id "void_not_allowed")) (set w "Empty argument list \"()\"")))
+          (if (!= w nil) (block (snprintf out len "%s" w) (return)))
+          ;; the three with an argument, each a character
+          (coco_sb_init (aof c))
+          (cond
+            ((== 0 (strcmp id "punct"))
+             (coco_sb_put (aof c) "Unexpected `")
+             (coco_utf8_put (aof c) (cast i64 a1))
+             (coco_sb_put (aof c) "' before `")
+             (coco_utf8_put (aof c) (cast i64 a2))
+             (coco_sb_putc (aof c) (cast char 39)))
+            ((== 0 (strcmp id "undefined_char_escape"))
+             (coco_sb_put (aof c) "Unknown character escape in quoted atom or string: `")
+             (coco_sb_putc (aof c) (cast char 92))
+             (coco_utf8_put (aof c) (cast i64 a1))
+             (coco_sb_putc (aof c) (cast char 39)))
+            ((== 0 (strcmp id "end_of_file_in_quoted"))
+             ;; a string's type is the double_quotes flag's, a back quote's
+             ;; the back_quotes flag's (codes, the one value here)
+             (coco_sb_put (aof c) "End of file in quoted ")
+             (coco_sb_put (aof c) (? (== a1 39) "atom"
+                                     (? (== a1 96) "codes"
+                                        (? (== dq 1) "chars"
+                                           (? (== dq 2) "atom"
+                                              (? (== dq 3) "string" "codes")))))))
+            (#t (coco_sb_put (aof c) id)))
+          (snprintf out len "%s" (? (== ($ c s) nil) "" ($ c s)))
+          (coco_sb_free (aof c))))
+
+  (func coco_reader_errat ((coco_reader * r)) (out size_t)
+        (if (and (!= (-> r esyn) nil) (== 0 (strcmp (-> r esyn) "operator_clash")))
+            (return (-> r clash_at)))
+        (return (-> r epos)))
+
+  ;;; The characters of S from A to B: a byte that begins one when CHARS,
+  ;;; else every byte.
+  (static)
+  (func coco_raw_chars ((const char * s) (size_t a) (size_t b) (int chars)) (out i64)
+        (let ((i64 k . 0))
+          (for ((size_t i . a)) (< i b) ((++ i))
+            (if (or (not chars) (!= (bitand (cast int (nth i s)) 192) 128)) (set k (+ k 1))))
+          (return k)))
+
+  (func coco_reader_load_error ((coco_reader * r) (int * line) (int * col)
+                                (int * a1) (int * a2)) (out const char *)
+        (let ((const char * s . #'(-> r src)) (size_t n . #'(-> r len))
+              (int chars . #'(-> (-> r m) text_chars)) (int kind . 0) (int q . 0)
+              (size_t at0 . 0) (size_t at . 0) (const char * id . nil)
+              (i64 walk . 0) (int ln . 1) (int cl . 0) (coco_strbuf raw))
+          (set (cof a1) 0) (set (cof a2) 0)
+          (coco_sb_init (aof raw))
+          (coco_raw_walk s n (-> r cstart) (aof raw) chars (aof kind) (aof q) (aof at0))
+          (cond
+            ((== kind 3) (set id "end_of_file_in_quoted") (set (cof a1) q))
+            ((== kind 4) (set id "end_of_file_in_block_comment"))
+            ((== kind 6) (set id "end_of_clause"))
+            ;; no full stop before the end: a stream's raw read refuses it
+            ;; there, at its last character
+            ((or (== kind 1) (== kind 5))
+             (set id "end_of_file")
+             (set walk (- (coco_raw_chars s at0 n chars) 1)))
+            (#t
+             (set id (coco_reader_id r a1 a2))
+             (set at (coco_reader_errat r))
+             (if (> at n) (set at n))
+             (if (< at at0) (set at at0))
+             (set walk (- (coco_raw_chars s at0 at chars) 1))))
+          (for ((size_t i . 0)) (< i at0) ((++ i))
+            (if (== (nth i s) (cast char 10))
+                (block (set ln (+ ln 1)) (set cl 0))
+              (set cl (+ cl 1))))
+          (cond
+            ;; a block comment open before anything was read has no place
+            ((and (== kind 4) (>= at0 n)) (set ln 0) (set cl 1))
+            ;; the error at the clause's first character is at its column
+            ((< walk 0) (set walk 0))
+            ;; else the walk, over the RAW text: a comment's character is
+            ;; the one space it is there, and any other's bytes are
+            ;; columns, swipl's (`w(/* é */ a b).' fails at 12)
+            (#t
+             (set cl (+ cl 1))
+             (let ((size_t p . 0) (i64 k . 0) (size_t rn . #'($ raw len)))
+               (while (and (< p rn) (< k walk))
+                 (if (== (nth p ($ raw s)) (cast char 10))
+                     (block (set ln (+ ln 1)) (set cl 0))
+                   (set cl (+ cl 1)))
+                 (set p (+ p 1))
+                 (if chars
+                     (while (and (< p rn) (== (bitand (cast int (nth p ($ raw s))) 192) 128))
+                       (set cl (+ cl 1)) (set p (+ p 1))))
+                 (set k (+ k 1))))))
+          (coco_sb_free (aof raw))
           (set (cof line) ln)
-          (set (cof col) c)))
+          (set (cof col) cl)
+          (return id)))
 
   ;;; Whitespace, `%' to end of line, and nested-free /* */ blocks. Whether
   ;;; anything was skipped is recorded, because `f(' and `f (' are different
@@ -1117,12 +1369,16 @@
                  (while (and (!= (coco_peek r) -1) (!= (coco_peek r) 10)) (coco_bump r)))
                 ((and (== c (coco-ch "/")) (== (coco_peek_at r 1) (coco-ch "*")))
                  (set any 1)
-                 (coco_bump r) (coco_bump r)
-                 (while (and (!= (coco_peek r) -1)
-                             (not (and (== (coco_peek r) (coco-ch "*"))
-                                       (== (coco_peek_at r 1) (coco-ch "/")))))
-                   (coco_bump r))
-                 (if (!= (coco_peek r) -1) (block (coco_bump r) (coco_bump r))))
+                 ;; one the text ends in is swipl's end_of_file_in_block_comment
+                 ;; (3.10.0), which `coco_next_token' says, at the comment
+                 (let ((size_t cs . #'(-> r pos)))
+                   (coco_bump r) (coco_bump r)
+                   (while (and (!= (coco_peek r) -1)
+                               (not (and (== (coco_peek r) (coco-ch "*"))
+                                         (== (coco_peek_at r 1) (coco-ch "/")))))
+                     (coco_bump r))
+                   (if (!= (coco_peek r) -1) (block (coco_bump r) (coco_bump r))
+                     (set (-> r ecomment) (+ cs 1)))))
                 (#t (return any)))))
           (return any)))
 
@@ -1179,12 +1435,17 @@
   ;;; made from codes may hold a surrogate, a read escape may not.
   (static)
   (func coco_lex_escape ((coco_reader * r) (i64 * out)) (out int)
-        (let ((int c . #'(coco_peek r)) (i64 v . 0) (int n . 0))
+        ;; AT is the escape's letter and CAT its digits' first (3.10.0):
+        ;; where swipl places a bad one
+        (let ((int c . #'(coco_peek r)) (i64 v . 0) (int n . 0)
+              (size_t at . #'(-> r pos)) (size_t cat . #'(-> r pos)))
           (cond
             ((== c (coco-ch "x"))
              (coco_bump r)
+             (set cat (-> r pos))
              (set n (coco_lex_escape_digits r 16 0 (aof v)))
-             (if (== n 0) (return (coco_fail r "undefined escape \\x")))
+             (if (== n 0)
+                 (block (coco_fail r "undefined escape \\x") (set (-> r epos) at) (return 0)))
              (if (== (coco_peek r) 92) (coco_bump r)))
             ((coco-ch-between c "0" "7")
              (coco_lex_escape_digits r 8 0 (aof v))
@@ -1193,7 +1454,7 @@
              (coco_bump r)
              (let ((int want . #'(? (== c (coco-ch "u")) 4 8)))
                (if (!= want (coco_lex_escape_digits r 16 want (aof v)))
-                   (return (coco_fail r "illegal \\u or \\U sequence")))))
+                   (block (coco_fail r "illegal \\u or \\U sequence") (set (-> r epos) at) (return 0)))))
             ((== c 10)
              (coco_bump r)
              (while (or (== (coco_peek r) 32) (== (coco_peek r) 9)) (coco_bump r))
@@ -1217,7 +1478,7 @@
                (coco_bump r)
                (set v e))))
           (if (or (> v 1114111) (and (>= v 55296) (<= v 57343)))
-              (return (coco_fail r "illegal character code")))
+              (block (coco_fail r "illegal character code") (set (-> r epos) cat) (return 0)))
           (set (cof out) v)
           (return 1)))
 
@@ -1348,6 +1609,8 @@
                        (cond
                          ;; the newline after the backslash is the code, swipl's
                          ((and (== c 92) (== (coco_peek r) 10)) (coco_bump r) (set code 10))
+                         ;; and `0'\c' is the c, no continuation (3.10.0, swipl's)
+                         ((and (== c 92) (== (coco_peek r) (coco-ch "c"))) (coco_bump r) (set code 99))
                          ((== c 92)
                           (let ((int k . #'(coco_lex_escape r (aof code))))
                             (if (== k 0) (return 0))
@@ -1440,13 +1703,22 @@
                              (coco_bump r))))))
           (if isfloat
               (block (set (-> r fval) (strtod ($ (-> r text) s) nil))
+                     ;; A LITERAL PAST THE LARGEST DOUBLE IS SWIPL'S
+                     ;; float_overflow (3.10.0): through 3.9.0 `1.0e400' read
+                     ;; as the infinity strtod answers for it
+                     (if (and (== tag 0) (> (-> r fval) 1.7976931348623157e308))
+                         (return (coco_fail r "float overflow")))
                      ;; 1.0Inf and 1.5NaN, SWI's spelling of the two values no
                      ;; digits say, which the writer writes (1.10.28): any
                      ;; mantissa before Inf, one between 1 and 2 before NaN
-                     ;; (1.0NaN is SWI's syntax error too)
+                     ;; (1.0NaN is SWI's syntax error too, and outside 1 and 2
+                     ;; the NaN is no part of the number, 3.10.0: `2.5NaN' is
+                     ;; 2.5 and an atom, operator_expected, as swipl's)
+                     (if (and (== tag 2) (or (< (-> r fval) 1.0) (>= (-> r fval) 2.0)))
+                         (set tag 0))
                      (if (!= tag 0)
                          (block
-                           (if (and (== tag 2) (or (<= (-> r fval) 1.0) (>= (-> r fval) 2.0)))
+                           (if (and (== tag 2) (== (-> r fval) 1.0))
                                (return (coco_fail r "numeric constant out of range")))
                            (set (-> r fval) (strtod (? (== tag 1) "inf" "nan") nil))
                            (coco_bump r) (coco_bump r) (coco_bump r)))
@@ -1467,6 +1739,13 @@
   (func coco_next_token ((coco_reader * r)) (out int)
         (set (-> r layout_before) (coco_skip_layout r))
         (set (-> r tstart) (-> r pos))
+        ;; the text ended in a block comment: the token is that, placed at
+        ;; the comment (3.10.0; through 3.9.0 the text ended there quietly)
+        (if (!= (-> r ecomment) 0)
+            (block (set (-> r tstart) (- (-> r ecomment) 1))
+                   (set (-> r ecomment) 0)
+                   (set (-> r tok) COCO_TK_EOF)
+                   (return (coco_fail r "end of file in a block comment"))))
         (set (-> r quoted) 0)
         (coco_sb_reset (aof (-> r text)))
         (let ((int c . #'(coco_peek r)))
@@ -1721,6 +2000,101 @@
                         (== (cast int (nth 0 ($ (-> r text) s))) c))
                    1 0)))
 
+  ;;; ---- what swipl calls a failure (3.10.0) ------------------------------
+  ;;;
+  ;;; swipl's complex_term reads a bracket's term over a stack of operators
+  ;;; and decides what a failure is from that stack and the token in hand;
+  ;;; this reader is recursive, so the same decision is made where the
+  ;;; failure comes back up to its bracket. Each is one call on a path that
+  ;;; is already failing, kept out of line.
+
+  ;;; The punctuation mark in hand, or 0 for any other token.
+  (static)
+  (func coco_tok_punct ((coco_reader * r)) (out int)
+        (if (!= (-> r tok) COCO_TK_PUNCT) (return 0))
+        (return (cast int (nth 0 ($ (-> r text) s)))))
+
+  ;;; An operator whose operand failed, on the way up to the bracket: one
+  ;;; more pending (swipl's side stack), the innermost's mark kept when it
+  ;;; is a comma or a semicolon.
+  (weak) (cold)
+  (func coco_op_failed ((coco_reader * r) (const char * name))
+        (if (not (-> r eopen)) (return))
+        (set (-> r eops) (+ (-> r eops) 1))
+        (if (== (-> r eops) 1)
+            (set (-> r eopc) (? (== 0 (strcmp name ",")) 44
+                                  (? (== 0 (strcmp name ";")) 59 0)))))
+
+  ;;; An operator that cannot take what is before it, at the token in hand:
+  ;;; swipl places the clash at the end of the operator before it (AT). The
+  ;;; first one a read meets is kept -- the innermost, which fails the read.
+  (weak) (cold)
+  (func coco_clash ((coco_reader * r) (size_t at))
+        (if (-> r clash_set) (return))
+        (set (-> r clash_set) 1)
+        (set (-> r clash_tok) (-> r tstart))
+        (set (-> r clash_at) at))
+
+  ;;; A BRACKET'S TERM THAT FAILED (swipl's complex_term with STOPS, the
+  ;;; marks that end it; CLOSER its own, 0 at the top, where the full stop
+  ;;; ends it): a term wanted and not there is settled here. Nothing read
+  ;;; at this level -- the operand that failed was the bracket's own -- is
+  ;;; the token's fault: the end of the clause, a closing bracket that
+  ;;; starts no term, or a comma or a bar where an operand stands.
+  ;;; Something read -- operators pending -- and a token that ends this
+  ;;; bracket's term is swipl's `exit' with operators left: punct(Op,
+  ;;; Next) when the one left is a comma or a semicolon, else an
+  ;;; unbalanced operator; the end of the clause inside a bracket is the
+  ;;; end of the clause.
+  (weak) (cold)
+  (func coco_term_close ((coco_reader * r) (int closer) (const char * stops))
+        (if (not (-> r eopen)) (return))
+        (set (-> r eopen) 0)
+        (let ((int p . #'(coco_tok_punct r))
+              (int fin . #'(or (== (-> r tok) COCO_TK_END) (== (-> r tok) COCO_TK_EOF)))
+              (int ends . 0))
+          (cond
+            (fin (set ends (== closer 0)))
+            ((!= p 0) (set ends (!= (strchr stops p) nil))))
+          (cond
+            ((and (> (-> r eops) 0) ends)
+             (if (and (== (-> r eops) 1) (!= (-> r eopc) 0))
+                 (block (set (-> r esyn) "punct")
+                        (set (-> r epn) (? fin 46 p)))
+               (set (-> r esyn) "operator_balance")))
+            (fin (set (-> r esyn) "end_of_clause"))
+            ((or (== p 41) (or (== p 93) (== p 125))) (set (-> r esyn) "cannot_start_term"))
+            ((or (== p 44) (== p 124)) (set (-> r esyn) "quoted_punctuation")))))
+
+  ;;; A BRACKET THAT DID NOT CLOSE, at the token in hand (WHAT the reader's
+  ;;; own words): a priority clash there, a comma or a bar after a list's
+  ;;; tail (REST), a closing bracket of another kind, else an operator
+  ;;; expected. 0, as `coco_fail' answers.
+  (weak) (cold)
+  (func coco_close_fail ((coco_reader * r) (const char * what) (int rest)) (out int)
+        (let ((int p . #'(coco_tok_punct r)))
+          (coco_fail r what)
+          (cond
+            ((and (-> r clash_set) (== (-> r clash_tok) (-> r tstart)))
+             (set (-> r esyn) "operator_clash"))
+            ((and rest (or (== p 44) (== p 124))) (set (-> r esyn) "list_rest"))
+            ((or (== p 41) (or (== p 93) (== p 125))) (set (-> r esyn) "cannot_start_term"))
+            (#t (set (-> r esyn) "operator_expected")))
+          (return 0)))
+
+  (func coco_reader_junk ((coco_reader * r)) (out int)
+        (return (coco_close_fail r "expected . ending a clause" 0)))
+
+  (func coco_reader_close_top ((coco_reader * r))
+        (coco_term_close r 0 ""))
+
+  ;;; A read starts with no failure decided and no clash seen.
+  (static)
+  (func coco_reader_fresh ((coco_reader * r))
+        (set (-> r esyn) nil)
+        (set (-> r eopen) 0)
+        (set (-> r clash_set) 0))
+
   ;;; INLINE, because both parser families call these three: with one caller
   ;;; each clang inlined them, with two it left them out of line, and the
   ;;; translator's consult ran 0.74 % more instructions (169.97 M against
@@ -1898,15 +2272,16 @@
         ;; a clause read after one that failed part way starts with none
         (set (-> r stop) 0)
         (if (-> r failed) (return -1))
+        (coco_reader_fresh r)
         (if (== (-> r tok) COCO_TK_EOF) (return 0))
         (let ((size_t t) (int p) (int ok . 0))
           ;; the family that builds positions, only when they were asked for
           (if (-> r want_pos)
               (set ok (coco_parse_term_p r 1200 (aof t) (aof p)))
             (set ok (coco_parse_term r 1200 (aof t) (aof p))))
-          (if (not ok) (return -1))
+          (if (not ok) (block (coco_term_close r 0 "") (return -1)))
           (if (!= (-> r tok) COCO_TK_END)
-              (block (coco_fail r "expected . ending a clause") (return -1)))
+              (block (coco_reader_junk r) (return -1)))
           ;; THE CLAUSE IS READ WHOLE ONCE ITS FULL STOP IS (3.1.0): a token
           ;; after it that will not read is the NEXT clause's error, which
           ;; the next call answers -- through 3.0.4 it took this clause
@@ -1915,85 +2290,197 @@
           (set (cof out) t)
           (return 1)))
 
+  ;;; One byte onto the raw text, when there is one, counted and kept as
+  ;;; the last.
+  (static)
+  (func coco_raw_add ((coco_strbuf * raw) (size_t * nraw) (int * lastc) (int c))
+        (if (!= raw nil) (coco_sb_putc raw (cast char c)))
+        (set (cof nraw) (+ (cof nraw) 1))
+        (set (cof lastc) c))
+
+  ;;; A comment's bytes A to B as the raw text has them: a space a
+  ;;; character (a byte, not CHARS), a newline kept.
+  (static)
+  (func coco_raw_blank ((const char * s) (size_t a) (size_t b) (coco_strbuf * raw)
+                        (size_t * nraw) (int * lastc) (int chars))
+        (for ((size_t i . a)) (< i b) ((++ i))
+          (let ((int c . #'(bitand (cast int (nth i s)) 255)))
+            (if (or (not chars) (!= (bitand c 192) 128))
+                (coco_raw_add raw nraw lastc (? (== c 10) 10 32))))))
+
+  (func coco_raw_walk ((const char * s) (size_t n) (size_t from) (coco_strbuf * raw)
+                       (int chars) (int * kind) (int * q) (size_t * at0)) (out size_t)
+        (let ((size_t p . from) (int any . 0) (size_t nraw . 0) (int lastc . 32))
+          (set (cof kind) 2) (set (cof q) 0) (set (cof at0) n)
+          (if (> p n) (set p n))
+          (while (< p n)
+            (let ((int c . #'(bitand (cast int (nth p s)) 255)))
+              (cond
+                ;; a block comment, a space a character once something is read
+                ((and (== c 47) (and (< (+ p 1) n) (== (nth (+ p 1) s) (cast char 42))))
+                 (let ((size_t e . #'(+ p 2)))
+                   (while (and (< e n)
+                               (not (and (== (nth e s) (cast char 42))
+                                         (and (< (+ e 1) n) (== (nth (+ e 1) s) (cast char 47))))))
+                     (set e (+ e 1)))
+                   (if (>= e n)
+                       (block (set (cof kind) 4) (return n)))
+                   (if any (coco_raw_blank s p (+ e 2) raw (aof nraw) (aof lastc) chars))
+                   (set p (+ e 2))))
+                ;; a line comment, to its newline
+                ((== c 37)
+                 (let ((size_t e . p))
+                   (while (and (< e n) (!= (nth e s) (cast char 10))) (set e (+ e 1)))
+                   (if any (coco_raw_blank s p e raw (aof nraw) (aof lastc) chars))
+                   (set p e)))
+                ;; layout, kept once something is read
+                ((coco_is_space c)
+                 (if any (coco_raw_add raw (aof nraw) (aof lastc) c))
+                 (set p (+ p 1)))
+                (#t
+                 (if (not any) (block (set any 1) (set (cof at0) p)))
+                 (cond
+                   ;; a full stop, or a `.' that begins a run of symbols
+                   ((== c 46)
+                    (coco_raw_add raw (aof nraw) (aof lastc) c)
+                    (set p (+ p 1))
+                    (if (or (>= p n) (or (coco_is_space (bitand (cast int (nth p s)) 255))
+                                         (== (nth p s) (cast char 37))))
+                        (block
+                          (if (== nraw 1) (block (set (cof kind) 6) (return p)))
+                          (coco_raw_add raw (aof nraw) (aof lastc) 32)
+                          (set (cof kind) 0)
+                          (return p)))
+                    (while (and (< p n) (coco_is_symbol (bitand (cast int (nth p s)) 255)))
+                      (coco_raw_add raw (aof nraw) (aof lastc) (bitand (cast int (nth p s)) 255))
+                      (set p (+ p 1))))
+                   ;; a run of symbol characters is one token, whatever it holds
+                   ((coco_is_symbol c)
+                    (while (and (< p n) (coco_is_symbol (bitand (cast int (nth p s)) 255)))
+                      (coco_raw_add raw (aof nraw) (aof lastc) (bitand (cast int (nth p s)) 255))
+                      (set p (+ p 1))))
+                   ((or (== c 39) (or (== c 34) (== c 96)))
+                    (let ((int quoted . 1))
+                      ;; 0'c and R'DIGIT after one or two digits that begin a
+                      ;; number: no quoted item
+                      (if (and (== c 39) (and (> p (cof at0)) (coco_is_digit (bitand (cast int (nth (- p 1) s)) 255))))
+                          (let ((size_t bs . #'(- p 1)) (int base . 0) (int pc . 32))
+                            (if (and (> bs (cof at0)) (coco_is_digit (bitand (cast int (nth (- bs 1) s)) 255)))
+                                (set bs (- bs 1)))
+                            ;; the character before the digits continues no name
+                            (if (> bs (cof at0)) (set pc (bitand (cast int (nth (- bs 1) s)) 255)))
+                            (if (and (not (coco_is_alnum pc)) (< pc 128))
+                                (block
+                                  (for ((size_t i . bs)) (< i p) ((++ i))
+                                    (set base (+ (* base 10) (- (cast int (nth i s)) 48))))
+                                  (cond
+                                    ((== base 0)
+                                     (set quoted 0)
+                                     (coco_raw_add raw (aof nraw) (aof lastc) c)
+                                     (set p (+ p 1))
+                                     (if (>= p n) (block (set (cof kind) 5) (return n)))
+                                     (let ((int c1 . #'(bitand (cast int (nth p s)) 255)))
+                                       (coco_raw_add raw (aof nraw) (aof lastc) c1)
+                                       (set p (+ p 1))
+                                       (cond
+                                         ((and (== c1 92) (< p n))
+                                          (coco_raw_add raw (aof nraw) (aof lastc) (bitand (cast int (nth p s)) 255))
+                                          (set p (+ p 1)))
+                                         ((and (== c1 39) (and (< p n) (== (nth p s) (cast char 39))))
+                                          (coco_raw_add raw (aof nraw) (aof lastc) 39)
+                                          (set p (+ p 1))))))
+                                    ((<= base 36)
+                                     (if (>= (+ p 1) n) (block (set (cof kind) 5) (return n)))
+                                     (let ((int d . #'(bitand (cast int (nth (+ p 1) s)) 255))
+                                           (int v . -1))
+                                       (cond ((coco_is_digit d) (set v (- d 48)))
+                                             ((coco-ch-between d "a" "z") (set v (+ 10 (- d 97))))
+                                             ((coco-ch-between d "A" "Z") (set v (+ 10 (- d 65)))))
+                                       (if (and (>= v 0) (< v base))
+                                           (block (set quoted 0)
+                                                  (coco_raw_add raw (aof nraw) (aof lastc) c)
+                                                  (coco_raw_add raw (aof nraw) (aof lastc) d)
+                                                  (set p (+ p 2)))))))))))
+                      ;; A QUOTED ITEM, as pl-read.c's raw_read_quoted walks it
+                      (if quoted
+                          (let ((int qq . c) (int closed . 0))
+                            (coco_raw_add raw (aof nraw) (aof lastc) qq)
+                            (set p (+ p 1))
+                            (while (not closed)
+                              (if (>= p n) (block (set (cof kind) 3) (set (cof q) qq) (return n)))
+                              (let ((int d . #'(bitand (cast int (nth p s)) 255)))
+                                (coco_raw_add raw (aof nraw) (aof lastc) d)
+                                (set p (+ p 1))
+                                (cond
+                                  ((== d qq) (set closed 1))
+                                  ((== d 92)
+                                   (if (>= p n) (block (set (cof kind) 3) (set (cof q) qq) (return n)))
+                                   (let ((int e . #'(bitand (cast int (nth p s)) 255)))
+                                     (coco_raw_add raw (aof nraw) (aof lastc) e)
+                                     (set p (+ p 1))
+                                     (cond
+                                       ;; \xHEX and \OCTAL take the character after
+                                       ;; their digits, a quote there closing the item
+                                       ;; and a backslash there no escape: `'\x41\''
+                                       ;; is closed. Any other escape is its letter,
+                                       ;; taken as any character is (\c's layout and
+                                       ;; a backslash's newline close nothing either)
+                                       ((or (== e 120) (coco-ch-between e "0" "7"))
+                                        (if (== e 120)
+                                            (block
+                                              (if (>= p n) (block (set (cof kind) 3) (set (cof q) qq) (return n)))
+                                              (if (>= (coco_hex_digit (bitand (cast int (nth p s)) 255)) 0)
+                                                  (while (and (< p n) (>= (coco_hex_digit (bitand (cast int (nth p s)) 255)) 0))
+                                                    (coco_raw_add raw (aof nraw) (aof lastc) (bitand (cast int (nth p s)) 255))
+                                                    (set p (+ p 1)))))
+                                          (while (and (< p n) (coco-ch-between (bitand (cast int (nth p s)) 255) "0" "7"))
+                                            (coco_raw_add raw (aof nraw) (aof lastc) (bitand (cast int (nth p s)) 255))
+                                            (set p (+ p 1))))
+                                        (if (>= p n) (block (set (cof kind) 3) (set (cof q) qq) (return n)))
+                                        (let ((int f . #'(bitand (cast int (nth p s)) 255)))
+                                          (coco_raw_add raw (aof nraw) (aof lastc) f)
+                                          (set p (+ p 1))
+                                          (if (== f qq) (set closed 1))))))))))))))
+                   (#t
+                    (coco_raw_add raw (aof nraw) (aof lastc) c)
+                    (set p (+ p 1))))))))
+          (if (not any) (return n))
+          ;; the end of the text: swipl puts its full stop there
+          (if (not (coco_is_space lastc)) (coco_raw_add raw (aof nraw) (aof lastc) 32))
+          (coco_raw_add raw (aof nraw) (aof lastc) 46)
+          (coco_raw_add raw (aof nraw) (aof lastc) 32)
+          (set (cof kind) 1)
+          (return n)))
+
   ;;; A SYNTAX ERROR SKIPS ITS CLAUSE (3.1.0), as swipl's does: swipl reads
   ;;; a clause's text whole, up to its full stop, before it parses it, so a
   ;;; clause that will not parse is passed over and the load goes on. Here
   ;;; the walk starts where the clause began (`cstart', its first token's
   ;;; first byte), not where the reader failed -- inside a quoted atom with
   ;;; a bad escape the failing byte is in the quotes, and a walk from there
-  ;;; would take the closing quote for an opening one -- and stops past its
-  ;;; end: a `.' that is a token of its own -- no symbol character either
-  ;;; side of it -- and is followed by layout, a `%' or the end of the
-  ;;; text. Quoted text (`'', `"', a back quote, each with its escapes and
-  ;;; doubled quotes), `0'c' and both kinds of comment are walked over
-  ;;; whole, as swipl's raw reader walks them; a quote that never closes
-  ;;; runs to the end of the text.
+  ;;; would take the closing quote for an opening one -- and is swipl's raw
+  ;;; read since 3.10.0 (`coco_raw_walk'): through 3.9.0 an octal or a hex
+  ;;; escape's closing backslash took the quote after it for an escaped one
+  ;;; (`z('\101\').' ran on to the end of the text, and the clauses after
+  ;;; it were lost), and a radix's quote (`16'ff') opened a quoted atom. A
+  ;;; quote or a block comment that never closes runs to the end.
   (func coco_reader_resync ((coco_reader * r)) (out int)
-        (let ((const char * s . #'(-> r src)) (size_t n . #'(-> r len))
-              (size_t p . #'(-> r cstart)) (int done . 0))
-          (if (> p n) (set p n))
-          (while (and (not done) (< p n))
-            (let ((int c . #'(bitand (cast int (nth p s)) 255)))
-              (cond
-                ((== c (coco-ch "%"))
-                 (while (and (< p n) (!= (nth p s) (cast char 10))) (set p (+ p 1))))
-                ((and (== c (coco-ch "/")) (< (+ p 1) n) (== (nth (+ p 1) s) (cast char 42)))
-                 (set p (+ p 2))
-                 (while (and (< p n)
-                             (not (and (== (nth p s) (cast char 42)) (< (+ p 1) n)
-                                       (== (nth (+ p 1) s) (cast char 47)))))
-                   (set p (+ p 1)))
-                 (set p (? (< p n) (+ p 2) n)))
-                ;; ' " and the back quote
-                ((or (== c 39) (or (== c 34) (== c 96)))
-                 (let ((int closed . 0))
-                   (set p (+ p 1))
-                   (while (and (not closed) (< p n))
-                     (let ((int d . #'(bitand (cast int (nth p s)) 255)))
-                       (cond
-                         ((== d 92) (set p (+ p 2)))
-                         ((and (== d c) (< (+ p 1) n) (== (bitand (cast int (nth (+ p 1) s)) 255) c))
-                          (set p (+ p 2)))
-                         ((== d c) (set p (+ p 1)) (set closed 1))
-                         (#t (set p (+ p 1))))))
-                   (if (> p n) (set p n))))
-                ;; 0'c, where the 0 begins a number: the quote and the
-                ;; character after it, an escape's two or a doubled quote
-                ((and (== c (coco-ch "0")) (< (+ p 1) n) (== (nth (+ p 1) s) (cast char 39))
-                      (or (== p 0) (not (coco_is_alnum (bitand (cast int (nth (- p 1) s)) 255)))))
-                 (set p (+ p 2))
-                 (if (< p n)
-                     (cond
-                       ((== (nth p s) (cast char 92)) (set p (+ p 2)))
-                       ((and (== (nth p s) (cast char 39)) (< (+ p 1) n)
-                             (== (nth (+ p 1) s) (cast char 39)))
-                        (set p (+ p 2)))
-                       (#t (set p (+ p 1)))))
-                 (if (> p n) (set p n)))
-                ((coco_is_symbol c)
-                 (let ((size_t q . #'(+ p 1)))
-                   (while (and (< q n) (coco_is_symbol (bitand (cast int (nth q s)) 255)))
-                     (set q (+ q 1)))
-                   ;; the full stop: a `.' standing alone before layout,
-                   ;; a comment or the end
-                   (if (and (== q (+ p 1)) (== c (coco-ch "."))
-                            (or (== q n)
-                                (or (coco_is_space (bitand (cast int (nth q s)) 255))
-                                    (== (nth q s) (cast char 37)))))
-                       (set done 1))
-                   (set p q)))
-                (#t (set p (+ p 1))))))
+        (let ((int kind . 0) (int q . 0) (size_t at0 . 0) (size_t p . 0))
+          (set p (coco_raw_walk (-> r src) (-> r len) (-> r cstart) nil 0
+                                (aof kind) (aof q) (aof at0)))
           (coco_reader_clear_vars r)
           (set (-> r pos) p)
           (set (-> r failed) 0)
           (set (nth 0 (-> r err)) (cast char 0))
           (set (-> r ewhat) nil)
+          (coco_reader_fresh r)
           (return (coco_next_token r))))
 
   (func coco_read_goal ((coco_reader * r) (size_t * out)) (out int)
         (coco_reader_clear_vars r)
         (set (-> r stop) 0)
         (if (-> r failed) (return 0))
+        (coco_reader_fresh r)
         (if (== (-> r tok) COCO_TK_EOF) (return 0))
         (let ((size_t t) (int p))
           (if (not (coco_parse_term r 1200 (aof t) (aof p))) (return 0))

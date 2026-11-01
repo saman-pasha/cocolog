@@ -152,6 +152,35 @@ fixtures(nested_load, Sandbox) :- !,
 %% a file for each thing a read may or may not define (`sf/2')
 fixtures(source_files, Sandbox) :- !,
     forall(sf(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
+%% files that will not load whole, each a syntax error swipl places and
+%% words: a parse error on a clause's first line and on a later one, what
+%% the raw read refuses (a quoted item or a block comment open at the end,
+%% `0'' or a radix quote at the end, no full stop before the end, a full
+%% stop alone), with and without a newline at the end
+fixtures(syntax_load, Sandbox) :- !,
+    forall(member(F-Lines,
+                  [ 's1.pl'-[ 's1a(1).', 's1b(2) c.', 's1d(f(,)).', 's1e([1,2).', 's1f :- .',
+                              's1g(x', '  y).', 's1h(1,', '   2 3).', 's1j([a|b|c]).',
+                              's1k(- - -).', 's1l :- :- m.', 's1n("abc\\q").',
+                              's1o(0''\\q).', 's1p({a).', 's1q(a)).', 's1r(1).', '  )foo.',
+                              '/* c1 */ s1s(2) c.', 's1t(2,', ' /* x', ' y */ 3 4).',
+                              's1u(a :- b :- c).', 's1v(a = = b).', 's1w(''\\x'').',
+                              's1x(''\\u12'').', 's1y(1.0e400).', 's1z(1.0NaN).', 's1zz(2).' ],
+                    's2.pl'-[ 's2a(1).', '/* unterminated', 's2b(2).' ],
+                    's3.pl'-[ 's3a(1).', 's3b(''abc).', 's3c(3).' ],
+                    's4.pl'-[ 's4a(1).', '. ', 's4b(2).', ' x :- ', '  y,', '  z w.', 's4c(3).' ],
+                    's7.pl'-[ 's7a(1).', 's7b(2) /* open', 's7c.' ],
+                    's8.pl'-[ ':- set_prolog_flag(double_quotes, codes).', 's8a(1).', '  x :- "abc' ],
+                    's10.pl'-[ 's10a(1).', '  x :- 0''' ],
+                    's11.pl'-[ 's11a(1).', '  x :- 16''' ],
+                    's12.pl'-[ 's12a(1).', 'c(3) d % x' ],
+                    's13.pl'-[ 's13a(1).', 'c(3) d', '' ],
+                    's14.pl'-[ 's14a(1).', '', '  /* c' ] ]),
+           ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )),
+    %% and three whose last line has no newline
+    forall(member(F-Text, [ 's5.pl'-"s5a(1).\nc(3) d", 's6.pl'-"s6a(1).\nc(3)",
+                            's9.pl'-"s9a(1).\n  x :- 0'" ]),
+           ( atomic_list_concat([Sandbox, '/', F], P), write_file_from_codes(P, Text) )).
 fixtures(_, _).
 
 %% what makes a file read once a source file, as swipl's, and what leaves it
