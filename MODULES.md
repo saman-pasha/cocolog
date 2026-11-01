@@ -146,7 +146,7 @@ catch(msort(notalist, _), error(type_error(T, V), _), true).
 ```
 
 `coco_m_type_error`, `coco_m_instantiation_error`, `coco_m_domain_error`,
-`coco_m_existence_error`, `coco_m_permission_error` (`permission_error(Action, Type, Culprit)`, SWI's shape for a file that is there and cannot be opened), `coco_m_resource_error` (`resource_error(Resource)`: `"memory"` for an allocation that was refused, as the engine raises it for its own since 1.10.28), `coco_m_evaluation_error` (`evaluation_error(What)`: `"int_overflow"` for an integer past 64 bits, as is/2 raises it since 2.0.0) and `coco_m_error` all **throw**. Each answers what its
+`coco_m_existence_error`, `coco_m_permission_error` (`permission_error(Action, Type, Culprit)`, SWI's shape for a file that is there and cannot be opened), `coco_m_resource_error` (`resource_error(Resource)`: `"memory"` for an allocation that was refused, as the engine raises it for its own since 1.10.28), `coco_m_evaluation_error` (`evaluation_error(What)`: `"int_overflow"` for an integer past 64 bits, as is/2 raises it since 2.0.0), `coco_m_error_msg` (since 3.16.0: `Kind(A, Culprit)`, `Kind(A, B, Culprit)` when B is not null, or `Kind(A)` when Culprit is `(size_t) -1`, with a message as the context's second argument, as swipl's `existence_error(source_sink, F)` carries strerror's words) and `coco_m_error` all **throw**. Each answers what its
 caller should return: **2** when a `catch/3` took the ball — the engine is by
 then pointed at the recovery goal and 2 is how a builtin says *leave my
 continuation alone* — and −1 when nothing caught it. A predicate writes
@@ -357,6 +357,7 @@ somewhere else.
 | `coco_m_unify_string(e, t, s, n)` | unify with a fresh STRING. Takes a length where the atom one does not, which is the whole difference between the two types |
 | `coco_m_nil` / `coco_m_cons` / `coco_m_atom_list` | building a list |
 | `coco_m_error(e, what, detail)` | −1, with a message |
+| `coco_m_error_msg(e, kind, a, b, culprit, msg)` | −1, a formal of one, two or three arguments with MSG in its context (3.16.0) |
 | `coco_m_type_error(e, want, got)` | −1, naming the term that was wrong |
 
 `coco_m_text` accepting a code list is not politeness: cocolog reads `"abc"` as a

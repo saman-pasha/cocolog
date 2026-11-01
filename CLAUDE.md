@@ -1562,7 +1562,10 @@ cocolint index offers no import of it.
   frame with it (1.13.4, SWI's I_EXITCATCH; through 1.13.3 a recursion that
   caught around a deterministic call kept a choice point a turn). The
   marker's arm is the (weak) `coco_catch_exit`: a store written into the
-  inlined construct code moved the step loop's registers.
+  inlined construct code moved the step loop's registers. **forall/2's
+  search ends at its first counterexample** (3.16.0, `rootn` 2 in
+  `coco_engine_findall`, swipl's `\+ (C, \+ A)`): through 3.15.2 it went
+  on, and every action after the one that failed ran, its writes with it.
 * **Text builtins work on CHARACTERS, SWI's, and on BYTES when a program
   asks** (`text_units`: 1.13.0, and characters the default since 2.0.0;
   bytes were through 1.x). A code is a code point, a char one character of
@@ -2656,7 +2659,22 @@ cocolint index offers no import of it.
   the line, SWI's column), so `read_term/3` answers `term_position` and
   `subterm_positions` on a pipe too; a seek or a write to an update stream
   leaves the counters behind `ftell`, and `st_pos_sync` counts again from
-  the start.
+  the start. **Its errors are swipl's** (3.16.0, test/files/stream_errors.pl):
+  a C half shared by several predicates takes the caller's indicator as its
+  last argument and names it (`:PI` rows of `*error-contexts*`,
+  `coco_ectx_named`), so `get_char/2` raises with
+  `context(system:get_char/2, _)` -- a new C half of the module gets its
+  row, or its errors name `stream:'$stream_...'`. A put checks its
+  character before the stream, a get reads before it checks its argument,
+  a stream's direction is asked before its kind, open/4 checks every option
+  and opens the file before it asks the stream argument, write_term/3 its
+  options before the stream, and a position is
+  `'$stream_position'(Char, Line, LinePos, Byte)`. A binary stream's
+  characters are its bytes (swipl's octet): a get_char reads one byte, a
+  put past 255 is `io_error(write, S)`, read_term/2 reads bytes past 127 as
+  their characters. Not swipl's: an encoding is checked and not honoured,
+  and a quoted write of a character past 255 into a binary stream raises
+  where swipl's escapes it (COMPAT.md).
 
 * **A signal is a halt code** (2.6.0): a handler in `modules/signal` writes
   `4 + SIGNO` into the engine's `halted` cell (the one object a handler may

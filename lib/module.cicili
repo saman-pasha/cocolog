@@ -613,6 +613,12 @@
   ;;; evaluation_error(What): "int_overflow" for an integer past 64 bits
   ;;; (2.0.0), as the engine's arithmetic raises it
   (decl) (func coco_m_evaluation_error ((coco_engine * e) (const char * what)) (out int))
+  ;;; A FORMAL WITH A MESSAGE (3.16.0): KIND(A, CULPRIT), or KIND(A, B,
+  ;;; CULPRIT) when B is not null, or KIND(A) when CULPRIT is (size_t) -1,
+  ;;; raised with MSG as the context's second argument, as swipl's
+  ;;; existence_error(source_sink, F) carries strerror's words
+  (decl) (func coco_m_error_msg ((coco_engine * e) (const char * kind) (const char * a)
+                               (const char * b) (size_t culprit) (const char * msg)) (out int))
 
   ;;; For what SWI has no error for and cocolog does: a condition of this
   ;;; implementation's own. It throws `error(cocolog_error(Atom), _)', so it is
@@ -1611,6 +1617,19 @@
   (func coco_m_evaluation_error ((coco_engine * e) (const char * what)) (out int)
         (let ((coco_machine * m . #'(-> e m)))
           (return (coco_m_raise e (coco_make1 m "evaluation_error" (coco_new_atom m what))))))
+
+  (func coco_m_error_msg ((coco_engine * e) (const char * kind) (const char * a)
+                          (const char * b) (size_t culprit) (const char * msg)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (size_t args [3]) (u32 n . 0)
+              (size_t ctx . 0) (size_t ball . 0))
+          (set (nth n args) (coco_new_atom m a)) (set n (+ n 1))
+          (if (!= b nil) (block (set (nth n args) (coco_new_atom m b)) (set n (+ n 1))))
+          (if (!= culprit (cast size_t -1)) (block (set (nth n args) culprit) (set n (+ n 1))))
+          (set ctx (coco_err_ctx e 0 msg))
+          (if (coco-tag-is REF (nth (coco_deref m ctx) (-> m heap)))
+              (set ctx (coco_m_module_ctx e ctx)))
+          (set ball (coco_make2 m "error" (coco_make m kind n args) ctx))
+          (return (? (coco_m_thrown e ball) 2 -1))))
 
   (func coco_m_error ((coco_engine * e) (const char * what) (const char * detail)) (out int)
         (let ((coco_machine * m . #'(-> e m)) (char msg [192]))

@@ -346,8 +346,8 @@ diverged(D) :-
 %% ---- the journal ---------------------------------------------------------
 %%
 %% flip/1's probe and replay with journal(true): the probe journals each
-%% portal call its library calls make -- open/3's '$stream_open'/4, write/2's
-%% format/3, close/1's, read_file_to_codes/2 -- and the replay is answered
+%% portal call its library calls make -- open/3's '$stream_open'/5, write/2's
+%% '$stream_out'/3 and format/3, close/1's, read_file_to_codes/2 -- and the replay is answered
 %% from them, so it reads the one byte the probe wrote and answers too, and
 %% the file holds that one byte. grow/1 loads a file, which no journal
 %% answers, and appends to it: its replay takes the other way and leaves
@@ -363,8 +363,9 @@ journal(D) :-
     check('flip(F): the replay reads the byte the probe wrote, answers where it did, and writes none',
           How1-Div1-BA1, answer-false-x),
     (   J1 = journal(Es1) -> findall(M-P, member(j(_, M, P, _, _), Es1), MP1) ; MP1 = J1 ),
-    check('...the journal: the stream opened, asked about twice, written to and closed, and the file read',
-          MP1, [stream-'$stream_open'/4, stream-'$stream_open_p'/1, builtins-format/3,
+    %% write/2 asks the stream's direction before it formats (3.16.0)
+    check('...the journal: the stream opened, asked about twice and for output, written to and closed, and the file read',
+          MP1, [stream-'$stream_open'/5, stream-'$stream_open_p'/1, stream-'$stream_out'/3, builtins-format/3,
                 stream-'$stream_open_p'/1, stream-'$stream_close'/2, files-read_file_to_codes/2]),
     flow_dbg_read_terms(JF, JT2),
     findall(I2, member(j(I2, _, _, _, _), JT2), Is2),
@@ -379,7 +380,7 @@ journal(D) :-
                      ( svg_g_el(S3, Id, G3), svg_text(G3, M3), sub_atom(M3, 0, _, _, '⇄') -> true ; M3 = none ) ),
             Marks3),
     check('...each goal whose call reached the world carries the journal''s mark, with how many times',
-          Marks3, ['p1.c1.g1'-'⇄', 'p1.c1.g2'-'⇄ ×2', 'p1.c1.g3'-'⇄ ×2', 'p1.c1.g4'-'⇄', 'p1.c1.g5'-none]),
+          Marks3, ['p1.c1.g1'-'⇄', 'p1.c1.g2'-'⇄ ×3', 'p1.c1.g3'-'⇄ ×2', 'p1.c1.g4'-'⇄', 'p1.c1.g5'-none]),
     atom_concat(D, '/flipj.xml', XF4),
     read_file_to_codes(XF4, XC4),
     xml_parse(XC4, X4),
@@ -389,7 +390,7 @@ journal(D) :-
     findall(A-O, ( x_el(X4, portal, PA4), memberchk(at=A, PA4), memberchk(outcome=O, PA4) ), PO4),
     findall(A, member(A-_, PO4), PAt4),
     check('...in the XML: the <run> says so, each <portal> is the <call> the window saw at its step',
-          JA4-JC4, [journal=true, portals='6', answered='6']-PAt4),
+          JA4-JC4, [journal=true, portals='7', answered='7']-PAt4),
     atom_concat(D, '/grow.pl', GF),
     fixture(GF, []),
     debugged(D, growj, grow(GF), [], [journal(true)], R5),
@@ -675,7 +676,7 @@ command(D) :-
     atomic_list_concat(Ls4, '\n', T4),
     ( last(Ls4, L4c), no_cpu(L4c, L4), atomic_list_concat([_, Tail4], '; diverged no', L4) -> true ; Tail4 = T4 ),
     check('journal=true: the line says how many portal calls the journal held, and how many answered the replay',
-          E4-Tail4, 0-'; journal 6 portal calls, 6 answered'),
+          E4-Tail4, 0-'; journal 7 portal calls, 7 answered'),
     atomic_list_concat([D, '/cmdw'], B5),
     atomic_list_concat(['-s tools/flow/debug.pl -- \'fill(L)\' ', F, ' ', B5, ' \'when=nth1(3, L, X), X == 3\' window=4'], A5),
     cocolog_run(A5, T5, E5),

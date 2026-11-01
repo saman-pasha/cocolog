@@ -29,9 +29,11 @@
 %%                stream_read_term/2  stream_read_terms/2
 %%     EITHER     stream_read_all/2
 %%
-%% A byte from a text stream, or a character from a binary one, is a
-%% permission_error rather than a quiet read of the wrong thing -- which
-%% is what the kind is FOR. A character is a UTF-8 character, however
+%% A byte from a text stream is a permission_error rather than a quiet read
+%% of the wrong thing -- which is what the kind is FOR -- and a binary
+%% stream's characters are its bytes, one character a byte (swipl's octet
+%% encoding; a character past 255 written into one is io_error(write, S)).
+%% A text stream's character is a UTF-8 character, however
 %% many bytes it takes; a line and a whole file come back as CODES, the
 %% shape every text predicate in this family takes. FORMATTED output is
 %% the engine's own `format/2', `write/1', `writeq/1' and `print/1'
@@ -109,9 +111,12 @@ main :-
     stream_open(Data, read, [type(binary)], RB2), stream_read_all(RB2, All), stream_close(RB2),
     must('update writes into the middle of a file', All, [0,1,2,3,4,99,6,7,8,9,255]),
     stream_open(Data, read, [type(binary)], RB3),
-    catch(stream_read_line(RB3, _), error(E1, _), true),
-    stream_close(RB3),
-    must('a line from a binary stream is refused by name', E1, permission_error(input, binary_stream, RB3)),
+    stream_seek(RB3, 5), stream_get_char(RB3, Ch), stream_close(RB3),
+    must('a binary stream''s characters are its bytes', Ch, c),
+    stream_open(Notes, read, RT),
+    catch(stream_get_byte(RT, _), error(E1, _), true),
+    stream_close(RT),
+    must('a byte from a text stream is refused by name', E1, permission_error(input, text_stream, RT)),
 
     format("~n-- formatted: the engine's own spelling, into the file~n"),
     stream_open(Notes, write, W3),

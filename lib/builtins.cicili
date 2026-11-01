@@ -1360,8 +1360,8 @@
                  (if (not (coco_m_unify e (coco_m_arg e o 0) rtv)) (return 0)))))
           (return (coco_m_unify e (coco_m_arg e g 3) end))))
 
-  ;;; `forall(C, A)' is `\+ (C, \+ A)', and is written that way rather than by
-  ;;; collecting: it stops at the first counterexample and builds no list.
+  ;;; `forall(C, A)' is `\+ (C, \+ A)': the search for a counterexample stops
+  ;;; at the first (rootn 2, `coco_engine_findall'), so no action after it runs.
   ;;; each goal that is no goal is `'$apply':forall/2''s error (3.0.0)
   (func coco_b_forall ((coco_engine * e) (size_t g)) (out int)
         (let ((int bad . #'(coco_m_goal_bad e (coco_m_arg e g 0) "$apply" "forall" 2)))

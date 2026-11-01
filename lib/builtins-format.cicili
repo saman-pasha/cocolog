@@ -636,7 +636,8 @@
   ;;; module owns (library(stream)'s alias or '$stream'(N), asked as `~N'
   ;;; asks, `coco_m_sink_open_call') or user_output or user_error taken; any
   ;;; other atom existence_error(stream, S); atom(_), string(_) and codes
-  ;;; and chars of one or two arguments taken; anything else
+  ;;; and chars of one or two arguments taken; user_input
+  ;;; permission_error(output, stream, user_input) (3.16.0); anything else
   ;;; type_error(output, S). Through 2.16 only the delivery asked, after the
   ;;; work, and named each domain_error(output_sink, S).
   (static)
@@ -650,6 +651,9 @@
               (let ((const char * nm . #'(coco_atom_name m (coco_name_of m d))))
                 (if (or (== 0 (strcmp nm "user_output")) (== 0 (strcmp nm "user_error")))
                     (return 1))
+                ;; a stream that takes no output (3.16.0, swipl's)
+                (if (== 0 (strcmp nm "user_input"))
+                    (return (coco_m_permission_error e "output" "stream" d)))
                 (return (coco_m_existence_error e "stream" d))))
           (if (coco-tag-is FUN (nth d (-> m heap)))
               (let ((const char * nm . #'(coco_atom_name m (coco_name_of m d)))

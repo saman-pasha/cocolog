@@ -464,6 +464,8 @@
 ;;;   (NAME ARITY :ATOM K (A MOD CN CA) ...)  as :MAP, by argument K's atom
 ;;;   (NAME ARITY :INT K (I MOD CN CA) ...)   as :MAP, by argument K's integer
 ;;;   (NAME ARITY :FUN K (F N MOD CN CA) ...) as :MAP, by argument K's functor F/N
+;;;   (NAME ARITY :PI K)             context(system:PI, M) for argument K a PI,
+;;;                                  Name/Arity, or context(PI, M) for Mod:Name/Arity
 ;;;
 ;;; M is a fresh variable, or the atom a raise gives (`coco_raise_msg').
 ;;; A raise that swipl names with no module where the row qualifies one
@@ -561,7 +563,21 @@
                               ("min" 2 "system" "<" 2))
     ("$sum" 3 :MAP "system" "is" 2)
     ("$maxl" 3 :MAP "system" "is" 2)
-    ("$minl" 3 :MAP "system" "is" 2)))
+    ("$minl" 3 :MAP "system" "is" 2)
+    ;; library(stream)'s C halves (3.16.0), shared by several predicates
+    ;; each: the caller hands its own indicator as the last argument, and
+    ;; the error names it, as swipl's get_char/2, put_code/1 or
+    ;; read_util:read_line_to_codes/2 name themselves
+    ("$stream_open" 5 :PI 4) ("$stream_set_input" 3 :PI 2) ("$stream_set_output" 3 :PI 2)
+    ("$stream_flush" 3 :PI 2) ("$stream_eof" 3 :PI 2) ("$stream_position" 4 :PI 3)
+    ("$stream_seek" 5 :PI 4) ("$stream_size" 4 :PI 3) ("$stream_set_pos" 7 :PI 6)
+    ("$stream_get_byte" 4 :PI 3) ("$stream_peek_byte" 4 :PI 3) ("$stream_put_byte" 4 :PI 3)
+    ("$stream_read_bytes" 5 :PI 4) ("$stream_write_bytes" 4 :PI 3)
+    ("$stream_write_codes" 4 :PI 3) ("$stream_read_all" 4 :PI 3)
+    ("$stream_get_char" 4 :PI 3) ("$stream_peek_char" 4 :PI 3) ("$stream_put_char" 4 :PI 3)
+    ("$stream_get_code" 4 :PI 3) ("$stream_peek_code" 4 :PI 3) ("$stream_put_code" 4 :PI 3)
+    ("$stream_read_line" 4 :PI 3) ("$stream_write_text" 4 :PI 3) ("$stream_out" 3 :PI 2)
+    ("$stream_char" 3 :PI 2) ("$stream_read_term" 7 :PI 6) ("$stream_read_term_pos" 12 :PI 11)))
 
 ;;; `coco_ectx_row': which row a name and arity are, or -1. A name the
 ;;; engine interns at start-up (the builtins' and the constructs') is
@@ -618,6 +634,8 @@
                                  ,(coco-ectx-target (CDR alt))))
                           (NTHCDR 4 row))))
           (return (coco_new_var m))))
+      ((EQ kind :PI)
+       `(return (coco_ectx_named m (coco_arg m g ,(FOURTH row)) bare msg)))
       (T (ERROR "coco: bad *error-contexts* row ~S" row)))))
 
 ;;; A LIBRARY CLAUSE'S FRAME AS SWIPL NAMES IT (3.13.0): a predicate
@@ -2315,6 +2333,21 @@
           (if (!= (nth 0 mod) 0)
               (set ind (coco_make2 m ":" (coco_new_atom m mod) ind)))
           (return (coco_make2 m "context" ind msg))))
+
+  ;;; context(system:PI, MSG) from an indicator a C half was handed as an
+  ;;; argument (3.16.0, the rows marked :PI): Name/Arity is the system's
+  ;;; (bare under BARE), Module:Name/Arity is named as it is written, and
+  ;;; anything else names nothing
+  (weak) (cold)
+  (func coco_ectx_named ((coco_machine * m) (size_t a) (int bare) (size_t msg)) (out size_t)
+        (set a (coco_deref m a))
+        (if (not (coco-tag-is FUN (nth a (-> m heap)))) (return (coco_new_var m)))
+        (if (!= (coco_arity m a) 2) (return (coco_new_var m)))
+        (let ((const char * s . #'(coco_atom_name m (coco_name_of m a))))
+          (if (== 0 (strcmp s ":")) (return (coco_make2 m "context" a msg)))
+          (if (!= 0 (strcmp s "/")) (return (coco_new_var m)))
+          (if bare (return (coco_make2 m "context" a msg)))
+          (return (coco_make2 m "context" (coco_make2 m ":" (coco_new_atom m "system") a) msg))))
 
   (coco-emit-ectx-row)
   (coco-emit-ectx-make)

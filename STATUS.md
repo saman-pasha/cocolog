@@ -10918,3 +10918,88 @@ check red (the 3.15.1 binary, rc 139 at 1 MB). PROVED: engine, errors,
 files and cyclic GREEN, and groups and ruler three times each with a server
 up (3.14.0's Intel job lost its server during groups, CI run 41309307439;
 not reproduced here, and the server's log is only in that run's artifact).
+
+## library(stream)'s errors, and its binary streams, as swipl's (3.16.0)
+
+test/files/stream_errors.pl holds library(stream)'s errors to the reference
+swipl 9.0.4, line for line: every ISO stream predicate given a stream that
+is none, a stream of the wrong direction or kind, an argument of the wrong
+type, open/4 and close/2 every option, read_term/3 its options, a position
+set and read, an alias, the current streams and the formatted writers.
+Through 3.15.2 library(stream) answered most of them in its own words.
+
+- AN ERROR NAMES THE PREDICATE THE PROGRAM CALLED, as swipl's:
+  `context(system:get_char/2, _)`, and `read_util:read_line_to_codes/2` where
+  swipl's own clause raises. A C half that several predicates share takes
+  the caller's indicator as its last argument and the error names it: a row
+  `(NAME ARITY :PI K)` of `*error-contexts*` (lib/solve.cicili,
+  `coco_ectx_named`). Through 3.15.2 a C half named itself,
+  `context(stream:'$stream_put_byte'/3, _)`, and a stream that was no stream
+  raised `error(existence_error(stream, S), stream_slot/2)`, a bare context.
+  `coco_m_error_msg` (lib/module.cicili, the SDK) raises a formal of one,
+  two or three arguments with a message in its context, as swipl's
+  `existence_error(source_sink, F)` carries strerror's words.
+- SWIPL'S ORDER OF CHECKS: a put checks its character or byte before the
+  stream, a get reads before it looks at its argument (`get_char(S, ab)`
+  reads a character, then raises type_error(character, ab)), a stream's
+  direction is asked before its kind, open/4 checks the options a list, the
+  mode, each option (the eleven swipl knows by name, and any other compound
+  of one argument passed by), the alias free, then opens the file and only
+  then asks the stream argument -- so `open(F, read, x)` of a missing file
+  is existence_error, and of a file opened for writing makes it --, close/2
+  its options, read_term/3 its options before a byte is read, and
+  write_term/3 its options before the stream.
+- A BINARY STREAM'S CHARACTERS ARE ITS BYTES, swipl's octet: get_char/2 of
+  one reads a byte as the character of its code, put_char/2 writes one, a
+  character past 255 is `io_error(write, S)` with swipl's 'Encoding cannot
+  represent character', read_term/2 reads a byte past 127 as its character,
+  and the term's position counts the bytes. Through 3.15.2 the character,
+  line and term predicates refused a binary stream.
+- A POSITION IS `'$stream_position'(Char, Line, LinePos, Byte)`, read by
+  stream_property/2 and set by set_stream_position/2, through 3.15.2 a byte
+  offset. A position asked after a seek counts the file up to it.
+- AN ALIAS GIVEN IS THE STREAM: `open(F, read, S, [alias(a)])` binds S to
+  `a`, and of two aliases the last; a stream bound to another term than the
+  alias fails the open.
+- format/3 into user_input is `permission_error(output, stream, user_input)`
+  (lib/builtins-format.cicili, `coco_sink_check`), as swipl's; it was
+  existence_error.
+- FORALL/2'S SEARCH ENDS AT ITS FIRST COUNTEREXAMPLE (lib/solve-loop.cicili,
+  `rootn` 2 in `coco_engine_findall`): through 3.15.2 it went on, and every
+  action after the one that failed ran -- a write inside one printed
+  `act(3)` after `act(2)` had failed, where swipl's prints nothing after
+  it. test/files/builtins.pl holds it.
+
+NOT SWIPL'S (COMPAT.md): an open refused for its stream argument closes the
+file it opened, where swipl's stays open; read_line_to_codes/2 and
+read_stream_to_codes/2 of an output stream raise permission_error, where
+swipl reads the file under it or raises io_error(write, S); the order
+stream_property/2 walks the streams in; a standard stream has no position;
+an encoding is checked and not honoured (a text stream is UTF-8), and a
+quoted write of a character past 255 into a binary stream raises where
+swipl's escapes it (`'\x101\'`); the stream_* predicates' own writers name
+format/3; and library(stream) has no character_count/2, line_count/2,
+line_position/2, is_stream/1 or stream_position_data/3.
+
+FOUND ON THE WAY: the case's octets section bound `P3` before it read a
+term with `term_position(P3)`, so read_term/3 failed in both systems and
+the case's last two sections never ran -- and the first round of arms was
+green for every rule only those sections check. The arm review found it.
+
+CHECKS: test/files/stream_errors.pl (1237 lines to swipl 9.0.4),
+test/files/builtins.pl's forall_stops, test/stream.pl (positions, octets,
+an open refused leaves no stream open, a position after a seek), lesson
+48. ARMS: 64 of library(stream)'s rules, each red, and 4 of the engine's
+(the forall stop, the `:PI` rows, the error's message, the user_input
+sink), each red. Five checks a green arm showed redundant were taken out:
+the open and close options' unbound-option clauses (the next clause raises
+the same instantiation_error), and the character test's float, compound
+and one-element-list arms (the text fallback reads `[Code]` and `[Char]`
+and raises the same type_error; eight such inputs are held to swipl).
+PROVED: the narrow cases, a server up: lint first (0 HARD, 0 WARN, the
+card's cites), then files beside the reference swipl 9.0.4, stream, engine,
+errors, library, directives, string, units, journal, flowdebug, serialize,
+thread, websocket, tcp, httpd, process, async, backtrace, cyclic, gc, trace,
+window, flowchart, reconsult, argv, http, hex, store-lock, reason,
+translate, normalise, groups, ruler, zigurat-tls, tls, crypto and the 133
+lessons (tutorials), each GREEN.

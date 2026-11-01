@@ -291,6 +291,10 @@
             ;; collector left it
             (set (nth n kept) (coco_store_put fst m (nth 0 hold)))
             (set n (+ n 1))
+            ;; FORALL/2'S SEARCH ENDS AT ITS FIRST COUNTEREXAMPLE (3.16.0,
+            ;; swipl's `\+ (C, \+ A)'): through 3.15.2 it went on, and every
+            ;; action after the one that failed ran, its writes with it
+            (if (== rootn 2) break)
             ;; THE STORE GIVEN LESS THAN IT ASKED stops this engine
             ;; (`coco_store_memreq'), whose next step is after the search
             ;; -- never, for a search with no end -- so it is raised here,
