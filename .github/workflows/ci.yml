@@ -352,6 +352,7 @@ jobs:
           else
             echo "::error title=server::the ZiguratIP server is gone after the suite (its log is in the artifact)"
             echo "**The ZiguratIP server is gone after the suite.**" >> "$GITHUB_STEP_SUMMARY"
+            sh tools/ci/server-diag.sh "$LOGS/ziguratip.log" "$LOGS"
             rc=1
           fi
           exit "$rc"
@@ -364,6 +365,23 @@ jobs:
           [ -s "$LOGS/rerun.txt" ] || exit 0
           export COCOLOG_LIBRARY="$PWD/library" PATH="$PWD/tools/cc:$PATH"
           printf '### Run again alone\n\n' >> "$GITHUB_STEP_SUMMARY"
+          # a server the suite lost is raised again, so a database case is
+          # run alone against one rather than skipping for want of it
+          if ! pgrep -x ziguratip > /dev/null; then
+            cd "$ZIGURATIP"
+            if command -v setsid > /dev/null 2>&1; then
+              setsid "$ZIGURATIP_HOME/bin/ziguratip" > "$LOGS/ziguratip-rerun.log" 2>&1 < /dev/null &
+            else
+              "$ZIGURATIP_HOME/bin/ziguratip" > "$LOGS/ziguratip-rerun.log" 2>&1 < /dev/null &
+            fi
+            cd - > /dev/null
+            for _ in $(seq 60); do
+              lsof -iTCP:2160 -sTCP:LISTEN > /dev/null 2>&1 && break
+              sleep 1
+            done
+            echo "ziguratip raised again for the reruns: pid $(pgrep -x ziguratip || echo none)"
+            echo "- the server was raised again for these runs" >> "$GITHUB_STEP_SUMMARY"
+          fi
           head -6 "$LOGS/rerun.txt" | while read -r c; do
             if [ ! -f "test/$c.pl" ]; then
               echo "- **$c**: a test binary; its FAIL lines are in the table above" >> "$GITHUB_STEP_SUMMARY"
@@ -384,6 +402,10 @@ jobs:
             fi
             echo "- **$c**: $v" >> "$GITHUB_STEP_SUMMARY"
           done
+          if [ -f "$LOGS/ziguratip-rerun.log" ] && ! pgrep -x ziguratip > /dev/null; then
+            echo "- the server raised again for these runs is gone too" >> "$GITHUB_STEP_SUMMARY"
+            sh tools/ci/server-diag.sh "$LOGS/ziguratip-rerun.log" "$LOGS"
+          fi
 
       - name: Gather the logs
         if: ${{ always() }}
