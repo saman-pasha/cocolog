@@ -1331,9 +1331,11 @@ cocolint index offers no import of it.
     `nb_getval/2`, every ball), which binds the factors back once `cyc_puts`
     has moved; `coco_store_get` hands it the factors.
   - assert raises `representation_error(cyclic_term)` when its put counted
-    one (the store's length set back); a grammar rule is asked BEFORE its
-    translation, which recursed through a cyclic body to a SIGSEGV; the
-    clause check counts 4096 goals before it asks.
+    one (the store's length set back), a grammar rule's among them (stored
+    untranslated since 3.13.0); dcg_translate_rule/2 and phrase/3 ask
+    BEFORE they translate -- the translation recursed through a cyclic body
+    to a SIGSEGV -- and raise `type_error(acyclic_term, T)`; the clause
+    check counts 4096 goals before it asks.
   - ground/1 and term_variables/2 count the heap's length, then walk again
     meeting each compound once, in SWI's order; unify_with_occurs_check/2
     unifies, then asks `coco_occurs` of each variable it bound, unbound for
@@ -2450,14 +2452,42 @@ cocolint index offers no import of it.
   merged mapping exceeds RAM+swap) and RAISES when it cannot spawn.
 * **stdout is block-buffered into a pipe**: `flush_output/0` before
   blocking, or a marker never arrives.
-* **A grammar rule's leading terminal is stored in its head**, as SWI's
-  `optimise_unify` does. **A qualified head keeps its qualifier** (2.16.0,
-  `coco_dcg_requalify`): `M:H --> B` is `M:H2 :- B2`, and the store peels it
+* **A grammar rule is translated where a file is read, as swipl's
+  boot/dcg.pl translates it, and nowhere else** (3.13.0, lib/dcg.cicili;
+  the consult in `coco_consult_owned` asks `coco_dcg_rule` with LIFT 1):
+  `assertz((a --> b))` stores the clause of `-->'/2` it is, as swipl's
+  does (through 3.12.0 `coco_assert_from` translated it), and
+  dcg_translate_rule/2 is the translation with no terminal lifted. **The
+  leading terminal is lifted into the stored head** (`coco_dcg_leading`),
+  as SWI's `optimise_unify` does. The shapes are swipl's: `{}` binds the
+  output to the input as it is translated (`a --> {}` is `a(A, A) :-
+  true`); a disjunction's branch gets an output of its own, made the
+  rule's after it, or `(T, S = S0)` where the branch consumed nothing
+  (or_delay_bind, `coco_dcg_branch`); `M:X` qualifies X's non-terminals and
+  `{G}` goals unless M is `user`; a string is its codes; a partial list is
+  `'$append'(L, S, S0)` and any other improper one
+  `type_error(list_or_partial_list, L)`; body syntax as a head or a
+  pushback, and `-->` in a body, `permission_error(define, dcg_nonterminal,
+  T)`. A rule that will not translate is reported in its ball's words and
+  the load goes on (`coco_consult_dcg_refusal`). **The translator binds
+  only variables it made, with no trail entry** (`coco_dcg_same`): a
+  consult winds the heap back after each clause and leaves the trail
+  alone, so an entry would undo a later cell -- **a new caller hands it
+  fresh variables** and unifies its own with them after, as `'$dcg_goal'`
+  does. **phrase/3 is call_dcg/3**: a body swipl's dcg_special/1 names is
+  translated, anything else called with the two lists as call/3 calls it
+  (`{}`, `*->` and `-->` among it); an unknown procedure its call meets is
+  `'$dcg':call_dcg/3`'s, a row of `*frame-contexts*` in lib/solve.cicili
+  (`coco_frame_ctx`, asked by `coco_owner_ctx`), and a translation's error
+  has no context, as swipl's. **A qualified head keeps its qualifier**
+  (`coco_dcg_extend`): `M:H --> B` is `M:H2 :- B2`, and the store peels it
   as it peels any clause's -- through 2.15.2 the qualifier took the two
-  arguments, a `:'/4 nobody calls. Whether there is one is a FLAG, never
-  `mod != 0`: in a fresh machine (`cocolog run`, whose consult reads each
-  clause from cell 0) the module's atom IS heap cell 0, and the first cut
-  dropped every `prolog:message//1` rule under `run` alone. The two hooks
+  arguments, a `:'/4 nobody calls. Whether a body is qualified is a FLAG
+  (`qual`), never `qm != 0`: in a fresh machine (`cocolog run`, whose
+  consult reads each clause from cell 0) the module's atom IS heap cell 0,
+  and 2.16.0's first cut dropped every `prolog:message//1` rule under `run`
+  alone. Not swipl's yet (COMPAT.md): a stored body keeps the
+  translation's nesting, where swipl's compiler flattens a conjunction. The two hooks
   print_message/2 reads, `prolog:message//1` and `prolog:error_message//1`,
   are stored as `'$prolog_message'/3` and `'$prolog_error_message'/3`
   (`coco_hook_head`), apart from a program's own message/3.

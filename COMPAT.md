@@ -3,7 +3,7 @@
 One table for everything a program written for SWI-Prolog can trip over. Each
 row was checked by running the same goal on both systems (SWI-Prolog 9.0.4, and
 the installed 10.0.2 where the two agree; cocolog 3.1.0, every row checked
-again on it, and the rows 3.2.0, 3.4.0 and 3.5.0 changed on those) — not recalled
+again on it, and the rows 3.2.0, 3.4.0, 3.5.0 and 3.13.0 changed on those) — not recalled
 from the code — and the column on the right says what to write instead.
 
 The rows that can give a **silently wrong answer** come first, because they are
@@ -16,6 +16,7 @@ an existence error, an instantiation error, a refusal by name.
 |---|---|---|---|
 | `retract/1` | re-executable: `findall(X, retract(p(X)), L)` takes every clause, `[1,2,3]` | **deterministic**: removes the first match and leaves no choice point, `[1]` | `retractall/1` for all of them; or a recursion that retracts one and recurses until `retract/1` fails |
 | `clause/2` changing its predicate during its own enumeration | the clauses that stood when it began: `findall(X, ( clause(q(X), true), ( X == 1 -> retract(q(1)) ; true ) ), L)` over `q(1). q(2). q(3).` is `[1,2,3]`, and with `asserta(q(0))` in the retract's place `[1,2,3]` too | the count taken when it began and each clause read by its place among the live ones then: `[1,3]`, and `[1,1,1]`. A CALL of the predicate keeps ISO's logical update view as swipl's does (since 2.3.0; through 2.2.5 a retry read the live clauses too) | `findall/3` the clauses first, then change the predicate |
+| the body of a grammar rule's clause, read back with `clause/2` or `listing/1` | its compiler flattens a conjunction: `a --> (b, c), d.` is stored as `a(A, B) :- b(A, C), c(C, D), d(D, B)` | the translation as it stands, `a(A, B) :- (b(A, C), c(C, D)), d(D, B)` -- what `dcg_translate_rule/2` answers on both (3.13.0) | compare translations with `dcg_translate_rule/2`, or write the body flat |
 | `abolish/1` | takes the predicate away, its `dynamic` declaration with it: a later call raises `existence_error(procedure, q/1)` | takes its clauses away and keeps it known: a later call fails | `retractall/1`, which keeps the predicate dynamic in both |
 | `listing/1` and the REPL's answer | `f('don\'t')`, and `f(B)` for `f('$VAR'(1))`, which reads back as a variable | `f('don''t')` and `f('$VAR'(1))`, which read back as the term. writeq/1, print/1, write_canonical/1, `~q`, `~p` and write_term/2's `quoted(true)` write `'don\'t'` as swipl's do since 2.2.5, and write/1, writeq/1 and their kin `B` (through 2.2.4 `'don''t'`, and `'$VAR'(1)` but for print/1); term_to_atom/2 writes `'don''t'` in both | writeq/1 |
 | a newline or a tab in an atom `term_to_atom/2` writes | `term_to_atom(f('a\nb'), T)` puts the newline in T as it is, `'f(\'a\nb\')'` | the escape, `'f(\'a\\nb\')'` (and `\t`); both read back as the same term. A control character in a quoted atom or string is written as swipl writes it since 3.1.0 -- `'\x1\'` by writeq/1, `'\u0001'` by print/1 -- and read back (through 3.0.4 the character itself, and no `\x..\` escape: cocolint E1) | — |

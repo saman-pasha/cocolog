@@ -620,6 +620,25 @@
           (return (coco_new_var m))))
       (T (ERROR "coco: bad *error-contexts* row ~S" row)))))
 
+;;; A LIBRARY CLAUSE'S FRAME AS SWIPL NAMES IT (3.13.0): a predicate
+;;; written as clauses here whose frame swipl's own library names with its
+;;; module, (NAME ARITY MOD), for what goes wrong in its body that names
+;;; the frame (`coco_owner_ctx') -- an unknown procedure call_dcg/3 calls
+;;; is `'$dcg':call_dcg/3''s, where through 3.12.0 it was phrase/3's, bare
+(DEFPARAMETER *frame-contexts*
+  '(("call_dcg" 3 "$dcg")))
+
+(DEFMACRO coco-emit-frame-ctx ()
+  `(func coco_frame_ctx ((coco_machine * m) (u64 nid) (u32 n) (size_t * out)) (out int)
+     (let ((const char * s . #'(coco_atom_name m nid)))
+       ,@(LOOP FOR row IN *frame-contexts*
+               COLLECT `(if (and (== n ,(SECOND row)) (== 0 (strcmp s ,(FIRST row))))
+                            (block
+                             (set (cof out) (coco_ectx_pi m ,(THIRD row) (coco_new_atom_id m nid)
+                                                          n (coco_new_var m)))
+                             (return 1))))
+       (return 0))))
+
 ;;; `coco_ectx_make': row ROW's context for goal G (name NID, arity N),
 ;;; MSG its second argument; BARE drops the row's module, as swipl's
 ;;; PL_error() does when the raise names its predicate.
@@ -2299,6 +2318,7 @@
 
   (coco-emit-ectx-row)
   (coco-emit-ectx-make)
+  (coco-emit-frame-ctx)
 
   ;;; The context of a raise by the goal in flight: BARE drops the row's
   ;;; module, MSG (or null) is the context's second argument. A goal of a

@@ -10409,3 +10409,114 @@ PROVED: the whole files case (zero_arity among it), the syntax binary,
 errors, string, directives, reconsult, serialize, journal, stream, engine,
 module_context (with the environment that builds its fixture),
 the term and solve binaries; lint 0 HARD 0 WARN; the card's cites checked.
+
+## Grammar rules translated as swipl's boot/dcg.pl translates them, and dcg_translate_rule/2 (3.13.0)
+
+A grammar rule is translated where a file is read, and nowhere else, into
+the clause swipl's boot/dcg.pl makes of it. Through 3.12.0 the translation
+was cocolog's own where the two differ: `{}` was `S = S0`, where swipl
+unifies the two lists as it translates (`a --> {}` is `a(A, A) :- true`);
+a disjunction's branch had the rule's output, where swipl gives each branch
+one of its own and binds it to the rule's after -- or `(T, S = S0)` for a
+branch that consumed nothing (or_delay_bind); `m:b` in a body was a
+non-terminal `:'/4`, where swipl's is `m:b(S0, S)`, its `{G}` goals
+qualified too and `user:` the source module's own; a string was no
+terminal; a partial list was walked by append/3, where swipl's clause names
+`'$append'/3`; a list neither proper nor partial was walked too, where
+swipl raises type_error(list_or_partial_list, L); body syntax as a head was
+type_error(callable, H), where swipl's is permission_error(define,
+dcg_nonterminal, H), and `-->` in a body was translated as a call; and a
+rule that would not translate said `not a clause`. assertz/1 translated a
+rule, where swipl's asserts the `-->'/2 clause it is given; phrase/3
+translated every body, where swipl's call_dcg/3 translates only the bodies
+dcg_special/1 names and calls anything else as call/3 does (`{}`, `*->` and
+a rule among it, `{}'/2`, `*->'/4` and `-->'/4 to call/3); an unknown
+procedure inside it was phrase/3's, where swipl names `'$dcg':call_dcg/3`;
+and dcg_translate_rule/2 did not exist.
+
+WHAT IT TOOK:
+- lib/dcg.cicili, the translator, on boot/dcg.pl's clauses: `coco_dcg_body`
+  carries the module a body is called in (swipl's `q(M, C, _)`: QUAL and
+  QM), `coco_dcg_branch` is or_delay_bind/5, `coco_dcg_extend` is
+  dcg_extend/6 (a variable instantiation_error, `M:T` qualified again, no
+  callable type_error, `coco_dcg_no_extend` the permission error),
+  `coco_dcg_open` answers proper, partial or neither, and `coco_dcg_same`
+  binds an output to its input. `coco_dcg_rule` takes LIFT: 1 for the
+  store, which keeps the leading terminal in the head as swipl's
+  optimise_unify does, 0 for dcg_translate_rule/2.
+- THE BINDING IS UNTRAILED, and is sound only because the translator binds
+  nothing it did not make: both variables of a `{}`, a branch's output and
+  the rule's are the translator's, made after any choice a backtrack could
+  return to and seen by no collection before the term is done, while the
+  consult winds the heap back after each clause and leaves the trail
+  alone -- an entry there would undo a cell made after it. So
+  `'$dcg_goal'/4` translates a body over two lists of its own and unifies
+  the caller's with them after, as swipl's `Input = S0, Rest = S`.
+- the consult (lib/kb-consult.cicili): a file's rule is translated in
+  `coco_consult_owned`, before the clause checks, and one that will not
+  translate is reported in its ball's words (`coco_consult_dcg_refusal`:
+  `No permission to define dcg_nonterminal `[a]'`, `Type error:
+  `list_or_partial_list' expected, found `[x|foo]' (a compound)`,
+  `Arguments are not sufficiently instantiated`) and passed over, as a
+  clause that is no clause is. `coco_assert_from` translates nothing.
+- `'$dcg_goal'/4`, call_dcg/3 and so phrase/2,3: the module stripped (every
+  qualifier, the last one kept), a dcg_special/1 body translated, anything
+  else the goal call/3 makes, qualified by the module it was given in; a
+  translation's ball has no context, as swipl's.
+- `'$dcg_rule'/2`, dcg_translate_rule/2: a variable instantiation_error, a
+  term that is no rule fails, a cyclic one type_error(acyclic_term, T)
+  (swipl's had not ended after thirty seconds, and its phrase/2 of one
+  runs out of stack, resource_error(stack)).
+- `*frame-contexts*` (lib/solve.cicili, `coco_frame_ctx`, asked by
+  `coco_owner_ctx`): a library clause's frame named as swipl's library
+  names it -- call_dcg/3's is `'$dcg':call_dcg/3`.
+- `'$append'/3` in the Prolog half, swipl's.
+
+test/files/dcg_translate.pl holds 171 lines of it to swipl: 79
+translations by dcg_translate_rule/2, 18 stored rules read back with
+clause/2, the eleven rules of a file that will not translate and their
+reports, an assert of a rule in four checks, and 48 calls of phrase/2,3
+and call_dcg/3, their answers and their balls with their contexts. test/cyclic.pl has two
+more (dcg_translate_rule/2 and phrase/2 of a cyclic body), test/solve.cicili
+an assert that stores the rule and defines no non-terminal by it, and
+lesson 05 asserts a translation and a rule as it is.
+
+ARMS: forty, one a rule, each taken out in a copy of the tree
+built as the release is. Thirty-eight are red: thirty-six in
+test/files/dcg_translate.pl against swipl (the empty body, the delayed
+binding, a branch's binding, the qualified body and `user:' left bare in
+it, a string, `'$append'/3' and its clauses, an improper list, a terminal
+lifted into the head and not by dcg_translate_rule/2, `M:T' qualified
+again, `!' with nothing after it, `{G}', a variable body, a non-terminal
+and `{G}' qualified, the rule as a body, `-->' in a body, the consult's
+translation, its lift, its report's words, the instantiation, callable
+and list balls, the non-terminal's permission error, phrase/3's
+dcg_special/1 and its string, its qualifier and its strip, its fresh
+lists, its raise, call_dcg/3 and its context, a variable phrase, and the
+assert that translated the rule -- which is red in test/cyclic.pl and
+lesson 05 too), two in test/cyclic.pl (a cyclic rule, a cyclic phrase).
+Two were green and their code is gone: `coco_dcg_leading' compared S0
+dereferenced, which no translation binds before the first goal is made,
+and phrase/3 left a `user:' body bare, where calling `user:G' is calling
+G here.
+
+
+NOT SWIPL'S YET:
+- a stored body keeps the translation's nesting, where swipl's compiler
+  flattens a conjunction (`a --> (b, c), d` is `a(A, B) :- (b(A, C), c(C,
+  D)), d(D, B)` here, `b(A, C), c(C, D), d(D, B)` there; COMPAT.md); and
+  numbervars/3 does not exist.
+- expand_term/2, expand_goal/2, term_expansion/2 and goal_expansion/2 at a
+  load, and non_terminal/1 -- the change after this one.
+- a rule in a module file: swipl leaves `M:X` unqualified where M is the
+  file's own module, cocolog qualifies it (the call is the same: one
+  namespace).
+- listing//N is refused (`listing/1 needs a name or Name/Arity`), and a
+  listing's layout is not swipl's.
+
+PROVED: THE NARROW CASES (the owner's choice; CI runs the whole suite): lint
+first (0 HARD, 0 WARN), then files beside the reference swipl 9.0.4
+(dcg_translate's 171 lines among them), cyclic, errors, directives,
+syntax, reconsult, string, engine, flowchart and the solve binary, each
+GREEN; lesson 05 ends on `done'; the card's cites checked (28 rows, 40
+cites).

@@ -529,10 +529,13 @@
        ;; so `phrase' is an undefined predicate in it and raises, correctly.
        ;; test/files/dcg.pl exercises it through the built program, against SWI.
 
-       ;; asserting a rule at RUN time goes through the same translation, which
-       ;; is the whole reason it lives in `coco_assert' and not in `consult'
-       (check "assert translates a grammar rule too"
-              (cast llong (count (aof e) "assertz((g6 --> [z])), g6([z], [])" 10)) 1))
+       ;; A RULE ASSERTED AT RUN TIME IS STORED AS IT IS (3.13.0, swipl's):
+       ;; a clause of `-->'/2, and no g6//0 is made of it; the consult is
+       ;; what translates (through 3.12.0 `coco_assert' did, for both)
+       (check "assert stores a grammar rule as a clause of -->/2"
+              (cast llong (count (aof e) "assertz((g6 --> [z])), '-->'(g6, [z])" 10)) 1)
+       (check "and defines no non-terminal by it"
+              (cast llong (count (aof e) "g6([z], [])" 10)) -1))
 
       ;; ---- errors are reported, not guessed -------------------------------
       (check "an unbound goal is an error"    (cast llong (count (aof e) "X" 10)) -1)

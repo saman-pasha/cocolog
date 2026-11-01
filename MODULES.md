@@ -603,14 +603,17 @@ rather than being arranged for.
 
 ### The translator is C, and lives below the engine
 
-Every clause reaches the store through `coco_assert`, and `coco_assert` holds a
-machine and a store — **not an engine**. A translator written in Prolog could
-only be reached by running a goal, and there is nothing there to run one with.
-So the rewriting is Cicili, and `lib/dcg.cicili` is imported before `kb`.
+Every clause a file holds reaches the store through the consult, and the consult
+holds a machine and a store — **not an engine**. A translator written in Prolog
+could only be reached by running a goal, and there is nothing there to run one
+with. So the rewriting is Cicili, and `lib/dcg.cicili` is imported before `kb`.
 
-That placement is what makes `-->` mean one thing by all three routes: consulted
-from a file, asserted by a running program, or arriving from the database. It
-also settles the bootstrap question that would otherwise exist — a translator
+A rule is translated where a file is read and nowhere else (3.13.0, swipl's):
+`assertz((a --> b))` stores the clause of `-->/2` it is given, as swipl's assert
+does, and a running program translates a rule with `dcg_translate_rule/2`, the
+clause swipl's `boot/dcg.pl` gives (no terminal lifted into the head). A rule
+stored in a knowledge base is the clause it was read as. The placement also
+settles the bootstrap question that would otherwise exist — a translator
 written in the notation it exists to translate.
 
 The file therefore has **two generics**. `decl-dcg`/`impl-dcg` is the translator

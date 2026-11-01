@@ -764,28 +764,11 @@
         ;; and the last read's reason, so a refusal below is this one's
         (set (nth 0 (-> st fetch_err)) (cast char 0))
 
-        ;; A GRAMMAR RULE IS REWRITTEN HERE AND NOWHERE ELSE. Everything that
-        ;; puts a clause in the store comes through this function -- consulting
-        ;; a file, `assertz' in a running program, a module's own clauses on
-        ;; the way in -- so translating here is what makes `-->' mean the same
-        ;; thing by all three routes. What gets stored is the ordinary clause;
-        ;; nothing below this line has ever heard of a grammar.
-        (if (coco_dcg_is_rule m clause)
-            (let ((coco_dcg_err derr) (size_t rewritten))
-              ;; ...AND A CYCLIC ONE IS REFUSED FIRST (1.10.19): the
-              ;; translation walks the body, and went round a cyclic one for
-              ;; ever. Asked of an assert's rule (no origin), a consulted one
-              ;; having been read from text; the refusal is told as the put's
-              ;; is, by the count of cycles moving
-              (if (and (== origin 0) (!= 1 (coco_acyclic m clause)))
-                  (block (set (-> m cyc_puts) (+ (-> m cyc_puts) 1)) (return 0)))
-              (set ($ derr kind) COCO_DCG_OK)
-              (set ($ derr culprit) 0)
-              (set rewritten (coco_dcg_rule m clause (aof derr)))
-              ;; a rule that will not translate is not silently stored as a
-              ;; `-->'/2 fact, which is what returning 1 here would do
-              (if (== rewritten 0) (return 0))
-              (set clause rewritten)))
+        ;; A GRAMMAR RULE IS NOT REWRITTEN HERE (3.13.0): the consult
+        ;; translates what a file holds (`coco_consult_owned'), and an
+        ;; assert stores `a --> b' as the clause of `-->'/2 it is, as
+        ;; swipl's does. Through 3.12.0 every rule that came this way was
+        ;; translated, the asserted ones too.
 
         ;; A SINGLE-SIDED RULE IS TRANSLATED HERE, the way a grammar rule
         ;; is: SWI >= 8.4 writes deterministic dispatch as `Head => Body',
@@ -1296,7 +1279,8 @@
   ;;; expected, found `3' (an integer)', the culprit written as print/1
   ;;; writes it and its kind named as the error text names one
   (static)
-  (func coco_consult_refusal ((coco_machine * m) (size_t c) (char * out) (size_t len))
+  (func coco_consult_type_text ((coco_machine * m) (const char * type) (size_t c)
+                                (char * out) (size_t len))
         (let ((coco_strbuf b) (u64 w . 0) (const char * kind . "a compound"))
           (set c (coco_deref m c))
           (set w (nth c (-> m heap)))
@@ -1309,9 +1293,33 @@
             ((coco-tag-is FLT w) (set kind "a float")))
           (coco_sb_init (aof b))
           (coco_write_term m (aof b) c 1 0)
-          (snprintf out len "Type error: `callable' expected, found `%s' (%s)"
-                    (? (== ($ b s) nil) "?" ($ b s)) kind)
+          (snprintf out len "Type error: `%s' expected, found `%s' (%s)"
+                    type (? (== ($ b s) nil) "?" ($ b s)) kind)
           (coco_sb_free (aof b))))
+
+  (static)
+  (func coco_consult_refusal ((coco_machine * m) (size_t c) (char * out) (size_t len))
+        (coco_consult_type_text m "callable" c out len))
+
+  ;;; swipl's sentence for a grammar rule that will not translate (3.13.0),
+  ;;; the message of the ball its boot/dcg.pl throws: KIND is the
+  ;;; translator's (`coco_dcg_ekind'), C its culprit
+  (static)
+  (func coco_consult_dcg_refusal ((coco_machine * m) (int kind) (size_t c)
+                                  (char * out) (size_t len))
+        (cond
+          ((== kind COCO_DCG_INST)
+           (snprintf out len "Arguments are not sufficiently instantiated"))
+          ((== kind COCO_DCG_CALLABLE) (coco_consult_type_text m "callable" c out len))
+          ((== kind COCO_DCG_LIST) (coco_consult_type_text m "list_or_partial_list" c out len))
+          ((== kind COCO_DCG_NONTERM)
+           (let ((coco_strbuf b))
+             (coco_sb_init (aof b))
+             (coco_write_term m (aof b) (coco_deref m c) 1 0)
+             (snprintf out len "No permission to define dcg_nonterminal `%s'"
+                       (? (== ($ b s) nil) "?" ($ b s)))
+             (coco_sb_free (aof b))))
+          (#t (snprintf out len "Not enough resources: memory"))))
 
   ;;; WHETHER PATH IS OPEN ON THE WAY DOWN to an include (3.5.0), or the way
   ;;; is sixty-four files deep: an include of it would read it again, and
@@ -1664,9 +1672,31 @@
                          ;; naming it, its head or its body), which through
                          ;; 3.0.4 ended the consult or, a body with a number
                          ;; for a goal, went in.
-                         (let ((size_t culprit . 0)
-                               (int refused . #'(coco_consult_refused m t cids (aof culprit))))
+                         (let ((size_t culprit . 0) (int dk . 0) (int refused . 0))
+                           ;; A GRAMMAR RULE IS TRANSLATED HERE AND NOWHERE
+                           ;; ELSE (3.13.0, swipl's): a file's rules -- a
+                           ;; program's, a library's, a module's own -- come
+                           ;; this way, and an assert stores a rule as the
+                           ;; `-->'/2 clause it is. One that will not
+                           ;; translate is reported in swipl's words, its
+                           ;; ball's (`coco_consult_dcg_refusal'), and passed
+                           ;; over, as a clause that is no clause is.
+                           (if (coco_dcg_is_rule m t)
+                               (let ((coco_dcg_err derr) (size_t tr . 0))
+                                 (set ($ derr kind) COCO_DCG_OK)
+                                 (set ($ derr culprit) 0)
+                                 (set tr (coco_dcg_rule m t 1 (aof derr)))
+                                 (if (== tr 0)
+                                     (block (set dk (? (== ($ derr kind) COCO_DCG_OK)
+                                                       COCO_DCG_OOM ($ derr kind)))
+                                            (set culprit ($ derr culprit)))
+                                   (set t tr))))
+                           (if (== dk 0) (set refused (coco_consult_refused m t cids (aof culprit))))
                            (cond
+                             ((!= dk 0)
+                              (coco_consult_dcg_refusal m dk culprit err errlen)
+                              (coco_load_message "ERROR" origin at err)
+                              (set (nth 0 err) (cast char 0)))
                              ((== refused 1)
                               (coco_consult_refusal m culprit err errlen)
                               (coco_load_message "ERROR" origin at err)
