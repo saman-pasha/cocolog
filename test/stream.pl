@@ -23,6 +23,7 @@ main :-
     text_out_and_in(D),
     characters(D),
     binary(D),
+    octets(D),
     positions(D),
     formatted(D),
     terms(D),
@@ -98,12 +99,17 @@ characters(D) :-
     answer(( stream_open(C, read, S4), stream_peek_char(S4, _), stream_read_line(S4, L4), stream_close(S4), atom_codes(A4, L4) ), A4, G4),
     check('a line read after a peek starts with the peeked character', G4, 'aé€'),
     answer(( stream_open(C, read, S5), stream_get_char(S5, _), stream_seek(S5, 0), stream_get_char(S5, C5), stream_close(S5) ), C5, G5),
-    check('seek(0) starts again', G5, a).
+    check('seek(0) starts again', G5, a),
+    %% a seek moves the file under the counters: the position asked after
+    %% one is counted again from the file (st_pos_sync), its characters too
+    answer(( stream_open(C, read, S6), stream_seek(S6, 3), stream_property(S6, position(P6)), stream_get_char(S6, C6),
+             stream_close(S6) ), P6-C6, G6),
+    check('a position after a seek counts the file up to it', G6, '$stream_position'(2, 1, 2, 3)-'€').
 
 %% ---- bytes ---------------------------------------------------------------
 
 binary(D) :-
-    section('binary: bytes, and only bytes'),
+    section('binary: bytes, and its characters are its bytes'),
     path(D, 'b.bin', B),
     answer(( stream_open(B, write, [type(binary)], S1), stream_write_bytes(S1, [0, 1, 2, 255, 10, 13]), stream_put_byte(S1, 7),
              stream_close(S1), file_bytes(B, Cs1) ), Cs1, G1),
@@ -119,6 +125,16 @@ binary(D) :-
     check('update writes into the file where it is and reads it back', G4, [0, 99, 2, 255, 10, 13, 7]),
     answer(( stream_open(B, read, [type(binary)], S5), stream_get_byte(S5, _), stream_read_bytes(S5, 100, Bs5), stream_close(S5), length(Bs5, N5) ), N5, G5),
     check('read_bytes past the end answers what there was', G5, 6).
+
+%% swipl's octets (3.16.0): a byte is a character of its code, read or written
+octets(D) :-
+    path(D, 'b.bin', B),
+    answer(( stream_open(B, read, [type(binary)], S6), stream_seek(S6, 3), stream_get_char(S6, C6), stream_close(S6),
+             char_code(C6, K6) ), K6, G6),
+    check('a character read from a binary stream is its byte', G6, 255),
+    answer(( stream_open(B, write, [type(binary)], S7), char_code(E7, 233), stream_put_char(S7, E7), stream_write_text(S7, [97, 252]),
+             stream_close(S7), file_bytes(B, Bs7) ), Bs7, G7),
+    check('and one written is its byte', G7, [233, 97, 252]).
 
 %% ---- positions --------------------------------------------------------------
 
@@ -148,7 +164,7 @@ formatted(D) :-
              stream_write_term(S1, f('X'), [quoted(true)]), stream_nl(S1), stream_close(S1),
              read_file_to_codes(F, C1), atom_codes(A1, C1) ), A1, G1),
     check('format, write, writeq, print, write_canonical and write_term, each as on the terminal', G1,
-          'f(X,[97,98]) \'A b\' bar 42\nA b\n\'A b\'\n[1,2]\n\'A\'+b\nf(\'X\')\n'),
+          'f(X,[97,98]) \'A b\' bar 42\nA b\n\'A b\'\n[1,2]\n+(\'A\',b)\nf(\'X\')\n'),
     answer(( stream_open(F, write, S2), stream_with_output(S2, ( write(captured), nl, format("~a~n", [and_formatted]) )),
              stream_close(S2), read_file_to_codes(F, C2), atom_codes(A2, C2) ), A2, G2),
     check('stream_with_output sends what a goal prints to the file', G2, 'captured\nand_formatted\n'),
@@ -174,13 +190,13 @@ terms(D) :-
     answer(( stream_open(C, read, S3), stream_read_terms(S3, Ts3), stream_close(S3), length(Ts3, N3) ), N3, G3),
     check('read_terms reads them all', G3, 3),
     answer(( stream_open(C, append, S4), stream_write_text(S4, "oops(.\n"), stream_close(S4),
-             stream_open(C, read, S5), stream_read_terms(S5, _) ), ok, G5), ball(G5, B5),
-    ( B5 = syntax_error(Why5), atom(Why5) -> V5 = syntax_error ; V5 = B5 ),
-    check('a clause that will not read is syntax_error(Message), ISO''s shape, not a term', V5, syntax_error),
+             stream_open(C, read, S5), stream_read_terms(S5, _) ), ok, G5),
+    ( G5 = error(error(syntax_error(Id5), file(F5, L5, LP5, _))), F5 == C -> V5 = Id5-L5-LP5 ; V5 = G5 ),
+    check('a clause that will not read is swipl''s syntax_error(Id) at file(File, Line, LinePos, CharNo)', V5,
+          end_of_clause-7-5),
     answer(( stream_open(C, write, S6), stream_write_text(S6, "unfinished(1, 2"), stream_close(S6),
              stream_open(C, read, S7), stream_read_term(S7, _) ), ok, G7), ball(G7, B7),
-    ( B7 = syntax_error(Why7), sub_atom(Why7, _, _, _, 'end of file') -> V7 = cut_short ; V7 = B7 ),
-    check('and a clause the end of the file cut short says so', V7, cut_short),
+    check('and a clause the end of the file cut short is swipl''s end_of_file', B7, syntax_error(end_of_file)),
     answer(( stream_open(C, write, S8), stream_write_text(S8, "  % only a comment\n/* and another */\n"), stream_close(S8),
              stream_open(C, read, S9), stream_read_term(S9, T9), stream_close(S9) ), T9, G9),
     check('a file of comments is end_of_file', G9, end_of_file),
@@ -218,10 +234,12 @@ properties(D) :-
     path(D, 'q.txt', Q),
     answer(( stream_open(Q, write, [type(binary)], S1), findall(P, stream_property(S1, P), Ps1), stream_close(S1) ), Ps1, G1),
     check('ISO''s properties: file_name, mode, type, direction, position, eof_action, reposition', G1,
-          [file_name(Q), mode(write), type(binary), output, position(0), eof_action(eof_code), reposition(true)]),
+          [file_name(Q), mode(write), type(binary), output, position('$stream_position'(0, 1, 0, 0)),
+           eof_action(eof_code), reposition(true)]),
     answer(( stream_open(Q, update, S2), findall(P, stream_property(S2, P), Ps2), stream_close(S2) ), Ps2, G2),
     check('update is input and output both, and an input stream says whether it is at its end', G2,
-          [file_name(Q), mode(update), type(text), input, output, position(0), end_of_stream(at), eof_action(eof_code), reposition(true)]),
+          [file_name(Q), mode(update), type(text), input, output, position('$stream_position'(0, 1, 0, 0)),
+           end_of_stream(at), eof_action(eof_code), reposition(true)]),
     answer(( findall(A, stream_property(_, alias(A)), As) ), As, G3),
     check('the standard three carry their aliases', G3, [user_input, user_output, user_error]),
     answer(( stream_open(Q, read, S4), stream_close(S4), findall(S, stream_property(S, file_name(Q)), Ss4) ), Ss4, G4),
@@ -254,9 +272,12 @@ what_goes_wrong(D) :-
     answer(( stream_open(W, write, S7), stream_close(S7), stream_open(W, read, S7b), catch(stream_get_byte(S7b, _), E7, true), stream_close(S7b) ), E7, G7),
     ( G7 = error(permission_error(input, text_stream, '$stream'(_)), _) -> V7 = shape ; V7 = G7 ),
     check('a byte from a text stream is permission_error(input, text_stream, S), S the handle', V7, shape),
-    answer(( stream_open(W, read, [type(binary)], S8), catch(stream_read_line(S8, _), E8, true), stream_close(S8) ), E8, G8),
-    ( G8 = error(permission_error(input, binary_stream, '$stream'(_)), _) -> V8 = shape ; V8 = G8 ),
-    check('and a line from a binary one is permission_error(input, binary_stream, S)', V8, shape),
+    %% a binary stream's characters are its bytes, swipl's octets (3.16.0;
+    %% through 3.15.2 a line from one was permission_error(input, binary_stream, S))
+    answer(( stream_open(W, write, [type(binary)], S8w), stream_put_byte(S8w, 97), stream_put_byte(S8w, 233),
+             stream_put_byte(S8w, 10), stream_close(S8w),
+             stream_open(W, read, [type(binary)], S8), stream_read_line(S8, L8), stream_close(S8) ), L8, G8),
+    check('and a line from a binary one is its bytes', G8, [97, 233]),
     answer(( stream_open(W, read, S9), catch(stream_write_text(S9, x), E9, true), stream_close(S9) ), E9, G9),
     ( G9 = error(permission_error(output, stream, '$stream'(_)), _) -> V9 = shape ; V9 = G9 ),
     check('writing to a stream opened for reading', V9, shape),
@@ -273,14 +294,18 @@ iso_names(D) :-
     section('ISO''s names over the same table'),
     path(D, 'iso.txt', F),
     answer(( open(F, write, S1), write(S1, f('A b', "x")), nl(S1), writeq(S1, 'A b'), nl(S1),
-             print(S1, ['A b', '$VAR'(1)]), nl(S1), write_canonical(S1, 'A' + b), nl(S1),   % cocolint: W1 -- pins what it writes: the operator kept
+             print(S1, ['A b', '$VAR'(1)]), nl(S1), write_canonical(S1, 'A' + b), nl(S1),
              write_term(S1, g('Y'), [quoted(true)]), nl(S1), format(S1, "~a=~d~n", [n, 42]),
              tab(S1, 2), put_char(S1, x), nl(S1), close(S1),
              read_file_to_codes(F, C1), atom_codes(A1, C1) ), A1, G1),
     %% print/2 quotes and writes '$VAR'(1) as B, swipl's print/1 (2.2.4;
     %% through 2.2.3 it was write/2: [A b,$VAR(1)])
     check('write/2, writeq/2, print/2, write_canonical/2, write_term/3, nl/1, tab/2, put_char/2, and format/3 into a stream', G1,
-          'f(A b,[120])\n\'A b\'\n[\'A b\',B]\n\'A\'+b\ng(\'Y\')\nn=42\n  x\n'),
+          'f(A b,[120])\n\'A b\'\n[\'A b\',B]\n+(\'A\',b)\ng(\'Y\')\nn=42\n  x\n'),
+    %% writeln/2 (3.9.0): write/2 and a newline, swipl's
+    answer(( open(F, write, SWl), writeln(SWl, 'A b'), writeln(SWl, '$VAR'(1)), writeln(SWl, 1 + 2),
+             close(SWl), read_file_to_codes(F, CWl), atom_codes(AWl, CWl) ), AWl, GWl),
+    check('writeln/2: write/2 and a newline, numbervars as write/1 has them', GWl, 'A b\nB\n1+2\n'),
     answer(( open(F, write, S2), with_output_to(S2, ( write(captured), nl )), close(S2),
              read_file_to_codes(F, C2), atom_codes(A2, C2) ), A2, G2),
     check('with_output_to/2 takes a stream as its sink', G2, 'captured\n'),
@@ -294,8 +319,11 @@ iso_names(D) :-
              open(FB, read, S7, [type(binary)]), get_byte(S7, B7a), peek_byte(S7, B7b), get_byte(S7, B7c), get_byte(S7, B7d), close(S7) ),
            B7a-B7b-B7c-B7d, G7),
     check('put_byte/2, get_byte/2, peek_byte/2, and -1 past the end', G7, 7-200-200-(-1)),
-    answer(( open(F, read, S8), set_stream_position(S8, 3), get_char(S8, C8), close(S8) ), C8, G8),
-    check('set_stream_position/2 takes the byte offset stream_position/2 answers', G8, t),
+    %% a position is swipl's '$stream_position'(Char, Line, LinePos, Byte)
+    %% (3.16.0; through 3.15.2 the byte offset stream_position/2 answers)
+    answer(( open(F, read, S8), get_char(S8, _), get_char(S8, _), get_char(S8, _), stream_property(S8, position(P8)),
+             get_char(S8, _), set_stream_position(S8, P8), get_char(S8, C8), close(S8) ), P8-C8, G8),
+    check('set_stream_position/2 takes the position stream_property/2 answers', G8, '$stream_position'(3, 1, 3, 3)-t),
     answer(open(F, read, notvar), ok, G9), ball(G9, B9),
     check('open/3 with its stream bound is uninstantiation_error, as ISO''s corrigendum says', B9, uninstantiation_error(notvar)),
     answer(( open(F, read, S10), catch(write(S10, x), E10, true), close(S10) ), E10, G10),
@@ -304,9 +332,12 @@ iso_names(D) :-
     answer(( open(F, write, S11), close(S11), catch(format(S11, "x", []), E11, true) ), E11, G11),
     ( G11 = error(existence_error(stream, '$stream'(_)), _) -> V11 = shape ; V11 = G11 ),
     check('format/3 into a closed stream is existence_error(stream, S)', V11, shape),
-    answer(( path(D, 'iso2.bin', FB2), open(FB2, write, S12, [type(binary)]), catch(format(S12, "x", []), E12, true), close(S12) ), E12, G12),
-    ( G12 = error(permission_error(output, binary_stream, '$stream'(_)), _) -> V12 = shape ; V12 = G12 ),
-    check('and into a binary one is permission_error(output, binary_stream, S)', V12, shape).
+    %% into a binary one its characters are bytes, and one past 255 is
+    %% io_error(write, S), swipl's (3.16.0; through 3.15.2 permission_error)
+    answer(( path(D, 'iso2.bin', FB2), open(FB2, write, S12, [type(binary)]), char_code(A12, 233), char_code(B12, 257), format(S12, "x~w", [A12]),
+             catch(format(S12, "~w", [B12]), E12, true), close(S12), file_bytes(FB2, Bs12) ), E12-Bs12, G12),
+    ( G12 = error(io_error(write, '$stream'(_)), context(system:format/3, _))-Bs -> V12 = Bs ; V12 = G12 ),
+    check('and into a binary one its characters as bytes, io_error(write, S) past 255', V12, [120, 233]).
 
 %% ---- aliases ----------------------------------------------------------
 
@@ -320,11 +351,21 @@ aliases(D) :-
     answer(( open(F, read, S2, [alias(src)]), stream_property(S2, alias(A2)), read_line_to_codes(src, L2), close(src), atom_codes(T2, L2) ), A2-T2, G2),
     check('stream_property/2 answers the alias, and reading by it reads the stream', G2, src-one),
     answer(format(log, "x", []), ok, G3), ball(G3, B3),
-    check('a closed stream''s alias is gone: format/3 raises domain_error(output_sink, A) as for any atom', B3, domain_error(output_sink, log)),
+    %% swipl's error for an atom that names no stream (3.0.0; through 2.16
+    %% domain_error(output_sink, A))
+    check('a closed stream''s alias is gone: format/3 raises existence_error(stream, A) as for any atom', B3, existence_error(stream, log)),
     answer(( open(F, read, _, [alias(twice)]), catch(open(F, read, _, [alias(twice)]), E4, true), close(twice) ), E4, G4), ball(G4, B4),
     check('an alias in use is permission_error(open, source_sink, alias(A))', B4, permission_error(open, source_sink, alias(twice))),
     answer(open(F, read, _, [alias(user_output)]), ok, G5), ball(G5, B5),
-    check('and so is a standard one', B5, permission_error(open, source_sink, alias(user_output))).
+    check('and so is a standard one', B5, permission_error(open, source_sink, alias(user_output))),
+    %% the file is opened before the stream argument is asked (3.16.0,
+    %% swipl's), and one opened for a stream bound to another term, or an
+    %% alias's to another atom, is closed again: swipl's stays open
+    answer(( findall(S6, stream_property(S6, type(_)), L6a), catch(open(F, read, notvar), _, true),
+             ( open(F, read, other, [alias(here)]) -> R6 = opened ; R6 = failed ),
+             findall(T6, stream_property(T6, type(_)), L6b), length(L6a, N6a), length(L6b, N6b) ), R6-N6a-N6b, G6),
+    ( G6 = failed-N6-N6 -> V6 = closed ; V6 = G6 ),
+    check('an open refused for its stream argument leaves no stream open', V6, closed).
 
 %% ---- the current input and output -------------------------------------
 
@@ -344,9 +385,10 @@ current_io(D) :-
     answer(( open(P, write, S4), write(S4, 'first(1).'), nl(S4), write(S4, 'second(2).'), nl(S4), close(S4),
              open(P, read, S5), set_input(S5), read(T5a), read_term(T5b, []), read(T5c), set_input(user_input), close(S5) ), T5a-T5b-T5c, G4),
     check('set_input/1, then read/1 and read_term/2 read the current input', G4, first(1)-second(2)-end_of_file),
-    answer(( open(F, write, S6, [type(binary)]), catch(set_output(S6), E6, true), close(S6) ), E6, G6),
-    ( G6 = error(permission_error(output, binary_stream, '$stream'(_)), _) -> V6 = shape ; V6 = G6 ),
-    check('set_output/1 to a binary stream is refused, since the engine writes text', V6, shape),
+    %% set_output/1 takes a binary stream, swipl's (3.16.0; through 3.15.2 refused)
+    answer(( open(F, write, S6, [type(binary)]), set_output(S6), write(x), set_output(user_output), close(S6),
+             file_bytes(F, Bs6) ), Bs6, G6),
+    check('set_output/1 takes a binary stream', G6, [120]),
     cocolog(C),
     sh_join([C, ' query "use_module(library(stream)), open(''', F, ''', write, S), set_output(S), format(user_output, \\"answer(terminal)~n\\", []), write(in_file), set_output(user_output), close(S)" 2>/dev/null'], Cmd7),
     proc_run(Cmd7, 60000, Out7, _),
@@ -365,10 +407,10 @@ read_options(D) :-
              Ns = [X1 = VX, Y1 = VY, Z1 = _, W1 = VW], length(Vs, NV), Ss = [SN = SV],
              ( T1 = (p(VX, VY, _, VX) :- q(VY, VW)) -> Shape = same ; Shape = T1 ),
              ( SV == VW -> SVar = w ; SVar = SV ),
-             ( E1 = error(syntax_error(M1), _), atom(M1) -> Err = syntax_error ; Err = E1 ) ),
+             ( E1 = error(syntax_error(M1), file(F1, L1, LP1, C1)), F1 == P -> Err = M1-L1-LP1-C1 ; Err = E1 ) ),
            X1-Y1-Z1-W1-NV-SN-SVar-Shape-Err, G1),
-    check('names in the order they appear, _Z among them; W the one singleton; four variables; then a syntax error in ISO''s shape', G1,
-          'X'-'Y'-'_Z'-'W'-4-'W'-w-same-syntax_error).
+    check('names in the order they appear, _Z among them; W the one singleton; four variables; then swipl''s syntax error and place', G1,
+          'X'-'Y'-'_Z'-'W'-4-'W'-w-same-(end_of_clause-2-8-34)).
 
 %% ---- read_term/3's positions where SWI cannot be asked the same ----------
 %% test/files/read_term.pl holds every shape to SWI's; these are the cases
@@ -403,7 +445,15 @@ read_positions(D) :-
     proc_run(Cmd4, 60000, Out4, _),
     ( re_first_atom('answer\\([^\n]*\\)', Out4, A4) -> sub_atom(A4, 7, _, 1, G4) ; G4 = Out4 ),
     check('a pipe has no position, and the count is the bytes read from it',
-          G4, 'term_position(5,9,5,6,[7-8]),$stream_position(5,2,2,5)').
+          G4, 'term_position(5,9,5,6,[7-8]),$stream_position(5,2,2,5)'),
+    %% a syntax error on a standard stream names it by its alias, as swipl's
+    %% does, at the place counted from the bytes read (swipl's user_input
+    %% counts its own prompts too: COMPAT.md); then the next clause reads
+    sh_join(['printf ''a.\\nfoo(a b).\\nbar.\\n'' | ', C, ' --local query "use_module(library(stream)), read(_), catch(read(_), E, true), read(T), write(answer(E, T)), nl" 2>/dev/null'], Cmd5),
+    proc_run(Cmd5, 60000, Out5, _),
+    ( re_first_atom('answer\\([^\n]*\\)', Out5, A5) -> sub_atom(A5, 7, _, 1, G5) ; G5 = Out5 ),
+    check('a syntax error on user_input is error(syntax_error(Id), stream(user_input, Line, LinePos, CharNo))',
+          G5, 'error(syntax_error(operator_expected),stream(user_input,2,6,8)),bar').
 
 %% ---- codes, as the program counts text -----------------------------------
 %%
@@ -431,7 +481,8 @@ codes(D) :-
     check('under bytes: a code below 256 is a byte, and get_code/2 reads one', A4,
           'answer([97,226,130,172,233],97-226-226)'),
     answer(( open(F, write, S3), catch(put_code(S3, -1), E3, true), close(S3) ), E3, G3), ball(G3, B3),
-    check('a negative code is representation_error(character_code)', B3, representation_error(character_code)).
+    %% swipl's (3.16.0; through 3.15.2 representation_error(character_code))
+    check('a negative code is type_error(character, C)', B3, type_error(character, -1)).
 
 %% ---- the sink: what the engine does with no module, and cell 0 -------------
 
@@ -443,7 +494,7 @@ sinks :-
     sh_join([C, ' query "catch(format(nosuch_sink, x, []), error(E, _), true), write(answer(E)), nl" 2>/dev/null'], Cmd1),
     proc_run(Cmd1, 60000, Out1, _),
     ( re_first_atom('answer\\([^\n]*\\)', Out1, A1) -> sub_atom(A1, 7, _, 1, G1) ; G1 = '' ),
-    check('an unknown atom sink raises even as a query''s first term', G1, 'domain_error(output_sink,nosuch_sink)'),
+    check('an unknown atom sink raises even as a query''s first term', G1, 'existence_error(stream,nosuch_sink)'),
     sh_join([C, ' query "format(''~w~n'', [plain]), format(atom(A), ''~w'', [a]), write(answer(A)), nl" 2>/dev/null'], Cmd2),
     proc_run(Cmd2, 60000, Out2, _),
     ( re_first_atom('plain', Out2, _), re_first_atom('answer\\([^\n]*\\)', Out2, A2) -> sub_atom(A2, 7, _, 1, G2) ; G2 = Out2 ),

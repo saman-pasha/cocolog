@@ -1,0 +1,7 @@
+open ann
+deposit ann 100
+withdraw ann 30
+transfer ann bob 10
+open bob
+transfer ann bob 80
+balance ann

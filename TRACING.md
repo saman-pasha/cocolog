@@ -180,7 +180,7 @@ in `t.pl`:
 
 ```console
 $ cocolog -s t.pl
-ERROR: -s main: Arithmetic: evaluation error: `zero_divisor'
+ERROR: -s main: //2: Arithmetic: evaluation error: `zero_divisor'
 ERROR: In:
 ERROR:   _G38 is 2/(1-1)
 ERROR:   then write(_G38)
@@ -202,7 +202,7 @@ is SWI's, depth by depth:
 
 ```console
 $ cocolog --backtrace -s t.pl
-ERROR: -s main: Arithmetic: evaluation error: `zero_divisor'
+ERROR: -s main: //2: Arithmetic: evaluation error: `zero_divisor'
 ERROR: In:
 ERROR:   [5] _G66 is 2/(1-1)
 ERROR:   [4] oops(2,1,_G66)

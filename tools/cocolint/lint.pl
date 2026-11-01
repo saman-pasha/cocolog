@@ -59,7 +59,8 @@
 %% Four files, consulted alongside this one by lint.sh, and NOT use_module'd:
 %% they are generated data and a sibling tool, not libraries on the path.
 %%
-%%     blocklist.pl   cl_t1c/3 cl_t1p/3 cl_t2c/3 cl_t2p/3 cl_hook/3
+%%     blocklist.pl   cl_t1c/3 cl_t1p/3 cl_t2c/3 cl_t2p/3 cl_hook/3 cl_iso/2
+%%                    cl_construct_arity/2
 %%     traps.pl       cl_trap/7
 %%     clauses.pl     cc_clauses_of/2 cc_regions/2 cc_in_region/3 cc_line_walk/6
 %%
@@ -68,17 +69,19 @@
 %% ======================================================================
 
 %% THE FOURTEEN ARE GONE, and so is rule D1 with them. A directive is a
-%% GOAL now (lib/kb.cicili: coco_directive falls through to the seam
+%% GOAL now (lib/kb-pred.cicili: coco_directive falls through to the seam
 %% coco_goal_install fills in), run in file order, and one that fails or
 %% throws is reported and the load CARRIES ON. There is nothing silent left
 %% for a rule to catch: an unknown directive says so on stderr at load time,
 %% which is exactly the loud failure this linter exists not to duplicate.
 %%
-%% WHAT SURVIVED IS D2, and it survived because it is not about directives
-%% at all: `:- table p/1.' and `:- thread_local p/1.' name predicates that
-%% are not prefix OPERATORS, so the file does not parse -- and a syntax
-%% error is now the one thing that still ends a consult. It is an S1
-%% pattern row in traps.jsonl and needs no code here.
+%% WHAT SURVIVED IS D2, and it survived because the report is not the whole
+%% of it: `:- table p/1.' parses (table is a prefix operator, as swipl's,
+%% since 3.2.0, as are thread_local, volatile, module_transparent and
+%% public, which are declarations here), table/1 is an unknown procedure,
+%% and the load says so and goes on -- with p/1 untabled, so a left-recursive
+%% definition that tabling would have ended loops at run time, far from the
+%% report. It is an S1 pattern row in traps.jsonl and needs no code here.
 
 %% TIER 1 IS ALWAYS PRESENT. The first row is compiled in, the second is read
 %% from lib/swipl at start-up. A use_module for any of them is a directive
@@ -147,12 +150,17 @@ cl_file(File, Imports0, Findings) :-
     cl_file(File, Imports0, Findings, _).
 
 cl_file(File, Imports0, Findings, NAck) :-
+    cl_file(File, Imports0, Findings, NAck, _, _).
+
+%% and the libraries the file itself imports, and the files it includes
+cl_file(File, Imports0, Findings, NAck, Imports1, Incs) :-
     read_file_to_codes(File, Codes),
     cl_kept(Clauses, cc_clauses_of(File, Clauses)),
     cl_kept(Regions, cc_regions(Codes, Regions)),
     cl_kept(Texts, cl_texts(Clauses, Codes, Texts)),
     cl_zip(Clauses, Texts, Pairs),
     cl_kept(Imports1, cl_imports(Pairs, Codes, Regions, Imports1)),
+    cl_kept(Incs, cl_includes(File, Pairs, Incs)),
     append(Imports0, Imports1, Imports),
     cl_kept(F2, cl_rule_t1(File, Pairs, F2)),
     cl_kept(F3, cl_rule_n(File, Clauses, Imports, F3)),
@@ -162,6 +170,100 @@ cl_file(File, Imports0, Findings, NAck) :-
     cl_kept(Acks, cl_acks(Codes, Regions, Acks)),
     cl_acknowledge(File, Codes, Acks, All, Kept, NAck),
     cl_sort_findings(Kept, Findings).
+
+%% ---- includes: one file of a program, read in another ---------------------
+%%
+%% AN INCLUDED FILE IS PART OF THE FILE THAT INCLUDES IT (3.13.1), as the
+%% engine reads it where its `:- include' stands (lib/kb-consult.cicili) and
+%% as swipl's include/1 is textual. So a file a run lints is linted with the
+%% files it includes, at any depth, as one unit: each file's findings at its
+%% own lines, each with the imports of the whole unit -- an included file
+%% that calls close/2 under an includer that loads library(stream) is no X2,
+%% and an includer is lifted by what its include loads -- a file another
+%% file of the run includes is linted once, as part of that one, and one
+%% name in two files of a unit is no C2. Through 3.13.0 the linter read each
+%% file alone. Where an include finds its file is the engine's (beside the
+%% includer, then the working directory, a Prolog source by
+%% absolute_file_name/3); one it cannot find, or a file already in the
+%% unit, adds nothing.
+cl_includes(File, Pairs, Incs) :-
+    findall(P, ( member(cc_clause(_, _, directive(include, 1))-Text, Pairs),
+                 atom_codes(A, Text),
+                 catch(term_to_atom(T, A), _, fail),
+                 nonvar(T), T = (:- D), nonvar(D), D = include(Spec),
+                 cl_include_file(Spec, File, P) ), Incs).
+
+cl_include_file(Spec, From, Path) :-
+    nonvar(Spec),
+    file_directory_name(From, D0),
+    absolute_file_name(D0, D),
+    absolute_file_name(Spec, Path, [file_type(prolog), access(read), relative_to(D),
+                                    file_errors(fail)]), !.
+
+%% the run's files as units u(Top, Members), each member m(File, Findings,
+%% NAck): a file another file of the run includes is no unit of its own,
+%% unless nothing of the run reached it (two that include each other)
+cl_units(Rs, Units) :-
+    findall(A, ( member(_-r(_, _, _, Incs), Rs), cl_reach(Incs, [], R), member(A, R) ), Inc0),
+    sort(Inc0, Inc),
+    cl_units_(Rs, Inc, [], Done, Units0),
+    findall(F-R, ( member(F-R, Rs), absolute_file_name(F, FA), \+ memberchk(FA, Done) ), Left),
+    cl_units_(Left, [], Done, _, Units1),
+    append(Units0, Units1, Units).
+
+cl_units_([], _, Done, Done, []).
+cl_units_([File-R|Rs], Inc, Done0, Done, Units) :-
+    absolute_file_name(File, FA),
+    (   ( memberchk(FA, Inc) ; memberchk(FA, Done0) )
+    ->  cl_units_(Rs, Inc, Done0, Done, Units)
+    ;   cl_unit(File, FA, R, Done0, U, Done1),
+        Units = [U|Units1],
+        cl_units_(Rs, Inc, Done1, Done, Units1)
+    ).
+
+%% every file the queue includes, at any depth
+cl_reach([], Seen, Seen).
+cl_reach([F|Fs], Seen, All) :-
+    (   memberchk(F, Seen)
+    ->  cl_reach(Fs, Seen, All)
+    ;   cl_file_includes(F, Incs),
+        append(Fs, Incs, Q),
+        cl_reach(Q, [F|Seen], All)
+    ).
+
+cl_file_includes(File, Incs) :-
+    catch(read_file_to_codes(File, Codes), _, fail), !,
+    cl_kept(Clauses, cc_clauses_of(File, Clauses)),
+    cl_kept(Texts, cl_texts(Clauses, Codes, Texts)),
+    cl_zip(Clauses, Texts, Pairs),
+    cl_includes(File, Pairs, Incs).
+cl_file_includes(_, []).
+
+%% a unit: its top, then each file it includes not linted before, each
+%% linted again with the unit's imports where they add to its own
+cl_unit(File, FA, r(Fs, K, Imps, Incs), Done0, u(File, [M0|MIs]), Done) :-
+    cl_unit_walk(Incs, [FA|Done0], Done, Ins),
+    findall(I, ( member(m0(_, _, _, IIs), Ins), member(I, IIs) ), IAll),
+    append(Imps, IAll, U0),
+    sort(U0, UImps),
+    cl_unit_member(File, Fs, K, Imps, UImps, M0),
+    findall(M, ( member(m0(IF, IFs, IK, IIs), Ins), cl_unit_member(IF, IFs, IK, IIs, UImps, M) ), MIs).
+
+cl_unit_walk([], Done, Done, []).
+cl_unit_walk([P|Ps], Done0, Done, Ins) :-
+    (   ( memberchk(P, Done0) ; cl_vendored(P) )
+    ->  cl_unit_walk(Ps, Done0, Done, Ins)
+    ;   cl_file(P, [], PFs, PK, PImps, PIncs),
+        Ins = [m0(P, PFs, PK, PImps)|Ins1],
+        append(Ps, PIncs, Ps1),
+        cl_unit_walk(Ps1, [P|Done0], Done, Ins1)
+    ).
+
+cl_unit_member(F, Fs, K, Own, UImps, m(F, Fs1, K1)) :-
+    (   subtract(UImps, Own, [])
+    ->  Fs1 = Fs, K1 = K
+    ;   cl_file(F, UImps, Fs1, K1)
+    ).
 
 %% cl_kept(?X, :Goal) is semidet.
 %% Goal proved once, X bound to a COPY of what it bound there, and the heap
@@ -197,10 +299,20 @@ cl_rule_n(File, Clauses, Imports, Findings) :-
     cl_first_each(Pairs0, Pairs),
     findall(F,
             ( member(N/A-Span, Pairs),
+              \+ cl_own_definition(File, N, A),
               cl_dcg_note(Clauses, N, A, Note),
               cl_collision(N, A, Imports, Note, Rule, Msg, Fix, Cite),
               cl_finding(File, Span, Rule, none, Msg, Fix, Cite, F) ),
             Findings).
+
+%% A PRELOADED LIBRARY'S OWN HEADS ARE ITS DEFINITION. library/async.pl and
+%% library/print_message.pl are tier 1 (build.pl reads lib/library.cicili's
+%% preload), so the blocklist names their heads as clause-defined there; the
+%% file that defines a name is not a program whose clauses join it.
+cl_own_definition(File, N, A) :-
+    cl_relative(File, Rel),
+    cl_t1p(N, A, Rel),
+    !.
 
 %% A DECLARED EXTENSION POINT IS A COLLISION THAT IS MEANT. library/httpd.pl's
 %% `httpd_page(_,_,_) :- fail.' exists so a program can add its own pages;
@@ -209,30 +321,45 @@ cl_rule_n(File, Clauses, Imports, Findings) :-
 %% the oracle excuse exactly the same names.
 cl_collision(N, A, _, _, _, _, _, _) :- cl_hook(N, A, _), !, fail.
 
-%% N3 -- a control construct, AT ANY ARITY. Matched by interned id before the
-%% builtin table and before the store, so the clauses are unreachable and NO
-%% RUNTIME CHECK CAN SEE THEM. In blocklist.pl a construct is arity -1.
-cl_collision(N, _, _, _, n3, Msg, 'rename it',
-             'lib/solve.cicili:151-154, dispatched :1149-1351') :-
+%% N3 -- a control construct, at an arity the step runs it at
+%% (cl_construct_arity/2, tools/flow/tables.pl's; at every arity for the
+%% engine's own `$' markers, which that table leaves out): taken by interned
+%% id before the builtin table and before the store, so the clauses load and
+%% NOTHING CALLS THEM, and no runtime check sees them. Not an ISO one (since
+%% 3.1.0 the load refuses its clauses and says so, as swipl's does: loud),
+%% nor not/1, ignore/1, trace/0 and notrace/0, which a program file takes
+%% over as swipl lets one (lib/kb.cicili's coco_claim_kind), nor one at
+%% another arity, which is a predicate like any other (`once/2'). In
+%% blocklist.pl a construct is arity -1.
+cl_collision(N, A, _, _, n3, Msg, 'rename it',
+             'lib/solve.cicili:229-242, run in lib/solve-loop.cicili') :-
     cl_t1c(N, -1, _),
+    cl_construct_runs(N, A),
+    \+ cl_iso(N, A),
+    \+ cl_taken_construct(N, A),
     !,
     format(atom(Msg),
-           "`~w' is a CONTROL CONSTRUCT, matched by interned id before the builtin table and before the store. No arity escapes it: your clauses are unreachable and no runtime check can see them.", [N]).
+           "`~w/~w' is a CONTROL CONSTRUCT the engine runs in place, before the builtin table and the store: your clauses load, listing/1 shows them, and nothing calls them.", [N, A]).
 
-%% N2 -- C-dispatched, in tier 1 or in an imported module. Dispatch reaches
-%% the builtin table before the knowledge base, so the clauses load, listing/1
-%% shows them, and nothing calls them.
+%% N2 -- a C name of a loaded module the file imports: its dispatcher answers
+%% before the knowledge base, so the clauses load, listing/1 shows them, and
+%% nothing calls them.
 %%
-%% THE ORACLE CANNOT SEE THIS ONE. A C name's record has library = 0, so
-%% current_predicate/1 reports it as the program's own while the clauses are
-%% dead -- measured: 110 of 112 probeable C names come back visible. N2 is the
-%% only cover, which is why it stays even when the oracle is available.
+%% NOT A NAME OF THE ENGINE'S OR A COMPILED-IN MODULE'S ANY MORE (3.1.0): a
+%% program file's clauses take such a name over, as swipl lets a user file
+%% define a system predicate, and an ISO one's are refused at load, loudly.
+%% A loadable module's names are not taken over (its seam is the module's,
+%% and swipl's foreign predicates live in their modules), so this is the
+%% part of the old rule that is still silent.
+%%
+%% THE ORACLE CANNOT SEE THIS ONE: the module answers a call, and the store's
+%% record says the clauses are the program's own.
 cl_collision(N, A, Imports, _, n2, Msg, 'rename it', Cite) :-
     cl_c_dispatched(N, A, Imports, Where),
     !,
     format(atom(Msg),
-           "`~w/~w' is dispatched BEFORE the knowledge base. Your clauses are dead code -- they load, listing/1 shows them, and nothing calls them.", [N, A]),
-    format(atom(Cite), "lib/solve.cicili:1352-1386; defined in ~w", [Where]).
+           "`~w/~w' is a loaded module's, dispatched BEFORE the knowledge base. Your clauses are dead code -- they load, listing/1 shows them, and nothing calls them.", [N, A]),
+    format(atom(Cite), "lib/module.cicili, coco_module_call; defined in ~w", [Where]).
 
 %% N1 -- clause-defined in a library. Consult APPENDS, so the two sets merge.
 cl_collision(N, A, Imports, Note, n1, Msg, Fix, Cite) :-
@@ -244,12 +371,20 @@ cl_collision(N, A, Imports, Note, n1, Msg, Fix, Cite) :-
            [N, A]),
     Cite = 'library/llm/DESIGN.md sections 6.3 and 16.1'.
 
-cl_c_dispatched(N, A, _, Where) :-
-    findall(F, cl_t1c(N, A, F), Fs), Fs = [_|_], !,
-    cl_join(Fs, ', ', Where).
 cl_c_dispatched(N, A, Imports, Where) :-
     member(M, Imports), cl_t2c(M, N, A), !,
     format(atom(Where), "library(~w)", [M]).
+
+%% The arities the step runs construct N at; every arity where the table
+%% names none of N's (the engine's own markers).
+cl_construct_runs(N, A) :- cl_construct_arity(N, _), !, cl_construct_arity(N, A).
+cl_construct_runs(_, _).
+
+%% What a program file's clause takes over though it is a construct's name.
+cl_taken_construct(not, 1).
+cl_taken_construct(ignore, 1).
+cl_taken_construct(trace, 0).
+cl_taken_construct(notrace, 0).
 
 cl_clause_defined(N, A, _, Where) :-
     findall(F, cl_t1p(N, A, F), Fs), Fs = [_|_], !,
@@ -278,14 +413,15 @@ cl_dcg_note(_, _, _, '').
 %% MASKED BY REGION, and the mask is per trap. `code' means a match inside a
 %% quote or a comment is not a finding -- without it a tutorial explaining
 %% `retract(X), fail' is reported as committing it. `text' means a quote
-%% counts as code, which F1, L1 and E1 need because the form they look for
+%% counts as code, which F1 and L1 need because the form they look for
 %% lives inside a quote by construction. NOTHING scans comments: a comment
 %% naming ~t documents the rule rather than breaking it.
 %%
 %% AND A MATCH THAT OPENS ON AN ESCAPED BACKSLASH IS NO MATCH (cl_escaped_backslash/2).
 %% Inside a quote `\\u0041' is a backslash and the letters u0041 -- what every
-%% JSON test writes, and what the reader takes without a word -- yet E1's `\u'
-%% and four hex digits matched at its SECOND backslash, six HARD findings in
+%% JSON test writes, and what the reader takes without a word -- yet card row
+%% E1's `\u' and four hex digits (retired at 3.1.0, when the reader took the
+%% escape) matched at its SECOND backslash, six HARD findings in
 %% test/serialize.pl over code that was right. A text scan sees the bytes, the
 %% reader sees pairs, so the scan is asked what the reader would have made of
 %% the backslash it opens on.
@@ -334,8 +470,8 @@ cl_backslash_run([_|T], N, _, Run, Rest) :-
 %% pattern could start there at all. Only then are the individual patterns
 %% tried, and only those whose own set admits the code.
 %%
-%% The union is not tiny -- E1 can start at any digit, and the names the
-%% patterns look for at half the lowercase letters -- but it excludes
+%% The union is not tiny -- the names the patterns look for start at half
+%% the lowercase letters -- but it excludes
 %% whitespace, capitals and most punctuation, which is most of a source file.
 %% INDEXED BY FIRST CODE. Trying all seventeen at every position the union
 %% admits was three seconds on library/html.pl; a code that only one pattern
@@ -508,9 +644,11 @@ cl_trim(Cs, Out) :-
 %% ONLY UNDER A MANIFEST. C2 asks whether two files of ONE PROGRAM define the
 %% same name, and a bag of unrelated files is not a program: run over all 47
 %% tutorials it reports main/0 forty-five times, which is true and useless.
-cl_rule_c2(Files, Findings) :-
-    findall(K-File,
-            ( member(File, Files), cc_heads_of(File, Ks), member(K, Ks) ),
+%% A UNIT IS ONE FILE (3.13.1): its includes' heads are its own
+cl_rule_c2(Units, Findings) :-
+    findall(K-Top,
+            ( member(u(Top, Ms), Units), member(m(File, _, _), Ms),
+              cc_heads_of(File, Ks), member(K, Ks) ),
             Pairs),
     keysort(Pairs, Sorted),
     findall(F,
@@ -519,7 +657,7 @@ cl_rule_c2(Files, Findings) :-
               cl_join(Wheres, ' and ', Joined),
               format(atom(Msg),
                      "`~w' is defined in ~w. One run consults them all into one store and consult appends.", [K, Joined]),
-              Files = [First|_],
+              Units = [u(First, _)|_],
               F = cl_finding(First, 1, 1, c2, hard, none, Msg,
                              'keep it in one file', none) ),
             Findings).
@@ -755,20 +893,22 @@ cl_lint(Files0) :-
     findall(F, ( member(F, Files0), \+ cl_vendored(F) ), Files),
     length(Files0, NF0), length(Files, NF1), NVend is NF0 - NF1,
     cl_manifest(Files, Manifest),
-    findall(Fs-K, ( member(File, Files), cl_file(File, [], Fs, K) ), PerFile),
+    findall(File-r(Fs, K, Imps, Incs), ( member(File, Files), cl_file(File, [], Fs, K, Imps, Incs) ), Rs),
+    cl_units(Rs, Units),
+    findall(Fs-K, ( member(u(_, Ms), Units), member(m(_, Fs, K), Ms) ), PerFile),
     findall(Fs, member(Fs-_, PerFile), FsLists),
     append(FsLists, Findings0),
     findall(K, member(_-K, PerFile), Ks),
     sum_list(Ks, NAck),
     (   Manifest == yes
-    ->  cl_rule_c2(Files, C2), append(Findings0, C2, Findings)
+    ->  cl_rule_c2(Units, C2), append(Findings0, C2, Findings)
     ;   Findings = Findings0
     ),
     forall(member(F, Findings), cl_render(F)),
     ( Findings == [] -> true ; nl ),
     cl_count(Findings, hard, Hard),
     cl_count(Findings, warn, Warn),
-    length(Files, NF),
+    length(PerFile, NF),
     format("cocolint: ~w HARD, ~w WARN over ~w file(s)", [Hard, Warn, NF]),
     ( NAck =:= 0 -> true ; format(", ~w acknowledged", [NAck]) ),
     ( NVend =:= 0 -> true ; format(", ~w vendored and not read", [NVend]) ),

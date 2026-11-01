@@ -402,14 +402,24 @@ flow_call_pattern(N/_, CM, Pat) :-
 %% does a nondet one, against semidet. The goals that break it are named.
 
 flow_det_promise(panel(I, Key, user, CM, _, rows(Rows), Det, _), Src, Docs,
-                 f(det_promise, warning, PId, In, where(Src, Line, 1), Text, See)) :-
-    get_assoc(Key, Docs, sig(DMs, _, promise(PDet, Line))),
+                 f(det_promise, warning, PId, In, where(File, Line, 1), Text, See)) :-
+    get_assoc(Key, Docs, sig(DMs, _, promise(PDet, At))),
     flow_promise_applies(DMs, CM),
     flow_promise_broken(PDet, Det, How),
     flow_panel_id(I, PId),
     flow_pred_atom(Key, In),
     flow_promise_why(How, PId, Rows, Why, See),
-    format(atom(Text), '~w is documented as ~w (line ~d) but ~w', [In, PDet, Line, Why]).
+    %% a promise an included file's comment makes is placed File:Line
+    (   At = File:Line -> flow_place_text(At, Place) ; File = Src, Line = At, flow_place_text(At, Place) ),
+    format(atom(Text), '~w is documented as ~w (~w) but ~w', [In, PDet, Place, Why]).
+
+%% a line of the source, `line 12', or of a file it includes, `part.pl:12'
+%% (the included file by its name alone: the finding's place names it whole)
+flow_place_text(F:L, Text) :- !,
+    file_base_name(F, B),
+    format(atom(Text), '~w:~d', [B, L]).
+flow_place_text(L, Text) :-
+    format(atom(Text), 'line ~d', [L]).
 
 flow_promise_applies([], []).
 flow_promise_applies([D|Ds], [M|Ms]) :-
@@ -849,8 +859,10 @@ flow_disc_finding(K, I, Own, Runs, J, f(discontiguous, warning, At, In, Where, T
     flow_pred_atom(K, In),
     flow_pred_atom(Other, OA),
     flow_clause_where(CI, Where),
-    format(atom(Text), 'the clauses of ~w are not together: clause ~d (line ~d) comes after ~w at line ~d, and its clauses stand in ~d places; cocolog joins them without a word where SWI warns -- move them together, or declare :- discontiguous(~w)',
-           [In, J, Line, OA, OLine, NR, In]).
+    flow_place_text(Line, LT),
+    flow_place_text(OLine, OT),
+    format(atom(Text), 'the clauses of ~w are not together: clause ~d (~w) comes after ~w at ~w, and its clauses stand in ~d places; cocolog joins them without a word where SWI warns -- move them together, or declare :- discontiguous(~w)',
+           [In, J, LT, OA, OT, NR, In]).
 
 %% ---- a predicate defined twice ------------------------------------------
 %%
@@ -879,11 +891,13 @@ flow_twice_finding(K, I, Own, Cls, Runs, J, f(defined_twice, error, At, In, Wher
     flow_pred_atom(K, In),
     flow_clause_where(CI, Where),
     length(Runs, NR),
+    flow_place_text(L, LT),
+    flow_place_text(L0, LT0),
     (   How == repeats
-    ->  format(atom(Text), '~w is defined twice: clause ~d (line ~d) repeats clause ~d (line ~d), and its clauses stand in ~d places; cocolog joins the two definitions into one predicate, so the second never answers first and every answer it gives comes again on backtracking -- keep one of them',
-               [In, J, L, I0, L0, NR])
-    ;   format(atom(Text), '~w is defined twice: clause ~d (line ~d) is covered by the fact at line ~d (clause ~d), and its clauses stand in ~d places; cocolog joins the two definitions into one predicate, so the clause never answers first and every answer it gives the fact gave already -- keep one of them',
-               [In, J, L, L0, I0, NR])
+    ->  format(atom(Text), '~w is defined twice: clause ~d (~w) repeats clause ~d (~w), and its clauses stand in ~d places; cocolog joins the two definitions into one predicate, so the second never answers first and every answer it gives comes again on backtracking -- keep one of them',
+               [In, J, LT, I0, LT0, NR])
+    ;   format(atom(Text), '~w is defined twice: clause ~d (~w) is covered by the fact at ~w (clause ~d), and its clauses stand in ~d places; cocolog joins the two definitions into one predicate, so the clause never answers first and every answer it gives the fact gave already -- keep one of them',
+               [In, J, LT, LT0, I0, NR])
     ).
 
 %% a clause of a later place, and the earlier clause it repeats or the
@@ -954,17 +968,31 @@ flow_disc_runs(K, Cls, Runs) :-
 
 %% every clause of the file in order, c(Line, Name/Arity, Term), and the
 %% predicates it declares discontiguous
+%% AN INCLUDED FILE'S CLAUSES STAND WHERE ITS INCLUDE DOES (3.13.1), as
+%% swipl's: a predicate whose clauses an include of another's parts is not
+%% together, one an included file goes on with is. Their lines are
+%% File:Line (flow_place_text/2 says them).
 flow_clause_seq(Src, Seq, Decl) :-
-    open(Src, read, S),
-    catch(flow_clause_seq_(S, Seq, Decl0), _, ( Seq = [], Decl0 = [] )),
-    close(S),
+    flow_clause_seq_file(Src, none, [], Seq, Decl0),
     sort(Decl0, Decl).
 
-flow_clause_seq_(S, Seq, Decl) :-
+flow_clause_seq_file(File, In, Open, Seq, Decl) :-
+    absolute_file_name(File, FA),
+    open(File, read, S),
+    catch(flow_clause_seq_(S, File, In, [FA|Open], Seq, Decl), _, ( Seq = [], Decl = [] )),
+    close(S).
+
+flow_clause_seq_(S, File, In, Open, Seq, Decl) :-
     read_term(S, T, [term_position(P)]),
     (   T == end_of_file
     ->  Seq = [], Decl = []
-    ;   arg(2, P, Line),
+    ;   flow_include_here(T, File, Open, IF)
+    ->  flow_clause_seq_file(IF, IF, Open, ISeq, IDecl),
+        append(ISeq, Seq1, Seq),
+        append(IDecl, Decl1, Decl),
+        flow_clause_seq_(S, File, In, Open, Seq1, Decl1)
+    ;   arg(2, P, Line0),
+        (   In == none -> Line = Line0 ; Line = In:Line0 ),
         (   nonvar(T), T = (:- D)
         ->  Seq = Seq1,
             (   nonvar(D), D = discontiguous(Spec)
@@ -975,7 +1003,7 @@ flow_clause_seq_(S, Seq, Decl) :-
         ->  Seq = [c(Line, K, T)|Seq1], Decl = Decl1
         ;   Seq = Seq1, Decl = Decl1
         ),
-        flow_clause_seq_(S, Seq1, Decl1)
+        flow_clause_seq_(S, File, In, Open, Seq1, Decl1)
     ).
 
 flow_clause_key(T, _) :- var(T), !, fail.

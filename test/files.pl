@@ -54,6 +54,10 @@ main :-
     ),
     forall(member(C, Cases), one_case(Swipl, Sandbox, C)),
     shl(['rm -rf ', Sandbox]),
+    (   nb_current(files_md5, built(So))
+    ->  file_directory_name(So, Built), shl(['rm -rf ', Built])
+    ;   true
+    ),
     checks_done.
 
 %% THE SWIPL IS 9.0.4, or the case stops by name: a 10.x answers some of
@@ -114,7 +118,254 @@ fixtures(reload, Sandbox) :- !,
 %% list of lines (`ro/2')
 fixtures(reload_order, Sandbox) :- !,
     forall(ro(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
+%% the md5 fixture (below) in the sandbox's library/, which cocolog searches
+%% after $COCOLOG_LIBRARY and swipl does not search at all: swipl's
+%% use_module(library(md5)) takes its own
+fixtures(module_context, Sandbox) :- !,
+    md5_fixture(built(So)),
+    atom_concat(Sandbox, '/library', Lib),
+    shl(['mkdir -p ', Lib, ' && cp ', So, ' ', Lib, '/md5.so']).
+%% three files in a directory, a fourth in one below it
+fixtures(absolute_file_name, Sandbox) :- !,
+    shl(['mkdir -p ', Sandbox, '/d1/sub']),
+    atom_concat(Sandbox, '/d1/a.pl', A), fixture(A, ['a.']),
+    atom_concat(Sandbox, '/d1/b.txt', B), fixture(B, ['b']),
+    atom_concat(Sandbox, '/d1/sub/c.pl', C), fixture(C, ['c.']).
+%% the same names beside the sandbox, beside sub/ and beside other/, so that
+%% where a load looked is told by which file it read (`lp/2'), sub/dir a
+%% directory where a file is named, and sym a link to sub/deeper, which a
+%% file's absolute name keeps
+fixtures(load_paths, Sandbox) :- !,
+    shl(['mkdir -p ', Sandbox, '/sub/deeper ', Sandbox, '/sub/dir ', Sandbox, '/other']),
+    forall(lp(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )),
+    shl(['cd ', Sandbox, ' && ln -s sub/deeper sym']).
+%% the files an include reads, beside the file that names them and below it
+%% (`ic/2'), an a.pl beside the sandbox that a load beside sub/m.pl must not
+%% take, and sub/dir a directory where a file is named
+fixtures(include, Sandbox) :- !,
+    shl(['mkdir -p ', Sandbox, '/sub/deep ', Sandbox, '/sub/dir']),
+    forall(ic(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
+%% the files the expansion case consults (`xf/2'): one an expansion ends,
+%% one an `end_of_file' it holds ends, one that includes another, one a
+%% ball ends for each hook, and one that includes a file in sub/
+fixtures(expand, Sandbox) :- !,
+    shl(['mkdir -p ', Sandbox, '/sub']),
+    forall(xf(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
+%% the files a load directive reads, and the ones they read (`nest/2')
+fixtures(nested_load, Sandbox) :- !,
+    shl(['mkdir -p ', Sandbox, '/sub']),
+    forall(nest(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
+%% a file for each thing a read may or may not define (`sf/2')
+fixtures(source_files, Sandbox) :- !,
+    forall(sf(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
+%% files that will not load whole, each a syntax error swipl places and
+%% words: a parse error on a clause's first line and on a later one, what
+%% the raw read refuses (a quoted item or a block comment open at the end,
+%% `0'' or a radix quote at the end, no full stop before the end, a full
+%% stop alone), with and without a newline at the end
+fixtures(syntax_load, Sandbox) :- !,
+    forall(member(F-Lines,
+                  [ 's1.pl'-[ 's1a(1).', 's1b(2) c.', 's1d(f(,)).', 's1e([1,2).', 's1f :- .',
+                              's1g(x', '  y).', 's1h(1,', '   2 3).', 's1j([a|b|c]).',
+                              's1k(- - -).', 's1l :- :- m.', 's1n("abc\\q").',
+                              's1o(0''\\q).', 's1p({a).', 's1q(a)).', 's1r(1).', '  )foo.',
+                              '/* c1 */ s1s(2) c.', 's1t(2,', ' /* x', ' y */ 3 4).',
+                              's1u(a :- b :- c).', 's1v(a = = b).', 's1w(''\\x'').',
+                              's1x(''\\u12'').', 's1y(1.0e400).', 's1z(1.0NaN).', 's1zz(2).' ],
+                    's2.pl'-[ 's2a(1).', '/* unterminated', 's2b(2).' ],
+                    's3.pl'-[ 's3a(1).', 's3b(''abc).', 's3c(3).' ],
+                    's4.pl'-[ 's4a(1).', '. ', 's4b(2).', ' x :- ', '  y,', '  z w.', 's4c(3).' ],
+                    's7.pl'-[ 's7a(1).', 's7b(2) /* open', 's7c.' ],
+                    's8.pl'-[ ':- set_prolog_flag(double_quotes, codes).', 's8a(1).', '  x :- "abc' ],
+                    's10.pl'-[ 's10a(1).', '  x :- 0''' ],
+                    's11.pl'-[ 's11a(1).', '  x :- 16''' ],
+                    's12.pl'-[ 's12a(1).', 'c(3) d % x' ],
+                    's13.pl'-[ 's13a(1).', 'c(3) d', '' ],
+                    's14.pl'-[ 's14a(1).', '', '  /* c' ] ]),
+           ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )),
+    %% and three whose last line has no newline
+    forall(member(F-Text, [ 's5.pl'-"s5a(1).\nc(3) d", 's6.pl'-"s6a(1).\nc(3)",
+                            's9.pl'-"s9a(1).\n  x :- 0'" ]),
+           ( atomic_list_concat([Sandbox, '/', F], P), write_file_from_codes(P, Text) )).
 fixtures(_, _).
+
+%% what makes a file read once a source file, as swipl's, and what leaves it
+%% none, so that the next load reads it again: each file says so as it is read
+sf('g.pl', [':- writeln(g_read).']).
+sf('c.pl', [':- writeln(c_read).', 'c(1).']).
+sf('dcg.pl', [':- writeln(dcg_read).', 'a --> [x].']).
+sf('d.pl', [':- writeln(d_read).', ':- dynamic(d/1).']).
+sf('dc.pl', [':- writeln(dc_read).', ':- discontiguous(dc/1).']).
+sf('mf.pl', [':- writeln(mf_read).', ':- multifile(mf/1).']).
+sf('mp.pl', [':- writeln(mp_read).', ':- meta_predicate(mp(0)).']).
+sf('m.pl', [':- module(mm, []).', ':- writeln(m_read).']).
+sf('i.pl', [':- writeln(i_read).', ':- initialization(true).']).
+sf('nw.pl', [':- writeln(nw_read).', ':- initialization(true, now).']).
+sf('empty.pl', []).
+sf('e.pl', [':- writeln(e_read).', ':- include(empty).']).
+sf('en.pl', [':- writeln(en_read).', ':- include(no_such_file).']).
+sf('l.pl', [':- writeln(l_read).', ':- use_module(library(lists)).']).
+sf('op.pl', [':- writeln(op_read).', ':- op(700, xfx, ===>).']).
+sf('fl.pl', [':- writeln(fl_read).', ':- set_prolog_flag(double_quotes, codes).']).
+sf('as.pl', [':- writeln(as_read).', ':- assertz(as(1)).']).
+sf('tl.pl', [':- writeln(tl_read).', ':- thread_local(tl/1).']).
+sf('pb.pl', [':- writeln(pb_read).', ':- public(pb/1).']).
+sf('f.pl', [':- writeln(f_read).', 'f(1).', ':- include(no_such_file).']).
+sf('nf.pl', [':- writeln(nf_read).', ':- include(no_such_file).', 'nf(1).']).
+sf('nb.pl', [':- writeln(nb_read).', ':- throw(my_ball).', 'nb(1).']).
+sf('lg.pl', [':- writeln(lg_read).', ':- ensure_loaded(g).']).
+sf('lc.pl', [':- writeln(lc_read).', ':- ensure_loaded(c).']).
+sf('sf.pl', [':- writeln(sf_read).', ':- ensure_loaded(sf).']).
+sf('lm.pl', [':- writeln(lm_read).', ':- ensure_loaded(no_such_file).']).
+sf('g3.pl', [':- writeln(g3_read).']).
+sf('lg2.pl', [':- writeln(lg2_read).', ':- ensure_loaded(g3).']).
+sf('g5.pl', [':- writeln(g5_read).']).
+sf('lk.pl', [':- writeln(lk_read).', ':- consult(g5).']).
+sf('g6.pl', [':- writeln(g6_read).']).
+sf('ll.pl', [':- writeln(ll_read).', ':- load_files(g6, [if(not_loaded)]).']).
+sf('g7.pl', [':- writeln(g7_read).']).
+sf('c7.pl', [':- writeln(c7_read).', 'c7(1).']).
+sf('le.pl', [':- writeln(le_read).', ':- use_module(library(error)).']).
+sf('cg.pl', [':- writeln(cg_read).']).
+sf('cl.pl', [':- writeln(cl_read).']).
+sf('sc.pl', [':- writeln(sc_read).', ':- ensure_loaded(sc).']).
+sf('sr.pl', [':- writeln(sr_read).',
+             ':- ( nb_current(sr_once, _) -> true ; nb_setval(sr_once, 1), throw(stop) ).',
+             ':- ensure_loaded(sr).']).
+
+nest('oe.pl', [':- writeln(oe1).', ':- ensure_loaded(sub/ia).', ':- writeln(oe2).', 'oe(1).']).
+nest('sub/ia.pl', [':- writeln(ia1).', ':- include(nope).', ':- writeln(ia2).', 'ia(1).']).
+nest('om.pl', [':- writeln(om1).', ':- use_module(sub/ma).', ':- writeln(om2).', 'om(1).']).
+nest('sub/ma.pl', [':- module(ma, [ma/1]).', ':- writeln(ma1).', ':- include(nope).', 'ma(1).']).
+nest('oi.pl', [':- writeln(oi1).', ':- ensure_loaded(sub/ii).', ':- writeln(oi2).']).
+nest('sub/ii.pl', [':- writeln(ii1).', ':- initialization(writeln(ii_init)).', ':- writeln(ii2).',
+                 'ii(1).']).
+nest('ob.pl', [':- writeln(ob1).', ':- ensure_loaded(sub/ib).', ':- writeln(ob2).', 'ob(1).']).
+nest('sub/ib.pl', [':- writeln(ib1).', ':- throw(my_ball).', ':- writeln(ib2).', 'ib(1).']).
+nest('obl.pl', [':- writeln(obl1).', ':- ensure_loaded([sub/ib, sub/ok2]).', ':- writeln(obl2).',
+                'obl(1).']).
+nest('sub/ok2.pl', ['ok2(1).', ':- writeln(ok2_read).']).
+nest('ol.pl', [':- writeln(ol1).', ':- ensure_loaded([sub/ia, sub/ok]).', ':- writeln(ol2).']).
+nest('sub/ok.pl', ['ok(1).', ':- writeln(ok_read).']).
+nest('od.pl', [':- writeln(od1).', ':- ensure_loaded(sub/mid).', ':- writeln(od2).', 'od(1).']).
+nest('sub/mid.pl', [':- writeln(mid1).', ':- ensure_loaded(inner).', ':- writeln(mid2).', 'mid(1).']).
+nest('sub/inner.pl', [':- writeln(inner1).', ':- include(nope).', 'inner(1).']).
+nest('oa.pl', [':- ensure_loaded(sub/ok).', ':- ensure_loaded(sub/ia).', ':- writeln(oa_end).']).
+nest('f.pl', [':- writeln(f1).', ':- include(nope).', 'f(1).']).
+
+%% swipl warns of a predicate's clauses an include splits, which cocolog does
+%% not yet: the files declare them discontiguous
+ic('a.pl', ['wrong_a.']).
+ic('sub/m.pl', [':- discontiguous p/1.', ':- discontiguous q/1.', 'p(0).',
+                ':- include(a).', 'p(9).',
+                ':- if(fail).', ':- include(nope_skipped).', 'skipped.', ':- endif.',
+                ':- source_location(F, L), format("m at ~w:~w~n", [F, L]).',
+                ':- initialization(writeln(init_m)).']).
+ic('sub/a.pl', ['p(1).', ':- source_location(F, L), format("a at ~w:~w~n", [F, L]).',
+                ':- include(deep/b).', 'p(2).', ':- initialization(writeln(init_a)).',
+                ':- initialization(fail).', ':- fail.', 'q(a).']).
+ic('sub/deep/b.pl', ['p(3).', ':- source_location(F, L), format("b at ~w:~w~n", [F, L]).',
+                     'q(b).']).
+ic('e1.pl', ['r1(0).', ':- include(nope).', 'r1(1).']).
+ic('e2.pl', ['r2(0).', ':- include(_).', 'r2(1).']).
+ic('e3.pl', ['r3(0).', ':- include([sub/x1, sub/x2]).', 'r3(1).']).
+ic('e5.pl', ['r5(0).', ':- include(sub/dir).', 'r5(1).']).
+ic('e6.pl', ['r6(0).', ':- include(123).', 'r6(1).']).
+ic('e7.pl', ['r7(0).', ':- include([]).', 'r7(1).']).
+ic('e8.pl', ['r8(0).', ':- include([a]).', 'r8(1).']).
+ic('e9.pl', ['r9(0).', ':- include([0''a]).', 'r9(1).']).
+ic('sub/x1.pl', ['x1.']).
+ic('sub/x2.pl', ['x2.']).
+
+xf('stop.pl', ['stop_here.', 'never_read.']).
+xf('lit.pl', ['l(1).', 'end_of_file.', 'l(2).']).
+xf('withinc.pl', ['w(1).', 'w(2).', ':- include(inc).']).
+xf('inc.pl', ['i(1).', 'i(2).']).
+xf('toss.pl', ['toss.', 'after_toss.']).
+xf('gt1.pl', [':- gtoss.', 'gt1b.']).
+xf('gt2.pl', ['g2 :- gtoss.', 'gt2b.']).
+xf('withsub.pl', ['ws(1).', ':- include(sub/inc2).']).
+xf('sub/inc2.pl', ['ictx.',
+                       ':- prolog_load_context(source, S), file_base_name(S, B), prolog_load_context(directory, D), file_base_name(D, DB), prolog_load_context(term_position, P), assertz(seen(dsrc(B, DB, P))).']).
+
+lp('both.pl', ['both_cwd.']).
+lp('g1.pl', ['g1.']).
+lp('g2.pl', ['g2.']).
+lp('h7.pl', ['h7_cwd.']).
+lp('q1.pl', ['q1.']).
+lp('twin.pl', ['twin_cwd.']).
+lp(x, ['x_noext.']).
+lp('x.pl', ['x_pl.']).
+lp('y.prolog', ['y_prolog.']).
+lp('ex.pl', [':- ensure_loaded([g1|g2x]).',
+             ':- throw(error(existence_error(file, foo), context(system:foo/0, not_a_directory(\'/x\')))).',
+             ':- throw(error(permission_error(import_into(user), procedure, foo/1), context(system:foo/0, already_from(lists)))).',
+             'ex_done.']).
+lp('sub/deeper/n4.pl', [':- source_location(F, L), format("n4 at ~w:~w~n", [F, L]).', 'n4.']).
+lp('other/b.pl', [':- ensure_loaded(twin).']).
+lp('other/twin.pl', ['twin_other.']).
+lp('sub/both.pl', ['both_sub.']).
+lp('sub/h7.pl', ['h7_sub.']).
+lp('sub/n1.pl', ['n1.', ':- ensure_loaded(deeper/n2).']).
+lp('sub/n3.pl', ['n3_sub.']).
+lp('sub/twin.pl', ['twin_sub.']).
+lp('sub/deeper/n2.pl', ['n2.', ':- ensure_loaded(n3).']).
+lp('sub/deeper/n3.pl', ['n3_deeper.']).
+lp('sub/main.pl', ['sub_main.', ':- ensure_loaded(both).', ':- ensure_loaded(n1).',
+                   ':- ensure_loaded(twin).',
+                   ':- source_location(F, L), format("main at ~w:~w~n", [F, L]).',
+                   ':- initialization(ensure_loaded(h7)).']).
+lp('sub/errs.pl', [':- ensure_loaded([g1, nope1, g2]).', ':- use_module(123).',
+                   ':- ensure_loaded(dir).', ':- use_module(f(x)).', ':- [g1, nope2].',
+                   ':- load_files([g2, 77], []).', ':- use_module(1.5).',
+                   ':- source_location(F, L), format("errs at ~w:~w~n", [F, L]).',
+                   'errs_done.']).
+
+%% WHAT A CASE NEEDS THAT A BOX MAY NOT HAVE, the case skipped by name where
+%% it is missing, as test/library.pl skips hoot. module_context needs the
+%% md5 fixture; a fixture that would not build, on a box that has what it
+%% takes, is red with its compiler's words.
+unready(module_context, Why) :- !,
+    md5_fixture(R),
+    (   R = missing(Why)
+    ->  true
+    ;   R = failed(Log)
+    ->  check('module_context: the md5 fixture builds', Log, built),
+        Why = 'its fixture would not build'
+    ).
+
+%% THE md5 FIXTURE (3.0.2): a loadable module named md5, built from
+%% test/md5.cicili as test/library.pl builds hoot -- Cicili with --release,
+%% then the one compiler with -O3 -- once a run, kept in a scratch directory
+%% of its own until the run ends. built(So), missing(Why) or failed(Log).
+md5_fixture(R) :- nb_current(files_md5, R), !.
+md5_fixture(R) :- md5_build(R), nb_setval(files_md5, R).
+
+md5_build(R) :-
+    ( getenv('CICILI', Cicili) -> true ; getenv('HOME', Home), atom_concat(Home, '/cicili', Cicili) ),
+    atom_concat(Cicili, '/cicili.lisp', Lisp),
+    ( exists_file('tools/cc/cc') -> Cc = 'tools/cc/cc' ; Cc = clang ),
+    sh_join(['command -v ', Cc, ' >/dev/null 2>&1 || test -x ', Cc], HaveCc),
+    (   \+ ( sh_exit('command -v sbcl >/dev/null 2>&1', 0), exists_file(Lisp) )
+    ->  R = missing('no sbcl or no CICILI checkout for the md5 fixture')
+    ;   \+ sh_exit(HaveCc, 0)
+    ->  R = missing('no C compiler for the md5 fixture')
+    ;   scratch(D),
+        working_directory(Root, Root),
+        %% Cicili takes the directory it starts in as where its own library
+        %% lives, so it runs from its checkout with the target named
+        %% absolutely, and writes test/md5.c beside the target
+        shl(['rm -f test/md5.c && cd ', Cicili, ' && sbcl --script cicili.lisp --release ', Root,
+             '/test/md5.cicili > ', D, '/transpile.log 2>&1 || true']),
+        atom_concat(D, '/md5.so', So),
+        sh_join([Cc, ' -shared -fPIC -O3 -o ', So, ' test/md5.c > ', D, '/cc.log 2>&1'], Build),
+        (   sh_exit(Build, 0)
+        ->  R = built(So)
+        ;   atom_concat(D, '/cc.log', Log), read_file_to_codes(Log, Cs), atom_codes(Why, Cs),
+            atomic_list_concat([Why, ' (the transpile: ', D, '/transpile.log)'], Said),
+            R = failed(Said)
+        )
+    ).
 
 ro('s1.pl', [':- dynamic s1/1.', 's1(1).', 's1(2).']).
 ro('s1.v2.pl', [':- dynamic s1/1.', 's1(3).', 's1(4).']).
@@ -206,6 +457,13 @@ libs_for(Root, C, Text) :-
     findall(P, ( member(L, Ls), sh_join([Root, '/lib/swipl/', L, '.pl '], P) ), Ps),
     atomic_list_concat(Ps, Text).
 
+%% The checkout, with no slash at its end: working_directory/2 answers one,
+%% and a path joined to it with another reads `//', which a load's report
+%% names as given where swipl names the file's own path.
+checkout(Root) :-
+    working_directory(W, W),
+    ( atom_concat(Root, '/', W) -> true ; Root = W ).
+
 %% One run of one system in a clean sandbox.
 run_one(Sandbox, C, Cmd, Text) :-
     shl(['rm -rf ', Sandbox, ' && mkdir -p ', Sandbox]),
@@ -214,9 +472,11 @@ run_one(Sandbox, C, Cmd, Text) :-
     shell(InSandbox, Text, _).
 
 one_case(Swipl, Sandbox, C) :-
-    working_directory(Root, Root),
+    checkout(Root),
     sh_join([Root, '/test/files/', C, '.pl'], Pl),
-    (   exists_file(Pl)
+    (   exists_file(Pl), unready(C, Why)
+    ->  format("     ~w: skipped (~w)~n", [C, Why])
+    ;   exists_file(Pl)
     ->  sh_join([Swipl, ' -q -g main -t halt ', Pl], SwiCmd),
         run_one(Sandbox, C, SwiCmd, Swi),
         %% `run' takes the LAST argument as the goal when it is given more than

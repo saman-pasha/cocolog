@@ -43,16 +43,28 @@
   ;; sig_atomic_t, for the engine's halted cell (2.6.0)
   (include <signal.h>)
   (import "../lib/term.cicili")
+  (import "../lib/term-walk.cicili")
   (import "../lib/syntax.cicili")
   (import "../lib/dcg.cicili")
   (import "../lib/kb.cicili")
+  (import "../lib/kb-compile.cicili")
+  (import "../lib/kb-pred.cicili")
+  (import "../lib/kb-consult.cicili")
   (import "../lib/solve.cicili")
+  (import "../lib/solve-journal.cicili")
+  (import "../lib/solve-control.cicili")
+  (import "../lib/solve-gc.cicili")
+  (import "../lib/solve-loop.cicili")
+  (import "../lib/solve-arith.cicili")
+  (import "../lib/solve-text.cicili")
+  (import "../lib/solve-db.cicili")
 
-  (decl-term)   (impl-term)
+  (decl-term)   (impl-term) (impl-term-walk)
   (decl-syntax) (impl-syntax)
   (decl-dcg)    (impl-dcg)
-  (decl-kb)     (impl-kb)
-  (decl-solve)  (impl-solve)
+  (decl-kb)     (impl-kb) (impl-kb-compile) (impl-kb-pred) (impl-kb-consult)
+  (decl-solve)  (impl-solve) (impl-solve-journal) (impl-solve-control) (impl-solve-gc)
+                (impl-solve-loop) (impl-solve-arith) (impl-solve-text) (impl-solve-db)
 
   (var int failures . 0)
 
@@ -133,7 +145,8 @@
 
   ;; what a directive's goal runs through in a program: here every goal is
   ;; proved, so a consult can run an initialization goal without an engine
-  (func proved ((coco_store * st) (coco_machine * m) (size_t goal) (char * err) (size_t errlen))
+  (func proved ((coco_store * st) (coco_machine * m) (size_t goal) (int kind)
+                (char * err) (size_t errlen))
         (out int)
         (return 1))
 
@@ -516,10 +529,13 @@
        ;; so `phrase' is an undefined predicate in it and raises, correctly.
        ;; test/files/dcg.pl exercises it through the built program, against SWI.
 
-       ;; asserting a rule at RUN time goes through the same translation, which
-       ;; is the whole reason it lives in `coco_assert' and not in `consult'
-       (check "assert translates a grammar rule too"
-              (cast llong (count (aof e) "assertz((g6 --> [z])), g6([z], [])" 10)) 1))
+       ;; A RULE ASSERTED AT RUN TIME IS STORED AS IT IS (3.13.0, swipl's):
+       ;; a clause of `-->'/2, and no g6//0 is made of it; the consult is
+       ;; what translates (through 3.12.0 `coco_assert' did, for both)
+       (check "assert stores a grammar rule as a clause of -->/2"
+              (cast llong (count (aof e) "assertz((g6 --> [z])), '-->'(g6, [z])" 10)) 1)
+       (check "and defines no non-terminal by it"
+              (cast llong (count (aof e) "g6([z], [])" 10)) -1))
 
       ;; ---- errors are reported, not guessed -------------------------------
       (check "an unbound goal is an error"    (cast llong (count (aof e) "X" 10)) -1)

@@ -14,7 +14,9 @@
 %% THE THREE ANSWERS A DIRECTIVE CAN GIVE are what most of this file is
 %% about, because they are what a person sees when something is wrong:
 %% proved (silence), failed (a Warning naming the goal), threw (an ERROR
-%% naming the ball in SWI's words). None of the three stops the load.
+%% naming the ball in SWI's words, and then the Warning). None of the three
+%% stops the load -- but for a ball that is no error(_, _), which ends it,
+%% as swipl's does (3.1.0, a_ball/1).
 %%
 %% MEASURED AGAINST swipl, not remembered. Every message shape below was
 %% read off a real `swipl -q -g main -t halt' run first and the code written
@@ -31,8 +33,10 @@
 
 main :-
     scratch(D),
-    a_goal(D), does_not_prove(D), loads_nothing(D), syntax_error(D), initialization(D),
-    init_main(D), halted_load(D), in_a_module(D), exit_status(D), reader_level(D), the_program(D),
+    a_goal(D), does_not_prove(D), a_ball(D), loads_nothing(D), syntax_error(D), initialization(D),
+    init_main(D), nested_main(D), halted_load(D), in_a_module(D), exit_status(D), fresh_line(D),
+    reader_level(D), the_program(D),
+    taken_later(D),
     under_swipl(D),
     shl(['rm -rf ', D]),
     checks_done.
@@ -65,13 +69,50 @@ does_not_prove(D) :-
     sh_join(['ERROR: ', F, ':2:'], E2), has('an unknown goal is an ERROR', E2, Out),
     has('...in SWI''s words', 'Unknown procedure: nosuch_goal/0', Out),
     sh_join(['Warning: ', F, ':3:'], W3), has('a failing goal is a Warning', W3, Out),
-    has('...and the Warning names the goal', 'Goal (directive) failed: fail', Out),
+    has('...and the Warning names the goal', 'Goal (directive) failed: user:fail', Out),
     sh_join(['--local run ', F, ' "(q(X), write(X))" 2>/dev/null'], Args),
     cocolog_run(Args, G, _),
     check('AND THE LOAD CARRIED ON', G, '2').
     %% The line numbers above are the point of the check: a message that says
     %% only "unknown procedure" in a file of two hundred clauses is a message
     %% you have to go looking for.
+
+%% A DIRECTIVE'S BALL (3.1.0), as swipl's '$execute_directive_3' takes it.
+%% AN ERROR is reported where it stands, and the directive is then counted
+%% failed, its goal written as it was asked -- its bindings undone, as the
+%% catch/3 swipl runs it under undoes them -- and the load goes on. ANY
+%% OTHER BALL ENDS THE LOAD: consult/1 raises it to its caller, and `run'
+%% and `-s' say `Prolog initialisation failed:' over its message and exit 1.
+%% Through 3.0 every ball was an ERROR and the load went on, and a failed
+%% directive was written with the bindings its goal had made.
+a_ball(D) :-
+    section('a directive''s ball: an error goes on, any other ends the load'),
+    atom_concat(D, '/eball.pl', F),
+    fixture(F, ['p(1).', ':- atom_length(_, _).', ':- throw(oh_no).', 'q(2).']),
+    ran(F, '(q(X), write(X))', Out, Rc),
+    sh_join(['ERROR: ', F, ':2:\nERROR:    atom_length/2: Arguments are not sufficiently instantiated\n'], E2),
+    has('an error is reported where it stands', E2, Out),
+    sh_join(['Warning: ', F, ':2:\nWarning:    Goal (directive) failed: user:atom_length(_G'], W2),
+    has('...and the directive failed, its goal written as it was asked', W2, Out),
+    has('any other ball ends the load', 'ERROR: Prolog initialisation failed:\nERROR: Unknown message: oh_no', Out),
+    check('...and the run exits 1, its goal never asked', Rc, 1),
+    ( sub_atom(Out, _, _, _, 'q/1') -> Q = asked ; Q = not_asked ),
+    check('...so nothing names q/1', Q, not_asked),
+    sh_join(['--local -s ', F, ' 2>&1'], A2), cocolog_run(A2, Out2, Rc2),
+    has('-s says the same', 'ERROR: Prolog initialisation failed:\nERROR: Unknown message: oh_no', Out2),
+    check('...and exits 1', Rc2, 1),
+    atom_concat(D, '/eload.pl', F3),
+    atomic_list_concat([ 'go :- catch(consult(''', F, '''), B, true), write(B), nl, ',
+                         '( catch(q(_), _, fail) -> write(read) ; write(not_read) ).' ], Go3),
+    fixture(F3, [Go3]),
+    sh_join(['--local run ', F3, ' go 2>/dev/null'], A3), cocolog_run(A3, Out3, _),
+    check('consult/1 raises it to its caller, and the clause after was not read', Out3, 'oh_no\nnot_read'),
+    atom_concat(D, '/efail.pl', F4),
+    fixture(F4, [ 'mk(0, []) :- !.', 'mk(N, [N|T]) :- N1 is N - 1, mk(N1, T).',
+                  ':- mk(3, L), L == [3, 2, 9].' ]),
+    ran(F4, true, Out4),
+    has('a failed directive is written as it was asked, too',
+        'Goal (directive) failed: user:(mk(3,_G', Out4).
 
 loads_nothing(D) :-
     section('a load directive that loads nothing says so'),
@@ -86,7 +127,7 @@ loads_nothing(D) :-
     sh_join(['ERROR: ', F, ':2:'], E2), has('a library that is not there is an ERROR', E2, Out),
     has('...in SWI''s words', 'source_sink `library(nosuch)'' does not exist', Out),
     sh_join(['Warning: ', F, ':2:'], W2), has('...and then the directive failed, as SWI says it', W2, Out),
-    has('...naming the directive', 'Goal (directive) failed: use_module(library(nosuch))', Out),
+    has('...naming the directive', 'Goal (directive) failed: user:use_module(library(nosuch))', Out),
     has('a file that is not there, the same', 'source_sink `nosuch_file'' does not exist', Out),
     sh_join(['--local run ', F, ' "(q(X), write(X))" 2>/dev/null'], Args),
     cocolog_run(Args, G, _),
@@ -102,46 +143,63 @@ loads_nothing(D) :-
     check('SWI''s names for what cocolog carries stay quiet', Out2, yes).
 
 syntax_error(D) :-
-    section('a syntax error still ends the consult, and says where and why'),
-    %% THE ONE THING THAT IS STILL FATAL, and it has to be: after a syntax
-    %% error the reader does not know where the next clause begins, so
-    %% carrying on would mean guessing.
+    section('a syntax error skips its clause, says where and why, and the load goes on'),
+    %% AS SWIPL'S (3.1.0): swipl reads a clause's text whole, up to its
+    %% full stop, before it parses it, so a clause that will not parse is
+    %% reported and passed over and the rest of the file is read. The
+    %% reader takes up where swipl's raw read would (`coco_reader_resync'):
+    %% past the full stop that ends the clause it failed in -- so `s :- t u'
+    %% runs on to the `.' after `v(1)', and v/1 is never defined, in both.
+    %% Through 3.0.4 the first syntax error ended the consult, and nothing
+    %% under a typo loaded. under_swipl/1 holds the program's answer here
+    %% to swipl's.
     atom_concat(D, '/syn.pl', F),
-    fixture(F, ['p(1).', 'q(x :- .']),
-    ran(F, true, Out, Rc),
-    check('a syntax error is still fatal', Rc, 1),
+    fixture(F, [ 'p(1).', 'q(x :- .', 'p(2).', 'r(''a\\qb'').', 'p(3).',
+                 's :- t u', 'v(1).', 'p(4).' ]),
+    ran(F, '(findall(X, p(X), L), ( catch(v(1), _, fail) -> V = v ; V = no_v ), write(L-V))', Out, Rc),
+    check('a syntax error no longer ends the load', Rc, 0),
+    has('the clauses either side of each bad one are read', '[1,2,3,4]-no_v', Out),
     %% WHERE AND WHY, IN SWI'S SHAPE (1.11.9): the file, the line, the
     %% column from 0 of the token it failed at, and the reason -- where
     %% 1.11.8 said `syntax error at offset 14', a byte offset. Here the
-    %% reader stops at the `:-', which no argument can hold (swipl reads on
-    %% to the `.'); under_swipl/1 holds the place to swipl's in files where
+    %% reader stops at the `.', where swipl's does: an argument is read to
+    %% 1200 (3.2.0), so `x :-' is the start of one, and its right side is
+    %% missing (through 3.1.0 it stopped at the `:-', no argument then
+    %% holding it); under_swipl/1 holds the place to swipl's in files where
     %% the two stop at one token.
-    atomic_list_concat(['ERROR: ', F, ':2:4: Syntax error: expected ) closing an argument list'], W1),
+    atomic_list_concat(['ERROR: ', F, ':2:7: Syntax error: Unexpected end of clause'], W1),
     has('run names the file, the line, the column and the reason', W1, Out),
+    atomic_list_concat(['ERROR: ', F, ':6:7: Syntax error: '], W1b),
+    has('and so each later one, where swipl places it', W1b, Out),
     atom_concat(D, '/synat.pl', At),
     fixture(At, ['p(1).', 'q(2) :- .']),
     ran(At, true, OutAt, _),
-    atomic_list_concat(['ERROR: ', At, ':2:8: Syntax error: expected a term'], WAt),
+    atomic_list_concat(['ERROR: ', At, ':2:8: Syntax error: Unbalanced operator'], WAt),
     has('the token it failed at, counted from 0', WAt, OutAt),
-    %% A MODULE'S, named by ITS file: through 1.11.8 `-s' said only that
-    %% the top file's `clauses would not consult', and the load at a goal's
-    %% ask only that `a module's clauses would not load'
+    %% THE CLAUSE BEFORE A BAD FIRST TOKEN IS KEPT: the reader is one token
+    %% ahead, and through 3.0.4 a token that would not read straight after a
+    %% full stop took the clause it closed with it (`coco_read_clause')
+    atom_concat(D, '/synnext.pl', Nx),
+    fixture(Nx, ['p(1).', '''a\\qb''.', 'p(2).']),
+    ran(Nx, '(findall(X, p(X), L), write(L))', OutNx, _),
+    has('the clause before a token that will not read is kept', '[1,2]', OutNx),
+    %% A MODULE'S, named by ITS file, and its load goes on as a file's:
+    %% through 1.11.8 `-s' said only that the top file's `clauses would not
+    %% consult', and through 3.0.4 the module's load failed, its use_module
+    %% with it
     atom_concat(D, '/synmod.pl', Mod),
-    fixture(Mod, ['m(1).', 'm(2) :- .']),
+    fixture(Mod, ['m(1).', 'm(2) :- .', 'm(3).']),
     atom_concat(D, '/syntop.pl', Top),
     %% named without its `.pl', as `use_module(bad)' is written: the module
     %% is registered under the spec, and the message names the file read
     atom_concat(D, '/synmod', ModSpec),
     atomic_list_concat([':- use_module(''', ModSpec, ''').'], UseMod),
-    fixture(Top, [UseMod, 'main :- m(1).']),
+    fixture(Top, [UseMod, 'main :- findall(X, m(X), L), write(L), nl.']),
     sh_join(['--local -s ', Top, ' 2>&1'], A2), cocolog_run(A2, Out2, Rc2),
-    atomic_list_concat(['use_module: ', Mod, ':2:8: Syntax error: expected a term'], W2),
-    has('-s names the module''s file that would not consult, and where', W2, Out2),
-    check('and exits as a raised error', Rc2, 2),
-    ran(Top, main, Out3, _),
-    atomic_list_concat(['a module''s clauses would not load: ', Mod,
-                        ':2:8: Syntax error: expected a term'], W3),
-    has('so does the load a goal''s ask makes', W3, Out3),
+    atomic_list_concat(['ERROR: ', Mod, ':2:8: Syntax error: Unbalanced operator'], W2),
+    has('-s names the module''s file and where', W2, Out2),
+    has('and the module''s other clauses load', '[1,3]', Out2),
+    check('and main runs', Rc2, 0),
     %% THE COLUMN IS SWI'S, in bytes: two letters of two bytes before the
     %% token move it four, as swipl's moves (`z(''aa'', b c).'' fails at 10)
     atom_concat(D, '/synutf.pl', U),
@@ -149,12 +207,65 @@ syntax_error(D) :-
     ran(U, true, Out4, _),
     atomic_list_concat(['ERROR: ', U, ':2:12: Syntax error: '], W4),
     has('a column counts bytes, as swipl''s does', W4, Out4),
-    %% and the consult's other stops say where too
+    %% on a later line of its clause too, and a comment's character is one
+    %% column, its raw text's space, so the walk past it counts characters
+    %% and the letter past ASCII after it is its bytes (3.10.0; swipl 9.0.4
+    %% under C.UTF-8 says 3:5, 4:12, 5:15 and 6:15, and the files case's
+    %% swipl reads no UTF-8)
+    atom_concat(D, '/synutf2.pl', Uw),
+    fixture(Uw, ['x(1).', 'z(1,', ' ''é'' x y).', 'w(/* é */ a b).',
+                 'v(/* é */ ''aé''b).', 'u(/* éé */ ''é''b).']),
+    ran(Uw, true, Outw, _),
+    atomic_list_concat(['ERROR: ', Uw, ':3:5: Syntax error: '], Ww1),
+    has('a later line''s column counts bytes', Ww1, Outw),
+    atomic_list_concat(['ERROR: ', Uw, ':4:12: Syntax error: '], Ww2),
+    has('a comment''s character is one column', Ww2, Outw),
+    atomic_list_concat(['ERROR: ', Uw, ':5:15: Syntax error: '], Ww3),
+    has('the walk past a comment counts its characters', Ww3, Outw),
+    atomic_list_concat(['ERROR: ', Uw, ':6:15: Syntax error: '], Ww4),
+    has('two of them, and a quoted letter after', Ww4, Outw),
+    %% THE CONSULT'S OTHER STOPS ARE REPORTS NOW TOO, each in swipl's words
+    %% (under_swipl/1 holds the three files' stderr to swipl's, word for
+    %% word): an endif, else or elif with no if open is passed over; an if
+    %% the file never closes is named at the end; and a term that is no
+    %% clause -- a number, or a body with one where a goal stands -- is
+    %% refused and the load goes on. Through 3.0.4 the first two ended the
+    %% consult, and the third ended it as `not a clause' or went in.
     atom_concat(D, '/synendif.pl', E),
-    fixture(E, ['p(1).', ':- endif.']),
-    ran(E, true, Out5, _),
-    atomic_list_concat(['ERROR: ', E, ':2: endif: no `:- if'' is open'], W5),
-    has('a stray endif names its line', W5, Out5).
+    fixture(E, ['p(1).', ':- endif.', 'p(2).', ':- else.', 'p(3).']),
+    ran(E, '(findall(X, p(X), L), write(L))', Out5, Rc5),
+    atomic_list_concat(['ERROR: ', E, ':2:\nERROR:    :- endif without :- if'], W5),
+    has('a stray endif names its line', W5, Out5),
+    has('and the clauses after it are read', '[1,2,3]', Out5),
+    check('and the goal runs', Rc5, 0),
+    atom_concat(D, '/synnoend.pl', Ne),
+    fixture(Ne, ['p(1).', ':- if(true).', 'p(2).']),
+    ran(Ne, '(findall(X, p(X), L), write(L))', Out6, _),
+    atomic_list_concat(['ERROR: ', Ne, ':4:\nERROR:    Unterminated conditional compilation from ',
+                        Ne, ':2'], W6),
+    has('an if never closed is named at the end, and where it opened', W6, Out6),
+    has('and what it read is kept', '[1,2]', Out6),
+    atom_concat(D, '/synnotcl.pl', Nc),
+    fixture(Nc, ['p(1).', '3.', '1.5.', 'foo :- 3.', 'bar :- (a, 1).', '[].', 'p(2).']),
+    atom_concat('(findall(X, p(X), L), ( catch(foo, _, fail) -> B = foo ; B = no_foo ), ',
+                '( catch(clause([], _), _, fail) -> N = nil ; N = no_nil ), write(L-B-N))', G7),
+    ran(Nc, G7, Out7, _),
+    atomic_list_concat(['ERROR: ', Nc, ':2:\nERROR:    Type error: `callable'' expected, found `3'' (an integer)'], W7),
+    has('a number is no clause', W7, Out7),
+    atomic_list_concat(['ERROR: ', Nc, ':5:\nERROR:    Type error: `callable'' expected, found `a,1'' (a compound)'], W7b),
+    has('nor a body with a number where a goal stands', W7b, Out7),
+    has('and neither goes in, the clauses either side do', '[1,2]-no_foo', Out7),
+    %% `[].' is passed over in silence, as swipl's: no fact `[]' stands
+    has('and [] is passed over, no clause of it kept', 'no_foo-no_nil', Out7),
+    %% A VARIABLE WHERE A CLAUSE STANDS is reported in swipl's words and
+    %% passed over as the others are; swipl's load stops there instead
+    %% (`Prolog initialisation failed', COMPAT.md)
+    atom_concat(D, '/synvar.pl', Nv),
+    fixture(Nv, ['p(1).', 'X.', 'p(2).']),
+    ran(Nv, '(findall(X, p(X), L), write(L))', Out8, _),
+    atomic_list_concat(['ERROR: ', Nv, ':2:\nERROR:    Arguments are not sufficiently instantiated'], W8),
+    has('a variable is no clause either', W8, Out8),
+    has('and the load goes on past it', '[1,2]', Out8).
 
 initialization(D) :-
     section('initialization/1: after the file, not where it stands'),
@@ -195,7 +306,29 @@ initialization(D) :-
     ran(F5, true, Out5),
     has('one that throws is an ERROR', 'Initialization goal raised exception:', Out5),
     has('...and the ball is named', 'Unknown message: my_error', Out5),
-    sh_join([F5, ':1:'], At5), has('...at the line it was written', At5, Out5).
+    sh_join([F5, ':1:'], At5), has('...at the line it was written', At5, Out5),
+    %% NOW, WHERE IT STANDS (3.1.0, swipl's): the place twice, once as the
+    %% message's location and once inside it, and the load goes on
+    %% whatever the ball -- its goal is run as an initialization's is
+    atom_concat(D, '/now2.pl', F6),
+    fixture(F6, [ ':- initialization(fail, now).', ':- initialization(throw(oh), now).',
+                  ':- initialization(atom_length(_, _), now).', 'r(1).' ]),
+    ran(F6, '(r(X), write(X))', Out6),
+    sh_join(['Warning: ', F6, ':1:\nWarning:    ', F6, ':1: Initialization goal failed\n'], W6),
+    has('now: one that fails says where twice, as swipl''s does', W6, Out6),
+    sh_join(['ERROR: ', F6, ':2:\nERROR:    ', F6, ':2: Initialization goal raised exception:\nERROR:    Unknown message: oh\n'], E6),
+    has('...one that raises, the message after', E6, Out6),
+    ( atom_concat(_, '\n1', Out6) -> T6 = yes ; T6 = Out6 ),
+    check('...and the load goes on, whatever the ball', T6, yes),
+    %% A BUILTIN AS THE GOAL NAMES ITSELF (3.1.0), in a file of nothing else:
+    %% the load winds its heap back clause by clause, so the goal would be
+    %% built at heap cell 0 -- the goal in flight `kcall' 0, which reads as
+    %% none -- and its error named no predicate
+    atom_concat(D, '/ibuiltin.pl', F7),
+    fixture(F7, [':- initialization(atom_length(_, _)).']),
+    ran(F7, true, Out7),
+    has('a builtin goal that raises names itself, on an empty heap too',
+        'atom_length/2: Arguments are not sufficiently instantiated', Out7).
 
 init_main(D) :-
     section('initialization(main, main) IS the program'),
@@ -214,10 +347,81 @@ init_main(D) :-
     ran(F2, true, Out2, Rc2),
     check('a main that throws exits 2', Rc2, 2),
     has('...naming the ball', 'Unknown message: my_ball', Out2),
+    sh_join([F1, ':1: user:main: false'], W1), has('...each on one line, as swipl''s', W1, Out1),
+    %% UNDER `verbose' SILENT, swipl -q's (3.1.0): a main that fails says
+    %% nothing and exits 1, as swipl's does
+    atom_concat(D, '/m1v.pl', F4),
+    fixture(F4, [':- set_prolog_flag(verbose, silent).', ':- initialization(main, main).', 'main :- fail.']),
+    ran(F4, true, Out4, Rc4),
+    check('under verbose silent a main that fails says nothing, and exits 1', Out4-Rc4, ''-1),
     atom_concat(D, '/when.pl', F3),
     fixture(F3, [':- initialization(true, restore_state).']),
     ran(F3, true, Out3),
     has('a when cocolog has not is refused BY NAME', restore_state, Out3).
+
+%% A MAIN GOAL IS THE WHOLE LOAD'S (3.7.0), as swipl's: one a nested file
+%% registers runs after the whole load -- the rest of the outer file and its
+%% initialization/1 goals first -- and halts; the last one registered wins;
+%% every after_load goal runs before it; and a file that defined nothing
+%% else is no source file, whose main is dropped and which the next load
+%% reads again. Each answer is swipl 9.0.4's, `swipl OUTER.pl' (through
+%% 3.6.0 a nested one ran at its own file's end, and every main in file
+%% order with the other goals)
+nested_main(D) :-
+    section('a nested initialization(G, main) runs after the whole load'),
+    atom_concat(D, '/nmi.pl', I),
+    fixture(I, [':- initialization(go, main).', 'go :- writeln(go_ran).', ':- writeln(inner_read).']),
+    atom_concat(D, '/nmo.pl', O1),
+    fixture(O1, [':- ensure_loaded(nmi).', ':- writeln(outer_after).', 'o(1).',
+                 ':- initialization(writeln(outer_init)).']),
+    ran(O1, 'writeln(cli)', Out1, Rc1),
+    check('the rest of the outer file and its goals first, then G, and a halt',
+          Out1-Rc1, 'inner_read\nouter_after\nouter_init\ngo_ran'-0),
+    atom_concat(D, '/nmmid.pl', Mid),
+    fixture(Mid, [':- ensure_loaded(nmi).', ':- writeln(mid_end).', ':- initialization(writeln(mid_init)).']),
+    atom_concat(D, '/nmo4.pl', O4),
+    fixture(O4, [':- ensure_loaded(nmmid).', ':- writeln(o4_end).']),
+    ran(O4, true, Out4),
+    check('...two deep, after the outermost',
+          Out4, 'inner_read\nmid_end\nmid_init\no4_end\ngo_ran'),
+    atom_concat(D, '/nmo2.pl', O2),
+    fixture(O2, [':- initialization(writeln(o2_init_before)).', ':- initialization(om, main).',
+                 ':- ensure_loaded(nmi).', ':- initialization(writeln(o2_init_after)).',
+                 'om :- writeln(om_ran).']),
+    ran(O2, true, Out2),
+    check('the last main registered wins, after every after_load goal',
+          Out2, 'inner_read\no2_init_before\no2_init_after\ngo_ran'),
+    atom_concat(D, '/nmw4.pl', W4),
+    fixture(W4, [':- initialization(writeln(w4_ran), main).', ':- initialization(writeln(w4_after)).']),
+    ran(W4, true, Out3),
+    check('...the file''s own main too', Out3, 'w4_after\nw4_ran'),
+    atom_concat(D, '/nmw.pl', W),
+    fixture(W, [':- initialization(writeln(w_ran), main).']),
+    atom_concat(D, '/nmow.pl', OW),
+    fixture(OW, [':- ensure_loaded(nmw).', ':- writeln(end_w).']),
+    ran(OW, 'writeln(cli)', Out5, Rc5),
+    check('a main in a file that defined nothing else is dropped', Out5-Rc5, 'end_w\ncli'-0),
+    atom_concat(D, '/nmw5.pl', W5),
+    fixture(W5, [':- initialization(writeln(w5_ran), main).', ':- writeln(read_w5).']),
+    atom_concat(D, '/nmo5.pl', O5),
+    fixture(O5, [':- ensure_loaded(nmw5).', ':- ensure_loaded(nmw5).', ':- writeln(end_w5).']),
+    ran(O5, true, Out6),
+    check('...and defines nothing: the next load reads the file again',
+          Out6, 'read_w5\nread_w5\nend_w5'),
+    atom_concat(D, '/nmq.pl', Q),
+    fixture(Q, ['x(1).', ':- initialization(qq, main).', 'qq :- fail.']),
+    atom_concat(D, '/nmoq.pl', OQ),
+    fixture(OQ, [':- ensure_loaded(nmq).', ':- writeln(end_q).']),
+    ran(OQ, true, Out7, Rc7),
+    sh_join(['end_q\nERROR: ', Q, ':2: user:qq: false'], Want7),
+    check('one that fails is said at its own file and line, and exits 1', Out7-Rc7, Want7-1),
+    atom_concat(D, '/nms8.pl', S8),
+    fixture(S8, [':- initialization(writeln(s8_main), main).', 's(1).']),
+    atom_concat(D, '/nmm8.pl', M8),
+    format(atom(M8c), "m8 :- consult('~w'), writeln(m8_done).", [S8]),
+    fixture(M8, [':- initialization(m8, main).', M8c]),
+    ran(M8, true, Out8),
+    check('a main the running main''s consult registers does not run', Out8, m8_done).
 
 %% ---- a halt during the load, under a store -------------------------------
 %%
@@ -366,7 +570,7 @@ exit_status(D) :-
     check('...and says nothing about it', Out2, ''),
     ran(F, bad, Out3, Rc3),
     check('a goal that throws exits 2', Rc3, 2),
-    has('the message names the goal it was asked', '-g main:', Out3),
+    has('the message names the goal it was asked', '-g bad:', Out3),
     has('...and the ball, in SWI''s words', 'Unknown message: my_ball', Out3),
     ran(F, nosuch, Out4),
     has('an unknown procedure reads as SWI''s', 'Unknown procedure: nosuch/0', Out4),
@@ -374,6 +578,42 @@ exit_status(D) :-
     has('arithmetic on an atom reads as SWI''s', 'is not a function', Out5),
     ran(F, 'atom_length(X, _)', Out6),
     has('an unbound argument reads as SWI''s', 'not sufficiently instantiated', Out6).
+
+%% A REPORT BEGINS A LINE OF ITS OWN (2.16.0), as swipl's do, being
+%% print_message/2's: after half a line on either stream -- user_output and
+%% user_error share one column -- a newline first, and after a whole line
+%% none. Through 2.15.2 `half' and the report's tag shared a line. Measured
+%% against swipl 9.0.4; its words around them differ (the path, `user:',
+%% the backtrace), which the swipl diff below keeps apart.
+fresh_line(D) :-
+    section('a report begins a line of its own'),
+    atom_concat(D, '/fl.pl', F),
+    fixture(F, [ ':- format(user_error, ''err_half'', []), fail.',
+                 ':- write(out_half), fail.',
+                 ':- format(user_error, ''raise_half'', []), atom_length(_, _).',
+                 ':- format(user_error, ''whole~n'', []), fail.',
+                 ':- initialization((format(user_error, ''init_half'', []), fail)).',
+                 'main :- write(goal_half), atom_length(_, _).' ]),
+    ran(F, main, Out),
+    atomic_list_concat(['err_half\nWarning: ', F, ':1:'], W1),
+    has('a failed directive''s Warning, after half a line on user_error', W1, Out),
+    atomic_list_concat(['out_half\nWarning: ', F, ':2:'], W2),
+    has('...and after half a line on user_output: the column is shared', W2, Out),
+    atomic_list_concat(['raise_half\nERROR: ', F, ':3:'], W3),
+    has('a raising directive''s ERROR', W3, Out),
+    atomic_list_concat(['whole\nWarning: ', F, ':4:'], W4),
+    has('after a whole line, the report straight after it', W4, Out),
+    atomic_list_concat(['whole\n\nWarning: ', F, ':4:'], W4b),
+    (   sub_atom(Out, _, _, _, W4b) -> Blank = yes ; Blank = no ),
+    check('...and no blank line between them', Blank, no),
+    atomic_list_concat(['init_half\nWarning: ', F, ':5: Initialization goal failed'], W5),
+    has('an initialization goal''s Warning', W5, Out),
+    has('the goal''s own ERROR, after half a line on user_output', 'goal_half\nERROR: -g main:', Out),
+    atom_concat(D, '/fls.pl', S),
+    fixture(S, [':- format(user_error, ''syn_half'', []).', 'p(1 :- .']),
+    ran(S, true, OutS),
+    atomic_list_concat(['syn_half\nERROR: ', S, ':2:'], W6),
+    has('a syntax error''s ERROR, after half a line on user_error', W6, OutS).
 
 reader_level(D) :-
     section('the reader-level directives still act on the reader'),
@@ -465,18 +705,51 @@ the_program(D) :-
     %% throw with an atom in it reads the same under both -- which is what
     %% the diff below is able to check.
 
+%% A CLAUSE RUN BEFORE THE PROGRAM TOOK ITS NAME OVER IS COMPILED AGAIN
+%% (3.1.0, `coco_code_forget_all'): the directives run early/1 and early2/0
+%% while is/2 and not/1 are the engine's, so their bodies are compiled with
+%% them in place -- a guard, a construct unit -- and the clauses that take
+%% the names over come after; from then on the program's answer every
+%% call, the clauses run before among them. And a builtin called before
+%% its name is taken is the program's after: string_upper/2, a core one
+%% whose functor kept its row, and msort/2, whose functor remembered the
+%% module that owns it (`coco_pred_take_over'). swipl links a call at its
+%% first run and keeps it (late(3)), and refuses not/1's, msort/2's and
+%% string_upper/2's clauses after a use: a stated difference (COMPAT.md).
+%% Kept, the stale code answers 3, the builtin's not/1, msort/2 and
+%% string_upper/2.
+taken_later(D) :-
+    section('a clause run before the program took its name over is compiled again'),
+    atom_concat(D, '/later.pl', F),
+    fixture(F, [ 'early(Y) :- Y is 1 + 2.',
+                 'early2 :- atom_length(x, _), not(fail).',
+                 ':- early(Y), assert(seen(early(Y))).',
+                 ':- ( early2 -> assert(seen(early2_ran)) ; true ).',
+                 ':- msort([b, a], M), assert(seen(M)).',
+                 ':- string_upper(abc, U), assert(seen(U)).',
+                 ':- redefine_system_predicate(is(_, _)).',
+                 'is(my_is, _).',
+                 'not(_) :- assert(seen(my_not)).',
+                 'msort(_, mine).',
+                 'string_upper(_, mine).' ]),
+    ran(F, '(early(Y), ( early2 -> E = e2_ran ; E = e2_no ), msort([b, a], M), string_upper(abc, S2), findall(S, seen(S), L), write(L-late(Y)-E-M-S2))', Got),
+    %% string_upper/2 is a CORE builtin, whose functor kept its row when
+    %% the directive called it (`bix'); msort/2 is library(lists)'s, asked
+    %% through the module walk, which passes a taken name by
+    check('the program''s is/2, not/1, msort/2 and string_upper/2 answer the clauses run before them',
+          Got, '[early(3),early2_ran,[a,b],ABC,my_not]-late(my_is)-e2_ran-mine-mine').
+
 under_swipl(D) :-
     section('the same files under swipl'),
-    %% THE CLAIM IS COMPATIBILITY, so the check is a diff. Only the files
-    %% whose output is Prolog's own and not cocolog's are run here: a
-    %% message's exact wording differs (`[Thread main]', `user:' and the
-    %% `catch/3:' context are SWI's and cocolog has no equivalent), so what
-    %% is compared is what the PROGRAM printed and the exit status -- which
-    %% is what a caller depends on.
+    %% THE CLAIM IS COMPATIBILITY, so the check is a diff: first what the
+    %% PROGRAM printed and the exit status, which is what a caller depends
+    %% on, and then what each says about its load, to the letter.
     (   sh_exit('command -v swipl >/dev/null 2>&1', 0)
     ->  cocolog(C),
         forall(member(F-Goal, [run-'(answer(A), write(A))', init-true, order-true, m0-true,
-                               typedef-'(names(Ns), write(Ns))']),
+                               typedef-'(names(Ns), write(Ns))',
+                               syn-'(findall(X, p(X), L), ( catch(v(1), _, fail) -> V = v ; V = no_v ), write(L-V))',
+                               synnext-'(findall(X, p(X), L), write(L))']),
                ( sh_join([D, '/', F, '.pl'], Pl),
                  sh_join([C, ' --local run ', Pl, ' "', Goal, '" 2>/dev/null; printf ''rc=%s'' $?'], Ca),
                  shell(Ca, A, _),
@@ -484,58 +757,49 @@ under_swipl(D) :-
                  shell(Cb, B, _),
                  sh_join(['swipl agrees over ', F, '.pl'], Label),
                  check(Label, A, B) )),
-        %% AND THE MESSAGE ITSELF, for the one case where both systems have
-        %% something to say. Two SWI-isms are normalised away and nothing
-        %% else is: `[Thread main]' names the thread that raised it, which
-        %% the cocolog CLI has no equivalent for, and swipl prints the path
-        %% absolute where cocolog prints it as the caller wrote it. What is
-        %% left is compared line for line -- including the four-space indent
-        %% on a directive's second line, which cocolog copies, and its
-        %% ABSENCE on an initialization's, where swipl's slot holds the
-        %% thread tag. The message's two lines: the backtrace after them is
-        %% cocolog's own (1.10.17), which swipl writes only with
-        %% library(prolog_stack) loaded (test/backtrace.pl)
-        sh_join([D, '/ithrow.pl'], Ithrow),
-        sh_join([C, ' --local run ', Ithrow, ' true 2>&1 >/dev/null'], Ca2), shell(Ca2, A2r, _), norm(D, A2r, A2n), first_two(A2n, A2),
-        sh_join(['swipl -q -g true -t halt ', Ithrow, ' 2>&1 >/dev/null'], Cb2), shell(Cb2, B2r, _), norm(D, B2r, B2n), first_two(B2n, B2),
-        check('swipl says the same words about a thrown init goal', A2, B2),
-        %% ONLY THE LOCATION LINE FOR A DIRECTIVE, and the reason is worth
-        %% writing down rather than normalising away: swipl prefixes the
-        %% message with the CONTEXT of the throw -- `catch/3: Unknown
-        %% procedure: ...' -- and cocolog has nothing to put there, because
-        %% a builtin leaves error/2's second argument unbound (card row C3).
-        %% The line that says WHERE is identical, and that is the half a
-        %% reader navigates by.
-        sh_join([D, '/bad.pl'], Bad),
-        sh_join([C, ' --local run ', Bad, ' true 2>&1 >/dev/null'], Ca3), shell(Ca3, A3r, _), norm(D, A3r, A3n), first(A3n, A3),
-        sh_join(['swipl -q -g true -t halt ', Bad, ' 2>&1 >/dev/null'], Cb3), shell(Cb3, B3r, _), norm(D, B3r, B3n), first(B3n, B3),
-        check('...and locates a directive that threw the same way', A3, B3),
-        %% A LIBRARY THAT IS NOT THERE: the whole ERROR, both lines, is
-        %% compared. The Warning after it differs only by SWI's `user:'.
-        sh_join([D, '/missing.pl'], Missing),
-        sh_join([C, ' --local run ', Missing, ' true 2>&1 >/dev/null'], Ca4), shell(Ca4, A4r, _), norm(D, A4r, A4n), first_two(A4n, A4),
-        sh_join(['swipl -q -g true -t halt ', Missing, ' 2>&1 >/dev/null'], Cb4), shell(Cb4, B4r, _), norm(D, B4r, B4n), first_two(B4n, B4),
-        check('...and says the same two lines about a library that is not there', A4, B4),
-        %% A SYNTAX ERROR'S PLACE (1.11.9): the file, the line and the column
-        %% before `Syntax error: '. The reasons are each system's own words
-        %% (`expected a term' where swipl says `Unbalanced operator')
-        forall(member(S, [synat, synutf]),
+        %% AND WHAT EACH SAYS, word for word (3.1.0): the whole of stderr
+        %% and the exit status, with three things normalised away and
+        %% nothing else -- the scratch directory (swipl prints a path
+        %% absolute where cocolog prints it as the caller wrote it), SWI's
+        %% `[Thread main]' tag, and a variable's name, `_G12' against
+        %% `_2132', each a heap position. cocolog's backtrace is its own
+        %% (1.10.17), which swipl writes only with library(prolog_stack)
+        %% loaded (test/backtrace.pl), so cocolog runs with --no-backtrace.
+        %% Through 3.0 only a directive's location line could be compared:
+        %% swipl's `catch/3:' context and `user:' had no counterpart here,
+        %% and an error was no failed directive. m1 and m1v run swipl
+        %% without -q, whose `silent' is m1v's own flag.
+        forall(member(W-Q, [ bad-'-q ', missing-'-q ', ithrow-'-q ', ifail-'-q ', now2-'-q ',
+                             eball-'-q ', efail-'-q ', m1-'', m2-'-q ', m1v-'',
+                             synendif-'-q ', synnoend-'-q ', synnotcl-'-q ' ]),
+               ( sh_join([D, '/', W, '.pl'], WPl),
+                 sh_join([C, ' --no-backtrace --local run ', WPl, ' true 2>&1 >/dev/null; printf ''rc=%s'' $?'], Ca6),
+                 shell(Ca6, A6r, _), norm(D, A6r, A6n), vnorm(A6n, A6),
+                 sh_join(['swipl ', Q, '-g true -t halt ', WPl, ' 2>&1 >/dev/null; printf ''rc=%s'' $?'], Cb6),
+                 shell(Cb6, B6r, _), norm(D, B6r, B6n), vnorm(B6n, B6),
+                 sh_join(['swipl says the same, word for word, of ', W, '.pl'], L6),
+                 check(L6, A6, B6) )),
+        %% A SYNTAX ERROR'S PLACE (1.11.9) AND ITS REASON (3.10.0): the
+        %% file, the line, the column and swipl's sentence, the whole line --
+        %% through 3.9.0 the reasons were each system's own words (`expected a
+        %% term' where swipl says `Unbalanced operator') and only the place
+        %% before `Syntax error: ' was held. A bad escape is placed at its
+        %% letter, as swipl's (3.1.0, synnext: `'a\qb'.' at 2:3; through 3.0.4
+        %% at the quote, 2:0)
+        forall(member(S, [synat, synutf, synnext]),
                ( sh_join([D, '/', S, '.pl'], SPl),
                  sh_join([C, ' --local run ', SPl, ' true 2>&1 >/dev/null'], Ca5), shell(Ca5, A5r, _),
-                 norm(D, A5r, A5n), first(A5n, A5l), syntax_place(A5l, A5),
+                 norm(D, A5r, A5n), first(A5n, A5),
                  sh_join(['LANG=C.UTF-8 swipl -q -g true -t halt ', SPl, ' 2>&1 >/dev/null'], Cb5),
-                 shell(Cb5, B5r, _), norm(D, B5r, B5n), first(B5n, B5l), syntax_place(B5l, B5),
-                 sh_join(['...and places a syntax error where swipl does in ', S, '.pl'], L5),
+                 shell(Cb5, B5r, _), norm(D, B5r, B5n), first(B5n, B5),
+                 sh_join(['...and places and words a syntax error as swipl does in ', S, '.pl'], L5),
                  check(L5, A5, B5) ))
     ;   format("     (skipped: swipl is not here, so the diff did not run)~n", [])
     ).
 
-%% `ERROR: FILE:LINE:COL: ' -- a syntax error's line up to its reason
-syntax_place(Line, Place) :-
-    (   sub_atom(Line, B, _, _, 'Syntax error: ')
-    ->  sub_atom(Line, 0, B, _, Place)
-    ;   Place = Line
-    ).
+%% a variable's name taken out: `_G12' and swipl's `_2132' are both `_'
+vnorm(Text, Out) :-
+    re_replace_atom('_G?[0-9]+', '_', Text, Out).
 
 %% the .sh's norm(): the scratch prefix and SWI's thread tag taken out
 norm(D, Text, Out) :-

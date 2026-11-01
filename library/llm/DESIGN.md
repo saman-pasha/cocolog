@@ -193,7 +193,7 @@ a gate for free.
 | **D3** | `:- use_module(library(lists)).` | write nothing | Tier 1 is compiled in / preloaded: `apply builtins dcg files library lists zigurat` + `assoc pairs ordsets yall aggregate ugraphs dcg_basics dcg_high_order`. 26 such lines were deliberately removed from this tree. Harmless, but off-idiom. |
 | **D4** | `:- use_module(library(dcg/basics)).` | nothing (it is tier 1 as `dcg_basics`) | `library(Dir/Name)` becomes the path `"Dir/Name"`, and the vendored file is `lib/swipl/dcg_basics.pl`. As a directive: silently ignored. As a **goal**: raises. |
 | ~~**C1**~~ | ~~`catch(findall(X,G,L), E, …)`~~ | **retired** | A nested engine dropped the ball and the outer catch never fired; `findall/3,4`, `forall/2`, `aggregate_all/3`, `bagof/3` and `setof/3` catch since 1.1.0 and `with_output_to/2` since 1.2.12, so the row went with the divergence. |
-| **C2** | `catch(G, error(T, context(_,_)), …)` | `catch(G, error(T, _), …)` | The context here is a bare `name/arity`. Library and loader failures are the **non-ISO** `error(cocolog_error(Text), _)` — match it explicitly. |
+| **C2** | `catch(G, error(T, context(_,_)), …)` | `catch(G, error(T, _), …)` | The context here is a bare `name/arity`. A refusal — a library found and refused, a module's own failure — is the **non-ISO** `error(cocolog_error(Text), _)` — match it explicitly. A library that is not there is swipl's `error(existence_error(source_sink, Spec), _)` since 3.4.0. |
 | **A1** | `X is atan(Dy,Dx)` `atan2(Dy,Dx)` `random(10)` `sinh(X)` `inf` | compute it: `atan(Dy/Dx)` + quadrant; the one-argument forms; there is no random | Not evaluable here, and each raises `type_error(evaluable, Name/Arity)`, SWI's own error and catchable (since 1.10.6; through 1.10.5 a functor with arguments went through `coco_fail_err` — −1, **no ball**). A **prompt** row since 2.2.1: its linter pattern could not tell `log(A, B)` the function from a predicate of that name. `log(2, N)` is in neither: swipl 9 lacks `log/2` too. |
 | ~~**A2**~~ | ~~`X is 1 << 62`, 64-bit ids~~ | **retired** | Integers are 64 bits since 2.0.0 (a value past a cell's 61 is boxed in a table, as a float is) and a result past them raises `evaluation_error(int_overflow)`: loud, not silent. The row and its linter rule A1 went with the wrap. |
 | ~~**A3**~~ | ~~`X is 2 ** 10` → `1024.0`~~ | **retired** | That float is ISO's answer, not swipl's: swipl 9's `2 ** 10` is the integer `1024`, as cocolog's is, and since 2.2.0 the power is swipl's `ar_pow()` in every case (`X ** 0` the integer 1, `1 ** Y` 1, a NaN or an infinity raised). The row went in 2.2.0. |
@@ -306,7 +306,7 @@ contributes `smallest_country/2`.
 
 | id | severity | checks | message shape |
 |---|---|---|---|
-| **P1** parse | HARD | Reads every clause. Reports `line:col`. Since cocolog 1.11.9 a load says `ERROR: FILE:LINE:COL: Syntax error: REASON` itself, the column from 0 in bytes as swipl's (`coco_reader_place`, lib/syntax.cicili); through 1.11.8 the interpreter said only `syntax error at offset %lu: %s`, a byte offset. | `gen/solver.pl:14:23 expected . ending a clause` |
+| **P1** parse | HARD | Reads every clause. Reports `line:col`. Since cocolog 1.11.9 a load says `ERROR: FILE:LINE:COL: Syntax error: REASON` itself, the column from 0 in bytes as swipl's (`coco_reader_place` then, `coco_reader_load_error` since 3.10.0, which says swipl's words at swipl's place, lib/syntax.cicili); through 1.11.8 the interpreter said only `syntax error at offset %lu: %s`, a byte offset. | `gen/solver.pl:14:23 expected . ending a clause` |
 | **N1** collision-append | HARD | Defined heads ∩ clause-defined reserved set. | *"`step/4` is `lib/swipl/aggregate.pl`'s and `lib/swipl/ugraphs.pl`'s. Consult appends — see §6 for which set of clauses is tried first, and note that it depends on how the file is run. Rename to `solver_step/4`."* |
 | **N2** collision-dead | HARD | Defined heads ∩ C-table set (141 + imported modules' 109 + torch/bigint's 54). | *"`memberchk/2` is dispatched before the knowledge base (`lib/solve.cicili:1352-1386`). Your clauses will never run."* |
 | **N3** collision-construct | HARD | Defined head names ∩ the 22 construct names, **any arity**. | *"`once` is a control construct matched by interned id (`lib/solve.cicili:151-154`) before the builtin table and before the store. Your clauses are unreachable and no runtime check can see them."* |
@@ -479,7 +479,7 @@ Signals:
 | stderr / exit | meaning |
 |---|---|
 | exit 0 and a `coco_oracle_end` line | consulted cleanly; oracle output is complete |
-| `ERROR: FILE:LINE:COL: Syntax error: <one of twelve reasons>` (through 1.11.8 `cocolog: FILE: syntax error at offset N: ...`) | **G1 escape** — log it as a linter bug, repair at LINE:COL |
+| `ERROR: FILE:LINE:COL: Syntax error: <swipl's sentence>` (cocolog's twelve reasons through 3.9.0; through 1.11.8 `cocolog: FILE: syntax error at offset N: ...`) | **G1 escape** — log it as a linter bug, repair at LINE:COL |
 | `ERROR: FILE:N:` then `ERROR:    Unknown procedure: N/A` | a directive that threw; the load CARRIED ON, so this is advice and not a stop |
 | `ERROR: FILE:LINE: not a clause` (through 1.11.8 `cocolog: FILE: not a clause`) | a term the asserter refused |
 
@@ -576,7 +576,8 @@ command -v swipl
 ```
 A tier-2 library is probed **as a goal**, not as a directive: the directive maps not-found to
 success and says nothing (card row T1). As a goal it raises
-`error(cocolog_error('use_module: library(tcp): not found on the library path'), _)`.
+`error(existence_error(source_sink, library(tcp)), _)`, swipl's ball since cocolog 3.4.0
+(through 3.3.0 `error(cocolog_error('use_module: library(tcp): not found on the library path'), _)`).
 This is `test/tutorials.sh:42-46`'s own probe.
 
 ### Never used, and why
@@ -757,7 +758,7 @@ evidence is about behaviour and the file is the subject.
 
 | class | fingerprint | response |
 |---|---|---|
-| **A** syntax | `Syntax error: <one of twelve reasons>` after `FILE:LINE:COL:` (`syntax error at offset N` through 1.11.8) | **regenerate** with the reason; a G1 escape is logged as a linter bug |
+| **A** syntax | `Syntax error: <swipl's sentence>` after `FILE:LINE:COL:` (one of cocolog's twelve reasons through 3.9.0, `syntax error at offset N` through 1.11.8) | **regenerate** with the reason; a G1 escape is logged as a linter bug |
 | **B** directive that threw | `ERROR: FILE:N:` + the ball | not a stop: the file loaded. Repair the goal the directive names, or move it into `:- initialization(…)` if it calls something defined lower down |
 | **C** existence_error | exact predicate named | **first decide whether the environment is wrong.** If the name matches a tier-2 library's documented surface and its `.so` is absent, this is an environment failure: report `sh modules/X/build.sh` and **stop**. Repairing here is the worst outcome — the model removes the correct call. Otherwise repair as a typo |
 | **D** failed check | `Label = Got  BUT THIS LESSON SAYS Want` | cheapest and most common; needs no trace |
@@ -785,7 +786,8 @@ produce a fourth like them.
   when the request touched the knowledge base and a server answered.
 - **AMBER** — it runs, and some check could not run: a tier-2 `.so` absent, no server, no swipl.
   **A skipped check is never dressed as a pass.** A check whose goal raised
-  `error(cocolog_error('use_module: … not found on the library path'), _)` is reclassified from
+  `error(existence_error(source_sink, library(…)), _)` (through cocolog 3.3.0
+  `error(cocolog_error('use_module: … not found on the library path'), _)`) is reclassified from
   failure to skip *before* the verdict is computed, and the message names the exact
   `sh modules/X/build.sh`.
 - **RED** — it does not run. Class, locus, every repair attempted and why each failed.

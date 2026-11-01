@@ -13,6 +13,7 @@ gt_all(X, Y) :-
     ;   gt_big(X, Y) ; gt_bad(X, Y)
     ;   gt_init ; gt_look(X, Y) ; gt_was(X) ; gt_count(X) ; gt_lib(X)
     ;   gt_nobody(X) ; gt_native(X, Y) ; gt_half(X, Y)
+    ;   gt_alen(X) ; gt_slen(X) ; gt_astr(X) ; gt_sspl(X)
     ).
 
 %% format/3's sink and with_output_to/2's hold the text written: A and S
@@ -32,6 +33,16 @@ gt_member(_, [op, W|_], M) :- !, gt_spell(W, M).
 gt_member(_, [M|_], M).
 gt_spell(W, S) :- atom_concat(conv_, K, W), !, atom_concat('operator ', K, S).
 gt_spell(W, S) :- atom_concat('operator_', W, S).
+
+%% and so does a text read from a list, as swipl's PL_get_text reads it: an
+%% unbound element raises, so past atom_length/2, string_length/2,
+%% atom_string/2 or split_string/4 the list's elements are bound and X is no
+%% free argument of char_code/2 (3.0.0; through 2.16 they wrote any term out
+%% and left its variables as they were)
+gt_alen(N) :- atom_length([X], N), char_code(X, _).
+gt_slen(N) :- string_length([X], N), char_code(X, _).
+gt_astr(A) :- atom_string(A0, [X]), char_code(X, _), A = A0.
+gt_sspl(P) :- split_string([X], [], [], P), char_code(X, _).
 
 %% a table consulted at run time, asked for under a catch that takes its
 %% absence: a warning; under one that does not, the error it was (item 5)

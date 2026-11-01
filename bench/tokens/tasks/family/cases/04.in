@@ -1,0 +1,12 @@
+parent p a
+parent p b
+parent a x
+parent b x
+parent a y
+parent b z
+siblings x
+siblings y
+cousins y
+cousins x
+ancestors x
+descendants p

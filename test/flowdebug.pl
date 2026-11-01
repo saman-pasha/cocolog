@@ -198,10 +198,16 @@ exceptions(D) :-
     check('safe(E): is/2 raised, oops/1 was ended by it, noted/1 is the catch''s recovery',
           C5, [ safe/1-'query.g1'-p1-exit, oops/1-'p1.c1.g1.try.g1'-p2-unwound,
                 (is)/2-'p2.c1.g1'-none-raised, noted/1-'p1.c1.g1.recover.g1'-p3-exit ]),
-    binds(R5, B5),
+    %% the ball names swipl's context since cocolog 3.0.0, which takes its text
+    %% past the 60 characters a value is cut at, and the length the cut keeps
+    %% counts a variable's name: the text before the cut is what is held
+    binds(R5, B5a),
+    findall(P5a-N5a-V5a-X5a,
+            ( member(P5a-N5a-W5a-X5a, B5a), ( W5a = cut(T5a, _) -> V5a = cut(T5a) ; V5a = W5a ) ),
+            B5),
     check('...and the ball, given to the recovery and answered',
-          B5, [ call-'E'-'error(type_error(evaluable,foo/0),_)'-'p1.c1.g1.recover.g1',
-                exit-'E'-'error(type_error(evaluable,foo/0),_)'-'query.g1' ]),
+          B5, [ call-'E'-cut('error(type_error(evaluable,foo/0),context(system:(is)/2,_')-'p1.c1.g1.recover.g1',
+                exit-'E'-cut('error(type_error(evaluable,foo/0),context(system:(is)/2,_')-'query.g1' ]),
     debugged(D, oops, oops(X6), ['X'=X6], [], R6),
     R6 = run(How6, _, _, _, _, _, _, _),
     calls(R6, C6),
@@ -340,8 +346,8 @@ diverged(D) :-
 %% ---- the journal ---------------------------------------------------------
 %%
 %% flip/1's probe and replay with journal(true): the probe journals each
-%% portal call its library calls make -- open/3's '$stream_open'/4, write/2's
-%% format/3, close/1's, read_file_to_codes/2 -- and the replay is answered
+%% portal call its library calls make -- open/3's '$stream_open'/5, write/2's
+%% '$stream_out'/3 and format/3, close/1's, read_file_to_codes/2 -- and the replay is answered
 %% from them, so it reads the one byte the probe wrote and answers too, and
 %% the file holds that one byte. grow/1 loads a file, which no journal
 %% answers, and appends to it: its replay takes the other way and leaves
@@ -357,8 +363,9 @@ journal(D) :-
     check('flip(F): the replay reads the byte the probe wrote, answers where it did, and writes none',
           How1-Div1-BA1, answer-false-x),
     (   J1 = journal(Es1) -> findall(M-P, member(j(_, M, P, _, _), Es1), MP1) ; MP1 = J1 ),
-    check('...the journal: the stream opened, asked about twice, written to and closed, and the file read',
-          MP1, [stream-'$stream_open'/4, stream-'$stream_open_p'/1, builtins-format/3,
+    %% write/2 asks the stream's direction before it formats (3.16.0)
+    check('...the journal: the stream opened, asked about twice and for output, written to and closed, and the file read',
+          MP1, [stream-'$stream_open'/5, stream-'$stream_open_p'/1, stream-'$stream_out'/3, builtins-format/3,
                 stream-'$stream_open_p'/1, stream-'$stream_close'/2, files-read_file_to_codes/2]),
     flow_dbg_read_terms(JF, JT2),
     findall(I2, member(j(I2, _, _, _, _), JT2), Is2),
@@ -373,7 +380,7 @@ journal(D) :-
                      ( svg_g_el(S3, Id, G3), svg_text(G3, M3), sub_atom(M3, 0, _, _, '⇄') -> true ; M3 = none ) ),
             Marks3),
     check('...each goal whose call reached the world carries the journal''s mark, with how many times',
-          Marks3, ['p1.c1.g1'-'⇄', 'p1.c1.g2'-'⇄ ×2', 'p1.c1.g3'-'⇄ ×2', 'p1.c1.g4'-'⇄', 'p1.c1.g5'-none]),
+          Marks3, ['p1.c1.g1'-'⇄', 'p1.c1.g2'-'⇄ ×3', 'p1.c1.g3'-'⇄ ×2', 'p1.c1.g4'-'⇄', 'p1.c1.g5'-none]),
     atom_concat(D, '/flipj.xml', XF4),
     read_file_to_codes(XF4, XC4),
     xml_parse(XC4, X4),
@@ -383,7 +390,7 @@ journal(D) :-
     findall(A-O, ( x_el(X4, portal, PA4), memberchk(at=A, PA4), memberchk(outcome=O, PA4) ), PO4),
     findall(A, member(A-_, PO4), PAt4),
     check('...in the XML: the <run> says so, each <portal> is the <call> the window saw at its step',
-          JA4-JC4, [journal=true, portals='6', answered='6']-PAt4),
+          JA4-JC4, [journal=true, portals='7', answered='7']-PAt4),
     atom_concat(D, '/grow.pl', GF),
     fixture(GF, []),
     debugged(D, growj, grow(GF), [], [journal(true)], R5),
@@ -669,7 +676,7 @@ command(D) :-
     atomic_list_concat(Ls4, '\n', T4),
     ( last(Ls4, L4c), no_cpu(L4c, L4), atomic_list_concat([_, Tail4], '; diverged no', L4) -> true ; Tail4 = T4 ),
     check('journal=true: the line says how many portal calls the journal held, and how many answered the replay',
-          E4-Tail4, 0-'; journal 6 portal calls, 6 answered'),
+          E4-Tail4, 0-'; journal 7 portal calls, 7 answered'),
     atomic_list_concat([D, '/cmdw'], B5),
     atomic_list_concat(['-s tools/flow/debug.pl -- \'fill(L)\' ', F, ' ', B5, ' \'when=nth1(3, L, X), X == 3\' window=4'], A5),
     cocolog_run(A5, T5, E5),
@@ -1052,8 +1059,10 @@ viewed(D) :-
           SMPN-MW, SPN2-windows([1-20, 21-T2])),
     MC = callers(_, _, MCR),
     ( memberchk(callers(app/3, NA2, AC2), MCR) -> true ; NA2 = 0, AC2 = [] ),
-    check('and a call whose caller began in the other window is outside its own: three of app/3''s 21',
-          NA2-AC2, 21-[app/3-14, nrev/2-4, '(outside the window)'-3]),
+    %% (rec/2's numlist/3 is two steps since 3.0.0, one clause over
+    %% '$numlist'/3, and the windows' edge falls a step further into nrev/2)
+    check('and a call whose caller began in the other window is outside its own: two of app/3''s 21',
+          NA2-AC2, 21-[app/3-15, nrev/2-4, '(outside the window)'-2]),
     %% app/3's recursion is a last call, made with its caller's cell: the
     %% matcher asks which call the parent cell names before the Call names
     %% its own, or the call is its own parent
@@ -1073,8 +1082,8 @@ viewed(D) :-
     P3 = profile(_, _, _, PR3),
     debugged(D, open20, rec(6, R5), ['R'=R5], [from(1), to(20), profile(P3), svg(false), xml(false)], _),
     findall(Pr3-I3, ( member(prof(Pr3, I3, _, _), PR3), memberchk(Pr3, [rec/2, nrev/2]) ), Open3),
-    check('a call the window closed on spends up to the last step made under it: rec/2 the whole window, nrev/2 from step 5',
-          Open3, [rec/2-20, nrev/2-16]),
+    check('a call the window closed on spends up to the last step made under it: rec/2 the whole window, nrev/2 from step 4',
+          Open3, [rec/2-20, nrev/2-17]),
     statistics(inferences, I0), flow_dbg_text_spaces(1000, S1000), statistics(inferences, I1),
     atom_length(S1000, L1000), DI is I1 - I0,
     ( DI < 20 -> Cost = constant ; Cost = DI ),
@@ -1117,11 +1126,11 @@ viewed_command(D) :-
     %% (the query) too
     ( sub_atom(PA6, _, _, _, '    (the query)') -> Q6 = named ; Q6 = not_named ),
     %% and the time view of both, each window's probe under the clock
-    ( sub_atom(PA6, _, _, _, '\n% the 80 steps of the 2 windows 211 to 250, 462 to 501, 80 of them inferences (true/0 and =/2 are none), took ') -> M6 = timed ; M6 = untimed ),
+    ( sub_atom(PA6, _, _, _, '\n% the 80 steps of the 2 windows 211 to 250, 461 to 500, 80 of them inferences (true/0 and =/2 are none), took ') -> M6 = timed ; M6 = untimed ),
     check('windows=2: two windows of 40 steps, the second where the run ends, each BASE.K.txt, and BASE.prof of both -- no window began with the query -- their time added up too',
           E6-Y6-L6-SH6-Q6-M6,
-          0-yes-'rec(30, R): answer at step 501; 2 windows: 211 to 250, 462 to 501'-
-          '% the 80 steps of the 2 windows 211 to 250, 462 to 501, 80 of them inferences (true/0 and =/2 are none), by what took them: 79 calls of 1 predicate, a step each, and 1 by control constructs, which make no call (an if-then-else, a cut, catch/3 and its exit, \\+, call/N)'-
+          0-yes-'rec(30, R): answer at step 500; 2 windows: 211 to 250, 461 to 500'-
+          '% the 80 steps of the 2 windows 211 to 250, 461 to 500, 80 of them inferences (true/0 and =/2 are none), by what took them: 79 calls of 1 predicate, a step each, and 1 by control constructs, which make no call (an if-then-else, a cut, catch/3 and its exit, \\+, call/N)'-
           not_named-timed),
     %% ... and each window's own (1.13.7): a cold window apart from a warm one
     atomic_list_concat([B6, '.1.prof'], PF61), atomic_list_concat([B6, '.2.prof'], PF62),
@@ -1130,7 +1139,7 @@ viewed_command(D) :-
                   atomic_list_concat([H6a|_], '\n', A6c), sub_atom(H6a, 0, 40, _, H6) ),
             Hs6),
     check('...and each window''s own BASE.K.prof, named on the output, of that window alone',
-          Hs6, ['% the 40 steps of the window 211 to 250,', '% the 40 steps of the window 462 to 501,']),
+          Hs6, ['% the 40 steps of the window 211 to 250,', '% the 40 steps of the window 461 to 500,']),
     %% ... and the CPU each window's replay spent before it opened, which
     %% places it in the run's time; the run's line, its probe's
     findall(x, ( member(L, Ls6c), sub_atom(L, _, _, 0, ' s before the window opened') ), BW6),
@@ -1604,25 +1613,25 @@ raised_choice(D) :-
     atom_concat(Pn2, '.c1.g1', T2),
     check('the throw/1 of refuse_shape/1''s own body is on its box, among the clauses of its call', TB2, [T2]),
     txt_from(D, chos1, '% where the exception was raised:', TL3),
-    format(atom(BL3), '% the branch it was raised in: the then of arm 4 (its condition held), at ~w in shape_ok(solid) (call 7); the conditions it ran:', [Ite1]),
+    format(atom(BL3), '% the branch it was raised in: the then of arm 4 (its condition held), at ~w in shape_ok(solid) (call 6); the conditions it ran:', [Ite1]),
     check('at the foot of BASE.txt', TL3,
           [ '%  build([solid]): unwound (call 1)',
-            '%    shapes_ok([solid]): unwound (call 6)',
-            '%      shape_ok(solid): unwound (call 7)',
-            '%        refuse_shape(solid): unwound (call 21)',
+            '%    shapes_ok([solid]): unwound (call 5)',
+            '%      shape_ok(solid): unwound (call 6)',
+            '%        refuse_shape(solid): unwound (call 20)',
             BL3,
-            '%  nb_getval(''$flow_test_shape'',yes): raised, and a catch took the exception (call 10)',
-            '%  fail: failed, nothing of the program''s to say why (call 11)',
-            '%  round_shape(solid): failed, no clause''s head unified (call 13)',
-            '%  sized_shape(solid): failed in its clauses (call 15)',
-            '%  abstract_shape(solid): exited (call 19)',
+            '%  nb_getval(''$flow_test_shape'',yes): raised, and a catch took the exception (call 9)',
+            '%  fail: failed, nothing of the program''s to say why (call 10)',
+            '%  round_shape(solid): failed, no clause''s head unified (call 12)',
+            '%  sized_shape(solid): failed in its clauses (call 14)',
+            '%  abstract_shape(solid): exited (call 18)',
             '% the failure it answered, where it got furthest:',
-            '%  sized_shape(solid): clause 1, the furthest of 1 tried: 1 of its calls exited (call 15)',
-            '%    >(0,0): failed, nothing of the program''s to say why (call 17)',
+            '%  sized_shape(solid): clause 1, the furthest of 1 tried: 1 of its calls exited (call 14)',
+            '%    >(0,0): failed, nothing of the program''s to say why (call 16)',
             '' ]),
     format(atom(TT4), '[c1 threw:~w]', [T2]),
     txt_from(D, chos1, '% file: test/flowdebug/run.pl', CL4),
-    ( member(L4, CL4), sub_atom(L4, 0, _, _, '21 '), sub_atom(L4, _, _, _, TT4) -> Y4 = yes ; Y4 = no ),
+    ( member(L4, CL4), sub_atom(L4, 0, _, _, '20 '), sub_atom(L4, _, _, _, TT4) -> Y4 = yes ; Y4 = no ),
     check('...and refuse_shape/1''s line says where its body threw', Y4, yes),
     atom_concat(D, '/chos1.xml', XF5),
     read_file_to_codes(XF5, XC5),
@@ -1694,8 +1703,8 @@ raised_caught(D) :-
     check('at the foot of BASE.txt, the exception the catch took told under its own line',
           Top4-I4a-I4b,
           [ '%  build_stop([solid]): unwound (call 1)',
-            '%    say_stop(error(abstract(solid),shape_ok/1)): unwound (call 25)',
-            '%      stop_with(abstract(solid)): unwound (call 27)',
+            '%    say_stop(error(abstract(solid),shape_ok/1)): unwound (call 24)',
+            '%      stop_with(abstract(solid)): unwound (call 26)',
             '% the failure it answered: none -- no call failed, having tried a clause, before the raise on its way down' ]
           -'%   where the exception was raised:'-'%    build([solid]): unwound (call 3)'),
     atom_concat(D, '/caug1.xml', XF5),

@@ -263,7 +263,7 @@ main :-
     format("~n16. The vocabulary: eighty thousand lesson lines build.pl wrote from a dictionary, learned the same way~n", []),
     normalise_corpus_dir(CDir), atom_concat(CDir, '/vocabulary/spanish.txt', VFile),
     read_file_to_codes(VFile, VCodes), split_string(VCodes, "\n", " \t\r", VLines0),
-    findall(VL, ( member(VS, VLines0), VS \== "", \+ sub_string(VS, 0, 1, _, "#"), atom_string(VL, VS) ), VLines),
+    findall(VL, ( member(VS, VLines0), VS \== "", \+ sub_string(VS, 0, 1, _, '#'), atom_string(VL, VS) ), VLines),
     length(VLines, NV), show('lines in corpus/vocabulary/spanish.txt', NV),
     findall(VL, ( member(VL, VLines), split_string(VL, "\"", "", Parts), Parts = [_, W16|_], atom_string(WA16, W16), memberchk(WA16, [profesor, 'periódico', hermano, coche, nuevo, hace, hizo, makes, made]) ), Some),
     length(Some, NS16), show('the lines that mention a few of its words', NS16),

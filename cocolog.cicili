@@ -148,6 +148,9 @@
   ;; sit beside the code that needs them instead of in the interpreter.
   (include <errno.h>)
   (include <glob.h>)
+  ;; getpwnam(3), for expand_file_name/2's `~user' (3.1.0): Cicili's std
+  ;; declares no <pwd.h>, so the call is files.cicili's raw C
+  (include <pwd.h>)
   (include <limits.h>)
   ;; the library loader: use_module dlopen's a compiled module
   (include <dlfcn.h>)
@@ -185,15 +188,30 @@
   ;; sig_atomic_t, for the engine's halted cell and the signal library
   (include <signal.h>)
   (import "./lib/term.cicili")
+  (import "./lib/term-walk.cicili")
   (import "./lib/syntax.cicili")
   (import "./lib/dcg.cicili")
   (import "./lib/kb.cicili")
+  (import "./lib/kb-compile.cicili")
+  (import "./lib/kb-pred.cicili")
+  (import "./lib/kb-consult.cicili")
   (import "./lib/solve.cicili")
+  (import "./lib/solve-journal.cicili")
+  (import "./lib/solve-control.cicili")
+  (import "./lib/solve-gc.cicili")
+  (import "./lib/solve-loop.cicili")
+  (import "./lib/solve-arith.cicili")
+  (import "./lib/solve-text.cicili")
+  (import "./lib/solve-db.cicili")
   (import "./lib/module.cicili")
   (import "./lib/files.cicili")
   (import "./lib/lists.cicili")
   (import "./lib/apply.cicili")
+  ;; swipl's system predicates, a table builtins.cicili's dwim reads
+  (import "./lib/swipl-system.cicili")
   (import "./lib/builtins.cicili")
+  (import "./lib/builtins-format.cicili")
+  (import "./lib/builtins-db.cicili")
   (import "./lib/library.cicili")
   (import "./lib/state.cicili")
   (import "./lib/green.cicili")
@@ -201,20 +219,21 @@
   (import "./lib/zigurat-mod.cicili")
   (import "./lib/zeytun-kb.cicili")
 
-  (decl-term)   (impl-term)
+  (decl-term)   (impl-term) (impl-term-walk)
   (decl-syntax) (impl-syntax)
   ;; the grammar-rule translator comes BEFORE the knowledge base, because
   ;; `coco_assert' calls it: every clause reaching the store passes through
   ;; there, so that is the one place a `-->' rule can be rewritten no matter
   ;; whether it was consulted from a file or asserted by a running program.
   (decl-dcg)    (impl-dcg)
-  (decl-kb)     (impl-kb)
-  (decl-solve)  (impl-solve)
+  (decl-kb)     (impl-kb) (impl-kb-compile) (impl-kb-pred) (impl-kb-consult)
+  (decl-solve)  (impl-solve) (impl-solve-journal) (impl-solve-control) (impl-solve-gc)
+                (impl-solve-loop) (impl-solve-arith) (impl-solve-text) (impl-solve-db)
   (decl-module) (impl-module)
   (decl-files)  (impl-files)
   (decl-lists)  (impl-lists)
   (decl-apply)  (impl-apply)
-  (decl-builtins) (impl-builtins)
+  (decl-builtins) (impl-builtins) (impl-builtins-format) (impl-builtins-db)
   ;; the library loader sits above the module layer it registers into
   (decl-library) (impl-library)
   ;; ...and the half that needs an engine comes after there is one
@@ -391,7 +410,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "2.14.1"))
+  (func coco_version_text () (out const char *) (return "3.16.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -530,7 +549,10 @@
               (block
                 (set db (zg_open_embed ($ opts store) err (sizeof err)))
                 (if (== db nil)
-                    (block (fprintf stderr "cocolog: no embedded store at %s -- %s\n"
+                    ;; `cannot open', not `no store' (3.0.3): the store
+                    ;; may be there and in use, or damaged, and the reason
+                    ;; after the dash says which
+                    (block (fprintf stderr "cocolog: cannot open the embedded store at %s -- %s\n"
                                     ($ opts store) err)
                            (return 0)))
                 (return 1)))
@@ -618,7 +640,7 @@
         (if (!= db nil) (set (-> st on_halt) halt_finish)))
 
   (func cmd_consult ((int argc) (char ** argv) (int from)) (out int)
-        (let ((coco_machine m) (coco_store st) (coco_zg z) (char err [512]) (int total . 0))
+        (let ((coco_machine m) (coco_store st) (coco_zg z) (char err [4096]) (int total . 0))
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (if (not ($ opts local)) (coco_zg_attach (aof z) db (aof m) (aof st) ($ opts kb)))
@@ -636,14 +658,27 @@
               ;; cell (`dgc', lib/term.cicili)
               (set ($ m dgc) 1)
               ;; noted before, the file is read AGAIN (2.14.1): its clauses
-              ;; placed as swipl's reload places them
-              (set n (coco_consult_again (aof st) (aof m) text (nth i argv)
-                                         (coco_library_note_load (aof st) (nth i argv))
-                                         err (sizeof err)))
+              ;; placed as swipl's reload places them; NAMED BY ITS ABSOLUTE
+              ;; PATH in the load's reports (3.4.0), as swipl names it
+              (let ((char shown [4096]))
+                (if (not (coco_f_normalise (nth i argv) shown (sizeof shown)))
+                    (snprintf shown (sizeof shown) "%s" (nth i argv)))
+                ;; WHAT THE READ DEFINED makes the file loaded (3.6.0): its
+                ;; own count from 0, which a library read into the store on
+                ;; the way does not move, nor the file read before it. The
+                ;; host is the outermost read: nothing to put back
+                (set ($ m ldefs) 0)
+                (set n (coco_consult_again (aof st) (aof m) text shown
+                                           (coco_library_note_load (aof st) (nth i argv))
+                                           err (sizeof err)))
+                (coco_library_note_read (aof st) (nth i argv) (!= ($ m ldefs) 0)))
               (set ($ m dgc) 0)
               (free text)
               (if (< n 0)
-                  (block (fprintf stderr "ERROR: %s\n" err)
+                  (block (fflush stdout)
+                         (coco_out_fresh stderr)
+                         (fprintf stderr "ERROR: %s\n" err)
+                         (coco_load_ball_drop (aof st) (aof m))
                          (coco_store_free (aof st)) (coco_machine_free (aof m))
                          (return 1)))
               (set total (+ total n))))
@@ -810,12 +845,18 @@
         ;; this is going to an unbuffered stderr, and a message that jumped
         ;; the queue would look like it came from earlier in the run
         (fflush nil)
-        (let ((char msg [512]))
+        ;; on a line of its own, as swipl's print_message/2 puts it (2.16.0)
+        (coco_out_fresh stderr)
+        ;; a line each, when the text runs to several (3.3.0: an unknown
+        ;; procedure's ends on what its name is near), each with its tag
+        (let ((char msg [4096]) (char lead [320]))
+          (snprintf lead (sizeof lead) "%s: " where)
           (if (coco_engine_error_text e msg (sizeof msg))
-              (fprintf stderr "ERROR: %s: %s\n" where msg)
+              (coco_say_lines "ERROR" lead msg)
             (fprintf stderr "ERROR: %s: %s\n" where (-> e err))))
+        (coco_out_note stderr "\n" 1)
         ;; AND WHERE IT WAS RAISED (1.10.17), for a ball: the lines its
-        ;; throw wrote (lib/solve.cicili's `coco_bt_capture'), SWI's shape
+        ;; throw wrote (lib/solve-control.cicili's `coco_bt_capture'), SWI's shape
         (coco_bt_say (-> e m) (-> e has_ball)))
 
   ;;; 0 proved, 1 failed, 2 threw -- `swipl -g' ends this way and so does a
@@ -826,10 +867,31 @@
         (if (== rc 0) (return 1))
         (return 2))
 
+  ;;; A SCRIPT'S LOAD THAT A BALL ENDED (3.1.0): the load's goal threw --
+  ;;; a directive's ball that is no error(_, _), thrown again by the load
+  ;;; (lib/library.cicili's `lb_ball_again'), an include/1 of what is not
+  ;;; there (3.5.0), or use_module/1's own refusal of the file -- and
+  ;;; swipl's words for it, whatever the ball, `Prolog initialisation
+  ;;; failed:' over the message. Through 3.4.0 an error(_, _) was said as
+  ;;; `main''s was, `-s main:', and exited 2. 1 said, 0 for a raise that is
+  ;;; no ball.
+  (func script_load_ended ((coco_engine * e)) (out int)
+        (if (not (-> e has_ball)) (return 0))
+        (let ((coco_machine * m . #'(-> e m))
+              (char msg [4096]))
+          (fflush nil)
+          (coco_out_fresh stderr)
+          (if (not (coco_engine_error_text e msg (sizeof msg)))
+              (snprintf msg (sizeof msg) "%s" (-> e err)))
+          (fprintf stderr "ERROR: Prolog initialisation failed:\nERROR: %s\n" msg)
+          (coco_out_note stderr "\n" 1)
+          (coco_bt_say m 0)
+          (return 1)))
+
   (func cmd_script ((const char * file)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
               (char goal [4200]) (int n . 0) (int rc . 1) (int batched . 0)
-              (int halted . 0) (int halt_code . 0))
+              (int halted . 0) (int halt_code . 0) (int ended . 0))
           (if (> (strlen file) 4096)
               (block (fprintf stderr "cocolog: -s: the path is too long\n") (return 1)))
           ;; A FILE THAT IS NOT THERE IS NOT A PROLOG ERROR, and should not
@@ -842,7 +904,13 @@
             (if (== probe nil)
                 (block (fprintf stderr "cocolog: -s: no such file: %s\n" file) (return 1)))
             (fclose probe))
-          (snprintf goal (sizeof goal) "use_module('%s'), main" file)
+          ;; THE LOAD, AND THEN `main' (3.1.0; through 3.0 one goal,
+          ;; `use_module(F), main'): a ball a directive threw that is no
+          ;; error(_, _) ends the load, as swipl's does, and says so as
+          ;; swipl's script load does -- `Prolog initialisation failed', and
+          ;; exit 1 -- and `main' then runs as swipl's `-g main' does, under
+          ;; catch/3 (`rootn' 5)
+          (snprintf goal (sizeof goal) "use_module('%s')" file)
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
@@ -856,8 +924,23 @@
           (if (not (coco_engine_ask_text (aof e) goal))
               (block (fprintf stderr "cocolog: %s\n" ($ e err)) (return 1)))
           (set rc (coco_engine_next (aof e)))
-          (if (== rc 1) (set n 1))
-          (if (== rc -1) (say_goal_error (aof e) "-s main"))
+          (if (== rc 1) (coco_engine_cut (aof e)))
+          (if (and (== rc 1) (not ($ e halted)))
+              (block
+               (if (not (coco_engine_ask_text (aof e) "main"))
+                   (block (fprintf stderr "cocolog: %s\n" ($ e err)) (return 1)))
+               (set ($ e rootn) 5)
+               (set rc (coco_engine_next (aof e)))
+               (if (== rc 1) (set n 1))
+               ;; what `main' left is cut, its cleanups run with `!' after
+               ;; its output and before the commit (3.1.0), as swipl's
+               ;; toplevel cuts
+               (if (== rc 1) (coco_engine_cut (aof e)))
+               (if (== rc -1) (say_goal_error (aof e) "-s main")))
+            (if (== rc -1)
+                (if (script_load_ended (aof e))
+                    (set ended 1)
+                  (say_goal_error (aof e) "-s main"))))
           ;; A HALT IS AN ANSWER, NOT A FAILURE. The engine reports a halted
           ;; goal as "no more solutions", which read here as `main' failing
           ;; -- exit 1 -- whatever the program said in `halt(N)'. The code is
@@ -872,6 +955,7 @@
           (coco_engine_free (aof e))
           (coco_store_free (aof st))
           (coco_machine_free (aof m))
+          (if ended (return 1))
           (if (and halted (!= rc -1)) (return halt_code))
           (return (goal_status (? (== n 1) 1 rc)))))
 
@@ -898,6 +982,8 @@
             (set n (+ n 1))
             (show_answer (aof e) n nil)
             (if (and (!= ($ opts answers) 0) (>= n ($ opts answers))) break))
+          ;; the answers asked for are written: the rest are cut (3.1.0)
+          (if (== rc 1) (coco_engine_cut (aof e)))
           (if (== rc -1) (say_goal_error (aof e) "?-"))
           ;; a `halt(N)' in the goal is the program's exit status, and not
           ;; a `false.' -- the same rule as cmd_script's
@@ -1460,6 +1546,9 @@
                                       (if more
                                           (block (if (not tty) (printf ";\n")))
                                         (block (printf ".\n") (set stop 1))))))))))
+                          ;; an answer taken: the rest of the goal is cut,
+                          ;; a cleanup run with `!' (3.1.0)
+                          (if (== grc 1) (coco_engine_cut (aof e)))
                           (coco_heap_root_pop (aof m))
                        ;; one goal, one transaction -- as `query' has it
                        (if (!= db nil)
@@ -1665,6 +1754,9 @@
               (show_answer (aof e) n (aof out))
               (if (and (!= ($ opts answers) 0) (>= n ($ opts answers)))
                   (block (set done 1) break)))
+            ;; the answers asked for are written, and the proof is done:
+            ;; what it left is cut, a cleanup run with `!' (3.1.0)
+            (if (and done (== rc 1)) (coco_engine_cut (aof e)))
 
             ;; A proof with no clauses left to try is finished. So is one that
             ;; broke -- but that is the program's fault and it will break the
@@ -2295,6 +2387,12 @@
         (if (not (coco_builtins_module))
             (block (fprintf stderr "cocolog: the builtins module would not register\n")
                    (return 0)))
+        ;; what the compiled-in modules claim, for a program file's clause
+        ;; of one's name (3.1.0): refused if ISO, else taking it over
+        (coco_claims_install coco_b_claims)
+        ;; and what an unknown procedure's name is near, for its message
+        ;; (3.3.0): swipl's `However, there are definitions for:'
+        (coco_dwim_install coco_b_dwim_text)
         (if (not (coco_dcg_module))
             (block (fprintf stderr "cocolog: the dcg module would not register\n")
                    (return 0)))
@@ -2316,7 +2414,7 @@
   ;;; the program itself writes, success is 0 and failure is 1.
   (func cmd_run ((int argc) (char ** argv) (int from) (const char * goal)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
-              (char err [512]) (int rc . 0) (int halted . 0) (int halt_code . 0) (int batched . 0))
+              (char err [4096]) (int rc . 0) (int halted . 0) (int halt_code . 0) (int batched . 0))
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
@@ -2347,13 +2445,29 @@
               ;; the store knows it holds the file (2.13.0): the program's
               ;; ensure_loaded/1 of it is then a no-op, not a second copy.
               ;; Noted before, it is read AGAIN (2.14.1): its clauses placed
-              ;; as swipl's reload places them
-              (set n (coco_consult_again (aof st) (aof m) text (nth i argv)
-                                         (coco_library_note_load (aof st) (nth i argv))
-                                         err (sizeof err)))
+              ;; as swipl's reload places them. NAMED BY ITS ABSOLUTE PATH in
+              ;; the load's reports (3.4.0), as swipl names it
+              (let ((char shown [4096]))
+                (if (not (coco_f_normalise (nth i argv) shown (sizeof shown)))
+                    (snprintf shown (sizeof shown) "%s" (nth i argv)))
+                ;; WHAT THE READ DEFINED makes the file loaded (3.6.0): its
+                ;; own count from 0, which a library read into the store on
+                ;; the way does not move, nor the file read before it. The
+                ;; host is the outermost read: nothing to put back
+                (set ($ m ldefs) 0)
+                (set n (coco_consult_again (aof st) (aof m) text shown
+                                           (coco_library_note_load (aof st) (nth i argv))
+                                           err (sizeof err)))
+                (coco_library_note_read (aof st) (nth i argv) (!= ($ m ldefs) 0)))
               (set ($ m dgc) 0)
+              ;; a load a syntax error stopped, or one a directive's ball
+              ;; ended (3.1.0, swipl's `Prolog initialisation failed', and
+              ;; its exit status 1): said, and the run ends
               (if (< n 0)
-                  (block (fprintf stderr "ERROR: %s\n" err)
+                  (block (fflush stdout)
+                         (coco_out_fresh stderr)
+                         (fprintf stderr "ERROR: %s\n" err)
+                         (coco_load_ball_drop (aof st) (aof m))
                          (free text) (coco_engine_free (aof e)) (coco_store_free (aof st))
                          (coco_machine_free (aof m)) (return 1)))
               (free text)))
@@ -2366,8 +2480,18 @@
               (block (fprintf stderr "cocolog: %s\n" ($ e err))
                      (coco_engine_free (aof e)) (coco_store_free (aof st))
                      (coco_machine_free (aof m)) (return 1)))
+          ;; swipl's `-g GOAL' runs under catch/3, which an unknown procedure
+          ;; at the goal's root names (3.1.0, `rootn' 5)
+          (set ($ e rootn) 5)
           (set rc (coco_engine_next (aof e)))
-          (if (== rc -1) (say_goal_error (aof e) "-g main"))
+          ;; one answer: what it left is cut, a cleanup run with `!' (3.1.0)
+          (if (== rc 1) (coco_engine_cut (aof e)))
+          ;; NAMED BY THE GOAL ASKED, `-g GOAL', as swipl's message names it
+          ;; (3.1.0; through 3.0 `-g main' whatever the goal)
+          (if (== rc -1)
+              (let ((char tag [4200]))
+                (snprintf tag (sizeof tag) "-g %s" goal)
+                (say_goal_error (aof e) tag)))
           ;; a halted goal ends as a proved one does -- its writes kept, its
           ;; `halt(N)' the exit status -- the rule cmd_script states
           (if ($ e halted) (block (set halted 1) (set halt_code ($ e halt_code))))

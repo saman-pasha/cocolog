@@ -50,7 +50,7 @@ teach(Lang, Name) :-
 %% the lines of a lesson file that are not comments, learned 400 at a time
 teach_file(File, Name, N) :-
     read_file_to_codes(File, Codes), split_string(Codes, "\n", " \t\r", Lines0),
-    findall(L, ( member(S, Lines0), S \== "", \+ sub_string(S, 0, 1, _, "#"), atom_string(L, S) ), Lines),
+    findall(L, ( member(S, Lines0), S \== "", \+ sub_string(S, 0, 1, _, '#'), atom_string(L, S) ), Lines),
     teach_chunks(Lines, Name, 0, N).
 
 teach_chunks([], _, N, N).

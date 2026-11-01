@@ -9,7 +9,8 @@ the numbers below are `bench/concurrency.sh`'s Concurrency Runs A-C.
 
 Since it is tier 1, its names are GLOBAL: a program's own predicate named
 `go/1,2`, `yield/0`, `await/1,2`, `await_all/1`, `async/2`, `future_ready/1`
-or `channel/1,2,3`, `channel_send/2`, `channel_recv/2`, `channel_close/1` is
+or `channel/1,2,3`, `channel_send/2`, `channel_recv/2`, `channel_close/1`,
+`async_workers/1` is
 shadowed by the library's (the 2.8.0 suite's window and flowdebug fixtures
 were renamed `rec` for it).
 
@@ -27,6 +28,7 @@ were renamed `rec` for it).
     channel_send(+C, +Term)          blocks when full
     channel_recv(+C, -Term)          blocks when empty; fails when closed
     channel_close(+C)
+    async_workers(-N)                the workers a world has, or would start
 
 A result is the goal as instantiated, in canonical text:
 
@@ -44,7 +46,16 @@ where the program can catch it. Everything runs under `async_run/1,2`; a
 A green thread is a **machine of its own in a world of one worker a
 core** (2.9.3, as Go's GOMAXPROCS defaults to NumCPU; `COCOLOG_GREEN_WORKERS`
 overrides it -- it was eight workers through 2.9.2): the caller's thread
-is worker 0 and the other N-1 are OS threads. THE WORLD RUNS OVER THE CALLER'S ONE STORE (2.9.0): every worker,
+is worker 0 and the other N-1 are OS threads. `async_workers/1` (2.15.0)
+answers N: inside a world the workers it has, whatever the variable says
+since; outside one the workers the next `async_run/1` would start,
+`COCOLOG_GREEN_WORKERS` if it gives a positive count and the cores online
+otherwise, 256 at most. A program sizes its work from it, never from a
+number: children take workers 1, 2, ... round robin and the N-th wraps to
+worker 0, the main's own, so which child shares the main's worker is a fact
+about N (lesson 54 starts one child a worker; its first shape, eight
+children, took the eighth to be worker 0's, and on a three-core machine it
+was not). It is a journal portal, as getenv/2 is. THE WORLD RUNS OVER THE CALLER'S ONE STORE (2.9.0): every worker,
 and so every task's machine, is over the store and the machine the host
 owns, so a write a task makes — `assertz/1`, `asserta/1`, `retract/1`,
 `dynamic/1`, `abolish/1`, `nb_setval/2` — is the caller's, the main
@@ -510,7 +521,8 @@ host state to leave.
 * 1024 tasks and 64 channels a world; a spawn copies nothing; a deadlock is
   the world's error.
 * The world is M:N: the caller's thread and N-1 OS threads (N the online
-  cores; `COCOLOG_GREEN_WORKERS` sets it), one store. A write waits for
+  cores; `COCOLOG_GREEN_WORKERS` sets it; `async_workers/1` answers it),
+  one store. A write waits for
   every worker, so a first touch that writes once an item is O(N) -- warm
   it on the host before `async_run/1` (bench/concurrency.pl's `store_warm`).
 * A library predicate with a choice point per answer (`between/3`) is slow

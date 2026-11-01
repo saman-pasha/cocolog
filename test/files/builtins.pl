@@ -20,6 +20,8 @@ main :-
     yn(forall(p(N1), N1 > 0), forall_yes),
     yn(forall(p(N2), N2 > 1), forall_no),
     yn(forall(fail, fail), forall_vacuous),
+    %  the first counterexample ends it: no action after it runs
+    yn(forall(p(N3), ( write(act(N3)), nl, N3 < 2 )), forall_stops),
 
     %  ---- aggregate_all ----
     ( aggregate_all(count, p(_), B1) -> s(agg_count, B1) ; true ),

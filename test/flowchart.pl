@@ -207,7 +207,7 @@ runtime :-
           PKs, ['note/1'-dynamic, 'seen/1'-dynamic, 'tally/1'-dynamic,
                 'call/3'-closure, 'call/1'-closure, 'nosuch/1'-unknown]),
     attr_of(X, p7, kind, K3), attr_of(X, p7, clauses, C3), attr_of(X, p7, det, D3),
-    check('tally/1''s panel holds the clause the file starts it with', K3-C3-D3, dynamic-1-nondet),
+    check('tally/1''s panel holds the clause the file starts it with', K3-C3-D3, (dynamic)-1-nondet),
     attr_of(X, 'p2.c1.g1.a1.if.g1', calls, C4),
     check('seen/1 has no clause in the file, so no panel to call', C4, failed),
     attr_of(X, 'p4.c1.g1', text, T5), attr_of(X, 'p4.c1.g1', calls, C5),
@@ -346,10 +346,15 @@ findings :-
     findings_catch(D),
     findings_load(D),
     findings_near(D),
-    %% the table of calls the engine refuses unbound: every example raises
-    findall(Ex, ( flow_raises_unbound(_, _, _, Ex0), copy_term(Ex0, Ex),
-                  \+ catch(( call(Ex), fail ), error(_, _), true) ), Silent),
-    check('every call the refusal table names raises an error when made unbound', Silent, []).
+    findings_bar(D),
+    findings_include(D),
+    %% the table of calls the engine refuses unbound: every example raises,
+    %% and for its unbound argument -- since 3.0.0 a code list is no text
+    %% to string_concat/3, so string_concat(_, "a", _) raised type_error
+    findall(Ex-F, ( flow_raises_unbound(_, _, _, Ex0), copy_term(Ex0, Ex),
+                    ( catch(( call(Ex), fail ), error(F, _), true) -> true ; F = none ),
+                    F \== instantiation_error ), Wrong),
+    check('every call the refusal table names raises instantiation_error when made unbound', Wrong, []).
 
 %% a predicate defined twice: a later place repeats a clause of an earlier
 %% one, or holds a clause an earlier fact covers -- an error each, and no
@@ -439,6 +444,119 @@ findings_near(D) :-
     yes_no(sub_atom(T21, _, _, _, 'did you mean fooo_baz/1?'), Y21),
     yes_no(sub_atom(T22, _, _, _, 'did you mean'), Y22),
     check('a near name is the chart''s own: fooo_baz/1 for the first program, nothing for the second', Y21-Y22, yes-no).
+
+%% a body's bar is its disjunction (cocolog 3.2.0): the reader reads
+%% '|'(A, B), and the chart reads a body's and a findall/3 goal's as `;',
+%% where through 3.1.0's chart it would have been a call of '|'/2 that
+%% nothing defines
+findings_bar(D) :-
+    atomic_list_concat([D, '/bar23.pl'], BF23),
+    fixture(BF23, ['gob23(X) :- ( X = 1 | X = 2 ), nope23(X).',
+                   'gob24(L) :- findall(Y, ( Y = a | Y = b ), L).']),
+    flow_graph(gob23('-'), G23, [source(BF23)]),
+    flow_findings(G23, Fs23),
+    findall(T23, member(finding(_, unknown_procedure, _, _, _, _, T23, _), Fs23), Ts23),
+    flow_graph(gob24('-'), G24, [source(BF23)]),
+    flow_findings(G24, Fs24),
+    check('a bar in a body and in a findall/3 goal is a disjunction: the one unknown is nope23/1',
+          Ts23-Fs24,
+          ['nope23/1 is defined nowhere: no clause, builtin, module or dynamic declaration answers it, so this call raises existence_error']-[]),
+    %% and a box's text writes the operators as the reader takes them: the
+    %% bar at 1105, bracketed in an argument, and xor at 400 (swipl's; 500
+    %% through 3.1.0), which the left side of `*' takes bare
+    flow_term_full(m((a | b)), [], 1200, T25),
+    flow_term_full((a xor b) * 2, [], 1200, T26),
+    check('a box writes the bar at 1105 and xor at 400', T25-T26, 'm((a | b))'-'a xor b * 2').
+
+%% AN INCLUDED FILE IS READ WHERE ITS INCLUDE STANDS (3.13.1), as the
+%% engine reads it and as swipl's include/1 is textual: its predicates are
+%% drawn with their clauses, each naming its own file and line, found
+%% beside the including file, in the working directory, by its name as it
+%% is, with .prolog, as Dir/File and on the library path; one predicate's
+%% clauses on either side of an include of another's are not together, as
+%% swipl warns, and one an included file goes on with is; a promise its
+%% comment makes is placed there; what its clauses assert is declared; and
+%% an include of a file open on the way down reads nothing again
+findings_include(D) :-
+    atomic_list_concat([D, '/inc26.pl'], TF),
+    atomic_list_concat([D, '/inc26_b.pl'], BF),
+    atomic_list_concat([D, '/inc26_c.pl'], CF),
+    atomic_list_concat([D, '/inc26_e.prolog'], EF),
+    atomic_list_concat([D, '/sub26'], SD),
+    atomic_list_concat([SD, '/inc26_s.pl'], SF),
+    atomic_list_concat([D, '/lib26'], LD),
+    atomic_list_concat([LD, '/inc26_l.pl'], LF),
+    atomic_list_concat([D, '/inc26_a.pl'], AF),
+    make_directory(SD), make_directory(LD),
+    atomic_list_concat([':- include(''', AF, ''').'], AInc),
+    fixture(TF, ['go26(X) :- a26(X), b26(X), c26(X), d26(_), e26(X), f26(X), g26(X),',
+                 '    h26(X), i26(X), j26(X), k26(X), m26(_).',
+                 'a26(1).',
+                 'm26(x).',
+                 ':- include(inc26_b).',
+                 'a26(2).',
+                 'c26(1).',
+                 ':- include(''inc26_c.pl'').',
+                 ':- include(inc26_e).',
+                 ':- include(sub26/inc26_s).',
+                 ':- include(library(inc26_l)).',
+                 AInc,
+                 ':- include(''test/flowchart/include_cwd'').']),
+    fixture(BF, ['b26(0).', 'm26(x).']),
+    fixture(CF, ['c26(2).', '%! d26(-X) is det.', 'd26(X) :- member(X, [1, 2]).',
+                 'init26 :- assertz(f26(1)).']),
+    fixture(EF, ['e26(1).']),
+    fixture(SF, ['g26(1).']),
+    fixture(LF, ['h26(1).']),
+    fixture(AF, ['i26(1).', ':- dynamic(j26/1).', 'j26(2).']),
+    absolute_file_name('test/flowchart/include_cwd.pl', CWF),
+    (   getenv('COCOLOG_LIBRARY', L0) -> true ; L0 = '' ),
+    atomic_list_concat([LD, ':', L0], L1),
+    setenv('COCOLOG_LIBRARY', L1),
+    catch(flow_graph(go26('-'), G26, [source(TF)]), E26, true),
+    setenv('COCOLOG_LIBRARY', L0),
+    (   var(E26) -> true ; print_message(error, E26), fail ),
+    flow_xml(G26, X26),
+    findall(K26-F26-N26, ( xml_clause_where(X26, P26, F26, N26), P26 \== 'go26/1',
+                           file_base_name(F26, K26) ), W26),
+    check('each included file''s clauses are drawn where they stand, under their own file and line',
+          W26,
+          ['inc26.pl'-TF-3, 'inc26.pl'-TF-6, 'inc26_b.pl'-BF-1, 'inc26.pl'-TF-7, 'inc26_c.pl'-CF-1,
+           'inc26_c.pl'-CF-3, 'inc26_e.prolog'-EF-1, 'inc26_s.pl'-SF-1, 'inc26_l.pl'-LF-1,
+           'inc26_a.pl'-AF-1, 'inc26_a.pl'-AF-3, 'include_cwd.pl'-CWF-3, 'inc26.pl'-TF-4, 'inc26_b.pl'-BF-2]),
+    findall(Kd26, ( xml_goal_attrs(X26, As26), memberchk(pred='j26/1', As26), memberchk(kind=Kd26, As26) ), Kds26),
+    check('a predicate an included file declares dynamic is a dynamic call', Kds26, [dynamic]),
+    flow_findings(G26, Fs26),
+    findall(K-In-W-T, member(finding(_, K, _, _, In, W, T, _), Fs26), KIT26),
+    check('a/1 split by an included file is not together, c/1 continued in its include is, m/1 repeated in an included file is defined twice, a promise is placed in its file, and what an included clause asserts or declares is no unknown',
+          KIT26,
+          [(discontiguous)-'a26/1'-where(TF, 6, 1)-'the clauses of a26/1 are not together: clause 2 (line 6) comes after m26/1 at inc26_b.pl:2, and its clauses stand in 2 places; cocolog joins them without a word where SWI warns -- move them together, or declare :- discontiguous(a26/1)',
+           det_promise-'d26/1'-where(CF, 2, 1)-'d26/1 is documented as det (inc26_c.pl:2) but can leave a choice point: member(X, [1, 2]) can answer again',
+           defined_twice-'m26/1'-where(BF, 2, 1)-'m26/1 is defined twice: clause 2 (inc26_b.pl:2) repeats clause 1 (line 4), and its clauses stand in 2 places; cocolog joins the two definitions into one predicate, so the second never answers first and every answer it gives comes again on backtracking -- keep one of them']),
+    %% an include of a file open on the way down to it reads nothing again
+    atomic_list_concat([D, '/self26.pl'], SelfF),
+    fixture(SelfF, ['%! s26(-X) is det.', 's26(1).', ':- include(self26).', ':- include(_).']),
+    flow_scan_file(SelfF, Cls27, _),
+    findall(K27, member(c(K27, _, _, _), Cls27), Ks27),
+    flow_read_source(SelfF, Prog27),
+    assoc_to_list(Prog27, PL27),
+    findall(K-N, ( member(K-Cs, PL27), length(Cs, N) ), KN27),
+    flow_clause_seq(SelfF, Seq27, _),
+    length(Seq27, NS27),
+    flow_source_docs(SelfF, Docs27),
+    assoc_to_keys(Docs27, DK27),
+    flow_included_files(SelfF, [], Incs27),
+    check('a file that includes itself is read once, by the scan, the reader, the order of its clauses and its comments, and an include of a variable names nothing',
+          Ks27-KN27-NS27-DK27-Incs27, [s26/1]-[s26/1-1]-1-[s26/1]-[]).
+
+%% the predicate, file and line of each clause of an XML term
+xml_clause_where(element(N, As, Cs), Pred, F, L) :-
+    (   N == panel, memberchk(pred=Pred, As),
+        member(element(clause, CAs, _), Cs),
+        memberchk(file=F, CAs), memberchk(line=L, CAs)
+    ;   N \== panel,
+        member(C, Cs), C = element(_, _, _), xml_clause_where(C, Pred, F, L)
+    ).
 
 %% every id attribute of an XML term
 xml_any_id(element(_, As, Cs), Id) :-
@@ -1137,9 +1255,13 @@ gate :-
     findall(In3, ( member(_-_-In3, KSI), memberchk(In3, ['gt_nan/1', 'gt_wo/2']) ), Sink),
     check('a sink binds its variable: nothing found in gt_nan/1 or gt_wo/2', Sink, []),
     %% item 4: atomic_list_concat([op, W|_], '.', Name) binds W, and each
-    %% segment of a list a split by length/2 and append/3 cut
-    findall(In4, ( member(_-_-In4, KSI), memberchk(In4, ['gt_fn/2', 'gt_spell/2', 'gt_member/3', 'gt_split/4']) ), Text4),
-    check('text made from text binds every argument: nothing found in gt_spell/2 and its callers', Text4, []),
+    %% segment of a list a split by length/2 and append/3 cut; and since
+    %% 3.0.0 a text read from a list binds the list's elements
+    findall(In4, ( member(_-_-In4, KSI),
+                   memberchk(In4, ['gt_fn/2', 'gt_spell/2', 'gt_member/3', 'gt_split/4',
+                                   'gt_alen/1', 'gt_slen/1', 'gt_astr/1', 'gt_sspl/1']) ), Text4),
+    check('text made from text binds every argument: nothing found in gt_spell/2 and its callers, nor past a text read from a list',
+          Text4, []),
     %% item 5: under a catch that takes the existence error, a warning
     findall(Sev5-In5, ( member(unknown_procedure-Sev5-In5, KSI), memberchk(In5, ['gt_big/2', 'gt_bad/2']) ), Caught),
     check('an unknown call under a catch that takes its error is a warning; under one that does not, an error',

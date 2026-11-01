@@ -36,7 +36,7 @@ main :-
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
-    update_view(D),
+    update_view(D), sleeps(D), compiled(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -518,9 +518,13 @@ environments(D) :-
     ev_both6(Lines18), fixture(F18, Lines18),
     ev_run_both(F18, A18, B18),
     check('so does one whose bodies start with guards', A18, B18),
-    atom_codes(W18, "[3-yes,4-yes,5-yes]\n[4,alt(4)]\n[a]\n[1-1,2-2,4-4]\n[0-other,1-small(3),1-other,5-big]\n108\n[1-2,2-3,3-4,4-5,5-6,6-7,7-8,8-9,9-10,10-11,11-12,12-13,13-14,14-15,15-16,16-17,17-18,18-19,19-20,20-21,21-22,22-22,23-22,24-22,25-22,26-22,27-22,28-22,29-22,30-22]\n1134\n"),
+    atom_codes(W18, "[3-yes,4-yes,5-yes]\n[4,alt(4)]\n[a]\n[1-1,2-2,4-4]\n[0-other,1-small(3),1-other,5-big]\n108\n[1-2,2-3,3-4,4-5,5-6,6-7,7-8,8-9,9-10,10-11,11-12,12-13,13-14,14-15,15-16,16-17,17-18,18-19,19-20,20-21,21-22,22-22,23-22,24-22,25-22,26-22,27-22,28-22,29-22,30-22]\n1105\n"),
     %% (probe/4's `A1 = A0' and the program's `Y = yes' and the like are no
-    %% inference since 1.12.2: the probe costs 22, and the count is 1134)
+    %% inference since 1.12.2: the probe costs 22, and the count was 1134;
+    %% between/3's answers cost one inference fewer since 3.0.0, and the
+    %% count was 1107; since 3.1.0 -s loads its file and then asks main/0
+    %% apart, as swipl's -g main does, so the conjunction and use_module/1
+    %% are no longer counted with main's: 1105)
     check('...and its answers, stops and count are 1.9.2\'s', A18, W18).
 
 %% THE BUILTINS IN PLACE (Stage 7). A later goal of a body that makes an
@@ -673,7 +677,10 @@ in_place(D) :-
     check('...and its answers are 1.9.4\'s', T9, yes),
     %% the error, then its backtrace (1.10.17), which the two runs above
     %% wrote alike
-    W9e = '1201\nERROR: -s main: Arguments are not sufficiently instantiated\nERROR: In:\n',
+    %% (1164: between/3's answers one inference fewer since 3.0.0, and the
+    %% message names atom_length/2; 1162 since 3.1.0, -s asking main/0 apart
+    %% from its file's load)
+    W9e = '1162\nERROR: -s main: atom_length/2: Arguments are not sufficiently instantiated\nERROR: In:\n',
     ( sub_atom(A9, _, _, _, W9e), atom_concat(_, 'exit 2\n', A9) -> T9e = yes ; T9e = A9 ),
     check('...as are its count and the error nothing caught', T9e, yes).
 
@@ -821,7 +828,9 @@ fused(D) :-
     check('...and its answers are 1.9.5\'s', T7, yes),
     %% the error, then its backtrace (1.10.17), which the two runs above
     %% wrote alike
-    W7e = '863\nERROR: -s main: Arguments are not sufficiently instantiated\nERROR: In:\n',
+    %% (836: between/3's answers one inference fewer since 3.0.0; 834 since
+    %% 3.1.0, -s asking main/0 apart from its file's load)
+    W7e = '834\nERROR: -s main: is/2: Arguments are not sufficiently instantiated\nERROR: In:\n',
     ( sub_atom(A7, _, _, _, W7e), atom_concat(_, 'exit 2\n', A7) -> T7e = yes ; T7e = A7 ),
     check('...as are its count and the error nothing caught', T7e, yes).
 
@@ -1070,8 +1079,10 @@ shared_globals(D) :-
 %% are C rows in every mode that answers once -- through 1.12.1 a clause
 %% around '$len', '$nth0', '$rev', '$last' or '$atom_join' made each 2 to
 %% 13 steps -- and the modes that can answer again are the clauses they
-%% were. A literal `true' and `=/2' are no inference, as in SWI, wherever
-%% they stand: called, in a body, in an environment, in a nested engine.
+%% were (last/2's, a partial list, swipl's clause since 3.0.1: through
+%% 3.0.0 the row failed it). A literal `true' and `=/2' are no inference,
+%% as in SWI, wherever they stand: called, in a body, in an environment,
+%% in a nested engine.
 %% They are still steps of the clock a window numbers its goals by
 %% (test/window.pl): statistics/2, call_metered/4, call_limited/3 and
 %% `cocolog step' leave them out, and a limit in inferences lets them by.
@@ -1098,6 +1109,11 @@ small_steps :-
     findall(R2e, ( reverse([a, b|T2e], R2e), T2e = [x|_], ! ), M2e),
     check('...and each that can answer again enumerates as its clauses did',
           [M2a, M2b, M2c, M2d, M2e], [[2], [3], [1-a, 2-b, 3-c], [0, 2], [[x, b, a]]]),
+    findall(N2f, ( last(L2f, z), length(L2f, N2f), N2f >= 3, ! ), M2f),
+    findall(T2g-X2g, ( last([a|T2g], X2g), T2g = [b|_], ! ), M2g),
+    findall(N2h, ( last([a, b|T2h], _), length(T2h, N2h), N2h >= 2, ! ), M2h),
+    check('...and so does last/2 of a partial list, as swipl\'s: an unbound one, [a|T], [a, b|T]',
+          [M2f, M2g, M2h], [[3], [[b]-b], [2]]),
     gd_inferences(true, I3a), gd_inferences(_ = a, I3b), gd_inferences(ss_t(_), I3c),
     gd_inferences(ss_e(_, _), I3d), gd_inferences(ss_w(_), I3e),
     %% beside the call/1 and the statistics/2: ss_t/1 and its `==/2';
@@ -1713,6 +1729,31 @@ sg_spin(N) :- M is N - 1, sg_spin(M).
 %% it (README.md, `What is stored, and how'), so the whole run meets it and
 %% the stepped one does not. And a clause retracted under a call the run
 %% then cuts away is gone for the next process: the dead are not written.
+%% sleep/1 (3.8.0) on every platform, where test/files/sleep.pl runs only
+%% beside the reference swipl: a time that is no number of seconds the
+%% clock can hold -- an infinity, a NaN, 1e300, a time past 2^63 -- returns
+%% at once, asked before a conversion to time_t that C leaves undefined out
+%% of range; in a child under a timeout, so a sleep that never ends is a
+%% red line, not a hang
+sleeps(D) :-
+    section('sleep/1 returns at once from a time no clock holds'),
+    atom_concat(D, '/sleeps.pl', F1),
+    fixture(F1, [
+        'main :- get_time(T0),',
+        '        sleep(1.0Inf), sleep(-1.0Inf), sleep(1.5NaN), sleep(1.0e300), sleep(1.0e19),',
+        '        sleep(-1), sleep(0), get_time(T1), S is T1 - T0,',
+        '        ( S < 5 -> writeln(at_once) ; writeln(late(S)) ).'
+    ]),
+    last_line_of(F1, main, 30000, L1),
+    check('an infinity, a NaN, 1e300, 2^63 seconds and less than none: no sleep', L1, at_once),
+    atom_concat(D, '/sleept.pl', F2),
+    fixture(F2, [
+        'main :- get_time(T0), sleep(1r5), sleep(0.2), get_time(T1), S is T1 - T0,',
+        '        ( S >= 0.39, S < 3 -> writeln(slept) ; writeln(off(S)) ).'
+    ]),
+    last_line_of(F2, main, 30000, L2),
+    check('a rational and a float are seconds slept', L2, slept).
+
 update_view(D) :-
     section('the logical update view across a freeze and across processes'),
     atom_concat(D, '/view.pl', F1),
@@ -1761,3 +1802,52 @@ uv_stepped(C, D, F, G, O) :-
              'case "$o" in *finished*) break;; esac; [ $i -lt 400 ] || break; i=$((i+1)); ',
              'o=$(', C, ' --embed ', K, ' --steps 50 step m 2>&1); done'], Cmd),
     proc_run(Cmd, 300000, Out, _), atom_codes(O, Out).
+
+%% a static predicate of the case's own, which retractall/1 of a head no
+%% clause of it matches must leave static
+cc_static(1).
+
+%% a conjunction N deep on its left: ((((a, a), a), ...), a)
+compiled(D) :-
+    section('the clause as the compiler keeps it: what swipl cannot be asked (3.15.0)'),
+    %% swipl's compiler moves X = 1 into the head and shows the later goal
+    %% on another variable, `cc_a(1) :- A = 2'; here the clause keeps the
+    %% unification of a variable it names again, and means what it says
+    assertz((cc_a(X1) :- X1 = 1, X1 = 2)),
+    ( clause(cc_a(A1), B1), B1 = (V1 = 1, W1 = 2), V1 == A1, W1 == A1 -> R1 = kept ; R1 = moved ),
+    ( cc_a(_) -> S1 = succeeded ; S1 = failed ),
+    check('a head variable the body names again keeps its unification, and the clause fails', R1-S1, kept-failed),
+    %% below 256 levels a body is made one, past it kept as it was written:
+    %% the walk recurses, and a body 200 000 deep would take the C stack.
+    %% In a child on 1 MB of it: assert's callable check recursed down the
+    %% left arm through 3.15.0, past the 8 MB of GitHub's Apple silicon Mac
+    %% (CI run 41316941760) and the 6 MB it needs here
+    atom_concat(D, '/deep_body.pl', F2),
+    fixture(F2, [ 'cc_nest(0, a) :- !.',
+                  'cc_nest(N, (G, a)) :- N1 is N - 1, cc_nest(N1, G).',
+                  'main :- cc_nest(200000, B), assertz((cc_deep :- B)),',
+                  '    ( clause(cc_deep, C), C = (X, _), X = (_, _) -> write(nested) ; write(flat) ), nl.' ]),
+    cocolog(C2),
+    sh_join(['ulimit -s 1024; ', C2, ' run ', F2, ' main 2>&1'], Cmd2),
+    proc_run(Cmd2, 60000, Out2, _), atom_codes(R2, Out2),
+    check('a body nested 200 000 deep is stored on 1 MB of C stack, its depth past 256 levels as written', R2, 'nested\n'),
+    %% retractall/1 declares only a predicate with no clauses that nothing
+    %% implements: swipl raises for the other two, cocolog keeps facts
+    %% under a builtin's name (`number(dos)') and leaves a static one so
+    catch(retractall(atom(_)), _, true),
+    ( current_predicate(atom/1) -> R3 = declared ; R3 = not_declared ),
+    check('retractall/1 of a builtin\'s name declares nothing', R3, not_declared),
+    retractall(cc_static(2)),
+    ( predicate_property(cc_static(_), dynamic) -> R4 = dynamic ; R4 = static ),
+    check('retractall/1 that takes no clause of a static predicate leaves it static', R4, static),
+    %% a dynamic predicate's clause is stored as written, and a second
+    %% process that reads it back keeps it so, though the predicate's
+    %% declaration is read after its rows
+    atom_concat(D, '/compiled.pl', F5),
+    fixture(F5, [':- dynamic cc_d/1.', 'cc_d(X) :- X = 1, true.']),
+    atom_concat(D, '/compiled-kb', K5),
+    cocolog(C5),
+    sh_join([C5, ' --embed ', K5, ' consult ', F5, ' >/dev/null 2>&1; ',
+             C5, ' --embed ', K5, ' query ''clause(cc_d(A), _), ( var(A) -> write(kept) ; write(moved) ), nl'' 2>&1 | head -n 1'], Cmd5),
+    proc_run(Cmd5, 60000, Out5, _), atom_codes(O5, Out5),
+    check('a dynamic clause read back by another process keeps its unification', O5, 'kept\n').

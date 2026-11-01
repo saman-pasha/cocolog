@@ -909,14 +909,17 @@ went from 936 KB to **585 KB** and `ldd` shows no torch at all.
 ## Grammars, and code borrowed rather than written
 
 `-->` works, and so does everything built on it. The translation lives in
-`lib/dcg.cicili` and runs inside `coco_assert` — the one function every clause
-passes through — so a grammar rule means the same thing consulted from a file,
-asserted by a running program, or arriving from the database.
+`lib/dcg.cicili` and runs where a file is read, as swipl's does (3.13.0):
+`assertz((a --> b))` stores the clause of `-->/2` it is given, and a running
+program translates a rule with `dcg_translate_rule/2`. Through 3.12.0 it ran
+inside `coco_assert`, so an asserted rule was translated too, where swipl's is
+not.
 
-It is **written, not copied**. SWI's own `boot/dcg.pl` is half source-position
-terms and module qualification, machinery for a module system cocolog does not
-have; what is left once both are removed is short enough to write, and writing
-it keeps third-party code out of the core.
+It is **written, not copied**, and gives what SWI's own `boot/dcg.pl` gives:
+that file is half source-position terms, machinery cocolog's reports do not
+need; what is left once they are removed is short enough to write, and writing
+it keeps third-party code out of the core. test/files/dcg_translate.pl holds
+the two to each other, line for line.
 
 Eight of SWI's libraries **are** copied, byte for byte, under their own
 BSD-2 headers, in `lib/swipl/`: `assoc`, `pairs`, `ordsets`, `yall`,
@@ -1992,7 +1995,7 @@ them with library(prolog_stack):
 
 ```console
 $ cocolog --backtrace -s t.pl
-ERROR: -s main: Arithmetic: evaluation error: `zero_divisor'
+ERROR: -s main: //2: Arithmetic: evaluation error: `zero_divisor'
 ERROR: In:
 ERROR:   [5] _G66 is 2/(1-1)
 ERROR:   [4] oops(2,1,_G66)
@@ -2053,7 +2056,7 @@ heap, and a failure-driven `between/3` loop of the same length peaked near a
 gigabyte. Both now peak between 43 and 55 MB; of fifteen timed pairs of the
 old binary and the new, the new was faster in thirteen. The collector
 slides what is reachable down in order between two steps of the engine, so
-the choice points' marks stay true — `coco_heap_gc` in `lib/solve.cicili`,
+the choice points' marks stay true — `coco_heap_gc` in `lib/solve-gc.cicili`,
 and STATUS.md, "The heap is collected", for the measurements and for what
 it does not reach yet.
 

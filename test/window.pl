@@ -279,13 +279,15 @@ window :-
     maplist(win_key, Es2, Ks2),
     win_first(11, Ks2, Head2),
     %% w_nrev([], []) is not tried for a list: the index passes over it, and
-    %% a head never tried is not one that did not match (1.11.2)
+    %% a head never tried is not one that did not match (1.11.2). Each
+    %% argument is its text as an atom, the list's end `'[]'', which is no
+    %% `[]' since 3.0.0
     check('from the first inference: the calls and the clauses they entered',
           Head2,
           [ call(1, w_go, ['_']), clause(1, 1), call(2, w_nrev, ['[1,2,3]', '_']),
             clause(2, 2), call(3, w_nrev, ['[2,3]', '_']), clause(3, 2),
             call(4, w_nrev, ['[3]', '_']), clause(4, 2),
-            call(5, w_nrev, [[], '_']), clause(5, 1), exit(5, w_nrev, [[], []]) ]),
+            call(5, w_nrev, ['[]', '_']), clause(5, 1), exit(5, w_nrev, ['[]', '[]']) ]),
     check('...and it ends as the probe did', End2, end(answer, 12, [12])),
     last(Ks2, Last2),
     check('the goal''s own Exit is the last event, with what the proof bound', Last2,
@@ -313,7 +315,7 @@ window :-
     maplist(win_key, Es3b, Ks3b),
     win_span(Es2, 5, 5, Span3b),
     check('to 5: the Exit at 5 a whole recording has, there too', Ks3b-Span3b,
-          [call(5, w_nrev, [[], '_']), clause(5, 1), exit(5, w_nrev, [[], []])]-Ks3b),
+          [call(5, w_nrev, ['[]', '_']), clause(5, 1), exit(5, w_nrev, ['[]', '[]'])]-Ks3b),
     '$trace_window'(w_all(_), [from(1)], Es4, End4),
     '$trace_window'(w_all(_), [from(6), to(12)], Es5, _),
     maplist(win_key, Es5, Ks5),
@@ -364,7 +366,8 @@ window :-
     maplist(win_key, Es8, Ks8),
     win_kinds(Ks8, throw, Th8), win_kinds(Ks8, catch, Ca8),
     check('a throw recorded in the body of the call that raised it, and where catch/3 took it',
-          Th8-Ca8, [throw(4, 2, 'error(type_error(evaluable,foo/0),_)')]-[catch(4, 1)]),
+          %% the ball names is/2, swipl's context (3.0.0)
+          Th8-Ca8, [throw(4, 2, 'error(type_error(evaluable,foo/0),context(system:(is)/2,_))')]-[catch(4, 1)]),
     check('...and the run answers', End8, end(answer, 6, [6])),
     '$trace_window'(w_bad(_), [from(1)], _, End9),
     End9 = end(How9, Used9, Ats9),
@@ -563,14 +566,15 @@ timed :-
     check('time(5, 0) and to(9): from 5, stopped past 9',
           E4-F4-L4-Z4, end(limit, 9, [])-5-9-[6, 8]),
     %% garbage_collect/0 asks, and the collection comes at the next step's
-    %% top: kept apart, and not in that step's time -- length/2 of 20 000
+    %% top: kept apart, and not in that step's time -- length/2 of 20 000,
+    %% at 5 (numlist/3 is one clause over '$numlist'/3 since 3.0.0)
     w_clock(w_gcg(_), [time(1, 0)], _, time(F5, _, _, _), Ds5, Gcs5),
     (   Gcs5 = [gc(I5, G5)], K5 is I5 - F5 + 1, nth1(K5, Ds5, D5)
     ->  ( G5 > D5 -> R5 = I5-apart ; R5 = I5-G5-D5 )
     ;   R5 = Gcs5
     ),
     check('a collection asked for: kept apart at the inference whose step it came before, and no part of that step''s time',
-          R5, 6-apart),
+          R5, 5-apart),
     %% each answer findall/3 copies into the store, and the list it builds
     %% of them at the end, are findall/3's own time, not the inner goal's
     %% that found it: 20 000 answers, its own inference the run's longest
@@ -578,10 +582,10 @@ timed :-
     max_list(Ds6, M6), nth1(K6, Ds6, M6),
     check('findall/3''s copies are its own: its inference, 2, the run''s longest', K6, 2),
     %% ... each answer's as it is found, not the inner goal's that found it:
-    %% three answers of a 10 000-element list, findall/3 at inference 5
+    %% three answers of a 10 000-element list, findall/3 at inference 4
     w_clock(w_copy(_), [time(1, 0)], _, _, Ds10, _),
-    nth1(5, Ds10, Own10),
-    findall(I10, ( nth1(I10, Ds10, D10), I10 > 5, D10 * 10 >= Own10 ), Big10),
+    nth1(4, Ds10, Own10),
+    findall(I10, ( nth1(I10, Ds10, D10), I10 > 4, D10 * 10 >= Own10 ), Big10),
     check('...and each answer''s copy as it is made: no inner inference a tenth of findall/3''s own',
           Big10, []),
     %% THE ARRAY GROWS, and the growth is the clock's own time: the inference
@@ -631,10 +635,10 @@ retried :-
     check('w_rt: == fails at 3 and 4, each retrying w_pk/1, each retry a part of its step''s time',
           E1-Rs1-In1, end(answer, 6, [6])-[3-(w_pk/1), 4-(w_pk/1)]-inside),
     %% the retry ends at the next reading: numlist/3 of 20 000 right after
-    %% it is that step's, not the retry's
+    %% it is that step's, not the retry's (numlist/3 two steps, 3.0.0)
     w_retries(w_rs, [time(1, 0)], _, Rs1b, In1b),
     check('w_rs: a retry ends where the next step begins -- numlist/3 after it, a thousand times its cost, is no part of it',
-          Rs1b-In1b, [6-(w_pk/1), 10-(w_pk/1)]-inside),
+          Rs1b-In1b, [5-(w_pk/1), 8-(w_pk/1)]-inside),
     %% the next answer findall/3 asks for is a search it makes in its own
     %% inference, 2, and so is the retry that begins it
     w_retries(w_rtf(_), [time(1, 0)], _, Rs2, In2),
@@ -709,8 +713,8 @@ cpu :-
     '$trace_window'(w_burn(_), [from(1), cpu(O1, T1)], _, E1),
     ( float(O1), float(T1), 0.0 =< O1, O1 =< T1, O1 * 2 < T1 -> R1 = early ; R1 = O1-T1 ),
     check('from(1): the window opens before the work, the run''s CPU after it', E1-R1,
-          end(answer, 15, [15])-early),
-    %% w_burn/1's numlist/3 is inferences 2 to 4, its msort/2 5
+          end(answer, 14, [14])-early),
+    %% w_burn/1's numlist/3 is inferences 2 and 3, its msort/2 4
     '$trace_window'(w_burn(_), [from(6), cpu(O2, T2)], _, _),
     ( float(O2), O2 =< T2, O2 * 2 > T2 -> R2 = late ; R2 = O2-T2 ),
     check('from(6): the work before the window, the most of the run''s CPU before it opened', R2, late),
@@ -718,7 +722,7 @@ cpu :-
     '$trace_window'(w_burn(_), [from(99), cpu(O4, _)], _, E4),
     ( float(T3) -> R3 = O3 ; R3 = T3 ),
     check('a probe opens no window, and nor does one past the run''s end: none', R3-O4-E4,
-          none-none-end(answer, 15, [15])).
+          none-none-end(answer, 14, [14])).
 
 %% a probe of G under OPTS: how it ended, each retry's I-Name/Arity, and
 %% `inside' when every retry's nanoseconds are some of its inference's
@@ -758,8 +762,10 @@ run_timed :-
     w_rt_rows(w_big(_), _, R3, Ks3, Sum3),
     w_rt_ns(R3, findall/3, F3), w_rt_ns(R3, none, A3),
     ( F3 > A3 -> C3 = own ; C3 = F3-A3 ),
-    ( memberchk(between/3-S3-T3, Ks3) -> true ; S3 = 0, T3 = 0 ),
-    check('findall/3''s copies are its own, not the answers'': its time over none''s, between/3''s 20 000 steps retried',
+    %% between/3's answers are '$between_up'/3's since 3.0.0, which checks
+    %% nothing: between/3 checks once, and its one step goes on there
+    ( memberchk('$between_up'/3-S3-T3, Ks3) -> true ; S3 = 0, T3 = 0 ),
+    check('findall/3''s copies are its own, not the answers'': its time over none''s, between/3''s 20 000 steps retried in ''$between_up''/3',
           C3-S3-T3-Sum3, own-20000-retried-adds_up),
     %% THE BEST OF FIVE PROBES: findall/3's copies are some 0.85 ms and
     %% member/2's three steps some 1.5 us, so one interruption of those

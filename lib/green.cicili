@@ -75,6 +75,7 @@
     ("$async_send"    3 coco_g_async_send)
     ("$async_recv"    2 coco_g_async_recv)
     ("$async_close"   1 coco_g_async_close)
+    ("$async_workers" 1 coco_g_async_workers)
     ;; a test's foreign call: sleeps without reading the store
     ("$green_foreign_sleep" 1 coco_g_foreign_sleep)))
 
@@ -204,6 +205,7 @@
   (decl) (func coco_g_async_send ((coco_engine * e) (size_t g)) (out int))
   (decl) (func coco_g_async_recv ((coco_engine * e) (size_t g)) (out int))
   (decl) (func coco_g_async_close ((coco_engine * e) (size_t g)) (out int))
+  (decl) (func coco_g_async_workers ((coco_engine * e) (size_t g)) (out int))
   ;; The pre-write barrier (2.9.0): a store write takes it before the call.
   (decl) (func coco_g_write_begin ((void * e)) (out int))
   (decl) (func coco_g_write_end () (out void))
@@ -562,6 +564,10 @@
                  (free (-> t resume_text))
                  (set (-> t resume_text) nil)))
             (let ((int rc . #'(coco_engine_next en)))
+              ;; a task's goal answers once: what it left is cut, a cleanup
+              ;; run with `!' (3.1.0) -- before the world's lock, which a
+              ;; cleanup's own goals may want
+              (if (== rc 1) (coco_engine_cut en))
               (pthread_mutex_lock (aof (-> wd lock)))
               ;; THE QUANTUM'S STOP IS NOT AN ERROR: the limit path saw
               ;; GREENQ and set GSTOP, and the engine reports it as its
@@ -1011,6 +1017,18 @@
           (if (< n 1) (set n 1))
           (if (> n 256) (set n 256))
           (return (cast int n))))
+
+  ;;; async_workers/1 (2.15.0): THE WORLD'S SIZE, ASKED. Inside a world, the
+  ;;; workers it has (every worker's thread holds its world in green_now,
+  ;;; whatever COCOLOG_GREEN_WORKERS says since); outside one, the workers
+  ;;; the next async_run/1 would start, by the rule above. A pool sized from
+  ;;; the world asks this rather than working the rule out again
+  ;;; (library(httpd)'s green mode, lesson 54's quantum).
+  (func coco_g_async_workers ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (int n . #'(? (!= green_now nil) (-> green_now nworkers) (coco_g_nworkers))))
+          (return (coco_unify m (coco_deref m (coco_arg m g 0))
+                              (coco_new_int m (cast i64 n))))))
 
   (func coco_g_async_run ((coco_engine * e) (size_t g)) (out int)
         (if (!= green_now nil)

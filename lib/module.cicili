@@ -188,7 +188,34 @@
     (member const char * real)
     ;; and the file's time_file/2 when the text the registry holds was read
     ;; (2.14.0), which load_files/2's if(changed) compares
-    (member double time))
+    (member double time)
+    ;; REGISTERED BY A LOADED OBJECT (3.0.2): a `.so' whose entry the loader
+    ;; called (`lb_load_so', `coco_module_set_foreign'), as swipl's foreign
+    ;; library is. Its own predicates' errors name it, context(Module:
+    ;; Name/Arity, _) (`coco_m_raise'); a module compiled in names what its
+    ;; row of `*error-contexts*' names, or nothing
+    (member int foreign)
+    ;; ITS LAST READ DID NOT REACH THE END (3.6.0): a ball ended it -- an
+    ;; include of what is not there, a directive's ball that is no
+    ;; error(_, _) -- or the consult stopped short. Such a file is not
+    ;; loaded, as swipl's failed load leaves a file unloaded: a store's
+    ;; load passes it by, where through 3.5.0 every next ask read it again,
+    ;; and a load that names it reads it again (lib/library.cicili).
+    (member int failed)
+    ;; WHAT ITS READS DEFINED (3.6.0), as swipl's source file is made: a
+    ;; read under way (READING), how many have been made (READS), and
+    ;; whether one of them defined something -- a clause, a declaration, a
+    ;; put-off goal, an include, a load that finds its file (DEFINED; the
+    ;; machine's `ldefs' before and after). One read whose file defined
+    ;; nothing is not loaded, and a load that names it reads it again.
+    (member int reading)
+    (member int reads)
+    (member int defined)
+    ;; ONE OF COCOLOG'S OWN LIBRARIES, PRELOADED (3.14.0): read with no
+    ;; expansion hook of the program's asked, as a compiled-in module's own
+    ;; text is (`noexp' on the store) -- swipl's boot libraries are read
+    ;; before any program is
+    (member int noexp))
 
   ;;; Empties the registry and fills in solve.cicili's two hooks. A target that
   ;;; wants modules calls this once and then registers each one.
@@ -219,10 +246,12 @@
   ;;; a library that is already in the registry -- linked into the build or
   ;;; loaded earlier -- needs no file found for it.
   (decl) (func coco_module_find ((const char * name)) (out const coco_module *))
+  (decl) (func coco_module_is_library ((const char * name)) (out int))
 
   ;;; Marks the module NAME as a file of the program's own (`own'), which
   ;;; `use_module' does for a path it loads (lib/library.cicili).
   (decl) (func coco_module_set_own ((const char * name)))
+  (decl) (func coco_module_set_noexp ((const char * name)))
 
   ;;; Records the file the module NAME's text was read from (`file'), which
   ;;; `use_module' does for each file it loads; the string is kept, and so
@@ -236,12 +265,27 @@
   ;;; and another thread may be consulting it into a store of its own.
   (decl) (func coco_module_set_text ((const char * name) (const char * text) (double time)))
 
+  ;;; Marks every module registered at index FROM and after as a loaded
+  ;;; object's (`foreign', 3.0.2): what the loader does once a `.so''s entry
+  ;;; has run, FROM the registry's count before it (`lb_load_so').
+  (decl) (func coco_module_set_foreign ((size_t from)))
+
+  ;;; Marks the module NAME's last read as one that did not reach its end
+  ;;; (`failed', 3.6.0), or as one that did
+  (decl) (func coco_module_set_failed ((const char * name) (int failed)))
+
+  ;;; A READ OF THE MODULE NAME BEGINS, and ends, DEFINED 1 when it defined
+  ;;; something (`reading', `reads', `defined', 3.6.0)
+  (decl) (func coco_module_read_begin ((const char * name)))
+  (decl) (func coco_module_read_end ((const char * name) (int defined)))
+
   ;;; The Coco half of every module not yet in this store, consulted in --
   ;;; public because `use_module' as a GOAL registers a module mid-query and
-  ;;; cannot wait for the next query's start to consult its clauses. E may be
-  ;;; null when no engine exists yet (a directive during a bare consult); a
-  ;;; module whose `init' needs the engine is then deferred to the ask-time
-  ;;; call, which runs this again.
+  ;;; cannot wait for the next query's start to consult its clauses, and a
+  ;;; directive's load runs at the directive (3.6.0). E may be null when no
+  ;;; engine exists yet; a module whose `init' needs the engine is then
+  ;;; deferred to the ask-time call, which runs this again. A module whose
+  ;;; read failed is passed by (`failed').
   (decl) (func coco_module_load ((coco_store * st) (coco_machine * m)
                                  (coco_engine * e)) (out int))
 
@@ -395,6 +439,22 @@
                                        (size_t * out) (size_t * names) (size_t * pos)
                                        (size_t * start) (char * err) (size_t errlen)) (out int))
 
+  ;;; WHERE A CLAUSE'S TEXT ENDS, as swipl's raw read finds it (3.11.0,
+  ;;; `coco_raw_walk'): the walk's kind of S's N bytes -- 0 a full stop, 6
+  ;;; a full stop with nothing before it (each ending at END), 1 no full
+  ;;; stop, 2 nothing but layout and comments, 3 a quoted item open to the
+  ;;; end, 4 a block comment, 5 `0'' or a radix's quote at the end -- so a
+  ;;; module reading a stream finds the clause where a load would.
+  (decl) (func coco_m_raw_walk ((const char * s) (size_t n) (size_t * end)) (out int))
+
+  ;;; A CLAUSE'S TEXT THAT WILL NOT READ, said as swipl says it of a stream
+  ;;; (3.11.0): '$syntax'(Id, Line, LinePos, CharNo), Id swipl's and the
+  ;;; place a load would give, counted on from where SRC began in its stream
+  ;;; (character C0, line L0, line position P0); 0 when SRC reads. A block
+  ;;; comment open before anything is Line 0, LinePos 1, CharNo 0, swipl's.
+  (decl) (func coco_m_syntax_at ((coco_engine * e) (const char * src) (i64 c0) (i64 l0)
+                                 (i64 p0)) (out size_t))
+
   ;;; AN OUTPUT SINK A MODULE OWNS. `format/3' and `with_output_to/2' put
   ;;; their text wherever their first argument says; a module that owns
   ;;; streams installs a hook here and is asked FIRST about every sink but
@@ -408,6 +468,18 @@
 
   ;;; In-tree: the hook's answer, 0 when none is installed.
   (decl) (func coco_m_sink_call ((coco_engine * e) (size_t sink) (const char * text) (size_t len)) (out int))
+
+  ;;; THE CONSOLE'S COLUMN (2.16.0), for format's `~N' and print_message/2.
+  ;;; A module that owns a sink answers whether a line is open there: 1
+  ;;; open, 0 at a line's start, -1 not one of its own (the engine then asks
+  ;;; its own, user_output and user_error by the console's column and a term
+  ;;; sink at 0). One hook per process, as the sink's. A module that writes
+  ;;; to the console itself says what it wrote, FD 1 for user_output and 2
+  ;;; for user_error, and can ask the console's column the same way.
+  (decl) (func coco_m_sink_open_install ((func hook ((coco_engine * e) (size_t sink)) (out int))))
+  (decl) (func coco_m_sink_open_call ((coco_engine * e) (size_t sink)) (out int))
+  (decl) (func coco_m_out_note ((int fd) (const char * text) (size_t len)))
+  (decl) (func coco_m_out_open ((int fd)) (out int))
 
   ;;; ---- a goal on a machine of its own ---------------------------------
   ;;;
@@ -541,6 +613,12 @@
   ;;; evaluation_error(What): "int_overflow" for an integer past 64 bits
   ;;; (2.0.0), as the engine's arithmetic raises it
   (decl) (func coco_m_evaluation_error ((coco_engine * e) (const char * what)) (out int))
+  ;;; A FORMAL WITH A MESSAGE (3.16.0): KIND(A, CULPRIT), or KIND(A, B,
+  ;;; CULPRIT) when B is not null, or KIND(A) when CULPRIT is (size_t) -1,
+  ;;; raised with MSG as the context's second argument, as swipl's
+  ;;; existence_error(source_sink, F) carries strerror's words
+  (decl) (func coco_m_error_msg ((coco_engine * e) (const char * kind) (const char * a)
+                               (const char * b) (size_t culprit) (const char * msg)) (out int))
 
   ;;; For what SWI has no error for and cocolog does: a condition of this
   ;;; implementation's own. It throws `error(cocolog_error(Atom), _)', so it is
@@ -567,15 +645,30 @@
   ;;; registered wins a collision, which makes the order in the target the
   ;;; order of precedence and is the only sensible rule when two modules
   ;;; disagree.
+  ;;;
+  ;;; EACH DISPATCHER IS CALLED WITH ITS MODULE ON THE ENGINE (3.0.2): `kmod',
+  ;;; the module's index plus one, so that a raise inside it can name the
+  ;;; module that answered (`coco_m_raise') -- the three calls below, and
+  ;;; nowhere else. THE STEP CLEARS IT when the module's call returns
+  ;;; (solve-loop.cicili), and not these: put back here, `coco_module_call_at'
+  ;;; kept a frame round its dispatcher instead of jumping to it, and a call
+  ;;; of the lists module's nth0/3 cost 365 instructions where 3.0.0's cost 354.
+  ;;;
+  ;;; A NAME A PROGRAM FILE TOOK OVER IS NO MODULE'S (3.1.0,
+  ;;; `coco_m_taken'): the walk passes it by, found 0, and the step goes to
+  ;;; the predicate -- swipl calls a user file's definition of a system
+  ;;; predicate that is not ISO.
   (static)
   (func coco_module_call ((coco_engine * e) (const char * name) (u32 arity)
                         (size_t g) (int * found)) (out int)
         (set (cof found) 0)
+        (if (coco_m_taken e name arity) (return 0))
         (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
           (let ((coco_module * mod . #'(aof (nth i coco_modules))))
             (if (!= (-> mod dispatch) nil)
-                (let ((int mine . 0)
-                      (int rc . #'((-> mod dispatch) e name arity g (aof mine))))
+                (let ((int mine . 0) (int rc . 0))
+                  (set (-> e kmod) (+ i 1))
+                  (set rc ((-> mod dispatch) e name arity g (aof mine)))
                   (if mine (block (set (cof found) 1) (return rc)))))))
         (return 0))
 
@@ -590,11 +683,13 @@
                                   (size_t g) (int * found) (size_t * out_at)) (out int)
         (set (cof found) 0)
         (set (cof out_at) 0)
+        (if (coco_m_taken e name arity) (return 0))
         (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
           (let ((coco_module * mod . #'(aof (nth i coco_modules))))
             (if (!= (-> mod dispatch) nil)
-                (let ((int mine . 0)
-                      (int rc . #'((-> mod dispatch) e name arity g (aof mine))))
+                (let ((int mine . 0) (int rc . 0))
+                  (set (-> e kmod) (+ i 1))
+                  (set rc ((-> mod dispatch) e name arity g (aof mine)))
                   (if mine (block (set (cof found) 1) (set (cof out_at) i) (return rc)))))))
         (return 0))
 
@@ -605,6 +700,7 @@
         (if (>= at coco_nmodules) (return 0))
         (let ((coco_module * mod . #'(aof (nth at coco_modules))))
           (if (== (-> mod dispatch) nil) (return 0))
+          (set (-> e kmod) (+ at 1))
           (return ((-> mod dispatch) e name arity g found))))
 
   ;;; The Coco half of every module NOT YET IN THIS STORE, consulted in.
@@ -660,8 +756,19 @@
   ;;; file registers one -- and when it has, the count has moved past those
   ;;; too, so this loop must not walk them again: a walk on a local index
   ;;; would consult them twice and double every answer they give. A module
-  ;;; that fails is given back only when nothing after it was loaded in the
-  ;;; meantime, which is the old retry exactly in every case that had one.
+  ;;; whose init fails is given back only when nothing after it was loaded
+  ;;; in the meantime, which is the old retry exactly in every case that
+  ;;; had one.
+  ;;;
+  ;;; A MODULE WHOSE READ FAILED IS PASSED BY (3.6.0): marked `failed', and
+  ;;; skipped from then on, here and in every store made after, though it
+  ;;; is given back with the rest. Through 3.5.0 every next ask read it
+  ;;; again from the top -- its directives run again, its reports said
+  ;;; again, and a ball that ended it thrown at whatever goal came next:
+  ;;; `-s' with a directive's `:- ensure_loaded(f)' whose include was
+  ;;; missing said the error five times, at five directives that had
+  ;;; nothing to do with it. A read is the same each time; what reads it
+  ;;; again is a load that names it (lib/library.cicili).
   ;;;
   ;;; A MODULE'S DIRECTIVES COLLECT THE HEAP WHEN THE CALLER VOUCHED (1.9.6):
   ;;; `dgc' on the machine (lib/term.cicili), taken here and handed on only
@@ -670,7 +777,7 @@
   (func coco_module_load ((coco_store * st) (coco_machine * m) (coco_engine * e)) (out int)
         (if (== coco_nmodules 0) (return 1))
         (if (>= (-> st libs) coco_nmodules) (return 1))
-        (let ((char err [512]) (int ok . 1) (int saved_dq . #'(-> m double_quotes))
+        (let ((char err [4096]) (int ok . 1) (int saved_dq . #'(-> m double_quotes))
               (int vouch . #'(-> m dgc)))
           (set (-> m dgc) 0)
           ;; why a consult below stopped, kept for whoever asked for the
@@ -681,16 +788,25 @@
           (while (and (== ok 1) (< (-> st libs) coco_nmodules))
             (let ((size_t i . #'(-> st libs)))
               (let ((coco_module * mod . #'(aof (nth i coco_modules))))
-                ;; an init that needs the engine waits for one: leave the
-                ;; store's count where it is so the ask-time call retries
-                (if (and (!= (-> mod init) nil) (== e nil))
-                    (set ok 2)
+                (cond
+                  ;; a read that failed: passed by (3.6.0)
+                  ((-> mod failed) (set (-> st libs) (+ i 1)))
+                  ;; an init that needs the engine waits for one: leave the
+                  ;; store's count where it is so the ask-time call retries
+                  ((and (!= (-> mod init) nil) (== e nil))
+                   (set ok 2))
+                  (#t
                   (block
                    (set (-> st libs) (+ i 1))
                    (if (!= (-> mod init) nil)
                        (if (not ((-> mod init) e)) (set ok 0)))
                    (if (and (== ok 1) (!= (-> mod prolog) nil))
-                       (let ((int cr . 0) (int ow . #'(-> st ownload)))
+                       (let ((int cr . 0) (int ow . #'(-> st ownload))
+                             (u64 outer . #'(-> m ldefs)))
+                         ;; A READ UNDER WAY (3.6.0): a load inside it that
+                         ;; names this file finds it loaded
+                         (set (-> mod reading) 1)
+                         (set (-> m ldefs) 0)
                          (set (-> m dgc) vouch)
                          ;; a file of the program's own marks its
                          ;; predicates so (`own', lib/kb.cicili); put back
@@ -702,16 +818,37 @@
                          ;; and OWNED BY IT (2.14.0): its clauses carry the
                          ;; file's real path, so that consult/1 of the file
                          ;; replaces exactly these (lib/library.cicili)
-                         (set cr (coco_consult_owner st m (-> mod prolog)
-                                                     (? (== (-> mod file) nil) (-> mod name) (-> mod file))
-                                                     (-> mod real) 0 err (sizeof err)))
+                         ;; and a compiled-in module's own text (no file),
+                         ;; or a preloaded library's, is read with no
+                         ;; expansion hook of the program's asked (3.14.0,
+                         ;; `noexp') -- each module by its own mark, never
+                         ;; the read it is nested in: dcg_basics' `:-
+                         ;; use_module' reads the libraries after it inside
+                         ;; its own read, and a program's module read so
+                         ;; is the program's
+                         (let ((int nx . #'(-> st noexp)))
+                           (set (-> st noexp) (? (or (== (-> mod file) nil) (-> mod noexp)) 1 0))
+                           (set cr (coco_consult_owner st m (-> mod prolog)
+                                                       (? (== (-> mod file) nil) (-> mod name) (-> mod file))
+                                                       (-> mod real) 0 err (sizeof err)))
+                           (set (-> st noexp) nx))
                          (set (-> st ownload) ow)
                          (set (-> m dgc) 0)
+                         ;; THE REGISTRY BY INDEX, after the read: a
+                         ;; directive in it may have registered a module and
+                         ;; moved the array MOD points into. What the read
+                         ;; defined is the module's (3.6.0)
+                         (set ($ (nth i coco_modules) reading) 0)
+                         (set ($ (nth i coco_modules) reads)
+                              (+ ($ (nth i coco_modules) reads) 1))
+                         (if (!= (-> m ldefs) 0) (set ($ (nth i coco_modules) defined) 1))
+                         (set (-> m ldefs) outer)
                          (if (< cr 0)
                              (block (set ok 0)
-                                    (snprintf (-> st load_err) 512 "%s" err)))))
+                                    (snprintf (-> st load_err) 512 "%s" err)
+                                    (set ($ (nth i coco_modules) failed) 1)))))
                    (if (and (== ok 0) (== (-> st libs) (+ i 1)))
-                       (set (-> st libs) i)))))))
+                       (set (-> st libs) i))))))))
           (set (-> m double_quotes) saved_dq)
           (coco_store_unmute st)
           (return (? (== ok 0) 0 1))))
@@ -729,6 +866,7 @@
         (set coco_nmodules 0)
         (coco_extern_install coco_module_call coco_module_load)
         (coco_extern_install_resolve coco_module_call_resolving coco_module_call_at)
+        (coco_extern_install_library coco_module_is_library)
         (coco_extern_install_names coco_module_name_at))
 
   (func coco_module_free ()
@@ -780,11 +918,23 @@
               (return (aof (nth i coco_modules)))))
         (return nil))
 
+  ;;; A module of that name registered and no program file's (3.1.0, the
+  ;;; seam's `coco_extern_library')
+  (func coco_module_is_library ((const char * name)) (out int)
+        (let ((const coco_module * mod . #'(coco_module_find name)))
+          (return (and (!= mod nil) (not (-> mod own))))))
+
   (func coco_module_set_own ((const char * name))
         (if (== name nil) (return))
         (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
           (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
               (set ($ (nth i coco_modules) own) 1))))
+
+  (func coco_module_set_noexp ((const char * name))
+        (if (== name nil) (return))
+        (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
+          (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
+              (set ($ (nth i coco_modules) noexp) 1))))
 
   (func coco_module_set_file ((const char * name) (const char * file))
         (if (or (== name nil) (== file nil)) (return))
@@ -801,6 +951,30 @@
           (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
               (block (set ($ (nth i coco_modules) prolog) text)
                      (set ($ (nth i coco_modules) time) time)))))
+
+  (func coco_module_set_foreign ((size_t from))
+        (for ((size_t i . from)) (< i coco_nmodules) ((++ i))
+          (set ($ (nth i coco_modules) foreign) 1)))
+
+  (func coco_module_set_failed ((const char * name) (int failed))
+        (if (== name nil) (return))
+        (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
+          (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
+              (set ($ (nth i coco_modules) failed) failed))))
+
+  (func coco_module_read_begin ((const char * name))
+        (if (== name nil) (return))
+        (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
+          (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
+              (set ($ (nth i coco_modules) reading) 1))))
+
+  (func coco_module_read_end ((const char * name) (int defined))
+        (if (== name nil) (return))
+        (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
+          (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
+              (block (set ($ (nth i coco_modules) reading) 0)
+                     (set ($ (nth i coco_modules) reads) (+ ($ (nth i coco_modules) reads) 1))
+                     (if defined (set ($ (nth i coco_modules) defined) 1))))))
 
   ;;; ---- the author's API -----------------------------------------------
 
@@ -943,7 +1117,7 @@
               ;; as not text.
               (if (coco_m_is_atom e p)
                   (block
-                   (if (== 0 (strcmp (coco_atom_name m (coco_name_of m p)) "[]")) break)
+                   (if (coco_is_nil m p) break)
                    (return 0)))
               (if (not (coco_is_cons m p)) (return 0))
               ;; A CODE OR A ONE-CHARACTER ATOM, because `double_quotes' has
@@ -1077,6 +1251,60 @@
           (coco_reader_free (aof r))
           (return rc)))
 
+  (func coco_m_raw_walk ((const char * s) (size_t n) (size_t * end)) (out int)
+        (let ((int kind . 0) (int q . 0) (size_t at0 . 0) (size_t p . 0))
+          (set p (coco_raw_walk s n 0 nil 0 (aof kind) (aof q) (aof at0)))
+          (if (!= end nil) (set (cof end) p))
+          (return kind)))
+
+  ;;; The characters of S's bytes A to B, as the machine counts them.
+  (static)
+  (func coco_m_chars_in ((const char * s) (size_t a) (size_t b) (int chars)) (out i64)
+        (let ((i64 k . 0))
+          (for ((size_t i . a)) (< i b) ((++ i))
+            (if (or (not chars) (!= (bitand (cast int (nth i s)) 192) 128)) (set k (+ k 1))))
+          (return k)))
+
+  ;;; Line and LinePos are where a load puts the error (`coco_reader_load_
+  ;;; error'), counted on from where SRC began; CharNo is swipl's
+  ;;; source_char_no: the clause's first character -- past the layout and
+  ;;; the comments before it, where the raw read begins -- and the error's
+  ;;; characters into the raw text less one (the `Pos' of a text's error,
+  ;;; `coco_tx_syntax'); a text the end of the stream cut short fails at its
+  ;;; last character, so that is its last character's.
+  (func coco_m_syntax_at ((coco_engine * e) (const char * src) (i64 c0) (i64 l0)
+                          (i64 p0)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m)) (coco_reader r) (size_t t . 0) (int rc . 0)
+              (int ln . 0) (int cl . 0) (int a1 . 0) (int a2 . 0) (const char * id . nil)
+              (i64 line . 0) (i64 lp . 0) (i64 cn . 0) (size_t args [4])
+              (int chars . #'(-> m text_chars)) (size_t n . 0) (int kind . 0) (int q . 0)
+              (size_t at0 . 0) (size_t at . 0) (i64 pos . 0))
+          (if (== src nil) (return 0))
+          (set n (strlen src))
+          (coco_reader_init (aof r) m src)
+          (set rc (coco_read_clause (aof r) (aof t)))
+          (if (!= rc -1) (block (coco_reader_free (aof r)) (return 0)))
+          (set id (coco_reader_load_error (aof r) (aof ln) (aof cl) (aof a1) (aof a2)))
+          (coco_raw_walk src n 0 nil chars (aof kind) (aof q) (aof at0))
+          (cond
+            ((or (== kind 3) (== kind 4)) (set pos 0))
+            (#t
+             (set at (coco_reader_errat (aof r)))
+             (if (> at at0) (set pos (- (coco_m_chars_in src at0 at chars) 1)))))
+          (if (< pos 0) (set pos 0))
+          (set cn (+ c0 (+ (coco_m_chars_in src 0 at0 chars) pos)))
+          (cond
+            ;; a block comment open before anything: swipl's stream(S, 0, 1, 0)
+            ((== ln 0) (set line 0) (set lp (cast i64 cl)) (set cn 0))
+            ((== ln 1) (set line l0) (set lp (+ p0 (cast i64 cl))))
+            (#t (set line (+ l0 (cast i64 (- ln 1)))) (set lp (cast i64 cl))))
+          (set (nth 0 args) (coco_syntax_id_term m id a1 a2))
+          (set (nth 1 args) (coco_new_int m line))
+          (set (nth 2 args) (coco_new_int m lp))
+          (set (nth 3 args) (coco_new_int m cn))
+          (coco_reader_free (aof r))
+          (return (coco_make m "$syntax" 4 args))))
+
   (static) (var func coco_m_sink_hook ((coco_engine * e) (size_t sink) (const char * text)
                                        (size_t len)) (out int) . nil)
 
@@ -1108,6 +1336,27 @@
             (if (coco_m_replay_sink e sink) (return 1)))
         (if (== coco_m_sink_hook nil) (return 0))
         (return (coco_m_sink_hook e sink text len)))
+
+  (static) (var func coco_m_sink_open_hook ((coco_engine * e) (size_t sink)) (out int) . nil)
+
+  (func coco_m_sink_open_install ((func hook ((coco_engine * e) (size_t sink)) (out int)))
+        (set coco_m_sink_open_hook hook))
+
+  ;;; a replay's stream opened nothing, and its line is at its start
+  (func coco_m_sink_open_call ((coco_engine * e) (size_t sink)) (out int)
+        (if (!= ($ (cof (-> e m)) rec) nil)
+            (if (coco_m_replay_sink e sink) (return 0)))
+        (if (== coco_m_sink_open_hook nil) (return -1))
+        (return (coco_m_sink_open_hook e sink)))
+
+  (func coco_m_out_note ((int fd) (const char * text) (size_t len))
+        (if (== fd 1) (coco_out_note stdout text len))
+        (if (== fd 2) (coco_out_note stderr text len)))
+
+  (func coco_m_out_open ((int fd)) (out int)
+        (if (== fd 1) (return (coco_out_open stdout)))
+        (if (== fd 2) (return (coco_out_open stderr)))
+        (return 0))
 
   ;;; Filled in by the composition root; null until it is, which is what
   ;;; every out-of-tree embedder and every test binary leaves them.
@@ -1149,6 +1398,8 @@
              ;; has succeeded is not a thing anyone can ask for from outside.
              (set rc (coco_engine_next (aof e)))
              (if (== rc 1) (set out 1))
+             ;; and what it left is cut, a cleanup run with `!' (3.1.0)
+             (if (== rc 1) (coco_engine_cut (aof e)))
              (if (== rc 0) (set out 0))
              (if (== rc -1)
                  (block (if (!= err nil) (snprintf err errlen "%s" ($ e err)))
@@ -1188,7 +1439,7 @@
   (func coco_m_new_atom ((coco_engine * e) (const char * s)) (out size_t)
         (return (coco_new_atom (-> e m) s)))
 
-  (func coco_m_nil ((coco_engine * e)) (out size_t) (return (coco_new_atom (-> e m) "[]")))
+  (func coco_m_nil ((coco_engine * e)) (out size_t) (return (coco_new_nil (-> e m))))
 
   (func coco_m_cons ((coco_engine * e) (size_t h) (size_t t)) (out size_t)
         (return (coco_cons (-> e m) h t)))
@@ -1217,7 +1468,7 @@
           (while 1
             (set p (coco_deref m p))
             (if (coco_m_is_atom e p)
-                (if (== 0 (strcmp (coco_atom_name m (coco_name_of m p)) "[]"))
+                (if (coco_is_nil m p)
                     (block (set (cof out) n) (return 1))
                   (return 0)))
             (if (not (coco_is_cons m p)) (return 0))
@@ -1246,20 +1497,92 @@
             (set (cof n) len)
             (return 1))))
 
-  ;;; `error(Formal, _)' and then throw it. The context variable is fresh, so
-  ;;; the caller's `catch' pattern `error(F, _)' matches whatever it holds.
+  ;;; A LOADABLE MODULE'S OWN PREDICATE NAMES ITSELF (3.0.2), as swipl names
+  ;;; a foreign predicate's errors by the module that defines it --
+  ;;; context(socket:tcp_socket/1, _), context(md5:md5_hash/3, _) -- and
+  ;;; a message then begins `md5:md5_hash/3: ' (`coco_err_caller', and
+  ;;; library(print_message)'s '$pm_caller'). The module is the one the seam
+  ;;; is calling (`kmod'), when a `.so' registered it (`foreign'), and the
+  ;;; predicate is the goal in flight (`kcall'), the C predicate itself --
+  ;;; a `$' helper too, as swipl names its own ('$on_signal'/4). Else CTX,
+  ;;; the context no row named, as it was: a module compiled in names what
+  ;;; its rows of `*error-contexts*' name, and nothing else. Out of line and
+  ;;; cold: a raise pays it.
+  (static) (cold)
+  (func coco_m_module_ctx ((coco_engine * e) (size_t ctx)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t k . #'(-> e kmod)) (size_t g . #'(-> e kcall))
+              (u64 c . 0) (u64 nid . 0) (u32 n . 0))
+          (if (or (== k 0) (> k coco_nmodules) (== g 0)) (return ctx))
+          (if (not ($ (nth (- k 1) coco_modules) foreign)) (return ctx))
+          (set g (coco_deref m g))
+          (set c (nth g (-> m heap)))
+          (cond
+            ((coco-tag-is ATOM c) (set nid (coco-payload c)))
+            ((coco-tag-is FUN c)
+             (let ((size_t fid . #'(cast size_t (coco-payload c))))
+               (set nid ($ (nth fid (-> m functors)) name))
+               (set n ($ (nth fid (-> m functors)) arity))))
+            (#t (return ctx)))
+          (return (coco_ectx_pi m ($ (nth (- k 1) coco_modules) name)
+                                (coco_new_atom_id m nid) n (coco_new_var m)))))
+
+  ;;; `error(Formal, Context)' and then throw it. The context is the
+  ;;; engine's (3.0.0, `coco_err_ctx'): the goal in flight is the module's
+  ;;; call, so a row of `*error-contexts*' names it -- char_type/2,
+  ;;; length/2 -- and one no row names is a loadable module's own predicate,
+  ;;; named with its module (3.0.2, `coco_m_module_ctx'), or else left
+  ;;; unbound, as through 2.16 every raise left it.
   (static)
   (func coco_m_raise ((coco_engine * e) (size_t formal)) (out int)
         (let ((coco_machine * m . #'(-> e m))
-              (size_t ball . #'(coco_make2 m "error" formal (coco_new_var m))))
+              (size_t ctx . #'(coco_err_ctx e 0 nil))
+              (size_t ball . 0))
+          (if (coco-tag-is REF (nth (coco_deref m ctx) (-> m heap)))
+              (set ctx (coco_m_module_ctx e ctx)))
+          (set ball (coco_make2 m "error" formal ctx))
           ;; 2 and not 1: the engine must be told that the continuation is
           ;; already set, or it puts the caller's back and the recovery goal
           ;; never runs. See the dispatch in solve.cicili.
           (return (? (coco_m_thrown e ball) 2 -1))))
 
+  ;;; the same with the context named outright (MOD "" for none): swipl's
+  ;;; char_type/2 and code_type/2 name `char_type/2' bare for an unbound
+  ;;; character, its own PL_error()
+  (func coco_m_raise_pi ((coco_engine * e) (size_t formal) (const char * mod)
+                         (const char * name) (u32 arity)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t ball . #'(coco_make2 m "error" formal
+                                         (coco_ectx_pi m mod (coco_new_atom m name) arity
+                                                       (coco_new_var m)))))
+          (return (? (coco_m_thrown e ball) 2 -1))))
+
+  ;;; A GOAL ARGUMENT THAT IS NO GOAL raises before the search starts,
+  ;;; naming what swipl's own raise names (3.0.0): findall/3's
+  ;;; `'$bags':findall_loop/4', forall/2's `'$apply':forall/2'. Through
+  ;;; 2.16 the search's first step raised it, with no context. 0 when GOAL
+  ;;; is callable, else the raise's answer: instantiation_error for a
+  ;;; variable, type_error(callable, GOAL) for anything else -- and for a
+  ;;; control structure with a goal that is no goal anywhere in it (3.1.0,
+  ;;; `coco_goal_ok'), the whole of it, as swipl compiles it before it runs
+  (func coco_m_goal_bad ((coco_engine * e) (size_t goal) (const char * mod)
+                         (const char * name) (u32 arity)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (set goal (coco_deref m goal))
+          (if (coco_goal_ok m goal) (return 0))
+          (if (coco-tag-is REF (nth goal (-> m heap)))
+              (return (coco_m_raise_pi e (coco_new_atom m "instantiation_error")
+                                       mod name arity)))
+          (return (coco_m_raise_pi e (coco_make2 m "type_error" (coco_new_atom m "callable") goal)
+                                   mod name arity))))
+
+  ;;; an unbound culprit is an instantiation_error (3.0.0), as swipl's
+  ;;; PL_error() makes ERR_TYPE of a variable; type_error(variable, T) stays
   (func coco_m_type_error ((coco_engine * e) (const char * type) (size_t culprit))
         (out int)
         (let ((coco_machine * m . #'(-> e m)))
+          (if (and (coco_m_is_var e culprit) (!= (strcmp type "variable") 0))
+              (return (coco_m_raise e (coco_new_atom m "instantiation_error"))))
           (return (coco_m_raise e (coco_make2 m "type_error"
                                           (coco_new_atom m type) culprit)))))
 
@@ -1294,6 +1617,19 @@
   (func coco_m_evaluation_error ((coco_engine * e) (const char * what)) (out int)
         (let ((coco_machine * m . #'(-> e m)))
           (return (coco_m_raise e (coco_make1 m "evaluation_error" (coco_new_atom m what))))))
+
+  (func coco_m_error_msg ((coco_engine * e) (const char * kind) (const char * a)
+                          (const char * b) (size_t culprit) (const char * msg)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (size_t args [3]) (u32 n . 0)
+              (size_t ctx . 0) (size_t ball . 0))
+          (set (nth n args) (coco_new_atom m a)) (set n (+ n 1))
+          (if (!= b nil) (block (set (nth n args) (coco_new_atom m b)) (set n (+ n 1))))
+          (if (!= culprit (cast size_t -1)) (block (set (nth n args) culprit) (set n (+ n 1))))
+          (set ctx (coco_err_ctx e 0 msg))
+          (if (coco-tag-is REF (nth (coco_deref m ctx) (-> m heap)))
+              (set ctx (coco_m_module_ctx e ctx)))
+          (set ball (coco_make2 m "error" (coco_make m kind n args) ctx))
+          (return (? (coco_m_thrown e ball) 2 -1))))
 
   (func coco_m_error ((coco_engine * e) (const char * what) (const char * detail)) (out int)
         (let ((coco_machine * m . #'(-> e m)) (char msg [192]))

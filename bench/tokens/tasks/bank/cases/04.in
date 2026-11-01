@@ -1,0 +1,8 @@
+deposit x 10
+withdraw y 10
+open x
+deposit x 999999999
+deposit x 1
+balance x
+withdraw x 1000000001
+balance x

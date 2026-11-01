@@ -65,7 +65,195 @@ main :-
     data_under_a_builtin_name,
     memory_refused,
     read_that_failed,
+    recursive_message,
+    near_names,
+    text_read_here,
+    text_read_own,
     checks_done.
+
+%% ---- where a text would not read, uncaught (3.10.0) -------------------------
+%%
+%% An error(syntax_error(Id), string(Raw, Pos)) nothing caught is said as
+%% swipl's -g main says it: the sentence, then the text before Pos, `** here
+%% **' and the rest, the prefix before each line (messages.pl's
+%% syntax_error_string//2; print_message/2's, which test/files/syntax_text.pl
+%% holds to swipl, is library(print_message)'s and not this printer). Through
+%% 3.9.0 the ball had no string(...) to say.
+text_read_here :-
+    section('a text that would not read is said with its ** here ** lines, uncaught'),
+    scratch(D),
+    atom_concat(D, '/here.pl', F),
+    fixture(F, [ 'main :- term_to_atom(_, ''f(a b)'').' ]),
+    cocolog(C),
+    sh_join([C, ' --no-backtrace --local -s ', F, ' 2>&1'], Cmd),
+    shell(Cmd, Out, Rc),
+    check('the program ends with the uncaught error', Rc, 2),
+    has('the sentence, the text before, ** here ** and the rest',
+        'Syntax error: Operator expected\nERROR: f(a\nERROR: ** here **\nERROR:  b) . ', Out),
+    here_said(D, 'punct.pl', 'a,',
+              'an id with arguments is said with its characters',
+              'Syntax error: Unexpected `,\' before `.\'\nERROR: a,\nERROR: ** here **\nERROR:  . '),
+    here_said(D, 'chars.pl', 'f(''é'' b)',
+              'the place is counted in characters',
+              'Syntax error: Operator expected\nERROR: f(\'é\'\nERROR: ** here **\nERROR:  b) . '),
+    shl(['rm -rf ', D]).
+
+%% What test/files/syntax_text.pl leaves out because swipl answers it
+%% otherwise (COMPAT.md), held to cocolog's answer: an integer past 64
+%% bits, which swipl makes a bignum of, and a raw read's text quoted from
+%% a letter past ASCII, which swipl quotes as its first byte. A letter past
+%% ASCII before digits continues a name, so its quote opens a quoted item.
+text_read_own :-
+    section('a text that would not read where swipl answers otherwise'),
+    own_read('99999999999999999999', R1),
+    check('an integer past 64 bits is integer_overflow', R1,
+          integer_overflow-"99999999999999999999 . "-0),
+    own_read('á "b', R2),
+    check('the raw read quotes a first letter past ASCII whole', R2,
+          end_of_file_in_quoted('"')-"á"-0),
+    own_read('é16\'a', R3),
+    check('a letter past ASCII before 16\' makes no radix of it', R3,
+          end_of_file_in_quoted('\'')-"é"-0),
+    %% a prefix operator's atom too high for an infix operator is swipl's
+    %% operator_expected, no clash; swipl places it a token later
+    own_read('\\+ = a', Id4-_-_),
+    check('a prefix operator\'s atom before = is no clash', Id4, operator_expected),
+    own_read('dynamic ; a', Id5-_-_),
+    check('dynamic before ; is no clash either', Id5, operator_expected).
+
+%% the ball's id, its raw text's codes and its place
+own_read(Text, Id-Codes-Pos) :-
+    catch(term_to_atom(_, Text), error(syntax_error(Id), string(S, Pos)), true),
+    string_codes(S, Codes).
+
+%% swipl's -g main says each of these so (9.0.4, LANG=C.UTF-8)
+here_said(D, Name, Text, What, Want) :-
+    atomic_list_concat([D, '/', Name], F),
+    format(atom(Line), 'main :- term_to_atom(_, ~q).', [Text]),
+    fixture(F, [Line]),
+    cocolog(C),
+    sh_join([C, ' --no-backtrace --local -s ', F, ' 2>&1'], Cmd),
+    shell(Cmd, Out, _),
+    has(What, Want, Out).
+
+%% ---- what an unknown procedure's name is near (3.3.0) -----------------------
+%%
+%% `However, there are definitions for:' and a line each, swipl's: what
+%% test/files/dwim.pl holds to swipl's text cannot be held there. The report
+%% of a goal at the top and of an initialization(G, main) goal put the
+%% prefix before each line (`coco_say_lines'; swipl's -g main is the
+%% comparison, and the files case runs main under catch/3); a list of fifty
+%% names is printed whole, where the reports' buffers held 512 bytes; and a
+%% name of swipl's system is offered only where cocolog defines it --
+%% write/2 and its kin are library(stream)'s, never the engine's -- and
+%% the program's after it: this one's own are the prelude's (written/3).
+near_names :-
+    section('an unknown procedure names what is near its name'),
+    scratch(D),
+    cocolog(C),
+    atom_concat(D, '/near.pl', F1),
+    fixture(F1, [ 'foo(1).', 'foo(1, 2).', 'main :- fooo(x).' ]),
+    sh_join([C, ' --local --no-backtrace run ', F1, ' main 2>&1'], Cmd1),
+    shell(Cmd1, Out1, Rc1),
+    check('a goal at the top that raised ends 2', Rc1, 2),
+    check('its report puts the prefix before each line, as swipl''s -g main', Out1,
+          'ERROR: -g main: catch/3: Unknown procedure: fooo/1\nERROR:   However, there are definitions for:\nERROR:         foo/1\nERROR:         foo/2'),
+    atom_concat(D, '/near_main.pl', F2),
+    fixture(F2, [ 'foo(1).', ':- initialization(fooo(z), main).' ]),
+    sh_join([C, ' --local --no-backtrace run ', F2, ' true 2>&1'], Cmd2),
+    shell(Cmd2, Out2, _),
+    atomic_list_concat(['ERROR: ', F2, ':2: user:fooo(z) catch/3: Unknown procedure: fooo/1\nERROR:   However, there are definitions for:\nERROR:         foo/1'], Want2),
+    check('so does an initialization(G, main) goal''s', Out2, Want2),
+    findall(L, ( member(Ch, [a,b,c,d,e,f,g,h,i,j,k,l,m,n,p,q,r,s,t,u,v,w,x,y,z]),
+                 atom_concat(foo, Ch, N),
+                 member(L, [N-'(1).', N-'(1, 2).']) ), Ps),
+    findall(Line, ( member(N-T, Ps), atom_concat(N, T, Line) ), Lines),
+    atom_concat(D, '/near_many.pl', F3),
+    append(Lines, [ ':- fooo(x).', 'main :- fooo(x).' ], Lines3),
+    fixture(F3, Lines3),
+    sh_join([C, ' --local --no-backtrace run ', F3, ' main 2>&1'], Cmd3),
+    shell(Cmd3, Out3, _),
+    has('fifty names in a directive''s report, the last one too', 'ERROR:            fooz/2\nWarning:', Out3),
+    has('...and at the top', 'ERROR:         fooa/2\nERROR:         foob/2\n', Out3),
+    (   sub_atom(Out3, B3, _, 0, 'ERROR:         fooz/2'), B3 > 0 -> T3 = whole ; T3 = cut ),
+    check('...the last one too', T3, whole),
+    atom_concat(D, '/near_script.pl', F4),
+    append(Lines, [ ':- fooo(x).', 'main.' ], Lines4),
+    fixture(F4, Lines4),
+    sh_join([C, ' --no-backtrace -s ', F4, ' 2>&1'], Cmd4),
+    shell(Cmd4, Out4, _),
+    has('...and a module''s load, -s FILE''s, reports them whole', 'ERROR:            fooz/2\nWarning:', Out4),
+    atom_concat(D, '/near_load.pl', F5),
+    append(Lines, [ ':- fooo(x).' ], Lines5),
+    fixture(F5, Lines5),
+    sh_join([C, ' --local --no-backtrace consult ', F5, ' 2>&1'], Cmd5),
+    shell(Cmd5, Out5, _),
+    has('...and cocolog consult''s', 'ERROR:            fooz/2\nWarning:', Out5),
+    atom_concat(D, '/near_goal.pl', F6),
+    atomic_list_concat(['main :- consult(''', F5, ''').'], Main6),
+    fixture(F6, [ Main6 ]),
+    sh_join([C, ' --local --no-backtrace run ', F6, ' main 2>&1'], Cmd6),
+    shell(Cmd6, Out6, _),
+    has('...and consult/1''s, as a goal', 'ERROR:            fooz/2\nWarning:', Out6),
+    atom_concat(D, '/near_again.pl', F7),
+    atomic_list_concat([':- use_module(''', F5, ''').'], Use7),
+    fixture(F7, [ Use7, Main6 ]),
+    sh_join([C, ' --no-backtrace -s ', F7, ' 2>&1'], Cmd7),
+    shell(Cmd7, Out7, _),
+    atomic_list_concat(Parts7, 'ERROR:            fooz/2\nWarning:', Out7),
+    length(Parts7, N7),
+    check('...and the read again of a file loaded as a module, both whole', N7, 3),
+    %% a hundred and fifty names, past the 1600 bytes this report went
+    %% through
+    findall(L8, ( member(Ch8, [a,b,c,d,e,f,g,h,i,j,k,l,m,n,p,q,r,s,t,u,v,w,x,y,z]),
+                  atom_concat(foo, Ch8, N8),
+                  member(A8, ['(1).', '(1, 2).', '(1, 2, 3).', '(1, 2, 3, 4).',
+                              '(1, 2, 3, 4, 5).', '(1, 2, 3, 4, 5, 6).']),
+                  atom_concat(N8, A8, L8) ), Many8),
+    atom_concat(D, '/near_init.pl', F8),
+    append(Many8, [ ':- initialization(fooo(z), main).' ], Lines8),
+    fixture(F8, Lines8),
+    sh_join([C, ' --local --no-backtrace run ', F8, ' true 2>&1'], Cmd8),
+    shell(Cmd8, Out8, _),
+    (   sub_atom(Out8, B8, _, 0, '\nERROR:         fooz/6'), B8 > 0 -> T8 = whole ; T8 = cut ),
+    check('...and a hundred and fifty in an initialization(G, main) goal''s', T8, whole),
+    answer('$dwim_predicates'(writen, P4), P4, G4),
+    check('a name of swipl''s system is offered where cocolog defines it, and only there',
+          G4, [write/1, writeln/1, writeq/1, written/3]),
+    answer('$dwim_predicates'(written(a, b, c), P9), P9, G9),
+    check('a compound is a goal, and its own predicate is asked first', G9, [written/3]),
+    yes_no('$dwim_predicates'(3, _), Y5),
+    check('a name that is neither has none', Y5, no),
+    shl(['rm -rf ', D]).
+
+%% ---- a message printed while it is printed (2.16.0) -------------------------
+%%
+%% A message_hook/3 that prints its own term would print for ever: swipl's
+%% print_message/2 keeps the messages in print and says one that comes round
+%% again is recursive, once, and goes on -- `Recursive warning message: T',
+%% then a backtrace of twenty frames, which is swipl's own and not compared
+%% here. A child under a CPU ceiling, because without the guard the hook
+%% calls itself until the process is killed; and the silent kind says
+%% nothing, as swipl's. The hook's second term is another message, which
+%% prints.
+recursive_message :-
+    section('a message printed while it is printed is said once'),
+    scratch(D),
+    atom_concat(D, '/rec.pl', F),
+    fixture(F, [ ':- multifile user:message_hook/3.',
+                 ':- dynamic user:message_hook/3.',
+                 'user:message_hook(rec_msg(X), K, _) :- print_message(K, rec_msg(X)), print_message(K, other_msg(X)).',
+                 'main :- print_message(warning, rec_msg(1)), print_message(silent, rec_msg(2)), write(done), nl.' ]),
+    cocolog(C),
+    sh_join(['ulimit -t 5; ', C, ' --local run ', F, ' main 2>&1'], Cmd),
+    shell(Cmd, Out, Rc, 30000),
+    check('the program ends', Rc, 0),
+    has('the message that came round again is said to be recursive', 'Recursive warning message: rec_msg(1)\n', Out),
+    has('...and the hook goes on: its other message prints', 'Warning: Unknown message: other_msg(1)\n', Out),
+    (   sub_atom(Out, _, _, _, 'Recursive silent') -> S = yes ; S = no ),
+    check('a silent one says nothing', S, no),
+    has('and the program after it runs', 'other_msg(1)\ndone', Out),
+    shl(['rm -rf ', D]).
 
 %% ---- a read of the knowledge base that failed (2.11.1) ----------------------
 %%
@@ -354,8 +542,9 @@ join_and_split :-
     answer(catch(atomic_list_concat([a, _, c], '-', _), error(F4, _), true), F4, G4),
     check('an unbound element raises instantiation_error', G4, instantiation_error),
     answer(catch(atomic_list_concat([a, foo(1), c], '-', _), error(F5, _), true), F5, G5),
+    %% swipl 9.0.4 reads each element as text (PL_get_text), and names it so
     check('and a compound names ITSELF, not the first element', G5,
-          type_error(atomic, foo(1))),
+          type_error(text, foo(1))),
 
     %% the small cases the fix must not have moved
     answer(atomic_list_concat([], '-', Z6), Z6, G6),
@@ -405,8 +594,11 @@ chars_to_text :-
     check('a letter of two bytes is no character: SWI\'s error, and no crash', T1,
           'type_error(character,\'á\')'-0),
     chars_child('atom_chars(_, [\'á\'])', T2),
+    %% a FIRST element that is neither a code nor a character is swipl's
+    %% character_code, as `atom_chars(_, [ab])' is (PL_get_text decides the
+    %% list's kind by its first element)
     check('and the first element is named as surely as the second', T2,
-          'type_error(character,\'á\')'-0),
+          'type_error(character_code,\'á\')'-0),
     chars_child('atom_chars(_, [d,ab,r])', T3),
     check('an atom of two characters is no character', T3, 'type_error(character,ab)'-0),
     chars_child('atom_chars(_, [d,1,r])', T4),

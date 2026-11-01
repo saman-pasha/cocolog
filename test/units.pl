@@ -121,7 +121,22 @@ atoms :-
     answer(number_codes(N12, [0'4, 0'2]), N12, G12),
     check('number_codes is unchanged', G12, 42),
     answer(atomic_list_concat(Ps13, 'á', 'xáyáz'), Ps13, G13),
-    check('atomic_list_concat/3 splits on a character of two bytes', G13, [x,y,z]).
+    check('atomic_list_concat/3 splits on a character of two bytes', G13, [x,y,z]),
+    %% a list is as long as it has elements (2.16.1): a character of two
+    %% bytes is one, and under bytes, where a character is a byte, none --
+    %% atom_chars/2's rule there
+    answer(atom_length([d,'á',r], N14), N14, G14),
+    check('atom_length/2 of characters of two bytes counts the characters', G14, 3),
+    answer(( set_prolog_flag(text_units, bytes),
+             catch(atom_length([d,'á',r], N15), error(E15, _), true),
+             set_prolog_flag(text_units, characters),
+             ( var(E15) -> R15 = N15 ; R15 = E15 ) ), R15, G15),
+    check('...and under bytes refuses the one of two bytes', G15, type_error(character, 'á')),
+    answer(( set_prolog_flag(text_units, bytes),
+             catch(atom_length([100,225,114], N16), error(E16, _), true),
+             set_prolog_flag(text_units, characters),
+             ( var(E16) -> R16 = N16 ; R16 = E16 ) ), R16, G16),
+    check('a list of codes is as long in either unit', G16, 3).
 
 %% ---- case ------------------------------------------------------------------
 
@@ -268,9 +283,15 @@ undecodable(D) :-
     answer(( write_file_from_codes(F3, "dár €"), size_file(F3, Z3), read_file_to_codes(F3, C3),
              atom_codes(A3, C3) ), Z3-A3, G3),
     check('a text file: eight bytes, five characters back', G3, 8-'dár €'),
-    %% swipl takes one into an atom; UTF-8 has no bytes for it
-    answer(catch(( atom_codes(_, [0xD800]), E4 = none ), error(E4, _), true), E4, G4),
-    check('a lone surrogate is no character: the codes are no text', G4, instantiation_error).
+    %% swipl takes one into an atom of one character, its code the
+    %% surrogate's, held as the three bytes UTF-8 would give it (WTF-8,
+    %% 3.1.0; 3.0.0 raised type_error(character_code, 55296), and through
+    %% 2.16 the codes read as no text at all, instantiation_error)
+    answer(( atom_codes(A4, [0xD800]), atom_length(A4, N4), atom_codes(A4, C4) ), N4-C4, G4),
+    check('a lone surrogate is a character of its own, its code back', G4, 1-[0xD800]),
+    answer(catch(( char_code(_, 0xD800), E5 = none ), error(E5, _), true), E5, G5),
+    check('but no code of a character to char_code/2, which raises as swipl''s does', G5,
+          type_error(character_code, 0xD800)).
 
 %% ---- the document libraries ------------------------------------------------
 

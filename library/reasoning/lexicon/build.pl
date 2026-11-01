@@ -159,12 +159,12 @@ lx_same(_, _, R, [], R).
 lx_noun_kinds(WN, Kinds, ByOffset) :-
     lx_lines(WN, 'data.noun', DLines),
     findall(Offset-s(LF, Inst, Words, Hypos),
-            ( member(L, DLines), \+ sub_string(L, 0, 1, _, " "), lx_noun_synset(L, Offset, LF, Inst, Words, Hypos) ),
+            ( member(L, DLines), \+ sub_string(L, 0, 1, _, ' '), lx_noun_synset(L, Offset, LF, Inst, Words, Hypos) ),
             Synsets),
     list_to_assoc(Synsets, ByOffset),
     lx_lines(WN, 'index.noun', ILines),
     findall(Lemma-K,
-            ( member(L, ILines), \+ sub_string(L, 0, 1, _, " "),
+            ( member(L, ILines), \+ sub_string(L, 0, 1, _, ' '),
               split_string(L, [32], [32], [LemS, _, _, PS|Rest]),
               catch(number_string(P, PS), _, fail),
               length(Syms, P), append(Syms, [_, _, FirstS|More], Rest),
@@ -233,7 +233,7 @@ lx_languages(Synsets, Languages) :-
 lx_verb_frames(WN, Frames) :-
     lx_lines(WN, 'data.verb', Lines),
     findall(V-F,
-            ( member(L, Lines), \+ sub_string(L, 0, 1, _, " "),
+            ( member(L, Lines), \+ sub_string(L, 0, 1, _, ' '),
               lx_synset(L, Words, Fs),
               member(W0, Words), downcase_atom(W0, V), lx_word(V),
               member(F, Fs) ),
@@ -344,7 +344,7 @@ lx_best_same(_, R, NC, NC, R).
 %% header does).
 lx_index_lemmas(WN, File, Lemmas) :-
     lx_lines(WN, File, Lines),
-    findall(W, ( member(L, Lines), \+ sub_string(L, 0, 1, _, " "),
+    findall(W, ( member(L, Lines), \+ sub_string(L, 0, 1, _, ' '),
                  split_string(L, [32], [32], [LemS|_]),
                  atom_string(W, LemS), lx_word(W) ), Ws),
     sort(Ws, Lemmas).
@@ -420,7 +420,7 @@ lx_take(N, Xs, Taken) :- ( length(Taken, N), append(Taken, _, Xs) -> true ; Take
 lx_prose(WN, Prose) :-
     findall(S,
             ( member(F, ['data.noun', 'data.verb', 'data.adj', 'data.adv']),
-              lx_lines(WN, F, Lines), member(L, Lines), \+ sub_string(L, 0, 1, _, " "),
+              lx_lines(WN, F, Lines), member(L, Lines), \+ sub_string(L, 0, 1, _, ' '),
               split_string(L, [124], [], [_, GlossS|_]),
               split_string(GlossS, [34], [], Parts), lx_odd(Parts, Quoted),
               member(Q, Quoted), lx_sentence(Q, S) ),

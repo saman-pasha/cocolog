@@ -95,6 +95,7 @@ ft_construct_arities(!, [0]).
 ft_construct_arities(;, [2]).
 ft_construct_arities(->, [2]).
 ft_construct_arities(*->, [2]).
+ft_construct_arities('|', [2]).
 ft_construct_arities(\+, [1]).
 ft_construct_arities(not, [1]).
 ft_construct_arities(once, [1]).
@@ -104,6 +105,7 @@ ft_construct_arities(catch, [3]).
 ft_construct_arities(throw, [1]).
 ft_construct_arities(trace, [0]).
 ft_construct_arities(notrace, [0]).
+ft_construct_arities(:, [2]).
 
 ft_constructs(Root, Ks) :-
     atomic_list_concat([Root, '/lib/solve.cicili'], P),

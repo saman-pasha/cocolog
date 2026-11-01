@@ -486,10 +486,12 @@ across_processes :-
         '    ( Tags == Want -> write(''tags-agree'') ; write(''tags-differ'') ), nl,',
         '    catch(( tagger_load(nosuch, _), write(loaded) ), error(existence_error(tagger, nosuch), _), write(absent)), nl,',
         '    tagger_free(M).' ]),
-    sh_join(['--embed ', KB, ' -s ', Train], A1), cocolog_out(A1, O1),
+    %% (what a child printed comes back as codes, which sub_atom/5 takes for
+    %% no text since 3.0.0, as swipl's does)
+    sh_join(['--embed ', KB, ' -s ', Train], A1), cocolog_out(A1, C1), atom_codes(O1, C1),
     yes_no(sub_atom(O1, _, _, _, trained), Trained),
     check('a process trains into a store', Trained, yes),
-    sh_join(['--embed ', KB, ' -s ', Load], A2), cocolog_out(A2, O2),
+    sh_join(['--embed ', KB, ' -s ', Load], A2), cocolog_out(A2, C2), atom_codes(O2, C2),
     yes_no(sub_atom(O2, _, _, _, 'tags-agree'), Agree),
     check('the next process loads the model and tags the sentence the same', Agree, yes),
     yes_no(sub_atom(O2, _, _, _, absent), Absent),

@@ -7,7 +7,7 @@
 %% driver, which keeps its symbol tables in globals and writes them back
 %% after every step: 103 192 overwrites put 1 073 MB into a store whose
 %% live contents came to 20 MB. Since 1.2.13 the store compacts itself --
-%% `coco_store_compact' in lib/kb.cicili says when and how -- and
+%% `coco_store_compact' in lib/kb-pred.cicili says when and how -- and
 %% `garbage_collect/0' asks for one now.
 %%
 %%     cocolog -s test/gc.pl        from the checkout root
@@ -41,11 +41,11 @@
 %%   where they used to hold everything they ever built, `garbage_collect/0'
 %%   collects at the next step, and a proof goes on exactly as it was -- the
 %%   same program, collected every thousand cells and never, answers the
-%%   same (`coco_heap_gc' in lib/solve.cicili; test/gc-program.pl);
+%%   same (`coco_heap_gc' in lib/solve-gc.cicili; test/gc-program.pl);
 %% * and since 1.9.6 so is a goal a load runs -- a directive, an
 %%   initialization goal -- with the term it runs and the marks the load
 %%   winds the heap back to moved with the rest (`coco_consult_owned' in
-%%   lib/kb.cicili).
+%%   lib/kb-consult.cicili).
 
 :- use_module('test/prelude.pl').
 
@@ -115,7 +115,7 @@ survives :-
     section('everything reachable survives a compaction as it was'),
     answer(( forall(between(1, 500, I), assertz(gc_f(I, foo(I), [I]))),
              assertz((gc_g(X) :- gc_f(X, _, _), X > 3)),
-             string_concat("a", "b", S0), assertz(gc_s(S0)),
+             string_concat(a, b, S0), assertz(gc_s(S0)),
              assertz(gc_h(A, _, A, 1.5)),
              garbage_collect,
              gc_f(499, F, _), findall(Y, gc_g(Y), Ys), length(Ys, NG) ), F-NG, X1),
@@ -395,9 +395,10 @@ keys :-
           X0, sound),
     answer(catch(statistics(nosuch, _), error(E4, _), true), E4, X4),
     check('an unknown key is a domain_error naming it', X4, domain_error(statistics_key, nosuch)),
-    answer(( catch(statistics(_, _), error(E5, _), true),
-             ( E5 = type_error(atom, V5), var(V5) -> Shape5 = type_error_atom ; Shape5 = E5 ) ), Shape5, X5),
-    check('and an unbound key is a type_error', X5, type_error_atom).
+    %% an unbound culprit is an instantiation_error, as swipl's PL_error
+    %% makes it (3.0.0; through 2.16 type_error(atom, _))
+    answer(catch(statistics(_, _), error(E5, _), true), E5, X5),
+    check('and an unbound key is an instantiation_error', X5, instantiation_error).
 
 %% ---- the heap is collected (1.8.36) -------------------------------------
 %%
@@ -406,7 +407,7 @@ keys :-
 %% end, and a failure-driven `between/3' loop peaked at a gigabyte, because
 %% each level's choice point is pushed above the leftovers of the level
 %% before it and no backtrack ever reaches below them. The collector
-%% (`coco_heap_gc' in lib/solve.cicili) slides what is reachable down IN
+%% (`coco_heap_gc' in lib/solve-gc.cicili) slides what is reachable down IN
 %% ORDER, which is what keeps every choice point's heap mark true. Its
 %% floor is four million cells, 32 MB, and each bound here is pinned at a
 %% small multiple of that.
@@ -649,13 +650,17 @@ directives_collect(C, D) :-
                    'go :- col(main).' ]),
     atomic_list_concat([ 'd1-collected\ni2-collected\nf([4,3,2,1])\ncaught([3,2,1])\n',
                          'Warning: ', F17b, ':1:\n',
-                         'Warning:    Goal (directive) failed: churn(2000),mk(3,[3,2,1]),[3,2,1]==[3,2,9]\n',
+                         'Warning:    Goal (directive) failed: user:(churn(2000),mk(3,_G),_G==[3,2,9])\n',
                          'b-collected\nbi-collected\nd2-collected\ni1-collected\nmain-collected' ], Want17),
     sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' run ', F17, ' go 2>&1'], Cmd17),
-    proc_run(Cmd17, 120000, O17, _), chomp(O17, B17), atom_codes(T17, B17),
+    %% the failed directive's goal is written as it was asked, its bindings
+    %% undone (3.1.0, swipl's), so its variable is named by a heap position
+    proc_run(Cmd17, 120000, O17, _), chomp(O17, B17), atom_codes(T17r, B17),
+    re_replace_atom('_G[0-9]+', '_G', T17r, T17),
     check('directives and initialization goals collect, and every one answers right', T17, Want17),
     sh_join(['COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 ', C, ' run ', F17, ' go 2>&1'], Cmd18),
-    proc_run(Cmd18, 120000, O18, _), chomp(O18, B18), atom_codes(T18, B18),
+    proc_run(Cmd18, 120000, O18, _), chomp(O18, B18), atom_codes(T18r, B18),
+    re_replace_atom('_G[0-9]+', '_G', T18r, T18),
     check('and with the freeze tortured at every collection', T18, T17),
     %% THE MARKS MOVE WITH THE HEAP. A collection inside the goal slides the
     %% live cells below the load's mark down under it, and a mark left where

@@ -54,7 +54,9 @@ it. See [The flow libraries](#the-flow-libraries) below.
 One binary. The knowledge base is chosen at run time: in memory (`--local`,
 the default), in a ZiguratIP server over its binary protocol (`--kb`), over
 TLS (`--tls`), over Zeytun/HTTP (`--http`, `--https`), or in the embedded store
-linked into the binary itself (`--embed`).
+linked into the binary itself (`--embed`). An embedded store is one process's at
+a time: a second process over it waits its turn (`COCOLOG_STORE_WAIT=S` bounds
+the wait), and a store damaged some other way says so when it is opened or read.
 
 ## The one decision everything follows from
 
@@ -130,15 +132,18 @@ ZiguratIP server and an HTTP arrangement; turns as transactions; vacuum and
 compaction; pages and procedures compiled into the server (`parsi/`).
 
 **The scheduler** (`lib/green.cicili`, `library/async.pl`) -- green threads in
-a world of one worker a core, one store, shared name tables, a write barrier
-that stops the world, channels, futures, deadlock detection. Tier 1: there with
-no import.
+a world of one worker a core (`async_workers/1` answers it), one store,
+shared name tables, a write barrier that stops the world, channels, futures,
+deadlock detection. Tier 1: there with no import.
 
 **The libraries** -- tier 1 always present: `apply builtins dcg files library
 lists zigurat`; **eight of SWI's own libraries, copied unmodified under their
 BSD-2 headers into `lib/swipl/` and read at start-up**, so they need no import:
 `assoc`, `pairs`, `ordsets`, `yall`, `aggregate`, `ugraphs`, `dcg_basics` and
-`dcg_high_order`; and `async`. Tier 2 is loaded on demand from
+`dcg_high_order`; `async`; and since 2.16.0 `print_message`, swipl's
+`print_message/2` with `message_to_string/2`, `print_message_lines/3`,
+`message_hook/3` and `prolog:message//1`, the kinds, prefixes and error text
+held to swipl 9.0.4. Tier 2 is loaded on demand from
 `$COCOLOG_LIBRARY`:
 `http`, `httpd`, `websocket`, `json`, `xml`, `html`, `ca`, `kbs`, `cowork`,
 `main`, `astar`, `hex`, `template`, `clay_ray`, `tensor_expr`, `llm`, plus the
@@ -155,7 +160,9 @@ two families below -- `library/flow/` and `library/reasoning/`.
 `library(flow/chart)` and `library(flow/debug)` (below); `tools/compile/`
 (which clauses nothing changes while a program runs); `tools/cc/` (the clang
 wrappers every build uses); `bench/langs.sh` and `bench/concurrency.sh` (the
-benchmarks against CPython, Go, Rust, asyncio and the reference Prolog);
+benchmarks against CPython, Go, Rust, asyncio and the reference Prolog),
+and `bench/tokens.pl` (what a model spends writing the same programs in
+cocolog and in Python);
 `tutorials/` (133 lessons that run); `test/` (the suite).
 
 ## Solutions to real problems
@@ -254,6 +261,7 @@ in any of the four knowledge-base arrangements.
 | write Prolog in Emacs | `cocolog-mode` in [emacs/](emacs/): colour variables, tests in comments with execution graphs, an embedded shadow engine |
 | catch the traps of this dialect before they bite | `sh tools/cocolint/lint.sh FILE.pl`; the card, the index, `make lint` |
 | Go-style concurrency inside one process | `library(async)`, tier 1: `async_run`, `go`, `yield`, `await`, channels |
+| messages, warnings and an error's text as swipl prints them | `print_message/2`, tier 1, with `message_hook/3` and `prolog:message//1`; lesson 56 |
 | an HTTP server whose pages are clauses | `library(httpd)` -- `concurrency(none/thread/green)`; lesson 16 |
 | a durable store, embedded or served | `--embed`; `--kb` to a ZiguratIP server; `library(kbs)` for named jobs |
 | frames, images, vision, ML | `library(opencv)`, `library(ray)`, `library(torch)`, `library(tensorflow)`, `library(tensor_expr)` |
@@ -263,6 +271,7 @@ in any of the four knowledge-base arrangements.
 | graphs, paths, hex grids | `library(astar)`, `library(hex)` |
 | a whole proof captured and resumed | `cocolog start`, `step`, `run`; `lib/state.cicili` |
 | knowing how fast it is, honestly | `sh bench/langs.sh`, `sh bench/concurrency.sh`, [bench/README.md](bench/README.md) |
+| knowing what an agent spends writing it | `cocolog -s bench/tokens.pl -- run`, [bench/tokens/README.md](bench/tokens/README.md) |
 
 ## Getting started
 
@@ -280,8 +289,8 @@ image and a macOS section are in the long tour. `make EMBED=0` builds the same
 binary without ZiguratIP.
 
 The suite is one cocolog script -- `make test` -- and it ends `red: 0` over
-**75 lines: seven Cicili test binaries (term, syntax, solve, module, state,
-zigurat, shared) and sixty-eight Prolog cases**. Cases that need a server,
+**76 lines: seven Cicili test binaries (term, syntax, solve, module, state,
+zigurat, shared) and sixty-nine Prolog cases**. Cases that need a server,
 a reference Prolog 9.0.4, raylib, libtensorflow or a CUDA toolkit say `SKIP`
 by name rather than failing, so read the lines and count the SKIPs, not only
 the verdict.

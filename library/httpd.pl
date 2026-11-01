@@ -445,7 +445,7 @@ httpd_mode(thread, thread(W)) :- !,
 httpd_mode(thread(N), thread(N)) :- !,
     httpd_count(N, 'concurrency(thread(N))').
 httpd_mode(green, green(W)) :- !,
-    httpd_world_workers(World),
+    async_workers(World),
     W is World - 1,
     httpd_green_count(W).
 httpd_mode(green(N), green(N)) :- !,
@@ -464,9 +464,11 @@ httpd_count(N, Which) :-
 %% the world's main task on worker 0, so a pool of N tasks needs N workers
 %% BESIDE that one. At or above the world's count, one of the pool's tasks
 %% lands on worker 0 and waits out the accept -- refused here, where it can
-%% be said, rather than hanging a connection later.
+%% be said, rather than hanging a connection later. The count is the
+%% world's, not the machine's: async_workers/1 answers it as async_run/1
+%% will take it (COCOLOG_GREEN_WORKERS, else the cores, 256 at most).
 httpd_green_count(N) :-
-    httpd_world_workers(World),
+    async_workers(World),
     (   N >= World
     ->  throw(error(domain_error(httpd_concurrency, green(N)),
                     'httpd: concurrency(green(N)) needs N below the green world''s worker count; the acceptor owns one worker'))
@@ -482,18 +484,6 @@ httpd_cores(W) :-
     (   catch(os_cpus(N), _, fail)
     ->  W = N
     ;   W = 4
-    ).
-
-%% THE WORLD'S COUNT IS NOT THE CORE COUNT when COCOLOG_GREEN_WORKERS says
-%% otherwise (lib/green.cicili), and the pinning rule above is about the
-%% world, not the machine.
-httpd_world_workers(W) :-
-    (   catch(getenv('COCOLOG_GREEN_WORKERS', V), _, fail),
-        atom_number(V, W0),
-        integer(W0),
-        W0 > 0
-    ->  W = W0
-    ;   httpd_cores(W)
     ).
 
 httpd_serve_mode(none, Port, Options, Count) :-

@@ -35,7 +35,7 @@ main :-
     ),
     scratch(D),
     names,
-    table,
+    handler_table,
     raised,
     refused,
     delivered(D),
@@ -60,7 +60,7 @@ names :-
     check('current_signal enumerates the named signals', G6, many).
 
 %% ---- the handler table --------------------------------------------------
-table :-
+handler_table :-
     section('the handler table'),
     answer(( signal_number(usr1, _), current_signal(usr1, _, H0) ), H0, G0),
     check('a signal starts at default', G0, default),
@@ -126,6 +126,28 @@ delivered(D) :-
         sub_atom(T1, _, _, _, 'rc=0')
     ->  check('the child caught the delivered usr1, and ended 0', yes, yes)
     ;   check('the child caught the delivered usr1, and ended 0', T1, caught)
+    ),
+
+    %% sleep/1 (3.8.0) is a nanosleep the signal interrupts: the handler has
+    %% written the engine's cell, the sleep returns, and the next step
+    %% raises -- a second after the start, never the thirty asked for
+    atom_concat(D, '/sigsleep.pl', F4),
+    fixture(F4, ['main :- use_module(library(signal)),',
+                 '        on_signal(usr1, _, throw),',
+                 '        get_time(T0),',
+                 '        catch(sleep(30), error(signal(Nm, _), _), true),',
+                 '        get_time(T1), S is T1 - T0,',
+                 '        ( S < 10 -> W = soon ; W = late(S) ),',
+                 '        write(woke(Nm, W)), nl.']),
+    atom_concat(D, '/sigsleep.out', O4),
+    format(atom(Cmd4),
+           "~w --local -s ~w > ~w 2>&1 & P=$!; sleep 1; kill -USR1 $P; wait $P; echo rc=$?; cat ~w",
+           [C, F4, O4, O4]),
+    shell(Cmd4, T4, _, 120000),
+    (   sub_atom(T4, _, _, _, 'woke(usr1,soon)'),
+        sub_atom(T4, _, _, _, 'rc=0')
+    ->  check('a delivered signal ends sleep/1 at once, and is raised', yes, yes)
+    ;   check('a delivered signal ends sleep/1 at once, and is raised', T4, woke)
     ),
 
     atom_concat(D, '/sigplain.pl', F2),

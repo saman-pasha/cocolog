@@ -228,8 +228,8 @@ when_changed(D) :-
 
 %% WHAT WILL NOT LOAD (2.13.0), as swipl 9.0.4 has it: a missing file alone
 %% raises; one in a list is reported on stderr and the next file loads; a
-%% syntax error is reported and the goal succeeds. The consult ends at the
-%% error, so the clause after it is not read -- where SWI reads it.
+%% syntax error is reported and the goal succeeds, the clause after it read
+%% too, as swipl reads it (3.1.0; through 3.0.4 the consult ended there).
 reports(D) :-
     section('what will not load: raised alone, reported in a list or for a syntax error'),
     atom_concat(D, '/nofile', NF), atom_concat(D, '/fine.pl', Fine), atom_concat(D, '/bad.pl', Bad),
@@ -249,7 +249,7 @@ reports(D) :-
     sh_join(['--local query "consult(''', Bad, '''), findall(X, bfact(X), L), write(answer(L)), nl"'], A3),
     cocolog_out(A3, Out3),
     ( re_first_atom('answer\\([^\n]*\\)', Out3, T3) -> term_to_atom(G3, T3) ; G3 = none ),
-    check('a syntax error: the goal succeeds with what came before it', G3, answer([1])),
+    check('a syntax error: the goal succeeds with the clauses either side of it', G3, answer([1, 2])),
     ( re_first_atom('ERROR: [^\n]*Syntax error[^\n]*', Out3, E3) -> R3 = reported ; R3 = silent ),
     check('and the error is reported', R3, reported).
 

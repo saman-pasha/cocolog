@@ -12,11 +12,13 @@ nothing at all, which is what 00 is about.
 
 ## TIER 1 — compiled in or preloaded, no import needed
 
-Fifteen libraries answer before the first goal runs -- seven Cicili
-modules compiled into the binary and eight of SWI's own, vendored in
-`lib/swipl` and read from disk at start-up. `use_module` on any
-of them succeeds instantly and does nothing, which is why none is
-written anywhere in this repository.
+Seventeen libraries answer before the first goal runs -- seven Cicili
+modules compiled into the binary, eight of SWI's own, vendored in
+`lib/swipl` and read from disk at start-up, and two of cocolog's own
+clauses preloaded from the binary's library path, `library(async)`
+since 2.8.0 (lesson 54) and `library(print_message)` since 2.16.0
+(lesson 56). `use_module` on any of them succeeds instantly and does
+nothing, which is why none is written anywhere in this repository.
 
 | file | library | teaches |
 |---|---|---|
@@ -81,6 +83,7 @@ written anywhere in this repository.
 | 53-signal | `library/signal.so` | POSIX signals as SWI's `on_signal/3`, `current_signal/3` and `raise_signal/1`: the names and numbers, the handler table, `throw` as a catchable `error(signal(Name, Num), _)` at the engine's next step, `ignore` and `default`, and the REPL's Ctrl+C | `sh modules/signal/build.sh` (nothing else) |
 | 54-async | `library/async.pl` | Go's go, yield, await and channels as green threads: a machine sharing the caller's store and name tables, so a child's write is seen by the main thread and the host, a result as the goal instantiated, channels that carry terms, failure and a rethrown exception, and a deadlock the scheduler reports | nothing to build (the green module is compiled in; `library(async)` is tier 1 since 2.8.0, preloaded); `library/async/README.md` |
 | 55-regex | `library/regex.so` | PCRE2, the full Perl-compatible engine: lookbehind, named groups and their values, captures with `null` for an unset group, every match, `$1` `${name}` `&` `\1` replacement, split, escape, UTF-8 and UCP, `caseless` and `dotall`, and PCRE2's own compile error in a `catch/3` | `sh modules/regex/build.sh` (needs libpcre2; `pkg-config libpcre2-8`) |
+| 56-print_message | `library/print_message.pl` | swipl's `print_message/2`: a message term's text read back with `message_to_string/2` (a format, an ISO error in swipl's words, `Unknown message`), a term of your own given words by `prolog:message//1`, each kind's prefix printed, `message_hook/3` taking a message (the silent kind too), `~N` and the fresh line the console's two streams share, `source_location/2` in a directive, the flag `verbose`, and `sumlist/2` | nothing to load (`library(print_message)` is tier 1 since 2.16.0, preloaded) |
 
 22 is the introduction to torch; `../tensor/` is the collection. 37 is the
 odd one out and says so in its header: cocolint is a TOOL under
@@ -93,7 +96,7 @@ path instead.
 **A new library gets a file here in the same commit.** The numbering is
 one per library and a gap is visible, which is the point: a library with
 no tutorial is a library nobody has demonstrated end to end. Each of the
-fifty-six above found something while being written — a predicate that
+fifty-seven above found something while being written — a predicate that
 did not exist, an arity that was wrong, a return value documented as
 `-1/0/1` and actually `<`/`=`/`>`. 37 found an arithmetic slip in its own
 claim: it asserted that `halt' begins at offset 3 of `"x halt y"' and the

@@ -73,8 +73,11 @@ ix_tier_dir(1, 'lib/swipl').
 
 %% PRELOADED AT START-UP (2.8.0): library(async) sits in library/ but
 %% lib/library.cicili's lb_always loads it at boot, so it is tier 1 -- no
-%% import to offer, and `use_module(library(async))' is a no-op.
+%% import to offer, and `use_module(library(async))' is a no-op. And
+%% library(print_message) since 2.16.0: swipl has print_message/2 with no
+%% library to load, so a program written for swipl imports nothing.
 ix_preloaded(async).
+ix_preloaded(print_message).
 
 %% ---- the surface --------------------------------------------------------
 
@@ -633,6 +636,11 @@ ix_capability('assert and retract', [assert, retract, remember, counter, mutable
               [], ['assert/retract'], local).
 ix_capability('a command line', [argv, 'command line', flag, option, usage, script],
               [main], ['self-checking program'], local).
+ix_capability('messages, warnings and error text',
+              [print_message, 'print a message', 'error message', 'warning message',
+               'informational message', message_hook, 'message text', message_to_string,
+               'text of an error', 'prolog:message', 'user_error', diagnostic],
+              [print_message], ['self-checking program'], local).
 ix_capability('a window or a game', [draw, game, window, sprite, raylib, graphics,
                                      '2d', '3d', keyboard, mouse],
               [ray], ['self-checking program'], local).

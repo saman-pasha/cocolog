@@ -31,6 +31,15 @@
 ;;;     `*operators*' at build time, which is what keeps the reader and the
 ;;;     writer from disagreeing. A run-time table is a real change to
 ;;;     syntax.cicili and to what a frozen machine has to carry.
+;;;
+;;; THIS FILE IS THE FIRST OF THREE (2.16.1, when it had reached 4 053
+;;; lines): the module's table of rows, its Prolog half, and the builtins
+;;; from all solutions to atoms. The rest are one translation unit with it,
+;;; emitted in this order by cocolog.cicili: builtins-format.cicili (format,
+;;; with_output_to/2, character classification) and builtins-db.cicili
+;;; (writing, the environment, the clause database, global variables,
+;;; operators, halting, and the dispatcher the table is emitted into, which
+;;; is why it is last).
 
 (DEFPACKAGE :cocolog
   (:USE :COMMON-LISP)
@@ -42,13 +51,14 @@
   '(("findall"                 3 coco_b_findall)
     ("findall"                 4 coco_b_findall4)
     ("forall"                  2 coco_b_forall)
-    ("aggregate_all"           3 coco_b_aggregate_all)
+    ("aggregate_all"           3 coco_b_aggregate_all :declines)
     ("call_limited"            3 coco_b_call_limited)
     ("call_metered"            4 coco_b_call_metered)
     ("$trace_window"           4 coco_b_trace_window)
 
     ("succ"                    2 coco_b_succ)
     ("plus"                    3 coco_b_plus)
+    ("$between"                4 coco_b_between)
 
     ("ground"                  1 coco_b_ground)
     ("acyclic_term"            1 coco_b_acyclic_term)
@@ -81,7 +91,9 @@
     ("$clause"                 3 coco_b_clause_at)
     ("$pred_count"             3 coco_b_pred_count)
     ("$predicates"             1 coco_b_predicates)
+    ("$cp_spec"                2 coco_b_cp_spec)
     ("$pred_props"             2 coco_b_pred_props)
+    ("$dwim_predicates"        2 coco_b_dwim_predicates)
     ("abolish"                 1 coco_b_abolish)
 
     ("nb_setval"               2 coco_b_setval)
@@ -102,6 +114,9 @@
     ("setenv"                  2 coco_b_setenv)
     ("unsetenv"                1 coco_b_unsetenv)
 
+    ("source_location"         2 coco_b_source_location)
+    ("$load_context"           2 coco_b_load_context)
+
     ("format"                  1 coco_b_format1)
     ("format"                  2 coco_b_format2)
     ("format"                  3 coco_b_format3)
@@ -112,6 +127,9 @@
 
     ("op"                      3 coco_b_op)
     ("$ops"                    1 coco_b_ops)
+    ("$op_spec"                3 coco_b_op_spec)
+    ("$cn_check"               4 coco_b_cn_check)
+    ("$compound"               4 coco_b_compound)
 
     ("halt"                    1 coco_b_halt1)))
 
@@ -130,6 +148,14 @@
                      `((and (== arity ,(SECOND row)) (== 0 (strcmp name ,(FIRST row)))) (return 1)))
                    rows)
          (#t (return 0))))))
+
+;;; SWIPL'S SYSTEM PREDICATES, OFFERED ONE BY ONE (3.3.0): a function of one
+;;; call a row of lib/swipl-system.cicili's table, for the dwim lines of an
+;;; unknown procedure (lib/builtins-db.cicili, `coco_dwim_offer').
+(DEFMACRO coco-emit-dwim-system (fname)
+  `(func ,fname ((coco_dwim_acc * a))
+     ,@(MAPCAR (LAMBDA (row) `(coco_dwim_offer a ,(FIRST row) ,(SECOND row)))
+               *swipl-system-predicates*)))
 
 ;;; THE CONTROL CONSTRUCTS A PROGRAM CALLS, by name AND arity, as SWI
 ;;; lists them: `*construct-names*' holds the engine's own markers too
@@ -160,6 +186,67 @@
            ;; whose database is empty an hour later. The shape is
            ;; `with_mutex/2's, for the same reason.
            "with_local_clauses(G) :- '$store_mute', ( catch(G, E, true) -> '$store_unmute', ( nonvar(E) -> throw(E) ; true ) ; '$store_unmute', fail )."
+
+           ;; ---- setup_call_cleanup/3 and its kin (3.1.0) ------------------
+           ;;
+           ;; swipl's, to its answers (test/files/cleanup.pl): the setup
+           ;; once, the goal as often as it is retried, and the cleanup once,
+           ;; on the first of these -- the goal exits with nothing left to
+           ;; retry (`exit'), fails (`fail'), raises (exception(E)), is cut
+           ;; (`!'), or a ball raised after it exited passes it
+           ;; (external_exception(E)) -- when the catcher unifies with which.
+           ;; Its bindings stand after an exit, its failure is no failure,
+           ;; its choice points are cut, and its ball is raised but after the
+           ;; goal's own. The frame and its roads are the engine's
+           ;; (lib/solve-control.cicili, `coco_cleanup_cut').
+           "setup_call_cleanup(S, G, C) :- setup_call_catcher_cleanup(S, G, _, C)."
+           "call_cleanup(G, C) :- setup_call_catcher_cleanup(true, G, _, C)."
+           "setup_call_catcher_cleanup(S, G, Ca, C) :- '$scc_setup'(S), '$scc_goal'(G), '$scc_goal'(C), '$scc_push'(Ca, C, F), catch(G, E, '$scc_raised'(F, E, Ca, C)), '$scc_exit'(F, D), ( D == true -> '$cleanup_call'(exit, Ca, C) ; true )."
+           ;; the setup's errors are sig_atomic/1's and the goals' this
+           ;; predicate's, as swipl names them
+           "'$scc_setup'(S) :- ( var(S) -> throw(error(instantiation_error, context(system:sig_atomic/1, _))) ; callable(S) -> once(S) ; throw(error(type_error(callable, S), context(system:sig_atomic/1, _))) )."
+           "'$scc_goal'(G) :- ( var(G) -> throw(error(instantiation_error, context(system:setup_call_catcher_cleanup/4, _))) ; callable(G) -> true ; throw(error(type_error(callable, G), context(system:setup_call_catcher_cleanup/4, _))) )."
+           "'$cleanup_call'(W, Ca, C) :- ( Ca = W -> ( call(C) -> true ; true ) ; true )."
+           ;; the frame failed into: the goal has failed
+           "'$scc_fail'(Ca, C) :- '$scc_gone', '$cleanup_call'(fail, Ca, C), fail."
+           ;; the goal's own ball: its cleanup's ball goes, the goal's wins
+           "'$scc_raised'(F, E, Ca, C) :- '$scc_pop'(F), catch('$cleanup_call'(exception(E), Ca, C), _, true), '$scc_rethrow'(E)."
+           ;; a ball raised after the goal exited, passing the frame
+           "'$scc_unwind'(B, Ca, C) :- catch('$cleanup_call'(external_exception(B), Ca, C), _, true), '$scc_rethrow'(B)."
+
+           ;; ---- a directive's declaration that is not plain (3.1.0) -------
+           ;;
+           ;; each part of the spec its own goal, as swipl's
+           ;; '$pattr_directive' walks one (lib/kb-pred.cicili's
+           ;; `coco_directive' sends only such specs here): what a part
+           ;; raises is reported where the directive stands, `Kind/1: '
+           ;; before it (`coco_bi_decl_report'), and the next part is
+           ;; declared, so `:- dynamic([a/1, b]).' declares a/1 and says b is
+           ;; no predicate indicator
+           "'$decl_directive'(K, S) :- '$decl_parts'(S, Ps), '$decl_each'(Ps, K)."
+           "'$decl_each'([], _)."
+           "'$decl_each'([P|Ps], K) :- catch('$decl_one'(K, P), E, '$decl_report'(K, E)), '$decl_each'(Ps, K)."
+           "'$decl_one'((dynamic), P) :- dynamic(P)."
+           "'$decl_one'((discontiguous), P) :- discontiguous(P)."
+           "'$decl_one'((multifile), P) :- multifile(P)."
+           ;; thread_initialization/1 (3.2.0, swipl's) runs its goal now; a
+           ;; thread made after it does not run it, as swipl's would (stated)
+           "thread_initialization(G) :- call(G)."
+           ;; and swipl's four more (3.2.0), each a kind of the one C half
+           "public(S) :- '$declare'(3, S)."
+           "volatile(S) :- '$declare'(4, S)."
+           "module_transparent(S) :- '$declare'(5, S)."
+           "thread_local(S) :- '$declare'(6, S)."
+           "'$decl_one'((public), P) :- public(P)."
+           "'$decl_one'((volatile), P) :- volatile(P)."
+           "'$decl_one'((module_transparent), P) :- module_transparent(P)."
+           "'$decl_one'((thread_local), P) :- thread_local(P)."
+           "'$decl_parts'(S, [S]) :- var(S), !."
+           "'$decl_parts'((A, B), Ps) :- !, '$decl_parts'(A, Pa), '$decl_parts'(B, Pb), append(Pa, Pb, Ps)."
+           "'$decl_parts'([A|B], Ps) :- !, '$decl_parts'(A, Pa), '$decl_parts'(B, Pb), append(Pa, Pb, Ps)."
+           "'$decl_parts'([], []) :- !."
+           "'$decl_parts'(_:S, Ps) :- !, '$decl_parts'(S, Ps)."
+           "'$decl_parts'(S, [S])."
 
            ;; ---- string/1 IS NOT HERE ------------------------------------
            ;;
@@ -192,7 +279,7 @@
            ;; writes them and is not where they belong in THIS interpreter.
            ;; Both are `(G -> true ; X)' with a different X, and cocolog has
            ;; an if-then-else construct in the engine already: they are two
-           ;; lines in `lib/solve.cicili', beside `\\+', calling the same
+           ;; lines in `lib/solve-control.cicili', beside `\\+', calling the same
            ;; `coco_ite'.
            ;;
            ;; WHAT THAT BUYS, beyond a frame and a `call' per invocation: the
@@ -229,9 +316,16 @@
            "type_error(Type, V) :- throw(error(type_error(Type, V), _))."
            "domain_error(Domain, V) :- throw(error(domain_error(Domain, V), _))."
            "instantiation_error(_) :- throw(error(instantiation_error, _))."
-           "compound_name_arity(C, N, A) :- compound(C), functor(C, N, A)."
-           "compound_name_arguments(C, N, A) :- compound(C), !, C =.. [N|A]."
-           "compound_name_arguments(C, N, A) :- C =.. [N|A], compound(C)."
+           ;; A C THAT IS NO COMPOUND is checked as swipl checks it, and the
+           ;; errors are the predicate's (3.0.0, `'$cn_check'/4'): through
+           ;; 2.16 compound_name_arity(C, f, 2) failed where it builds
+           ;; f(_, _), and the arguments' errors were =../2's. A name and 0
+           ;; or [] make `f()' (3.12.0, `'$compound'/4'), where through
+           ;; 3.11.0 they failed.
+           "compound_name_arity(C, N, A) :- compound(C), !, '$compound'(C, N, A, 0)."
+           "compound_name_arity(C, N, A) :- '$cn_check'(C, N, A, 0), '$compound'(C, N, A, 0)."
+           "compound_name_arguments(C, N, A) :- compound(C), !, '$compound'(C, N, A, 1)."
+           "compound_name_arguments(C, N, A) :- '$cn_check'(C, N, A, 1), '$compound'(C, N, A, 1)."
 
            ;; what library(yall) reaches. Attributed variables do not exist
            ;; here, so the attribute-blind copy IS the copy; and with one
@@ -292,19 +386,34 @@
            "'$partial_list'([_|T]) :- '$partial_list'(T)."
 
            ;; ---- between/3, which enumerates and so must be clauses --------
-           "between(L, H, X) :- integer(X), !, X >= L, X =< H."
-           "between(L, H, L) :- L =< H."
-           "between(L, H, X) :- L < H, M is L + 1, between(M, H, X)."
+           ;; '$between'/4 checks the three as swipl's between/3 does, ONCE A
+           ;; CALL (3.0.0): L an integer, H one or `inf' or `infinite' (H1
+           ;; the bound, `inf' for both), X an integer or unbound. The
+           ;; integer(X) guard stays first, so an unbound X goes on at the
+           ;; guard's cost, and the answers come from '$between_up'/3, which
+           ;; checks nothing. With the check in the clause the recursion came
+           ;; back to, every answer paid a failing C call and a backtrack
+           ;; where the guard had failed in the clause's entry, and
+           ;; `forall(between(1, 3000000, _), true)' took 1.6 times 2.16.1's
+           ;; time.
+           "between(L, H, X) :- integer(X), !, '$between'(L, H, X, H1), X >= L, X =< H1."
+           "between(L, H, X) :- '$between'(L, H, X, H1), '$between_up'(L, H1, X)."
+           "'$between_up'(L, H, L) :- L =< H."
+           "'$between_up'(L, H, X) :- L < H, M is L + 1, '$between_up'(M, H, X)."
 
            ;; ---- clause/2, over the primitive that answers by position -----
            ;; The count is taken once and the position enumerated, so a clause
            ;; asserted while this is backtracking does not shift the ones after
            ;; it under the cursor -- which is the hazard `retract' has always
            ;; had against a running query, and is written down in STATUS.md.
+           ;; A HEAD OF NO ARGUMENTS, `f()', asks f/0's clauses (3.12.0, swipl
+           ;; 7's), which the store keeps under the atom
+           "clause(H, B) :- compound(H), compound_name_arity(H, N, 0), !, clause(N, B)."
            "clause(H, B) :- '$pred_count'(H, N, _), N > 0, between(1, N, I), '$clause'(H, B, I)."
 
            ;; ---- current_predicate/1 ---------------------------------------
-           "current_predicate(N/A) :- '$predicates'(L), '$cp_member'(N/A, L)."
+           ;; the spec checked first, swipl's (3.0.0, '$cp_spec'/2)
+           "current_predicate(S) :- '$cp_spec'(S, PI), '$predicates'(L), '$cp_member'(PI, L)."
            "'$cp_member'(X, [X|_])."
            "'$cp_member'(X, [_|T]) :- '$cp_member'(X, T)."
 
@@ -356,7 +465,11 @@
            ;; clauses -- while SWI's retractall removes EVERY clause whose
            ;; head unifies, rules included. `(C :- _)' is that contract,
            ;; spelled out.
-           "retractall(H) :- copy_term(H, C), retract((C :- _)), !, retractall(H)."
+           ;;
+           ;; `'$retractall'' IS retract/1 UNDER ANOTHER NAME (3.0.0), whose
+           ;; row in `*error-contexts*' names retractall/1, as swipl's own
+           ;; error does: `retractall(_)' is context(system:retractall/1, _).
+           "retractall(H) :- copy_term(H, C), '$retractall'((C :- _)), !, retractall(H)."
            "retractall(_)."
 
            ;; ---- sub_atom/5, which enumerates every substring ---------------
@@ -364,9 +477,13 @@
            ;; occurs at, in one scan, and one substring given where it starts
            ;; and how long it is. The bound-Sub case is separated out because
            ;; enumerating every B and L to find a known substring is O(n^2)
-           ;; when a search is O(n).
-           "sub_atom(A, B, L, Aft, Sub) :- atom(Sub), !, atom_length(A, N), atom_length(Sub, L), Max is N - L, Max >= 0, '$atom_byte_length'(A, NB), '$sub_atom_positions'(A, Sub, NB, Bs), '$cp_member'(B, Bs), Aft is N - B - L."
-           "sub_atom(A, B, L, Aft, Sub) :- atom_length(A, N), '$atom_byte_length'(A, NB), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_atom'(A, B, L, Aft, Sub, NB)."
+           ;; when a search is O(n). '$sub_text_length'/7 asks first what
+           ;; swipl's sub_text() asks (3.0.0): the text atomic, B, L and
+           ;; After each unbound or a size, and Sub unbound or atomic -- so a
+           ;; list of codes or characters is type_error(atom, L) as swipl's,
+           ;; where through 2.16.1 it was read as the text it spells.
+           "sub_atom(A, B, L, Aft, Sub) :- nonvar(Sub), !, '$sub_text_length'(A, B, L, Aft, Sub, N, atom), atom_length(Sub, L), Max is N - L, Max >= 0, '$atom_byte_length'(A, NB), '$sub_atom_positions'(A, Sub, NB, Bs), '$cp_member'(B, Bs), Aft is N - B - L."
+           "sub_atom(A, B, L, Aft, Sub) :- '$sub_text_length'(A, B, L, Aft, Sub, N, atom), '$atom_byte_length'(A, NB), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_atom'(A, B, L, Aft, Sub, NB)."
 
            ;; ---- sub_string/5 ------------------------------------------------
            ;; THE SAME ENUMERATION AS sub_atom/5, ANSWERING A STRING. It is
@@ -388,8 +505,8 @@
            ;; ty/0 -- and lost sub_string/5, which the store probe caught
            ;; because the store had never heard of the three. Written once
            ;; with the escape IN the warning, which cost a second round.
-           "sub_string(S, B, L, Aft, Sub) :- nonvar(Sub), !, string_length(S, N), string_length(Sub, L), Max is N - L, between(0, Max, B), '$sub_string'(S, B, L, Aft, Sub)."
-           "sub_string(S, B, L, Aft, Sub) :- string_length(S, N), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_string'(S, B, L, Aft, Sub)."
+           "sub_string(S, B, L, Aft, Sub) :- nonvar(Sub), !, '$sub_text_length'(S, B, L, Aft, Sub, N, string), '$string_text_length'(Sub, L, string), Max is N - L, between(0, Max, B), '$sub_string'(S, B, L, Aft, Sub)."
+           "sub_string(S, B, L, Aft, Sub) :- '$sub_text_length'(S, B, L, Aft, Sub, N, string), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_string'(S, B, L, Aft, Sub)."
            "'$sub_string'(S, B, L, Aft, Sub) :- string_codes(S, Cs), length(Pre, B), append(Pre, Mid, Cs), length(Mid, ML), MidL is ML, length(SubCs, L), append(SubCs, Post, Mid), length(Post, Aft), string_codes(Sub0, SubCs), sub_string_same(Sub, Sub0), MidL >= L."
            ;; Sub may arrive as a string, an atom or a number; compare the text.
            "sub_string_same(Sub, Sub0) :- var(Sub), !, Sub = Sub0."
@@ -405,14 +522,14 @@
            ;; Enumerating is backtracking, so the C half hands over the whole
            ;; table at once and `member/2' does the rest -- the same shape
            ;; `current_predicate/1' has, and for the same reason.
-           "current_op(P, T, N) :- '$ops'(L), '$cp_member'(op(P, T, N), L)."
+           "current_op(P, T, N) :- '$op_spec'(P, T, N), '$ops'(L), '$cp_member'(op(P, T, N), L)."
 
            ;; ---- keysort/2 --------------------------------------------------
            ;; Sorting by the key and keeping duplicates, stably, is exactly
            ;; what `sort/4' at key 1 with `@=<' does -- and stability is not
            ;; incidental here: `bagof/3' groups by the key and the order within
            ;; a group is the order the solutions came in.
-           "keysort(L, S) :- sort(1, @=<, L, S)."
+           "keysort(L, S) :- '$keysort'(L, S)."
 
            ;; ---- bagof/3 and setof/3 ----------------------------------------
            ;;
@@ -478,19 +595,44 @@
            ;; belongs -- a C builtin cannot hold one.
            "atom_concat(A, B, C) :- nonvar(A), !, '$atom_concat'(A, B, C)."
            "atom_concat(A, B, C) :- nonvar(B), !, '$atom_concat'(A, B, C)."
-           "atom_concat(A, B, C) :- nonvar(C), !, atom_length(C, N), between(0, N, K), '$text_split_at'(C, K, 0, A, B)."
-           "atom_concat(_, _, _) :- throw(error(instantiation_error, _))."
+           "atom_concat(A, B, C) :- nonvar(C), !, '$atom_text_length'(C, N, atomic), between(0, N, K), '$text_split_at'(C, K, 0, A, B)."
+           "atom_concat(_, _, _) :- throw(error(instantiation_error, context(system:atom_concat/3, _)))."
            "string_concat(A, B, C) :- nonvar(A), !, '$string_concat'(A, B, C)."
            "string_concat(A, B, C) :- nonvar(B), !, '$string_concat'(A, B, C)."
-           "string_concat(A, B, C) :- nonvar(C), !, string_length(C, N), between(0, N, K), '$text_split_at'(C, K, 1, A, B)."
-           "string_concat(_, _, _) :- throw(error(instantiation_error, _))."
+           "string_concat(A, B, C) :- nonvar(C), !, '$string_text_length'(C, N, atomic), between(0, N, K), '$text_split_at'(C, K, 1, A, B)."
+           "string_concat(_, _, _) :- throw(error(instantiation_error, context(system:string_concat/3, _)))."
 
            ;; ---- string_code/3 and atom_prefix/2 ---------------------------
            ;; string_code/3 enumerates with its index unbound; the C half
            ;; decides one index and fails at 0 or past the end.
            "string_code(I, S, C) :- nonvar(I), !, '$string_code_at'(I, S, C)."
-           "string_code(I, S, C) :- string_length(S, N), between(1, N, I), '$string_code_at'(I, S, C)."
+           "string_code(I, S, C) :- '$string_text_length'(S, N, text), between(1, N, I), '$string_code_at'(I, S, C)."
            "atom_prefix(A, P) :- sub_atom(A, 0, _, _, P)."
+
+           ;; ---- term_string/3, swipl's own two clauses (3.0.0) ------------
+           ;; A bound text is read_term_from_atom/3's, an unbound one written
+           ;; with ~W and the options, quoted unless they say otherwise -- so
+           ;; ignore_ops(true) and the rest take effect, and a bad option is
+           ;; format/3's error, its list '$memberchk'/3's, as swipl's are.
+           ;; Through 2.16 a C row that read and wrote term_string/2's way
+           ;; and ignored every option.
+           "term_string(T, S, O) :- nonvar(S), !, read_term_from_atom(S, T, O)."
+           "term_string(T, S, O) :- ( memberchk(quoted(_), O) -> O1 = O ; O1 = [quoted(true)|O] ), format(string(S), '~W', [T, O1])."
+
+           ;; ---- prolog_load_context/2, swipl's (3.14.0) -------------------
+           ;; Its keys in swipl's order, which a variable key walks. Where
+           ;; no load reads, `module', `dialect' and `script' answer and the
+           ;; others fail, as swipl's do; `stream', `variable_names' and
+           ;; `term' answer nothing here (a load reads text, not a stream,
+           ;; and keeps no names)
+           "prolog_load_context(K, V) :- '$plc'(K, V)."
+           "'$plc'(module, user)."
+           "'$plc'(file, F) :- '$load_context'(file, F)."
+           "'$plc'(source, F) :- '$load_context'(source, F)."
+           "'$plc'(directory, D) :- '$load_context'(file, F), file_directory_name(F, D)."
+           "'$plc'(dialect, swi)."
+           "'$plc'(term_position, P) :- '$load_context'(term_position, P)."
+           "'$plc'(script, false)."
 
            ;; ---- atom_string-free helpers the tests lean on -----------------
            "atom_chars_list(A, L) :- atom_chars(A, L).")))
@@ -505,6 +647,9 @@
 
   (decl) (func coco_builtins_module () (out int))
 
+  ;; whether a compiled-in module or a construct claims NAME/ARITY (3.1.0)
+  (decl) (func coco_b_claims ((const char * name) (u32 arity)) (out int))
+
   ) ; decl-builtins
 
 
@@ -517,9 +662,6 @@
   (static) (decl) (func coco_b_is_ground ((coco_machine * m) (size_t t)) (out int))
   (static) (decl) (func coco_b_collect_vars ((coco_machine * m) (size_t t) (int seen)
                                            (size_t ** v) (size_t * n) (size_t * cap)) (out int))
-  (static) (decl) (func coco_b_atom_to_number ((coco_engine * e) (const char * text)
-                                             (size_t to)) (out int))
-  (static) (decl) (func coco_b_text_dup ((coco_engine * e) (size_t t)) (out char *))
   (static) (decl) (func coco_b_sort_terms ((coco_machine * m) (size_t * v) (size_t n)))
   (static) (decl) (func coco_b_case ((coco_engine * e) (size_t g) (int up)) (out int))
   (static) (decl) (func coco_b_typename ((int type)) (out const char *))
@@ -533,10 +675,14 @@
   ;;; that catch's recovery -- so answering anything else here would throw the
   ;;; recovery away. It used to be -1, which ended the whole query: a `throw'
   ;;; inside a findall, a forall or an aggregate_all was uncatchable.
+  ;;; A GOAL THAT IS NO GOAL is findall_loop/4's error, as swipl's
+  ;;; `'$bags':findall_loop/4' raises it (3.0.0), checked before the search
   (func coco_b_findall ((coco_engine * e) (size_t g)) (out int)
+        (let ((int bad . #'(coco_m_goal_bad e (coco_m_arg e g 1) "$bags" "findall_loop" 4)))
+          (if bad (return bad)))
         (let ((size_t lst . 0)
               (int fr . #'(coco_engine_findall e (coco_m_arg e g 0)
-                                               (coco_m_arg e g 1) (aof lst) (aof g))))
+                                               (coco_m_arg e g 1) (aof lst) (aof g) 1)))
           (if (== fr 2) (return 2))
           (if (not fr) (return -1))
           (return (coco_m_unify e (coco_m_arg e g 2) lst))))
@@ -545,10 +691,12 @@
   ;;; ends in Tail instead of `[]', which is what makes it appendable without
   ;;; walking it again.
   (func coco_b_findall4 ((coco_engine * e) (size_t g)) (out int)
+        (let ((int bad . #'(coco_m_goal_bad e (coco_m_arg e g 1) "$bags" "findall_loop" 4)))
+          (if bad (return bad)))
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t lst . 0) (size_t * v . nil) (size_t n . 0) (size_t out)
               (int fr . #'(coco_engine_findall e (coco_m_arg e g 0)
-                                               (coco_m_arg e g 1) (aof lst) (aof g))))
+                                               (coco_m_arg e g 1) (aof lst) (aof g) 1)))
           (if (== fr 2) (return 2))
           (if (not fr) (return -1))
           (if (not (coco_m_list_array e lst (aof v) (aof n))) (return 0))
@@ -781,8 +929,7 @@
   (func coco_b_rec_text ((coco_machine * m) (coco_rec * r) (size_t k)) (out size_t)
         (let ((coco_rtext * x . #'(aof (nth k (-> r txs))))
               (size_t a . 0))
-          (set a (coco_new_atom_id m (coco_intern_len m (+ (-> r arena) (-> x off))
-                                                      (cast size_t (-> x len)))))
+          (set a (coco_new_text_atom m (+ (-> r arena) (-> x off)) (cast size_t (-> x len))))
           (if (== (-> x chars) (-> x full)) (return a))
           (let ((size_t args [2]))
             (set (nth 0 args) a)
@@ -791,7 +938,7 @@
 
   (static)
   (func coco_b_rec_event ((coco_machine * m) (coco_rec * r) (coco_rev * v)) (out size_t)
-        (let ((size_t a [6]) (size_t texts . #'(coco_new_atom m "[]")) (u32 i . 0))
+        (let ((size_t a [6]) (size_t texts . #'(coco_new_nil m)) (u32 i . 0))
           (set (nth 0 a) (coco_new_int m (cast i64 (-> v inf))))
           (set (nth 1 a) (coco_new_int m (cast i64 (-> v depth))))
           (set (nth 2 a) (coco_new_int m (cast i64 (-> v cell))))
@@ -860,7 +1007,7 @@
               (let ((u64 lo . #'(+ first (* (/ (- last first) 1000) 1000))))
                 (while 1
                   (let ((u64 hi . #'(? (> (+ lo 999) last) last (+ lo 999)))
-                        (size_t ds . #'(coco_new_atom m "[]")) (u64 i . 0) (size_t a [2]))
+                        (size_t ds . #'(coco_new_nil m)) (u64 i . 0) (size_t a [2]))
                     (set i (+ hi 1))
                     (while (> i lo)
                       (set i (- i 1))
@@ -923,7 +1070,7 @@
                               (+ (<< (coco_functor_id m nm ar) 1) 1)))
                   (if (>= key (cast u64 n)) (set key 0))
                   (set (nth key kret) (+ (nth key kret) (nth p (-> r pret)))))))
-          (set rows (coco_new_atom m "[]"))
+          (set rows (coco_new_nil m))
           (let ((size_t k . n))
             (while (> k 0)
               (set k (- k 1))
@@ -1121,7 +1268,7 @@
               (if (not (coco_b_spill jpath ($ ($ jr out) s) ($ ($ jr out) len))) (set jbad 1)))
           (if (and (== jmode 2) (and (>= rc 0) (<= rc 4))) (coco_jr_settle (aof jr) used))
           ;; the events, last first, so the list is built in one pass
-          (set evs (coco_new_atom m "[]"))
+          (set evs (coco_new_nil m))
           (let ((size_t k . #'($ r nevs)))
             (while (> k 0)
               (set k (- k 1))
@@ -1141,7 +1288,7 @@
                 ((== rc 3) (set how (coco_make1 m "exception" ball)))
                 ((== rc 4) (set how (coco_make1 m "halt" (coco_new_int m (cast i64 haltcode)))))
                 (#t (set how (coco_make1 m "error" (coco_new_atom m (-> e err))))))
-          (set al (coco_new_atom m "[]"))
+          (set al (coco_new_nil m))
           (let ((u64 k . nats))
             (while (> k 0)
               (set k (- k 1))
@@ -1213,14 +1360,19 @@
                  (if (not (coco_m_unify e (coco_m_arg e o 0) rtv)) (return 0)))))
           (return (coco_m_unify e (coco_m_arg e g 3) end))))
 
-  ;;; `forall(C, A)' is `\+ (C, \+ A)', and is written that way rather than by
-  ;;; collecting: it stops at the first counterexample and builds no list.
+  ;;; `forall(C, A)' is `\+ (C, \+ A)': the search for a counterexample stops
+  ;;; at the first (rootn 2, `coco_engine_findall'), so no action after it runs.
+  ;;; each goal that is no goal is `'$apply':forall/2''s error (3.0.0)
   (func coco_b_forall ((coco_engine * e) (size_t g)) (out int)
+        (let ((int bad . #'(coco_m_goal_bad e (coco_m_arg e g 0) "$apply" "forall" 2)))
+          (if bad (return bad))
+          (set bad (coco_m_goal_bad e (coco_m_arg e g 1) "$apply" "forall" 2))
+          (if bad (return bad)))
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t lst . 0)
               (size_t goal . #'(coco_make2 m "," (coco_m_arg e g 0)
                                          (coco_make1 m "\\+" (coco_m_arg e g 1))))
-              (int fr . #'(coco_engine_findall e (coco_new_atom m "x") goal (aof lst) (aof g))))
+              (int fr . #'(coco_engine_findall e (coco_new_atom m "x") goal (aof lst) (aof g) 2)))
           (if (== fr 2) (return 2))
           (if (not fr) (return -1))
           ;; no counterexample means the list is empty
@@ -1228,22 +1380,34 @@
 
   ;;; `aggregate_all(Spec, Goal, Result)'. count, count(T), sum(T), max(T),
   ;;; min(T), bag(T) and set(T) -- the seven SWI documents for the form that
-  ;;; does not group.
-  (func coco_b_aggregate_all ((coco_engine * e) (size_t g)) (out int)
+  ;;; does not group. Any other compound is a template of templates,
+  ;;; `r(count, sum(X))', `bag(X)-count', and declined to the vendored
+  ;;; library's own clause (3.0.0, the `:declines' row), which answers it
+  ;;; and names a part that is none as swipl does (`f(x)' names x).
+  (func coco_b_aggregate_all ((coco_engine * e) (size_t g) (int * found)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t spec . #'(coco_m_arg e g 0))
               (size_t goal . #'(coco_m_arg e g 1))
               (size_t tmpl) (const char * what)
               (size_t lst . 0) (size_t * v . nil) (size_t n . 0))
 
+          ;; A SPEC THAT IS NONE is swipl's error, with no context as its
+          ;; library raises it (3.0.0; domain_error(aggregate_spec, S) through
+          ;; 2.16): instantiation_error for a variable, a number or a string
+          ;; type_error(aggregate_template, S), any other name
+          ;; domain_error(aggregate_template, S)
+          (if (coco_m_is_var e spec) (return (coco_m_instantiation_error e)))
           ;; a bare `count' collects a constant; everything else collects the
           ;; argument of the spec
           (if (coco_m_is_atom e spec)
               (block (set what (coco_m_atom e spec))
+                     (if (!= 0 (strcmp what "count"))
+                         (return (coco_m_domain_error e "aggregate_template" spec)))
                      (set tmpl (coco_new_atom m "x")))
             (block
-             (if (not (coco_is_callable m spec))
-                 (return (coco_m_domain_error e "aggregate_spec" spec)))
+             (if (not (coco_is_callable m (coco_deref m spec)))
+                 (return (coco_m_type_error e "aggregate_template" spec)))
+             (set spec (coco_deref m spec))
              (set what (coco_atom_name m (coco_name_of m spec)))
              ;; `max(Expr, Witness)' and `min(Expr, Witness)' collect the
              ;; pair Expr-Witness; everything else is Spec(Template)
@@ -1252,11 +1416,30 @@
                      (or (== 0 (strcmp what "max")) (== 0 (strcmp what "min"))))
                 (set tmpl (coco_make2 m "-" (coco_arg m spec 0) (coco_arg m spec 1)))
                 (set what (? (== 0 (strcmp what "max")) "max2" "min2")))
-               ((== (coco_arity m spec) 1)
+               ((and (== (coco_arity m spec) 1)
+                     (or (or (== 0 (strcmp what "count")) (== 0 (strcmp what "sum")))
+                         (or (or (== 0 (strcmp what "max")) (== 0 (strcmp what "min")))
+                             (or (== 0 (strcmp what "bag")) (== 0 (strcmp what "set"))))))
                 (set tmpl (coco_arg m spec 0)))
-               (#t (return (coco_m_domain_error e "aggregate_spec" spec))))))
+               (#t (block (coco_m_decline e) (set (cof found) 0) (return 0))))))
 
-          (let ((int fr . #'(coco_engine_findall e tmpl goal (aof lst) (aof g))))
+          ;; the goal that is no goal, named as swipl's library raises it:
+          ;; bag and set are its findall/3's, the rest aggregate_all/3's own
+          (let ((int bad . 0))
+            (if (or (== 0 (strcmp what "bag")) (== 0 (strcmp what "set")))
+                (set bad (coco_m_goal_bad e goal "$bags" "findall_loop" 4))
+              (set bad (coco_m_goal_bad e goal "aggregate" "aggregate_all" 3)))
+            (if bad (return bad)))
+
+          ;; an unknown procedure at the search's root is findall_loop/4's
+          ;; for bag, set and count(T), which swipl's general clause
+          ;; collects with findall/3, and aggregate_all/3's for the rest
+          (let ((int fr . #'(coco_engine_findall e tmpl goal (aof lst) (aof g)
+                                                 (? (or (or (== 0 (strcmp what "bag"))
+                                                            (== 0 (strcmp what "set")))
+                                                        (and (== 0 (strcmp what "count"))
+                                                             (not (coco_m_is_atom e spec))))
+                                                    1 3))))
             (if (== fr 2) (return 2))
             (if (not fr) (return -1)))
           (if (not (coco_m_list_array e lst (aof v) (aof n))) (return 0))
@@ -1287,29 +1470,44 @@
           ;; was in doubles: 2^53 + 1 summed to 2^53 and two halves of 2^63
           ;; to the least integer, the larger of two integers past 2^53 was
           ;; the first, and a NaN or two equal numbers kept the first.
+          ;; A solution that is no plain integer or float -- an expression, a
+          ;; rational, an atom, a variable -- is SWI's own step from then on
+          ;; (`coco_l_eval2' in lib/lists.cicili, 2.15.1): `S is S0 + X' and
+          ;; `M is max(M0, X)' made and evaluated, so sum(X*2) is a sum, a
+          ;; rational is exact, and an atom raises is/2's
+          ;; type_error(evaluable, a/0). Through 2.15.0 each raised
+          ;; type_error(number, X) for anything but a plain number.
           (if (== 0 (strcmp what "sum"))
-              (let ((i64 ai . 0) (double ad . 0.0) (int af . 0))
+              (let ((i64 ai . 0) (double ad . 0.0) (int af . 0)
+                    (int tm . 0) (size_t acc . 0))
                 (for ((size_t i . 0)) (< i n) ((++ i))
-                  (let ((double d . 0.0) (i64 iv . 0))
-                    (if (coco_m_int e (nth i v) (aof iv))
-                        (if af (set ad (+ ad (cast double iv)))
-                          (if (coco_add_ovf ai iv (aof ai))
-                              (block (free v)
-                                     (return (coco_m_evaluation_error e "int_overflow")))))
-                      (block
-                        (if (not (coco_m_float e (nth i v) (aof d)))
-                            ;; the term is taken BEFORE the array goes: reading
-                            ;; `(nth i v)' after the free is a use-after-free,
-                            ;; and it segfaulted on the first list of integers
-                            (let ((size_t bad . #'(nth i v)))
-                              (free v)
-                              (return (coco_m_type_error e "number" bad))))
-                        (if (not af) (block (set ad (cast double ai)) (set af 1)))
-                        (set ad (+ ad d))))
-                    ;; a float sum is checked (2.2.0, under the flags 2.2.2)
-                    (if af (let ((int rc . #'(coco_l_float_ok e (aof ad))))
-                             (if (!= rc 1) (block (free v) (return rc)))))))
+                  (let ((double d . 0.0) (i64 iv . 0) (int num . 0))
+                    (if (not tm)
+                        (set num (? (coco_m_int e (nth i v) (aof iv)) 1
+                                    (? (coco_m_float e (nth i v) (aof d)) 2 0))))
+                    (cond
+                      ((== num 1)
+                       (if af (set ad (+ ad (cast double iv)))
+                         (if (coco_add_ovf ai iv (aof ai))
+                             (block (free v)
+                                    (return (coco_m_evaluation_error e "int_overflow"))))))
+                      ((== num 2)
+                       (block (if (not af) (block (set ad (cast double ai)) (set af 1)))
+                              (set ad (+ ad d))))
+                      (#t
+                       (let ((int rc . 0))
+                         (if (not tm)
+                             (block (set acc (? af (coco_m_new_float e ad) (coco_m_new_int e ai)))
+                                    (set tm 1)))
+                         (set rc (coco_l_eval2 e "+" acc (nth i v) (aof acc)))
+                         (if (!= rc 1) (block (free v) (return rc))))))
+                    ;; a float sum is checked (2.2.0, under the flags 2.2.2);
+                    ;; SWI's own step checks its own
+                    (if (and af (not tm))
+                        (let ((int rc . #'(coco_l_float_ok e (aof ad))))
+                          (if (!= rc 1) (block (free v) (return rc)))))))
                 (free v)
+                (if tm (return (coco_m_unify e (coco_m_arg e g 2) acc)))
                 (return (? af
                            (coco_m_unify_float e (coco_m_arg e g 2) ad)
                            (coco_m_unify_int e (coco_m_arg e g 2) ai)))))
@@ -1324,52 +1522,69 @@
                 (set best (nth 0 v))
                 ;; SWI's first step is `M is max(X, X)', the template's own
                 ;; binding twice, and two equal floats are checked there as
-                ;; anywhere (2.2.0, under the flags 2.2.2)
+                ;; anywhere (2.2.0, under the flags 2.2.2); a first solution
+                ;; that is no plain number is that step itself (2.15.1)
                 (let ((i64 fi . 0) (double fd . 0.0) (int ff . 0))
-                  (if (and (coco_l_num e best (aof fi) (aof fd) (aof ff))
-                           (== 2 (coco_num_pick want ff fi fd ff fi fd)))
-                      (let ((int rc . #'(coco_l_float_ok e (aof fd))))
-                        (if (!= rc 1) (block (free v) (return rc))))))
+                  (if (coco_l_num e best (aof fi) (aof fd) (aof ff))
+                      (if (== 2 (coco_num_pick want ff fi fd ff fi fd))
+                          (let ((int rc . #'(coco_l_float_ok e (aof fd))))
+                            (if (!= rc 1) (block (free v) (return rc)))))
+                    (let ((int rc . #'(coco_l_eval2 e (? (> want 0) "max" "min")
+                                                    best best (aof best))))
+                      (if (!= rc 1) (block (free v) (return rc))))))
                 (for ((size_t i . 1)) (< i n) ((++ i))
                   (let ((i64 bi . 0) (double bd . 0.0) (int bf . 0)
                         (i64 xi . 0) (double xd . 0.0) (int xf . 0) (int b . 0))
-                    (if (or (not (coco_l_num e best (aof bi) (aof bd) (aof bf)))
-                            (not (coco_l_num e (nth i v) (aof xi) (aof xd) (aof xf))))
-                        (let ((size_t bad . #'(nth i v)))
-                          (free v)
-                          (return (coco_m_type_error e "number" bad))))
-                    (set b (coco_num_pick want bf bi bd xf xi xd))
-                    (if (== b 2)
-                        (let ((int rc . #'(coco_l_float_ok e (aof bd))))
-                          (if (!= rc 1) (block (free v) (return rc)))
-                          (set b 0)))
-                    (if (== b 1) (set best (nth i v)))))
+                    (if (and (coco_l_num e best (aof bi) (aof bd) (aof bf))
+                             (coco_l_num e (nth i v) (aof xi) (aof xd) (aof xf)))
+                        (block
+                         (set b (coco_num_pick want bf bi bd xf xi xd))
+                         (if (== b 2)
+                             (let ((int rc . #'(coco_l_float_ok e (aof bd))))
+                               (if (!= rc 1) (block (free v) (return rc)))
+                               (set b 0)))
+                         (if (== b 1) (set best (nth i v))))
+                      (let ((int rc . #'(coco_l_eval2 e (? (> want 0) "max" "min")
+                                                      best (nth i v) (aof best))))
+                        (if (!= rc 1) (block (free v) (return rc)))))))
                 (free v)
                 (return (coco_m_unify e (coco_m_arg e g 2) best))))
 
           ;; the witness forms: numeric on the expression, the whole
-          ;; max(Expr, Witness) / min(Expr, Witness) term as the answer
+          ;; max(Expr, Witness) / min(Expr, Witness) term as the answer.
+          ;; SWI's clause (2.15.1): the first solution's Expr must be a
+          ;; number -- type_error(number, Expr), Expr and not the pair --
+          ;; and each later one is kept when `X > Max0' (`X < Min0'), the
+          ;; comparison is/2's neighbours make: X evaluated, so an
+          ;; expression may win and is kept as it came, an atom raises
+          ;; type_error(evaluable, a/0), and a NaN never wins. Through 2.15.0
+          ;; a lone first solution was never asked, and every later one
+          ;; had to be a plain number, the error naming the pair.
           (if (or (== 0 (strcmp what "max2")) (== 0 (strcmp what "min2")))
               (let ((int want_max . #'(? (== 0 (strcmp what "max2")) 1 0))
                     (size_t best . 0))
                 (if (== n 0) (block (free v) (return 0)))
                 (set best (nth 0 v))
-                (for ((size_t i . 1)) (< i n) ((++ i))
-                  (let ((i64 bi . 0) (double bd . 0.0) (int bf . 0)
-                        (i64 xi . 0) (double xd . 0.0) (int xf . 0) (int over . 0))
-                    (if (or (not (coco_l_num e (coco_arg m (coco_deref m best) 0)
-                                           (aof bi) (aof bd) (aof bf)))
-                            (not (coco_l_num e (coco_arg m (coco_deref m (nth i v)) 0)
-                                           (aof xi) (aof xd) (aof xf))))
-                        (let ((size_t bad . #'(nth i v)))
+                (let ((size_t fx . #'(coco_arg m (coco_deref m best) 0)))
+                  (let ((u64 fc . #'(nth (coco_deref m fx) (-> m heap))))
+                    ;; library(error)'s type_error/2, as swipl's clause
+                    ;; throws it: no context, and an unbound Expr is the
+                    ;; type error still, no instantiation_error
+                    (if (not (or (coco-is-int fc) (or (coco-tag-is FLT fc) (coco-rat-p fc))))
+                        (let ((size_t ball . #'(coco_make2 m "error"
+                                                           (coco_make2 m "type_error"
+                                                                       (coco_new_atom m "number") fx)
+                                                           (coco_new_var m))))
                           (free v)
-                          (return (coco_m_type_error e "number" bad))))
-                    (if (and (not xf) (not bf))
-                        (set over (? want_max (> xi bi) (< xi bi)))
-                      (let ((double x . #'(? xf xd (cast double xi)))
-                            (double b . #'(? bf bd (cast double bi))))
-                        (set over (? want_max (> x b) (< x b)))))
-                    (if over (set best (nth i v)))))
+                          (return (? (coco_m_thrown e ball) 2 -1))))))
+                (for ((size_t i . 1)) (< i n) ((++ i))
+                  (let ((size_t t . #'(coco_make2 m (? want_max ">" "<")
+                                                 (coco_arg m (coco_deref m (nth i v)) 0)
+                                                 (coco_arg m (coco_deref m best) 0)))
+                        (int c . 0) (int rc . 0))
+                    (set rc (coco_num_cmp e t (aof c)))
+                    (if (!= rc 1) (block (free v) (return rc)))
+                    (if (? want_max (== c 1) (== c -1)) (set best (nth i v)))))
                 (let ((size_t bp . #'(coco_deref m best))
                       (size_t out . 0))
                   (set out (coco_make2 m (? want_max "max" "min")
@@ -1382,18 +1597,56 @@
 
   ;;; ---- arithmetic in the small ----------------------------------------
 
+  ;;; '$between'(L, H, X, H1), the C half of between/3 (3.0.0), swipl's
+  ;;; checks in its order: L an integer, H an integer or `inf' or
+  ;;; `infinite', each unbound instantiation_error and else
+  ;;; type_error(integer, T); then X an integer or unbound -- it succeeds,
+  ;;; H1 the bound, `inf' for either infinity, which `=<' evaluates -- or
+  ;;; else type_error(integer, X). Through 2.16 an integer(X) guard alone
+  ;;; stood before the answers: a bound X that was no integer failed, L and
+  ;;; H were compared as any numbers, and between(1, inf, a) ran for ever.
+  (func coco_b_between ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t l . #'(coco_m_arg e g 0)) (size_t h . #'(coco_m_arg e g 1))
+              (size_t x . #'(coco_m_arg e g 2)) (i64 v . 0) (const char * hn . nil))
+          (if (coco_m_is_var e l) (return (coco_m_instantiation_error e)))
+          (if (not (coco_m_int e l (aof v))) (return (coco_m_type_error e "integer" l)))
+          (if (coco_m_is_var e h) (return (coco_m_instantiation_error e)))
+          (set hn (coco_m_atom e h))
+          (if (and (!= hn nil) (or (== 0 (strcmp hn "inf")) (== 0 (strcmp hn "infinite"))))
+              (set h (coco_new_atom m "inf"))
+              (if (not (coco_m_int e h (aof v))) (return (coco_m_type_error e "integer" h))))
+          (if (and (not (coco_m_is_var e x)) (not (coco_m_int e x (aof v))))
+              (return (coco_m_type_error e "integer" x)))
+          (return (coco_m_unify e (coco_m_arg e g 3) h))))
+
   ;;; `succ(?X, ?Y)' -- Y is X+1, either way round, over NATURAL numbers only,
   ;;; which is what makes `succ(X, 0)' fail rather than answer -1.
+  ;;; SWI'S CHECKS FIRST, the first argument first (3.0.0): a bound one
+  ;;; that is no integer is type_error(integer, X), a negative one
+  ;;; domain_error(not_less_than_zero, X). Through 2.16 `succ(a, X)' was an
+  ;;; instantiation_error and `succ(-1, X)' failed.
   (func coco_b_succ ((coco_engine * e) (size_t g)) (out int)
-        (let ((i64 a . 0) (i64 b . 0))
-          (if (coco_m_int e (coco_m_arg e g 0) (aof a))
-              (block (if (< a 0) (return 0))
-                     ;; the largest integer has no successor in 64 bits (2.0.0)
-                     (if (== a 9223372036854775807)
+        (let ((i64 a . 0) (i64 b . 0) (int ha . 0) (int hb . 0))
+          (if (not (coco_m_is_var e (coco_m_arg e g 0)))
+              (block (if (not (coco_m_int e (coco_m_arg e g 0) (aof a)))
+                         (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
+                     (if (< a 0)
+                         (return (coco_m_domain_error e "not_less_than_zero" (coco_m_arg e g 0))))
+                     (set ha 1)))
+          (if (not (coco_m_is_var e (coco_m_arg e g 1)))
+              (block (if (not (coco_m_int e (coco_m_arg e g 1) (aof b)))
+                         (return (coco_m_type_error e "integer" (coco_m_arg e g 1))))
+                     (if (< b 0)
+                         (return (coco_m_domain_error e "not_less_than_zero" (coco_m_arg e g 1))))
+                     (set hb 1)))
+          (if ha
+              ;; the largest integer has no successor in 64 bits (2.0.0)
+              (block (if (== a 9223372036854775807)
                          (return (coco_m_evaluation_error e "int_overflow")))
                      (return (coco_m_unify_int e (coco_m_arg e g 1) (+ a 1)))))
-          (if (coco_m_int e (coco_m_arg e g 1) (aof b))
-              (block (if (<= b 0) (return 0))
+          (if hb
+              (block (if (== b 0) (return 0))
                      (return (coco_m_unify_int e (coco_m_arg e g 0) (- b 1)))))
           (return (coco_m_instantiation_error e))))
 
@@ -1404,6 +1657,15 @@
           (set ha (coco_m_int e (coco_m_arg e g 0) (aof a)))
           (set hb (coco_m_int e (coco_m_arg e g 1) (aof b)))
           (set hc (coco_m_int e (coco_m_arg e g 2) (aof c)))
+          ;; each bound argument an integer, in order, swipl's
+          ;; type_error(integer, X) (3.0.0; through 2.16 `plus(a, 1, X)' was
+          ;; an instantiation_error)
+          (if (and (not ha) (not (coco_m_is_var e (coco_m_arg e g 0))))
+              (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
+          (if (and (not hb) (not (coco_m_is_var e (coco_m_arg e g 1))))
+              (return (coco_m_type_error e "integer" (coco_m_arg e g 1))))
+          (if (and (not hc) (not (coco_m_is_var e (coco_m_arg e g 2))))
+              (return (coco_m_type_error e "integer" (coco_m_arg e g 2))))
           ;; in 64 bits, and past them int_overflow (2.0.0), as is/2 says
           (let ((i64 w . 0) (int ovf . 0) (size_t into . 0))
             (cond
@@ -1477,7 +1739,7 @@
 
   ;;; acyclic_term/1 and cyclic_term/1 ANSWER THE QUESTION (1.10.18):
   ;;; through 1.10.17 they were a fact and a fail, on the ground that
-  ;;; nothing here could hold a cycle. `coco_acyclic' (lib/term.cicili);
+  ;;; nothing here could hold a cycle. `coco_acyclic' (lib/term-walk.cicili);
   ;;; a walk that could not get the memory to finish answers acyclic,
   ;;; which is what both said before.
   (func coco_b_acyclic_term ((coco_engine * e) (size_t g)) (out int)
@@ -1674,25 +1936,6 @@
 
   ;;; ---- atoms ------------------------------------------------------------
 
-  ;;; A LIST OF ONE-CHARACTER ATOMS AS TEXT, on the end of B -- atom_chars/2
-  ;;; and number_chars/2 read the other way. Answers 1, or 0 with RC the
-  ;;; builtin's answer: SWI's error, a partial list or an unbound element
-  ;;; instantiation_error, a list that is its own tail type_error(list, L),
-  ;;; any other element type_error(character, E). A character is a byte
-  ;;; in bytes, so a letter of two bytes in UTF-8, `á', is no character
-  ;;; there (SWI's are letters, and so are cocolog's under `text_units =
-  ;;; characters', 1.13.0), and an improper list, `[d|r]', is an
-  ;;; instantiation error where SWI says type_error(list, L).
-  ;;;
-  ;;; THE CULPRIT IS NAMED BEFORE THE ARRAY IS FREED (1.11.8). Each builtin
-  ;;; freed the array and then read the element out of it for its error:
-  ;;; an element that was not one character -- `á', `ab', a number, a
-  ;;; variable -- took the process down (SIGSEGV, exit status 139) where it
-  ;;; stood first or second, whose sixteen bytes glibc writes its free list
-  ;;; over, and further on named a stale index that still held it. The bug
-  ;;; `$atom_join' records fixing below. The element is a heap index, kept
-  ;;; in BAD before the free. AND THE TEXT GROWS: it was a `char[4096]', and
-  ;;; a list of 4096 characters or more FAILED, with no error.
   ;;; Whether the atom text C is ONE character: a byte, or under `text_units
   ;;; = characters' one character of however many bytes (1.13.0), `á' among
   ;;; them.
@@ -1702,239 +1945,109 @@
         (if (-> m text_chars) (return (? (>= (coco_utf8_one c) 0) 1 0)))
         (return (? (== 1 (strlen c)) 1 0)))
 
-  (static)
-  (func coco_b_chars_text ((coco_engine * e) (size_t l) (coco_strbuf * b) (int * rc)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t * v . nil) (size_t n . 0) (size_t bad . 0) (int why . 0))
-          (if (not (coco_m_list_array e l (aof v) (aof n)))
-              (block
-               ;; a list that is its own tail is no list (1.10.19)
-               (if (coco_list_cyclic m l)
-                   (set (cof rc) (coco_m_type_error e "list" l))
-                   (set (cof rc) (coco_m_instantiation_error e)))
-               (return 0)))
-          (for ((size_t i . 0)) (< i n) ((++ i))
-            (let ((const char * c . #'(coco_m_atom e (nth i v))))
-              (cond
-                ((coco_m_is_var e (nth i v)) (block (set why 1) break))
-                ((not (coco_b_is_char m c)) (block (set why 2) (set bad (nth i v)) break))
-                ((not (coco_sb_put b c)) (block (set why 3) break)))))
-          (free v)
-          (cond
-            ((== why 1) (set (cof rc) (coco_m_instantiation_error e)))
-            ((== why 2) (set (cof rc) (coco_m_type_error e "character" bad)))
-            ((== why 3) (set (cof rc) (coco_m_resource_error e "memory"))))
-          (return (== why 0))))
-
   ;;; A character is a ONE-CHARACTER ATOM in Prolog, not a code. `atom_chars'
-  ;;; and `atom_codes' differ in exactly that.
+  ;;; and `atom_codes' differ in exactly that, and read their arguments as
+  ;;; swipl's x_chars does (3.0.0, `coco_tx_chars' in lib/solve-text.cicili).
   (func coco_b_atom_chars ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t a . #'(coco_m_arg e g 0)))
-          ;; the text of any length, an atom a byte: through 1.11.7 it went
-          ;; through 4096 bytes, and a longer atom was taken for no text at
-          ;; all -- an instantiation error from the list's side
-          (if (not (coco_m_is_var e a))
-              (let ((char * buf . #'(coco_b_text_dup e a)))
-                ;; a character of however many bytes under `text_units =
-                ;; characters' (1.13.0): atom_chars('dár', [d,á,r])
-                (if (and (!= buf nil) (-> m text_chars))
-                    (let ((size_t lst . #'(coco_text_list m buf (strlen buf) 1 (coco_m_nil e))))
-                      (free buf)
-                      (return (coco_m_unify e (coco_m_arg e g 1) lst))))
-                (if (!= buf nil)
-                    (let ((size_t lst . #'(coco_m_nil e)))
-                      (for ((size_t i . #'(strlen buf))) (> i 0) ((-- i))
-                        (let ((char one [2]))
-                          (set (nth 0 one) (nth (- i 1) buf))
-                          (set (nth 1 one) (cast char 0))
-                          (set lst (coco_cons m (coco_new_atom m one) lst))))
-                      (free buf)
-                      (return (coco_m_unify e (coco_m_arg e g 1) lst))))))
-          ;; the other way: a list of one-character atoms into an atom
-          (let ((coco_strbuf b) (int rc . 0))
-            (coco_sb_init (aof b))
-            (if (not (coco_b_chars_text e (coco_m_arg e g 1) (aof b) (aof rc)))
-                (block (coco_sb_free (aof b)) (return rc)))
-            (set rc (coco_m_unify_atom e (coco_m_arg e g 0) (? (== ($ b s) nil) "" ($ b s))))
-            (coco_sb_free (aof b))
-            (return rc))))
+        (return (coco_tx_chars e g 1)))
 
-  ;;; A byte and its code, or under `text_units = characters' (1.13.0) a
-  ;;; character and its code point: char_code('á', 225), char_code(C, 8364)
-  ;;; the euro sign. Code 0 is the empty atom in both, an atom being a C
-  ;;; string; a code that is no character fails.
+  ;;; CHAR_CODE(?C, ?N), swipl's (3.0.0): both unbound instantiation_error;
+  ;;; a bound C that is no one-character atom type_error(character, C) --
+  ;;; "a" under `double_quotes = codes' among them; a bound N that is no
+  ;;; integer type_error(integer, N), and one outside 0..U+10FFFF
+  ;;; type_error(character_code, N); then the two are compared, or the
+  ;;; unbound one made. A byte and its code in bytes, a character and its
+  ;;; code point under `text_units = characters' (1.13.0): char_code('á',
+  ;;; 225), char_code(C, 8364) the euro sign. Code 0 is the empty atom, an
+  ;;; atom being a C string (swipl's '\u0000'), and a code past 255 in
+  ;;; bytes fails. A lone surrogate, which swipl's char_code/2 refuses though
+  ;;; text made from codes holds one (3.1.0), is type_error(character_code, N).
+  ;;; Through 2.16.1 a C that was no character was passed over for N, and
+  ;;; an unbound N was then instantiation_error; the surrogate failed.
   (func coco_b_char_code ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
-              (const char * c . #'(coco_m_atom e (coco_m_arg e g 0))) (i64 code . 0))
-          (if (and (-> m text_chars) (coco_b_is_char m c))
-              (return (coco_m_unify_int e (coco_m_arg e g 1) (coco_utf8_one c))))
-          (if (and (not (-> m text_chars)) (and (!= c nil) (== 1 (strlen c))))
-              (return (coco_m_unify_int e (coco_m_arg e g 1)
-                                      (bitand (cast i64 (nth 0 c)) 255))))
-          (if (coco_m_int e (coco_m_arg e g 1) (aof code))
-              (let ((char one [8]) (int k . 1))
-                (if (-> m text_chars)
-                    (block (if (== code 0)
-                               (set (nth 0 one) (cast char 0))
-                               (block (set k (coco_utf8_enc one code))
-                                      (if (== k 0) (return 0))))
-                           (set (nth k one) (cast char 0)))
-                    (block (if (or (< code 0) (> code 255)) (return 0))
-                           (set (nth 0 one) (cast char code))
-                           (set (nth 1 one) (cast char 0))))
-                (return (coco_m_unify_atom e (coco_m_arg e g 0) one))))
-          (return (coco_m_instantiation_error e))))
-
-  ;;; Like atom_chars but the atom has to read back as a number.
-  ;;; NUMBER_CHARS/2 TAKES CODES OR CHARACTERS, but not one of each: the
-  ;;; first element decides and the rest must be of its kind, as swipl's
-  ;;; type_error(character, X) says (2.5.0).
-  (static)
-  (func coco_b_nchars_text ((coco_engine * e) (size_t l) (coco_strbuf * b) (int * rc)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t * v . nil) (size_t n . 0) (size_t bad . 0)
-              (int why . 0) (int kind . -1) (int ch . #'(-> m text_chars)))
-          (if (not (coco_m_list_array e l (aof v) (aof n)))
+              (size_t a . #'(coco_deref m (coco_m_arg e g 0)))
+              (size_t c . #'(coco_deref m (coco_m_arg e g 1)))
+              (int va . #'(? (coco-tag-is REF (nth a (-> m heap))) 1 0))
+              (int vc . #'(? (coco-tag-is REF (nth c (-> m heap))) 1 0))
+              (i64 achr . -1) (i64 cchr . -1))
+          (if (and va vc) (return (coco_m_instantiation_error e)))
+          (if (not va)
+              (let ((const char * s . nil))
+                (if (or (not (coco-tag-is ATOM (nth a (-> m heap)))) (coco_is_nil m a))
+                    (return (coco_m_type_error e "character" a)))
+                (set s (coco_atom_name m (coco_name_of m a)))
+                (if (not (coco_b_is_char m s)) (return (coco_m_type_error e "character" a)))
+                (set achr (? (-> m text_chars) (coco_utf8_one s) (bitand (cast i64 (nth 0 s)) 255)))))
+          (if (not vc)
               (block
-               (if (coco_list_cyclic m l)
-                   (set (cof rc) (coco_m_type_error e "list" l))
-                 (set (cof rc) (coco_m_instantiation_error e)))
-               (return 0)))
-          (for ((size_t i . 0)) (< i n) ((++ i))
-            (let ((size_t x . #'(nth i v)))
-              (let ((u64 xc . #'(nth (coco_deref m x) (-> m heap))))
-                (cond
-                  ((coco-tag-is REF xc)
-                   (block (set why 1) (set bad x) break))
-                  ((coco-is-int xc)
-                   (if (== kind 0) (block (set why 2) (set bad x) break))
-                   (set kind 1)
-                   (let ((i64 code . #'(coco_int_val m xc)))
-                     (if (or (< code 0) (> code 1114111))
-                         (block (set why 2) (set bad x) break))
-                     (if ch
-                         (if (not (coco_utf8_put b code))
-                             (block (set why 3) break))
-                       (if (> code 255)
-                           (block (set why 2) (set bad x) break)
-                         (coco_sb_putc b (cast char code))))))
-                  ((coco-tag-is ATOM xc)
-                   (if (== kind 1) (block (set why 2) (set bad x) break))
-                   (set kind 0)
-                   (let ((const char * s . #'(coco_m_atom e x)))
-                     (if (or (== s nil) (not (coco_b_is_char m s)))
-                         (block (set why 2) (set bad x) break))
-                     (coco_sb_put b s)))
-                  (#t (block (set why 2) (set bad x) break))))))
-          (free v)
-          (cond
-            ((== why 1) (set (cof rc) (coco_m_instantiation_error e)))
-            ((== why 2) (set (cof rc) (coco_m_type_error e "character" bad)))
-            ((== why 3) (set (cof rc) (coco_m_resource_error e "memory"))))
-          (return (== why 0))))
+                (if (not (coco-is-int (nth c (-> m heap))))
+                    (return (coco_m_type_error e "integer" c)))
+                (set cchr (coco_int_val m (nth c (-> m heap))))
+                ;; a surrogate is no character's code, as swipl has it, though
+                ;; text made from codes holds one (3.1.0)
+                (if (or (< cchr 0) (> cchr 1114111)
+                        (and (-> m text_chars) (>= cchr 55296) (<= cchr 57343)))
+                    (return (coco_m_type_error e "character_code" c)))))
+          (if (and (not va) (not vc)) (return (? (== achr cchr) 1 0)))
+          (if (not va) (return (coco_m_unify_int e c achr)))
+          (let ((char one [8]) (int k . 1))
+            (if (-> m text_chars)
+                (block (if (== cchr 0)
+                           (set k 0)
+                           (block (set k (coco_utf8_enc one cchr))
+                                  (if (== k 0) (return (coco_m_type_error e "character_code" c))))))
+                (block (if (> cchr 255) (return 0))
+                       (set (nth 0 one) (cast char cchr))))
+            (set (nth k one) (cast char 0))
+            (return (coco_m_unify_atom e a one)))))
 
+  ;;; number_chars/2: number_codes/2 with characters, swipl's x_chars
+  ;;; (3.0.0, `coco_tx_number_text' in lib/solve-text.cicili).
   (func coco_b_number_chars ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e)) (char buf [4096]))
-          ;; number -> chars
-          (let ((i64 iv . 0) (double d . 0.0)
-                (size_t t0 . #'(coco_deref m (coco_m_arg e g 0))))
-            (if (or (coco_m_int e t0 (aof iv))
-                    (or (coco_m_float e t0 (aof d))
-                        (coco-rat-p (nth t0 (-> m heap)))))
-                (let ((coco_strbuf b) (size_t lst . #'(coco_m_nil e)))
-                  (coco_sb_init (aof b))
-                  (coco_write_term m (aof b) (coco_m_arg e g 0) 0 0)
-                  (snprintf buf (sizeof buf) "%s" (? (== ($ b s) nil) "" ($ b s)))
-                  (coco_sb_free (aof b))
-                  (for ((size_t i . #'(strlen buf))) (> i 0) ((-- i))
-                    (let ((char one [2]))
-                      (set (nth 0 one) (nth (- i 1) buf))
-                      (set (nth 1 one) (cast char 0))
-                      (set lst (coco_cons m (coco_new_atom m one) lst))))
-                  (return (coco_m_unify e (coco_m_arg e g 1) lst)))))
-          ;; chars -> number (the list read as atom_chars/2 reads it). The
-          ;; whole text must be the number: SWI's syntax_error(illegal_number)
-          ;; for anything after it (2.5.0)
-          (let ((coco_strbuf b) (int rc . 0) (int got . 0))
-            (coco_sb_init (aof b))
-            (if (not (coco_b_nchars_text e (coco_m_arg e g 1) (aof b) (aof rc)))
-                (block (coco_sb_free (aof b)) (return rc)))
-            (set got (coco_b_atom_to_number e (? (== ($ b s) nil) "" ($ b s))
-                                            (coco_m_arg e g 0)))
-            (coco_sb_free (aof b))
-            (if (== got 0) (return (coco_syntax_err e "illegal_number")))
-            (return (? (== got 1) 1 0)))))
+        (return (coco_tx_number_text e g 1)))
 
-  ;;; Reads TEXT as a Prolog term and insists it is a number. Going through the
-  ;;; reader rather than `strtod' is what makes `0xff' and `0'a' work here
-  ;;; exactly as they do in a source file.
-  (static)
-  (func coco_b_atom_to_number ((coco_engine * e) (const char * text) (size_t to)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t t . 0)
-              (size_t mark . #'(-> (coco_m_machine e) heap_len)))
-          ;; 1: a number, unified. 0: no number -- the whole text must be one
-          ;; (2.5.0), and atom_number/2 and number_chars/2 read the 0 their
-          ;; own way. -1: a number that did not unify.
-          (if (not (coco_read_number_text m text (aof t)))
-              (block (set (-> m heap_len) mark) (return 0)))
-          (return (? (coco_m_unify e to t) 1 -1))))
-
+  ;;; ATOM_NUMBER(?A, ?N), swipl's (3.0.0, its pl-prims.c): an atom or a
+  ;;; string A is read as a number from its first character to its last --
+  ;;; no layout before it, as there is none after: atom_number(' 12', N)
+  ;;; fails where number_codes/2 takes the layout -- and FAILS where it is
+  ;;; none; else a number N gives A the atom it writes as; else a bound N is
+  ;;; type_error(number, N), a bound A that is no atom type_error(atom, A)
+  ;;; ("12" under `double_quotes = codes', and `[]'), and both unbound
+  ;;; instantiation_error. THE READER IS WHAT DECIDES WHAT A NUMBER LOOKS
+  ;;; LIKE (`coco_read_number_text', strict): `0xff' and `0'a' are read as
+  ;;; in a source file. Through 2.16.1 the text went through a buffer of
+  ;;; 4096 bytes, and a bound A that was no text was type_error(atom, A)
+  ;;; before N was looked at.
   (func coco_b_atom_number ((coco_engine * e) (size_t g)) (out int)
-        (let ((char buf [4096]) (i64 iv . 0) (double d . 0.0)
-              (size_t t1 . #'(coco_deref (coco_m_machine e) (coco_m_arg e g 1))))
-          ;; number -> atom
-          (if (or (coco_m_int e t1 (aof iv))
-                  (or (coco_m_float e t1 (aof d))
-                      (coco-rat-p (nth t1 (-> (coco_m_machine e) heap)))))
-              (let ((coco_strbuf b) (int rc))
-                (coco_sb_init (aof b))
-                (coco_write_term (coco_m_machine e) (aof b) (coco_m_arg e g 1) 0 0)
-                (set rc (coco_m_unify_atom e (coco_m_arg e g 0)
-                                         (? (== ($ b s) nil) "" ($ b s))))
-                (coco_sb_free (aof b))
-                (return rc)))
-          ;; atom -> number, and a FAILURE when the atom is not one, which is
-          ;; the whole difference between this and `atom_to_term'
-          (if (coco_m_is_var e (coco_m_arg e g 0))
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t a . #'(coco_deref m (coco_m_arg e g 0)))
+              (size_t n . #'(coco_deref m (coco_m_arg e g 1)))
+              (coco_strbuf b) (size_t num . 0) (int r . 0))
+          (if (coco_tx_get e a 5 (aof b))
+              (block (set r (coco_read_number_text m (coco_tx_s (aof b)) 1 (aof num)))
+                     (coco_sb_free (aof b))
+                     (if (not r) (return 0))
+                     (return (coco_m_unify e n num))))
+          (if (coco_tx_number m n)
+              (block (coco_sb_init (aof b))
+                     (coco_write_term m (aof b) n 0 0)
+                     (set r (coco_m_unify_atom e a (coco_tx_s (aof b))))
+                     (coco_sb_free (aof b))
+                     (return r)))
+          (if (not (coco-tag-is REF (nth n (-> m heap))))
+              (return (coco_m_type_error e "number" n)))
+          (if (coco-tag-is REF (nth a (-> m heap)))
               (return (coco_m_instantiation_error e)))
-          (if (not (coco_m_text e (coco_m_arg e g 0) buf (sizeof buf)))
-              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-          (return (coco_b_atom_to_number e buf (coco_m_arg e g 1)))))
+          (return (coco_m_type_error e "atom" a))))
 
-  ;;; upcase_atom/2 and downcase_atom/2: ASCII's letters in bytes, and under
-  ;;; `text_units = characters' every letter `coco_uc_case' knows (1.13.0):
-  ;;; upcase_atom('dár', 'DÁR'). The text of ANY LENGTH (1.13.0): it went
-  ;;; through 4096 bytes, and a longer atom was a type_error(atom, A) naming
-  ;;; an atom. An unbound one is still that type error, asked first so it
-  ;;; does not climb `coco_b_text_dup''s ladder to 16 MB.
+  ;;; upcase_atom/2 and downcase_atom/2, swipl's modify_case_atom (3.0.0,
+  ;;; `coco_tx_case' in lib/solve-text.cicili): ASCII's letters in bytes,
+  ;;; and under `text_units = characters' every letter `coco_uc_case' knows
+  ;;; (1.13.0): upcase_atom('dár', 'DÁR').
   (static)
   (func coco_b_case ((coco_engine * e) (size_t g) (int up)) (out int)
-        (let ((char * buf . nil) (size_t n . 0) (int rc . 0))
-          (if (coco_m_is_var e (coco_m_arg e g 0))
-              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-          (set buf (coco_b_text_dup e (coco_m_arg e g 0)))
-          (if (== buf nil)
-              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-          (set n (strlen buf))
-          (if (-> (coco_m_machine e) text_chars)
-              (let ((coco_strbuf o))
-                (coco_sb_init (aof o))
-                (if (not (coco_text_case buf n up (aof o)))
-                    (block (coco_sb_free (aof o)) (free buf)
-                           (return (coco_m_resource_error e "memory"))))
-                (free buf)
-                (set rc (coco_m_unify_atom e (coco_m_arg e g 1) (? (== ($ o s) nil) "" ($ o s))))
-                (coco_sb_free (aof o))
-                (return rc)))
-          (for ((size_t i . 0)) (< i n) ((++ i))
-            (let ((int c . #'(bitand (cast int (nth i buf)) 255)))
-              (if up
-                  (if (and (>= c 97) (<= c 122)) (set (nth i buf) (cast char (- c 32))))
-                (if (and (>= c 65) (<= c 90)) (set (nth i buf) (cast char (+ c 32)))))))
-          (set rc (coco_m_unify_atom e (coco_m_arg e g 1) buf))
-          (free buf)
-          (return rc)))
+        (return (coco_tx_case e g up 0)))
 
   ;;; A one-character atom, for a `chars(...)' sink.
   (static)
@@ -1943,2029 +2056,5 @@
           (set (nth 0 one) c)
           (set (nth 1 one) (cast char 0))
           (return (coco_new_atom (coco_m_machine e) one))))
-
-  ;;; ---- format/1,2,3 ---------------------------------------------------
-  ;;;
-  ;;; WHY IT IS HERE AT ALL: SWI's `library(dcg/basics)' generates numbers with
-  ;;; `format(codes(H,T), '~d', [I])' -- four calls, and without them half that
-  ;;; library only works in the parsing direction. It is also the predicate a
-  ;;; Prolog program reaches for more than any other, so its absence was a hole
-  ;;; whoever found it next would have fallen into.
-  ;;;
-  ;;; WHAT IS NOT IMPLEMENTED, and says so rather than guessing: the COLUMN
-  ;;; directives `~t', `~|' and `~+'. They lay text out in fields by measuring
-  ;;; what has been emitted since the last column stop, which is a second pass
-  ;;; over the buffer this does not make. Silently ignoring them would turn a
-  ;;; table into a run-on line and blame the program; the error names the
-  ;;; directive instead.
-
-  ;;; One argument at a time. Answers 0 when there are none left, which every
-  ;;; caller turns into `format/2: not enough arguments'.
-  (static)
-  (func coco_fmt_arg ((const size_t * items) (size_t n) (size_t * i) (size_t * out))
-        (out int)
-        (if (>= (cof i) n) (return 0))
-        (set (cof out) (nth (cof i) items))
-        (set (cof i) (+ (cof i) 1))
-        (return 1))
-
-  ;;; A number in BASE, into BUF. Bases 2..36, digits lower or upper case.
-  (static)
-  (func coco_fmt_radix ((i64 v) (int base) (int upper) (char * buf) (size_t cap))
-        (let ((char tmp [80]) (size_t n . 0) (int neg . 0) (u64 u)
-              (const char * lo . "0123456789abcdefghijklmnopqrstuvwxyz")
-              (const char * up . "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
-          ;; the magnitude in u64: the least integer's, 2^63, has no i64
-          (if (< v 0) (block (set neg 1) (set u (- (cast u64 0) (cast u64 v)))) (set u (cast u64 v)))
-          (if (== u 0) (block (set (nth n tmp) (cast char 48)) (set n 1)))
-          (while (> u 0)
-            (set (nth n tmp) (nth (cast size_t (% u (cast u64 base))) (? upper up lo)))
-            (set n (+ n 1))
-            (set u (/ u (cast u64 base))))
-          (let ((size_t k . 0))
-            (if neg (block (if (< k (- cap 1)) (block (set (nth k buf) (cast char 45))
-                                                      (set k (+ k 1))))))
-            (while (> n 0)
-              (set n (- n 1))
-              (if (< k (- cap 1)) (block (set (nth k buf) (nth n tmp)) (set k (+ k 1)))))
-            (set (nth k buf) (cast char 0)))))
-
-  ;;; `~2d' of 1234 is `12.34': the argument says how many digits are after a
-  ;;; point that is inserted, not how wide the field is.
-  (static)
-  (func coco_fmt_fixed ((coco_strbuf * b) (i64 v) (long places)) (out int)
-        (let ((char all [80]) (char * digits . all) (size_t len . 0) (int neg . #'(? (< v 0) 1 0)))
-          ;; written with its sign and the sign stepped over: the least
-          ;; integer has no negation to write (2.0.0)
-          (coco_fmt_radix v 10 0 all (sizeof all))
-          (if neg (set digits (+ all 1)))
-          (set len (strlen digits))
-          (if neg (if (not (coco_sb_putc b (cast char 45))) (return 0)))
-          (if (<= places 0)
-              (return (coco_sb_put b digits)))
-          ;; a number with fewer digits than places needs leading zeros, and a
-          ;; `0.' in front of them -- `~4d' of 7 is `0.0007'
-          (if (<= len (cast size_t places))
-              (block
-               (if (not (coco_sb_put b "0.")) (return 0))
-               (for ((size_t i . len)) (< i (cast size_t places)) ((++ i))
-                 (if (not (coco_sb_putc b (cast char 48))) (return 0)))
-               (return (coco_sb_put b digits))))
-          (for ((size_t i . 0)) (< i len) ((++ i))
-            (if (== i (- len (cast size_t places)))
-                (if (not (coco_sb_putc b (cast char 46))) (return 0)))
-            (if (not (coco_sb_putc b (nth i digits))) (return 0)))
-          (return 1)))
-
-  ;;; `~D' groups by threes: 1234567 becomes 1,234,567.
-  (static)
-  (func coco_fmt_grouped ((coco_strbuf * b) (i64 v)) (out int)
-        (let ((char all [80]) (char * digits . all) (size_t len . 0) (int neg . #'(? (< v 0) 1 0)))
-          (coco_fmt_radix v 10 0 all (sizeof all))
-          (if neg (set digits (+ all 1)))
-          (set len (strlen digits))
-          (if neg (if (not (coco_sb_putc b (cast char 45))) (return 0)))
-          (for ((size_t i . 0)) (< i len) ((++ i))
-            (if (and (> i 0) (== 0 (% (- len i) 3)))
-                (if (not (coco_sb_putc b (cast char 44))) (return 0)))
-            (if (not (coco_sb_putc b (nth i digits))) (return 0)))
-          (return 1)))
-
-  ;;; THE TEXT OF A TERM, OF ANY LENGTH, put on the end of B: what
-  ;;; `coco_m_text' takes -- a string with no NUL in it, an atom, an integer,
-  ;;; a list of codes 1 to 255 or of one-character atoms -- without its
-  ;;; buffer. Answers 1, or 0 for a term that is not text, B left as it was.
-  ;;; `~a' and `~s' (and the format itself, and term_to_atom/2 reading an
-  ;;; atom) went through a buffer of 8192 bytes, and text that long raised
-  ;;; `format/2: ~s wants text' -- naming the one thing that was not wrong.
-  ;;; library(xml) writes its whole document with one `~s', so every
-  ;;; document of 8 KB or more failed the same way (fixed in 1.10.6).
-  (static)
-  (func coco_text_put ((coco_engine * e) (size_t t) (coco_strbuf * b)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t keep . #'(-> b len)) (i64 iv . 0)
-              (const char * sp . nil) (size_t sn . 0))
-          (set t (coco_deref m t))
-          (if (coco_string_text m t (aof sp) (aof sn))
-              (block
-               (for ((size_t i . 0)) (< i sn) ((++ i))
-                    (if (== (nth i sp) (cast char 0)) (return 0)))
-               (return (coco_sb_put_len b sp sn))))
-          (if (coco_m_is_atom e t)
-              (return (coco_sb_put b (coco_atom_name m (coco_name_of m t)))))
-          (if (coco_m_int e t (aof iv))
-              (return (coco_sb_put_i64 b iv)))
-          ;; a list of character codes -- what "abc" reads as -- or, under
-          ;; `double_quotes = chars', of one-character atoms. One that is its
-          ;; own tail is no text: past the heap's length the walk has gone
-          ;; round (1.10.19; a format, its `~s' and term_to_atom/2 wrote until
-          ;; memory ran out), counted down in the machine (`lbudget'), as the
-          ;; other list walks count
-          (set (-> m lbudget) (-> m heap_len))
-          (while 1
-            (if (coco_m_is_atom e t)
-                (block
-                 (if (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) "[]")) (return 1))
-                 break))
-            (if (not (coco_is_cons m t)) break)
-            (if (== (-- (-> m lbudget)) 0) break)
-            (let ((size_t h . #'(coco_deref m (coco_arg m t 0))) (i64 c . 0))
-              (if (not (coco_m_int e h (aof c)))
-                  (block
-                   (if (not (coco_m_is_atom e h)) break)
-                   (let ((const char * cs . #'(coco_atom_name m (coco_name_of m h))))
-                     ;; a character of however many bytes, in characters
-                     (if (-> m text_chars)
-                         (set c (coco_utf8_one cs))
-                         (block (if (!= (strlen cs) 1) break)
-                                (set c (cast i64 (bitand (cast int (nth 0 cs)) 255))))))))
-              ;; a code point as its UTF-8 under `text_units = characters'
-              ;; (1.13.0), a byte otherwise
-              (if (-> m text_chars)
-                  (block (if (< c 1) break)
-                         (if (not (coco_utf8_put b c)) break))
-                  (block (if (or (< c 1) (> c 255)) break)
-                         (if (not (coco_sb_putc b (cast char c))) break))))
-            (set t (coco_deref m (coco_arg m t 1))))
-          ;; not text: whatever the walk put on is taken off again
-          (set (-> b len) keep)
-          (if (!= (-> b s) nil) (set (nth keep (-> b s)) (cast char 0)))
-          (return 0)))
-
-  ;;; Builds the whole of one format into B. Answers 1, or 0 with ERR set to a
-  ;;; message the caller raises -- so that every way of going wrong is reported
-  ;;; the same way whichever of the three arities was called.
-  (static)
-  (func coco_fmt_build ((coco_engine * e) (const char * f) (const size_t * items)
-                        (size_t n) (coco_strbuf * b) (char * err) (size_t errlen))
-        (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t ai . 0) (size_t i . 0))
-          (while (!= (nth i f) 0)
-            ;; 126 is `~'
-            (if (!= (nth i f) 126)
-                (block (if (not (coco_sb_putc b (nth i f)))
-                           (block (snprintf err errlen "format/2: out of memory") (return 0)))
-                       (set i (+ i 1))
-                       continue))
-            (set i (+ i 1))
-            (let ((long num . 0) (int have . 0) (char d))
-              ;; 42 is `*': the count comes from the arguments
-              (if (== (nth i f) 42)
-                  (let ((size_t a . 0) (i64 v . 0))
-                    (if (not (coco_fmt_arg items n (aof ai) (aof a)))
-                        (block (snprintf err errlen "format/2: not enough arguments") (return 0)))
-                    (if (not (coco_m_int e a (aof v)))
-                        (block (snprintf err errlen "format/2: ~* wants an integer") (return 0)))
-                    (set num (cast long v)) (set have 1) (set i (+ i 1)))
-                (while (and (>= (nth i f) 48) (<= (nth i f) 57))
-                  (set num (+ (* num 10) (cast long (- (nth i f) 48))))
-                  (set have 1)
-                  (set i (+ i 1))))
-              (set d (nth i f))
-              (if (== d 0)
-                  (block (snprintf err errlen "format/2: the format ends in `~~'") (return 0)))
-              (set i (+ i 1))
-
-              ;; 126 `~~', 110 `~n', 105 `~i'
-              (if (== d 126)
-                  (block (coco_sb_putc b (cast char 126)) continue))
-              (if (== d 110)
-                  (block (for ((long k . 0)) (< k (? have num 1)) ((++ k))
-                           (coco_sb_putc b (cast char 10)))
-                         continue))
-              (if (== d 105)
-                  (let ((size_t a . 0))
-                    (if (not (coco_fmt_arg items n (aof ai) (aof a)))
-                        (block (snprintf err errlen "format/2: not enough arguments") (return 0)))
-                    continue))
-              ;; 116 `~t', 124 `~|', 43 `~+' -- see the head of this section
-              (if (or (or (== d 116) (== d 124)) (== d 43))
-                  (block (snprintf err errlen
-                                   "format/2: cocolog has no column directives (~~t, ~~| and ~~+)")
-                         (return 0)))
-
-              ;; everything below takes an argument
-              (let ((size_t a . 0))
-                (if (not (coco_fmt_arg items n (aof ai) (aof a)))
-                    (block (snprintf err errlen "format/2: not enough arguments") (return 0)))
-
-                ;; 119 `~w', 113 `~q', 112 `~p' -- print/1's, quoted and with
-                ;; numbervars, as swipl's `~p' calls print/1 (2.2.4; through
-                ;; 2.2.3 it was `~w'); `~w' and `~q' are write/1's and
-                ;; writeq/1's, numbervars and all (2.2.5)
-                (if (== d 112)
-                    (block (coco_write_print m b a) continue))
-                (if (or (== d 119) (== d 113))
-                    (block (coco_write_mode m b a (? (== d 113) 25 8) 1) continue))
-
-                ;; 97 `~a', 115 `~s' -- an atom, or a list of codes, of any
-                ;; length (`coco_text_put')
-                (if (or (== d 97) (== d 115))
-                    (block
-                      (if (not (coco_text_put e a b))
-                          (block (snprintf err errlen
-                                           "format/2: ~~%c wants text" d)
-                                 (return 0)))
-                      continue))
-
-                ;; 99 `~c' -- a code, NUM times: a byte, or under
-                ;; `text_units = characters' a code point's UTF-8 (1.13.0)
-                (if (== d 99)
-                    (let ((i64 v . 0) (char u [4]) (int ul . 1))
-                      (if (not (coco_m_int e a (aof v)))
-                          (block (snprintf err errlen "format/2: ~~c wants a code") (return 0)))
-                      (if (-> m text_chars)
-                          (block (set ul (coco_utf8_enc u v))
-                                 (if (== ul 0)
-                                     (block (snprintf err errlen "format/2: ~~c wants a code")
-                                            (return 0))))
-                          (set (nth 0 u) (cast char v)))
-                      (for ((long k . 0)) (< k (? have num 1)) ((++ k))
-                        (coco_sb_put_len b u (cast size_t ul)))
-                      continue))
-
-                ;; 100 `~d', 68 `~D'
-                (if (or (== d 100) (== d 68))
-                    (let ((i64 v . 0))
-                      (if (not (coco_m_int e a (aof v)))
-                          (block (snprintf err errlen "format/2: ~~%c wants an integer" d)
-                                 (return 0)))
-                      (if (== d 68)
-                          (coco_fmt_grouped b v)
-                        (coco_fmt_fixed b v (? have num 0)))
-                      continue))
-
-                ;; 114 `~r', 82 `~R' -- NUM is the base
-                (if (or (== d 114) (== d 82))
-                    (let ((i64 v . 0) (char buf [80]))
-                      (if (not (coco_m_int e a (aof v)))
-                          (block (snprintf err errlen "format/2: ~~%c wants an integer" d)
-                                 (return 0)))
-                      (if (or (< num 2) (> num 36))
-                          (block (snprintf err errlen
-                                           "format/2: ~~%c wants a base between 2 and 36" d)
-                                 (return 0)))
-                      (coco_fmt_radix v (cast int num) (? (== d 82) 1 0) buf (sizeof buf))
-                      (coco_sb_put b buf)
-                      continue))
-
-                ;; 101 `~e', 102 `~f', 103 `~g'
-                (if (or (or (== d 101) (== d 102)) (== d 103))
-                    (let ((double v . 0.0) (i64 iv . 0) (char buf [128]) (char spec [16]))
-                      (if (not (coco_m_float e a (aof v)))
-                          (if (coco_m_int e a (aof iv))
-                              (set v (cast double iv))
-                            (block (snprintf err errlen "format/2: ~~%c wants a number" d)
-                                   (return 0))))
-                      (snprintf spec (sizeof spec) "%%.%ld%c" (? have num 6) d)
-                      (snprintf buf (sizeof buf) spec v)
-                      (coco_sb_put b buf)
-                      continue))
-
-                (snprintf err errlen "format/2: no such directive ~~%c" d)
-                (return 0))))
-          (return 1)))
-
-  ;;; The arguments, as an array. `format("~w", foo)' is legal and means one
-  ;;; argument, so anything that is not a proper list is taken for a single
-  ;;; term -- SWI's rule, and the reason `format("~w", [1,2])' means two
-  ;;; arguments while `format("~w", [[1,2]])' means one.
-  (static)
-  (func coco_fmt_args ((coco_engine * e) (size_t t) (size_t ** items) (size_t * n)
-                       (size_t * one)) (out int)
-        (if (coco_m_list_array e t items n) (return 1))
-        (set (nth 0 one) t)
-        (set (cof items) one)
-        (set (cof n) 1)
-        (return 0))          ; 0 means "do not free it"
-
-  ;;; Puts TEXT where SINK says. SINK is `(cast size_t -1)' for stdout -- what
-  ;;; format/1,2 pass -- and otherwise one of the
-  ;;; forms `format/3' and `with_output_to/2' share -- a stream by name, or a
-  ;;; term to unify with the text.
-  ;;;
-  ;;; `codes(H, T)' and `chars(H, T)' ask for a DIFFERENCE list: H is the text
-  ;;; followed by T, not by `[]'. That is what makes the four `format/3' calls
-  ;;; in SWI's dcg/basics work as grammar bodies -- each appends to whatever is
-  ;;; still to come, which is exactly what a DCG body has to do.
-  ;;;
-  ;;; A SINK A MODULE OWNS IS ASKED ABOUT FIRST: library(stream) installs a
-  ;;; hook (`coco_m_sink_install') and takes '$stream'(N), a stream's alias,
-  ;;; and user_output while a file is the current output. It answers 0 for
-  ;;; everything else, so with no module loaded nothing below has moved.
-  (static)
-  (func coco_sink_deliver ((coco_engine * e) (size_t sink) (const char * out)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e)))
-          ;; STDOUT IS SIZE_MAX, AND WAS 0 UNTIL 1.8.34 -- but 0 is a heap cell
-          ;; like any other, the first term the reader built, so a query whose
-          ;; first term was its sink atom (`format(nosuch_sink, x, [])') took
-          ;; this path and printed where it should have raised, and an alias
-          ;; there would have gone to stdout. No cell index reaches SIZE_MAX.
-          (if (== sink (cast size_t -1)) (block (fputs out stdout) (return 1)))
-          (let ((int hooked . #'(coco_m_sink_call e sink out (strlen out))))
-            (if (!= hooked 0) (return hooked)))
-
-          (let ((size_t d . #'(coco_deref m sink)))
-            (if (not (coco_is_callable m d))
-                (return (coco_m_domain_error e "output_sink" sink)))
-
-            ;; a stream by name
-            (if (== (coco_arity m d) 0)
-                (let ((const char * nm . #'(coco_atom_name m (coco_name_of m d))))
-                  (if (== 0 (strcmp nm "user_output")) (block (fputs out stdout) (return 1)))
-                  (if (== 0 (strcmp nm "user_error")) (block (fputs out stderr) (return 1)))
-                  (return (coco_m_domain_error e "output_sink" sink))))
-
-            (let ((const char * nm . #'(coco_atom_name m (coco_name_of m d)))
-                  (u32 ar . #'(coco_arity m d))
-                  (int as_chars . 0) (int as_atom . 0) (int as_string . 0))
-              (if (== 0 (strcmp nm "atom")) (set as_atom 1))
-              (if (== 0 (strcmp nm "chars")) (set as_chars 1))
-              ;; `string(S)' IS A SINK NOW, and it was a domain_error for as
-              ;; long as there was no string type to put anything in. SWI's
-              ;; `format(string(S), ...)' is the ordinary way to build one, so
-              ;; leaving it refused would have meant a type you can make with
-              ;; twelve predicates and cannot format into.
-              (if (== 0 (strcmp nm "string")) (set as_string 1))
-              (if (and (and (not as_atom) (not as_chars))
-                       (and (not as_string) (!= 0 (strcmp nm "codes"))))
-                  (return (coco_m_domain_error e "output_sink" sink)))
-              (if (or (< ar 1) (> ar 2))
-                  (return (coco_m_domain_error e "output_sink" sink)))
-              ;; `atom(A, B)' is not a thing -- only the LIST sinks take a
-              ;; tail, because a difference list is the only one of the four
-              ;; that has anywhere to put it.
-              (if (and (or as_atom as_string) (== ar 2))
-                  (return (coco_m_domain_error e "output_sink" sink)))
-
-              (if as_atom
-                  (return (? (coco_m_unify_atom e (coco_arg m d 0) out) 1 0)))
-              (if as_string
-                  (return (? (coco_m_unify_string e (coco_arg m d 0) out (strlen out)) 1 0)))
-
-              (let ((size_t tail . #'(? (== ar 2) (coco_arg m d 1) (coco_m_nil e)))
-                    (size_t acc) (size_t len . #'(strlen out)))
-                ;; characters under `text_units = characters' (1.13.0)
-                (if (-> m text_chars)
-                    (return (? (coco_m_unify e (coco_arg m d 0)
-                                             (coco_text_list m out len as_chars tail))
-                               1 0)))
-                (set acc tail)
-                (while (> len 0)
-                  (set len (- len 1))
-                  (let ((size_t c . #'(? as_chars
-                                         (coco_fmt_one_char e (nth len out))
-                                         (coco_new_int m (cast i64 (bitand (cast int (nth len out)) 255))))))
-                    (set acc (coco_m_cons e c acc))))
-                (return (? (coco_m_unify e (coco_arg m d 0) acc) 1 0)))))))
-
-  ;;; Shared by all three arities. SINK is `(cast size_t -1)' for stdout.
-  (static)
-  (func coco_fmt_do ((coco_engine * e) (size_t sink) (size_t fmt) (size_t argt))
-        (out int)
-        (let ((coco_strbuf fb) (char err [192])
-              (coco_strbuf b) (size_t * items . nil) (size_t n . 0)
-              (size_t one [1]) (int owned . 0) (int ok . 0))
-
-          ;; the format itself is text: an atom, or the code list "..." reads
-          ;; as -- of any length, as its arguments are
-          (coco_sb_init (aof fb))
-          (if (not (coco_text_put e fmt (aof fb)))
-              (block (coco_sb_free (aof fb))
-                     (return (coco_m_type_error e "text" fmt))))
-
-          (set owned (coco_fmt_args e argt (aof items) (aof n) one))
-          (coco_sb_init (aof b))
-          (set (nth 0 err) (cast char 0))
-          (set ok (coco_fmt_build e (? (== ($ fb s) nil) "" ($ fb s)) items n (aof b) err (sizeof err)))
-          (coco_sb_free (aof fb))
-          (if owned (free items))
-
-          ;; WHAT WAS FORMATTED BEFORE THE ERROR STILL COMES OUT, when the
-          ;; sink is a stream. SWI formats straight to the stream and so emits
-          ;; everything up to the directive that failed; this builds a buffer
-          ;; first, so it has to put the buffer out by hand to behave the same.
-          ;; `format("~w ~w", [one])' prints `one ' and then raises, in both.
-          ;; A term sink gets nothing: there is no half-built atom to unify.
-          (if (not ok)
-              (block
-               (if (== sink (cast size_t -1))
-                   (if (!= ($ b s) nil) (fputs ($ b s) stdout)))
-               (coco_sb_free (aof b))
-               ;; a refused buffer is resource_error(memory) (1.10.28)
-               (if (== 0 (strcmp err "format/2: out of memory"))
-                   (return (coco_m_resource_error e "memory")))
-               (return (coco_m_error e err ""))))
-
-          (let ((int rc . #'(coco_sink_deliver e sink (? (== ($ b s) nil) "" ($ b s)))))
-            (coco_sb_free (aof b))
-            (return rc))))
-
-  ;;; ---- with_output_to/2 -----------------------------------------------
-  ;;;
-  ;;; `with_output_to(codes(H, T), write(F))' -- SWI's dcg/basics uses exactly
-  ;;; that, once, to render a float. It is also the general answer to "what did
-  ;;; this goal print", which nothing else here can ask.
-  ;;;
-  ;;; TWO AWKWARD THINGS, both worth knowing about before touching this.
-  ;;;
-  ;;; FIRST, THE REDIRECTION IS AT THE FILE DESCRIPTOR, not at a `FILE *' this
-  ;;; code passes around. cocolog writes with `printf', `fputs' and `fputc' to
-  ;;; the literal `stdout' in some seventy places; threading a stream argument
-  ;;; through all of them is the tidier design and a much larger change. So fd 1
-  ;;; is pointed at a `tmpfile' for the duration and put back afterwards. A
-  ;;; temporary file and not a pipe: a pipe holds 64K and a goal that printed
-  ;;; more than that would block for ever with nobody reading.
-  ;;;
-  ;;; SECOND, THE GOAL RUNS IN A NESTED ENGINE and so cannot be suspended. That
-  ;;; is the same limit `findall/3' has and for the same reason -- a builtin
-  ;;; cannot hand a continuation back to the engine that called it. A machine
-  ;;; frozen in the middle of one of these would have to freeze a redirected
-  ;;; file descriptor with it, which is not a thing a database row can hold.
-  ;;;
-  ;;; It is `once/1' and not a generator: the FIRST solution is kept, with its
-  ;;; bindings, and the goal is not re-entered. SWI's is semi-deterministic too.
-  (func coco_b_with_output_to ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (coco_store * st . #'(-> e st))
-              (size_t sink . #'(coco_m_arg e g 0))
-              (size_t goal . #'(coco_m_arg e g 1))
-              (coco_engine sub)
-              (FILE * tmp . nil) (int saved . -1) (int rc . 0)
-              (int threw . 0) (size_t ball_cell . 0) (size_t ball_size . 0)
-              (void * bstor . nil) (size_t bmark . 0)
-              (char * text . nil) (long len . 0))
-
-          (if (coco_m_is_var e goal) (return (coco_m_instantiation_error e)))
-
-          (set tmp (tmpfile))
-          (if (== tmp nil) (return (coco_m_error e "with_output_to/2" "cannot open a temporary file")))
-          (fflush stdout)
-          (set saved (dup 1))
-          (if (< saved 0)
-              (block (fclose tmp)
-                     (return (coco_m_error e "with_output_to/2" "cannot save stdout"))))
-          (if (< (dup2 (fileno tmp) 1) 0)
-              (block (close saved) (fclose tmp)
-                     (return (coco_m_error e "with_output_to/2" "cannot redirect stdout"))))
-
-          (coco_engine_init (aof sub) m st)
-          ;; the inner goal spends the outer one's remaining budget, so a step
-          ;; limit cannot be overrun from in here -- narrowed after the ask,
-          ;; as findall/3's is (1.15.0)
-          (coco_engine_ask (aof sub) goal)
-          (coco_limit_narrow e (aof sub))
-          ;; the trace follows the proof inside, depth and all, as it does
-          ;; into a findall's -- through 1.10.16 this engine traced as
-          ;; `--trace' had started it whatever trace/0 and notrace/0 had said
-          ;; since, and counted its depths from 1 (1.10.17, the backtrace)
-          (set ($ sub trace) (-> e trace))
-          (set ($ sub trace_depth) (-> e trace_depth))
-          (set ($ sub trace_goal) (-> e trace_goal))
-          ;; THE GOAL MAY COLLECT THE HEAP (1.9.4; `coco_engine_findall'):
-          ;; the sink, which is read after it, is told to the collector, and
-          ;; the machine's marks at the start go with the inner engine
-          (let ((size_t hold [1]) (size_t * holdp . nil) (size_t nhold . 1) (int held . 0))
-            (set (nth 0 hold) sink)
-            (set holdp hold)
-            (set held (coco_heap_root_push m (aof holdp) (aof nhold)))
-            (set ($ sub ptrail) ($ (cof m) trail_len))
-            (set ($ sub pheap) ($ (cof m) heap_len))
-            (set ($ sub gc) (? (and held (-> e gc)) 1 0))
-            (let ((size_t gsaved . #'(coco_gc_nested_begin m ($ sub pheap))))
-              (set rc (coco_engine_next (aof sub)))
-              (coco_gc_nested_end m gsaved))
-            (if held (coco_heap_root_pop m))
-            (set sink (nth 0 hold)))
-          ;; a window's clock: the time from here is this builtin's (1.13.3)
-          (if (-> e tclock) (coco_clock_back e))
-          (set (-> e steps) (+ (-> e steps) ($ sub steps)))
-          (set (-> e frees) (+ (-> e frees) ($ sub frees)))
-          ;; AND THE BALL WITH IT, which this did not do until 1.2.12 and the
-          ;; other six nested-engine builtins have done since 1.1.0. A
-          ;; sub-engine has a choice stack of its own, so a `throw' inside the
-          ;; goal finds no catch frame THERE and comes back as an error --
-          ;; and copying the message out while dropping the term made
-          ;;
-          ;;     catch(with_output_to(atom(A), G), E, true)
-          ;;
-          ;; catch nothing: the query simply ended. findall/3,4, forall/2,
-          ;; aggregate_all/3, bagof/3 and setof/3 are `coco_engine_findall'
-          ;; and were all fixed together; this one is its own sub-engine in
-          ;; this file and was missed. The cell is read HERE, before
-          ;; `coco_engine_free' memsets the sub-engine, and thrown again below
-          ;; once stdout is back where it belongs.
-          (if (== rc -1)
-              (block (snprintf (-> e err) 512 "%s" ($ sub err))
-                     (if ($ sub has_ball)
-                         (block (set threw 1) (set ball_cell ($ sub ball_cell))
-                                (set ball_size ($ sub ball_size))
-                                (set bstor ($ sub ball_st))
-                                (set bmark ($ sub ball_mark))))))
-          (coco_engine_free (aof sub))
-
-          ;; PUT STDOUT BACK BEFORE ANYTHING ELSE, whatever happened. An early
-          ;; return from here on would leave the process writing into a file
-          ;; nobody will ever read.
-          (fflush stdout)
-          (dup2 saved 1)
-          (close saved)
-
-          (if (!= rc 1)
-              (block (fclose tmp)
-                     ;; THROWN AGAIN, IN THE OUTER ENGINE, where the catch
-                     ;; frames are -- and stdout is already restored above, so
-                     ;; a recovery goal that prints prints to the terminal
-                     ;; rather than into a temporary file nobody will read. 2
-                     ;; is the builtin protocol's "the continuation is already
-                     ;; set"; -1 when nothing caught it, which is the uncaught
-                     ;; path this had always taken.
-                     ;;
-                     ;; AND THE TWO ARMS WERE THE WRONG WAY ROUND, which made
-                     ;; a goal that merely FAILED throw. `(if C A B)' runs A
-                     ;; when C holds, so a ball was counted dead and never
-                     ;; rethrown, while a plain failure fell into the else and
-                     ;; threw `coco_store_get(st, 0)' -- cell zero, whatever
-                     ;; the store happened to put there first. Measured:
-                     ;; `with_output_to(codes(C), fail)' threw
-                     ;; `file_base_name(A,B):-'$path_split'(A,C,B)', the first
-                     ;; clause of library(files)'s Prolog half, on every sink
-                     ;; and whether or not the program loaded that library.
-                     ;; SWI's with_output_to/2 fails when its goal fails.
-                     (if threw
-                         (let ((coco_store * bst . #'(? (== bstor nil)
-                                                        st
-                                                        (cast (coco_store *) bstor))))
-                           (if (== bst st)
-                               (set (-> st dead) (+ (-> st dead) ball_size)))
-                           ;; the inner throw's backtrace is the one kept
-                           (set (-> m btkeep) 1)
-                           (let ((int caught . #'(? (coco_m_thrown
-                                                     e (coco_store_read m bst ball_cell))
-                                                    2 -1)))
-                             (if (!= bst st)
-                                 (block (set (-> bst len) bmark)
-                                        (coco_store_shrink_empty bst)))
-                             (return caught))))
-                     (if (== rc -1) (return -1))
-                     (return 0)))
-
-          (fflush tmp)
-          (fseek tmp 0 SEEK_END)
-          (set len (ftell tmp))
-          (if (< len 0) (set len 0))
-          (set text (cast (char *) (malloc (cast size_t (+ len 1)))))
-          (if (== text nil)
-              (block (fclose tmp)
-                     (return (coco_m_resource_error e "memory"))))
-          (rewind tmp)
-          (if (> len 0)
-              (if (!= (cast long (fread text 1 (cast size_t len) tmp)) len)
-                  (block (free text) (fclose tmp)
-                         (return (coco_m_error e "with_output_to/2" "cannot read back the output")))))
-          (set (nth (cast size_t len) text) (cast char 0))
-          (fclose tmp)
-
-          (let ((int out . #'(coco_sink_deliver e sink text)))
-            (free text)
-            (return out))))
-
-  ;;; `flush_output/0' -- SWI'S, AND IT WAS MISSING. cocolog writes to the
-  ;;; literal stdout, which the C library buffers by LINE at a terminal and
-  ;;; by BLOCK everywhere else. So a program that prints a marker and then
-  ;;; blocks -- a server saying it is listening, a long job saying where it
-  ;;; has got to -- prints nothing at all when its output is a pipe or a
-  ;;; file, and everything at once when it finally exits.
-  ;;;
-  ;;; FOUND BY WRITING test/tls.sh. The server printed READY, the harness
-  ;;; waited for READY to appear in the log, and the log stayed empty until
-  ;;; the server gave up and exited -- at which point the whole transcript
-  ;;; arrived, correct and far too late. Interactively it had always
-  ;;; worked, because a terminal is line buffered.
-  ;;;
-  ;;; No argument, because there is one output. When cocolog grows a stream
-  ;;; layer this becomes `flush_output/1' with this as its default.
-  (func coco_b_flush ((coco_engine * e) (size_t g)) (out int)
-        (fflush stdout)
-        (return 1))
-
-  (func coco_b_format1 ((coco_engine * e) (size_t g)) (out int)
-        (return (coco_fmt_do e (cast size_t -1) (coco_m_arg e g 0) (coco_m_nil e))))
-
-  (func coco_b_format2 ((coco_engine * e) (size_t g)) (out int)
-        (return (coco_fmt_do e (cast size_t -1) (coco_m_arg e g 0) (coco_m_arg e g 1))))
-
-  (func coco_b_format3 ((coco_engine * e) (size_t g)) (out int)
-        (return (coco_fmt_do e (coco_m_arg e g 0) (coco_m_arg e g 1) (coco_m_arg e g 2))))
-
-
-  ;;; ---- character classification ---------------------------------------
-  ;;;
-  ;;; `code_type/2' and `char_type/2'. WRITTEN AGAINST A RUNNING SWI, not
-  ;;; against its manual, because the two disagree in places that matter here:
-  ;;;
-  ;;;   `alpha' is LETTERS ONLY -- the manual says "letter or digit", and the
-  ;;;   implementation agrees with neither the manual nor `alnum'.
-  ;;;
-  ;;;   `to_upper(L)' gives the LOWERCASE of the code, and `to_lower(U)' the
-  ;;;   uppercase. Read once that seems backwards; the name describes what the
-  ;;;   code can be converted TO, and the argument is the other case. SWI's own
-  ;;;   `library(dcg/basics)' relies on it: `alpha_to_lower' matches a letter
-  ;;;   and takes `to_upper(L)' to get L lowercased.
-  ;;;
-  ;;; test/files/ctype.pl walks 0..127 through every category in both systems
-  ;;; and compares, so a guess here does not survive.
-  ;;;
-  ;;; ASCII ONLY. `isalpha' and friends are locale-dependent and cocolog reads
-  ;;; bytes, so the classification is written out rather than delegated -- a C
-  ;;; library in another locale must not change what a program means.
-  (static)
-  (func coco_ct_upper ((int c)) (out int) (return (? (and (>= c 65) (<= c 90)) 1 0)))
-  (static)
-  (func coco_ct_lower ((int c)) (out int) (return (? (and (>= c 97) (<= c 122)) 1 0)))
-  (static)
-  (func coco_ct_digit ((int c)) (out int) (return (? (and (>= c 48) (<= c 57)) 1 0)))
-  (static)
-  (func coco_ct_alpha ((int c)) (out int)
-        (return (? (or (coco_ct_upper c) (coco_ct_lower c)) 1 0)))
-  (static)
-  (func coco_ct_alnum ((int c)) (out int)
-        (return (? (or (coco_ct_alpha c) (coco_ct_digit c)) 1 0)))
-  (static)
-  (func coco_ct_tolower ((int c)) (out int) (return (? (coco_ct_upper c) (+ c 32) c)))
-  (static)
-  (func coco_ct_toupper ((int c)) (out int) (return (? (coco_ct_lower c) (- c 32) c)))
-
-  ;;; The hex weight of C, or -1.
-  (static)
-  (func coco_ct_xweight ((int c)) (out int)
-        (if (coco_ct_digit c) (return (- c 48)))
-        (if (and (>= c 97) (<= c 102)) (return (+ 10 (- c 97))))
-        (if (and (>= c 65) (<= c 70)) (return (+ 10 (- c 65))))
-        (return -1))
-
-  ;;; The categories with no argument. Answers 1, 0, or -1 for "not a category
-  ;;; I know", which the caller turns into a domain error rather than a silent
-  ;;; failure -- a typo in a type name should say so.
-  (static)
-  (func coco_ct_plain ((const char * t) (int c)) (out int)
-        (if (== 0 (strcmp t "alpha"))   (return (coco_ct_alpha c)))
-        (if (== 0 (strcmp t "alnum"))   (return (coco_ct_alnum c)))
-        (if (== 0 (strcmp t "digit"))   (return (coco_ct_digit c)))
-        (if (== 0 (strcmp t "upper"))   (return (coco_ct_upper c)))
-        (if (== 0 (strcmp t "lower"))   (return (coco_ct_lower c)))
-        ;; csym is alnum plus underscore, csymf the same without the digits:
-        ;; what may appear in a C identifier, and what may start one
-        (if (== 0 (strcmp t "csym"))    (return (? (or (coco_ct_alnum c) (== c 95)) 1 0)))
-        (if (== 0 (strcmp t "csymf"))   (return (? (or (coco_ct_alpha c) (== c 95)) 1 0)))
-        (if (== 0 (strcmp t "ascii"))   (return (? (and (>= c 0) (<= c 127)) 1 0)))
-        ;; `space' is every blank; `white' only the two that can sit inside a
-        ;; line. That distinction is the whole reason both exist.
-        (if (== 0 (strcmp t "space"))
-            (return (? (or (== c 32) (and (>= c 9) (<= c 13))) 1 0)))
-        (if (== 0 (strcmp t "white"))   (return (? (or (== c 32) (== c 9)) 1 0)))
-        (if (== 0 (strcmp t "cntrl"))   (return (? (or (< c 32) (== c 127)) 1 0)))
-        (if (== 0 (strcmp t "graph"))   (return (? (and (> c 32) (< c 127)) 1 0)))
-        (if (== 0 (strcmp t "print"))   (return (? (and (>= c 32) (< c 127)) 1 0)))
-        (if (== 0 (strcmp t "punct"))
-            (return (? (and (and (> c 32) (< c 127)) (not (coco_ct_alnum c))) 1 0)))
-        (if (== 0 (strcmp t "end_of_line")) (return (? (and (>= c 10) (<= c 13)) 1 0)))
-        (if (== 0 (strcmp t "newline"))  (return (? (== c 10) 1 0)))
-        (if (== 0 (strcmp t "period"))   (return (? (or (or (== c 46) (== c 33)) (== c 63)) 1 0)))
-        (if (== 0 (strcmp t "quote"))
-            (return (? (or (or (== c 39) (== c 34)) (== c 96)) 1 0)))
-        ;; what may start and continue a Prolog variable or identifier
-        (if (== 0 (strcmp t "prolog_var_start"))
-            (return (? (or (coco_ct_upper c) (== c 95)) 1 0)))
-        (if (== 0 (strcmp t "prolog_atom_start")) (return (coco_ct_lower c)))
-        (if (== 0 (strcmp t "prolog_identifier_continue"))
-            (return (? (or (coco_ct_alnum c) (== c 95)) 1 0)))
-        (if (== 0 (strcmp t "prolog_symbol"))
-            ;; `c' is guarded because `strchr' finds the terminating NUL and
-            ;; would call code 0 a symbol character
-            (return (? (and (!= c 0) (!= nil (strchr "+-*/\\^<>=~:.?@#&$" c))) 1 0)))
-        (return -1))
-
-  ;;; ---- past ASCII, under `text_units = characters' (1.13.0) -------------
-  ;;;
-  ;;; As swipl answers on Linux, whose classes are glibc's C.UTF-8: a letter
-  ;;; of the scripts `coco_uc_letter' knows, OR A DIGIT OF ANOTHER SCRIPT
-  ;;; (glibc puts them in alpha, digit being ASCII's ten), is alpha, alnum,
-  ;;; csym, csymf and prolog_identifier_continue; upper and lower are the
-  ;;; case it has (`coco_uc_case', and the five small letters with no
-  ;;; capital, ª º ß ĸ ŉ); a blank is `coco_uc_space''s; the C1 controls and
-  ;;; the line and paragraph separators are cntrl; every other code point
-  ;;; up to U+10FFFF but a surrogate is print, graph unless a blank, punct
-  ;;; unless alpha. digit, white, end_of_line, newline, period, quote and
-  ;;; ascii are ASCII's alone -- swipl also answers period and quote for a
-  ;;; code point whose low byte is NUL or one of those marks (U+0100, U+AC00,
-  ;;; U+0627), its `strchr' over a truncated character, which is not copied.
-  ;;; In bytes nothing here is asked: a code past 127 is no letter there.
-  (static)
-  (func coco_ct_odigit ((i64 c)) (out int)
-        (return (? (or (or (and (>= c 1632) (<= c 1641)) (and (>= c 1776) (<= c 1785)))
-                       (or (or (and (>= c 2406) (<= c 2415)) (and (>= c 3664) (<= c 3673)))
-                           (and (>= c 65296) (<= c 65305))))
-                   1 0)))
-  (static)
-  (func coco_ct_ualpha ((i64 c)) (out int)
-        (return (? (or (coco_uc_letter c) (coco_ct_odigit c)) 1 0)))
-  (static)
-  (func coco_ct_uupper ((i64 c)) (out int)
-        (return (? (!= (coco_uc_case c 0) c) 1 0)))
-  (static)
-  (func coco_ct_ulower ((i64 c)) (out int)
-        (if (!= (coco_uc_case c 1) c) (return 1))
-        (return (? (or (or (== c 170) (== c 186)) (or (or (== c 223) (== c 312)) (== c 329))) 1 0)))
-  (static)
-  (func coco_ct_ucntrl ((i64 c)) (out int)
-        (return (? (or (and (>= c 128) (<= c 159)) (or (== c 8232) (== c 8233))) 1 0)))
-  (static)
-  (func coco_ct_uprint ((i64 c)) (out int)
-        (if (or (coco_ct_ucntrl c) (> c 1114111)) (return 0))
-        (return (? (and (>= c 55296) (<= c 57343)) 0 1)))
-
-  ;;; prolog_symbol past ASCII: punct, but not the no-break space, the soft
-  ;;; hyphen, the zero-width and joining marks, the byte-order mark or the
-  ;;; private use areas, which swipl's own table leaves out.
-  (static)
-  (func coco_ct_usymbol ((i64 c)) (out int)
-        (if (or (not (coco_ct_uprint c)) (or (coco_uc_space c) (coco_ct_ualpha c))) (return 0))
-        (if (or (== c 160) (== c 173)) (return 0))
-        (if (or (and (>= c 8203) (<= c 8207)) (and (>= c 8288) (<= c 8292))) (return 0))
-        (if (or (== c 65279) (and (>= c 57344) (<= c 63743))) (return 0))
-        (return (? (>= c 983040) 0 1)))
-
-  ;;; The categories with no argument for C past 127, under characters;
-  ;;; -1 for no such category, as `coco_ct_plain'.
-  (static)
-  (func coco_ct_uplain ((const char * t) (i64 c)) (out int)
-        (if (or (or (== 0 (strcmp t "alpha")) (== 0 (strcmp t "alnum")))
-                (or (or (== 0 (strcmp t "csym")) (== 0 (strcmp t "csymf")))
-                    (== 0 (strcmp t "prolog_identifier_continue"))))
-            (return (coco_ct_ualpha c)))
-        (if (or (== 0 (strcmp t "upper")) (== 0 (strcmp t "prolog_var_start")))
-            (return (coco_ct_uupper c)))
-        (if (== 0 (strcmp t "lower")) (return (coco_ct_ulower c)))
-        (if (== 0 (strcmp t "prolog_atom_start"))
-            (return (? (and (coco_uc_letter c) (not (coco_ct_uupper c))) 1 0)))
-        (if (== 0 (strcmp t "space")) (return (coco_uc_space c)))
-        (if (== 0 (strcmp t "cntrl")) (return (coco_ct_ucntrl c)))
-        (if (== 0 (strcmp t "print")) (return (coco_ct_uprint c)))
-        (if (== 0 (strcmp t "graph"))
-            (return (? (and (coco_ct_uprint c) (not (coco_uc_space c))) 1 0)))
-        (if (== 0 (strcmp t "punct"))
-            (return (? (and (and (coco_ct_uprint c) (not (coco_uc_space c)))
-                            (not (coco_ct_ualpha c))) 1 0)))
-        (if (== 0 (strcmp t "prolog_symbol")) (return (coco_ct_usymbol c)))
-        (if (or (or (or (== 0 (strcmp t "digit")) (== 0 (strcmp t "white")))
-                    (or (== 0 (strcmp t "end_of_line")) (== 0 (strcmp t "newline"))))
-                (or (or (== 0 (strcmp t "period")) (== 0 (strcmp t "quote")))
-                    (== 0 (strcmp t "ascii"))))
-            (return 0))
-        (return -1))
-
-  ;;; The shared half of `code_type/2' and `char_type/2'. AS_CHAR says whether
-  ;;; the argument, and any code the category hands back, is a one-character
-  ;;; atom rather than a number -- the only difference between the two.
-  (static)
-  (func coco_b_ctype ((coco_engine * e) (size_t g) (int as_char)) (out int)
-        (let ((size_t ct . #'(coco_m_arg e g 0))
-              (size_t ty . #'(coco_m_arg e g 1))
-              (int c . 0) (int uc . #'(-> (coco_m_machine e) text_chars)))
-
-          ;; ENUMERATING IS NOT SUPPORTED. `code_type(C, alpha)' with C unbound
-          ;; has fifty-two answers and a builtin here cannot succeed twice --
-          ;; see the head of lib/solve.cicili. Raising says so; failing would
-          ;; read as "no letters are alphabetic".
-          (if (coco_m_is_var e ct) (return (coco_m_instantiation_error e)))
-
-          (if as_char
-              (let ((char buf [8]))
-                (if (not (coco_m_text e ct buf (sizeof buf)))
-                    (return (coco_m_type_error e "character" ct)))
-                ;; one character of however many bytes, under characters
-                (if uc
-                    (block (if (not (coco_b_is_char (coco_m_machine e) buf))
-                               (return (coco_m_type_error e "character" ct)))
-                           (set c (cast int (coco_utf8_one buf))))
-                    (block (if (!= 1 (cast int (strlen buf)))
-                               (return (coco_m_type_error e "character" ct)))
-                           (set c (bitand (cast int (nth 0 buf)) 255)))))
-            (let ((i64 v . 0))
-              (if (not (coco_m_int e ct (aof v)))
-                  (return (coco_m_type_error e "integer" ct)))
-              (set c (cast int v))))
-          ;; past ASCII, under `text_units = characters': its own classes
-          (set uc (and uc (>= c 128)))
-
-          (if (coco_m_is_var e ty) (return (coco_m_instantiation_error e)))
-          (if (not (coco_m_is_atom e ty))
-              ;; a category with an argument: `upper(L)', `xdigit(W)' and so on
-              (let ((coco_machine * mm . #'(coco_m_machine e))
-                    (size_t d . #'(coco_deref mm ty)))
-                (if (or (not (coco_is_callable mm d)) (!= (coco_arity mm d) 1))
-                    (return (coco_m_type_error e "char_type" ty)))
-                (let ((const char * tn . #'(coco_atom_name mm (coco_name_of mm d)))
-                      (size_t a . #'(coco_arg mm d 0))
-                      (int want . -1) (int weight . 0))
-
-                  (if (== 0 (strcmp tn "upper"))
-                      (block (if (not (? uc (coco_ct_uupper c) (coco_ct_upper c))) (return 0))
-                             (set want (? uc (cast int (coco_uc_case c 0)) (coco_ct_tolower c)))))
-                  (if (== 0 (strcmp tn "lower"))
-                      (block (if (not (? uc (coco_ct_ulower c) (coco_ct_lower c))) (return 0))
-                             (set want (? uc (cast int (coco_uc_case c 1)) (coco_ct_toupper c)))))
-                  ;; to_upper/to_lower succeed for ANY code -- they are "can be
-                  ;; converted", and a code with no other case converts to itself
-                  (if (== 0 (strcmp tn "to_upper"))
-                      (set want (? uc (cast int (coco_uc_case c 0)) (coco_ct_tolower c))))
-                  (if (== 0 (strcmp tn "to_lower"))
-                      (set want (? uc (cast int (coco_uc_case c 1)) (coco_ct_toupper c))))
-
-                  (if (== 0 (strcmp tn "digit"))
-                      (block (if (not (coco_ct_digit c)) (return 0))
-                             ;; the WEIGHT, not the code: `digit(W)' of `7' is 7
-                             (set weight (- c 48))
-                             (return (? (coco_m_unify_int e a (cast i64 weight)) 1 0))))
-                  (if (== 0 (strcmp tn "xdigit"))
-                      (block (set weight (coco_ct_xweight c))
-                             (if (< weight 0) (return 0))
-                             (return (? (coco_m_unify_int e a (cast i64 weight)) 1 0))))
-
-                  (if (< want 0) (return (coco_m_type_error e "char_type" ty)))
-                  (if as_char
-                      (let ((char one [8]) (int k . 1))
-                        (if (-> mm text_chars)
-                            (set k (coco_utf8_enc one (cast i64 want)))
-                            (set (nth 0 one) (cast char want)))
-                        (set (nth k one) (cast char 0))
-                        (return (? (coco_m_unify_atom e a one) 1 0))))
-                  (return (? (coco_m_unify_int e a (cast i64 want)) 1 0)))))
-
-          (let ((int r . #'(? uc
-                              (coco_ct_uplain (coco_m_atom e ty) (cast i64 c))
-                              (coco_ct_plain (coco_m_atom e ty) c))))
-            (if (< r 0) (return (coco_m_type_error e "char_type" ty)))
-            (return r))))
-
-  (func coco_b_code_type ((coco_engine * e) (size_t g)) (out int)
-        (return (coco_b_ctype e g 0)))
-
-  (func coco_b_char_type ((coco_engine * e) (size_t g)) (out int)
-        (return (coco_b_ctype e g 1)))
-
-  (func coco_b_upcase ((coco_engine * e) (size_t g)) (out int) (return (coco_b_case e g 1)))
-  (func coco_b_downcase ((coco_engine * e) (size_t g)) (out int) (return (coco_b_case e g 0)))
-
-  ;;; Both directions: a term written out, or an atom read back in -- of any
-  ;;; length (`coco_text_put'; it was a buffer of 8192 bytes).
-  (func coco_b_term_to_atom ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e)))
-          (if (not (coco_m_is_var e (coco_m_arg e g 0)))
-              (let ((coco_strbuf b) (int rc))
-                (coco_sb_init (aof b))
-                (coco_write_term m (aof b) (coco_m_arg e g 0) 1 0)
-                (set rc (coco_m_unify_atom e (coco_m_arg e g 1)
-                                         (? (== ($ b s) nil) "" ($ b s))))
-                (coco_sb_free (aof b))
-                (return rc)))
-          (let ((coco_strbuf tb) (size_t t . 0) (int rc))
-            (coco_sb_init (aof tb))
-            ;; `text', as SWI names it (1.10.19; it said `atom'): a code
-            ;; list is text here too, and a list that is its own tail none
-            (if (not (coco_text_put e (coco_m_arg e g 1) (aof tb)))
-                (block (coco_sb_free (aof tb))
-                       (return (coco_m_type_error e "text" (coco_m_arg e g 1)))))
-            (if (not (coco_read_term_from m (? (== ($ tb s) nil) "" ($ tb s)) (aof t)))
-                (block
-                 (set rc (coco_m_error e "term_to_atom/2 cannot read" (? (== ($ tb s) nil) "" ($ tb s))))
-                 (coco_sb_free (aof tb))
-                 (return rc)))
-            (coco_sb_free (aof tb))
-            (return (coco_m_unify e (coco_m_arg e g 0) t)))))
-
-  ;;; The byte length of the text `atom_length/2' measured in characters.
-  ;;;
-  ;;; It is asked once per `sub_atom/5' call, before the candidate loop; the
-  ;;; candidate loop used to ask `strlen' for every prefix. A number is
-  ;;; rendered into the same 64-byte buffer `coco_b_sub_atom_at' uses.
-  (func coco_b_atom_byte_length ((coco_engine * e) (size_t g)) (out int)
-        (let ((const char * s . #'(coco_m_atom e (coco_m_arg e g 0)))
-              (char num [64]))
-          (if (== s nil)
-              (block
-               (if (not (coco_m_text e (coco_m_arg e g 0) num (sizeof num)))
-                   (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-               (set s num)))
-          (return (coco_m_unify_int e (coco_m_arg e g 1)
-                                    (cast i64 (strlen s))))))
-
-  ;;; THE POSITIONS A BOUND SUBSTRING OCCUPIES, in one scan. `sub_atom/5''s
-  ;;; first clause used to call the single-substring builtin once per B;
-  ;;; besides the byte length, every failed candidate bound Aft and had to
-  ;;; undo it, and at 100 KB that was seconds. The scan returns the
-  ;;; character offsets, ascending, as a list; the Coco half enumerates it.
-  ;;;
-  ;;; B is in characters under `text_units = characters', as atom_length/2
-  ;;; and sub_atom/5 are. The byte scan only starts a match on a UTF-8 lead
-  ;;; byte (or ASCII), so it cannot land inside a character.
-  (func coco_b_sub_atom_positions ((coco_engine * e) (size_t g)) (out int)
-        (let ((const char * s . nil) (const char * sub . nil) (char num [64])
-              (i64 nbytes . 0) (size_t n . 0) (size_t sl . 0)
-              (size_t * pos . nil) (size_t np . 0)
-              (size_t p . 0) (size_t bchar . 0) (int chars . 0))
-          (if (not (coco_m_int e (coco_m_arg e g 2) (aof nbytes))) (return 0))
-          (if (< nbytes 0) (return 0))
-          (set n (cast size_t nbytes))
-          (set s (coco_m_atom e (coco_m_arg e g 0)))
-          (if (== s nil)
-              (block
-               (if (not (coco_m_text e (coco_m_arg e g 0) num (sizeof num)))
-                   (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-               (set s num)))
-          (set sub (coco_m_atom e (coco_m_arg e g 1)))
-          (if (== sub nil) (return 0))
-          (set sl (strlen sub))
-          (set chars (-> (coco_m_machine e) text_chars))
-          (set pos (cast (size_t *) (malloc (* (+ n 1) (sizeof size_t)))))
-          (if (== pos nil) (return 0))
-          (while (<= p n)
-            (if (and (<= (+ p sl) n)
-                     (or (not chars)
-                         (!= 128 (bitand (cast int (nth p s)) 192)))
-                     (== 0 (memcmp (+ s p) sub sl)))
-                (block
-                 (set (nth np pos) (? chars bchar p))
-                 (set np (+ np 1))))
-            (if (and chars (< p n)
-                     (!= 128 (bitand (cast int (nth p s)) 192)))
-                (set bchar (+ bchar 1)))
-            (set p (+ p 1)))
-          (let ((size_t lst . #'(coco_m_nil e)))
-            (for ((size_t i . np)) (> i 0) ((-- i))
-              (set lst (coco_m_cons e (coco_m_new_int e (cast i64 (nth (- i 1) pos))) lst)))
-            (free pos)
-            (return (coco_m_unify e (coco_m_arg e g 3) lst)))))
-
-  ;;; One substring, at a known place and length. The enumeration is in the
-  ;;; Coco half, where the engine can make the choice points.
-  ;;; THIS HAD A 4096-BYTE CLIFF and reported it as the wrong error entirely.
-  ;;; Two fixed buffers and a `coco_m_text' that answers 0 for "does not fit"
-  ;;; exactly as it does for "not text at all" -- so `sub_atom' on an atom of
-  ;;; 4096 characters raised `type_error(atom, <the atom>)', which is a
-  ;;; diagnosis pointing at the one thing that was not wrong. 4095 worked.
-  ;;;
-  ;;; Found by library(httpd) reading a 5000-byte response back, which is the
-  ;;; ordinary size of a web page and not an exotic input at all.
-  ;;;
-  ;;; THE ATOM IS NOW READ WHERE IT LIVES. `coco_m_atom' hands back the
-  ;;; pointer into the atom table, so the common case copies NOTHING before
-  ;;; the substring itself -- which is both the fix and faster than what it
-  ;;; replaces. Only the substring is allocated, and only for as long as it
-  ;;; takes to intern it.
-  ;;;
-  ;;; ORDER MATTERS ON THE NEXT FOUR LINES: the integers are read BEFORE the
-  ;;; pointer is taken, because anything that allocates can move the atom
-  ;;; table under it. Nothing between `coco_m_atom' and the `memcpy' does.
-  ;;;
-  ;;; THE BYTE LENGTH COMES FROM THE CALLER (2.12.0). `sub_atom/5''s bound-Sub
-  ;;; path asks about every prefix of a long atom; a `strlen' here made that
-  ;;; search O(n^2) -- 0.09 s at 10 KB, 0.84 s at 40 KB and 5.5 s at 100 KB
-  ;;; on 2.11.6, where splitting with `atomic_list_concat/3' was flat. The
-  ;;; Coco half asks once with `$atom_byte_length'/2 and passes NB here.
-  (func coco_b_sub_atom_at ((coco_engine * e) (size_t g)) (out int)
-        (let ((const char * s . nil) (const char * sub . nil) (char num [64]) (char * out . nil)
-              (i64 before . 0) (i64 len . 0) (size_t n . 0) (int rc . 1) (i64 aft . 0)
-              (i64 nbytes . 0))
-          (if (not (coco_m_int e (coco_m_arg e g 1) (aof before))) (return 0))
-          (if (not (coco_m_int e (coco_m_arg e g 2) (aof len))) (return 0))
-          (if (not (coco_m_int e (coco_m_arg e g 5) (aof nbytes))) (return 0))
-          (if (or (< before 0) (< len 0) (< nbytes 0)) (return 0))
-          (set s (coco_m_atom e (coco_m_arg e g 0)))
-          ;; Not an atom: an integer, which is the only other thing the Coco
-          ;; half's `atom_length' lets through, and 64 bytes is more than any
-          ;; of them needs.
-          (if (== s nil)
-              (block
-               (if (not (coco_m_text e (coco_m_arg e g 0) num (sizeof num)))
-                   (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-               (set s num)))
-          (set n (cast size_t nbytes))
-          ;; UNDER `text_units = characters' (1.13.0) BEFORE and LEN count
-          ;; characters: they become the bytes they cover, and what is after
-          ;; is counted in characters again -- sub_atom('dár', 1, 1, A, S)
-          ;; is A = 1, S = 'á' where bytes cut á in half
-          (if (-> (coco_m_machine e) text_chars)
-              (let ((size_t b0 . #'(coco_utf8_at s n (cast size_t before))) (size_t bl . 0))
-                (if (== b0 (cast size_t -1)) (return 0))
-                (set bl (coco_utf8_at (+ s b0) (- n b0) (cast size_t len)))
-                (if (== bl (cast size_t -1)) (return 0))
-                (set aft (cast i64 (coco_utf8_count (+ s (+ b0 bl)) (- n (+ b0 bl)))))
-                (set before (cast i64 b0))
-                (set len (cast i64 bl)))
-              (block
-               (if (> (cast size_t (+ before len)) n) (return 0))
-               (set aft (cast i64 (- n (cast size_t (+ before len)))))))
-          ;; A BOUND SUBSTRING IS A TEST, NOT A TERM TO BUILD. The first
-          ;; clause of sub_atom/5 asks about every prefix of a long atom;
-          ;; allocating and unifying a candidate there made a failed search
-          ;; O(n^2) even after the byte length stopped being strlen'd. A
-          ;; memcmp, with no mark, allocation or undo, is the ordinary case.
-          (set sub (coco_m_atom e (coco_m_arg e g 4)))
-          (if (!= sub nil)
-              (if (or (!= (strlen sub) (cast size_t len))
-                      (!= 0 (memcmp (+ s before) sub (cast size_t len))))
-                  (return 0)))
-          (set out (cast (char *) (malloc (+ (cast size_t len) 1))))
-          (if (== out nil) (return 0))
-          (memcpy out (+ s before) (cast size_t len))
-          (set (nth len out) (cast char 0))
-          (let ((size_t mark . #'(coco_m_mark e)))
-            (if (not (coco_m_unify_int e (coco_m_arg e g 3) aft))
-                (block (coco_m_undo e mark) (set rc 0)))
-            (if (and rc (not (coco_m_unify_atom e (coco_m_arg e g 4) out)))
-                (block (coco_m_undo e mark) (set rc 0))))
-          (free out)
-          (return rc)))
-
-  ;;; A term's text in a buffer of its own, or nil when it is not text.
-  ;;;
-  ;;; `coco_m_text' writes into a buffer the CALLER sizes and answers 0 both
-  ;;; for "this is not text" and for "it did not fit" -- so a fixed buffer
-  ;;; turns a long atom into a type error or a silent failure, and there is
-  ;;; no way to tell the two apart without asking again with more room. An
-  ;;; atom is asked its own length and fits first time; everything else is
-  ;;; guessed at, doubling, and stops at 16 MB -- because a term that is not
-  ;;; text fails at EVERY size, and doubling for ever on a `foo(1)' would be
-  ;;; a way to run out of memory reporting a type error.
-  ;;;
-  ;;; The caller frees it, and decides which error a nil is.
-  (static)
-  (func coco_b_text_dup ((coco_engine * e) (size_t t)) (out char *)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t d . #'(coco_deref (coco_m_machine e) t))
-              (size_t cap . 4096))
-          ;; AN ATOM ANSWERS ITS OWN SIZE, so the large case that actually
-          ;; turns up -- a file read into one atom, a generated program, a
-          ;; page -- is ONE malloc of exactly the right length and no
-          ;; doubling at all. Only a string or a code list has to be guessed
-          ;; at, and only a term that is not text pays the whole ladder.
-          (if (coco_m_is_atom e d)
-              (set cap (+ 1 (strlen (coco_atom_name m (coco_name_of m d))))))
-          (while (<= cap 16777216)
-            (let ((char * one . #'(cast (char *) (malloc cap))))
-              (if (== one nil) (return nil))
-              (if (coco_m_text e d one cap) (return one))
-              (free one)
-              (set cap (* cap 2))))
-          (return nil)))
-
-  ;;; `$atom_split(Atom, Sep, Parts)'. An empty separator would split into
-  ;;; nothing sensible, so it is refused here and the caller's clause never
-  ;;; sends one.
-  ;;;
-  ;;; THE ATOM GROWS. It was a `char a[8192]', so splitting anything larger
-  ;;; -- a page, a file read in, a joined program -- raised
-  ;;; `type_error(atom, ...)' about an atom that is plainly an atom, which is
-  ;;; the same 8 KB ceiling `$atom_join' had on the way out.
-  ;;;
-  ;;; Its three terms are given, so atomic_list_concat/3's row hands its own
-  ;;; over in the order this takes them (1.12.2).
-  (static)
-  (func coco_b_split ((coco_engine * e) (size_t at) (size_t st) (size_t lt)) (out int)
-        (let ((char * a . #'(coco_b_text_dup e at)) (char sep [256])
-              (char ** parts . nil) (size_t n . 0) (size_t cap . 0) (int rc))
-          (if (== a nil)
-              (return (coco_m_type_error e "atom" at)))
-          (if (not (coco_m_text e st sep (sizeof sep)))
-              (block (free a) (return (coco_m_type_error e "atom" st))))
-          (if (== 0 (strlen sep))
-              (block (free a)
-                     (return (coco_m_error e "atomic_list_concat/3 cannot split on an empty separator" nil))))
-          (let ((char * p . a))
-            (while 1
-              (let ((char * q . #'(strstr p sep)))
-                (if (>= n cap)
-                    (let ((size_t ncap . #'(? (== cap 0) 8 (* cap 2)))
-                          (char ** nb))
-                      (set nb (cast (char **) (realloc parts (* ncap (sizeof (char *))))))
-                      (if (== nb nil) break)
-                      (set parts nb)
-                      (set cap ncap)))
-                (if (== q nil)
-                    (block (set (nth n parts) (strdup p)) (set n (+ n 1)) break))
-                (set (nth 0 q) (cast char 0))
-                (set (nth n parts) (strdup p))
-                (set n (+ n 1))
-                (set (nth 0 q) (nth 0 sep))
-                (set p (+ q (strlen sep))))))
-          (set rc (coco_m_unify e lt (coco_m_atom_list e parts n)))
-          (for ((size_t i . 0)) (< i n) ((++ i)) (free (nth i parts)))
-          (free parts)
-          (free a)
-          (return rc)))
-
-  (func coco_b_atom_split ((coco_engine * e) (size_t g)) (out int)
-        (return (coco_b_split e (coco_m_arg e g 0) (coco_m_arg e g 1) (coco_m_arg e g 2))))
-
-  ;;; `'$atom_join'(List, Sep, Atom)' -- what atomic_list_concat/2,3 joins with.
-  ;;;
-  ;;; THE RESULT GROWS. It was a `char out[8192]' and a bare `return 0' when
-  ;;; the join outran it, so `atomic_list_concat/2' over anything sizeable
-  ;;; simply FAILED, with no error term and nothing on stderr: measured, 6400
-  ;;; characters answered and 8320 did not. A caller reading that failure as
-  ;;; "these atoms do not join" is reading a buffer size, and the sizeable
-  ;;; case is the ordinary one -- a page, a generated program, a CSV row.
-  ;;; A `coco_strbuf' grows, so what is left is memory.
-  ;;;
-  ;;; AND THE ERROR TERM IS BUILT BEFORE THE ARRAY IS FREED. It was
-  ;;; `(block (free v) (return (coco_m_type_error e "atomic" (nth i v))))',
-  ;;; reading the culprit out of memory it had just handed back -- which is
-  ;;; why the ball named the FIRST element rather than the offending one, and
-  ;;; why it could crash outright instead. The heap INDEX is copied out
-  ;;; first now: it is a number, and the array being freed held numbers, not
-  ;;; the heap they point into.
-  ;;;
-  ;;; AN UNBOUND ELEMENT IS AN instantiation_error, which is SWI's answer and
-  ;;; the one a caller can act on. It used to be `type_error(atomic, ...)'
-  ;;; naming whatever the freed array happened to still hold.
-  ;;;
-  ;;; Its terms are given (1.12.2), the separator's as -1 for none: what
-  ;;; atomic_list_concat/2 joins with.
-  (static)
-  (func coco_b_join ((coco_engine * e) (size_t lt) (size_t st) (size_t at)) (out int)
-        (let ((size_t * v . nil) (size_t n . 0)
-              (char sep [256]) (coco_strbuf b)
-              (int why . 0) (size_t bad . 0) (int rc . 0))
-          (if (not (coco_m_list_array e lt (aof v) (aof n)))
-              (return (coco_m_type_error e "list" lt)))
-          (if (== st (cast size_t -1))
-              (set (nth 0 sep) (cast char 0))
-              (if (not (coco_m_text e st sep (sizeof sep)))
-                  (block (free v) (return (coco_m_type_error e "atom" st)))))
-          (coco_sb_init (aof b))
-          (for ((size_t i . 0)) (< i n) ((++ i))
-            (block
-             (if (> i 0) (coco_sb_put (aof b) sep))
-             (if (coco_m_is_var e (nth i v))
-                 (block (set why 1) (set bad (nth i v)) break))
-             (let ((char * one . #'(coco_b_text_dup e (nth i v))))
-               (if (== one nil)
-                   (block (set why 2) (set bad (nth i v)) break))
-               (coco_sb_put (aof b) one)
-               (free one))))
-          (free v)
-          (if (== why 1)
-              (block (coco_sb_free (aof b)) (return (coco_m_instantiation_error e))))
-          (if (== why 2)
-              (block (coco_sb_free (aof b)) (return (coco_m_type_error e "atomic" bad))))
-          (set rc (coco_m_unify_atom e at (? (== ($ b s) nil) "" ($ b s))))
-          (coco_sb_free (aof b))
-          (return rc)))
-
-  (func coco_b_atom_join ((coco_engine * e) (size_t g)) (out int)
-        (return (coco_b_join e (coco_m_arg e g 0) (coco_m_arg e g 1) (coco_m_arg e g 2))))
-
-  ;;; `atomic_list_concat(+List, ?Atom)': the join with no separator, in
-  ;;; one step where the clause around '$atom_join'/3 took two (1.12.2).
-  (func coco_b_alc2 ((coco_engine * e) (size_t g)) (out int)
-        (return (coco_b_join e (coco_m_arg e g 0) (cast size_t -1) (coco_m_arg e g 1))))
-
-  ;;; `atomic_list_concat(?List, +Sep, ?Atom)' in one step where its clauses
-  ;;; took four (1.12.2). With the list unbound it SPLITS, the mode everybody
-  ;;; uses it in, and so it does with a list that is merely not ground and
-  ;;; the atom bound -- SWI's rule: `atomic_list_concat([A,B], -, 'x-y')',
-  ;;; the shape a caller writes when it knows how many parts it wants, once
-  ;;; went to the join and raised instantiation_error about its own output.
-  ;;; Anything else joins.
-  (func coco_b_alc3 ((coco_engine * e) (size_t g)) (out int)
-        (let ((size_t lt . #'(coco_m_arg e g 0)) (size_t st . #'(coco_m_arg e g 1))
-              (size_t at . #'(coco_m_arg e g 2)))
-          (if (or (coco_m_is_var e lt)
-                  (and (not (coco_m_is_var e at))
-                       (not (coco_b_is_ground (coco_m_machine e) lt))))
-              (return (coco_b_split e at st lt)))
-          (return (coco_b_join e lt st at))))
-
-  ;;; ---- writing ----------------------------------------------------------
-
-  ;;; writeq/1, swipl's (2.2.5): quoted, numbervars and character escapes
-  ;;; (25: `'$VAR'(1)' is `B', `'don''t'' is `'don\'t''). Through 2.2.4
-  ;;; quoted alone, and `'$VAR'(1)' and `'don''t'' came out as they read.
-  (func coco_b_writeq ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_strbuf b))
-          (coco_sb_init (aof b))
-          (coco_write_mode (coco_m_machine e) (aof b) (coco_m_arg e g 0) 25 1)
-          (if (!= ($ b s) nil) (fputs ($ b s) stdout))
-          (coco_sb_free (aof b))
-          (return 1)))
-
-  ;;; `write_term(Term, Options)'. `quoted(true)', `ignore_ops(true)',
-  ;;; `numbervars(true)' and `variable_names(['X'=V, ...])' are the ones the
-  ;;; writer has -- variable_names since 1.10.6: each named variable still
-  ;;; unbound is written as its name, where through 1.10.5 the option was
-  ;;; read past and every variable came out `_G' and a number; numbervars
-  ;;; since 2.2.5, `'$VAR'(N)' as the variable it names, and quoted with
-  ;;; swipl's character escapes since then too (`'don\'t''). Anything else
-  ;;; in the list is ignored rather than refused, because an option a writer
-  ;;; does not implement is not a reason to fail a program.
-  (func coco_b_write_term ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t * v . nil) (size_t n . 0)
-              (int quoted . 0) (int ignore_ops . 0) (int numbervars . 0) (coco_strbuf b)
-              (size_t * nv . nil) (size_t nn . 0) (size_t k . 0)
-              (size_t * cells . nil) (u64 * names . nil))
-          (if (coco_m_list_array e (coco_m_arg e g 1) (aof v) (aof n))
-              (for ((size_t i . 0)) (< i n) ((++ i))
-                (let ((size_t o . #'(coco_deref m (nth i v))))
-                  (if (and (coco_is_callable m o) (== 1 (coco_arity m o)))
-                      (let ((const char * nm . #'(coco_atom_name m (coco_name_of m o)))
-                            (const char * val . #'(coco_m_atom e (coco_deref m (coco_arg m o 0)))))
-                        (if (and (!= val nil) (== 0 (strcmp val "true")))
-                            (block
-                             (if (== 0 (strcmp nm "quoted")) (set quoted 1))
-                             (if (== 0 (strcmp nm "ignore_ops")) (set ignore_ops 1))
-                             (if (== 0 (strcmp nm "numbervars")) (set numbervars 1))))
-                        (if (and (== 0 (strcmp nm "variable_names")) (== cells nil))
-                            (if (coco_m_list_array e (coco_arg m o 0) (aof nv) (aof nn))
-                                (block
-                                 (set cells (cast (size_t *) (malloc (* (+ nn 1) (sizeof size_t)))))
-                                 (set names (cast (u64 *) (malloc (* (+ nn 1) (sizeof u64)))))
-                                 (if (and (!= cells nil) (!= names nil))
-                                     (for ((size_t j . 0)) (< j nn) ((++ j))
-                                       (let ((size_t p . #'(coco_deref m (nth j nv))))
-                                         (if (and (and (coco_is_callable m p) (== 2 (coco_arity m p)))
-                                                  (== 0 (strcmp (coco_atom_name m (coco_name_of m p)) "=")))
-                                             (let ((size_t nmc . #'(coco_deref m (coco_arg m p 0)))
-                                                   (size_t vc . #'(coco_deref m (coco_arg m p 1))))
-                                               (if (and (coco_m_is_atom e nmc)
-                                                        (coco-tag-is REF (nth vc (-> m heap))))
-                                                   (block (set (nth k cells) vc)
-                                                          (set (nth k names) (coco_name_of m nmc))
-                                                          (set k (+ k 1)))))))))
-                                 (free nv)))))))))
-          (free v)
-          (coco_sb_init (aof b))
-          (if (and (!= cells nil) (!= names nil))
-              (block (set (-> m wcells) cells) (set (-> m wnames) names) (set (-> m nwnames) k)))
-          (coco_write_mode m (aof b) (coco_m_arg e g 0)
-                           (bitor (? quoted 17 0) (bitor (? ignore_ops 2 0) (? numbervars 8 0))) 1)
-          (set (-> m wcells) nil) (set (-> m wnames) nil) (set (-> m nwnames) 0)
-          (free cells) (free names)
-          (if (!= ($ b s) nil) (fputs ($ b s) stdout))
-          (coco_sb_free (aof b))
-          (return 1)))
-
-  ;;; ---- the environment --------------------------------------------------
-  ;;;
-  ;;; SWI's `getenv/2', `setenv/2' and `unsetenv/1'. getenv FAILS for a
-  ;;; name that is not set rather than throwing -- "is this set" is an
-  ;;; ordinary question with an ordinary no, and a program that wants an
-  ;;; error can write `( getenv(X, V) -> true ; throw(...) )'.
-  ;;;
-  ;;; This is the one channel by which a value reaches a program WITHOUT
-  ;;; passing through the knowledge base, which is why it is worth having
-  ;;; and not only convenience: a consulted file becomes clauses, and
-  ;;; clauses become rows. A secret that must not become a row -- a
-  ;;; node's signing key, a token -- has nowhere else to arrive from.
-  (func coco_b_getenv ((coco_engine * e) (size_t g)) (out int)
-        (let ((char name [512]))
-          (if (not (coco_m_text e (coco_m_arg e g 0) name (sizeof name)))
-              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-          (let ((const char * v . #'(getenv name)))
-            (if (== v nil) (return 0))
-            (return (coco_m_unify_atom e (coco_m_arg e g 1) v)))))
-
-  (func coco_b_setenv ((coco_engine * e) (size_t g)) (out int)
-        (let ((char name [512]) (char val [4096]))
-          (if (not (coco_m_text e (coco_m_arg e g 0) name (sizeof name)))
-              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-          (if (not (coco_m_text e (coco_m_arg e g 1) val (sizeof val)))
-              (return (coco_m_type_error e "atom" (coco_m_arg e g 1))))
-          (return (? (== 0 (setenv name val 1)) 1 0))))
-
-  (func coco_b_unsetenv ((coco_engine * e) (size_t g)) (out int)
-        (let ((char name [512]))
-          (if (not (coco_m_text e (coco_m_arg e g 0) name (sizeof name)))
-              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-          (unsetenv name)
-          (return 1)))
-
-  (func coco_b_tab ((coco_engine * e) (size_t g)) (out int)
-        (let ((i64 n . 0))
-          (if (not (coco_m_int e (coco_m_arg e g 0) (aof n)))
-              (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
-          (for ((i64 i . 0)) (< i n) ((++ i)) (fputc 32 stdout))
-          (return 1)))
-
-  ;;; ---- the clause database ----------------------------------------------
-
-  ;;; How many clauses a predicate has, and its index in the store. The index
-  ;;; comes back too so that `$clause' need not find it again. The LIVE
-  ;;; clauses, counted by ordinal as `$clause' reads them: one retracted
-  ;;; while a call on it is still open (the logical update view, lib/kb.cicili)
-  ;;; is no clause of the program's, and goes first if no call wants it.
-  (func coco_b_pred_count ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (coco_store * st . #'(-> e st))
-              (size_t head . #'(coco_m_arg e g 0)))
-          (if (not (coco_is_callable m head))
-              (return (coco_m_type_error e "callable" head)))
-          (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m head)
-                                               (coco_arity m head))))
-            (if (>= pi ($ (cof st) npreds)) (return 0))
-            ;; a predicate the knowledge base could not hand over raises,
-            ;; as its call does (2.11.1)
-            (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
-            (coco_tomb_try_sweep st m pi)
-            (let ((size_t mark . #'(coco_m_mark e)))
-              (if (not (coco_m_unify_int e (coco_m_arg e g 1)
-                                       (cast i64 (coco_pred_live (aof (nth pi ($ (cof st) preds)))))))
-                  (block (coco_m_undo e mark) (return 0)))
-              (if (not (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 pi)))
-                  (block (coco_m_undo e mark) (return 0))))
-            (return 1))))
-
-  ;;; The Ith clause of the predicate named by Head, as Head and Body. I counts
-  ;;; from one, because the Coco half enumerates it with `between/3', and
-  ;;; counts the live clauses (`coco_pred_live_at'), so the dead that a sweep
-  ;;; takes out between two of its calls move nothing it counts.
-  (func coco_b_clause_at ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (coco_store * st . #'(-> e st))
-              (size_t head . #'(coco_m_arg e g 0))
-              (i64 want . 0))
-          (if (not (coco_m_int e (coco_m_arg e g 2) (aof want))) (return 0))
-          (if (not (coco_is_callable m head)) (return 0))
-          (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m head)
-                                               (coco_arity m head))))
-            (if (>= pi ($ (cof st) npreds)) (return 0))
-            (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
-            (let ((coco_pred * p . #'(aof (nth pi ($ (cof st) preds))))
-                  (size_t at . 0))
-              (if (< want 1) (return 0))
-              (set at (coco_pred_live_at p (- (cast size_t want) 1)))
-              (if (== at (coco_no_clause)) (return 0))
-              (let ((size_t mark . #'(coco_m_mark e))
-                    (size_t t . #'(coco_store_get m st (nth at (-> p clauses))))
-                    (size_t h . 0) (size_t bdy . 0))
-                (coco_clause_parts m t (aof h) (aof bdy))
-                ;; a fact's body is `true', which is what SWI answers too
-                (if (== bdy 0) (set bdy (coco_new_atom m "true")))
-                (if (not (coco_m_unify e head h))
-                    (block (coco_m_undo e mark) (return 0)))
-                (if (not (coco_m_unify e (coco_m_arg e g 1) bdy))
-                    (block (coco_m_undo e mark) (return 0)))
-                (return 1))))))
-
-  ;;; Every predicate the store DEFINES, as Name/Arity: one with a clause, or
-  ;;; one declared dynamic (an assert declares it too), as SWI counts them.
-  ;;; The table holds more -- a call, or `clause/2', makes an entry for a
-  ;;; name it looks up, and a call to it still raises `existence_error' --
-  ;;; and those are left out, as are the library's own predicates:
-  ;;; `current_predicate/1' is about the program. The program's own files
-  ;;; are the program's (`own', 1.10.28): `-s FILE', ensure_loaded/1 and
-  ;;; use_module/1 of a path load them as modules, and through 1.10.27 their
-  ;;; predicates were left out with the library's.
-  (func coco_b_predicates ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (coco_store * st . #'(-> e st))
-              (size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out))
-          (coco_store_warm st)
-          (for ((size_t i . 0)) (< i ($ (cof st) npreds)) ((++ i))
-            (if (and (or (not ($ (nth i ($ (cof st) preds)) library))
-                         ($ (nth i ($ (cof st) preds)) own))
-                     (or (> (coco_pred_live (aof (nth i ($ (cof st) preds)))) 0)
-                         ($ (nth i ($ (cof st) preds)) dynamic)))
-                (block
-                 (if (>= n cap)
-                     (let ((size_t ncap . #'(? (== cap 0) 16 (* cap 2)))
-                           (size_t * nb))
-                       (set nb (cast (size_t *) (realloc v (* ncap (sizeof size_t)))))
-                       (if (== nb nil) break)
-                       (set v nb)
-                       (set cap ncap)))
-                 (set (nth n v)
-                      (coco_make2 m "/"
-                                (coco_new_atom m (coco_atom_name m ($ (nth i ($ (cof st) preds)) name)))
-                                (coco_new_int m (cast i64 ($ (nth i ($ (cof st) preds)) arity)))))
-                 (set n (+ n 1)))))
-          (set out (coco_m_list e v n))
-          (free v)
-          (return (coco_m_unify e (coco_m_arg e g 0) out))))
-
-  (coco-emit-claims coco_b_tier1_claims *builtins-predicates* *lists-predicates*
-                    *files-predicates* *dcg-predicates* *library-predicates*
-                    *zigurat-predicates*)
-  (coco-emit-claims coco_b_construct_claims *callable-constructs*)
-
-  ;;; PREDICATE_PROPERTY/2'S C HALF (1.10.28): '$pred_props'(Head, Props),
-  ;;; the properties of the predicate Head names, or a failure where
-  ;;; nothing defines it -- SWI's answer for an unknown one. Module:Head
-  ;;; names Head: there is one namespace. A control construct is visible,
-  ;;; built_in, static and defined (`coco_b_construct_claims', by name and
-  ;;; arity), and a C predicate of the engine's table or of a compiled-in
-  ;;; module (`coco_b_tier1_claims') foreign too; a
-  ;;; predicate of the store with a clause or a dynamic declaration is
-  ;;; visible, dynamic or static, defined, with number_of_clauses(N) and
-  ;;; number_of_rules(R). Where SWI says a library's predicate is built_in
-  ;;; or imported_from(Lib), this does not: a library's clauses are
-  ;;; consulted muted and carry no file (`coco_consult'). A module loaded
-  ;;; from a `.so' is not answered: its dispatcher is all that knows its
-  ;;; names, and asking it is calling it.
-  (func coco_b_pred_props ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (coco_store * st . #'(-> e st))
-              (size_t h . #'(coco_m_arg e g 0))
-              (size_t v [8]) (size_t n . 0) (u64 nid . 0) (u32 ar . 0) (int c . 0))
-          (if (coco_is_compound2 m h ":") (set h (coco_deref m (coco_arg m h 1))))
-          (if (coco_m_is_var e h) (return (coco_m_instantiation_error e)))
-          (if (not (coco_is_callable m h)) (return (coco_m_type_error e "callable" h)))
-          (set nid (coco_name_of m h))
-          (set ar (coco_arity m h))
-          (set c (or (>= (coco_builtin_index m nid ar) 0)
-                     (coco_b_tier1_claims (coco_atom_name m nid) ar)))
-          (if (or c (coco_b_construct_claims (coco_atom_name m nid) ar))
-              (block
-                (set (nth n v) (coco_new_atom m "visible")) (++ n)
-                (set (nth n v) (coco_new_atom m "built_in")) (++ n)
-                (if c (block (set (nth n v) (coco_new_atom m "foreign")) (++ n)))
-                (set (nth n v) (coco_new_atom m "static")) (++ n)
-                (set (nth n v) (coco_new_atom m "defined")) (++ n)
-                (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_list e v n)))))
-          (let ((size_t pi . #'(coco_pred_intern st nid ar)))
-            (if (>= pi ($ (cof st) npreds)) (return 0))
-            (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
-            (let ((coco_pred * p . #'(aof (nth pi ($ (cof st) preds))))
-                  (size_t rules . 0) (size_t mark . #'($ (cof m) heap_len))
-                  (u64 tid . #'(coco_intern m "true")))
-              (if (and (== (coco_pred_live p) 0) (not (-> p dynamic))) (return 0))
-              ;; a rule is a clause whose body is not `true'; the predicate
-              ;; read through its index each time round, as after. A clause
-              ;; retracted while a call on it is open is none of them.
-              (for ((size_t i . 0)) (< i ($ (nth pi ($ (cof st) preds)) nclauses)) ((++ i))
-                (if (coco_pred_dead (aof (nth pi ($ (cof st) preds))) i) continue)
-                (let ((size_t t . #'(coco_store_get m st (nth i ($ (nth pi ($ (cof st) preds)) clauses))))
-                      (size_t ch . 0) (size_t cb . 0))
-                  (coco_clause_parts m t (aof ch) (aof cb))
-                  (if (and (!= cb 0)
-                           (not (and (coco-tag-is ATOM (nth (coco_deref m cb) (-> m heap)))
-                                     (== (coco_name_of m (coco_deref m cb)) tid))))
-                      (set rules (+ rules 1)))
-                  (set (-> m heap_len) mark)))
-              ;; the store may have moved under the reads: read P again
-              (set p (aof (nth pi ($ (cof st) preds))))
-              (set (nth n v) (coco_new_atom m "visible")) (++ n)
-              (set (nth n v) (coco_new_atom m (? (-> p dynamic) "dynamic" "static"))) (++ n)
-              (set (nth n v) (coco_new_atom m "defined")) (++ n)
-              (set (nth n v) (coco_make1 m "number_of_clauses" (coco_new_int m (cast i64 (coco_pred_live p))))) (++ n)
-              (set (nth n v) (coco_make1 m "number_of_rules" (coco_new_int m (cast i64 rules)))) (++ n)
-              (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_list e v n)))))))
-
-  ;;; `abolish(Name/Arity)' -- every clause of it goes, and the write-through
-  ;;; hook hears about it because this is a retract of the whole predicate.
-  (func coco_b_abolish ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (coco_store * st . #'(-> e st))
-              (size_t spec . #'(coco_m_arg e g 0)))
-          (if (not (coco_is_compound2 m spec "/"))
-              (return (coco_m_type_error e "predicate_indicator" spec)))
-          (let ((size_t nm . #'(coco_deref m (coco_arg m spec 0)))
-                (size_t ar . #'(coco_deref m (coco_arg m spec 1)))
-                (i64 arity . 0))
-            (if (not (coco_m_is_atom e nm))
-                (return (coco_m_type_error e "atom" nm)))
-            (if (not (coco_m_int e ar (aof arity)))
-                (return (coco_m_type_error e "integer" ar)))
-            (with-green-write e
-             (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m nm) (cast u32 arity))))
-              (if (>= pi ($ (cof st) npreds)) (return 1))
-              ;; unread, the rows it would leave in the database are not
-              ;; known, and rewriting the predicate empty would take them
-              (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
-              ;; retract the first clause until there is none, so that the
-              ;; backend hears once per removal exactly as it would from a
-              ;; program doing the same thing -- the first LIVE one: one
-              ;; retracted while a call on it is open stays, dead, where it
-              ;; stood (the logical update view, lib/kb.cicili)
-              (while (> (coco_pred_live (aof (nth pi ($ (cof st) preds)))) 0)
-                (let ((size_t mark . #'($ (cof m) heap_len))
-                      (size_t at . #'(coco_pred_live_at (aof (nth pi ($ (cof st) preds))) 0))
-                      (size_t t . #'(coco_store_get m st
-                                                  (nth at ($ (nth pi ($ (cof st) preds)) clauses))))
-                      (int ok . #'(coco_retract st m t)))
-                  (set (-> m heap_len) mark)
-                  (if (< ok 0) (return (coco_fetch_error e)))
-                  (if (not ok) break)))
-              (coco_store_maybe_compact st m)
-              (return 1))))))
-
-  ;;; ---- global variables -------------------------------------------------
-  ;;;
-  ;;; `nb_' and `b_' are the same thing here. SWI's differ on backtracking --
-  ;;; a `b_setval' is undone and an `nb_setval' is not -- and undoing one would
-  ;;; need a trail entry that is not a variable binding, which the trail
-  ;;; carries only for a heap cell (setarg/3's value entry, 1.12.0): a global
-  ;;; lives in the store. They are documented as the non-backtrackable pair.
-  ;;;
-  ;;; THE VALUE GOES IN THE STORE, not the heap: a global that a query set has
-  ;;; to survive the query's heap being wound back, and the store is the only
-  ;;; thing here that does not shrink.
-
-  ;;; AND THE TABLE IS THE STORE'S, which is `coco_global' and the three
-  ;;; members beside `cells' in lib/kb.cicili -- that header carries the
-  ;;; whole argument. In one line: an entry holds an index into ONE store's
-  ;;; cells, so a table shared between stores hands one store's index to
-  ;;; another, and `run_isolated/2' -- a fresh store -- read garbage or
-  ;;; segfaulted. Globals are therefore per-store, which is the semantics a
-  ;;; fresh machine should have anyway.
-  ;;;
-  ;;; NOTHING HERE IS FILE-SCOPE ANY MORE, and that is the point: a static
-  ;;; table is appended to by every thread at once, and eight of them
-  ;;; writing 800 globals each aborted the process on its `realloc'.
-
-  ;;; ---- clauses that stay in this machine ---------------------------------
-  ;;;
-  ;;; MUTING IS WHAT A MODULE'S CLAUSES ALREADY GET, and there was no way to
-  ;;; ask for it from Prolog. `coco_store_mute' stops the write-through hooks
-  ;;; firing, so an `assertz' lands in this machine's store and nowhere else
-  ;;; -- which is exactly what a module's clauses need, "they belong to the
-  ;;; BUILD and not to the knowledge base", and exactly what a WORKER's
-  ;;; snapshot needs for the same reason.
-  ;;;
-  ;;; Reported from CivV: `library(cowork)' told a two-worker crew four
-  ;;; clauses under `--embed' and EIGHT rows landed in the knowledge base,
-  ;;; one copy per worker. Transient turn state, written to the user's
-  ;;; database, once per worker. And it deadlocked past a handful of clauses,
-  ;;; because both workers wanted the embedded store while the caller sat
-  ;;; waiting for them.
-  ;;;
-  ;;; THE RAW PAIR IS `$'-PREFIXED ON PURPOSE. A mute that somebody forgets
-  ;;; to undo silently drops every later write, so the public form is
-  ;;; `with_local_clauses/1', which unmutes on success, on failure and on the
-  ;;; way out of a throw. It is a COUNTER underneath, so it nests.
-  (func coco_b_store_mute ((coco_engine * e) (size_t g)) (out int)
-        (coco_store_mute (-> e st))
-        (return 1))
-
-  (func coco_b_store_unmute ((coco_engine * e) (size_t g)) (out int)
-        (coco_store_unmute (-> e st))
-        (return 1))
-
-  ;;; A GLOBAL BY NAME (1.9.4), through the store's hash of them
-  ;;; (`gbuckets'): an open table of an entry's index plus one, kept under
-  ;;; half full and probed in a line from the name's hash. Through 1.9.3
-  ;;; every read and every write scanned from the first global made, and
-  ;;; the translator keeps one per word it has looked up -- its lesson made
-  ;;; 1 710 and read them 3.7 million times. Answers the index, or -1.
-  (static)
-  (func coco_global_find ((coco_store * st) (u64 name)) (out i64)
-        (if (== (-> st gbucket_cap) 0) (return -1))
-        (let ((size_t mask . #'(- (-> st gbucket_cap) 1))
-              (size_t j . #'(cast size_t (bitand (coco_name_arity_hash name 0) (cast u64 mask)))))
-          (while 1
-            (let ((size_t v . #'(nth j (-> st gbuckets))))
-              (if (== v 0) (return -1))
-              (if (== ($ (nth (- v 1) (-> st globals)) name) name) (return (cast i64 (- v 1))))
-              (set j (bitand (+ j 1) mask))))
-          (return -1)))
-
-  ;;; Entry I into the hash: the first empty slot on its name's line
-  (static)
-  (func coco_global_place ((coco_store * st) (size_t i))
-        (let ((size_t mask . #'(- (-> st gbucket_cap) 1))
-              (size_t j . #'(cast size_t (bitand (coco_name_arity_hash ($ (nth i (-> st globals)) name) 0)
-                                                (cast u64 mask)))))
-          (while (!= (nth j (-> st gbuckets)) 0)
-            (set j (bitand (+ j 1) mask)))
-          (set (nth j (-> st gbuckets)) (+ i 1))))
-
-  ;;; A NEW ENTRY I, the table doubled first when one more would put it
-  ;;; over half full: every entry below I is put back from the array
-  ;;; itself, which is the truth -- the table is only how to find it.
-  ;;; 0 when it would not grow.
-  (static)
-  (func coco_global_hash ((coco_store * st) (size_t i)) (out int)
-        (if (> (* (+ i 1) 2) (-> st gbucket_cap))
-            (let ((size_t ncap . #'(? (== (-> st gbucket_cap) 0) 16 (* (-> st gbucket_cap) 2)))
-                  (size_t * nb . nil))
-              (while (> (* (+ i 1) 2) ncap) (set ncap (* ncap 2)))
-              (set nb (cast (size_t *) (calloc ncap (sizeof size_t))))
-              (if (== nb nil) (return 0))
-              (free (-> st gbuckets))
-              (set (-> st gbuckets) nb)
-              (set (-> st gbucket_cap) ncap)
-              (for ((size_t k . 0)) (< k i) ((++ k))
-                (coco_global_place st k))))
-        (coco_global_place st i)
-        (return 1))
-
-  (func coco_b_setval ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t k . #'(coco_m_arg e g 0)))
-          (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
-          (with-green-write e
-          (let ((coco_store * st . #'(-> e st))
-                (u64 name . #'(coco_name_of m k))
-                (size_t cell . #'(coco_store_put (-> e st) m (coco_m_arg e g 1)))
-                ;; whether a machine may keep the value and hand it out
-                ;; shared (1.12.1, `coco_b_global_term'): the put met no
-                ;; variable. A cyclic value goes in as its factors, which
-                ;; have, and is copied at every read.
-                (int ground . #'(== (-> st put_vars) 0))
-                (i64 at . #'(coco_global_find st name)))
-            (set (-> st gver) (+ (-> st gver) 1))
-            (if (>= at 0)
-                (let ((size_t i . #'(cast size_t at)))
-                  ;; the old value is an orphan now, and its size was kept
-                  (set (-> st dead) (+ (-> st dead) ($ (nth i (-> st globals)) size)))
-                  (set ($ (nth i (-> st globals)) cell) cell)
-                  (set ($ (nth i (-> st globals)) size) (- (-> st len) cell))
-                  (set ($ (nth i (-> st globals)) ver) (-> st gver))
-                  (set ($ (nth i (-> st globals)) ground) ground)
-                  (coco_store_maybe_compact st m)
-                  (return 1)))
-            (if (>= (-> st nglobals) (-> st gcap))
-                (let ((size_t ncap . #'(? (== (-> st gcap) 0) 8 (* (-> st gcap) 2)))
-                      (coco_global * nb))
-                  (set nb (cast (coco_global *)
-                                (realloc (-> st globals) (* ncap (sizeof coco_global)))))
-                  (if (== nb nil) (return 0))
-                  (set (-> st globals) nb)
-                  (set (-> st gcap) ncap)))
-            (set ($ (nth (-> st nglobals) (-> st globals)) name) name)
-            (set ($ (nth (-> st nglobals) (-> st globals)) cell) cell)
-            (set ($ (nth (-> st nglobals) (-> st globals)) size) (- (-> st len) cell))
-            (set ($ (nth (-> st nglobals) (-> st globals)) ver) (-> st gver))
-            (set ($ (nth (-> st nglobals) (-> st globals)) ground) ground)
-            (if (not (coco_global_hash st (-> st nglobals))) (return 0))
-            (set (-> st nglobals) (+ (-> st nglobals) 1))
-            (coco_store_maybe_compact st m)
-            (return 1)))))
-
-  ;;; A GLOBAL'S VALUE ON THE HEAP (1.12.1). Every read copies the value
-  ;;; as its block (`coco_store_read_block'): through 1.12.0 a read walked
-  ;;; it a cell at a time, 98 us for a list of 3 000 entries against 26
-  ;;; now, and the translator's reads (one per word it looks up) were 12 %
-  ;;; of its instructions. A GROUND value is then kept by the machine
-  ;;; (`gcache', a root of the collector, by the global's index and
-  ;;; version, for the store whose serial it names) and handed out shared,
-  ;;; as SWI hands out its globals: nothing can bind a ground term, and a
-  ;;; setarg/3 or nb_setarg/3 on it changes the global (setarg/3's until
-  ;;; backtracking takes it back), which nb_setval/2 replaces. It is kept
-  ;;; FOR AS LONG AS IT LIVES: its sentinel on the trail (`coco-trail-tag')
-  ;;; is undone when backtracking, or the end of a nested search, goes back
-  ;;; past the copy and takes its cells, and a read that finds the sentinel
-  ;;; gone from where it was put (`coco_gcache_ok') copies again.
-  ;;; Nothing else that winds the heap back can reach it: the positions a
-  ;;; host winds back to (a consult's after a directive) are raised over it
-  ;;; here, and every other wind-back undoes the trail with it or runs no
-  ;;; goal. Raising EVERY mark instead, as SWI freezes its global stack at
-  ;;; nb_setval/2, kept what backtracking had always given back, and the
-  ;;; translator's case ran 12 % slower for twice the collections (16 to
-  ;;; 34). nb_setarg/3 on a copy pins it (`coco_gcache_pin'), and its
-  ;;; write lasts as SWI's. A value with a variable in it is a fresh copy
-  ;;; at every read -- each read's variables its own, where SWI shares them
-  ;;; too -- and so is an atom or a number, a cell to copy.
-  (static)
-  (func coco_b_global_term ((coco_engine * e) (size_t i)) (out size_t)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (coco_store * st . #'(-> e st))
-              (size_t cell . #'($ (nth i (-> st globals)) cell))
-              (size_t size . #'($ (nth i (-> st globals)) size))
-              (u64 ver . #'($ (nth i (-> st globals)) ver))
-              (size_t h0 . 0) (size_t r . 0) (u64 sn . 0) (size_t tp . 0))
-          (if (not ($ (nth i (-> st globals)) ground)) (return (coco_store_read_block m st cell size)))
-          (if (!= (-> m gcache_ss) (-> st serial)) (coco_gcache_drop m (-> st serial)))
-          (if (and (< i (-> m gcache_cap)) (== ($ (nth i (-> m gcache)) ver) ver)
-                   (coco_gcache_ok m i))
-              (return ($ (nth i (-> m gcache)) root)))
-          (set h0 (-> m heap_len))
-          (set r (coco_deref m (coco_store_read_block m st cell size)))
-          (if (or (-> m oom) (not (coco-tag-is FUN (nth r (-> m heap))))) (return r))
-          ;; no room to keep it, or to say where it was made (a sentinel
-          ;; holds an index under 2^23 - 1): handed out as a copy, as it
-          ;; always was
-          (if (or (>= (+ i 1) (- (<< (cast size_t 1) 23) 1)) (not (coco_gcache_room m i))) (return r))
-          (set sn (bitand (+ (-> m gfills) 1) (- (<< (cast u64 1) 23) 1)))
-          (if (== sn 0) (set sn 1))
-          (set tp (-> m trail_len))
-          (if (not (coco_trail_sent m sn i)) (return r))
-          (set (-> m gfills) sn)
-          (coco_heap_raise_positions m 0 (-> m heap_len))
-          (set ($ (nth i (-> m gcache)) ver) ver)
-          (set ($ (nth i (-> m gcache)) root) r)
-          (set ($ (nth i (-> m gcache)) serial) sn)
-          (set ($ (nth i (-> m gcache)) tpos) tp)
-          (set ($ (nth i (-> m gcache)) lo) h0)
-          (set ($ (nth i (-> m gcache)) hi) (-> m heap_len))
-          (set ($ (nth i (-> m gcache)) pinned) 0)
-          (if (or (< h0 (-> m gspan_lo)) (>= (-> m gspan_lo) (-> m gspan_hi)))
-              (set (-> m gspan_lo) h0))
-          (if (> (-> m heap_len) (-> m gspan_hi)) (set (-> m gspan_hi) (-> m heap_len)))
-          (return r)))
-
-  (func coco_b_getval ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t k . #'(coco_m_arg e g 0)))
-          (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
-          (let ((coco_store * st . #'(-> e st))
-                (i64 at . #'(coco_global_find st (coco_name_of m k))))
-            (if (>= at 0)
-                (return (coco_m_unify e (coco_m_arg e g 1) (coco_b_global_term e (cast size_t at)))))
-            (return (coco_m_existence_error e "variable" (coco_m_arg e g 0))))))
-
-  ;;; `nb_current(?Key, ?Value)' (1.12.0): the global's value, read as
-  ;;; nb_getval/2 reads it, or a FAILURE where there is no global of that
-  ;;; name -- where nb_getval/2 raises, so a program asks whether there is
-  ;;; one in one step rather than three (`catch/3', the read, its exit). A
-  ;;; key bound to anything but an atom is SWI's type_error(atom, K). An
-  ;;; unbound key ENUMERATES, which no C predicate here does (every builtin
-  ;;; is deterministic): this one declines the goal (`coco_m_decline', the
-  ;;; `:declines' row) and it goes on to this module's clause, which walks
-  ;;; '$nb_keys'/1 -- the globals in the order they were made.
-  (func coco_b_nb_current ((coco_engine * e) (size_t g) (int * found)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t k . #'(coco_m_arg e g 0)))
-          (if (coco_m_is_var e k)
-              (block (coco_m_decline e) (set (cof found) 0) (return 0)))
-          (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
-          (let ((coco_store * st . #'(-> e st))
-                (i64 at . #'(coco_global_find st (coco_name_of m k))))
-            (if (< at 0) (return 0))
-            (return (coco_m_unify e (coco_m_arg e g 1) (coco_b_global_term e (cast size_t at)))))))
-
-  ;;; `'$nb_keys'(-Keys)': every global's name, in the order made
-  (func coco_b_nb_keys ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (coco_store * st . #'(-> e st))
-              (size_t l . #'(coco_m_nil e))
-              (size_t i . #'(-> st nglobals)))
-          (while (> i 0)
-            (set i (- i 1))
-            (set l (coco_m_cons e (coco_new_atom_id m ($ (nth i (-> st globals)) name)) l)))
-          (return (coco_m_unify e (coco_m_arg e g 0) l))))
-
-  ;;; `prewarm(-Count)' asks the backend, once, about every predicate a MODULE
-  ;;; owns and remembers the ones it has no rows for, so that the fresh store
-  ;;; every `run_isolated/2' proof gets need not ask again. Count is how many
-  ;;; joined the table on this call -- 0 on a second call, and 0 under
-  ;;; `--local', where there is no backend to ask.
-  ;;;
-  ;;; CALL IT BEFORE YOU SPAWN. The table is process-wide and unguarded, the
-  ;;; same contract `use_module' has and for the same reason: a lock here would
-  ;;; sit under the first call of every predicate of every proof in the
-  ;;; process. `library(httpd)' calls it in `httpd_serve/3' before the pool
-  ;;; starts.
-  ;;;
-  ;;; AND IT PAYS ONLY WHERE THE FETCHES RECUR, which is narrower than it
-  ;;; sounds and was measured the hard way. The call itself asks about every
-  ;;; library predicate the process has -- 437 of them with the tier-1
-  ;;; libraries loaded -- so it costs ~51 ms up front and earns it back at 51
-  ;;; fetches a request. An httpd pool repays that in about nine requests,
-  ;;; because a fresh store per REQUEST asks again every time.
-  ;;;
-  ;;; `library(cowork)' IS NOT THAT SHAPE AND DELIBERATELY DOES NOT CALL IT. A
-  ;;; crew worker's store lives as long as the worker and is filled lazily, so
-  ;;; it asks only about the predicates its own jobs call, once -- about
-  ;;; fifteen a worker, measured. Pre-warming a crew therefore buys 437 fetches
-  ;;; to save perhaps 180, and it measured 4-6x WORSE at every crew size
-  ;;; tried: a crew of four went 13 ms to 51, a crew of twelve 21 ms to 65,
-  ;;; with one real job each. The rule is the fetches RECURRING, not the
-  ;;; threads existing.
-  ;;;
-  ;;; WHAT IT COSTS IF YOU ARE WRONG is in `coco_store_prewarm' in lib/kb.cicili:
-  ;;; a predicate a MODULE defines, written into the knowledge base by another
-  ;;; process after this call, is not seen by this one. The program's own
-  ;;; predicates are untouched and are fetched per request as they always were.
-  (func coco_b_prewarm ((coco_engine * e) (size_t g)) (out int)
-        (let ((size_t n . #'(coco_store_prewarm (-> e st) (coco_m_machine e))))
-          (return (coco_m_unify e (coco_m_arg e g 0)
-                                  (coco_m_new_int e (cast i64 n))))))
-
-  ;;; `garbage_collect/0' compacts the store -- see `coco_store_compact' in
-  ;;; lib/kb.cicili for what that reclaims and when it happens unasked. It
-  ;;; always succeeds, and it is allowed anywhere a goal is: inside a
-  ;;; findall's goal or a directive the roots those hold move with the rest.
-  ;;;
-  ;;; AND IT ASKS FOR A HEAP COLLECTION at the next step boundary, because a
-  ;;; builtin is the one place a collection cannot run -- this call's own
-  ;;; frame holds the goal. The request is a threshold of 0 (`gc_next' on
-  ;;; the machine). Where the collector may not run (a host that did not
-  ;;; turn it on, a search whose starter told the collector nothing of its
-  ;;; own frame) the request waits for a step where it may. See
-  ;;; `coco_heap_gc' in lib/solve.cicili.
-  (func coco_b_garbage_collect ((coco_engine * e) (size_t g)) (out int)
-        (coco_store_compact (-> e st) (coco_m_machine e))
-        (set (-> (coco_m_machine e) gc_next) 0)
-        (return 1))
-
-  ;;; `statistics/2', the keys a program can act on. SWI's names where SWI
-  ;;; has the number -- `cputime' in seconds as a float, `inferences',
-  ;;; `globalused' and `trailused' in bytes, `atoms' and `functors' as
-  ;;; counts -- and `store_used' for what SWI has no word for: the bytes the
-  ;;; store's cell array holds, live and orphaned alike, which is the number
-  ;;; that `garbage_collect/0' brings down. Any other key is a
-  ;;; `domain_error(statistics_key, K)'.
-  ;;;
-  ;;; AND THE CAPS BESIDE THE LENGTHS (1.2.14): `store_cap', `globalcap' and
-  ;;; `trailcap' are what the process HOLDS where the three `used' keys are
-  ;;; what the program put there, plus `choicepoints', `strings' and
-  ;;; `compactions'. A length answers what you asked and can still leave you
-  ;;; looking at the wrong number: CivV read `store_used' at 28 MB inside a
-  ;;; window whose footprint was 13.2 GB. An array that doubles sits at up to
-  ;;; twice its contents, and only the cap says so.
-  ;;;
-  ;;; AND `heap_collections' (1.8.36): how many times `coco_heap_gc' has run
-  ;;; on this machine -- `compactions' is the store's count, this the heap's.
-  ;;; Zero is the honest answer under a host that never turned it on.
-  (func coco_b_statistics ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (coco_store * st . #'(-> e st))
-              (size_t k . #'(coco_deref (coco_m_machine e) (coco_m_arg e g 0)))
-              (size_t out . #'(coco_m_arg e g 1))
-              (i64 v . 0))
-          (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
-          (let ((const char * key . #'(coco_atom_name m (coco_name_of m k))))
-            (cond
-              ((== 0 (strcmp key "cputime"))
-               ;; CLOCKS_PER_SEC is a macro Cicili cannot see; POSIX fixes it
-               ;; at one million, on this platform and the other one
-               (return (coco_m_unify e out (coco_m_new_float
-                                             e (/ (cast double (clock)) 1000000.0)))))
-              ;; the steps less those that are no inference -- `true' and
-              ;; `=/2' (1.12.2), as SWI counts
-              ((== 0 (strcmp key "inferences")) (set v (cast i64 (- (-> e steps) (-> e frees)))))
-              ((== 0 (strcmp key "globalused")) (set v (cast i64 (* (-> m heap_len) 8))))
-              ((== 0 (strcmp key "trailused"))  (set v (cast i64 (* (-> m trail_len) 8))))
-              ((== 0 (strcmp key "atoms"))      (set v (cast i64 (-> m atoms_len))))
-              ((== 0 (strcmp key "functors"))   (set v (cast i64 (-> m functors_len))))
-              ((== 0 (strcmp key "store_used")) (set v (cast i64 (* (-> st len) 8))))
-              ;; THE CAPS, NOT ONLY THE LENGTHS, because the length is what a
-              ;; program put there and the CAP is what the process is holding
-              ;; -- and an array that doubles sits at up to twice its contents
-              ;; between one compaction and the next. CivV read `store_used' at
-              ;; 28 MB inside a window whose footprint was 13.2 GB; the length
-              ;; was telling the truth and was not the question.
-              ((== 0 (strcmp key "store_cap"))  (set v (cast i64 (* (-> st cap) 8))))
-              ((== 0 (strcmp key "globalcap"))  (set v (cast i64 (* (-> m heap_cap) 8))))
-              ((== 0 (strcmp key "trailcap"))   (set v (cast i64 (* (-> m trail_cap) 8))))
-              ((== 0 (strcmp key "choicepoints")) (set v (cast i64 (-> e nchoices))))
-              ((== 0 (strcmp key "compactions")) (set v (cast i64 (-> st ncompacts))))
-              ;; the HEAP's collections, where `compactions' is the store's
-              ((== 0 (strcmp key "heap_collections")) (set v (cast i64 (-> m gc_count))))
-              ((== 0 (strcmp key "strings"))    (set v (cast i64 (-> m strings_len))))
-              (#t (return (coco_m_domain_error e "statistics_key" k))))
-            (return (coco_m_unify e out (coco_m_new_int e v))))))
-
-  ;;; ---- operators --------------------------------------------------------
-
-  (static)
-  (func coco_b_typename ((int type)) (out const char *)
-        (if (== type COCO_XFX) (return "xfx"))
-        (if (== type COCO_XFY) (return "xfy"))
-        (if (== type COCO_YFX) (return "yfx"))
-        (if (== type COCO_FY)  (return "fy"))
-        (return "fx"))
-
-  ;;; `op(+Priority, +Type, +Name)'. Name may be a list of names, which is what
-  ;;; every real operator declaration uses. Priority 0 takes the operator away.
-  (func coco_b_op ((coco_engine * e) (size_t g)) (out int)
-        (let ((i64 prec . 0) (int type . 0) (int kind . 0)
-              (const char * ts)
-              (size_t * names . nil) (size_t n . 0))
-
-          (if (coco_m_is_var e (coco_m_arg e g 0)) (return (coco_m_instantiation_error e)))
-          (if (not (coco_m_int e (coco_m_arg e g 0) (aof prec)))
-              (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
-          (if (or (< prec 0) (> prec 1200))
-              (return (coco_m_domain_error e "operator_priority" (coco_m_arg e g 0))))
-
-          (set ts (coco_m_atom e (coco_m_arg e g 1)))
-          (if (== ts nil)
-              (block (if (coco_m_is_var e (coco_m_arg e g 1))
-                         (return (coco_m_instantiation_error e)))
-                     (return (coco_m_type_error e "atom" (coco_m_arg e g 1)))))
-          (if (not (coco_op_type_of ts (aof type) (aof kind)))
-              (return (coco_m_domain_error e "operator_specifier" (coco_m_arg e g 1))))
-
-          ;; one name, or a list of them
-          (if (not (coco_m_list_array e (coco_m_arg e g 2) (aof names) (aof n)))
-              (let ((const char * one . #'(coco_m_atom e (coco_m_arg e g 2))))
-                (if (== one nil)
-                    (block (if (coco_m_is_var e (coco_m_arg e g 2))
-                               (return (coco_m_instantiation_error e)))
-                           (return (coco_m_type_error e "atom" (coco_m_arg e g 2)))))
-                (if (not (coco_op_define one (cast int prec) type kind))
-                    (return (coco_m_error e "that operator name will not fit" one)))
-                (return 1)))
-
-          (for ((size_t i . 0)) (< i n) ((++ i))
-            (let ((const char * one . #'(coco_m_atom e (nth i names))))
-              (if (== one nil)
-                  (block (free names)
-                         (return (coco_m_type_error e "atom" (nth i names)))))
-              (if (not (coco_op_define one (cast int prec) type kind))
-                  (block (free names)
-                         (return (coco_m_error e "that operator name will not fit" one))))))
-          (free names)
-          (return 1)))
-
-  ;;; Every operator there is, as `op(Priority, Type, Name)'. The DECLARED ones
-  ;;; first and the built-in ones after, with a built-in left out when a
-  ;;; declaration of the same name and kind has hidden it -- so what comes back
-  ;;; is what the reader would actually do, not two tables stuck together.
-  (func coco_b_ops ((coco_engine * e) (size_t g)) (out int)
-        (let ((size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out))
-
-          (coco_b_ops_push e (aof v) (aof n) (aof cap) 1)
-          (coco_b_ops_push e (aof v) (aof n) (aof cap) 0)
-
-          (set out (coco_m_list e v n))
-          (free v)
-          (return (coco_m_unify e (coco_m_arg e g 0) out))))
-
-  ;;; DECLARED when `dyn', built-in otherwise. Pulled out because the two loops
-  ;;; are the same but for which table they read and whether they skip.
-  (static)
-  (func coco_b_ops_push ((coco_engine * e) (size_t ** v) (size_t * n) (size_t * cap)
-                       (int dyn))
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t total . #'(? dyn (coco_op_dyn_count) (coco_op_static_count))))
-          (for ((size_t i . 0)) (< i total) ((++ i))
-            (let ((const char * name . nil) (int prec . 0)
-                  (int type . 0) (int kind . 0))
-              (if (not (? dyn (coco_op_dyn_at i (aof name) (aof prec) (aof type) (aof kind))
-                          (coco_op_static_at i (aof name) (aof prec) (aof type) (aof kind))))
-                  continue)
-              ;; a declaration with priority 0 is not an operator, and a
-              ;; built-in that one has hidden is not one either
-              (if (== prec 0) continue)
-              (if (not dyn)
-                  (let ((int dp . 0) (int dt . 0))
-                    (if (>= (coco_op_dyn_lookup_pub name kind (aof dp) (aof dt)) 0)
-                        continue)))
-              (if (>= (cof n) (cof cap))
-                  (let ((size_t ncap . #'(? (== (cof cap) 0) 64 (* (cof cap) 2)))
-                        (size_t * nb))
-                    (set nb (cast (size_t *) (realloc (cof v) (* ncap (sizeof size_t)))))
-                    (if (== nb nil) (return))
-                    (set (cof v) nb)
-                    (set (cof cap) ncap)))
-              (let ((size_t args [3]))
-                (set (nth 0 args) (coco_new_int m (cast i64 prec)))
-                (set (nth 1 args) (coco_new_atom m (coco_b_typename type)))
-                (set (nth 2 args) (coco_new_atom m name))
-                (set (nth (cof n) (cof v)) (coco_make m "op" 3 args)))
-              (set (cof n) (+ (cof n) 1))))))
-
-  ;;; ---- halting ----------------------------------------------------------
-
-  (func coco_b_halt1 ((coco_engine * e) (size_t g)) (out int)
-        (let ((i64 code . 0))
-          (coco_m_int e (coco_m_arg e g 0) (aof code))
-          (set (-> e halted) 1)
-          (set (-> e halt_code) (cast int code))
-          (return 1)))
-
-  ;;; ---- a sort the aggregation needs -------------------------------------
-
-  ;;; RUNG 191.14 (from CivV): THREAD-LOCAL, and it has to be. The array
-  ;;; qsort is handed holds HEAP INDICES, not pointers, and this variable is
-  ;;; the only thing that says which machine those indices belong to. As a
-  ;;; file-scope static it was one slot for the whole process, so two threads
-  ;;; sorting at once had the second overwrite the first's machine and the
-  ;;; first's comparator then indexed a foreign heap.
-  ;;;
-  ;;; Reproduced through library(cowork) itself: 2000 sorting jobs on a
-  ;;; four-worker crew while the main thread sorted 1500 times -- SIGSEGV,
-  ;;; three runs of three. With a thin overlap it comes back clean every
-  ;;; time, which is why a light test does not find it. CivV sorts three
-  ;;; times a frame in its renderer and about twenty times an AI turn, so a
-  ;;; crew doing game work overlaps the drawing thread by construction.
-  ;;;
-  ;;; `(thread-local)' emits `__thread', which takes a trivially destroyed
-  ;;; type -- a bare pointer qualifies, as x509's and tls's buffers do. It
-  ;;; replaces `(static)' rather than joining it because no attribute in this
-  ;;; tree is stacked and the emitter has never been asked to.
-  (thread-local) (var coco_machine * coco_b_sort_machine)
-
-  (static)
-  (func coco_b_sort_cmp ((const void * a) (const void * b)) (out int)
-        (return (coco_compare coco_b_sort_machine
-                            (cof (cast (const size_t *) a))
-                            (cof (cast (const size_t *) b)))))
-
-  (static)
-  (func coco_b_sort_terms ((coco_machine * m) (size_t * v) (size_t n))
-        (set coco_b_sort_machine m)
-        (qsort v n (sizeof size_t) coco_b_sort_cmp))
-
-  ;;; ---- the module -------------------------------------------------------
-
-  (static) (coco-emit-module-dispatch coco_b_dispatch *builtins-predicates*)
-
-  (coco-defmodule coco_builtins_module "builtins" coco_b_dispatch *builtins-prolog*)
 
   ) ; impl-builtins

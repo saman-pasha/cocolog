@@ -141,8 +141,30 @@ main :-
     %% And nothing is left suspended: a machine that finished is dropped.
     sh_join([Base, ' list 2>/dev/null | grep -cE ''^  state-'' || true'], List), cocolog_run(List, Left, _, SetupMs),
     check('no machine left suspended', Left, '0'),
+    ( '$check_failed'(_) -> child_logs(D) ; true ),
     shl(['rm -rf ', D]),
     checks_done.
+
+%% A RED RUN SAYS WHAT ITS CHILDREN SAID. Their logs are in the scratch
+%% directory removed above, so without this a red run on a box nobody can
+%% log into leaves only its counts: on GitHub's Apple silicon Mac (c36e0cb,
+%% twice in one job) every worker took no turn and no answer came, and
+%% nothing said why. Each start's log, and each worker's lines but its turns,
+%% their ends and its answers, which the checks above have counted.
+child_logs(D) :-
+    forall(group(G, _, _),
+           ( sh_join(['start-', G], S), child_log(D, S),
+             forall(member(M, [1, 2, 3]), ( sh_join([G, M], W), child_log(D, W) )) )).
+
+child_log(D, Name) :-
+    sh_join([D, '/', Name, '.log'], Log),
+    (   exists_file(Log)
+    ->  read_file_to_codes(Log, Cs), codes_lines(Cs, Ls),
+        re_lines(': (took|suspended at|finished after) |^  [0-9]+\\. ', Cs, Turns),
+        forall(( member(L, Ls), L \== [], \+ memberchk(L, Turns) ),
+               ( atom_codes(A, L), format("     ~w: ~w~n", [Name, A]) ))
+    ;   format("     ~w: no log~n", [Name])
+    ).
 
 env_int(Name, Default, V) :- ( getenv(Name, A), atom_number(A, N) -> V = N ; V = Default ).
 

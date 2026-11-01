@@ -22,7 +22,7 @@
 
 main :-
     scratch(D), nb_setval(j_dir, D),
-    record(D), replay(D), diverged(D), raised(D), processes(D), refusals(D),
+    record(D), replay(D), diverged(D), raised(D), processes(D), refusals(D), sized(D),
     checks_done.
 
 %% the journal's entries as terms: j(I, Module, Name/Arity, CallText, Outcome)
@@ -60,7 +60,7 @@ record(D) :-
                    files-exists_file/1-fail, files-append_file_from_codes/2-exit]),
     ( rising(Es1) -> Rise3 = yes ; Rise3 = no ),
     check('each entry at a later inference than the one before', Rise3, yes),
-    ( member(j(_, stream, '$stream_open'/4, _, throw(error(B4, _))), Es1) -> true ; B4 = none ),
+    ( member(j(_, stream, '$stream_open'/5, _, throw(error(B4, _))), Es1) -> true ; B4 = none ),
     check('the raise open/3 made, kept with its ball', B4, existence_error(source_sink, '/nonexistent/j')),
     findall(V5, ( member(j(_, builtins, getenv/2, C5, O5), Es1),
                   atom_codes(A5, C5), sub_atom(A5, _, _, _, 'J_NO_SUCH_VAR'), V5 = O5 ), Vs5),
@@ -224,3 +224,33 @@ refusals(D) :-
     ( Before6 == After6 -> U6 = untouched ; U6 = changed ),
     check('then a window without a journal: its run as before, and no journal written',
           E6-U6, end(answer, 5, [5])-untouched).
+
+%% ---- the green world's size -----------------------------------------------------------
+
+%% async_workers/1 (2.15.0) reads COCOLOG_GREEN_WORKERS and the cores, as
+%% getenv/2 and os_cpus/1 do, so it is a portal by name: recorded, and a
+%% replay answers it from its entry whatever the environment says by then.
+%% The window undoes its bindings, so the answer is kept in a global.
+j_size :- async_workers(N), nb_setval(j_size, N).
+
+sized(D) :-
+    section('the green world''s size is a portal'),
+    atom_concat(D, '/size.jrnl', J1),
+    nb_setval(j_size, none),
+    '$trace_window'(j_size, [journal(record(J1))], _, E1),
+    nb_getval(j_size, N1),
+    entries(J1, Es1),
+    findall(M1-P1-O1, ( member(j(_, M1, P1, _, Out1), Es1), functor(Out1, O1, _) ), MPO1),
+    ( E1 = end(answer, _, _) -> End1 = answer ; End1 = E1 ),
+    check('recorded: the run''s answer, and one entry, the green module''s exit', End1-MPO1,
+          answer-[green-'$async_workers'/1-exit]),
+    ( getenv('COCOLOG_GREEN_WORKERS', Old2) -> true ; Old2 = none ),
+    ( N1 =:= 1 -> K2 = 2 ; K2 = 1 ),
+    setenv('COCOLOG_GREEN_WORKERS', K2),
+    nb_setval(j_size, none),
+    '$trace_window'(j_size, [journal(replay(J1))], _, E2),
+    nb_getval(j_size, N2),
+    ( Old2 == none -> unsetenv('COCOLOG_GREEN_WORKERS') ; setenv('COCOLOG_GREEN_WORKERS', Old2) ),
+    ( E2 == E1 -> End2 = same ; End2 = E2 ),
+    check('replayed with the variable changed: the run''s end, and the recorded count',
+          End2-N2, same-N1).

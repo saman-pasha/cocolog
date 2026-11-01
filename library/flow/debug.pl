@@ -488,15 +488,28 @@ flow_dbg_cpus(J) :-
     ).
 
 %% a window's process: `cocolog query' of the goal below, its output kept
-%% in Log for the reason it gives if it fails
-flow_dbg_window_cmd(Goal, Base, Opts, Out, Log, Cmd) :-
+%% in Log for the reason it gives if it fails. OVER A STORE (embed(Dir),
+%% 3.0.3) it runs over a copy of it, made as the window's process starts
+%% and taken away when it ends: a store is one process's at a time, and
+%% jobs(J) windows run at once -- over the one store they would take turns,
+%% and before 3.0.3 they wrote over each other's records in it -- and each
+%% window's run begins from the store as it was
+flow_dbg_window_cmd(Goal, Base, Opts0, Out, Log, Cmd) :-
     current_prolog_flag(executable, Exe),
     flow_dbg_shq(Exe, QExe),
+    flow_dbg_shq(Log, QLog),
+    (   select(embed(Dir), Opts0, embed(Copy), Opts)
+    ->  tmp_file(flowstore, Copy),
+        flow_dbg_shq(Dir, QDir),
+        flow_dbg_shq(Copy, QCopy),
+        atomic_list_concat(['rm -rf ', QCopy, '; cp -R ', QDir, ' ', QCopy, ' 2> ', QLog, ' && '], Pre),
+        atomic_list_concat(['; x=$?; rm -rf ', QCopy, '; exit $x'], Post)
+    ;   Opts = Opts0, Pre = '', Post = ''
+    ),
     format(atom(G), '\\+ \\+ (use_module(library(flow/debug)), flow_dbg_window_child(~q, ~q, ~q, ~q))',
            [Goal, Base, Opts, Out]),
     flow_dbg_shq(G, QG),
-    flow_dbg_shq(Log, QLog),
-    atomic_list_concat([QExe, ' query ', QG, ' > ', QLog, ' 2>&1'], Cmd).
+    atomic_list_concat([Pre, QExe, ' query ', QG, ' > ', QLog, ' 2>&1', Post], Cmd).
 
 %% IN THE WINDOW'S PROCESS: the window recorded, and its run -- without its
 %% calls and bindings -- and its profile rows and its CPU written to Out a

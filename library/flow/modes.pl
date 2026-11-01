@@ -68,6 +68,8 @@ flow_mode(atom_number, 2, ['+', '-'], semidet).
 flow_mode(atom_number, 2, ['-', '+'], det).
 flow_mode(number_codes, 2, ['+', '-'], det).
 flow_mode(number_codes, 2, ['-', '+'], det).
+flow_mode(name, 2, ['+', '?'], semidet).
+flow_mode(name, 2, ['-', '+'], det).
 flow_mode(atom_concat, 3, ['+', '+', '-'], det).
 flow_mode(atom_concat, 3, ['-', '-', '+'], nondet).
 flow_mode(atom_concat, 3, ['?', '?', '?'], semidet).
@@ -117,7 +119,9 @@ flow_mode(reverse, 2, ['+', '-'], det).
 flow_mode(nth0, 3, ['?', '+', '?'], nondet).
 flow_mode(nth1, 3, ['?', '+', '?'], nondet).
 flow_mode(last, 2, ['+', '-'], semidet).
+flow_mode(last, 2, ['?', '?'], nondet).
 flow_mode(sum_list, 2, ['+', '-'], det).
+flow_mode(sumlist, 2, ['+', '-'], det).
 flow_mode(max_list, 2, ['+', '-'], semidet).
 flow_mode(min_list, 2, ['+', '-'], semidet).
 flow_mode(numlist, 3, ['+', '+', '-'], det).
@@ -135,6 +139,7 @@ flow_mode(flatten, 2, ['+', '-'], det).
 flow_mode(halt, 0, [], det).
 flow_mode(halt, 1, ['+'], det).
 flow_mode(get_time, 1, ['-'], det).
+flow_mode(sleep, 1, ['+'], det).
 flow_mode(statistics, 2, ['+', '-'], det).
 flow_mode(garbage_collect, 0, [], det).
 flow_mode(list_to_assoc, 2, ['+', '-'], det).
@@ -164,6 +169,11 @@ flow_mode(unify_with_occurs_check, 2, ['?', '?'], semidet).
 flow_mode(call_limited, 3, [':', '+', '-'], semidet).
 flow_mode(call_metered, 4, [':', '+', '-', '-'], det).
 flow_mode(with_output_to, 2, ['+', ':'], semidet).
+%% library(builtins)' clauses over the engine's cleanup frame (3.1.0): the
+%% goal's own answers, as many as it has
+flow_mode(setup_call_cleanup, 3, [':', ':', ':'], nondet).
+flow_mode(setup_call_catcher_cleanup, 4, [':', ':', '?', ':'], nondet).
+flow_mode(call_cleanup, 2, [':', ':'], nondet).
 flow_mode(char_type, 2, ['+', '+'], semidet).
 flow_mode(char_type, 2, ['?', '?'], nondet).
 flow_mode(code_type, 2, ['+', '+'], semidet).
@@ -205,6 +215,7 @@ flow_mode(atomic_concat, 3, ['+', '+', '-'], det).
 flow_mode(atomic_concat, 3, ['+', '+', '+'], semidet).
 flow_mode(get_string_code, 3, ['+', '+', '-'], det).
 flow_mode(get_string_code, 3, ['+', '+', '+'], semidet).
+flow_mode(sub_atom_icasechk, 3, ['+', '?', '+'], semidet).
 flow_mode(rational, 3, ['?', '-', '-'], det).
 flow_mode(set_random, 1, ['+'], det).
 flow_mode(random_property, 1, ['?'], semidet).
@@ -221,6 +232,20 @@ flow_mode(current_prolog_flag, 2, ['?', '?'], nondet).
 flow_mode(set_prolog_flag, 2, ['+', '+'], det).
 flow_mode(abolish, 1, ['+'], det).
 flow_mode((dynamic), 1, ['+'], det).
+flow_mode((discontiguous), 1, ['+'], det).
+flow_mode((multifile), 1, ['+'], det).
+%% a program file's clause then takes the name over, an ISO one's too (3.1.0)
+flow_mode(redefine_system_predicate, 1, ['+'], det).
+%% public/1, volatile/1, module_transparent/1 and thread_local/1's C half,
+%% the kind first (3.2.0)
+flow_mode('$declare', 2, ['+', '+'], det).
+%% what a part of a directive's declaration raised, reported where the
+%% directive stands (3.1.0): always true
+flow_mode('$decl_report', 2, ['+', '+'], det).
+%% the predicates an unknown procedure's name is near, for print_message/2's
+%% message of it (3.3.0): fails for a name that is neither an atom nor
+%% a compound
+flow_mode('$dwim_predicates', 2, ['+', '-'], semidet).
 flow_mode(ensure_loaded, 1, ['+'], det).
 flow_mode(use_module, 1, ['+'], det).
 flow_mode(use_module, 2, ['+', '+'], det).
@@ -234,6 +259,14 @@ flow_mode(notrace, 0, [], det).
 flow_mode(getenv, 2, ['+', '-'], semidet).
 flow_mode(setenv, 2, ['+', '+'], det).
 flow_mode(unsetenv, 1, ['+'], det).
+flow_mode(source_location, 2, ['-', '-'], semidet).
+%% prolog_load_context/2's C half (3.14.0): the load's file, its source and
+%% the term's place while a hook or a directive of it runs; fails anywhere
+%% else
+flow_mode('$load_context', 2, ['+', '-'], semidet).
+flow_mode(print_message, 2, ['+', '+'], det).
+flow_mode(print_message_lines, 3, ['+', '+', '+'], det).
+flow_mode(message_to_string, 2, ['+', '-'], det).
 flow_mode(working_directory, 2, ['-', '?'], det).
 flow_mode(absolute_file_name, 2, ['+', '-'], det).
 flow_mode(is_absolute_file_name, 1, ['+'], semidet).
@@ -287,9 +320,11 @@ flow_sink_binds(chars(X, _), [], X).
 %% the joining line, (+, +, -), whose `+' binds nothing (cicili-lang's
 %% cpp_dbg_op_spell/2: `W is free on every path to here', reached with Name
 %% partly bound). In cocolog each of these raises or leaves no variable in
-%% any argument; atom_length/2, atom_string/2, string_length/2,
-%% split_string/4 and term_to_atom/2 write any term, and leave its
-%% variables as they were.
+%% any argument -- atom_length/2, string_length/2, atom_string/2 and
+%% split_string/4 among them since they read their text as swipl's
+%% PL_get_text does and refuse a compound (2.16.1 and 3.0.0); through
+%% 2.16.0 they wrote any term and left its variables as they were.
+%% term_to_atom/2 reads a term, and the term may hold variables.
 flow_binds_all(atomic_list_concat, 2).
 flow_binds_all(atomic_list_concat, 3).
 flow_binds_all(atom_codes, 2).
@@ -305,6 +340,10 @@ flow_binds_all(string_chars, 2).
 flow_binds_all(string_codes, 2).
 flow_binds_all(string_bytes, 3).
 flow_binds_all(number_string, 2).
+flow_binds_all(atom_length, 2).
+flow_binds_all(string_length, 2).
+flow_binds_all(atom_string, 2).
+flow_binds_all(split_string, 4).
 
 %% the line a call takes: the first whose modes it meets (a bound argument
 %% meets + or ?, a free one - or ?), else the first line, which then only
@@ -357,7 +396,6 @@ flow_raises_unbound(string_codes, 2, [1, 2], string_codes(_, _)).
 flow_raises_unbound(string_chars, 2, [1, 2], string_chars(_, _)).
 flow_raises_unbound(string_bytes, 3, [1, 2], string_bytes(_, _, utf8)).
 flow_raises_unbound(string_to_atom, 2, [1, 2], string_to_atom(_, _)).
-flow_raises_unbound(term_to_atom, 2, [1, 2], term_to_atom(_, _)).
 flow_raises_unbound(upcase_atom, 2, [1], upcase_atom(_, 'X')).
 flow_raises_unbound(succ, 2, [1, 2], succ(_, _)).
 flow_raises_unbound(plus, 3, [1, 2], plus(_, _, 3)).
@@ -365,10 +403,13 @@ flow_raises_unbound(plus, 3, [2, 3], plus(1, _, _)).
 flow_raises_unbound(plus, 3, [1, 3], plus(_, 1, _)).
 flow_raises_unbound(atom_concat, 3, [1, 3], atom_concat(_, a, _)).
 flow_raises_unbound(atom_concat, 3, [2, 3], atom_concat(a, _, _)).
-flow_raises_unbound(string_concat, 3, [1, 3], string_concat(_, "a", _)).
-flow_raises_unbound(string_concat, 3, [2, 3], string_concat("a", _, _)).
+flow_raises_unbound(string_concat, 3, [1, 3], string_concat(_, a, _)).
+flow_raises_unbound(string_concat, 3, [2, 3], string_concat(a, _, _)).
 flow_raises_unbound(sub_atom, 5, [1], sub_atom(_, 0, 1, _, _)).
 flow_raises_unbound(sub_string, 5, [1], sub_string(_, 0, 1, _, _)).
+flow_raises_unbound(sub_atom_icasechk, 3, [1], sub_atom_icasechk(_, _, a)).
+flow_raises_unbound(sub_atom_icasechk, 3, [3], sub_atom_icasechk(abc, _, _)).
+flow_raises_unbound(name, 2, [1, 2], name(_, _)).
 flow_raises_unbound(split_string, 4, [1], split_string(_, "", "", _)).
 flow_raises_unbound(functor, 3, [1, 3], functor(_, f, _)).
 flow_raises_unbound(functor, 3, [1, 2], functor(_, _, 2)).

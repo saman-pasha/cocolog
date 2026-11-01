@@ -45,6 +45,7 @@
   '(("msort"      2 coco_l_msort)
     ("sort"       2 coco_l_sort)
     ("sort"       4 coco_l_sort4)
+    ("$keysort"   2 coco_l_keysort)
 
     ;; ONE STEP for each mode that answers once (1.12.2), where a clause
     ;; around a walk below took 2 to 13; a mode that enumerates is
@@ -52,7 +53,7 @@
     ("length"     2 coco_l_length :declines)
     ("nth0"       3 coco_l_nth0_at :declines)
     ("nth1"       3 coco_l_nth1_at :declines)
-    ("last"       2 coco_l_last)
+    ("last"       2 coco_l_last :declines)
     ("reverse"    2 coco_l_reverse :declines)
 
     ("$len"       2 coco_l_len)
@@ -63,8 +64,7 @@
     ("$sum"       3 coco_l_sum)
     ("$maxl"      3 coco_l_maxl)
     ("$minl"      3 coco_l_minl)
-    ("$numlist"   3 coco_l_numlist)
-    ("$last"      2 coco_l_last)))
+    ("$numlist"   3 coco_l_numlist)))
 
 ;;;; ------------------------------------------------------------------
 ;;;; The Coco half
@@ -138,7 +138,20 @@
            "'$nth_sel'([H|T], B, B, H, T)."
            "'$nth_sel'([H|T], B, N, E, [H|R]) :- C is B + 1, '$nth_sel'(T, C, N, E, R)."
 
-           ;; last/2 is the C half's alone (1.12.2): it never enumerated
+           ;; ---- last/2 ---------------------------------------------------
+           ;; swipl's clauses (3.0.1). The C half answers a proper list in
+           ;; one step and declines a partial list -- an unbound List among
+           ;; them -- to this clause, the only call that reaches it, which
+           ;; enumerates as swipl's does, the shortest list first: `[X]',
+           ;; then `[_, X]', and for `[a|T]' T = [], then T = [X]. Nothing
+           ;; is checked here: the C half asked once, and the helper the
+           ;; recursion comes back to tests nothing, so each answer after
+           ;; the first is one step (between/3's `'$between_up'/3').
+           ;; Through 3.0.0 last/2 was the C half's alone, and a partial
+           ;; list failed
+           "last([X|Xs], L) :- '$last_gen'(Xs, X, L)."
+           "'$last_gen'([], L, L)."
+           "'$last_gen'([X|Xs], _, L) :- '$last_gen'(Xs, X, L)."
            "nextto(X, Y, [X,Y|_])."
            "nextto(X, Y, [_|T]) :- nextto(X, Y, T)."
            "prefix(P, L) :- append(P, _, L)."
@@ -181,9 +194,16 @@
 
            ;; ---- arithmetic over a list -----------------------------------
            "sum_list(L, S) :- '$sum'(L, 0, S)."
+           ;; sumlist/2 (2.16.0), the old name swipl still autoloads from
+           ;; library(backcomp), whose one clause this is
+           "sumlist(L, S) :- sum_list(L, S)."
            "max_list([H|T], M) :- '$maxl'(T, H, M)."
            "min_list([H|T], M) :- '$minl'(T, H, M)."
-           "numlist(L, H, []) :- L > H, !, fail."
+           ;; ONE CLAUSE (3.0.0): '$numlist'/3 checks L and H as swipl's
+           ;; must_be(integer, X) does and fails for L > H. A first clause
+           ;; `numlist(L, H, []) :- L > H, !, fail' stood here through 2.16,
+           ;; its test a guard of the clause; its 3.0.0 form asked a C
+           ;; helper there, which cost every call a backtrack
            "numlist(L, H, R) :- '$numlist'(L, H, R)."
 
            ;; ---- the standard order over a list ---------------------------
@@ -302,12 +322,29 @@
   ;;; is its own tail as the set of its elements, as SWI's does (1.10.19;
   ;;; through 1.10.18 the walk went round it for ever); msort/2 raises.
   (static)
+  ;;; WHAT IS NO LIST TO A SORT, as swipl's sorts raise it (3.0.0): a
+  ;;; partial list is an instantiation_error, anything else type_error(list,
+  ;;; L). Through 2.16 both were the type error. A list that is its own
+  ;;; tail ends the walk at the heap's length, and is no list.
+  (static)
+  (func coco_l_not_list ((coco_engine * e) (size_t l)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t t . 0) (size_t budget . 0))
+          (set t (coco_deref m l))
+          (set budget (-> m heap_len))
+          (while (and (coco_is_cons m t) (> budget 0))
+            (set budget (- budget 1))
+            (set t (coco_deref m (coco_arg m t 1))))
+          (if (coco-tag-is REF (nth t (-> m heap)))
+              (return (coco_m_instantiation_error e)))
+          (return (coco_m_type_error e "list" l))))
+
   (func coco_l_sort_common ((coco_engine * e) (size_t g) (int dedup)) (out int)
         (let ((size_t * v . nil) (size_t n . 0) (size_t out . 0))
           (if (not (coco_m_list_array e (coco_m_arg e g 0) (aof v) (aof n)))
               (if (not (and dedup (coco_list_cycle_items (coco_m_machine e) (coco_m_arg e g 0)
                                                          (aof v) (aof n))))
-                  (return (coco_m_type_error e "list" (coco_m_arg e g 0)))))
+                  (return (coco_l_not_list e (coco_m_arg e g 0)))))
           (set coco_l_sort_machine (coco_m_machine e))
           (qsort v n (sizeof size_t) coco_l_cmp)
           (if dedup
@@ -350,9 +387,21 @@
               (size_t * v . nil) (size_t n . 0) (size_t out . 0)
               (int descending . 0) (int keep . 0))
 
-          (if (not (coco_m_int e (coco_m_arg e g 0) (aof key)))
-              (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
-          (if (< key 0) (return (coco_m_domain_error e "not_less_than_zero" (coco_m_arg e g 0))))
+          ;; THE KEY, THE ORDER, THE LIST, THE ELEMENTS, in swipl's order
+          ;; and with its errors (3.0.0): an integer under 0 is
+          ;; domain_error(not_less_than_one, K), anything but an integer or
+          ;; an atom type_error(sort_key, K); an atom is a dict key, and as
+          ;; there are no dicts here only the empty list sorts by one. Through
+          ;; 2.16 the key was type_error(integer, K) and an element without
+          ;; the argument sorted by itself.
+          (if (coco_m_is_var e (coco_m_arg e g 0)) (return (coco_m_instantiation_error e)))
+          (if (coco_m_int e (coco_m_arg e g 0) (aof key))
+              (block (if (< key 0) (return (coco_m_domain_error e "not_less_than_one"
+                                                                (coco_m_arg e g 0)))))
+            (if (coco_m_is_atom e (coco_m_arg e g 0))
+                (set key -1)
+              (return (coco_m_type_error e "sort_key" (coco_m_arg e g 0)))))
+          (if (coco_m_is_var e (coco_m_arg e g 1)) (return (coco_m_instantiation_error e)))
           (set order (coco_m_atom e (coco_m_arg e g 1)))
           (if (== order nil)
               (return (coco_m_domain_error e "order" (coco_m_arg e g 1))))
@@ -368,7 +417,27 @@
           (if (not (coco_m_list_array e (coco_m_arg e g 2) (aof v) (aof n)))
               (if (not (and (not keep) (coco_list_cycle_items (coco_m_machine e) (coco_m_arg e g 2)
                                                               (aof v) (aof n))))
-                  (return (coco_m_type_error e "list" (coco_m_arg e g 2)))))
+                  (return (coco_l_not_list e (coco_m_arg e g 2)))))
+
+          ;; each element has the key's argument: a compound, of that arity
+          ;; at least -- type_error(compound, E), then the three-argument
+          ;; existence_error(argument, K, E) -- or, by a dict key, a dict
+          (if (!= key 0)
+              (let ((coco_machine * m . #'(coco_m_machine e)))
+                (for ((size_t i . 0)) (< i n) ((++ i))
+                  (let ((size_t t . #'(coco_deref m (nth i v))))
+                    (cond
+                      ((not (coco-tag-is FUN (nth t (-> m heap))))
+                       (block (free v) (return (coco_m_type_error e "compound" t))))
+                      ((< key 0)
+                       (block (free v) (return (coco_m_type_error e "dict" t))))
+                      ((> (cast u32 key) (coco_arity m t))
+                       (let ((size_t args [3]))
+                         (set (nth 0 args) (coco_new_atom m "argument"))
+                         (set (nth 1 args) (coco_new_int m key))
+                         (set (nth 2 args) t)
+                         (free v)
+                         (return (coco_m_raise e (coco_make m "existence_error" 3 args))))))))))
 
           ;; a STABLE merge sort, bottom-up. This was an insertion sort,
           ;; "n is small in every use this has" -- and keysort/2 is this
@@ -423,6 +492,37 @@
           (free v)
           (return (coco_m_unify e (coco_m_arg e g 3) out))))
 
+  ;;; keysort/2's body (3.0.0): sort/4 at key 1 with @=<, after swipl's
+  ;;; checks -- the list's errors are keysort/2's, by the helper's row, and
+  ;;; an element that is no pair type_error(pair, E), or an unbound one
+  ;;; instantiation_error, named bare as swipl names them. Through 2.16
+  ;;; keysort/2 was sort/4: the context said sort/4, and `keysort([a], L)'
+  ;;; answered [a].
+  (func coco_l_keysort ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t * v . nil) (size_t n . 0) (size_t args [4]))
+          (if (not (coco_m_list_array e (coco_m_arg e g 0) (aof v) (aof n)))
+              (return (coco_l_not_list e (coco_m_arg e g 0))))
+          (for ((size_t i . 0)) (< i n) ((++ i))
+            (let ((size_t t . #'(coco_deref m (nth i v))))
+              (if (coco-tag-is REF (nth t (-> m heap)))
+                  (block (free v)
+                         (return (coco_m_raise_pi e (coco_new_atom m "instantiation_error")
+                                                  "" "keysort" 2))))
+              (if (not (and (coco-tag-is FUN (nth t (-> m heap)))
+                            (and (== (coco_arity m t) 2)
+                                 (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) "-")))))
+                  (block (free v)
+                         (return (coco_m_raise_pi e (coco_make2 m "type_error"
+                                                                (coco_new_atom m "pair") t)
+                                                  "" "keysort" 2))))))
+          (free v)
+          (set (nth 0 args) (coco_new_int m 1))
+          (set (nth 1 args) (coco_new_atom m "@=<"))
+          (set (nth 2 args) (coco_m_arg e g 0))
+          (set (nth 3 args) (coco_m_arg e g 1))
+          (return (coco_l_sort4 e (coco_make m "sort" 4 args)))))
+
   ;;; ---- the determinate walks ------------------------------------------
 
   ;;; Only for a PROPER list. A partial one is not an error here -- it is the
@@ -476,6 +576,24 @@
   ;;; through the SDK's mark, unify and undo, which each read `e->m' again,
   ;;; it held two, and the count left one of them on the stack (+12 % of its
   ;;; own cost, a local count; +1.7 % in the machine).
+  ;;;
+  ;;; WHERE THE WALK ENDS WITH NOTHING FOUND (3.0.0, swipl's '$memberchk'/3
+  ;;; and the clause over it): the list's end fails; an unbound tail is
+  ;;; bound to [X|_], so memberchk(a, L) is L = [a|_] and memberchk(a, [b|T])
+  ;;; T = [a|_]; anything else is type_error(list, Tail), the tail the walk
+  ;;; stopped at -- memberchk(a, [b|c]) names `c', memberchk(a, foo) `foo',
+  ;;; and `'[]'' is one, being no list's end. Through 2.16.1 the three
+  ;;; failed. Out of line: only the end of a walk that found nothing comes
+  ;;; here, and the loop keeps what it had.
+  (weak)
+  (func coco_l_memberchk_end ((coco_engine * e) (size_t x) (size_t p)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)))
+          (if (coco_is_nil m p) (return 0))
+          (if (coco-tag-is REF (nth p (-> m heap)))
+              (let ((size_t cell . #'(coco_cons m x (coco_new_var m))))
+                (return (coco_m_unify e p cell))))
+          (return (coco_m_type_error e "list" p))))
+
   (func coco_l_memberchk ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t x . #'(coco_m_arg e g 0))
@@ -483,7 +601,7 @@
           (set (-> m lbudget) (-> m heap_len))
           (while 1
             (set p (coco_deref m p))
-            (if (not (coco_is_cons m p)) (return 0))
+            (if (not (coco_is_cons m p)) (return (coco_l_memberchk_end e x p)))
             (if (== (-- (-> m lbudget)) 0) (return (coco_m_type_error e "list" (coco_m_arg e g 1))))
             (let ((size_t mark . #'(-> m trail_len)))
               (if (coco_unify m x (coco_arg m p 0)) (return 1))
@@ -493,9 +611,9 @@
 
   ;;; ---- the arithmetic walks ---------------------------------------------
   ;;;
-  ;;; `sum_list/2', `max_list/2', `min_list/2', `numlist/3' and `last/2' keep
-  ;;; the clauses they always had and lose the PROLOG ACCUMULATORS under
-  ;;; them: `'$sum'/3' and the rest were two clauses each, recursing once per
+  ;;; `sum_list/2', `max_list/2', `min_list/2' and `numlist/3' keep the
+  ;;; clauses they always had and lose the PROLOG ACCUMULATORS under them:
+  ;;; `'$sum'/3' and the rest were two clauses each, recursing once per
   ;;; element. Measured on a 200-element list, the same walk costs about
   ;;; 1.5us an element in Prolog and about 20ns in C -- `memberchk/2' answers
   ;;; in 4us where the same predicate written in Prolog takes 311, and
@@ -518,7 +636,7 @@
 
   ;;; A FLOAT THE WALK MADE IS A NUMBER, OR WHAT THE FLAGS LET IT BE (2.2.0,
   ;;; 2.2.2), as `is/2' makes it: 1 when *D stands (`coco_float_verdict' in
-  ;;; lib/solve.cicili, swipl's check_float(), which makes a NaN SWI's one
+  ;;; lib/solve-arith.cicili, swipl's check_float(), which makes a NaN SWI's one
   ;;; NaN), else the raise's answer through the module seam.
   (static)
   (func coco_l_float_ok ((coco_engine * e) (double * d)) (out int)
@@ -536,31 +654,66 @@
           (set (cof tail) (coco_arg m d 1))
           (return 1)))
 
+  ;;; THE STEP OF SWI'S OWN CLAUSE, for an element that is no plain integer
+  ;;; or float (2.15.1): OP(A, B) -- `+', `max' or `min' -- made and
+  ;;; evaluated as is/2 evaluates it, its value a new number cell in *OUT.
+  ;;; So an expression is evaluated (`sum_list([1+1, 2], S)' is 4), a
+  ;;; rational is exact, and an atom or an unbound element raises is/2's own
+  ;;; error (type_error(evaluable, a/0), instantiation_error). Through
+  ;;; 2.15.0 every walk here and aggregate_all/3's three took plain numbers
+  ;;; alone and raised for anything else, rationals among them. Answers 1, or
+  ;;; the raise's answer. A plain number never comes here: the walks keep
+  ;;; their own C for it, which is the clause's arithmetic without the term.
+  (func coco_l_eval2 ((coco_engine * e) (const char * op) (size_t a) (size_t b)
+                      (size_t * out)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t t . #'(coco_make2 m op a b))
+              (int isf . 0) (i64 iv . 0) (double fv . 0.0)
+              (int rc . #'(coco_arith e t (aof isf) (aof iv) (aof fv) 0)))
+          (if (!= rc 1)
+              (return (? (== rc 3) (coco_type_error e "expression" t) rc)))
+          (let ((size_t r . #'(? (== isf 2) (coco_new_rat m (-> m arith_n) (-> m arith_d))
+                                 (? (== isf 1) (coco_new_float m fv) (coco_new_int m iv)))))
+            (if (== r (cast size_t -1)) (return (coco_int_overflow e)))
+            (set (cof out) r)
+            (return 1))))
+
   ;;; `'$sum'(List, Acc, Sum)'. An integer accumulator stays an integer until
   ;;; a float arrives, which is what `B is A + H' did one clause at a time,
   ;;; and a float sum that is no finite number raises at the element that
   ;;; made it, as that `is/2' does (2.2.0; through 2.1.2 the NaN or the
-  ;;; infinity was the sum).
+  ;;; infinity was the sum). The first element that is no plain number -- an
+  ;;; expression, a rational, an atom, a variable -- and every one after it
+  ;;; is SWI's `Sum1 is Sum0 + X' itself (`coco_l_eval2', 2.15.1), the sum so
+  ;;; far made a number cell for it: `tm' says the walk has gone that way.
   (func coco_l_sum ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t p . #'(coco_m_arg e g 0)) (size_t n . 0)
               (i64 ai . 0) (double ad . 0.0) (int af . 0)
+              (int tm . 0) (size_t acc . 0)
               (size_t h . 0) (size_t t . 0))
           (if (not (coco_m_list_length e (coco_m_arg e g 0) (aof n))) (return 0))
           (if (not (coco_l_num e (coco_m_arg e g 1) (aof ai) (aof ad) (aof af))) (return 0))
           (while (coco_l_step m p (aof h) (aof t))
             (let ((i64 ei . 0) (double ed . 0.0) (int ef . 0))
-              (if (not (coco_l_num e h (aof ei) (aof ed) (aof ef)))
-                  (return (coco_m_type_error e "evaluable" h)))
-              (if ef
-                  (block (if (not af) (block (set ad (cast double ai)) (set af 1)))
-                         (set ad (+ ad ed)))
-                (if af (set ad (+ ad (cast double ei)))
-                  ;; past 64 bits int_overflow, as `B is A + H' raises (2.0.0)
-                  (if (coco_add_ovf ai ei (aof ai))
-                      (return (coco_m_evaluation_error e "int_overflow")))))
-              (if af (let ((int rc . #'(coco_l_float_ok e (aof ad)))) (if (!= rc 1) (return rc)))))
+              (if (or tm (not (coco_l_num e h (aof ei) (aof ed) (aof ef))))
+                  (let ((int rc . 0))
+                    (if (not tm)
+                        (block (set acc (? af (coco_m_new_float e ad) (coco_m_new_int e ai)))
+                               (set tm 1)))
+                    (set rc (coco_l_eval2 e "+" acc h (aof acc)))
+                    (if (!= rc 1) (return rc)))
+                (block
+                 (if ef
+                     (block (if (not af) (block (set ad (cast double ai)) (set af 1)))
+                            (set ad (+ ad ed)))
+                   (if af (set ad (+ ad (cast double ei)))
+                     ;; past 64 bits int_overflow, as `B is A + H' raises (2.0.0)
+                     (if (coco_add_ovf ai ei (aof ai))
+                         (return (coco_m_evaluation_error e "int_overflow")))))
+                 (if af (let ((int rc . #'(coco_l_float_ok e (aof ad)))) (if (!= rc 1) (return rc)))))))
             (set p t))
+          (if tm (return (coco_m_unify e (coco_m_arg e g 2) acc)))
           (if af (return (coco_m_unify e (coco_m_arg e g 2) (coco_m_new_float e ad))))
           (return (coco_m_unify e (coco_m_arg e g 2) (coco_m_new_int e ai)))))
 
@@ -577,27 +730,32 @@
   ;;; checked, as that `is/2' checks it (2.2.0; under the flags 2.2.2, so
   ;;; two equal infinities raise float_overflow but under float_overflow
   ;;; `infinity'); the first element is taken as it is, as SWI's is, and
-  ;;; is no `max/2' of its own.
+  ;;; is no `max/2' of its own -- `max_list([a], M)' is a, and through
+  ;;; 2.15.0 it raised. A step where either side is no plain number is SWI's
+  ;;; `Max1 is max(H, Max0)' itself (`coco_l_eval2', 2.15.1): an expression
+  ;;; evaluated, a rational exact, an atom raising is/2's error; `bn' says
+  ;;; whether BEST is a plain number the C can pick against.
   (static)
   (func coco_l_extreme ((coco_engine * e) (size_t g) (int want)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t p . #'(coco_m_arg e g 0)) (size_t n . 0)
               (size_t best . #'(coco_m_arg e g 1))
               (size_t h . 0) (size_t t . 0)
-              (i64 bi . 0) (double bd . 0.0) (int bf . 0))
+              (i64 bi . 0) (double bd . 0.0) (int bf . 0) (int bn . 0))
           (if (not (coco_m_list_length e (coco_m_arg e g 0) (aof n))) (return 0))
-          (if (not (coco_l_num e best (aof bi) (aof bd) (aof bf)))
-              (return (coco_m_type_error e "evaluable" best)))
+          (set bn (coco_l_num e best (aof bi) (aof bd) (aof bf)))
           (while (coco_l_step m p (aof h) (aof t))
             (let ((i64 hi . 0) (double hd . 0.0) (int hf . 0))
-              (if (not (coco_l_num e h (aof hi) (aof hd) (aof hf)))
-                  (return (coco_m_type_error e "evaluable" h)))
-              (let ((int b . #'(coco_num_pick want hf hi hd bf bi bd)))
-                (if (== b 2)
-                    (let ((int rc . #'(coco_l_float_ok e (aof hd))))
-                      (if (!= rc 1) (return rc))
-                      (set b 0)))
-                (if (== b 0) (block (set best h) (set bi hi) (set bd hd) (set bf hf)))))
+              (if (and bn (coco_l_num e h (aof hi) (aof hd) (aof hf)))
+                  (let ((int b . #'(coco_num_pick want hf hi hd bf bi bd)))
+                    (if (== b 2)
+                        (let ((int rc . #'(coco_l_float_ok e (aof hd))))
+                          (if (!= rc 1) (return rc))
+                          (set b 0)))
+                    (if (== b 0) (block (set best h) (set bi hi) (set bd hd) (set bf hf))))
+                (let ((int rc . #'(coco_l_eval2 e (? (> want 0) "max" "min") h best (aof best))))
+                  (if (!= rc 1) (return rc))
+                  (set bn (coco_l_num e best (aof bi) (aof bd) (aof bf))))))
             (set p t))
           (return (coco_m_unify e (coco_m_arg e g 2) best))))
 
@@ -610,7 +768,9 @@
   ;;; `'$numlist'(Low, High, List)'. THE FLOAT CASE USED TO HANG: the clauses
   ;;; were `'$numlist'(H, H, [H])' and a step of one, so `numlist(1, 3.0, X)'
   ;;; never met its base case and counted upward for ever. An integer is
-  ;;; required here and anything else is a type_error naming itself.
+  ;;; required here and anything else is type_error(integer, X), with no
+  ;;; context, as swipl's must_be(integer, X) raises it (3.0.0; through 2.16
+  ;;; `numlist(a, 1, L)' was >/2's type_error(evaluable, a/0)); L > H fails.
   (func coco_l_numlist ((coco_engine * e) (size_t g)) (out int)
         (let ((i64 lo . 0) (i64 hi . 0))
           (if (not (coco_m_int e (coco_m_arg e g 0) (aof lo)))
@@ -630,18 +790,6 @@
             (free v)
             (return (coco_m_unify e (coco_m_arg e g 2) out)))))
 
-  ;;; `'$last'(List, Last)'. Fails on the empty list and on anything that is
-  ;;; not a proper one, which is what the two clauses did.
-  (func coco_l_last ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t p . #'(coco_m_arg e g 0)) (size_t n . 0)
-              (size_t h . 0) (size_t t . 0) (size_t best . 0) (int any . 0))
-          (if (not (coco_m_list_length e (coco_m_arg e g 0) (aof n))) (return 0))
-          (while (coco_l_step m p (aof h) (aof t))
-            (set best h) (set any 1) (set p t))
-          (if (not any) (return 0))
-          (return (coco_m_unify e (coco_m_arg e g 1) best))))
-
   ;;; ---- one step for the modes that answer once (1.12.2) ----------------
   ;;;
   ;;; length/2, nth0/3, nth1/3, last/2 and reverse/2 were each a clause
@@ -651,7 +799,9 @@
   ;;; that ENUMERATES is declined (`coco_m_decline', the `:declines' row) to
   ;;; the clause of the same name in the Coco half, which nothing else
   ;;; reaches. Every answer is the clauses' -- a failure where SWI raises
-  ;;; included -- but where they went on for ever.
+  ;;; included -- but where they went on for ever, and but last/2 of a
+  ;;; partial list, which its clause failed and swipl's enumerates: since
+  ;;; 3.0.1 its row declines that too, to swipl's clause.
 
   ;;; What a list argument is, in one walk: 1 a proper list of N cells, 2 a
   ;;; partial one -- N cells, then the unbound TAIL --, 0 neither (`foo',
@@ -680,18 +830,26 @@
   ;;; where `length([a,b,c|T], 2)' went round the clauses for ever; so did a
   ;;; partial list and N bound to anything else (`length(L, a)'), which no
   ;;; list has, and N the tail itself (`length([a|T], T)'), which SWI fails.
-  ;;; A partial list and N unbound enumerate: declined. A list that is its
-  ;;; own tail is SWI's type_error(list, L), and `foo' or `[a|foo]' has no
-  ;;; length, as the clauses said.
+  ;;; A partial list and N unbound enumerate: declined. WHAT IS WRONG IS
+  ;;; RAISED, as swipl's length/2 raises it (3.0.0), N first: a bound N
+  ;;; that is no integer is type_error(integer, N) and one below 0
+  ;;; domain_error(not_less_than_zero, N), whatever the list is; then a list
+  ;;; that is no list -- `foo', `[a|foo]', `'[]'', or one that is its own
+  ;;; tail -- type_error(list, L). Through 2.16.1 all but the last failed.
   (func coco_l_length ((coco_engine * e) (size_t g) (int * found)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t l . #'(coco_m_arg e g 0)) (size_t nn . #'(coco_m_arg e g 1))
               (size_t k . 0) (size_t tail . 0) (i64 want . 0) (int kind . 0))
+          (if (not (coco_m_is_var e nn))
+              (block
+               (if (not (coco_m_int e nn (aof want)))
+                   (return (coco_m_type_error e "integer" nn)))
+               (if (< want 0)
+                   (return (coco_m_domain_error e "not_less_than_zero" nn)))))
           (set kind (coco_l_walk m l (aof k) (aof tail)))
           (if (== kind 1) (return (coco_m_unify_int e nn (cast i64 k))))
-          (if (== kind -1) (return (coco_m_type_error e "list" l)))
-          (if (== kind 0) (return 0))
-          (if (coco_m_int e nn (aof want))
+          (if (!= kind 2) (return (coco_m_type_error e "list" l)))
+          (if (not (coco_m_is_var e nn))
               (block
                (if (< want (cast i64 k)) (return 0))
                (if (== want (cast i64 k)) (return (coco_m_unify e tail (coco_m_nil e))))
@@ -708,7 +866,6 @@
                  (if (== end 0) (return 0))
                  (set (nth (+ prev 2) (-> m heap)) (coco-cell REF end))
                  (return (coco_m_unify e tail first)))))
-          (if (not (coco_m_is_var e nn)) (return 0))
           (if (== nn tail) (return 0))
           (coco_m_decline e)
           (set (cof found) 0)
@@ -725,7 +882,9 @@
               (size_t ix . #'(coco_m_arg e g 0)) (i64 want . 0) (size_t p . 0))
           (if (coco_m_is_var e ix)
               (block (coco_m_decline e) (set (cof found) 0) (return 0)))
-          (if (not (coco_m_int e ix (aof want))) (return 0))
+          ;; an index that is no integer is swipl's must_be(integer, I)
+          ;; (3.0.0; through 2.16 the call failed)
+          (if (not (coco_m_int e ix (aof want))) (return (coco_m_type_error e "integer" ix)))
           (if (< want base) (return 0))
           (set want (- want base))
           (set p (coco_m_arg e g 1))
@@ -762,6 +921,32 @@
               (set r (coco_cons m (coco_arg m p 0) r))
               (set p (coco_arg m p 1)))
             (return (coco_m_unify e (coco_m_arg e g 1) r)))))
+
+  ;;; `last(?List, ?Last)': a proper list's last element, in one walk that
+  ;;; keeps the last cell it passed. The empty list and what is no list --
+  ;;; `foo', `[a|foo]', `'[]'' -- fail, as swipl's clause does, raising
+  ;;; nothing, and so does a list that is its own tail, which swipl's walks
+  ;;; for ever. A PARTIAL LIST ENUMERATES, an unbound List among them
+  ;;; (3.0.1): `last(L, X)' is L = [X], then [_, X], ..., and
+  ;;; `last([a|T], X)' T = [] with X = a, then T = [X], ... -- declined to
+  ;;; the clause. Through 3.0.0 the row was '$last''s walk, which failed
+  ;;; there, and '$last'/2, which nothing had called since 1.12.2, went
+  ;;; with it.
+  (func coco_l_last ((coco_engine * e) (size_t g) (int * found)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t p . #'(coco_m_arg e g 0)) (size_t cell . 0)
+              (size_t k . 0) (size_t lim . #'(-> m heap_len)))
+          (while 1
+            (set p (coco_deref m p))
+            (if (not (coco_is_cons m p)) break)
+            (set k (+ k 1))
+            (if (> k lim) (return 0))
+            (set cell p)
+            (set p (coco_arg m p 1)))
+          (if (coco-tag-is REF (nth p (-> m heap)))
+              (block (coco_m_decline e) (set (cof found) 0) (return 0)))
+          (if (or (== k 0) (not (coco_is_nil m p))) (return 0))
+          (return (coco_m_unify e (coco_m_arg e g 1) (coco_arg m cell 0)))))
 
   ;;; ---- the module -----------------------------------------------------
 

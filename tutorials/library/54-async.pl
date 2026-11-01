@@ -13,17 +13,24 @@
 %%     async(:Goal, -Future)            future_ready(+Id)
 %%     channel(-C)        channel(+Size, -C)
 %%     channel_send(+C, +Term)          channel_recv(+C, -Term)   channel_close(+C)
+%%     async_workers(-N)
 %%
-%% A GREEN THREAD IS A MACHINE OF ITS OWN, run by a world of 8 WORKERS --
-%% the caller's thread and seven OS threads (2.8.0). Each worker owns a
-%% store cloned from the caller's at async_run/1; a task is pinned to the
-%% worker it was born on and is preempted at a 10,000-step quantum, so a
-%% task that never yields cannot hold a worker. A write a task makes is
-%% REPLICATED to every other worker's store before the builtin returns
-%% (assertz/1, asserta/1, retract/1, dynamic/1, abolish/1 and nb_setval/2),
-%% so the caller, the main thread and the host see it. Terms cross in
-%% canonical text through a channel, and the answer of a goal is the goal
-%% as instantiated. The caller's variables are NOT bound: the answer is a
+%% A GREEN THREAD IS A MACHINE OF ITS OWN, in a world of ONE WORKER A CORE
+%% (2.9.3, as Go's GOMAXPROCS defaults to NumCPU; COCOLOG_GREEN_WORKERS
+%% overrides it, and through 2.9.2 there were eight): the caller's thread
+%% is worker 0 and the other N-1 are OS threads. async_workers/1 (2.15.0)
+%% answers N -- inside a world the workers it has, outside one the workers
+%% the next async_run/1 would start -- so a program sizes its work from the
+%% world, never from a number. A task is pinned to the
+%% worker it was born on -- children take the workers beside the caller's
+%% round robin, 1, 2, ..., and the N-th wraps to 0 -- and is preempted at a
+%% 10,000-step quantum, so a task that never yields cannot hold a worker.
+%% THE WORLD RUNS OVER THE CALLER'S ONE STORE (2.9.0): a write a task makes
+%% (assertz/1, asserta/1, retract/1, dynamic/1, abolish/1, nb_setval/2)
+%% stops the world, lands in that store and releases it, so the caller, the
+%% main thread and the host see it, with no copy. Terms cross in canonical
+%% text through a channel, and the answer of a goal is the goal as
+%% instantiated. The caller's variables are NOT bound: the answer is a
 %% copy.
 %%
 %% Everything runs under async_run/1,2. The world reports a deadlock
@@ -82,16 +89,30 @@ case_retract(R) :-
     await(F, _),
     ( catch(q(2), _, fail) -> R = still ; R = gone ).
 
-%% Eight children fill workers 1..7 and then worker 0, the main's own; H
-%% shares worker 0, so after the main's yield it has been stopped at its
-%% 10,000-step quantum and is not done.
+%% THE WORLD'S SIZE, asked inside the world: the workers it has
+case_workers(N) :-
+    async_workers(N).
+
+%% ONE CHILD A WORKER. Children take the workers beside the main round
+%% robin, 1 to N-1, and the N-th wraps to worker 0, the main's own, so the
+%% last child shares the main's worker whatever N is: the main's yield
+%% hands it worker 0 for one quantum, it is stopped at 10,000 of its 60,000
+%% steps, and the main runs again with it not done. (Eight children put the
+%% last on worker 0 only in a world whose size divides eight; on a
+%% three-core machine it ran on worker 2, apart from the main, and could
+%% finish before the main looked.)
 case_preempt(R) :-
-    go(spin(20000), A), go(spin(20000), B), go(spin(20000), C),
-    go(spin(20000), D), go(spin(20000), E), go(spin(20000), F),
-    go(spin(20000), G), go(spin(20000), H),
+    async_workers(N),
+    N1 is N - 1,
+    beside(N1, Fs),
+    go(spin(20000), H),
     yield,
     ( future_ready(H) -> R = done ; R = not_done ),
-    await_all([A,B,C,D,E,F,G,H]).
+    await_all([H|Fs]).
+
+%% the N-1 children that fill the workers beside the main's
+beside(0, []) :- !.
+beside(K, [F|Fs]) :- go(true, F), K1 is K - 1, beside(K1, Fs).
 
 result(Goal, R) :-
     async_run(Goal, W),
@@ -120,9 +141,13 @@ lesson_values :-
 %% ---- the quantum --------------------------------------------------------
 lesson_preempt :-
     format("~n-- a task that never yields is stopped at the quantum~n"),
-    result(case_preempt(R1), R1),
-    must('the eighth child shares worker 0 and is not done yet', R1, not_done),
-    format("     (yield/0 let the main run; the child went on at 10,000 steps)~n").
+    async_workers(N0),
+    result(case_workers(W1), W1),
+    must('the world has the workers async_workers/1 said it would start', W1, N0),
+    result(case_preempt(R2), R2),
+    must('the last child shares worker 0 and is not done yet', R2, not_done),
+    format("     (the main's yield gave worker 0 to the last child for one~n"),
+    format("     quantum; stopped at 10,000 steps, it let the main run again)~n").
 
 %% ---- channels -----------------------------------------------------------
 lesson_channels :-
@@ -156,13 +181,13 @@ lesson_store :-
 %% ---- the limits ---------------------------------------------------------
 lesson_limits :-
     format("~n-- what this is, and what it is not~n"),
-    format("   M:N: 8 workers, 1024 tasks and 64 channels a world. A task is~n"),
-    format("   preempted at 10,000 steps; a foreign call holds its worker.~n"),
-    format("   A SHARED STORE, CLONED: each worker has a store built from~n"),
-    format("   the caller's at async_run/1; assertz, asserta, retract,~n"),
-    format("   dynamic, abolish and nb_setval are replicated across the~n"),
-    format("   workers before they return. b_setval, a consult or load, a~n"),
-    format("   backend's fetch and a module's own C state stay the worker's.~n"),
+    format("   M:N: a worker a core (COCOLOG_GREEN_WORKERS overrides it),~n"),
+    format("   1024 tasks and 64 channels a world. A task is preempted at~n"),
+    format("   10,000 steps; a foreign call holds its worker.~n"),
+    format("   ONE STORE: every worker runs over the caller's own; assertz,~n"),
+    format("   asserta, retract, dynamic, abolish and nb_setval stop the~n"),
+    format("   world, land in that store and release it. A consult or load~n"),
+    format("   a task runs and a module's own C state stay the worker's.~n"),
     must('the lesson is still running', yes, yes).
 
 %% ---- the helpers every lesson here carries -----------------------------

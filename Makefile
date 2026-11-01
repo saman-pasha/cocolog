@@ -103,7 +103,15 @@ CLIENT_OBJS    := $(BUILD)/zigurat.o $(BUILD)/zeytun.o
 #
 # Wherever cocolog builds against a ZiguratIP, OpenSSL is already there --
 # libCryptography links -lcrypto. This is for the case where it is not.
-ZT_TLS_PROBE   := $(shell printf '\043include <openssl/ssl.h>\nint main(void){return 0;}\n' > /tmp/.coco-ssl-probe.c 2>/dev/null && $(CC) /tmp/.coco-ssl-probe.c -o /dev/null -lssl -lcrypto >/dev/null 2>&1 && echo yes || echo no)
+#
+# The probe's source goes to the compiler on its standard input, never
+# through a file: through cocolog 3.5.0 it was /tmp/.coco-ssl-probe.c, one
+# name for every build on the box, and builds run at once wrote it under
+# each other. A probe that read a half-written file said `no', and a build
+# whose client objects had TLS in them linked them without -lssl: undefined
+# SSL_* symbols at the link (four copies of the tree built at once,
+# 2026-10-31).
+ZT_TLS_PROBE   := $(shell printf '\043include <openssl/ssl.h>\nint main(void){return 0;}\n' | $(CC) -x c - -o /dev/null -lssl -lcrypto >/dev/null 2>&1 && echo yes || echo no)
 ifeq ($(ZT_TLS_PROBE),yes)
 ZT_TLS_CFLAGS  := -DCOCO_ZT_TLS
 ZT_TLS_LIBS    := -lssl -lcrypto

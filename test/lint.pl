@@ -15,14 +15,18 @@
 %%   2. the retrieval index's paths and anchors resolve
 %%   3. clauses.pl reads selftest/reader.pl into exactly reader.expected --
 %%      every shape that has ever fooled a clause reader here
-%%   3b. E1 pairs backslashes the way the reader does -- the one thing
-%%      selftest/traps.pl cannot show, for it shows what is FOUND
-%%   3c. E1's radix numeral needs a digit after its quote, so a quoted atom
-%%      that ends in 16 is no finding -- the same thing, the same way
-%%   3d. X2 is lifted where a library gives streams: library(stream), and
+%%   3b. what card row E1 flagged reads, and lints clean: the escapes, the
+%%      backquotes, the digit groups and the radix numerals swipl reads
+%%      (the row retired at 3.1.0, when the reader took them)
+%%   3c. X2 is lifted where a library gives streams: library(stream), and
 %%      library(websocket), which loads it -- by a directive or by a goal
-%%   3e. an acknowledgement covers its own line, or the next when it stands
+%%   3d. an acknowledgement covers its own line, or the next when it stands
 %%      alone; one with no reason, or whose finding has gone, is a U1
+%%   3e. N1 knows the libraries preloaded at start-up, read from the
+%%      engine's own list
+%%   3g. a file is linted with the files it includes, as one unit: each
+%%      finding at its own file and line, the imports shared both ways, a
+%%      listed included file linted once, no C2 between them
 %%   3f. auto mode reads git, in a fixture repository of its own: --auto
 %%      lints the working tree, --staged the index after the file on disk
 %%      is clean, --quiet is silent with nothing staged, and a .cicili and
@@ -54,7 +58,9 @@ main :-
     shl([ 'sh ', Agent, '/tool.sh build >/dev/null 2>&1 || echo BUILD-FAILED' ]),
     ( sh_exit('sh tools/cocolint/tool.sh build >/dev/null 2>&1', 0) -> true ; skip('blocklist would not build') ),
     ( sh_exit('sh tools/cocolint/tool.sh card --facts >/dev/null 2>&1', 0) -> true ; skip('traps.pl would not build') ),
-    the_reader(Agent), the_escapes(Agent), the_radix(Agent), the_lifts(Agent), the_acks(Agent),
+    the_reader(Agent), the_escapes(Agent), the_lifts(Agent), the_acks(Agent),
+    the_preloads(Agent),
+    the_includes(Agent),
     the_auto(Agent),
     the_findings(Agent),
     checks_done.
@@ -82,10 +88,12 @@ indented(Text) :-
 %% All three verdicts run against a COPY of traps.jsonl with one cite broken
 %% each way, through $COCOLOG_TRAPS; the real card is never written to. The
 %% breakages are chosen for what they prove: N1's anchor occurs ONCE in
-%% lib/kb.cicili (drift -- accepted), W1's `coco_bi_write_canonical' occurs
-%% TWICE in lib/solve.cicili as a builtin row and a definition (ambiguous --
-%% refused, because the range is the only thing choosing between them; it was
-%% W1's `coco_write_canonical' in lib/syntax.cicili, a declaration and a
+%% lib/kb-pred.cicili (drift -- accepted), X1's `coco_str' occurs thirty
+%% times in lib/term.cicili (ambiguous -- refused, because the range is the
+%% only thing choosing between them; it was W1's `coco_bi_write_canonical' in
+%% lib/solve.cicili, a builtin row and a definition, until 2.16.1 split the
+%% engine into seven files and put the definition in lib/solve-db.cicili, W1's
+%% `coco_write_canonical' in lib/syntax.cicili, a declaration and a
 %% definition, until 2.2.5 moved the cite to where write_canonical/1 picks
 %% its mode, and A2's `coco_new_int' until 2.0.0 retired that row), and an
 %% anchor nobody wrote is gone (refused; that row needs rereading, not
@@ -100,8 +108,8 @@ the_verdicts(Agent) :-
     scratch(V),
     sh_join([Agent, '/traps.jsonl'], Traps),
     read_file_to_codes(Traps, Cs), codes_lines(Cs, Lines),
-    vcase(Agent, V, drift, Lines, '"id": "N1"', '"lib/kb.cicili:[0-9-]*"', '"lib/kb.cicili:1-5"', 0, 'unique anchor, accepted'),
-    vcase(Agent, V, ambiguous, Lines, '"id": "W1"', '"lib/solve.cicili:[0-9-]*"', '"lib/solve.cicili:1-5"', 1, 'the range is what picks the site'),
+    vcase(Agent, V, drift, Lines, '"id": "N1"', '"lib/kb-pred.cicili:[0-9-]*"', '"lib/kb-pred.cicili:1-5"', 0, 'unique anchor, accepted'),
+    vcase(Agent, V, ambiguous, Lines, '"id": "X1"', '"lib/term.cicili:[0-9-]*"', '"lib/term.cicili:1-5"', 1, 'the range is what picks the site'),
     %% The anchor this one breaks used to be `unsupported directive: %s/%u',
     %% which is not in the engine any more -- a directive is a goal now. Any
     %% anchor that really exists does the job; this is S2's.
@@ -169,72 +177,33 @@ the_reader(Agent) :-
     ),
     shl(['rm -rf ', T]).
 
-%% ---- 3b. E1 reads the backslash the way the reader pairs them --------------
+%% ---- 3b. what E1 flagged reads, and lints clean ---------------------------
 %%
-%% THE SCAN SEES BYTES AND THE READER SEES PAIRS. E1 looks inside quotes for a
-%% backslash, `u' and four hex digits, and in a quoted atom `\\u0041' is an
-%% escaped backslash and the letters u0041 -- what every JSON test writes --
-%% which matched at its SECOND backslash: six HARD findings in
-%% test/serialize.pl over code that was right. selftest/traps.pl shows what a
-%% rule FINDS and cannot show what it must leave alone, so the six shapes are
-%% written here, with ~c so that this file says nothing the linter would read
-%% as an escape: one backslash, two, three, four, a pair round x41, and a real
-%% \x41\. The reader pairs from the left, so the one and the three (a pair and
-%% an escape) and the real one are findings, at the backslash that opens them,
-%% and the two, the four and the pair round x41 are not.
+%% CARD ROW E1 SAID the reader refused `\xHH\', `\NNN\', `\uXXXX', `\e',
+%% `\s', backquotes, `16'FF' and `1_000_000', each a syntax error that
+%% refused the whole file. The reader takes all of them since 3.1.0, as
+%% swipl's does, and the row is retired: a file of every one READS -- the
+%% answers are swipl's -- and draws no finding. The file is written with ~c
+%% for its backslashes, quote and backquotes, so that what it holds is plain
+%% to read here.
 the_escapes(Agent) :-
-    section('E1 reads the backslash the way the reader pairs them'),
+    section('what card row E1 flagged reads, and lints clean'),
     scratch(T), shl(['mkdir -p ', T]),
     sh_join([T, '/escapes.pl'], F),
-    findall(Line, ( member(Fmt-Args, [ "a('~cu0041').~n"-[92],
-                                       "b('~c~cu0041').~n"-[92, 92],
-                                       "c('~c~c~cu0041').~n"-[92, 92, 92],
-                                       "d('~c~c~c~cu0041').~n"-[92, 92, 92, 92],
-                                       "e('~c~cx41~c~c').~n"-[92, 92, 92, 92],
-                                       "f('a~cx41~cb').~n"-[92, 92] ] ),
+    findall(Line, ( member(Fmt-Args, [ "go :- atom_codes(A, \"~cx41~c~c101~c~cu00e9~ce~cs\"), atom_codes(A, C),~n"-[92, 92, 92, 92, 92, 92, 92],
+                                       "      X = 16~cff, Y = 1_000_000, Z = ~cab~c,~n"-[39, 96, 96],
+                                       "      write(C-X-Y-Z), nl.~n"-[] ] ),
                     format(atom(Line), Fmt, Args) ), Lines),
     atomic_list_concat(Lines, '', Text), atom_codes(Text, TCs), write_file_from_codes(F, TCs),
+    sh_join(['--local run ', F, ' go 2>&1'], RunArgs), cocolog_run(RunArgs, Ran, _),
+    check('the reader takes every form the row named, to swipl''s answers', Ran, '[65,65,233,27,32]-255-1000000-[97,98]'),
     sh_join(['sh ', Agent, '/lint.sh ', F, ' 2>&1'], Cmd), shell(Cmd, Out, _),
     atom_codes(Out, OCs), codes_lines(OCs, OLines),
-    findall(LC, ( member(L, OLines), atom_codes(LA, L),
-                  re_match('^[^ :]+:[0-9]+:[0-9]+ HARD S1 \\[E1\\]', LA),
-                  re_replace_atom('^[^ :]+:([0-9]+:[0-9]+) .*', '\\1', LA, LC) ), Got),
-    check('only the backslashes the reader would not have paired are findings (line:col)', Got, ['1:4', '3:6', '6:5']),
+    findall(LA, ( member(L, OLines), atom_codes(LA, L), re_match('^[^ :]+:[0-9]+:[0-9]+ (HARD|WARN) ', LA) ), Got),
+    check('...and draws no finding', Got, []),
     shl(['rm -rf ', T]).
 
-%% ---- 3c. E1's radix numeral has digits after its quote ---------------------
-%%
-%% `16'FF' is SWI's radix notation, which the reader here does not have, and E1
-%% looks for it inside quotes like the rest. The pattern was the bytes `16'' and
-%% nothing after them, so a QUOTED ATOM that ends in 16 matched at its own
-%% closing quote: `'Content-Length: 16'' in test/httpd.pl, a HARD finding over
-%% code that was right. A numeral has a digit after the quote, and now so does
-%% the pattern. selftest/traps.pl shows what a rule FINDS, so what it must
-%% leave alone is written here, with ~c for the quote of a numeral so that this
-%% file says nothing the linter would read as one: an atom that ends in 16, the
-%% atom `16', an escaped quote and a hex letter after a 16, and then two
-%% numerals, with capital digits and with small ones. Only the two numerals
-%% are findings, at the 16 that opens each.
-the_radix(Agent) :-
-    section('E1 flags a radix numeral, not a quoted atom that ends in 16'),
-    scratch(T), shl(['mkdir -p ', T]),
-    sh_join([T, '/radix.pl'], F),
-    findall(Line, ( member(Fmt-Args, [ "a('Content-Length: 16').~n"-[],
-                                       "b('16').~n"-[],
-                                       "c('it''s 16''a').~n"-[],
-                                       "d(X) :- X is 16~cFF.~n"-[39],
-                                       "e(X) :- X is 16~cff.~n"-[39] ] ),
-                    format(atom(Line), Fmt, Args) ), Lines),
-    atomic_list_concat(Lines, '', Text), atom_codes(Text, TCs), write_file_from_codes(F, TCs),
-    sh_join(['sh ', Agent, '/lint.sh ', F, ' 2>&1'], Cmd), shell(Cmd, Out, _),
-    atom_codes(Out, OCs), codes_lines(OCs, OLines),
-    findall(LC, ( member(L, OLines), atom_codes(LA, L),
-                  re_match('^[^ :]+:[0-9]+:[0-9]+ HARD S1 \\[E1\\]', LA),
-                  re_replace_atom('^[^ :]+:([0-9]+:[0-9]+) .*', '\\1', LA, LC) ), Got),
-    check('only a numeral with its digits is a finding (line:col)', Got, ['4:14', '5:14']),
-    shl(['rm -rf ', T]).
-
-%% ---- 3d. X2 is lifted where a library gives streams ------------------------
+%% ---- 3c. X2 is lifted where a library gives streams ------------------------
 %%
 %% A LIFT IS A RULE LEAVING CODE ALONE, which selftest/traps.pl cannot show
 %% either. One clause six times -- a session loop's test for the message
@@ -267,7 +236,7 @@ the_lifts(Agent) :-
           [bare-['1:17'], stream-[], websocket-[], goal-[], comment-['2:17'], quoted-['2:17']]),
     shl(['rm -rf ', T]).
 
-%% ---- 3e. an acknowledgement, and U1 ----------------------------------------
+%% ---- 3d. an acknowledgement, and U1 ----------------------------------------
 %%
 %% AN ACKNOWLEDGEMENT IS A RULE LEAVING CODE ALONE ON THE CODE'S OWN WORD,
 %% and the five ways it can go are written here, each with ~c for the `%' of
@@ -301,7 +270,97 @@ the_acks(Agent) :-
           ['1:8 S1R1', '3:8 S1R1', '4:8 S1R1', '4:46 S1F1', '5:8 S1R1']),
     shl(['rm -rf ', T]).
 
-%% ---- auto mode: the changes, not a file list -----------------------------
+%% ---- 3e. N1 sees the preloaded libraries -----------------------------------
+%%
+%% library(async) (2.8.0) and library(print_message) (2.16.0) are loaded at
+%% every start-up, so a program's print_message/2 or go/1 joins their clauses
+%% with no import in sight, as its sumlist/2 joins library(lists)'s: build.pl
+%% reads the preload from lib/library.cicili and puts their heads in tier 1.
+%% Until then the blocklist held them as tier 2, counted only when imported,
+%% and the fixture's first two lines were no finding. A library's own heads
+%% are its definition and never a finding: the two files lint clean.
+the_preloads(Agent) :-
+    section('N1 sees the preloaded libraries, and leaves their own heads alone'),
+    scratch(T), shl(['mkdir -p ', T]),
+    sh_join([T, '/preloads.pl'], F),
+    fixture(F, [ 'print_message(_, _).', 'go(_).', 'sumlist(_, 0).', 'preloads_own(1).' ]),
+    sh_join(['sh ', Agent, '/lint.sh ', F, ' 2>&1'], Cmd), shell(Cmd, Out, _),
+    atom_codes(Out, OCs), codes_lines(OCs, OLines),
+    findall(LN, ( member(L, OLines), atom_codes(LA, L),
+                  re_match('^[^ :]+:[0-9]+:[0-9]+ HARD N1 ', LA),
+                  re_replace_atom('^[^ :]+:([0-9]+):[0-9]+ .*', '\\1', LA, LN) ), Got),
+    check('a program''s print_message/2, go/1 and sumlist/2 are N1 findings (lines)', Got,
+          ['1', '2', '3']),
+    sh_join(['sh ', Agent, '/lint.sh library/async.pl library/print_message.pl 2>&1'], Cmd2),
+    shell(Cmd2, Out2, _),
+    ( sub_atom(Out2, _, _, _, 'cocolint: 0 HARD, 0 WARN') -> Clean2 = yes ; Clean2 = Out2 ),
+    check('library(async) and library(print_message) lint clean on their own heads', Clean2, yes),
+    shl(['rm -rf ', T]).
+
+%% ---- 3g. includes: a file and the files it includes are one unit ----------
+%%
+%% AN INCLUDED FILE IS READ WHERE ITS INCLUDE STANDS (3.13.1), by the engine
+%% and by swipl, so the linter lints it as part of the file that includes
+%% it: its findings at its own lines, with the imports of the whole unit --
+%% an includer's library(stream) lifts an included close/2, and an
+%% included file's lifts the includer's -- found beside the includer, at
+%% any depth, each file once; a file another of the run includes is linted
+%% only as part of it; two that include each other are both linted; a
+%% vendored file is not read; and one name in two files of a unit is no C2.
+the_includes(Agent) :-
+    section('a file is linted with the files it includes, as one unit'),
+    scratch(T), shl(['mkdir -p ', T]),
+    sh_join([T, '/'], P),
+    forall(member(N-Ls, [ i_top-[':- use_module(library(stream)).', ':- include(i_part).'],
+                          i_part-['ended(M) :- M = close(_, _).', ':- include(i_deep).'],
+                          i_deep-['member(X, [X]).'],
+                          i_up-[':- include(i_lib).', 'ended(M) :- M = close(_, _).'],
+                          i_lib-[':- use_module(library(stream)).'],
+                          i_self-['s(1).', ':- include(i_self).', ':- include(_).'],
+                          i_a-[':- include(i_b).', 'a(1).'],
+                          i_b-[':- include(i_a).', 'b(1).'],
+                          i_vend-[':- include(''lib/swipl/pairs.pl'').'],
+                          i_c2-[':- include(i_c2b).', 'k(1).'],
+                          i_c2b-['k(2).'] ]),
+           ( sh_join([P, N, '.pl'], F), fixture(F, Ls) )),
+    findall(Name-Got,
+            ( member(Name-Fs, [ top-[i_top], part-[i_part], up-[i_up], both-[i_part, i_top],
+                                self-[i_self], cycle-[i_a, i_b], vend-[i_vend] ]),
+              findall(A, ( member(F0, Fs), sh_join([P, F0, '.pl'], A) ), As),
+              inc_lint(Agent, As, '', Got) ),
+            Got1),
+    check('each finding at its own file and line, the imports shared both ways, each file once (findings, files)',
+          Got1,
+          [top-(['i_deep.pl:1 N1']-3), part-(['i_part.pl:1 S1 [X2]', 'i_deep.pl:1 N1']-2), up-([]-2),
+           both-(['i_deep.pl:1 N1']-3), self-([]-1), cycle-([]-2), vend-([]-1)]),
+    sh_join([P, 'i_c2.pl'], C2F),
+    inc_lint(Agent, [C2F], 'COCO_LINT_MANIFEST=1 ', Got2),
+    check('one name in a file and its include is no C2', Got2, []-2),
+    shl(['rm -rf ', T]).
+
+%% the findings of a lint over Files, `base:line RULE', and the files it read
+inc_lint(Agent, Files, Env, Lines-NF) :-
+    atomic_list_concat(Files, ' ', FA),
+    sh_join([Env, 'sh ', Agent, '/lint.sh ', FA, ' 2>&1'], Cmd), shell(Cmd, Out, _),
+    atom_codes(Out, OCs), codes_lines(OCs, OLines),
+    findall(R, ( member(L, OLines), atom_codes(LA, L),
+                 re_match('^[^ ]+:[0-9]+:[0-9]+ (HARD|WARN) ', LA),
+                 re_replace_atom('^([^ ]+):([0-9]+):[0-9]+ [A-Z]+ (S1 \\[[A-Z0-9]+\\]|[A-Z0-9]+).*',
+                                 '\\1:\\2 \\3', LA, R0),
+                 inc_base(R0, R) ), Lines),
+    (   member(L, OLines), atom_codes(LA, L),
+        re_match('^cocolint: [0-9]+ HARD, [0-9]+ WARN over [0-9]+ file', LA)
+    ->  re_replace_atom('^.* over ([0-9]+) file.*', '\\1', LA, NA), atom_number(NA, NF)
+    ;   NF = none
+    ).
+
+inc_base(R, B) :-
+    (   sub_atom(R, Bf, 1, _, '/'), \+ ( sub_atom(R, B2, 1, _, '/'), B2 > Bf )
+    ->  Bf1 is Bf + 1, sub_atom(R, Bf1, _, 0, B)
+    ;   B = R
+    ).
+
+%% ---- 3f. auto mode: the changes, not a file list -------------------------
 %%
 %% THE SUITE OWNS A REPOSITORY OF ITS OWN for this, because --auto reads git
 %% and a test that changed this checkout would be testing the developer's
@@ -490,22 +549,30 @@ lint_walk(Dir, P) :-
 %% EVERY clause-defined tier-1 name at its recorded arity and asks the
 %% oracle: each must come back COLLIDED, the store itself confirming the
 %% extraction got the name and the arity right. A second does the same for
-%% the C-dispatched names and expects the opposite -- they come back `own',
-%% because a C name's record has library = 0 -- which is the oracle's blind
-%% spot, measured not asserted.
+%% the C-dispatched names, and each must come back as the load treats it
+%% since 3.1.0: `own' where the name is not ISO -- the program file's clauses
+%% take it over, so the oracle's `own' is the truth now -- and refused where
+%% it is, the load saying no to an ISO name's clauses as swipl's does, which
+%% the oracle reports as COLLIDED (absent). So the blocklist's ISO set,
+%% cl_iso/2, is held to the store's own refusals name by name. Through 3.0.4
+%% every C name came back `own' with its clauses dead: the oracle's blind
+%% spot, which N2 covered, measured and not asserted.
 %%
 %% It has paid for itself three times: `sandbox/0' was a name nothing defines
 %% (aggregate.pl writes `sandbox:safe_meta_predicate' and cocolog stores that
 %% under the HEAD); `throw/1' sat in the clause set where the prompt would
 %% have called it nondet; and gating clauses.pl itself found a 0'c literal
-%% misread by BOTH clause readers at once.
+%% misread by BOTH clause readers at once. And a fourth (3.1.0): the second
+%% file defines format/2 and msort/2, which it takes over, and the oracle's
+%% own unqualified calls ran them and printed nothing -- its calls are
+%% `system:' qualified now.
 %%
 %% GENERATED FROM blocklist.pl, THE FACTS, not from the JSON -- one line per
 %% name and the same list the linter reads, so the probe cannot be testing a
 %% different extraction from the one it is checking. Operator names and the
 %% arity -1 control constructs are skipped: `=(_,_).' is not a clause anybody
-%% writes, and a construct is blocked at every arity so no single arity
-%% probes it.
+%% writes, and a construct's arities are cl_construct_arity/2's, which N3
+%% reads.
 the_probe(Agent, Probe) :-
     scratch(PD),
     sh_join([Agent, '/blocklist.pl'], BL),
@@ -517,13 +584,33 @@ the_probe(Agent, Probe) :-
     atom_codes(CL, CLCs), codes_lines(CLCs, CLL),
     findall(L, ( member(L, CLL), atom_codes(LA, L), sub_atom(LA, 0, _, _, own), \+ sub_atom(LA, _, _, _, myprog_marker) ), Leaks), length(Leaks, Leak),
     re_lines('^COLLIDED', CLCs, Coll), length(Coll, NC),
+    iso_keys(BL, Iso),
     atom_codes(CT, CTCs), codes_lines(CTCs, CTL),
-    findall(L, ( member(L, CTL), atom_codes(LA, L), sub_atom(LA, 0, _, _, own), \+ sub_atom(LA, _, _, _, myprog_marker) ), Blind), length(Blind, NB),
-    (   Leak =:= 0
-    ->  sh_join([NC, ' of ', NC, ' clause-defined names confirmed taken by the store; ', NB, ' C-dispatched names come back visible, which is the blind spot N2 covers'], Probe)
-    ;   sh_join(['BAD: ', Leak, ' clause-defined name(s) the blocklist blocks are free in the store'], Probe),
+    findall(K, ( member(L, CTL), oracle_line(L, own, K), K \== 'myprog_marker/1' ), Own), length(Own, NO),
+    findall(K, ( member(L, CTL), oracle_line(L, 'COLLIDED', K) ), Refused), length(Refused, NR),
+    findall(K, ( member(K, Own), memberchk(K, Iso) ), OwnIso),
+    findall(K, ( member(K, Refused), \+ memberchk(K, Iso) ), RefusedNot),
+    (   Leak =\= 0
+    ->  sh_join(['BAD: ', Leak, ' clause-defined name(s) the blocklist blocks are free in the store'], Probe),
         forall(member(L, Leaks), ( atom_codes(LA, L), format("  ~w~n", [LA]) ))
+    ;   NO + NR =:= 0
+    ->  Probe = 'BAD: the oracle answered nothing for the C-dispatched names'
+    ;   ( OwnIso \== [] ; RefusedNot \== [] )
+    ->  sh_join(['BAD: the load and cl_iso/2 disagree: taken over though ISO ', OwnIso, ', refused though not ', RefusedNot], Probe)
+    ;   sh_join([NC, ' of ', NC, ' clause-defined names confirmed taken by the store; of the C-dispatched, ', NO, ' taken over and ', NR, ' refused at load, exactly the ISO ones'], Probe)
     ).
+
+%% `own       foo/2' and `COLLIDED  foo/2 -- ...', oracle.sh's two answers
+oracle_line(L, Tag, K) :-
+    atom_codes(LA, L),
+    atomic_list_concat(Parts0, ' ', LA),
+    exclude(==(''), Parts0, [Tag, K|_]).
+
+%% the blocklist's ISO set, as `Name/Arity' atoms
+iso_keys(BL, Keys) :-
+    read_file_to_codes(BL, Cs), codes_lines(Cs, Lines),
+    findall(K, ( member(L, Lines), atom_codes(LA, L), sub_atom(LA, 0, _, _, 'cl_iso('),
+                 term_to_atom(cl_iso(N, A), LA), format(atom(K), "~w/~w", [N, A]) ), Keys).
 
 %% the .sh's awk over blocklist.pl: every `FUNCTOR('name', arity, ...)' fact
 %% becomes one clause head `name(_,...,_).' -- arities below zero and names

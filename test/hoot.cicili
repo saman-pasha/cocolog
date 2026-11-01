@@ -1,11 +1,15 @@
 ;;;; The loadable-module fixture: the smallest module that exercises the
-;;;; whole SDK -- one C predicate, one Coco clause, one entry point.
+;;;; whole SDK -- one C predicate that answers, two that raise (a compound
+;;;; goal and an atom one, whose errors name the module since 3.0.2), one
+;;;; Coco clause, one entry point.
 ;;;; test/library.pl transpiles it with Cicili, compiles the emitted C
 ;;;; into hoot.so with `gcc -shared -fPIC', puts it on $COCOLOG_LIBRARY,
 ;;;; and `use_module(library(hoot))' does the rest.
 
 (DEFPARAMETER *hoot-predicates*
-  '(("hoot" 1 ht_hoot)))
+  '(("hoot" 1 ht_hoot)
+    ("hoot_bad" 1 ht_bad)
+    ("hoot_none" 0 ht_none)))
 
 (DEFPARAMETER *hoot-prolog*
   "double_hoot(X, Y) :- hoot(X), hoot(Y).")
@@ -20,6 +24,19 @@
   (func ht_hoot ((coco_engine * e) (size_t g)) (out int)
         (coco-mod-args e g ((t 0))
           (return (coco_m_unify_atom e t "hoot_from_c"))))
+
+  ;;; hoot_bad(+X): raises type_error(hoot, X), whatever X is -- an
+  ;;; instantiation error for an unbound one -- and its error names the
+  ;;; module, context(hoot:hoot_bad/1, _), since 3.0.2.
+  (func ht_bad ((coco_engine * e) (size_t g)) (out int)
+        (coco-mod-args e g ((t 0))
+          (return (coco_m_type_error e "hoot" t))))
+
+  ;;; hoot_none: raises existence_error(hoot, none), context(hoot:hoot_none/0,
+  ;;; _) -- an atom goal, which the engine hands the modules one by one
+  ;;; (`coco_module_call') where a compound's goes to the one that owns it.
+  (func ht_none ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_m_existence_error e "hoot" (coco_m_new_atom e "none"))))
 
   (static) (coco-emit-module-dispatch ht_dispatch *hoot-predicates*)
   (coco-deflibrary "hoot" ht_dispatch *hoot-prolog*)

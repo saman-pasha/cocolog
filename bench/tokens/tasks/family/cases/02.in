@@ -1,0 +1,9 @@
+parent ann bob
+parent ann cat
+parent bob dan
+parent cat eve
+descendants ann
+ancestors ann
+siblings dan
+cousins eve
+siblings zed

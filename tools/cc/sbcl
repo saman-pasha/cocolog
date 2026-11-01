@@ -24,8 +24,24 @@
 # sbcl compiles by naming `gcc', and only this directory's ./gcc makes that
 # clang. A first version took the directory off PATH for the sbcl too, and
 # that build's objects said `GCC: (Ubuntu 13.3.0...)' in .comment.
+#
+# NOR IS ANOTHER CHECKOUT'S SHIM THE REAL ONE (3.0.3). With two checkouts'
+# tools/cc on PATH -- a worktree's make run from a shell that sourced the
+# other checkout's env.sh -- each shim took the other for the real sbcl and
+# asked it its dynamic space, which asked the first: the two called each
+# other for ever, hundreds of shells deep, and the build never began. A
+# sbcl that carries this file's first comment line is a shim, and passed by.
 here=$(cd "$(dirname "$0")" && pwd)
-real=$(PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -vx "$here" | paste -sd: -); command -v sbcl)
+real=
+save=$IFS; IFS=:
+for d in $PATH; do
+  [ -n "$d" ] || d=.
+  [ "$d" = "$here" ] && continue
+  [ -f "$d/sbcl" ] && [ -x "$d/sbcl" ] || continue
+  grep -q 'SBCL WITH ROOM TO TRANSPILE COCOLOG' "$d/sbcl" 2>/dev/null && continue
+  real=$d/sbcl; break
+done
+IFS=$save
 [ -n "$real" ] || { echo "tools/cc/sbcl: no sbcl on PATH besides this shim" >&2; exit 127; }
 want=${COCO_SBCL_HEAP:-4096}
 for a in "$@"; do

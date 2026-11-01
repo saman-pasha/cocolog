@@ -42,9 +42,10 @@ And a Cicili module lives in one of two places:
   instead of `lib/module.cicili` (same macros, same API, opaque engine
   types), emitted to C by Cicili, built with `gcc -shared -fPIC`, and
   loaded at run time by `use_module(library(Name))`. `test/hoot.cicili`
-  is the complete worked example, twenty lines. This is how a project
-  that USES cocolog — The Coco — ships its own C-half predicates
-  without cocolog carrying them.
+  is the complete worked example, three predicates, two of which raise
+  (and their errors name the module, `hoot:hoot_bad/1`, below). This is
+  how a project that USES cocolog — The Coco — ships its own C-half
+  predicates without cocolog carrying them.
 
 Both places obey every rule below; a loadable module is not a way
 around the seam, it is the seam, reached later.
@@ -104,11 +105,13 @@ as swipl's reload does. The record is the process's: a second process
 that loads, as a module, a file the first consulted into the store holds
 it twice, the rows beside the module, as through 2.12. Where SWI and
 cocolog differ (`test/files/consult.pl` and `test/files/reload.pl` hold
-the rest to swipl 9.0.4): a syntax error ends the consult, where swipl
-reads on; `must_be_module(true)` asks no module header, cocolog having
-none; a code list is one file's name, which is what `"file"` reads as
-under the `codes` default; a file of no clauses counts as loaded, where
-swipl reads it again each time; and a module's file read again (muted)
+the rest to swipl 9.0.4): a syntax error is said in swipl's words at swipl's
+place since 3.10.0, and the load reads on past it as swipl's since 3.1.0
+(through 3.0.4 it ended the consult); `must_be_module(true)` asks no
+module header, cocolog having none; a code list is one file's name, which
+is what `"file"` reads as under the `codes` default (a file whose reads
+defined nothing is read again, as swipl's, since 3.6.0); and a module's
+file read again (muted)
 takes no clause the program asserted for its own, where swipl's reload
 does. Otherwise a file read again puts its clauses where swipl's reload
 does (2.14.1, `test/files/reload_order.pl`): each where the old clause it
@@ -143,16 +146,33 @@ catch(msort(notalist, _), error(type_error(T, V), _), true).
 ```
 
 `coco_m_type_error`, `coco_m_instantiation_error`, `coco_m_domain_error`,
-`coco_m_existence_error`, `coco_m_permission_error` (`permission_error(Action, Type, Culprit)`, SWI's shape for a file that is there and cannot be opened), `coco_m_resource_error` (`resource_error(Resource)`: `"memory"` for an allocation that was refused, as the engine raises it for its own since 1.10.28), `coco_m_evaluation_error` (`evaluation_error(What)`: `"int_overflow"` for an integer past 64 bits, as is/2 raises it since 2.0.0) and `coco_m_error` all **throw**. Each answers what its
+`coco_m_existence_error`, `coco_m_permission_error` (`permission_error(Action, Type, Culprit)`, SWI's shape for a file that is there and cannot be opened), `coco_m_resource_error` (`resource_error(Resource)`: `"memory"` for an allocation that was refused, as the engine raises it for its own since 1.10.28), `coco_m_evaluation_error` (`evaluation_error(What)`: `"int_overflow"` for an integer past 64 bits, as is/2 raises it since 2.0.0), `coco_m_error_msg` (since 3.16.0: `Kind(A, Culprit)`, `Kind(A, B, Culprit)` when B is not null, or `Kind(A)` when Culprit is `(size_t) -1`, with a message as the context's second argument, as swipl's `existence_error(source_sink, F)` carries strerror's words) and `coco_m_error` all **throw**. Each answers what its
 caller should return: **2** when a `catch/3` took the ball — the engine is by
 then pointed at the recovery goal and 2 is how a builtin says *leave my
 continuation alone* — and −1 when nothing caught it. A predicate writes
 `(return (coco_m_type_error e "list" t))` and does not care which happened.
 
-The second argument of `error/2` is left **unbound**. SWI puts a
-`context(Module:Name/Arity, Message)` there and no two systems agree on its
-contents; matching on `error(Formal, _)` is what portable code does and is all
-that can be compared.
+The second argument of `error/2` is the **engine's**: SWI puts a
+`context(Module:Name/Arity, Message)` there, and since 3.0.0 so does cocolog
+for a predicate a row of `*error-contexts*` names -- the core builtins and
+the compiled-in modules (`char_type/2`, `length/2`), each as swipl 9.0.4
+names it. **A loadable module's own predicate names its module** (3.0.2),
+as swipl names a foreign predicate's errors by the module that defines it:
+a `.so` registered as `md5` whose `md5_hash/3` raises through these helpers
+raises `error(type_error(text, f(x)), context(md5:md5_hash/3, _))`, and an
+uncaught one prints `md5:md5_hash/3: ` before its message (the module is
+left out for `user`, `system` and a `$` one, as swipl leaves it). The name
+is the one the module registered (`coco-deflibrary`), and the predicate the
+C predicate that raised -- a `$` helper too, as swipl names its own
+(`system:'$on_signal'/4`). A row still wins: library(thread)'s mutexes are
+swipl's builtins and are named `system:mutex_lock/1`, as swipl names them.
+Nothing is asked of the module for this -- no new call and no rebuild: the
+engine knows which module it called and that the loader dlopened it. A
+module compiled into the binary keeps what its rows name, and the context
+of the rest unbound. Matching on `error(Formal, _)` is still what portable
+code does. And `coco_m_type_error` given an **unbound culprit** raises
+`instantiation_error` (3.0.0), as swipl's `PL_error()` does for a type error
+of a variable; `type_error(variable, T)` is raised as it is.
 
 ## Writing one
 
@@ -337,11 +357,22 @@ somewhere else.
 | `coco_m_unify_string(e, t, s, n)` | unify with a fresh STRING. Takes a length where the atom one does not, which is the whole difference between the two types |
 | `coco_m_nil` / `coco_m_cons` / `coco_m_atom_list` | building a list |
 | `coco_m_error(e, what, detail)` | −1, with a message |
+| `coco_m_error_msg(e, kind, a, b, culprit, msg)` | −1, a formal of one, two or three arguments with MSG in its context (3.16.0) |
 | `coco_m_type_error(e, want, got)` | −1, naming the term that was wrong |
 
 `coco_m_text` accepting a code list is not politeness: cocolog reads `"abc"` as a
 code list, so without it every double-quoted file name in a program would be a
 type error.
+
+A module that reads clauses from text of its own (library(stream) does) has the
+engine's reader and swipl's raw read beside it (3.11.0; lib/module.cicili says
+what each answers):
+
+| | |
+|---|---|
+| `coco_m_read_clause(e, src, &t, &names, err, n)` | one clause of SRC, 1 read, 0 nothing to read, -1 a syntax error |
+| `coco_m_raw_walk(s, n, &end)` | where swipl's raw read ends a clause in S's N bytes: the walk's kind (0 a full stop ending at END, 2 nothing but layout and comments, ...) -- a stream is cut into clauses where a load cuts a file |
+| `coco_m_syntax_at(e, src, c0, l0, p0)` | a clause's text that will not read, as `'$syntax'(Id, Line, LinePos, CharNo)`: swipl's id and place, counted on from where SRC began in its stream; 0 when it reads |
 
 ### Text in the program's units: characters, or bytes (1.13.0)
 
@@ -573,14 +604,17 @@ rather than being arranged for.
 
 ### The translator is C, and lives below the engine
 
-Every clause reaches the store through `coco_assert`, and `coco_assert` holds a
-machine and a store — **not an engine**. A translator written in Prolog could
-only be reached by running a goal, and there is nothing there to run one with.
-So the rewriting is Cicili, and `lib/dcg.cicili` is imported before `kb`.
+Every clause a file holds reaches the store through the consult, and the consult
+holds a machine and a store — **not an engine**. A translator written in Prolog
+could only be reached by running a goal, and there is nothing there to run one
+with. So the rewriting is Cicili, and `lib/dcg.cicili` is imported before `kb`.
 
-That placement is what makes `-->` mean one thing by all three routes: consulted
-from a file, asserted by a running program, or arriving from the database. It
-also settles the bootstrap question that would otherwise exist — a translator
+A rule is translated where a file is read and nowhere else (3.13.0, swipl's):
+`assertz((a --> b))` stores the clause of `-->/2` it is given, as swipl's assert
+does, and a running program translates a rule with `dcg_translate_rule/2`, the
+clause swipl's `boot/dcg.pl` gives (no terminal lifted into the head). A rule
+stored in a knowledge base is the clause it was read as. The placement also
+settles the bootstrap question that would otherwise exist — a translator
 written in the notation it exists to translate.
 
 The file therefore has **two generics**. `decl-dcg`/`impl-dcg` is the translator
@@ -1296,7 +1330,7 @@ other Prolog fails.
 ### findall had to be an engine service
 
 It runs a goal to exhaustion, and a module cannot see the engine. So
-`lib/solve.cicili` grew `coco_engine_findall`, which starts a **nested engine**
+the engine grew `coco_engine_findall` (`lib/solve-loop.cicili`), which starts a **nested engine**
 on the same machine and store, and the module calls it. `forall/2` and
 `aggregate_all/3` are built on the same service.
 

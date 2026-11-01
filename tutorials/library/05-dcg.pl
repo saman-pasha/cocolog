@@ -12,10 +12,11 @@
 %% removed is short enough to write. Writing it keeps third-party code out
 %% of the core.
 %%
-%% IT RUNS INSIDE `coco_assert', the one function every clause passes
-%% through, which is the detail that matters here: a grammar rule means
-%% the same thing consulted from a file, asserted by a running program, or
-%% ARRIVING FROM THE DATABASE. A DCG stored in a knowledge base is a DCG.
+%% IT RUNS WHERE A FILE IS READ, as swipl's does (cocolog 3.13.0): a rule a
+%% file holds is stored as the clause it stands for, and a DCG stored in a
+%% knowledge base is that clause. A running program translates a rule with
+%% dcg_translate_rule/2 -- assertz/1 stores what it is given, and a
+%% `-->' term asserted is a clause of `-->'/2, as swipl's assert makes it.
 %%
 %% `library(dcg/basics)' IS THE ONE YOU WILL ACTUALLY USE -- integer//1,
 %% number//1, string//1, blanks//0, and the rest. The things it needed
@@ -70,14 +71,19 @@ main :-
     format("   the shape of a request-smuggling bug, and it is why every~n"),
     format("   library here prefixes its private names.~n"),
 
-    format("~n-- and a grammar can be built at run time, like any clause~n"),
-    assertz((greeting --> "hi")),
+    format("~n-- and a grammar can be built at run time, translated first~n"),
+    dcg_translate_rule((greeting --> "hi"), Clause),
+    assertz(Clause),
     ( phrase(greeting, "hi") -> Built = works ; Built = no ),
-    must('a DCG rule asserted while running', Built, works),
-    format("   The translation happens in coco_assert, so it applies to a~n"),
-    format("   rule that arrives from anywhere -- including the database.~n"),
-    format("   Which also means the STORED clause is the translated one:~n"),
-    format("   greeting/2, not greeting//0. Retract it under that name.~n"),
+    must('a DCG rule translated and asserted while running', Built, works),
+    format("   dcg_translate_rule/2 gives the clause a file's rule is read~n"),
+    format("   as; assertz/1 stores what it is given, so the STORED clause~n"),
+    format("   is greeting/2, not greeting//0. Retract it under that name.~n"),
+    assertz((hello --> "hi")),
+    ( catch(phrase(hello, "hi"), _, fail) -> Raw = translated ; Raw = as_given ),
+    must('a rule asserted as it stands', Raw, as_given),
+    format("   (hello --> \"hi\") asserted is a clause of -->/2, as swipl's is.~n"),
+    retract((hello --> _)),
     retractall(greeting(_, _)),
     ( catch(phrase(greeting, "hi"), _, fail) -> Left = still ; Left = gone ),
     must('after retractall(greeting(_, _))', Left, gone),

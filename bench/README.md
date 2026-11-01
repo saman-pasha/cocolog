@@ -14,6 +14,7 @@ sh bench/langs.sh          # every lane; the server lane when one answers on 216
 |---|---|
 | `langs.sh` | the harness: the lanes, the answer gate, the calibration, the two sizes |
 | `langs/` | the five tasks, each as a Prolog program (cocolog and SWI-Prolog run the same file), a CPython program and a CPython + sqlite3 program |
+| `tokens.pl`, `tokens/` | the token benchmark: not how fast a program runs but what a model spends writing it, in cocolog and in Python ([tokens/README.md](tokens/README.md)) |
 
 **IT MOVED HERE FROM THE COCO** (`saman-pasha/coco`, `bench/`) on
 2026-10-01, because what it measures is cocolog. The Coco's chain
@@ -3226,3 +3227,15 @@ not comparable to Run G's and are kept as what they were.
 reads are unaffected (the work and light lanes and every store lane here).
 A program that warms a store before `async_run/1` should take every
 solution it means to warm, not one.
+
+## The token benchmark
+
+`bench/tokens.pl` asks the question the language benchmark does not: what
+it costs an LLM agent, in tokens and dollars, to get the same ten programs
+right in cocolog and in Python -- the system prompt, the thinking, the
+program, the failures read back and the rounds, counted from what the API
+reports for every call. Three arms: Python, cocolog with a prompt that
+says only how a program runs, and cocolog with the dialect card. Its
+design, its options, what a run needs and costs, and what building it
+found are in [tokens/README.md](tokens/README.md); `test/tokens.pl` holds
+the harness to it without a key.

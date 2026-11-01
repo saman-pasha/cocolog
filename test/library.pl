@@ -41,10 +41,93 @@
 
 main :-
     scratch(D),
-    registered, from_the_path(D), errors(D), shared_object(D), across_processes(D),
-    always_present, still_answers,
+    registered, from_the_path(D), keeps_builtins(D), lends_ops(D), errors(D), includes(D),
+    nested_loads(D), shared_object(D), across_processes(D),
+    always_present, still_answers, expansions(D),
     shl(['rm -rf ', D]),
     checks_done.
+
+%% THE PROGRAM'S EXPANSION HOOKS NEVER REACH COCOLOG'S OWN LIBRARIES
+%% (3.14.0): a compiled-in module's Prolog text and the preloaded
+%% libraries (the vendored swipl ones, async, print_message) are read with
+%% no term_expansion/2 or goal_expansion/2 of the program's asked, though
+%% under `run' they are read at the file's first directive, after the hooks
+%% the file defined -- swipl's are read before any program is. A hook that
+%% records every file it is asked from names the program's alone (a text
+%% with no file, a compiled-in module's, as `nofile'), and one that breaks
+%% copy_term_nat/2 leaves library(yall)'s lambdas working.
+expansions(D) :-
+    section('expansion hooks and the libraries'),
+    expansions_libraries(D), expansions_place(D), expansions_heap(D).
+
+expansions_libraries(D) :-
+    atom_concat(D, '/xh.pl', Xh),
+    fixture(Xh, [':- dynamic sf/1.',
+                 'term_expansion(_, _) :- source_location(F, _), file_base_name(F, B), assertz(sf(B)), fail.',
+                 'term_expansion(_, _) :- \\+ source_location(_, _), assertz(sf(nofile)), fail.',
+                 'goal_expansion(copy_term_nat(_, _), fail).',
+                 'a.',
+                 ':- true.',
+                 'main :- findall(B, sf(B), L), sort(L, S), ( call([X]>>(X == 1), 1) -> R = lambda_ok ; R = lambda_broken ), writeq(answer(S, R)), nl.']),
+    sh_join(['run ', Xh, ' main'], A1),
+    cocolog_answer(A1, G1),
+    check('run: no library reaches the hooks', G1, answer(['xh.pl'], lambda_ok)),
+    sh_join(['-s ', Xh], A2),
+    cocolog_answer(A2, G2),
+    check('-s: no library reaches the hooks', G2, answer(['xh.pl'], lambda_ok)).
+
+expansions_place(D) :-
+    %% a term's place counts characters, as swipl's does reading UTF-8
+    %% (LANG=C.UTF-8 swipl answers the same; in the C locale it reads the
+    %% file as Latin-1 and counts bytes)
+    atom_concat(D, '/xp.pl', Xp),
+    %% x, a bracket, a quote, e-acute, a tab, e-acute, a quote, a bracket, a stop
+    atom_codes(X3, [120, 40, 39, 233, 9, 233, 39, 41, 46]),
+    fixture(Xp, ['term_expansion(where, here(P)) :- prolog_load_context(term_position, P).',
+                 X3,
+                 'where.',
+                 'main :- here(P), writeq(answer(P)), nl.']),
+    sh_join(['-s ', Xp], A3),
+    cocolog_answer(A3, G3),
+    check('a term''s place counts characters', G3, answer('$stream_position'(83, 3, 0, 85))).
+
+expansions_heap(D) :-
+    %% the terms an expansion gives are read after its directive ran, and
+    %% that directive collects nothing: its heap holds them, unregistered
+    %% (COCOLOG_GC_CELLS=2000 collects every 2000 cells where it may)
+    atom_concat(D, '/xg.pl', Xg),
+    %% -- and a global's copy one of them reads is kept while the next
+    %% reads it, as a plain directive's is
+    fixture(Xg, [':- nb_setval(dk, f([1, 2, 3, 4, 5])).',
+                 'term_expansion(dl, [(:- big), dl2(1), dl2(2), dl2(3), dl2(4)]).',
+                 'term_expansion(dr, [(:- nb_getval(dk, _)), dr2]).',
+                 'big :- numlist(1, 20000, L), msort(L, _), length(L, _).',
+                 'dl.',
+                 'dr.',
+                 'main :- findall(X, dl2(X), L), nb_getval(dk, K), writeq(answer(L, K)), nl.']),
+    setenv('COCOLOG_GC_CELLS', '2000'),
+    sh_join(['run ', Xg, ' main'], A4),
+    cocolog_answer(A4, G4),
+    unsetenv('COCOLOG_GC_CELLS'),
+    check('an expansion''s terms outlive its directive''s work', G4,
+          answer([1, 2, 3, 4], f([1, 2, 3, 4, 5]))),
+    %% and what the hook bound leaves no trail behind -- a load of 3000
+    %% expanded terms left 24000 cells of it through the first cut, and the
+    %% sentinel of a global the hook read would name cells the term's end
+    %% winds back -- nor the terms it gave on the heap: 400 cells at the
+    %% end, against 328 for a file of no expansion
+    atom_concat(D, '/xt.pl', Xt),
+    findall(L5, ( between(1, 3000, I5), format(atom(L5), 't(~d).', [I5]) ), Ts5),
+    append([':- nb_setval(k, f([1, 2, 3])).',
+            'term_expansion(t(N), [u(N, V)]) :- nb_getval(k, V).'|Ts5],
+           [':- statistics(trailused, T), statistics(globalused, G), assertz(tr(T, G)).',
+            'main :- tr(T, G), ( G < 2000 -> S = small ; S = G ), nb_getval(k, K), u(3000, U),',
+            '        writeq(answer(T, S, K, U)), nl.'], Xt5),
+    fixture(Xt, Xt5),
+    sh_join(['run ', Xt, ' main'], A5),
+    cocolog_answer(A5, G5),
+    check('an expansion leaves no trail and no terms behind', G5,
+          answer(0, small, f([1, 2, 3]), f([1, 2, 3]))).
 
 registered :-
     section('a registered module'),
@@ -71,15 +154,239 @@ from_the_path(D) :-
     cocolog_answer(Args3, G3),
     check('the :- use_module directive loads it too', G3, answer(hello_from_pl)).
 
+%% A LIBRARY KEEPS THE BUILTIN A PROGRAM FILE TAKES OVER (3.1.0): the
+%% program's garbage_collect/0, msort/2 and not/1 answer the program's own
+%% goals, and a library's clause calling the name still has the engine's --
+%% as a swipl library module calls system's -- whether the library was
+%% loaded before the program's clauses (its bodies are rewritten then) or
+%% after them (as it loads). A library on the path is a library here; swipl
+%% takes a directory a user added as the user's (COMPAT.md).
+keeps_builtins(D) :-
+    section('a library keeps the builtin a program file takes over'),
+    atom_concat(D, '/plib/keep.pl', Keep),
+    fixture(Keep, [ 'keep_gc(done) :- garbage_collect.',
+                    'keep_sort(S) :- msort([b, a], S).',
+                    'keep_not(yes) :- not(fail).' ]),
+    Own = [ 'garbage_collect :- fail.', 'msort(_, mine).', 'not(_) :- fail.',
+            'go :- keep_gc(A), keep_sort(B), keep_not(C),',
+            '      ( garbage_collect -> E = gc_yes ; E = gc_no ), msort([b, a], F),',
+            '      write(answer(A, B, C, E, F)), nl.' ],
+    atom_concat(D, '/takes1.pl', T1), fixture(T1, [':- use_module(library(keep)).'|Own]),
+    sh_join(['run ', T1, ' go'], Args1), cocolog_answer(Args1, G1),
+    check('loaded first, its calls keep the builtins; the program''s are the program''s',
+          G1, answer(done, [a, b], yes, gc_no, mine)),
+    append(Own, [':- use_module(library(keep)).'], Own2),
+    atom_concat(D, '/takes2.pl', T2), fixture(T2, Own2),
+    sh_join(['run ', T2, ' go'], Args2), cocolog_answer(Args2, G2),
+    check('loaded after the program''s clauses, the same',
+          G2, answer(done, [a, b], yes, gc_no, mine)),
+    %% A DIRECTIVE use_module/1 LOADS AT THE DIRECTIVE (3.6.0; through 3.5.0
+    %% at the first goal, so both above loaded the library after the file
+    %% was read), and a goal directive after it runs one of its clauses
+    %% before the program's are read -- each call of a taken name made the
+    %% system's then (`coco_sys_library'), not as the library is read
+    atom_concat(D, '/takes3.pl', T3),
+    fixture(T3, [':- use_module(library(keep)).', ':- keep_sort(_).'|Own]),
+    sh_join(['run ', T3, ' go'], Args3), cocolog_answer(Args3, G3),
+    check('loaded and run before the program''s clauses are read, the same',
+          G3, answer(done, [a, b], yes, gc_no, mine)).
+
+%% A LIBRARY LENDS ITS OPERATORS to the file that names it (`lb_lend_ops'):
+%% its text is walked for `:- op' before the file reads on, so the file's
+%% own clauses parse with them. A clause of the library that will not read
+%% is passed over there as its consult passes it over (3.1.0); through
+%% 3.0.4 the walk ended at it, and an op declared after it was not lent.
+lends_ops(D) :-
+    section('a library lends its operators, past a clause that will not read'),
+    atom_concat(D, '/plib/opsyn.pl', Lib),
+    fixture(Lib, ['bad(x y).', ':- op(700, xfx, ===>).', 'rule(a ===> b).']),
+    atom_concat(D, '/lends.pl', F),
+    fixture(F, [':- use_module(library(opsyn)).', 'mine(c ===> d).']),
+    sh_join(['run ', F, ' "(mine(X), rule(Y), write_canonical(answer(X, Y)), nl)"'], Args), cocolog_answer(Args, G),
+    check('the file reads with the operator declared after the bad clause', G,
+          answer('===>'(c, d), '===>'(a, b))).
+
 errors(D) :-
     section('the errors'),
-    written(catch(use_module(library(nosuch)), error(cocolog_error(_), _), C1 = caught), C1, G1),
+    %% swipl's term since 3.4.0, where it was cocolog_error('use_module: ...')
+    written(catch(use_module(library(nosuch)),
+                  error(existence_error(source_sink, library(nosuch)), _), C1 = caught), C1, G1),
     check('a missing library throws, catchably', G1, caught),
     atom_concat(D, '/warns.pl', Warns),
     fixture(Warns, [':- use_module(library(nosuch)).', 'still(here).']),
     sh_join(['run ', Warns, ' "still(X), write(answer(X)), nl"'], Args2),
     cocolog_answer(Args2, G2),
-    check('as a directive it warns and the file still reads', G2, answer(here)).
+    check('as a directive it warns and the file still reads', G2, answer(here)),
+    %% A DIRECTIVE'S UNBOUND SPEC, AND A LIST WHOSE TAIL IS UNBOUND (3.4.0),
+    %% are swipl's instantiation_error said at the directive's place, the
+    %% file named by its absolute path though `run' and `consult' were given
+    %% it from its own directory, as swipl names it. swipl's lines to the
+    %% letter but for the variables' names, which no two systems share, so
+    %% the ERROR lines are what is held; the directory as getcwd sees it
+    %% (`pwd -P': on a Mac /tmp is a link to /private/tmp)
+    atom_concat(D, '/vars.pl', Vars),
+    fixture(Vars, [':- use_module(_).', ':- ensure_loaded([library(lists)|_]).', 'still(vars).']),
+    sh_join(['cd ', D, ' && pwd -P'], Pwd3), shell(Pwd3, Real3, _),
+    cocolog(C3),
+    sh_join(['cd ', D, ' && ', C3, ' --local run vars.pl "still(X), write(answer(X)), nl" 2>&1'], Run3),
+    shell(Run3, Out3, _),
+    vars_said(Real3, Out3, R3),
+    check('run: a directive''s unbound spec and tail, swipl''s errors at the file''s absolute path',
+          R3, said),
+    sh_join(['cd ', D, ' && ', C3, ' --local consult vars.pl 2>&1'], Run4),
+    shell(Run4, Out4, _),
+    vars_said(Real3, Out4, R4),
+    check('consult: the same', R4, said).
+
+%% WHAT include/1 DOES THAT NO swipl CAN BE ASKED (3.5.0): an include of a
+%% file already open on the way down to it, or one sixty-four files deep,
+%% is refused -- swipl reads it again for ever -- with
+%% error(permission_error(include, source_sink, Spec), _), and the load
+%% ends there, what it read before standing; and a script whose include
+%% names nothing ends its load as swipl's script does, `Prolog
+%% initialisation failed' and exit 1 (test/files/include.pl holds the rest
+%% to swipl's text)
+includes(D) :-
+    section('include/1: the refusals, and a script it ends'),
+    atom_concat(D, '/self.pl', Self),
+    fixture(Self, ['s(1).', ':- include(self).', 's(2).']),
+    written(catch(consult(Self), error(E1v, _), true), E1v, G1),
+    check('an include of the file it stands in is refused', G1,
+          'permission_error(include,source_sink,self)'),
+    written(findall(X2, s(X2), L2), L2, G2),
+    check('...and what the file read before it stands', G2, '[1]'),
+    forall(between(0, 70, I3),
+           ( atom_concat(D, '/c', P3), atom_concat(P3, I3, B3), atom_concat(B3, '.pl', F3),
+             format(atom(C3), "d(~d).", [I3]), J3 is I3 + 1,
+             format(atom(N3), ":- include(c~d).", [J3]),
+             ( I3 < 70 -> fixture(F3, [C3, N3]) ; fixture(F3, [C3]) ) )),
+    atom_concat(D, '/c0.pl', C0),
+    written(catch(consult(C0), error(E3v, _), true), E3v, G3),
+    check('a sixty-fifth file deep is refused', G3, 'permission_error(include,source_sink,c64)'),
+    written(aggregate_all(count, d(_), N4), N4, G4),
+    check('...the sixty-four above it read', G4, '64'),
+    atom_concat(D, '/script.pl', Script),
+    fixture(Script, ['s5(0).', ':- include(nope).', 'main :- writeln(main_ran).']),
+    sh_join(['-s ', Script, ' 2>&1'], A5), cocolog_run(A5, T5, X5),
+    check('-s: a script its include ends says swipl''s two lines', T5,
+          'ERROR: Prolog initialisation failed:\nERROR: source_sink `nope\' does not exist'),
+    check('...and exits 1, as swipl''s', X5, 1),
+    %% the report's whole text, a name of six hundred characters in it
+    %% (through 3.4.0 the message was cut at 512 bytes)
+    length(Cs6, 600), maplist(=(0'n), Cs6), atom_codes(Long6, Cs6),
+    atom_concat(D, '/script6.pl', Script6),
+    format(atom(Inc6), ":- include(~w).", [Long6]),
+    fixture(Script6, [Inc6, 'main :- true.']),
+    sh_join(['-s ', Script6, ' 2>&1'], A6), cocolog_run(A6, T6, _),
+    ( sub_atom(T6, _, _, _, Long6), sub_atom(T6, _, _, _, 'does not exist') -> R6 = whole ; R6 = T6 ),
+    check('...and says it whole', R6, whole),
+    %% library(Name) names a file on the library path, read where the
+    %% directive stands as any other
+    atom_concat(D, '/plib/incl_lib.pl', Lib7), fixture(Lib7, ['from_lib(yes).']),
+    atom_concat(D, '/incl.pl', Incl7), fixture(Incl7, [':- include(library(incl_lib)).', 'mine7(1).']),
+    written(( consult(Incl7), from_lib(V7) ), V7, G7),
+    check('an include of library(Name) reads the library''s file', G7, yes).
+
+%% A LOAD DIRECTIVE'S LOAD RUNS AT THE DIRECTIVE (3.6.0), and what of it no
+%% swipl can be asked (test/files/nested_load.pl holds the rest to swipl's
+%% text): a script whose nested load a ball that is no error(_, _) ends says
+%% swipl's two lines and exits 1; a store made after passes a module whose
+%% read failed by and says nothing of it, where through 3.5.0 every next ask
+%% read it again and threw its ball at whatever goal came next; a module that
+%% had defined a clause before the ball is loaded, as swipl's, and named
+%% again by another name for its file is not read again; one whose read
+%% defined nothing before the ball is read again, whole, and a store made
+%% after loads it; a file `run' consulted that defined nothing is read again
+%% by the goal's load; and the collector runs inside the nested load, a
+%% directive's list of files held over it while the heap below slides away
+nested_loads(D) :-
+    section('a load directive''s load runs at the directive'),
+    atom_concat(D, '/nest', N), make_directory(N),
+    atom_concat(N, '/ball.pl', Ball), fixture(Ball, [':- throw(my_ball).']),
+    atom_concat(N, '/script1.pl', S1),
+    fixture(S1, ['s1(0).', ':- ensure_loaded(ball).', 'main :- writeln(main_ran).']),
+    sh_join(['-s ', S1, ' 2>&1'], A1), cocolog_run(A1, T1, X1),
+    check('-s: a script whose nested load a ball ends says swipl''s two lines', T1,
+          'ERROR: Prolog initialisation failed:\nERROR: Unknown message: my_ball'),
+    check('...and exits 1, as swipl''s', X1, 1),
+    atom_concat(N, '/fm.pl', FM),
+    fixture(FM, [':- module(fm, [fm/1]).', 'fm(1).', ':- include(fm_part).', 'fm(2).']),
+    (   catch(use_module(library(thread)), _, fail)
+    ->  atom_concat(N, '/iso.pl', Iso),
+        format(atom(I2), "main :- catch(use_module('~w'), error(E, _), true), findall(X, fm(X), L), writeln(E-L),", [FM]),
+        fixture(Iso, [ ':- use_module(library(thread)).', I2,
+                       '    run_isolated(( catch(fm(_), error(E2, _), true),',
+                       '                   ( nonvar(E2), E2 = existence_error(procedure, fm/1) -> true',
+                       '                   ; throw(seen(E2)) ) ), S),',
+                       '    writeln(S).' ]),
+        sh_join(['-s ', Iso, ' 2>&1'], A2), cocolog_run(A2, T2, _),
+        check('a store made after passes a module whose read failed by, and says nothing of it',
+              T2, 'existence_error(source_sink,fm_part)-[1]\ntrue'),
+        Thread = yes
+    ;   format("     (skipped: no library/thread.so -- sh modules/thread/build.sh)~n", []),
+        Thread = no
+    ),
+    written(catch(use_module(FM), error(E3v, _), true), E3v, G3),
+    check('...in this process too', G3, 'existence_error(source_sink,fm_part)'),
+    atom_concat(N, '/fm_part.pl', Part), fixture(Part, ['fm(15).']),
+    atom_concat(N, '/fm_link.pl', Link), shl(['ln -s ', FM, ' ', Link]),
+    written(( use_module(Link), findall(X4, fm(X4), L4) ), L4, G4),
+    check('one that defined a clause before the ball is loaded: named again, not read', G4, '[1]'),
+    atom_concat(N, '/nm.pl', NM),
+    fixture(NM, [ ':- include(nm_part).', 'nm(2).',
+                  ':- ( nb_current(nm_reads, K) -> K1 is K + 1 ; K1 = 1 ), nb_setval(nm_reads, K1).' ]),
+    written(catch(ensure_loaded(NM), error(E8v, _), true), E8v, G8),
+    check('one that defined nothing before the ball...', G8, 'existence_error(source_sink,nm_part)'),
+    atom_concat(N, '/nm_part.pl', NPart), fixture(NPart, ['nm(15).']),
+    atom_concat(N, '/nm_link.pl', NLink), shl(['ln -s ', NM, ' ', NLink]),
+    written(( ensure_loaded(NLink), findall(X9, nm(X9), L9) ), L9, G9),
+    check('...named again by another name for its file, is read again, whole', G9, '[15,2]'),
+    % by the name it was read by: swipl's reads nm.pl itself again, another
+    % file to it (COMPAT.md)
+    written(( ensure_loaded(NLink), nb_getval(nm_reads, R10) ), R10, G10),
+    check('...and that read, which defined something, leaves it loaded', G10, '1'),
+    (   Thread == yes
+    ->  written(run_isolated(( nm(15) -> true ; throw(not_loaded) ), S5), S5, G5),
+        check('...and a store made after loads it', G5, true)
+    ;   true
+    ),
+    atom_concat(N, '/rg.pl', RG), fixture(RG, [':- writeln(rg_read).']),
+    format(atom(A10), 'run ~w "ensure_loaded(\'~w\')" 2>&1', [RG, RG]),
+    cocolog_run(A10, T10, _),
+    check('a file `run\' consulted that defined nothing: the goal\'s load reads it again',
+          T10, 'rg_read\nrg_read'),
+    % the files `run' reads in turn count apart: what the first defined is
+    % none of the second's (swipl -g ... rd.pl rg.pl says the same)
+    atom_concat(N, '/rd.pl', RD), fixture(RD, ['rd(1).']),
+    format(atom(A11), 'run ~w ~w "ensure_loaded(\'~w\')" 2>&1', [RD, RG, RG]),
+    cocolog_run(A11, T11, _),
+    check('...after a file that defined something, too', T11, 'rg_read\nrg_read'),
+    atom_concat(N, '/gc1.pl', GC1),
+    fixture(GC1, [ 'gc1_churn(0) :- !.',
+                   'gc1_churn(K) :- length(_, 50), K1 is K - 1, gc1_churn(K1).',
+                   ':- statistics(heap_collections, A), gc1_churn(4000), statistics(heap_collections, B),',
+                   '   ( B > A -> writeln(collected) ; writeln(not_collected) ).' ]),
+    atom_concat(N, '/gc2.pl', GC2), fixture(GC2, ['gc2_read(yes).']),
+    atom_concat(N, '/gcs.pl', GCS), fixture(GCS, [':- ensure_loaded(gc1).', 'gcs_read(yes).']),
+    atom_concat(N, '/gcl.pl', GCL), fixture(GCL, [':- ensure_loaded([gc1, gc2]).']),
+    atom_concat(N, '/gcm.pl', GCM),
+    % nothing live made before the consult: the collection in gc1 then moves
+    % the list's cells, which the walk must read again where they went (a
+    % numlist/3 here hid it, its list kept below the directive)
+    format(atom(M7), "main :- consult('~w'), gc2_read(X), writeln(answer(X)).", [GCL]),
+    fixture(GCM, [M7]),
+    ( getenv('COCOLOG_GC_CELLS', Floor) -> true ; Floor = none ),
+    setenv('COCOLOG_GC_CELLS', 2000),
+    sh_join(['run ', GCS, ' "gcs_read(X), write(answer(X)), nl" 2>&1'], A6), cocolog_run(A6, T6, _),
+    sh_join(['-s ', GCM, ' 2>&1'], A7), cocolog_run(A7, T7, _),
+    ( Floor == none -> unsetenv('COCOLOG_GC_CELLS') ; setenv('COCOLOG_GC_CELLS', Floor) ),
+    check('a directive''s nested load collects, as a goal of its file does', T6, 'collected\nanswer(yes)'),
+    check('...and a list''s next file is read after the first collected', T7, 'collected\nanswer(yes)').
+
+vars_said(Dir, Out, R) :-
+    atomic_list_concat(['ERROR: ', Dir, '/vars.pl:1:\nERROR:    Arguments are not sufficiently instantiated\n'], W1),
+    atomic_list_concat(['ERROR: ', Dir, '/vars.pl:2:\nERROR:    Arguments are not sufficiently instantiated\n'], W2),
+    ( sub_atom(Out, _, _, _, W1), sub_atom(Out, _, _, _, W2) -> R = said ; R = Out ).
 
 shared_object(D) :-
     section('a .so library: the seam, reached later'),
@@ -100,7 +407,8 @@ shared_object(D) :-
         ->  sh_join([Compiler, ' -shared -fPIC -O3 -o ', PLib, '/hoot.so test/hoot.c > ', D, '/cc.log 2>&1'], Cc),
             (   sh_exit(Cc, 0)
             ->  written(( use_module(library(hoot)), hoot(X1), double_hoot(X1, X1) ), X1, G1),
-                check('a compiled Cicili module loads, both halves', G1, hoot_from_c)
+                check('a compiled Cicili module loads, both halves', G1, hoot_from_c),
+                module_context
             ;   atom_concat(D, '/cc.log', Log), read_file_to_codes(Log, Cs), atom_codes(Why, Cs),
                 check('the hoot fixture compiles', Why, compiled)
             )
@@ -108,6 +416,40 @@ shared_object(D) :-
         )
     ;   format("     (skipped: .so -- no sbcl or no CICILI checkout)~n", [])
     ).
+
+%% A LOADED MODULE'S ERRORS NAME IT (3.0.2), as swipl names a foreign
+%% predicate's by the module that defines it: hoot_bad/1 raises through the
+%% SDK, and its context is hoot:hoot_bad/1 -- caught, and as the message of
+%% an error nothing caught, in a child (test/files/module_context.pl holds
+%% the caught ones and print_message/2's text to swipl). A compiled-in
+%% module's predicate that no row of *error-contexts* names keeps its
+%% context unbound, as swipl's library predicates written over must_be/2
+%% do (nth0/3).
+module_context :-
+    use_module(library(hoot)),
+    % cocolint: C2 -- the check reads the context a loaded module's raise names
+    answer(catch(hoot_bad(f(x)), error(F2, context(C2, _)), true), [F2, C2], A2),
+    format(atom(G2), "~q", [A2]),
+    check('a loaded module''s error names it', G2, '[type_error(hoot,f(x)),hoot:hoot_bad/1]'),
+    % cocolint: C2 -- and an unbound culprit's
+    answer(catch(hoot_bad(_), error(F3, context(C3, _)), true), [F3, C3], A3),
+    format(atom(G3), "~q", [A3]),
+    check('and an unbound culprit''s, an instantiation error', G3, '[instantiation_error,hoot:hoot_bad/1]'),
+    % cocolint: C2 -- and an atom goal's
+    answer(catch(hoot_none, error(F6, context(C6, _)), true), [F6, C6], A6),
+    format(atom(G6), "~q", [A6]),
+    check('an atom goal''s too, which the modules are asked in turn', G6,
+          '[existence_error(hoot,none),hoot:hoot_none/0]'),
+    cocolog_out('query "use_module(library(hoot)), hoot_bad(f(x))"', Out4),
+    atom_codes(O4, Out4),
+    (   sub_atom(O4, _, _, _, 'hoot:hoot_bad/1: Type error: `hoot'' expected, found `f(x)'' (a compound)')
+    ->  G4 = prefixed
+    ;   G4 = O4
+    ),
+    check('uncaught, its message begins Module:Name/Arity', G4, prefixed),
+    answer(catch(nth0(a, [x], _), error(_, C5), true), C5, A5),
+    ( var(A5) -> G5 = unbound ; format(atom(G5), "~q", [A5]) ),
+    check('a compiled-in module''s predicate names nothing new', G5, unbound).
 
 across_processes(D) :-
     section('process-local, proven across processes'),

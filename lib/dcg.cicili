@@ -7,21 +7,25 @@
 ;;; `greeting([hello|S1], S) :- name(S1, S).' -- see `coco_dcg_leading'.
 ;;;
 ;;; WHY THIS IS C AND NOT CLAUSES, when `lists' and `apply' are clauses.
-;;; Every clause reaches the store through `coco_assert', and `coco_assert'
+;;; Every clause a file holds reaches the store through the consult, which
 ;;; holds a machine and a store -- not an engine. A translator written in
 ;;; Prolog could only be reached by running a goal, and there is nothing there
 ;;; to run one with. Putting the rewriting below the engine also settles the
 ;;; bootstrap question that would otherwise exist: the translator cannot be
 ;;; written in the notation it is there to translate.
 ;;;
+;;; A RULE IS TRANSLATED WHERE A FILE IS READ, and nowhere else (3.13.0,
+;;; swipl's): `assertz((a --> b))' asserts a clause of `-->'/2, as swipl's
+;;; assert does, and dcg_translate_rule/2 is how a program translates one.
+;;; Through 3.12.0 `coco_assert' translated every rule it was handed.
+;;;
 ;;; It is a term rewriting with no search in it, which is what C is good at.
 ;;;
 ;;; WHY NOT COPY SWI'S. Its `boot/dcg.pl' is 375 lines of which about half are
-;;; source-position terms and `q(M,C,Pos)' module qualification threaded
-;;; through every clause -- machinery for a module system and an error reporter
-;;; cocolog does not have. What is left, once both are taken out, is what is
-;;; here. The SHAPES are SWI's and the conformance tests hold them to it; the
-;;; code is not.
+;;; source-position terms threaded through every clause -- machinery for an
+;;; error reporter cocolog does not have. Its `q(M, C, _)' qualification is
+;;; here as QUAL and QM (3.13.0). The SHAPES are SWI's and
+;;; test/files/dcg_translate.pl holds them to it; the code is not.
 
 (DEFPACKAGE :cocolog
   (:USE :COMMON-LISP)
@@ -40,8 +44,7 @@
            ;; THE LIST IS CHECKED AND THE BODY IS NOT, in that order, because
            ;; that is what SWI does: `phrase(1, foo)' raises about `foo' and not
            ;; about `1'. The body's own errors come out of `$dcg_goal'.
-           "phrase(G, L, R) :- '$dcg_list'(L), '$dcg_list'(R),"
-           "    '$dcg_goal'(G, L, R, Goal), call(Goal)."
+           "phrase(G, L, R) :- '$dcg_list'(L), '$dcg_list'(R), call_dcg(G, L, R)."
            ;; A VARIABLE OR A CONS CELL, and nothing else. A partial list is
            ;; fine -- generating rather than parsing leaves the tail open -- and
            ;; so, in SWI, is a list ending in a non-list, which is why this
@@ -52,21 +55,140 @@
            "'$dcg_list'(L) :- throw(error(type_error(list, L), _))."
            ;; call_dcg/3 is phrase/3 WITHOUT that check -- SWI's own
            ;; distinction, and the one `library(dcg/high_order)' calls.
-           "call_dcg(G, S0, S) :- '$dcg_goal'(G, S0, S, Goal), call(Goal).")))
+           "call_dcg(G, S0, S) :- '$dcg_goal'(G, S0, S, Goal), call(Goal)."
+           ;; swipl's boot/dcg.pl, the rule's translation with no terminal
+           ;; lifted into the head (3.13.0); `'$dcg_rule'/2' below
+           "dcg_translate_rule(Rule, Clause) :- '$dcg_rule'(Rule, Clause)."
+           ;; A PARTIAL LIST OF TERMINALS is walked at run time by swipl's
+           ;; `'$append'/3', which a translated clause names (3.13.0)
+           "'$append'([], L, L)."
+           "'$append'([H|T], L, [H|R]) :- '$append'(T, L, R)."
+           ;; EXPANSION (3.14.0), swipl's boot/expand.pl as a program sees
+           ;; it: expand_term/2 asks the program's term_expansion/2, then
+           ;; translates a grammar rule -- the list swipl gives, its
+           ;; non_terminal/1 declaration first -- then asks
+           ;; goal_expansion/2 of each clause's body. `'$xhooks'/2' says
+           ;; which hooks the program has (`coco_xhook_bits'); a load asks
+           ;; the same two through `'$expand_clause'/3'.
+           "expand_term(T, X) :- var(T), !, X = T."
+           "expand_term(T, X) :- '$xhooks'(TE, GE), '$expand_term'(TE, GE, T, X)."
+           "'$expand_term'(1, GE, T, X) :- term_expansion(T, X0), !, '$expand_terms'(X0, GE, X)."
+           "'$expand_term'(_, GE, T, X) :- '$expand_term1'(T, GE, X)."
+           ;; what term_expansion/2 gave: a proper list is its terms, each
+           ;; rule translated with no declaration, as swipl's
+           "'$expand_terms'(X0, GE, X) :- is_list(X0), !, '$expand_elems'(X0, GE, X)."
+           "'$expand_terms'(X0, GE, X) :- '$expand_term1'(X0, GE, X)."
+           "'$expand_elems'([], _, [])."
+           "'$expand_elems'([E|Es], GE, [X|Xs]) :- '$expand_elem'(E, GE, X), '$expand_elems'(Es, GE, Xs)."
+           "'$expand_elem'(E, GE, X) :- '$dcg_rule_term'(E), !, dcg_translate_rule(E, C), '$expand_clause'(GE, C, X)."
+           "'$expand_elem'(E, GE, X) :- '$expand_clause'(GE, E, X)."
+           ;; a rule's declaration names its head as swipl's does, a
+           ;; qualified one with its qualifier under `user:', and is given
+           ;; only when its predicate is no non-terminal yet (`'$nt_known'/1':
+           ;; a load's rule made it one, or non_terminal/1)
+           "'$expand_term1'(T, GE, X) :- '$dcg_rule_term'(T), !,"
+           "    dcg_translate_rule(T, C0), '$expand_clause'(GE, C0, C), C = (H :- _), '$nt_decl'(H, C, X)."
+           "'$expand_term1'(T, GE, X) :- '$expand_clause'(GE, T, X)."
+           "'$dcg_rule_term'(T) :- compound(T), T = (_ --> _)."
+           "'$nt_decl'(H, C, C) :- '$nt_known'(H), !."
+           "'$nt_decl'(H, C, [(:- non_terminal(user:P)), C]) :- '$head_pi'(H, P)."
+           "'$head_pi'(M:H, M:P) :- !, '$head_pi'(H, P)."
+           "'$head_pi'(H, N/A) :- functor(H, N, A)."
+           ;; a clause's body, or a directive's goal, asked of
+           ;; goal_expansion/2 when GE is 1
+           "'$expand_clause'(0, C, C) :- !."
+           "'$expand_clause'(_, C, C) :- var(C), !."
+           "'$expand_clause'(_, (H :- B), (H :- X)) :- !, '$expand_goal'(B, X)."
+           "'$expand_clause'(_, (:- B), (:- X)) :- !, '$expand_goal'(B, X)."
+           "'$expand_clause'(_, C, C)."
+           "expand_goal(G, X) :- '$xhooks'(_, 1), !, '$expand_goal'(G, X)."
+           "expand_goal(G, G)."
+           ;; TO A FIXED POINT, as swipl's, and with no limit, as swipl's:
+           ;; a goal asked again until the hook gives back what it was given
+           ;; or nothing, then its parts -- the control constructs and the
+           ;; meta arguments of the system's meta-predicates -- each so. A
+           ;; lambda of library(yall) is asked nothing: yall's own clause of
+           ;; goal_expansion/2, in the one namespace beside the program's,
+           ;; is swipl's lambda compiler, which a plain swipl file never runs
+           "'$expand_goal'(G, X) :- var(G), !, X = G."
+           "'$expand_goal'(G, X) :- '$goal_expansion'(G, G1), !, '$expand_goal'(G1, X)."
+           "'$expand_goal'(G, X) :- '$expand_parts'(G, X)."
+           "'$goal_expansion'(G, G1) :- \\+ '$lambda_like'(G), goal_expansion(G, G1), G1 \\== G."
+           "'$lambda_like'(G) :- compound(G), compound_name_arity(G, N, A), A >= 2,"
+           "    ( N == (>>) ; N == (/) ), !."
+           "'$expand_parts'(M:G, M:X) :- !, '$expand_goal'(G, X)."
+           "'$expand_parts'((A, B), (X, Y)) :- !, '$expand_goal'(A, X), '$expand_goal'(B, Y)."
+           "'$expand_parts'((A ; B), (X ; Y)) :- !, '$expand_goal'(A, X), '$expand_goal'(B, Y)."
+           "'$expand_parts'((A -> B), (X -> Y)) :- !, '$expand_goal'(A, X), '$expand_goal'(B, Y)."
+           "'$expand_parts'((A *-> B), (X *-> Y)) :- !, '$expand_goal'(A, X), '$expand_goal'(B, Y)."
+           "'$expand_parts'(\\+ A, \\+ X) :- !, '$expand_goal'(A, X)."
+           "'$expand_parts'(G, X) :- '$expand_meta'(G, X), !."
+           "'$expand_parts'(G, G)."
+           "'$expand_meta'(G, X) :- compound(G), compound_name_arguments(G, call, [C|As]),"
+           "    length(As, N), '$expand_closure'(C, N, C2), compound_name_arguments(X, call, [C2|As])."
+           "'$expand_meta'(findall(T, G, L), findall(T, X, L)) :- '$expand_goal'(G, X)."
+           "'$expand_meta'(findall(T, G, L, R), findall(T, X, L, R)) :- '$expand_goal'(G, X)."
+           "'$expand_meta'(forall(A, B), forall(X, Y)) :- '$expand_goal'(A, X), '$expand_goal'(B, Y)."
+           "'$expand_meta'(bagof(T, G, L), bagof(T, X, L)) :- '$expand_caret'(G, X)."
+           "'$expand_meta'(setof(T, G, L), setof(T, X, L)) :- '$expand_caret'(G, X)."
+           "'$expand_meta'(once(G), once(X)) :- '$expand_goal'(G, X)."
+           "'$expand_meta'(ignore(G), ignore(X)) :- '$expand_goal'(G, X)."
+           "'$expand_meta'(not(G), not(X)) :- '$expand_goal'(G, X)."
+           "'$expand_meta'(catch(G, C, R), catch(X, C, Y)) :- '$expand_goal'(G, X), '$expand_goal'(R, Y)."
+           "'$expand_meta'(catch_with_backtrace(G, C, R), catch_with_backtrace(X, C, Y)) :-"
+           "    '$expand_goal'(G, X), '$expand_goal'(R, Y)."
+           "'$expand_meta'(setup_call_cleanup(S, G, C), setup_call_cleanup(X, Y, Z)) :-"
+           "    '$expand_goal'(S, X), '$expand_goal'(G, Y), '$expand_goal'(C, Z)."
+           "'$expand_meta'(setup_call_catcher_cleanup(S, G, K, C), setup_call_catcher_cleanup(X, Y, K, Z)) :-"
+           "    '$expand_goal'(S, X), '$expand_goal'(G, Y), '$expand_goal'(C, Z)."
+           "'$expand_meta'(call_cleanup(G, C), call_cleanup(X, Y)) :- '$expand_goal'(G, X), '$expand_goal'(C, Y)."
+           "'$expand_meta'(with_output_to(S, G), with_output_to(S, X)) :- '$expand_goal'(G, X)."
+           ;; call/N's closure, call/1's goal among them, swipl's way:
+           ;; given its N - 1 arguments as fresh variables, expanded, and
+           ;; taken off again when the expansion kept them last (where it
+           ;; did not, swipl compiles a wrapper and this leaves the closure
+           ;; as it was)
+           "'$expand_closure'(C, N, C2) :- callable(C), C =.. [F|As], length(Vs, N), append(As, Vs, Bs),"
+           "    G =.. [F|Bs], '$expand_goal'(G, X), X =.. [F2|Cs],"
+           "    append(Cs0, Vs2, Cs), Vs2 == Vs, !, C2 =.. [F2|Cs0]."
+           "'$expand_caret'(G, X) :- nonvar(G), G = V^G0, !, '$expand_caret'(G0, X0), X = V^X0."
+           "'$expand_caret'(G, X) :- '$expand_goal'(G, X)."
+           ;; THE DECLARATION expand_term/2 GIVES A RULE (3.14.0): taken, a
+           ;; spec checked as swipl checks it -- each indicator by
+           ;; functor/3, a grammar rule's arity plus two --
+           ;; recorded on the predicate
+           "non_terminal(S) :- '$nt_specs'(S)."
+           "'$nt_specs'(S) :- var(S), !, throw(error(uninstantiation_error(S), _))."
+           "'$nt_specs'([]) :- !."
+           "'$nt_specs'([S|Ss]) :- !, '$nt_specs'(S), '$nt_specs'(Ss)."
+           "'$nt_specs'((A, B)) :- !, '$nt_specs'(A), '$nt_specs'(B)."
+           "'$nt_specs'(_:S) :- !, '$nt_specs'(S)."
+           "'$nt_specs'(N/A) :- !, functor(_, N, A), '$nt_mark'(N, A)."
+           "'$nt_specs'(N//A) :- !, A2 is A + 2, functor(_, N, A2), '$nt_mark'(N, A2)."
+           "'$nt_specs'(S) :- throw(error(type_error(predicate_indicator, S), _)).")))
 
 (DEFPARAMETER *dcg-predicates*
-  '(("$dcg_goal"  4 coco_dcg_bi_goal)))
+  '(("$dcg_goal"  4 coco_dcg_bi_goal)
+    ("$dcg_rule"  2 coco_dcg_bi_rule)
+    ("$xhooks"    2 coco_dcg_bi_xhooks)
+    ("$nt_mark"   2 coco_dcg_bi_nt_mark)
+    ("$nt_known"  1 coco_dcg_bi_nt_known)))
 
 (generic decl-dcg
   ()
 
   ;;; What went wrong, for a caller that has to decide how to report it.
   ;;; `culprit' is a heap index and only meaningful when the kind wants one.
+  ;;; Each is swipl's ball (3.13.0): INST instantiation_error, CALLABLE
+  ;;; type_error(callable, T), NONTERM permission_error(define,
+  ;;; dcg_nonterminal, T), LIST type_error(list_or_partial_list, T).
   (enum coco_dcg_ekind
     (COCO_DCG_OK       . 0)
     (COCO_DCG_INST     . 1)   ; a body or head that is still a variable
-    (COCO_DCG_CALLABLE . 2)   ; a number, or a shape no non-terminal can be
-    (COCO_DCG_OOM      . 3))
+    (COCO_DCG_CALLABLE . 2)   ; a number, or anything else no goal can be
+    (COCO_DCG_OOM      . 3)
+    (COCO_DCG_NONTERM  . 4)   ; body syntax where a non-terminal is wanted
+    (COCO_DCG_LIST     . 5))  ; terminals in a list neither proper nor partial
 
   (struct coco_dcg_err
     (member int    kind)
@@ -75,15 +197,22 @@
   ;;; Translates `Head --> Body' into the clause it stands for, ON THE HEAP.
   ;;; Answers 0 and leaves ERR alone when CLAUSE is not a grammar rule at all --
   ;;; that is the ordinary case, not a failure -- and 0 with ERR filled in when
-  ;;; it is one and could not be translated.
-  (decl) (func coco_dcg_rule ((coco_machine * m) (size_t clause)
+  ;;; it is one and could not be translated. LIFT puts a leading terminal in
+  ;;; the head, as the store keeps it (`coco_dcg_leading'); without it the
+  ;;; clause is swipl's dcg_translate_rule/2's.
+  (decl) (func coco_dcg_rule ((coco_machine * m) (size_t clause) (int lift)
                               (coco_dcg_err * err)) (out size_t))
 
   ;;; Translates a grammar BODY threading S0 to S, which is what `phrase/3'
   ;;; needs at run time for a body it was handed rather than one it read.
-  ;;; Answers 0 with ERR filled in.
+  ;;; QUAL and QM are the module its non-terminals are called in, swipl's
+  ;;; `q(M, C, _)' (QUAL 0: the source module's own, unqualified).
+  ;;; Answers 0 with ERR filled in. S0 and S are the translator's own
+  ;;; variables: a body that consumes nothing BINDS one to the other
+  ;;; (`coco_dcg_same'), untrailed.
   (decl) (func coco_dcg_body ((coco_machine * m) (size_t body) (size_t s0)
-                              (size_t s) (coco_dcg_err * err)) (out size_t))
+                              (size_t s) (int qual) (size_t qm)
+                              (coco_dcg_err * err)) (out size_t))
 
   ;;; Whether CLAUSE is `_ --> _'. Cheap, for a caller that only wants to know
   ;;; whether to bother.
@@ -95,23 +224,28 @@
 (generic impl-dcg
   ()
 
+  ;;; WHETHER T IS NAME/N: an atom of that name for N 0 (`!()' is no cut, as
+  ;;; swipl's head unification tells it apart), a compound for N > 0
+  (static)
+  (func coco_dcg_is ((coco_machine * m) (size_t t) (const char * nm) (u32 n)) (out int)
+        (set t (coco_deref m t))
+        (if (not (coco_is_callable m t)) (return 0))
+        (if (!= (coco_arity m t) n) (return 0))
+        (if (and (== n 0) (not (coco-tag-is ATOM (nth t (-> m heap))))) (return 0))
+        (return (? (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) nm)) 1 0)))
+
   ;;; The two extra arguments go on the END, which is the whole convention:
   ;;; `name' becomes `name(S0, S)' and `name(X)' becomes `name(X, S0, S)'.
+  ;;; T is callable; nothing is asked of its shape here (`coco_dcg_extend'
+  ;;; asks), so phrase/3 can call what swipl's call/3 would call.
   ;;;
   ;;; The argument indices are read out BEFORE anything is built. They are heap
   ;;; indices and stay valid across a growth -- but reading them afterwards
   ;;; would mean reading them off a term the new cells sit above, which is only
   ;;; correct by accident.
   (static)
-  (func coco_dcg_extend ((coco_machine * m) (size_t t) (size_t s0) (size_t s)
-                         (coco_dcg_err * err)) (out size_t)
-        (set t (coco_deref m t))
-        (if (coco-tag-is REF (nth t (-> m heap)))
-            (block (set (-> err kind) COCO_DCG_INST) (return 0)))
-        (if (not (coco_is_callable m t))
-            (block (set (-> err kind) COCO_DCG_CALLABLE)
-                   (set (-> err culprit) t)
-                   (return 0)))
+  (func coco_dcg_args ((coco_machine * m) (size_t t) (size_t s0) (size_t s)
+                       (coco_dcg_err * err)) (out size_t)
         (let ((u32 n . #'(coco_arity m t))
               (const char * nm . #'(coco_atom_name m (coco_name_of m t)))
               (size_t * args . nil)
@@ -128,39 +262,56 @@
             (block))
           (return out)))
 
-  ;;; The shapes that are body syntax and can never be a non-terminal. A head
-  ;;; that is one of these is a program saying something it cannot mean --
-  ;;; `[a] --> b' would have to define a predicate called `.'/4.
+  ;;; The shapes that are body syntax and can never be a non-terminal --
+  ;;; swipl's dcg_no_extend/1. A head that is one of these is a program
+  ;;; saying something it cannot mean: `[a] --> b' would have to define a
+  ;;; predicate called `.'/4.
   (static)
   (func coco_dcg_no_extend ((coco_machine * m) (size_t t)) (out int)
         (set t (coco_deref m t))
-        (if (not (coco_is_callable m t)) (return 0))
-        (let ((u32 n . #'(coco_arity m t))
-              (const char * nm . #'(coco_atom_name m (coco_name_of m t))))
-          (if (== n 0)
-              (return (? (or (== 0 (strcmp nm "[]"))
-                             (== 0 (strcmp nm "{}"))
-                             (== 0 (strcmp nm "!"))) 1 0)))
-          (if (== n 1)
-              (return (? (or (== 0 (strcmp nm "{}"))
-                             (== 0 (strcmp nm "\\+"))) 1 0)))
-          (if (== n 2)
-              (return (? (or (== 0 (strcmp nm "."))
-                             (== 0 (strcmp nm ","))
-                             (== 0 (strcmp nm ";"))
-                             (== 0 (strcmp nm "|"))
-                             (== 0 (strcmp nm "->"))
-                             (== 0 (strcmp nm "*->"))
-                             (== 0 (strcmp nm "-->"))) 1 0)))
-          (return 0)))
+        (return (? (or (coco_is_nil m t) (coco_is_cons m t)
+                       (coco_dcg_is m t "{}" 0) (coco_dcg_is m t "!" 0)
+                       (coco_dcg_is m t "{}" 1) (coco_dcg_is m t "\\+" 1)
+                       (coco_dcg_is m t "," 2) (coco_dcg_is m t ";" 2)
+                       (coco_dcg_is m t "|" 2) (coco_dcg_is m t "->" 2)
+                       (coco_dcg_is m t "*->" 2) (coco_dcg_is m t "-->" 2))
+                   1 0)))
+
+  ;;; A NON-TERMINAL WITH ITS TWO ARGUMENTS, swipl's dcg_extend/6: a
+  ;;; variable is instantiation_error, `M:T' is T's qualified again (a head's
+  ;;; or a pushback's; a body's `M:X' never gets here), anything not callable
+  ;;; type_error(callable, T), body syntax permission_error(define,
+  ;;; dcg_nonterminal, T) -- `(b --> c)' in a body among it.
+  (static)
+  (func coco_dcg_extend ((coco_machine * m) (size_t t) (size_t s0) (size_t s)
+                         (coco_dcg_err * err)) (out size_t)
+        (set t (coco_deref m t))
+        (if (coco-tag-is REF (nth t (-> m heap)))
+            (block (set (-> err kind) COCO_DCG_INST) (return 0)))
+        (if (coco_dcg_is m t ":" 2)
+            (let ((size_t mo . #'(coco_arg m t 0)) (size_t in . 0))
+              (set in (coco_dcg_extend m (coco_arg m t 1) s0 s err))
+              (if (== in 0) (return 0))
+              (return (coco_make2 m ":" mo in))))
+        (if (not (coco_is_callable m t))
+            (block (set (-> err kind) COCO_DCG_CALLABLE)
+                   (set (-> err culprit) t)
+                   (return 0)))
+        (if (coco_dcg_no_extend m t)
+            (block (set (-> err kind) COCO_DCG_NONTERM)
+                   (set (-> err culprit) t)
+                   (return 0)))
+        (return (coco_dcg_args m t s0 s err)))
 
   ;;; A LIST OF TERMINALS IS OPENED AT TRANSLATION TIME, not walked at run
   ;;; time: `[a,b]' with tail S becomes the term `[a,b|S]', and the goal is one
   ;;; unification `S0 = [a,b|S]'. That is why matching a terminal costs nothing.
   ;;;
-  ;;; Answers 0 for a list that does not end in `[]' -- a partial list is a
-  ;;; term whose tail is not known until run time, so there is nothing to open
-  ;;; and the caller emits an `append/3' instead.
+  ;;; Answers 1 for a proper list, opened in OUT; 2 for a PARTIAL one, whose
+  ;;; tail is a variable -- a term whose tail is not known until run time, so
+  ;;; the caller emits swipl's `'$append'/3' instead -- and 0 for anything
+  ;;; else, swipl's type_error(list_or_partial_list, L). A list that is its
+  ;;; own tail is the last: the walk stops past the heap's length of cells.
   (static)
   (func coco_dcg_open ((coco_machine * m) (size_t l) (size_t tail)
                        (size_t * out)) (out int)
@@ -169,14 +320,9 @@
           ;; forwards to collect, backwards to build: a list can only be consed
           ;; from its end, and the end is not known until the walk is done
           (while 1
-            (if (not (coco_is_callable m cur)) (block (free items) (return 0)))
-            (if (== (coco_arity m cur) 0)
-                (block
-                 (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m cur)) "[]"))
-                     (block (free items) (return 0)))
-                 break))
-            (if (or (!= (coco_arity m cur) 2)
-                    (!= 0 (strcmp (coco_atom_name m (coco_name_of m cur)) ".")))
+            (if (coco-tag-is REF (nth cur (-> m heap))) (block (free items) (return 2)))
+            (if (coco_is_nil m cur) break)
+            (if (or (not (coco_is_cons m cur)) (> n (-> m heap_len)))
                 (block (free items) (return 0)))
             (if (>= n cap)
                 (let ((size_t want . #'(? (== cap 0) 8 (* cap 2)))
@@ -196,8 +342,43 @@
           (set (cof out) acc)
           (return 1)))
 
+  ;;; THE OUTPUT IS THE INPUT, bound when the body is translated, as swipl's
+  ;;; dcg_body({}, P, _, S, S, true, P) unifies them in its head: `a --> {}'
+  ;;; is `a(A, A) :- true'. Both are the translator's own variables, made
+  ;;; after any choice a backtrack could go back to and never seen by a
+  ;;; collection before the term is done, so the binding takes no trail
+  ;;; entry -- a consult winds the heap back after each clause and leaves
+  ;;; the trail alone, and an entry there would undo a later cell.
+  (static)
+  (func coco_dcg_same ((coco_machine * m) (size_t s) (size_t s0))
+        (let ((size_t a . #'(coco_deref m s)) (size_t b . #'(coco_deref m s0)))
+          (if (and (!= a b) (coco-tag-is REF (nth a (-> m heap))))
+              (set (nth a (-> m heap)) (coco-cell REF b)))))
+
+  ;;; a goal in the module QM when QUAL says so, swipl's qualify/5
+  (static)
+  (func coco_dcg_qualify ((coco_machine * m) (int qual) (size_t qm) (size_t g)) (out size_t)
+        (if (not qual) (return g))
+        (return (coco_make2 m ":" qm g)))
+
+  ;;; A DISJUNCTION'S BRANCH, swipl's or_delay_bind/5: translated from S0 to
+  ;;; an output of its own, and that output then made S -- unless the branch
+  ;;; consumed nothing it could tell at translation (its output IS S0, a
+  ;;; `{}' made it so), when the branch is `(T, S = S0)' and S is left free
+  ;;; for the other branch to bind.
+  (static)
+  (func coco_dcg_branch ((coco_machine * m) (size_t b) (size_t s0) (size_t s)
+                         (int qual) (size_t qm) (coco_dcg_err * err)) (out size_t)
+        (let ((size_t s1 . #'(coco_new_var m)) (size_t t . 0))
+          (set t (coco_dcg_body m b s0 s1 qual qm err))
+          (if (== t 0) (return 0))
+          (if (== (coco_deref m s1) (coco_deref m s0))
+              (return (coco_make2 m "," t (coco_make2 m "=" s s0))))
+          (coco_dcg_same m s1 s)
+          (return t)))
+
   (func coco_dcg_body ((coco_machine * m) (size_t body) (size_t s0) (size_t s)
-                       (coco_dcg_err * err)) (out size_t)
+                       (int qual) (size_t qm) (coco_dcg_err * err)) (out size_t)
         (set body (coco_deref m body))
 
         ;; A VARIABLE BODY IS RESOLVED AT RUN TIME, not refused here. `a --> B'
@@ -205,128 +386,144 @@
         ;; and `phrase/3' is exactly the thing that translates it then.
         (if (coco-tag-is REF (nth body (-> m heap)))
             (let ((size_t args [3]))
-              (set (nth 0 args) body) (set (nth 1 args) s0) (set (nth 2 args) s)
+              (set (nth 0 args) (coco_dcg_qualify m qual qm body))
+              (set (nth 1 args) s0) (set (nth 2 args) s)
               (return (coco_make m "phrase" 3 args))))
+
+        ;; M:X IS X CALLED IN M (3.13.0, swipl's): its non-terminals and its
+        ;; `{G}' goals qualified, unless M is `user', the source module's own
+        ;; -- cocolog's one namespace has no other
+        (if (coco_dcg_is m body ":" 2)
+            (let ((size_t mo . #'(coco_deref m (coco_arg m body 0))))
+              (return (coco_dcg_body m (coco_arg m body 1) s0 s
+                                     (? (coco_dcg_is m mo "user" 0) 0 1) mo err))))
+
+        ;; ---- terminals ----------------------------------------------
+        ;; A STRING IS ITS CODES (3.13.0), as swipl reads `"ab"' under
+        ;; double_quotes=string: `S0 = [0'a, 0'b|S]'
+        (if (coco-tag-is STR (nth body (-> m heap)))
+            (let ((const char * p . nil) (size_t n . 0) (size_t l . 0))
+              (coco_string_text m body (aof p) (aof n))
+              (set l (coco_text_list m p n 0 s))
+              (if (== l 0) (block (set (-> err kind) COCO_DCG_OOM) (return 0)))
+              (return (coco_make2 m "=" s0 l))))
 
         (if (not (coco_is_callable m body))
             (block (set (-> err kind) COCO_DCG_CALLABLE)
                    (set (-> err culprit) body)
                    (return 0)))
 
-        (let ((u32 n . #'(coco_arity m body))
-              (const char * nm . #'(coco_atom_name m (coco_name_of m body))))
+        (if (coco_is_nil m body) (return (coco_make2 m "=" s0 s)))
 
-          ;; ---- terminals ----------------------------------------------
-          (if (and (== n 0) (== 0 (strcmp nm "[]")))
-              (return (coco_make2 m "=" s0 s)))
+        (if (coco_is_cons m body)
+            (let ((size_t opened . 0) (int kind . #'(coco_dcg_open m body s (aof opened))))
+              (if (== kind 1) (return (coco_make2 m "=" s0 opened)))
+              (if (== kind 0)
+                  (block (set (-> err kind) COCO_DCG_LIST)
+                         (set (-> err culprit) body)
+                         (return 0)))
+              ;; a partial list: its tail is a variable, so the walk that
+              ;; opens it has to happen at run time
+              (let ((size_t args [3]))
+                (set (nth 0 args) body) (set (nth 1 args) s) (set (nth 2 args) s0)
+                (return (coco_make m "$append" 3 args)))))
 
-          (if (and (== n 2) (== 0 (strcmp nm ".")))
-              (let ((size_t opened . 0))
-                (if (coco_dcg_open m body s (aof opened))
-                    (return (coco_make2 m "=" s0 opened)))
-                ;; a partial list: its tail is a variable, so the walk that
-                ;; opens it has to happen at run time
-                (let ((size_t args [3]))
-                  (set (nth 0 args) body) (set (nth 1 args) s) (set (nth 2 args) s0)
-                  (return (coco_make m "append" 3 args)))))
+        ;; ---- the things that consume nothing -------------------------
+        ;; Each is its own goal followed by `S = S0': the list comes out the
+        ;; way it went in. `!' keeps its position rather than being lifted,
+        ;; so that it cuts where it was written.
+        (if (coco_dcg_is m body "!" 0)
+            (let ((size_t bang . #'(coco_new_atom m "!"))
+                  (size_t same . #'(coco_make2 m "=" s s0)))
+              (return (coco_make2 m "," bang same))))
 
-          ;; ---- the things that consume nothing -------------------------
-          ;; Each is its own goal followed by `S = S0': the list comes out the
-          ;; way it went in. `!' keeps its position rather than being lifted,
-          ;; so that it cuts where it was written.
-          (if (and (== n 0) (== 0 (strcmp nm "!")))
-              (let ((size_t bang . #'(coco_new_atom m "!"))
-                    (size_t same . #'(coco_make2 m "=" s s0)))
-                (return (coco_make2 m "," bang same))))
+        (if (coco_dcg_is m body "{}" 0)
+            (block (coco_dcg_same m s s0) (return (coco_new_atom m "true"))))
 
-          (if (and (== n 0) (== 0 (strcmp nm "{}")))
-              (return (coco_make2 m "=" s s0)))
+        (if (coco_dcg_is m body "{}" 1)
+            (let ((size_t g . #'(coco_dcg_qualify m qual qm (coco_arg m body 0)))
+                  (size_t same . #'(coco_make2 m "=" s s0)))
+              (return (coco_make2 m "," g same))))
 
-          (if (and (== n 1) (== 0 (strcmp nm "{}")))
-              (let ((size_t g . #'(coco_arg m body 0))
-                    (size_t same . #'(coco_make2 m "=" s s0)))
-                (return (coco_make2 m "," g same))))
+        ;; ---- the control constructs ---------------------------------
+        ;; A conjunction threads: the first half runs from S0 to a fresh S1
+        ;; and the second from S1 on.
+        (if (coco_dcg_is m body "," 2)
+            (let ((size_t s1 . #'(coco_new_var m)) (size_t a) (size_t b))
+              (set a (coco_dcg_body m (coco_arg m body 0) s0 s1 qual qm err))
+              (if (== a 0) (return 0))
+              (set b (coco_dcg_body m (coco_arg m body 1) s1 s qual qm err))
+              (if (== b 0) (return 0))
+              (return (coco_make2 m "," a b))))
 
-          ;; ---- the control constructs ---------------------------------
-          ;; A conjunction threads: the first half runs from S0 to a fresh S1
-          ;; and the second from S1 on.
-          (if (and (== n 2) (== 0 (strcmp nm ",")))
-              (let ((size_t s1 . #'(coco_new_var m)) (size_t a) (size_t b))
-                (set a (coco_dcg_body m (coco_arg m body 0) s0 s1 err))
-                (if (== a 0) (return 0))
-                (set b (coco_dcg_body m (coco_arg m body 1) s1 s err))
-                (if (== b 0) (return 0))
-                (return (coco_make2 m "," a b))))
+        ;; A DISJUNCTION DOES NOT THREAD. Both branches run from S0 to the
+        ;; same S, because only one of them runs (`coco_dcg_branch').
+        (if (or (coco_dcg_is m body ";" 2) (coco_dcg_is m body "|" 2))
+            (let ((size_t a) (size_t b))
+              (set a (coco_dcg_branch m (coco_arg m body 0) s0 s qual qm err))
+              (if (== a 0) (return 0))
+              (set b (coco_dcg_branch m (coco_arg m body 1) s0 s qual qm err))
+              (if (== b 0) (return 0))
+              (return (coco_make2 m ";" a b))))
 
-          ;; A DISJUNCTION DOES NOT THREAD. Both branches run from S0 to the
-          ;; same S, because only one of them runs -- giving each its own
-          ;; output variable and joining them afterwards would make `(a ; [])'
-          ;; bind the output twice.
-          (if (and (== n 2) (or (== 0 (strcmp nm ";")) (== 0 (strcmp nm "|"))))
-              (let ((size_t a) (size_t b))
-                (set a (coco_dcg_body m (coco_arg m body 0) s0 s err))
-                (if (== a 0) (return 0))
-                (set b (coco_dcg_body m (coco_arg m body 1) s0 s err))
-                (if (== b 0) (return 0))
-                (return (coco_make2 m ";" a b))))
+        ;; if-then and soft cut thread like a conjunction: the condition
+        ;; consumes, and the branch carries on from where it stopped
+        (if (or (coco_dcg_is m body "->" 2) (coco_dcg_is m body "*->" 2))
+            (let ((size_t s1 . #'(coco_new_var m)) (size_t c) (size_t t)
+                  (const char * nm . #'(coco_atom_name m (coco_name_of m body))))
+              (set c (coco_dcg_body m (coco_arg m body 0) s0 s1 qual qm err))
+              (if (== c 0) (return 0))
+              (set t (coco_dcg_body m (coco_arg m body 1) s1 s qual qm err))
+              (if (== t 0) (return 0))
+              (return (coco_make2 m nm c t))))
 
-          ;; if-then and soft cut thread like a conjunction: the condition
-          ;; consumes, and the branch carries on from where it stopped
-          (if (and (== n 2) (or (== 0 (strcmp nm "->")) (== 0 (strcmp nm "*->"))))
-              (let ((size_t s1 . #'(coco_new_var m)) (size_t c) (size_t t))
-                (set c (coco_dcg_body m (coco_arg m body 0) s0 s1 err))
-                (if (== c 0) (return 0))
-                (set t (coco_dcg_body m (coco_arg m body 1) s1 s err))
-                (if (== t 0) (return 0))
-                (return (coco_make2 m nm c t))))
+        ;; negation consumes nothing, whatever the goal inside it would have
+        ;; consumed had it succeeded -- so its output is thrown away
+        (if (coco_dcg_is m body "\\+" 1)
+            (let ((size_t junk . #'(coco_new_var m)) (size_t c) (size_t same))
+              (set c (coco_dcg_body m (coco_arg m body 0) s0 junk qual qm err))
+              (if (== c 0) (return 0))
+              (set same (coco_make2 m "=" s s0))
+              (return (coco_make2 m "," (coco_make1 m "\\+" c) same))))
 
-          ;; negation consumes nothing, whatever the goal inside it would have
-          ;; consumed had it succeeded -- so its output is thrown away
-          (if (and (== n 1) (== 0 (strcmp nm "\\+")))
-              (let ((size_t junk . #'(coco_new_var m)) (size_t c) (size_t same))
-                (set c (coco_dcg_body m (coco_arg m body 0) s0 junk err))
-                (if (== c 0) (return 0))
-                (set same (coco_make2 m "=" s s0))
-                (return (coco_make2 m "," (coco_make1 m "\\+" c) same))))
+        ;; ---- anything else is a non-terminal -------------------------
+        ;; `call(G, X)' lands here too and comes out `call(G, X, S0, S)',
+        ;; which is what call//N means. No special case is needed for it.
+        (let ((size_t nt . #'(coco_dcg_extend m body s0 s err)))
+          (if (== nt 0) (return 0))
+          (return (coco_dcg_qualify m qual qm nt))))
 
-          ;; ---- anything else is a non-terminal -------------------------
-          ;; `call(G, X)' lands here too and comes out `call(G, X, S0, S)',
-          ;; which is what call//N means. No special case is needed for it.
-          (return (coco_dcg_extend m body s0 s err))))
-
-  ;;; THE LEADING TERMINAL GOES INTO THE HEAD, which is what SWI's compiler
-  ;;; does to the same clause (its `optimise_unify' flag, on by default, and
-  ;;; `clause/2' and `listing/1' show it there): `a --> [x], b' is stored as
-  ;;; `a([x|S1], S) :- b(S1, S)' where the rewriting gives `a(S0, S) :-
-  ;;; S0 = [x|S1], b(S1, S)'. The two are one clause -- nothing runs between
-  ;;; a head's unification and the first goal of its body -- and the lifted
-  ;;; one is one inference less each time the rule is tried.
+  ;;; THE LEADING TERMINAL GOES INTO THE HEAD of a clause the store keeps,
+  ;;; which is what SWI's compiler does to the same clause (its
+  ;;; `optimise_unify' flag, on by default, and `clause/2' and `listing/1'
+  ;;; show it there): `a --> [x], b' is stored as `a([x|S1], S) :- b(S1, S)'
+  ;;; where the rewriting gives `a(S0, S) :- S0 = [x|S1], b(S1, S)'. The two
+  ;;; are one clause -- nothing runs between a head's unification and the
+  ;;; first goal of its body -- and the lifted one is one inference less each
+  ;;; time the rule is tried. dcg_translate_rule/2 gives the second, as
+  ;;; swipl's does.
   ;;;
   ;;; Answers what S0 stands for when G is `S0 = T' with T bound, and 0
-  ;;; otherwise. `S0 = S', which is what `[]' gives, stays a goal, as it does
-  ;;; in SWI; so does `S = S0' from `{}'. Only the FIRST goal is looked at: a
-  ;;; terminal after a `!' or a `{G}' is not lifted over it, because a
-  ;;; unification that moves over a goal is one that no longer runs after it.
+  ;;; otherwise. S0 is compared as it is: the rule's own variable, which no
+  ;;; translation binds before the first goal is made, and a goal that names
+  ;;; anything else is left where it is. `S0 = S', which is what `[]' gives,
+  ;;; stays a goal, as it does in SWI. Only the FIRST goal is looked at: a terminal after a `!' or a
+  ;;; `{G}' is not lifted over it, because a unification that moves over a
+  ;;; goal is one that no longer runs after it.
   (static)
   (func coco_dcg_leading ((coco_machine * m) (size_t g) (size_t s0)) (out size_t)
         (let ((size_t t . 0))
           (set g (coco_deref m g))
-          (if (not (coco_is_callable m g)) (return 0))
-          (if (or (!= (coco_arity m g) 2)
-                  (!= 0 (strcmp (coco_atom_name m (coco_name_of m g)) "=")))
-              (return 0))
+          (if (not (coco_dcg_is m g "=" 2)) (return 0))
           (if (!= (coco_deref m (coco_arg m g 0)) s0) (return 0))
           (set t (coco_deref m (coco_arg m g 1)))
           (if (coco-tag-is REF (nth t (-> m heap))) (return 0))
           (return t)))
 
   (func coco_dcg_is_rule ((coco_machine * m) (size_t clause)) (out int)
-        (set clause (coco_deref m clause))
-        (if (not (coco_is_callable m clause)) (return 0))
-        (if (!= (coco_arity m clause) 2) (return 0))
-        (return (? (== 0 (strcmp (coco_atom_name m (coco_name_of m clause)) "-->")) 1 0)))
+        (return (coco_dcg_is m clause "-->" 2)))
 
-  (func coco_dcg_rule ((coco_machine * m) (size_t clause) (coco_dcg_err * err))
+  (func coco_dcg_rule ((coco_machine * m) (size_t clause) (int lift) (coco_dcg_err * err))
         (out size_t)
         (set clause (coco_deref m clause))
         (if (not (coco_dcg_is_rule m clause)) (return 0))
@@ -339,39 +536,31 @@
           ;; front of what is left. The head still spans S0 to S; the body runs
           ;; S0 to a fresh S1, and the pushback is read as running from S --
           ;; the rule's output -- to that same S1. Reading it backwards is what
-          ;; makes it a pushback rather than a second body.
-          (if (and (coco_is_callable m lp) (== (coco_arity m lp) 2)
-                   (== 0 (strcmp (coco_atom_name m (coco_name_of m lp)) ",")))
+          ;; makes it a pushback rather than a second body. It is any body, as
+          ;; swipl's: `a, x --> b' pushes back the non-terminal x.
+          (if (coco_dcg_is m lp "," 2)
               (let ((size_t s1 . #'(coco_new_var m))
                     (size_t h) (size_t b0) (size_t b1))
-                (if (coco_dcg_no_extend m (coco_arg m lp 0))
-                    (block (set (-> err kind) COCO_DCG_CALLABLE)
-                           (set (-> err culprit) (coco_deref m (coco_arg m lp 0)))
-                           (return 0)))
                 (set h (coco_dcg_extend m (coco_arg m lp 0) s0 s err))
                 (if (== h 0) (return 0))
-                (set b0 (coco_dcg_body m rp s0 s1 err))
+                (set b0 (coco_dcg_body m rp s0 s1 0 0 err))
                 (if (== b0 0) (return 0))
-                (set b1 (coco_dcg_body m (coco_arg m lp 1) s s1 err))
+                (set b1 (coco_dcg_body m (coco_arg m lp 1) s s1 0 0 err))
                 (if (== b1 0) (return 0))
                 (return (coco_make2 m ":-" h (coco_make2 m "," b0 b1)))))
 
-          (if (coco_dcg_no_extend m lp)
-              (block (set (-> err kind) COCO_DCG_CALLABLE)
-                     (set (-> err culprit) lp)
-                     (return 0)))
           ;; THE HEAD IS BUILT FIRST AND AGAIN IF A TERMINAL IS LIFTED INTO
           ;; IT. The first build is the check, so a rule wrong in its head and
-          ;; its body both is still reported for the head, as it always was.
+          ;; its body both is still reported for the head, as swipl's is.
           (let ((size_t h) (size_t bd) (size_t first) (size_t rest . 0)
                 (size_t in . 0))
             (set h (coco_dcg_extend m lp s0 s err))
             (if (== h 0) (return 0))
-            (set bd (coco_dcg_body m rp s0 s err))
+            (set bd (coco_dcg_body m rp s0 s 0 0 err))
             (if (== bd 0) (return 0))
+            (if (not lift) (return (coco_make2 m ":-" h bd)))
             (set first bd)
-            (if (and (== (coco_arity m bd) 2)
-                     (== 0 (strcmp (coco_atom_name m (coco_name_of m bd)) ",")))
+            (if (coco_dcg_is m bd "," 2)
                 (block (set first (coco_arg m bd 0))
                        (set rest (coco_arg m bd 1))))
             (set in (coco_dcg_leading m first s0))
@@ -390,7 +579,7 @@
 ;;;; The module
 ;;;; ------------------------------------------------------------------
 ;;; SPLIT FROM THE TRANSLATOR ABOVE, and the split is not cosmetic. The
-;;; translator is used by `coco_assert', which is emitted before the engine
+;;; translator is used by the consult, which is emitted before the engine
 ;;; exists at all, so it has to come before `kb'. This half calls the engine
 ;;; through the module API and has to come after it. One file, two places in
 ;;; the order.
@@ -406,8 +595,62 @@
 (generic impl-dcg-module
   ()
 
-  ;;; '$dcg_goal'(Body, S0, S, Goal) -- translate BODY at run time and hand the
-  ;;; goal back for a clause to `call'. This is what `phrase/3' is made of.
+  ;;; A TRANSLATION'S ERROR IS THROWN WITH NO CONTEXT, `error(F, _)', as
+  ;;; swipl's boot/dcg.pl throws it -- not the context `'$dcg_goal''s row
+  ;;; gives a raise of its own (`coco_m_raise').
+  (static)
+  (func coco_dcg_raise ((coco_engine * e) (coco_dcg_err * err)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t f . 0) (size_t args [3]))
+          (cond
+            ((== (-> err kind) COCO_DCG_INST) (set f (coco_new_atom m "instantiation_error")))
+            ((== (-> err kind) COCO_DCG_CALLABLE)
+             (set f (coco_make2 m "type_error" (coco_new_atom m "callable") (-> err culprit))))
+            ((== (-> err kind) COCO_DCG_LIST)
+             (set f (coco_make2 m "type_error" (coco_new_atom m "list_or_partial_list")
+                                (-> err culprit))))
+            ((== (-> err kind) COCO_DCG_NONTERM)
+             (set (nth 0 args) (coco_new_atom m "define"))
+             (set (nth 1 args) (coco_new_atom m "dcg_nonterminal"))
+             (set (nth 2 args) (-> err culprit))
+             (set f (coco_make m "permission_error" 3 args)))
+            (#t (return (coco_m_resource_error e "memory"))))
+          (return (? (coco_m_thrown e (coco_make2 m "error" f (coco_new_var m))) 2 -1))))
+
+  ;;; A TERM THAT IS ITS OWN PART would send the translator round for ever
+  ;;; (swipl's runs out of stack): refused at once, type_error(acyclic_term,
+  ;;; T), swipl's must_be(acyclic, T)
+  (static)
+  (func coco_dcg_cyclic ((coco_engine * e) (size_t t)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)))
+          (return (? (coco_m_thrown e (coco_make2 m "error"
+                                               (coco_make2 m "type_error"
+                                                           (coco_new_atom m "acyclic_term") t)
+                                               (coco_new_var m)))
+                     2 -1))))
+
+  ;;; THE BODIES PHRASE/3 TRANSLATES, swipl's dcg_special/1: a string, a
+  ;;; list, `!', `{G}', `\+', and the conjunction, both disjunctions and
+  ;;; if-then. Anything else is CALLED with the two lists added -- `{}',
+  ;;; `*->' and a grammar rule among it, which swipl's call/3 meets as
+  ;;; `{}'/2, `*->'/4 and `-->'/4.
+  (static)
+  (func coco_dcg_special ((coco_machine * m) (size_t t)) (out int)
+        (set t (coco_deref m t))
+        (return (? (or (coco-tag-is STR (nth t (-> m heap)))
+                       (coco_is_nil m t) (coco_is_cons m t)
+                       (coco_dcg_is m t "!" 0) (coco_dcg_is m t "{}" 1)
+                       (coco_dcg_is m t "\\+" 1) (coco_dcg_is m t "," 2)
+                       (coco_dcg_is m t ";" 2) (coco_dcg_is m t "|" 2)
+                       (coco_dcg_is m t "->" 2))
+                   1 0)))
+
+  ;;; '$dcg_goal'(Body, S0, S, Goal) -- swipl's call_dcg/3: the module put
+  ;;; aside, a body `coco_dcg_special' names translated over two lists of
+  ;;; its own and S0 and S unified with them after, as swipl's `Input = S0,
+  ;;; Rest = S' (3.13.0: the translation binds the lists a `{}' leaves as
+  ;;; they were, and binds only variables it made); anything else the goal
+  ;;; call/3 would make of it. GOAL is handed back for a clause to `call'.
+  ;;; This is what `phrase/3' is made of.
   ;;;
   ;;; A BUILTIN CANNOT CALL WHAT IT BUILT. It answers 1 and the engine puts the
   ;;; caller's continuation back; there is no way from in here to say "and now
@@ -416,26 +659,91 @@
   (static)
   (func coco_dcg_bi_goal ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t body . #'(coco_m_arg e g 0))
+              (size_t body . #'(coco_deref (coco_m_machine e) (coco_m_arg e g 0)))
               (coco_dcg_err err)
-              (size_t built))
+              (size_t built . 0) (size_t mo . 0) (int qual . 0))
           (set ($ err kind) COCO_DCG_OK)
           (set ($ err culprit) 0)
+          (while (coco_dcg_is m body ":" 2)
+            (block (set mo (coco_deref m (coco_arg m body 0))) (set qual 1)
+                   (set body (coco_deref m (coco_arg m body 1)))))
           ;; A VARIABLE BODY IS AN ERROR HERE, though it is not an error inside
           ;; a rule. In a rule the translator emits `phrase(V, ...)' and the
           ;; question is asked again when V is known; by the time it is asked
           ;; here, this IS that second time, and answering it with another
           ;; `phrase' would be a loop with nothing to bind V in between.
           (if (coco_m_is_var e body) (return (coco_m_instantiation_error e)))
-          (set built (coco_dcg_body m body (coco_m_arg e g 1) (coco_m_arg e g 2)
-                                    (aof err)))
-          (if (== built 0)
-              (cond ((== ($ err kind) COCO_DCG_INST)
-                     (return (coco_m_instantiation_error e)))
-                    ((== ($ err kind) COCO_DCG_CALLABLE)
-                     (return (coco_m_type_error e "callable" ($ err culprit))))
-                    (#t (return (coco_m_resource_error e "memory")))))
+          (if (coco_dcg_special m body)
+              (let ((size_t s0 . #'(coco_new_var m)) (size_t s . #'(coco_new_var m)))
+                (if (!= 1 (coco_acyclic m body)) (return (coco_dcg_cyclic e body)))
+                (set built (coco_dcg_body m body s0 s 0 0 (aof err)))
+                (if (== built 0) (return (coco_dcg_raise e (aof err))))
+                (return (? (and (coco_m_unify e (coco_m_arg e g 1) s0)
+                                (coco_m_unify e (coco_m_arg e g 2) s)
+                                (coco_m_unify e (coco_m_arg e g 3) built))
+                           1 0))))
+          (if (not (coco_is_callable m body)) (return (coco_m_type_error e "callable" body)))
+          (set built (coco_dcg_args m body (coco_m_arg e g 1) (coco_m_arg e g 2) (aof err)))
+          (if (== built 0) (return (coco_m_resource_error e "memory")))
+          ;; called in the module it was given in, as call/3 calls
+          ;; `m:nope' -- an unknown one is `m:nope/2'
+          (if qual
+              (set built (coco_make2 m ":" mo built)))
           (return (? (coco_m_unify e (coco_m_arg e g 3) built) 1 0))))
+
+  ;;; '$dcg_rule'(Rule, Clause) -- dcg_translate_rule/2 (3.13.0): the clause
+  ;;; swipl's translation gives, with no terminal lifted into the head; a
+  ;;; term that is no grammar rule fails, and a variable is swipl's first
+  ;;; clause taking it for `(LP, MNT) --> RP', whose LP is unbound
+  (static)
+  (func coco_dcg_bi_rule ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t r . #'(coco_deref (coco_m_machine e) (coco_m_arg e g 0)))
+              (coco_dcg_err err)
+              (size_t built . 0))
+          (set ($ err kind) COCO_DCG_OK)
+          (set ($ err culprit) 0)
+          (if (coco_m_is_var e r)
+              (block (set ($ err kind) COCO_DCG_INST) (return (coco_dcg_raise e (aof err)))))
+          (if (not (coco_dcg_is_rule m r)) (return 0))
+          (if (!= 1 (coco_acyclic m r)) (return (coco_dcg_cyclic e r)))
+          (set built (coco_dcg_rule m r 0 (aof err)))
+          (if (== built 0) (return (coco_dcg_raise e (aof err))))
+          (return (? (coco_m_unify e (coco_m_arg e g 1) built) 1 0))))
+
+  ;;; '$xhooks'(TE, GE) (3.14.0): 1 or 0 for each of the program's two
+  ;;; expansion hooks, term_expansion/2 and goal_expansion/2, as a load asks
+  ;;; (`coco_xhook_bits', lib/kb-consult.cicili)
+  (static)
+  (func coco_dcg_bi_xhooks ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (int b . #'(coco_xhook_bits (-> e st) m)))
+          (return (? (and (coco_m_unify e (coco_m_arg e g 0) (coco_new_int m (bitand b 1)))
+                          (coco_m_unify e (coco_m_arg e g 1)
+                                        (coco_new_int m (? (bitand b 2) 1 0))))
+                     1 0))))
+
+  ;;; '$nt_mark'(Name, Arity) (3.14.0): non_terminal/1's, its spec checked
+  ;;; already -- the predicate a non-terminal (`coco_pred_nt_mark')
+  (static)
+  (func coco_dcg_bi_nt_mark ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t n . #'(coco_deref m (coco_m_arg e g 0))) (i64 a . 0))
+          (if (not (coco_m_int e (coco_m_arg e g 1) (aof a))) (return 0))
+          (if (not (coco_is_callable m n)) (return 1))
+          (return (? (coco_pred_nt_mark (-> e st) (coco_name_of m n) (cast u32 a)) 1
+                     (coco_mem_error e)))))
+
+  ;;; '$nt_known'(Head) (3.14.0): its predicate is a non-terminal already,
+  ;;; when expand_term/2 gives a rule no declaration, as swipl's
+  (static)
+  (func coco_dcg_bi_nt_known ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (coco_store * st . #'(-> e st))
+              (size_t h . #'(coco_deref m (coco_m_arg e g 0))) (size_t pi . 0))
+          (while (coco_is_compound2 m h ":") (set h (coco_deref m (coco_arg m h 1))))
+          (if (not (coco_is_callable m h)) (return 0))
+          (set pi (coco_pred_find st (coco_name_of m h) (coco_arity m h)))
+          (return (? (and (< pi (-> st npreds)) (bitand ($ (nth pi (-> st preds)) pattrs) 16)) 1 0))))
 
   (static) (coco-emit-module-dispatch coco_dcg_dispatch *dcg-predicates*)
 

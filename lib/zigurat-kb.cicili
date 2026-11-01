@@ -779,6 +779,15 @@
           (if (not ok) (return (coco_zg_fail z "props_of")))
           (return 1)))
 
+  ;;; A DECLARATION THE CONNECTION REFUSED (3.0.3): WHAT and the connection's
+  ;;; words, left on the store's `write_err' as well, where the declaration's
+  ;;; caller finds them (`coco_pred_dynamic')
+  (static)
+  (func coco_zg_dynamic_fail ((coco_store * st) (coco_zg * z) (const char * what)) (out int)
+        (coco_zg_fail z what)
+        (snprintf (-> st write_err) 256 "%s" (-> z err))
+        (return 0))
+
   ;;; A predicate has just been declared dynamic. One row, idempotent at the
   ;;; other end, so two interpreters declaring the same thing is not a conflict.
   (func coco_zg_on_dynamic ((coco_store * st) (void * ctx) (size_t pi)) (out int)
@@ -787,22 +796,23 @@
           (if (not (-> z write_through)) (return 1))
           (if (>= pi ($ (cof st) npreds)) (return 0))
           (if (not (zg_call (-> z db) "cocolog::declare_dynamic"))
-              (return (coco_zg_fail z "declare_dynamic")))
-          (if (not (zg_write_string (-> z db) (-> z kb))) (return (coco_zg_fail z "kb")))
+              (return (coco_zg_dynamic_fail st z "declare_dynamic")))
+          (if (not (zg_write_string (-> z db) (-> z kb)))
+              (return (coco_zg_dynamic_fail st z "kb")))
           (if (not (zg_write_string (-> z db)
                                     (coco_atom_name (-> z m)
                                                   ($ (nth pi (-> st preds)) name))))
-              (return (coco_zg_fail z "name")))
+              (return (coco_zg_dynamic_fail st z "name")))
           (if (not (zg_write_int (-> z db)
                                  (cast i32 ($ (nth pi (-> st preds)) arity))))
-              (return (coco_zg_fail z "arity")))
+              (return (coco_zg_dynamic_fail st z "arity")))
           (if (not (coco_zg_finish z (aof wrote)))
-              (return (coco_zg_fail z "declare_dynamic")))
+              (return (coco_zg_dynamic_fail st z "declare_dynamic")))
           ;; A THREAD THAT IS NOT THE STORE'S COMMITS ITS OWN WRITE: its
           ;; session has a transaction of its own (a green worker's), and
           ;; the load's commit runs on the owner's.
           (if (not (zg_owns (-> z db)))
-              (if (not (zg_commit (-> z db))) (return (coco_zg_fail z "commit"))))
+              (if (not (zg_commit (-> z db))) (return (coco_zg_dynamic_fail st z "commit"))))
           (return 1)))
 
   ;;; The reclaim pass, `cocolog::vacuum' on the other end: TRUNCATE over the
