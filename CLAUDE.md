@@ -1519,8 +1519,14 @@ cocolint index offers no import of it.
   in lib/solve-text.cicili; term_to_atom/2 and its three kin): Raw the
   raw read's text, Pos its characters before the token less one, one term
   read and a full stop ending it (`a. b` is `a`); an uncaught one is said
-  with its `** here **` lines (`coco_err_extra`). test/files/syntax_text.pl
-  holds 360 lines of it to swipl, test/files/syntax_load.pl 47.
+  with its `** here **` lines (`coco_err_extra`). **A stream's read raises
+  error(syntax_error(Id), file(F, Line, LinePos, CharNo))** (3.11.0,
+  `stream(S, ...)` for a standard stream and for a block comment open
+  before anything): library(stream) cuts the stream into clauses with the
+  same raw walk (`coco_m_raw_walk`) and asks `coco_m_syntax_at` for the
+  place -- a load's Line and LinePos, CharNo the clause's first character
+  and the text read's Pos. test/files/syntax_text.pl holds 360 lines of it
+  to swipl, test/files/syntax_load.pl 47, test/files/syntax_stream.pl 99.
 * **`atomic_list_concat/3` with a bound third argument and a non-ground list
   SPLITS**; `/2` cannot split; `atom_concat/3` has `(+,-,+)` and `(-,+,+)` but
   no `(-,-,+)`; `string_concat/3` only `(+,+,-)`. **`sub_atom/5` and

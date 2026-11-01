@@ -790,6 +790,11 @@
   ;;; place was the token's own (`coco_reader_place').
   (decl) (func coco_reader_load_error ((coco_reader * r) (int * line) (int * col)
                                         (int * a1) (int * a2)) (out const char *))
+  ;;; swipl's id as a term: ID an atom, or punct(A1, A2), or ID(A1) for
+  ;;; undefined_char_escape and end_of_file_in_quoted, each argument the
+  ;;; atom of its character
+  (decl) (func coco_syntax_id_term ((coco_machine * m) (const char * id) (int a1) (int a2))
+                (out size_t))
   (decl) (func coco_reader_free ((coco_reader * r)))
 
   ;;; Reads one clause, up to and including its terminating `.'. Answers 1 and
@@ -1285,6 +1290,24 @@
             (#t (coco_sb_put (aof c) id)))
           (snprintf out len "%s" (? (== ($ c s) nil) "" ($ c s)))
           (coco_sb_free (aof c))))
+
+  (static)
+  (func coco_syntax_char_atom ((coco_machine * m) (int c)) (out size_t)
+        (let ((coco_strbuf b) (size_t a . 0))
+          (coco_sb_init (aof b))
+          (coco_utf8_put (aof b) (cast i64 c))
+          (set a (coco_new_atom m (? (== ($ b s) nil) "" ($ b s))))
+          (coco_sb_free (aof b))
+          (return a)))
+
+  (func coco_syntax_id_term ((coco_machine * m) (const char * id) (int a1) (int a2))
+        (out size_t)
+        (cond
+          ((== 0 (strcmp id "punct"))
+           (return (coco_make2 m "punct" (coco_syntax_char_atom m a1) (coco_syntax_char_atom m a2))))
+          ((or (== 0 (strcmp id "undefined_char_escape")) (== 0 (strcmp id "end_of_file_in_quoted")))
+           (return (coco_make1 m id (coco_syntax_char_atom m a1)))))
+        (return (coco_new_atom m id)))
 
   (func coco_reader_errat ((coco_reader * r)) (out size_t)
         (if (and (!= (-> r esyn) nil) (== 0 (strcmp (-> r esyn) "operator_clash")))
@@ -2441,6 +2464,10 @@
                    (#t
                     (coco_raw_add raw (aof nraw) (aof lastc) c)
                     (set p (+ p 1))))))))
+          ;; layout and comments alone: nothing to read (3.11.0, the stream
+          ;; module's question at a stream's end; the load and the text
+          ;; readers have asked the reader first, which saw the end)
+          (if (not any) (return n))
           ;; the end of the text: swipl puts its full stop there
           (if (not (coco_is_space lastc)) (coco_raw_add raw (aof nraw) (aof lastc) 32))
           (coco_raw_add raw (aof nraw) (aof lastc) 46)

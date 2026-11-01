@@ -174,13 +174,13 @@ terms(D) :-
     answer(( stream_open(C, read, S3), stream_read_terms(S3, Ts3), stream_close(S3), length(Ts3, N3) ), N3, G3),
     check('read_terms reads them all', G3, 3),
     answer(( stream_open(C, append, S4), stream_write_text(S4, "oops(.\n"), stream_close(S4),
-             stream_open(C, read, S5), stream_read_terms(S5, _) ), ok, G5), ball(G5, B5),
-    ( B5 = syntax_error(Why5), atom(Why5) -> V5 = syntax_error ; V5 = B5 ),
-    check('a clause that will not read is syntax_error(Message), ISO''s shape, not a term', V5, syntax_error),
+             stream_open(C, read, S5), stream_read_terms(S5, _) ), ok, G5),
+    ( G5 = error(error(syntax_error(Id5), file(F5, L5, LP5, _))), F5 == C -> V5 = Id5-L5-LP5 ; V5 = G5 ),
+    check('a clause that will not read is swipl''s syntax_error(Id) at file(File, Line, LinePos, CharNo)', V5,
+          end_of_clause-7-5),
     answer(( stream_open(C, write, S6), stream_write_text(S6, "unfinished(1, 2"), stream_close(S6),
              stream_open(C, read, S7), stream_read_term(S7, _) ), ok, G7), ball(G7, B7),
-    ( B7 = syntax_error(Why7), sub_atom(Why7, _, _, _, 'end of file') -> V7 = cut_short ; V7 = B7 ),
-    check('and a clause the end of the file cut short says so', V7, cut_short),
+    check('and a clause the end of the file cut short is swipl''s end_of_file', B7, syntax_error(end_of_file)),
     answer(( stream_open(C, write, S8), stream_write_text(S8, "  % only a comment\n/* and another */\n"), stream_close(S8),
              stream_open(C, read, S9), stream_read_term(S9, T9), stream_close(S9) ), T9, G9),
     check('a file of comments is end_of_file', G9, end_of_file),
@@ -371,10 +371,10 @@ read_options(D) :-
              Ns = [X1 = VX, Y1 = VY, Z1 = _, W1 = VW], length(Vs, NV), Ss = [SN = SV],
              ( T1 = (p(VX, VY, _, VX) :- q(VY, VW)) -> Shape = same ; Shape = T1 ),
              ( SV == VW -> SVar = w ; SVar = SV ),
-             ( E1 = error(syntax_error(M1), _), atom(M1) -> Err = syntax_error ; Err = E1 ) ),
+             ( E1 = error(syntax_error(M1), file(F1, L1, LP1, C1)), F1 == P -> Err = M1-L1-LP1-C1 ; Err = E1 ) ),
            X1-Y1-Z1-W1-NV-SN-SVar-Shape-Err, G1),
-    check('names in the order they appear, _Z among them; W the one singleton; four variables; then a syntax error in ISO''s shape', G1,
-          'X'-'Y'-'_Z'-'W'-4-'W'-w-same-syntax_error).
+    check('names in the order they appear, _Z among them; W the one singleton; four variables; then swipl''s syntax error and place', G1,
+          'X'-'Y'-'_Z'-'W'-4-'W'-w-same-(end_of_clause-2-8-34)).
 
 %% ---- read_term/3's positions where SWI cannot be asked the same ----------
 %% test/files/read_term.pl holds every shape to SWI's; these are the cases
@@ -409,7 +409,15 @@ read_positions(D) :-
     proc_run(Cmd4, 60000, Out4, _),
     ( re_first_atom('answer\\([^\n]*\\)', Out4, A4) -> sub_atom(A4, 7, _, 1, G4) ; G4 = Out4 ),
     check('a pipe has no position, and the count is the bytes read from it',
-          G4, 'term_position(5,9,5,6,[7-8]),$stream_position(5,2,2,5)').
+          G4, 'term_position(5,9,5,6,[7-8]),$stream_position(5,2,2,5)'),
+    %% a syntax error on a standard stream names it by its alias, as swipl's
+    %% does, at the place counted from the bytes read (swipl's user_input
+    %% counts its own prompts too: COMPAT.md); then the next clause reads
+    sh_join(['printf ''a.\\nfoo(a b).\\nbar.\\n'' | ', C, ' --local query "use_module(library(stream)), read(_), catch(read(_), E, true), read(T), write(answer(E, T)), nl" 2>/dev/null'], Cmd5),
+    proc_run(Cmd5, 60000, Out5, _),
+    ( re_first_atom('answer\\([^\n]*\\)', Out5, A5) -> sub_atom(A5, 7, _, 1, G5) ; G5 = Out5 ),
+    check('a syntax error on user_input is error(syntax_error(Id), stream(user_input, Line, LinePos, CharNo))',
+          G5, 'error(syntax_error(operator_expected),stream(user_input,2,6,8)),bar').
 
 %% ---- codes, as the program counts text -----------------------------------
 %%

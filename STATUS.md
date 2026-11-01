@@ -10279,3 +10279,69 @@ fails); a row in COMPAT.md.
 PROVED: syntax_text and syntax_load (the files case), errors, directives,
 rationals, reconsult, repl, serialize, stream, template, string, red: 0;
 lint 0 HARD 0 WARN; the card's cites checked.
+
+## A clause that will not read from a stream is swipl's error (3.11.0)
+
+read_term/2,3 and read/1,2 from a stream raise what swipl 9.0.4 raises:
+`error(syntax_error(Id), file(File, Line, LinePos, CharNo))` for a stream of
+a file, `stream(S, Line, LinePos, CharNo)` for a standard stream (named by
+its alias, `user_input`) and for a block comment open before anything,
+which swipl gives as `stream(S, 0, 1, 0)` even of a file. Through 3.10.1
+library(stream) raised `error(syntax_error(Message), read_term/3)` with a
+sentence of cocolog's. test/files/syntax_stream.pl reads fourteen files
+clause by clause in both systems -- every term, every error, the character
+the stream reads next and print_message/2's words for each file's first
+error -- 99 lines alike.
+
+WHAT IT TOOK:
+- library(stream) cuts a stream into clauses with the engine's raw walk,
+  swipl's raw read (`coco_m_raw_walk`, new in the SDK): at each `.` that
+  layout, a `%` or the end follows, the walk of what was collected says
+  whether that is the clause's full stop. Its own scanner through 3.10.1
+  put the end elsewhere after an octal or hex escape's closing backslash,
+  a radix's quote and `0'''`.
+- The walk answers "nothing read" for layout and comments alone again
+  (3.10.1 took that answer out as unreachable; the stream's end is the
+  caller that reaches it), and the scanner answers end_of_file there.
+- `coco_m_syntax_at` (new in the SDK) gives the error's id and place:
+  Line and LinePos where a load of the same text puts it, counted on from
+  where the clause began in its stream; CharNo swipl's source_char_no, the
+  clause's first character (past the layout and comments before it) and
+  the error's characters into the raw text less one -- the text read's
+  `Pos` -- or the clause's last character when the end of the stream cut
+  it short. The id term is the text read's (`coco_syntax_id_term`, which
+  both now call).
+- The Coco half makes `'$syntax'(Id, L, LP, C)` the file's context when
+  the stream has a file name and the line is not 0, else the stream's.
+- print_message/2 says a stream of a file as the file, as swipl's
+  swi_location//1 does (`ERROR: t4.pl:0:1: Syntax error: ...`), asking
+  library(stream)'s stream_property/2 when it is loaded.
+
+ARMS, eleven, each red: the scanner's full stop asked of the walk (a1);
+the walk's "nothing read" (a2); the file's context clause (a3), and its
+line not 0 (a4); a standard stream named by its alias (a5); an open quote
+or block comment at the clause's first character (a6a); the error's
+characters less one (a6c); the clause's first character counted in
+(a6d); CharNo 0 for a block comment open before anything (a6e);
+print_message/2's stream of a file (a7); the scanner's end_of_file for
+layout alone at the end (a8). One arm stayed green and its code is gone:
+a text the end of the stream cut short needed no place of its own (a6b),
+as the reader fails such a text at its last character and the general
+rule gives that character.
+
+TAKEN OUT on the way: the scanner's test of an empty buffer (the walk
+answers "nothing read" for no bytes) and its early return for a clause the
+end cut short (the reader refuses such a text too, and the same helper
+raises), so the scanner answers a text or the end and nothing else.
+
+NOT SWIPL'S YET (COMPAT.md): swipl's user_input counts its own prompts into
+its line and character counts; library(stream) has no character_count/2,
+line_count/2, line_position/2, is_stream/1 or stream_position_data/3, and
+its position(P) property is a byte count where swipl's is
+'$stream_position'(Char, Line, LinePos, Byte); `:- if(G)' decides only a
+goal about the store while reading.
+
+PROVED: the whole files case (syntax_stream, syntax_text and syntax_load
+among it), stream, journal, errors, directives, rationals, reconsult,
+serialize, string, template, repl, lesson 48; lint 0 HARD 0 WARN; the
+card's cites renumbered and checked.

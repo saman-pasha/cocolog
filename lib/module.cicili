@@ -433,6 +433,22 @@
                                        (size_t * out) (size_t * names) (size_t * pos)
                                        (size_t * start) (char * err) (size_t errlen)) (out int))
 
+  ;;; WHERE A CLAUSE'S TEXT ENDS, as swipl's raw read finds it (3.11.0,
+  ;;; `coco_raw_walk'): the walk's kind of S's N bytes -- 0 a full stop, 6
+  ;;; a full stop with nothing before it (each ending at END), 1 no full
+  ;;; stop, 2 nothing but layout and comments, 3 a quoted item open to the
+  ;;; end, 4 a block comment, 5 `0'' or a radix's quote at the end -- so a
+  ;;; module reading a stream finds the clause where a load would.
+  (decl) (func coco_m_raw_walk ((const char * s) (size_t n) (size_t * end)) (out int))
+
+  ;;; A CLAUSE'S TEXT THAT WILL NOT READ, said as swipl says it of a stream
+  ;;; (3.11.0): '$syntax'(Id, Line, LinePos, CharNo), Id swipl's and the
+  ;;; place a load would give, counted on from where SRC began in its stream
+  ;;; (character C0, line L0, line position P0); 0 when SRC reads. A block
+  ;;; comment open before anything is Line 0, LinePos 1, CharNo 0, swipl's.
+  (decl) (func coco_m_syntax_at ((coco_engine * e) (const char * src) (i64 c0) (i64 l0)
+                                 (i64 p0)) (out size_t))
+
   ;;; AN OUTPUT SINK A MODULE OWNS. `format/3' and `with_output_to/2' put
   ;;; their text wherever their first argument says; a module that owns
   ;;; streams installs a hook here and is asked FIRST about every sink but
@@ -1205,6 +1221,60 @@
               (snprintf err errlen "%s" ($ r err)))
           (coco_reader_free (aof r))
           (return rc)))
+
+  (func coco_m_raw_walk ((const char * s) (size_t n) (size_t * end)) (out int)
+        (let ((int kind . 0) (int q . 0) (size_t at0 . 0) (size_t p . 0))
+          (set p (coco_raw_walk s n 0 nil 0 (aof kind) (aof q) (aof at0)))
+          (if (!= end nil) (set (cof end) p))
+          (return kind)))
+
+  ;;; The characters of S's bytes A to B, as the machine counts them.
+  (static)
+  (func coco_m_chars_in ((const char * s) (size_t a) (size_t b) (int chars)) (out i64)
+        (let ((i64 k . 0))
+          (for ((size_t i . a)) (< i b) ((++ i))
+            (if (or (not chars) (!= (bitand (cast int (nth i s)) 192) 128)) (set k (+ k 1))))
+          (return k)))
+
+  ;;; Line and LinePos are where a load puts the error (`coco_reader_load_
+  ;;; error'), counted on from where SRC began; CharNo is swipl's
+  ;;; source_char_no: the clause's first character -- past the layout and
+  ;;; the comments before it, where the raw read begins -- and the error's
+  ;;; characters into the raw text less one (the `Pos' of a text's error,
+  ;;; `coco_tx_syntax'); a text the end of the stream cut short fails at its
+  ;;; last character, so that is its last character's.
+  (func coco_m_syntax_at ((coco_engine * e) (const char * src) (i64 c0) (i64 l0)
+                          (i64 p0)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m)) (coco_reader r) (size_t t . 0) (int rc . 0)
+              (int ln . 0) (int cl . 0) (int a1 . 0) (int a2 . 0) (const char * id . nil)
+              (i64 line . 0) (i64 lp . 0) (i64 cn . 0) (size_t args [4])
+              (int chars . #'(-> m text_chars)) (size_t n . 0) (int kind . 0) (int q . 0)
+              (size_t at0 . 0) (size_t at . 0) (i64 pos . 0))
+          (if (== src nil) (return 0))
+          (set n (strlen src))
+          (coco_reader_init (aof r) m src)
+          (set rc (coco_read_clause (aof r) (aof t)))
+          (if (!= rc -1) (block (coco_reader_free (aof r)) (return 0)))
+          (set id (coco_reader_load_error (aof r) (aof ln) (aof cl) (aof a1) (aof a2)))
+          (coco_raw_walk src n 0 nil chars (aof kind) (aof q) (aof at0))
+          (cond
+            ((or (== kind 3) (== kind 4)) (set pos 0))
+            (#t
+             (set at (coco_reader_errat (aof r)))
+             (if (> at at0) (set pos (- (coco_m_chars_in src at0 at chars) 1)))))
+          (if (< pos 0) (set pos 0))
+          (set cn (+ c0 (+ (coco_m_chars_in src 0 at0 chars) pos)))
+          (cond
+            ;; a block comment open before anything: swipl's stream(S, 0, 1, 0)
+            ((== ln 0) (set line 0) (set lp (cast i64 cl)) (set cn 0))
+            ((== ln 1) (set line l0) (set lp (+ p0 (cast i64 cl))))
+            (#t (set line (+ l0 (cast i64 (- ln 1)))) (set lp (cast i64 cl))))
+          (set (nth 0 args) (coco_syntax_id_term m id a1 a2))
+          (set (nth 1 args) (coco_new_int m line))
+          (set (nth 2 args) (coco_new_int m lp))
+          (set (nth 3 args) (coco_new_int m cn))
+          (coco_reader_free (aof r))
+          (return (coco_make m "$syntax" 4 args))))
 
   (static) (var func coco_m_sink_hook ((coco_engine * e) (size_t sink) (const char * text)
                                        (size_t len)) (out int) . nil)

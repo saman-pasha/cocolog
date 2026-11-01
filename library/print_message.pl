@@ -684,6 +684,13 @@ message_to_string(Term, Str) :-
     [ url(Path:Line), ': ' ].
 '$pm_location'(file(Path, Line, LinePos, _CharNo)) -->
     [ url(Path:Line:LinePos), ': ' ].
+%  a stream of a file is said as the file, as swipl's swi_location//1 says
+%  it (3.11.0): library(stream)'s stream_property/2, when it is loaded and
+%  the stream is open
+'$pm_location'(stream(Stream, Line, LinePos, CharNo)) -->
+    { catch(stream_property(Stream, file_name(File)), _, fail) },
+    !,
+    '$pm_location'(file(File, Line, LinePos, CharNo)).
 '$pm_location'(stream(Stream, Line, LinePos, _CharNo)) -->
     [ 'Stream ~w:~d:~d '-[Stream, Line, LinePos] ].
 '$pm_location'(autoload(File:Line)) -->

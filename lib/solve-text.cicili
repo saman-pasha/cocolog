@@ -1255,16 +1255,6 @@
             (if (or (not chars) (!= (bitand (cast int (nth i s)) 192) 128)) (set k (+ k 1))))
           (return k)))
 
-  ;;; A CHARACTER'S ATOM, from its code.
-  (static)
-  (func coco_tx_char_atom ((coco_machine * m) (int c)) (out size_t)
-        (let ((coco_strbuf b) (size_t a . 0))
-          (coco_sb_init (aof b))
-          (coco_utf8_put (aof b) (cast i64 c))
-          (set a (coco_new_atom m (coco_tx_s (aof b))))
-          (coco_sb_free (aof b))
-          (return a)))
-
   ;;; A TEXT THAT WILL NOT READ RAISES SWIPL'S SYNTAX ERROR (3.10.0):
   ;;; error(syntax_error(Id), string(Raw, Pos)), as pl-read.c's
   ;;; makeErrorTerm makes it for a text. Raw is the text swipl's raw read
@@ -1314,12 +1304,7 @@
                ((> at at0) (set pos (coco_tx_count s at0 at chars))))
              (set pos (- pos 1))))
           (if (< pos 0) (set pos 0))
-          (cond
-            ((== 0 (strcmp id "punct"))
-             (set idt (coco_make2 m "punct" (coco_tx_char_atom m a1) (coco_tx_char_atom m a2))))
-            ((or (== 0 (strcmp id "undefined_char_escape")) (== 0 (strcmp id "end_of_file_in_quoted")))
-             (set idt (coco_make1 m id (coco_tx_char_atom m a1))))
-            (#t (set idt (coco_new_atom m id))))
+          (set idt (coco_syntax_id_term m id a1 a2))
           (set ctx (coco_make2 m "string" (coco_new_string m (coco_tx_s (aof raw)) ($ raw len))
                                (coco_new_int m pos)))
           (coco_sb_free (aof raw))

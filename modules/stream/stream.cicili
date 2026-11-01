@@ -68,7 +68,10 @@
 ;;; `read_term/3' reads through `coco_m_read_clause', the engine's reader
 ;;; with the variable names it met, so `variable_names/1', `variables/1'
 ;;; and `singletons/1' are what the file said; a clause that will not read
-;;; is `error(syntax_error(Message), read_term/3)', ISO's shape. SWI's
+;;; is swipl's `error(syntax_error(Id), file(File, Line, LinePos, CharNo))'
+;;; -- `stream(S, ...)' for a standard stream, and for a block comment open
+;;; before anything -- at the place a load gives it (3.11.0; through 3.10.1
+;;; error(syntax_error(Message), read_term/3), a sentence of cocolog's). SWI's
 ;;; `subterm_positions/1' and `term_position/1' are the reader's too
 ;;; (`coco_m_read_clause_pos', 1.10.7): positions in characters from the
 ;;; start of the stream, and '$stream_position'(Char, Line, LinePos, Byte)
@@ -373,11 +376,14 @@
            "read_term(T, O) :- current_input(S), read_term(S, T, O)."
            ;; every byte is counted, and the positions are built only when an
            ;; option asks for them; end_of_file spans its name from the end
-           "read_term(S, T, O) :- stream_slot(S, N), ( stream_wants_pos(O) -> '$stream_read_term_pos'(S, N, K, T0, Ns0, Msg, P, C, L, LP, B), W = '$stream_position'(C, L, LP, B), ( K == end_of_file -> E is C + 11, P = C-E ; true ) ; '$stream_read_term'(S, N, K, T0, Ns0, Msg) ), stream_read_result(K, T0, Ns0, Msg, T1, Ns), stream_read_options(O, r(T1, Ns, P, W)), T = T1."
+           "read_term(S, T, O) :- stream_slot(S, N), ( stream_wants_pos(O) -> '$stream_read_term_pos'(S, N, K, T0, Ns0, Msg, P, C, L, LP, B), W = '$stream_position'(C, L, LP, B), ( K == end_of_file -> E is C + 11, P = C-E ; true ) ; '$stream_read_term'(S, N, K, T0, Ns0, Msg) ), stream_read_result(K, S, T0, Ns0, Msg, T1, Ns), stream_read_options(O, r(T1, Ns, P, W)), T = T1."
            "stream_wants_pos(Os) :- nonvar(Os), Os = [O|Rest], ( nonvar(O), ( O = term_position(_) ; O = subterm_positions(_) ) -> true ; stream_wants_pos(Rest) )."
-           "stream_read_result(term, T, Ns, _, T, Ns) :- !."
-           "stream_read_result(end_of_file, _, _, _, end_of_file, []) :- !."
-           "stream_read_result(syntax_error, _, _, Msg, _, _) :- throw(error(syntax_error(Msg), read_term/3))."
+           "stream_read_result(term, _, T, Ns, _, T, Ns) :- !."
+           "stream_read_result(end_of_file, _, _, _, _, end_of_file, []) :- !."
+           "stream_read_result(syntax_error, S, _, _, '$syntax'(Id, L, LP, C), _, _) :- stream_syntax_context(S, L, LP, C, Ctx), throw(error(syntax_error(Id), Ctx))."
+           "stream_syntax_context(S, L, LP, C, file(F, L, LP, C)) :- L > 0, stream_property(S, file_name(F)), !."
+           "stream_syntax_context(S, L, LP, C, stream(S1, L, LP, C)) :- stream_error_name(S, S1)."
+           "stream_error_name(S, S1) :- stream_slot(S, N), ( stream_std_alias(N, A) -> S1 = A ; S1 = '$stream'(N) )."
            "stream_read_options(Os, _) :- var(Os), !, throw(error(instantiation_error, read_term/3))."
            "stream_read_options([], _) :- !."
            "stream_read_options([O|Os], R) :- !, stream_read_option(O, R), stream_read_options(Os, R)."
@@ -1085,116 +1091,50 @@
 
   ;;; ---- a term: one clause of text, then the engine's reader ----
   ;;;
-  ;;; THE SCANNER KNOWS WHERE A CLAUSE ENDS AND NOTHING ELSE: a `.' that
-  ;;; is not part of a symbol atom (`=..'), outside a quoted atom, a
-  ;;; string, a back-quoted text, a `0'c' code and both kinds of comment,
-  ;;; and followed by layout, a `%' or the end of the file. What it
-  ;;; collects goes to `coco_m_read_term', which is the reader `consult'
-  ;;; uses, operators and all -- so a file this reads is a file cocolog
-  ;;; would consult. Answers 1 with the text, 0 at a clean end (layout and
-  ;;; comments only), -1 for a clause the end of the file cut short.
+  ;;; THE SCANNER KNOWS WHERE A CLAUSE ENDS AND NOTHING ELSE, and asks the
+  ;;; engine's raw walk, swipl's raw read (3.11.0, `coco_m_raw_walk'): at
+  ;;; each `.' that layout, a `%' or the end of the stream follows, the walk
+  ;;; of what was collected says whether that is the clause's full stop --
+  ;;; not inside a quoted item, a comment or a run of symbols (`=..'), not
+  ;;; a `0'c' code -- so a stream is cut into clauses where a load cuts a
+  ;;; file. Through 3.10.1 a scanner of its own did it, and an octal or hex
+  ;;; escape's closing backslash (`'\x41\''), a radix's quote (`16'ff') and
+  ;;; `0'''' each put the end elsewhere. What it collects goes to
+  ;;; `coco_m_read_clause', the reader `consult' uses. Answers 1 with the
+  ;;; text -- a clause the end of the stream cut short as well, whose error
+  ;;; the reader gives as a load's -- 0 at a clean end (layout and comments
+  ;;; only), -2 when memory ran out.
   (static)
-  (func st_is_symbol ((int c)) (out int)
-        (return (? (!= (strchr "+-*/\\\\^<>=~:.?@#&$" c) nil) 1 0)))
-
-  ;;; Does a `0' at buf[n-2] begin a number? Not when a name character
-  ;;; stands right before it: `a0'b' is a quoted atom after an atom.
-  (static)
-  (func st_number_start ((const u8 * buf) (size_t n)) (out int)
-        (if (< n 3) (return 1))
-        (let ((int b . #'(cast int (nth (- n 3) buf))))
-          (if (== b 95) (return 0))
-          (if (and (>= b 48) (<= b 57)) (return 0))
-          (if (and (>= b 65) (<= b 90)) (return 0))
-          (if (and (>= b 97) (<= b 122)) (return 0))
-          (return 1)))
+  (func st_layout ((int c)) (out int)
+        (return (? (or (== c 32) (or (== c 9) (or (== c 10) (== c 13)))) 1 0)))
 
   (static)
   (func st_read_clause ((int s) (u8 ** out) (size_t * len)) (out int)
-        (let ((u8 * buf . nil) (size_t cap . 0) (size_t n . 0)
-              (int c . 0) (int prev . 32) (int state . 0))
-          ;; state: 0 code, 1 in '...', 2 in "...", 3 in `...`, 4 in % comment,
-          ;; 5 in /* comment, 6 after 0' (one character to take literally)
+        (let ((u8 * buf . nil) (size_t cap . 0) (size_t n . 0) (int c . 0)
+              (size_t end . 0) (int kind . 0))
           (while 1
             (set c (st_getc s))
             (if (< c 0) break)
-            (if (not (st_grow (aof buf) (aof cap) (+ n 2))) (block (free buf) (return -1)))
+            (if (not (st_grow (aof buf) (aof cap) (+ n 2))) (block (free buf) (return -2)))
             (set (nth n buf) (cast u8 c))
             (set n (+ n 1))
-            (cond
-              ((== state 4)
-               (if (== c 10) (set state 0)))
-              ((== state 5)
-               (if (and (== c 47) (== prev 42)) (set state 0)))
-              ((== state 6)
-               (set state 0)
-               (if (== c 92)                ; a backslash escape takes one more
-                   (let ((int d . #'(st_getc s)))
-                     (if (>= d 0)
-                         (block (if (not (st_grow (aof buf) (aof cap) (+ n 2))) (block (free buf) (return -1)))
-                                (set (nth n buf) (cast u8 d)) (set n (+ n 1)))))))
-              ;; INSIDE QUOTES A BACKSLASH TAKES THE NEXT CHARACTER, so the
-              ;; quote in `'\''' or `"\""' does not close them (1.9.4).
-              ;; Without it the quote after the escaped one opened a
-              ;; quoted atom that ran on into the next clauses, and
-              ;; library/reasoning/translate.pl read 308 of its clauses.
-              ((and (>= state 1) (and (<= state 3) (== c 92)))
-               (let ((int d . #'(st_getc s)))
-                 (if (>= d 0)
-                     (block (if (not (st_grow (aof buf) (aof cap) (+ n 2))) (block (free buf) (return -1)))
-                            (set (nth n buf) (cast u8 d)) (set n (+ n 1))))))
-              ((== state 1) (if (== c 39) (set state 0)))
-              ((== state 2) (if (== c 34) (set state 0)))
-              ((== state 3) (if (== c 96) (set state 0)))
-              (#t
-               (cond
-                 ((== c 37) (set state 4))
-                 ((and (== c 42) (== prev 47)) (set state 5))
-                 ;; 0'c takes the next character literally, when the 0 begins a number
-                 ((and (== c 39) (and (== prev 48) (st_number_start buf n))) (set state 6))
-                 ((== c 39) (set state 1))
-                 ((== c 34) (set state 2))
-                 ((== c 96) (set state 3))
-                 ((and (== c 46) (not (st_is_symbol prev)))
-                  ;; the end token: a `.' followed by layout, `%' or the end
-                  (let ((int d . #'(st_getc s)))
-                    (if (or (< d 0) (or (== d 32) (or (== d 10) (or (== d 9) (or (== d 13) (== d 37))))))
-                        (block (if (>= d 0) (st_ungetc s d))
-                               (set (cof out) buf) (set (cof len) n)
-                               (return 1)))
-                    (st_ungetc s d))))))
-            (if (and (== state 0) (or (== c 32) (or (== c 10) (or (== c 9) (== c 13)))))
-                (set prev 32)
-              (set prev c)))
-          ;; the end of the file: nothing but layout and comments is a clean end
-          (if (or (== state 4) (== state 0))
-              (let ((int clean . 1))
-                (for ((size_t i . 0)) (< i n) ((++ i))
-                     (let ((int b . #'(cast int (nth i buf))))
-                       (if (and (!= b 32) (and (!= b 10) (and (!= b 9) (!= b 13))))
-                           (block (set clean 0) break))))
-                ;; a comment-only tail is clean too: strip comments by rescanning
-                (if (not clean)
-                    (let ((int st . 0) (int pv . 32))
-                      (set clean 1)
-                      (for ((size_t i . 0)) (< i n) ((++ i))
-                           (let ((int b . #'(cast int (nth i buf))))
-                             (cond
-                               ((== st 4) (if (== b 10) (set st 0)))
-                               ((== st 5) (if (and (== b 47) (== pv 42)) (set st 0)))
-                               ((== b 37) (set st 4))
-                               ((and (== b 42) (== pv 47)) (set st 5))
-                               ((and (!= b 32) (and (!= b 10) (and (!= b 9) (and (!= b 13) (!= b 47)))))
-                                (set clean 0)))
-                             (set pv b)))))
-                (if clean (block (free buf) (return 0)))))
+            (if (== c 46)
+                (let ((int d . #'(st_getc s)))
+                  (if (>= d 0) (st_ungetc s d))
+                  (if (or (< d 0) (or (st_layout d) (== d 37)))
+                      (block
+                        (set kind (coco_m_raw_walk (cast (const char *) buf) n (aof end)))
+                        (if (and (or (== kind 0) (== kind 6)) (== end n))
+                            (block (set (cof out) buf) (set (cof len) n) (return 1))))))))
+          (if (== (coco_m_raw_walk (cast (const char *) buf) n (aof end)) 2)
+              (block (free buf) (return 0)))
           (set (cof out) buf)
           (set (cof len) n)
-          (return -1)))
+          (return 1)))
 
   ;;; One clause: '$stream_read_term'(S, N, Kind, T, Names, Message), Kind
-  ;;; term, end_of_file or syntax_error -- flat, because a module builds no
-  ;;; compound; the Coco half throws syntax_error(Message) in ISO's shape.
+  ;;; term, end_of_file or syntax_error, Message then '$syntax'(Id, Line,
+  ;;; LinePos, CharNo), which the Coco half throws in swipl's shape.
   ;;; '$stream_read_term_pos'/11 (WANT) adds Pos, SWI's subterm_positions
   ;;; as the engine's reader builds them, and Char, Line, LinePos and Byte,
   ;;; where the term begins -- at the end of the file, where that is --
@@ -1208,6 +1148,20 @@
         (if (not (coco_m_unify_int e (coco_m_arg e g 9) p)) (return 0))
         (return (coco_m_unify_int e (coco_m_arg e g 10) b)))
 
+  ;;; A CLAUSE THAT WILL NOT READ (3.11.0): Kind syntax_error and Message
+  ;;; '$syntax'(Id, Line, LinePos, CharNo), swipl's id and its place in the
+  ;;; stream, which the Coco half makes file(F, L, LP, C) or stream(S, L,
+  ;;; LP, C). The stream stands after the clause's full stop, or at its end,
+  ;;; as swipl's does. BUF is freed.
+  (static)
+  (func st_syntax ((coco_engine * e) (size_t g) (u8 * buf) (i64 c0) (i64 l0) (i64 p0)) (out int)
+        (let ((size_t t . #'(coco_m_syntax_at e (cast (const char *) buf) c0 l0 p0)))
+          (free buf)
+          ;; the reader that refused the text reads it again the same way
+          (if (== t 0) (return (coco_m_error e "read_term" "a clause read once and not again")))
+          (if (not (coco_m_unify_atom e (coco_m_arg e g 2) "syntax_error")) (return 0))
+          (return (coco_m_unify e (coco_m_arg e g 5) t))))
+
   (static)
   (func st_read_term ((coco_engine * e) (size_t g) (int want)) (out int)
         (let ((int s . -1) (u8 * buf . nil) (size_t n . 0) (int rc . 0)
@@ -1216,12 +1170,13 @@
           (let ((int rc48 . #'(st_slot e g 1 (aof s)))) (if (!= rc48 1) (return rc48)))
           (let ((int rc49 . #'(st_need e g 0 s 1 "input"))) (if (!= rc49 1) (return rc49)))
           (let ((int rc50 . #'(st_readable e g 0 s))) (if (!= rc50 1) (return rc50)))
-          ;; where the text about to be read begins, layout and all
-          (if want
-              (block (st_pos_sync s)
-                     (set b0 (nth s st_nb)) (set c0 (nth s st_nc))
-                     (set l0 (nth s st_nl)) (set p0 (nth s st_lp))))
+          ;; where the text about to be read begins, layout and all: the term's
+          ;; positions and a syntax error's place are counted on from there
+          (st_pos_sync s)
+          (set b0 (nth s st_nb)) (set c0 (nth s st_nc))
+          (set l0 (nth s st_nl)) (set p0 (nth s st_lp))
           (set rc (st_read_clause s (aof buf) (aof n)))
+          (if (== rc -2) (return (coco_m_resource_error e "memory")))
           (if (== rc 0)
               (block
                 (if (not (coco_m_unify_atom e (coco_m_arg e g 2) "end_of_file")) (return 0))
@@ -1230,15 +1185,11 @@
           ;; the scanner grows its buffer to two past every byte it keeps, so
           ;; the NUL that makes it a C string always has its slot
           (set (nth n buf) (cast u8 0))
-          (if (== rc -1)
-              (block
-                (free buf)
-                (if (not (coco_m_unify_atom e (coco_m_arg e g 2) "syntax_error")) (return 0))
-                (return (coco_m_unify_atom e (coco_m_arg e g 5) "end of file in clause"))))
           (if want
               (set rc (coco_m_read_clause_pos e (cast (char *) buf) c0 (aof t) (aof names)
                                               (aof pos) (aof start) err (sizeof err)))
             (set rc (coco_m_read_clause e (cast (char *) buf) (aof t) (aof names) err (sizeof err))))
+          (if (== rc -1) (return (st_syntax e g buf c0 l0 p0)))
           (if (and want (== rc 1)) (st_pos_walk buf start (aof c0) (aof l0) (aof p0)))
           (free buf)
           (if (== rc 0)
@@ -1246,10 +1197,6 @@
                 (if (not (coco_m_unify_atom e (coco_m_arg e g 2) "end_of_file")) (return 0))
                 (if (not want) (return 1))
                 (return (st_unify_where e g (nth s st_nc) (nth s st_nl) (nth s st_lp) (nth s st_nb)))))
-          (if (== rc -1)
-              (block
-                (if (not (coco_m_unify_atom e (coco_m_arg e g 2) "syntax_error")) (return 0))
-                (return (coco_m_unify_atom e (coco_m_arg e g 5) err))))
           (if (not (coco_m_unify_atom e (coco_m_arg e g 2) "term")) (return 0))
           (if (not (coco_m_unify e (coco_m_arg e g 3) t)) (return 0))
           (if (not (coco_m_unify e (coco_m_arg e g 4) names)) (return 0))

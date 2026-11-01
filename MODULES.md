@@ -363,6 +363,16 @@ somewhere else.
 code list, so without it every double-quoted file name in a program would be a
 type error.
 
+A module that reads clauses from text of its own (library(stream) does) has the
+engine's reader and swipl's raw read beside it (3.11.0; lib/module.cicili says
+what each answers):
+
+| | |
+|---|---|
+| `coco_m_read_clause(e, src, &t, &names, err, n)` | one clause of SRC, 1 read, 0 nothing to read, -1 a syntax error |
+| `coco_m_raw_walk(s, n, &end)` | where swipl's raw read ends a clause in S's N bytes: the walk's kind (0 a full stop ending at END, 2 nothing but layout and comments, ...) -- a stream is cut into clauses where a load cuts a file |
+| `coco_m_syntax_at(e, src, c0, l0, p0)` | a clause's text that will not read, as `'$syntax'(Id, Line, LinePos, CharNo)`: swipl's id and place, counted on from where SRC began in its stream; 0 when it reads |
+
 ### Text in the program's units: characters, or bytes (1.13.0)
 
 A program counts text in characters -- the default since 2.0.0, and asked for
