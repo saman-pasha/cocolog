@@ -782,7 +782,14 @@
     ;; a nested read hands its initialization(G, main) up to that list, and
     ;; the outermost runs it after the whole load, as swipl's does
     (member int        lreads)
-    (member void *     ltop))
+    (member void *     ltop)
+    ;; WHERE A LOAD STANDS, beside `sloc_file' and `sloc_line' (3.14.0),
+    ;; for prolog_load_context/2: the file the outermost read of this load
+    ;; reads (an included file's includer), and the text being read with the
+    ;; byte its term in hand starts at, set and put back where those are
+    (member const char * sloc_src)
+    (member const char * sloc_text)
+    (member size_t     sloc_off))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends

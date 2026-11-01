@@ -702,6 +702,16 @@
   ;;; load muted the store -- save by an attribute alone, which leaves it
   ;;; the system's, as swipl's public/1 does. 1 declared, 0 out of memory,
   ;;; -1 the backend refused it (`write_err').
+  ;;; A NON-TERMINAL (3.14.0), swipl's predicate attribute: set by a grammar
+  ;;; rule a load translates and by non_terminal/1, asked by expand_term/2
+  ;;; before it gives a rule its declaration (`'$nt_known'/1'), told by
+  ;;; predicate_property/2 (`pattrs' 16). 1, or 0 out of memory.
+  (func coco_pred_nt_mark ((coco_store * st) (u64 nid) (u32 n)) (out int)
+        (let ((size_t pi . #'(coco_pred_intern st nid n)))
+          (if (>= pi (-> st npreds)) (return 0))
+          (set ($ (nth pi (-> st preds)) pattrs) (bitor ($ (nth pi (-> st preds)) pattrs) 16))
+          (return 1)))
+
   (func coco_decl_pi ((coco_store * st) (coco_machine * m) (u64 nid) (u32 n) (int kind)) (out int)
         (let ((size_t pi . 0) (int ok . 1) (size_t head . 0))
           (cond

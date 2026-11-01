@@ -1283,7 +1283,12 @@
     ;; HOW MANY OF ITS PREDICATES A PROGRAM FILE HAS TAKEN OVER (3.1.0,
     ;; `taken' on the predicate): 0 in nearly every store, which is all the
     ;; questions about a name ask first.
-    (member size_t    ntaken))
+    (member size_t    ntaken)
+    ;; 1 WHILE A COMPILED-IN MODULE'S OWN PROLOG TEXT IS READ (3.14.0,
+    ;; `coco_module_load'): a program's term_expansion/2 and
+    ;; goal_expansion/2 reach every file a load reads, as swipl's do, and
+    ;; never the engine's own predicates, which swipl's are not read for.
+    (member int       noexp))
 
   (decl) (func coco_store_init ((coco_store * st)))
   (decl) (func coco_store_free ((coco_store * st)))
@@ -1881,6 +1886,9 @@
   (decl) (func coco_consult ((coco_store * st) (coco_machine * m) (const char * text)
                            (const char * origin)
                            (char * err) (size_t errlen)) (out int))
+  ;; THE PROGRAM'S EXPANSION HOOKS (3.14.0): 1 when term_expansion/2 has a
+  ;; clause, 2 when goal_expansion/2 has one of the program's own
+  (decl) (func coco_xhook_bits ((coco_store * st) (coco_machine * m)) (out int))
 
   ;;; THE SAME, WITH THE CLAUSES' OWNER NAMED (2.14.0): OWNER is the real
   ;;; path of the file the text is, and the clauses carry it even in a
@@ -1975,6 +1983,8 @@
   (decl) (func coco_decl_pi ((coco_store * st) (coco_machine * m) (u64 nid) (u32 n) (int kind))
                (out int))
   (decl) (func coco_decl_plain ((coco_machine * m) (size_t spec)) (out int))
+  ;;; a predicate made a non-terminal (3.14.0, `pattrs' 16)
+  (decl) (func coco_pred_nt_mark ((coco_store * st) (u64 nid) (u32 n)) (out int))
 
   ;;; True when T is the compound NAME of arity two -- `a/1', `a, b', `[a|b]'.
   ;;; Out here rather than kept to itself because `listing/1' asks the same

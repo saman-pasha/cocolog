@@ -70,6 +70,48 @@
           (if (not (coco_m_unify_atom e (coco_m_arg e g 0) full)) (return 0))
           (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 (-> m sloc_line))))))
 
+  ;;; '$load_context'(+Key, -Value) (3.14.0), prolog_load_context/2's C
+  ;;; half: `file', the file being read (an included one itself), and
+  ;;; `source', the file the load reads (an included file's includer), each
+  ;;; by its absolute path as source_location/2 gives it, and
+  ;;; `term_position', '$stream_position'(Char, Line, LinePos, Byte) of the
+  ;;; term in hand's first character, swipl's -- each failing where no load
+  ;;; is reading, as swipl's do
+  (func coco_b_load_context ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t k . #'(coco_deref m (coco_m_arg e g 0)))
+              (const char * kn . nil) (const char * f . nil) (char full [4096]))
+          (if (not (coco_is_callable m k)) (return 0))
+          (if (!= (coco_arity m k) 0) (return 0))
+          (set kn (coco_atom_name m (coco_name_of m k)))
+          (cond
+            ((== 0 (strcmp kn "file")) (set f (-> m sloc_file)))
+            ((== 0 (strcmp kn "source")) (set f (-> m sloc_src))))
+          (if (!= f nil)
+              (block
+               (if (not (coco_f_normalise f full (sizeof full)))
+                   (snprintf full (sizeof full) "%s" f))
+               (return (coco_m_unify_atom e (coco_m_arg e g 1) full))))
+          (if (and (== 0 (strcmp kn "term_position")) (!= (-> m sloc_text) nil))
+              ;; characters and the line's characters counted over the
+              ;; text to the term's first byte: a byte that is no UTF-8
+              ;; continuation starts a character
+              (let ((const char * s . #'(-> m sloc_text)) (size_t off . #'(-> m sloc_off))
+                    (i64 ch . 0) (i64 col . 0) (size_t i . 0) (size_t pa [4]) (int c . 0))
+                (while (< i off)
+                  (set c (bitand (cast int (nth i s)) 255))
+                  (if (!= (bitand c 192) 128)
+                      (block (set ch (+ ch 1))
+                             (set col (? (== c 10) 0 (+ col 1)))))
+                  (set i (+ i 1)))
+                (set (nth 0 pa) (coco_new_int m ch))
+                (set (nth 1 pa) (coco_new_int m (cast i64 (-> m sloc_line))))
+                (set (nth 2 pa) (coco_new_int m col))
+                (set (nth 3 pa) (coco_new_int m (cast i64 off)))
+                (return (? (coco_m_unify e (coco_m_arg e g 1)
+                                         (coco_make m "$stream_position" 4 pa)) 1 0))))
+          (return 0)))
+
   ;;; A NAME AND A VALUE ARE SWIPL'S CVT_ALL TEXT (3.0.0, `coco_tx_get'):
   ;;; an atom, a number, a string, a list of codes or of characters, and
   ;;; anything else swipl's error, type_error(text, T); through 2.16
@@ -592,6 +634,8 @@
               ;; thread_local/1 and module_transparent/1 since 3.2.0), in
               ;; swipl's order
               (if (bitand (-> p pattrs) 1) (block (set (nth n v) (coco_new_atom m "public")) (++ n)))
+              ;; and a non-terminal (3.14.0, `coco_pred_nt_mark')
+              (if (bitand (-> p pattrs) 16) (block (set (nth n v) (coco_new_atom m "non_terminal")) (++ n)))
               (set (nth n v) (coco_new_atom m (? (-> p dynamic) "dynamic" "static"))) (++ n)
               (if (bitand (-> p pattrs) 2) (block (set (nth n v) (coco_new_atom m "volatile")) (++ n)))
               (if (bitand (-> p pattrs) 8) (block (set (nth n v) (coco_new_atom m "thread_local")) (++ n)))

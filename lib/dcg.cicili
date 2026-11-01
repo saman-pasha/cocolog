@@ -62,11 +62,117 @@
            ;; A PARTIAL LIST OF TERMINALS is walked at run time by swipl's
            ;; `'$append'/3', which a translated clause names (3.13.0)
            "'$append'([], L, L)."
-           "'$append'([H|T], L, [H|R]) :- '$append'(T, L, R).")))
+           "'$append'([H|T], L, [H|R]) :- '$append'(T, L, R)."
+           ;; EXPANSION (3.14.0), swipl's boot/expand.pl as a program sees
+           ;; it: expand_term/2 asks the program's term_expansion/2, then
+           ;; translates a grammar rule -- the list swipl gives, its
+           ;; non_terminal/1 declaration first -- then asks
+           ;; goal_expansion/2 of each clause's body. `'$xhooks'/2' says
+           ;; which hooks the program has (`coco_xhook_bits'); a load asks
+           ;; the same two through `'$expand_clause'/3'.
+           "expand_term(T, X) :- var(T), !, X = T."
+           "expand_term(T, X) :- '$xhooks'(TE, GE), '$expand_term'(TE, GE, T, X)."
+           "'$expand_term'(1, GE, T, X) :- term_expansion(T, X0), !, '$expand_terms'(X0, GE, X)."
+           "'$expand_term'(_, GE, T, X) :- '$expand_term1'(T, GE, X)."
+           ;; what term_expansion/2 gave: a proper list is its terms, each
+           ;; rule translated with no declaration, as swipl's
+           "'$expand_terms'(X0, GE, X) :- is_list(X0), !, '$expand_elems'(X0, GE, X)."
+           "'$expand_terms'(X0, GE, X) :- '$expand_term1'(X0, GE, X)."
+           "'$expand_elems'([], _, [])."
+           "'$expand_elems'([E|Es], GE, [X|Xs]) :- '$expand_elem'(E, GE, X), '$expand_elems'(Es, GE, Xs)."
+           "'$expand_elem'(E, GE, X) :- '$dcg_rule_term'(E), !, dcg_translate_rule(E, C), '$expand_clause'(GE, C, X)."
+           "'$expand_elem'(E, GE, X) :- '$expand_clause'(GE, E, X)."
+           ;; a rule's declaration names its head as swipl's does, a
+           ;; qualified one with its qualifier under `user:', and is given
+           ;; only when its predicate is no non-terminal yet (`'$nt_known'/1':
+           ;; a load's rule made it one, or non_terminal/1)
+           "'$expand_term1'(T, GE, X) :- '$dcg_rule_term'(T), !,"
+           "    dcg_translate_rule(T, C0), '$expand_clause'(GE, C0, C), C = (H :- _), '$nt_decl'(H, C, X)."
+           "'$expand_term1'(T, GE, X) :- '$expand_clause'(GE, T, X)."
+           "'$dcg_rule_term'(T) :- compound(T), T = (_ --> _)."
+           "'$nt_decl'(H, C, C) :- '$nt_known'(H), !."
+           "'$nt_decl'(H, C, [(:- non_terminal(user:P)), C]) :- '$head_pi'(H, P)."
+           "'$head_pi'(M:H, M:P) :- !, '$head_pi'(H, P)."
+           "'$head_pi'(H, N/A) :- functor(H, N, A)."
+           ;; a clause's body, or a directive's goal, asked of
+           ;; goal_expansion/2 when GE is 1
+           "'$expand_clause'(0, C, C) :- !."
+           "'$expand_clause'(_, C, C) :- var(C), !."
+           "'$expand_clause'(_, (H :- B), (H :- X)) :- !, '$expand_goal'(B, X)."
+           "'$expand_clause'(_, (:- B), (:- X)) :- !, '$expand_goal'(B, X)."
+           "'$expand_clause'(_, C, C)."
+           "expand_goal(G, X) :- '$xhooks'(_, 1), !, '$expand_goal'(G, X)."
+           "expand_goal(G, G)."
+           ;; TO A FIXED POINT, as swipl's, and with no limit, as swipl's:
+           ;; a goal asked again until the hook gives back what it was given
+           ;; or nothing, then its parts -- the control constructs and the
+           ;; meta arguments of the system's meta-predicates -- each so. A
+           ;; lambda of library(yall) is asked nothing: yall's own clause of
+           ;; goal_expansion/2, in the one namespace beside the program's,
+           ;; is swipl's lambda compiler, which a plain swipl file never runs
+           "'$expand_goal'(G, X) :- var(G), !, X = G."
+           "'$expand_goal'(G, X) :- '$goal_expansion'(G, G1), !, '$expand_goal'(G1, X)."
+           "'$expand_goal'(G, X) :- '$expand_parts'(G, X)."
+           "'$goal_expansion'(G, G1) :- \\+ '$lambda_like'(G), goal_expansion(G, G1), G1 \\== G."
+           "'$lambda_like'(G) :- compound(G), compound_name_arity(G, N, A), A >= 2,"
+           "    ( N == (>>) ; N == (/) ), !."
+           "'$expand_parts'(M:G, M:X) :- !, '$expand_goal'(G, X)."
+           "'$expand_parts'((A, B), (X, Y)) :- !, '$expand_goal'(A, X), '$expand_goal'(B, Y)."
+           "'$expand_parts'((A ; B), (X ; Y)) :- !, '$expand_goal'(A, X), '$expand_goal'(B, Y)."
+           "'$expand_parts'((A -> B), (X -> Y)) :- !, '$expand_goal'(A, X), '$expand_goal'(B, Y)."
+           "'$expand_parts'((A *-> B), (X *-> Y)) :- !, '$expand_goal'(A, X), '$expand_goal'(B, Y)."
+           "'$expand_parts'(\\+ A, \\+ X) :- !, '$expand_goal'(A, X)."
+           "'$expand_parts'(G, X) :- '$expand_meta'(G, X), !."
+           "'$expand_parts'(G, G)."
+           "'$expand_meta'(G, X) :- compound(G), compound_name_arguments(G, call, [C|As]),"
+           "    length(As, N), '$expand_closure'(C, N, C2), compound_name_arguments(X, call, [C2|As])."
+           "'$expand_meta'(findall(T, G, L), findall(T, X, L)) :- '$expand_goal'(G, X)."
+           "'$expand_meta'(findall(T, G, L, R), findall(T, X, L, R)) :- '$expand_goal'(G, X)."
+           "'$expand_meta'(forall(A, B), forall(X, Y)) :- '$expand_goal'(A, X), '$expand_goal'(B, Y)."
+           "'$expand_meta'(bagof(T, G, L), bagof(T, X, L)) :- '$expand_caret'(G, X)."
+           "'$expand_meta'(setof(T, G, L), setof(T, X, L)) :- '$expand_caret'(G, X)."
+           "'$expand_meta'(once(G), once(X)) :- '$expand_goal'(G, X)."
+           "'$expand_meta'(ignore(G), ignore(X)) :- '$expand_goal'(G, X)."
+           "'$expand_meta'(not(G), not(X)) :- '$expand_goal'(G, X)."
+           "'$expand_meta'(catch(G, C, R), catch(X, C, Y)) :- '$expand_goal'(G, X), '$expand_goal'(R, Y)."
+           "'$expand_meta'(catch_with_backtrace(G, C, R), catch_with_backtrace(X, C, Y)) :-"
+           "    '$expand_goal'(G, X), '$expand_goal'(R, Y)."
+           "'$expand_meta'(setup_call_cleanup(S, G, C), setup_call_cleanup(X, Y, Z)) :-"
+           "    '$expand_goal'(S, X), '$expand_goal'(G, Y), '$expand_goal'(C, Z)."
+           "'$expand_meta'(setup_call_catcher_cleanup(S, G, K, C), setup_call_catcher_cleanup(X, Y, K, Z)) :-"
+           "    '$expand_goal'(S, X), '$expand_goal'(G, Y), '$expand_goal'(C, Z)."
+           "'$expand_meta'(call_cleanup(G, C), call_cleanup(X, Y)) :- '$expand_goal'(G, X), '$expand_goal'(C, Y)."
+           "'$expand_meta'(with_output_to(S, G), with_output_to(S, X)) :- '$expand_goal'(G, X)."
+           ;; call/N's closure, call/1's goal among them, swipl's way:
+           ;; given its N - 1 arguments as fresh variables, expanded, and
+           ;; taken off again when the expansion kept them last (where it
+           ;; did not, swipl compiles a wrapper and this leaves the closure
+           ;; as it was)
+           "'$expand_closure'(C, N, C2) :- callable(C), C =.. [F|As], length(Vs, N), append(As, Vs, Bs),"
+           "    G =.. [F|Bs], '$expand_goal'(G, X), X =.. [F2|Cs],"
+           "    append(Cs0, Vs2, Cs), Vs2 == Vs, !, C2 =.. [F2|Cs0]."
+           "'$expand_caret'(G, X) :- nonvar(G), G = V^G0, !, '$expand_caret'(G0, X0), X = V^X0."
+           "'$expand_caret'(G, X) :- '$expand_goal'(G, X)."
+           ;; THE DECLARATION expand_term/2 GIVES A RULE (3.14.0): taken, a
+           ;; spec checked as swipl checks it -- each indicator by
+           ;; functor/3, a grammar rule's arity plus two --
+           ;; recorded on the predicate
+           "non_terminal(S) :- '$nt_specs'(S)."
+           "'$nt_specs'(S) :- var(S), !, throw(error(uninstantiation_error(S), _))."
+           "'$nt_specs'([]) :- !."
+           "'$nt_specs'([S|Ss]) :- !, '$nt_specs'(S), '$nt_specs'(Ss)."
+           "'$nt_specs'((A, B)) :- !, '$nt_specs'(A), '$nt_specs'(B)."
+           "'$nt_specs'(_:S) :- !, '$nt_specs'(S)."
+           "'$nt_specs'(N/A) :- !, functor(_, N, A), '$nt_mark'(N, A)."
+           "'$nt_specs'(N//A) :- !, A2 is A + 2, functor(_, N, A2), '$nt_mark'(N, A2)."
+           "'$nt_specs'(S) :- throw(error(type_error(predicate_indicator, S), _)).")))
 
 (DEFPARAMETER *dcg-predicates*
   '(("$dcg_goal"  4 coco_dcg_bi_goal)
-    ("$dcg_rule"  2 coco_dcg_bi_rule)))
+    ("$dcg_rule"  2 coco_dcg_bi_rule)
+    ("$xhooks"    2 coco_dcg_bi_xhooks)
+    ("$nt_mark"   2 coco_dcg_bi_nt_mark)
+    ("$nt_known"  1 coco_dcg_bi_nt_known)))
 
 (generic decl-dcg
   ()
@@ -604,6 +710,40 @@
           (set built (coco_dcg_rule m r 0 (aof err)))
           (if (== built 0) (return (coco_dcg_raise e (aof err))))
           (return (? (coco_m_unify e (coco_m_arg e g 1) built) 1 0))))
+
+  ;;; '$xhooks'(TE, GE) (3.14.0): 1 or 0 for each of the program's two
+  ;;; expansion hooks, term_expansion/2 and goal_expansion/2, as a load asks
+  ;;; (`coco_xhook_bits', lib/kb-consult.cicili)
+  (static)
+  (func coco_dcg_bi_xhooks ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (int b . #'(coco_xhook_bits (-> e st) m)))
+          (return (? (and (coco_m_unify e (coco_m_arg e g 0) (coco_new_int m (bitand b 1)))
+                          (coco_m_unify e (coco_m_arg e g 1)
+                                        (coco_new_int m (? (bitand b 2) 1 0))))
+                     1 0))))
+
+  ;;; '$nt_mark'(Name, Arity) (3.14.0): non_terminal/1's, its spec checked
+  ;;; already -- the predicate a non-terminal (`coco_pred_nt_mark')
+  (static)
+  (func coco_dcg_bi_nt_mark ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t n . #'(coco_deref m (coco_m_arg e g 0))) (i64 a . 0))
+          (if (not (coco_m_int e (coco_m_arg e g 1) (aof a))) (return 0))
+          (if (not (coco_is_callable m n)) (return 1))
+          (return (? (coco_pred_nt_mark (-> e st) (coco_name_of m n) (cast u32 a)) 1
+                     (coco_mem_error e)))))
+
+  ;;; '$nt_known'(Head) (3.14.0): its predicate is a non-terminal already,
+  ;;; when expand_term/2 gives a rule no declaration, as swipl's
+  (static)
+  (func coco_dcg_bi_nt_known ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (coco_store * st . #'(-> e st))
+              (size_t h . #'(coco_deref m (coco_m_arg e g 0))) (size_t pi . 0))
+          (while (coco_is_compound2 m h ":") (set h (coco_deref m (coco_arg m h 1))))
+          (if (not (coco_is_callable m h)) (return 0))
+          (set pi (coco_pred_find st (coco_name_of m h) (coco_arity m h)))
+          (return (? (and (< pi (-> st npreds)) (bitand ($ (nth pi (-> st preds)) pattrs) 16)) 1 0))))
 
   (static) (coco-emit-module-dispatch coco_dcg_dispatch *dcg-predicates*)
 

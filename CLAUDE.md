@@ -471,6 +471,50 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   it; a store made after passes a failed module by, where swipl's thread
   sees what it read; and a file named through a link is that file, where
   swipl's is another.
+* **A load asks the program's term_expansion/2 and goal_expansion/2**
+  (3.14.0, swipl's; `coco_consult_xcall` in lib/kb-consult.cicili, the
+  Prolog half in lib/dcg.cicili): each term read where the file is taken --
+  a directive too, never `if/elif/else/endif` nor a term skipped -- before
+  a grammar rule is translated, through the load's goal hook (kind 0, a
+  directive's); what it gives is read in the term's place, a proper list
+  its terms and `[]` none; an error(_, _) it raises is reported at the
+  term, `ERROR: F:L:` and its message, and the term dropped; any other
+  ball ends the load, as a directive's does. A loaded file's start is
+  `begin_of_file` when a hook stands before the first read, its end
+  `end_of_file` (an included file's neither), each dropped unanswered, and
+  an `end_of_file` read or given ends the file there. goal_expansion/2 is
+  asked of each clause's body and each directive's goal by
+  `'$expand_clause'/3`, to a fixed point with no limit (swipl's: a hook
+  that never settles loops), through the control constructs and the
+  system's meta-arguments (`'$expand_meta'`), never of a yall lambda. The
+  hooks are asked again after a directive and after a clause of one
+  (`xbits`, `coco_xhook_load`); goal_expansion/2 counts only the program's
+  clauses (`own` or unmuted), so library(yall)'s `system:` clause is no
+  hook. **The expansion's terms live above `mark`**, which moves over
+  them and back after them (`omark`) only where nothing raised it since --
+  a directive's read of a global raises it over the copy (the gcache's
+  fill), and a plain directive's copy outlives its term that way, as it
+  always has: **never set the consult's `mark` back to a value saved
+  before a goal ran** (the first cut did, and `:- nb_getval(K, _).` left
+  the next read a wound-back copy, `nl` where `f([1,2,3,4,5])` stood).
+  The hook's trail entries are dropped to its mark (a global's sentinel
+  among them, which would name cells the term's end winds back), and no
+  goal of theirs collects (`vouch` 0). **The program's hooks never reach
+  cocolog's own libraries**: a compiled-in module's text (`file` nil) and
+  the preloaded ones (`coco_module_set_noexp`, in `coco_library_preload`)
+  are read with the store's `noexp`, each module by its own mark and
+  never by the read it is nested in (dcg_basics' `:- use_module` reads
+  the libraries after it inside its own read), though under `run` they
+  are read at the program's first ask, after its hooks; a library on the path
+  loaded after a hook is expanded, as swipl's. **prolog_load_context/2**
+  answers `file` and `term_position` from the machine's `sloc_file`,
+  `sloc_text` and `sloc_off`, `source` from `sloc_src` (the loaded file
+  where an include stands), `directory` the file's: **a new site that sets
+  `sloc_file` for a goal sets the other three too**, as the directive's and
+  the hook's do. A grammar rule a load translates makes its predicate a
+  non-terminal (`pattrs` 16, `coco_pred_nt_mark`), as non_terminal/1 does,
+  and expand_term/2 gives a rule its `:- non_terminal` only where the
+  predicate is none yet, as swipl's (COMPAT.md has what is not swipl's).
 * **A program's own arguments come after `--`**:
   `current_prolog_flag(argv, [Exe|Tail])`; `os_argv` is the literal command
   line; `executable` is the binary's path. Those three, `double_quotes`,

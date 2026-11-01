@@ -43,9 +43,91 @@ main :-
     scratch(D),
     registered, from_the_path(D), keeps_builtins(D), lends_ops(D), errors(D), includes(D),
     nested_loads(D), shared_object(D), across_processes(D),
-    always_present, still_answers,
+    always_present, still_answers, expansions(D),
     shl(['rm -rf ', D]),
     checks_done.
+
+%% THE PROGRAM'S EXPANSION HOOKS NEVER REACH COCOLOG'S OWN LIBRARIES
+%% (3.14.0): a compiled-in module's Prolog text and the preloaded
+%% libraries (the vendored swipl ones, async, print_message) are read with
+%% no term_expansion/2 or goal_expansion/2 of the program's asked, though
+%% under `run' they are read at the file's first directive, after the hooks
+%% the file defined -- swipl's are read before any program is. A hook that
+%% records every file it is asked from names the program's alone (a text
+%% with no file, a compiled-in module's, as `nofile'), and one that breaks
+%% copy_term_nat/2 leaves library(yall)'s lambdas working.
+expansions(D) :-
+    section('expansion hooks and the libraries'),
+    expansions_libraries(D), expansions_place(D), expansions_heap(D).
+
+expansions_libraries(D) :-
+    atom_concat(D, '/xh.pl', Xh),
+    fixture(Xh, [':- dynamic sf/1.',
+                 'term_expansion(_, _) :- source_location(F, _), file_base_name(F, B), assertz(sf(B)), fail.',
+                 'term_expansion(_, _) :- \\+ source_location(_, _), assertz(sf(nofile)), fail.',
+                 'goal_expansion(copy_term_nat(_, _), fail).',
+                 'a.',
+                 ':- true.',
+                 'main :- findall(B, sf(B), L), sort(L, S), ( call([X]>>(X == 1), 1) -> R = lambda_ok ; R = lambda_broken ), writeq(answer(S, R)), nl.']),
+    sh_join(['run ', Xh, ' main'], A1),
+    cocolog_answer(A1, G1),
+    check('run: no library reaches the hooks', G1, answer(['xh.pl'], lambda_ok)),
+    sh_join(['-s ', Xh], A2),
+    cocolog_answer(A2, G2),
+    check('-s: no library reaches the hooks', G2, answer(['xh.pl'], lambda_ok)).
+
+expansions_place(D) :-
+    %% a term's place counts characters, as swipl's does reading UTF-8
+    %% (LANG=C.UTF-8 swipl answers the same; in the C locale it reads the
+    %% file as Latin-1 and counts bytes)
+    atom_concat(D, '/xp.pl', Xp),
+    %% x, a bracket, a quote, e-acute, a tab, e-acute, a quote, a bracket, a stop
+    atom_codes(X3, [120, 40, 39, 233, 9, 233, 39, 41, 46]),
+    fixture(Xp, ['term_expansion(where, here(P)) :- prolog_load_context(term_position, P).',
+                 X3,
+                 'where.',
+                 'main :- here(P), writeq(answer(P)), nl.']),
+    sh_join(['-s ', Xp], A3),
+    cocolog_answer(A3, G3),
+    check('a term''s place counts characters', G3, answer('$stream_position'(83, 3, 0, 85))).
+
+expansions_heap(D) :-
+    %% the terms an expansion gives are read after its directive ran, and
+    %% that directive collects nothing: its heap holds them, unregistered
+    %% (COCOLOG_GC_CELLS=2000 collects every 2000 cells where it may)
+    atom_concat(D, '/xg.pl', Xg),
+    %% -- and a global's copy one of them reads is kept while the next
+    %% reads it, as a plain directive's is
+    fixture(Xg, [':- nb_setval(dk, f([1, 2, 3, 4, 5])).',
+                 'term_expansion(dl, [(:- big), dl2(1), dl2(2), dl2(3), dl2(4)]).',
+                 'term_expansion(dr, [(:- nb_getval(dk, _)), dr2]).',
+                 'big :- numlist(1, 20000, L), msort(L, _), length(L, _).',
+                 'dl.',
+                 'dr.',
+                 'main :- findall(X, dl2(X), L), nb_getval(dk, K), writeq(answer(L, K)), nl.']),
+    setenv('COCOLOG_GC_CELLS', '2000'),
+    sh_join(['run ', Xg, ' main'], A4),
+    cocolog_answer(A4, G4),
+    unsetenv('COCOLOG_GC_CELLS'),
+    check('an expansion''s terms outlive its directive''s work', G4,
+          answer([1, 2, 3, 4], f([1, 2, 3, 4, 5]))),
+    %% and what the hook bound leaves no trail behind -- a load of 3000
+    %% expanded terms left 24000 cells of it through the first cut, and the
+    %% sentinel of a global the hook read would name cells the term's end
+    %% winds back -- nor the terms it gave on the heap: 400 cells at the
+    %% end, against 328 for a file of no expansion
+    atom_concat(D, '/xt.pl', Xt),
+    findall(L5, ( between(1, 3000, I5), format(atom(L5), 't(~d).', [I5]) ), Ts5),
+    append([':- nb_setval(k, f([1, 2, 3])).',
+            'term_expansion(t(N), [u(N, V)]) :- nb_getval(k, V).'|Ts5],
+           [':- statistics(trailused, T), statistics(globalused, G), assertz(tr(T, G)).',
+            'main :- tr(T, G), ( G < 2000 -> S = small ; S = G ), nb_getval(k, K), u(3000, U),',
+            '        writeq(answer(T, S, K, U)), nl.'], Xt5),
+    fixture(Xt, Xt5),
+    sh_join(['run ', Xt, ' main'], A5),
+    cocolog_answer(A5, G5),
+    check('an expansion leaves no trail and no terms behind', G5,
+          answer(0, small, f([1, 2, 3]), f([1, 2, 3]))).
 
 registered :-
     section('a registered module'),

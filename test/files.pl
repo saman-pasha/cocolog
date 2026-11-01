@@ -145,6 +145,12 @@ fixtures(load_paths, Sandbox) :- !,
 fixtures(include, Sandbox) :- !,
     shl(['mkdir -p ', Sandbox, '/sub/deep ', Sandbox, '/sub/dir']),
     forall(ic(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
+%% the files the expansion case consults (`xf/2'): one an expansion ends,
+%% one an `end_of_file' it holds ends, one that includes another, one a
+%% ball ends for each hook, and one that includes a file in sub/
+fixtures(expand, Sandbox) :- !,
+    shl(['mkdir -p ', Sandbox, '/sub']),
+    forall(xf(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
 %% the files a load directive reads, and the ones they read (`nest/2')
 fixtures(nested_load, Sandbox) :- !,
     shl(['mkdir -p ', Sandbox, '/sub']),
@@ -270,6 +276,17 @@ ic('e8.pl', ['r8(0).', ':- include([a]).', 'r8(1).']).
 ic('e9.pl', ['r9(0).', ':- include([0''a]).', 'r9(1).']).
 ic('sub/x1.pl', ['x1.']).
 ic('sub/x2.pl', ['x2.']).
+
+xf('stop.pl', ['stop_here.', 'never_read.']).
+xf('lit.pl', ['l(1).', 'end_of_file.', 'l(2).']).
+xf('withinc.pl', ['w(1).', 'w(2).', ':- include(inc).']).
+xf('inc.pl', ['i(1).', 'i(2).']).
+xf('toss.pl', ['toss.', 'after_toss.']).
+xf('gt1.pl', [':- gtoss.', 'gt1b.']).
+xf('gt2.pl', ['g2 :- gtoss.', 'gt2b.']).
+xf('withsub.pl', ['ws(1).', ':- include(sub/inc2).']).
+xf('sub/inc2.pl', ['ictx.',
+                       ':- prolog_load_context(source, S), file_base_name(S, B), prolog_load_context(directory, D), file_base_name(D, DB), prolog_load_context(term_position, P), assertz(seen(dsrc(B, DB, P))).']).
 
 lp('both.pl', ['both_cwd.']).
 lp('g1.pl', ['g1.']).

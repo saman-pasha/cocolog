@@ -260,6 +260,10 @@ flow_mode(getenv, 2, ['+', '-'], semidet).
 flow_mode(setenv, 2, ['+', '+'], det).
 flow_mode(unsetenv, 1, ['+'], det).
 flow_mode(source_location, 2, ['-', '-'], semidet).
+%% prolog_load_context/2's C half (3.14.0): the load's file, its source and
+%% the term's place while a hook or a directive of it runs; fails anywhere
+%% else
+flow_mode('$load_context', 2, ['+', '-'], semidet).
 flow_mode(print_message, 2, ['+', '+'], det).
 flow_mode(print_message_lines, 3, ['+', '+', '+'], det).
 flow_mode(message_to_string, 2, ['+', '-'], det).

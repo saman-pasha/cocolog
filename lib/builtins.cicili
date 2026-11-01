@@ -115,6 +115,7 @@
     ("unsetenv"                1 coco_b_unsetenv)
 
     ("source_location"         2 coco_b_source_location)
+    ("$load_context"           2 coco_b_load_context)
 
     ("format"                  1 coco_b_format1)
     ("format"                  2 coco_b_format2)
@@ -617,6 +618,21 @@
            ;; and ignored every option.
            "term_string(T, S, O) :- nonvar(S), !, read_term_from_atom(S, T, O)."
            "term_string(T, S, O) :- ( memberchk(quoted(_), O) -> O1 = O ; O1 = [quoted(true)|O] ), format(string(S), '~W', [T, O1])."
+
+           ;; ---- prolog_load_context/2, swipl's (3.14.0) -------------------
+           ;; Its keys in swipl's order, which a variable key walks. Where
+           ;; no load reads, `module', `dialect' and `script' answer and the
+           ;; others fail, as swipl's do; `stream', `variable_names' and
+           ;; `term' answer nothing here (a load reads text, not a stream,
+           ;; and keeps no names)
+           "prolog_load_context(K, V) :- '$plc'(K, V)."
+           "'$plc'(module, user)."
+           "'$plc'(file, F) :- '$load_context'(file, F)."
+           "'$plc'(source, F) :- '$load_context'(source, F)."
+           "'$plc'(directory, D) :- '$load_context'(file, F), file_directory_name(F, D)."
+           "'$plc'(dialect, swi)."
+           "'$plc'(term_position, P) :- '$load_context'(term_position, P)."
+           "'$plc'(script, false)."
 
            ;; ---- atom_string-free helpers the tests lean on -----------------
            "atom_chars_list(A, L) :- atom_chars(A, L).")))

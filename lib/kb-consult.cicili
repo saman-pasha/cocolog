@@ -1352,6 +1352,148 @@
             (set (-> m lball_size) (- (-> st len) c)))
           (set (-> m heap_len) mark)))
 
+  ;;; THE PROGRAM'S EXPANSION HOOKS (3.14.0), what a load and expand_term/2
+  ;;; ask before they call one: 1 when term_expansion/2 has a live clause,
+  ;;; 2 when goal_expansion/2 has one of the program's own -- read from a
+  ;;; file of the program (the predicate `own'), or consulted or asserted
+  ;;; unmuted. library(yall)'s `system:goal_expansion/2', in the one
+  ;;; namespace beside a program's, is neither: it is swipl's lambda
+  ;;; expansion, which a plain swipl file never meets (there yall is
+  ;;; autoloaded, not loaded), and it calls prolog_load_context/2, which
+  ;;; cocolog does not have.
+  (func coco_xhook_bits ((coco_store * st) (coco_machine * m)) (out int)
+        (let ((int bits . 0) (size_t pi . 0) (size_t n . 0) (size_t i . 0))
+          (set pi (coco_pred_find st (coco_intern m "term_expansion") 2))
+          (if (and (< pi (-> st npreds)) (> (coco_pred_ready st pi) 0))
+              (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+                (set n (-> p nclauses))
+                (set i 0)
+                (while (< i n)
+                  (if (not (coco_pred_dead p i)) (block (set bits 1) break))
+                  (set i (+ i 1)))))
+          (set pi (coco_pred_find st (coco_intern m "goal_expansion") 2))
+          (if (and (< pi (-> st npreds)) (> (coco_pred_ready st pi) 0))
+              (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+                (set n (-> p nclauses))
+                (set i 0)
+                (while (< i n)
+                  (if (and (not (coco_pred_dead p i))
+                           (or (-> p own) (== (nth i (-> p muted)) 0)))
+                      (block (set bits (bitor bits 2)) break))
+                  (set i (+ i 1)))))
+          (return bits)))
+
+  ;;; and what a load asks: the bits, where a hook can run at all -- a goal
+  ;;; hook installed (none in a test binary) and the text no compiled-in
+  ;;; module's own (`noexp')
+  (static)
+  (func coco_xhook_load ((coco_store * st) (coco_machine * m)) (out int)
+        (if (or (== coco_goal_hook nil) (-> st noexp)) (return 0))
+        (return (coco_xhook_bits st m)))
+
+  ;;; ONE EXPANSION ASKED OF THE PROGRAM AT A LOAD (3.14.0): NAME(A, T, X)
+  ;;; -- or NAME(T, X) when A is 0 -- run through the load's goal hook (an
+  ;;; engine of its own; no collection), 1 with X in OUT, 0 when it failed,
+  ;;; -1 when it raised an error(_, _), its message in ERR and no
+  ;;; backtrace, as swipl reports an expansion's error, and -2 for any
+  ;;; other ball, which ends the load as a directive's does (the hook kept
+  ;;; it, `lball'). X's binding is kept and its trail
+  ;;; entries dropped: every cell it names is above the mark the load winds
+  ;;; the heap back to, which takes them all.
+  (static)
+  (func coco_consult_xcall ((coco_store * st) (coco_machine * m) (const char * name)
+                            (size_t a) (size_t t) (size_t * out)
+                            (const char * file) (int line) (const char * src)
+                            (const char * text) (size_t off)
+                            (char * err) (size_t errlen)) (out int)
+        (let ((size_t x . #'(coco_new_var m)) (size_t g . 0) (size_t tl . #'(-> m trail_len))
+              (int r . 0)
+              ;; source_location/2 and prolog_load_context/2 answer the
+              ;; term's place while the hook runs, as swipl's do
+              (const char * sfile . #'(-> m sloc_file)) (int sline . #'(-> m sloc_line))
+              (const char * ssrc . #'(-> m sloc_src)) (const char * stext . #'(-> m sloc_text))
+              (size_t soff . #'(-> m sloc_off)))
+          (if (== a 0)
+              (set g (coco_make2 m name t x))
+            (let ((size_t args [3]))
+              (set (nth 0 args) a) (set (nth 1 args) t) (set (nth 2 args) x)
+              (set g (coco_make m name 3 args))))
+          (set (-> m sloc_file) file) (set (-> m sloc_line) line) (set (-> m sloc_src) src)
+          (set (-> m sloc_text) text) (set (-> m sloc_off) off)
+          (set r (coco_goal_hook st m g 0 err errlen))
+          (set (-> m sloc_file) sfile) (set (-> m sloc_line) sline) (set (-> m sloc_src) ssrc)
+          (set (-> m sloc_text) stext) (set (-> m sloc_off) soff)
+          (if (== r 1)
+              (block (set (-> m trail_len) tl)
+                     (set (cof out) (coco_deref m x))
+                     (return 1)))
+          (if (== r 0) (return 0))
+          (if (== r -2) (return -2))
+          (return -1)))
+
+  ;;; a clause's head is one of the two hooks: term_expansion/2 or
+  ;;; goal_expansion/2, qualified or not, a fact or a rule -- after which
+  ;;; the load asks the hooks again
+  (static)
+  (func coco_xhook_head ((coco_machine * m) (size_t c) (u64 te) (u64 ge)) (out int)
+        (set c (coco_deref m c))
+        (if (coco_is_compound2 m c ":-") (set c (coco_deref m (coco_arg m c 0))))
+        (while (coco_is_compound2 m c ":") (set c (coco_deref m (coco_arg m c 1))))
+        (if (or (not (coco_is_callable m c)) (!= (coco_arity m c) 2)) (return 0))
+        (return (or (== (coco_name_of m c) te) (== (coco_name_of m c) ge))))
+
+  ;;; the clause a grammar rule was translated to makes its predicate a
+  ;;; non-terminal (3.14.0, `coco_pred_nt_mark'), as swipl's load records
+  ;;; every rule's, one an expansion gave among them
+  (static)
+  (func coco_consult_nt_mark ((coco_store * st) (coco_machine * m) (size_t c))
+        (set c (coco_deref m c))
+        (if (coco_is_compound2 m c ":-") (set c (coco_deref m (coco_arg m c 0))))
+        (while (coco_is_compound2 m c ":") (set c (coco_deref m (coco_arg m c 1))))
+        (if (coco_is_callable m c) (coco_pred_nt_mark st (coco_name_of m c) (coco_arity m c))))
+
+  ;;; a term that is `:- if(_)', `:- elif(_)', `:- else' or `:- endif',
+  ;;; which swipl's conditional reading takes before term_expansion/2 sees
+  ;;; anything
+  (static)
+  (func coco_consult_cond_dir ((coco_machine * m) (size_t t)) (out int)
+        (set t (coco_deref m t))
+        (if (not (coco_is_compound1 m t ":-")) (return 0))
+        (let ((size_t d . #'(coco_deref m (coco_arg m t 0))) (const char * dn . nil) (u32 da . 0))
+          (if (not (coco_is_callable m d)) (return 0))
+          (set dn (coco_atom_name m (coco_name_of m d)))
+          (set da (coco_arity m d))
+          (if (== da 1) (return (or (== 0 (strcmp dn "if")) (== 0 (strcmp dn "elif")))))
+          (if (== da 0) (return (or (== 0 (strcmp dn "else")) (== 0 (strcmp dn "endif")))))
+          (return 0)))
+
+  ;;; what term_expansion/2 gave is its terms when it is a proper list, as
+  ;;; swipl's '$expand_terms' reads it, and one term otherwise
+  (static)
+  (func coco_consult_xlist ((coco_machine * m) (size_t xs)) (out int)
+        (let ((size_t n . #'(-> m heap_len)))
+          (set xs (coco_deref m xs))
+          (while (and (coco_is_cons m xs) (> n 0))
+            (set xs (coco_deref m (coco_arg m xs 1)))
+            (set n (- n 1)))
+          (return (coco_is_nil m xs))))
+
+  ;;; the term is the atom end_of_file, which ends the file where it stands
+  ;;; (3.14.0), as swipl's: read there, or given by term_expansion/2
+  (static)
+  (func coco_consult_eof ((coco_machine * m) (size_t t) (u64 eof)) (out int)
+        (let ((size_t c . #'(nth (coco_deref m t) (-> m heap))))
+          (return (and (coco-tag-is ATOM c) (== (coco-payload c) eof)))))
+
+  ;;; a ball that is no error(_, _) ends the load, as a directive's does:
+  ;;; its message said as a script's load says it
+  (static)
+  (func coco_consult_init_failed ((char * err) (size_t errlen))
+        (let ((char * msg . #'(strdup err)))
+          (if (!= msg nil)
+              (block (snprintf err errlen "Prolog initialisation failed:\nERROR: %s" msg)
+                     (free msg)))))
+
   ;;; A FILE AN INCLUDE READS (3.5.0) is read by this same function, inside
   ;;; the one that included it: UP is that load's goals put off to its end,
   ;;; which the included file's join, INCS the files open on the way down
@@ -1394,7 +1536,12 @@
               ;; and only around a call whose cells this frame has registered:
               ;; the clause in hand and the mark the heap is wound back to.
               ;; Taken here, so the reader and the store never run under it.
-              (int vouch . #'(-> m dgc)))
+              (int vouch . #'(-> m dgc))
+              ;; THE PROGRAM'S EXPANSION HOOKS (3.14.0): which of the two
+              ;; there are (`coco_xhook_load'), asked again after anything
+              ;; that may define one, and the names they are asked by
+              (int xbits . 0) (u64 te_id . 0) (u64 ge_id . 0) (u64 eof_id . 0) (int ateof . 0)
+              (int atbof . 0))
           (set (-> m dgc) 0)
           ;; a backtrace no report took (a window's, whose ball it handed
           ;; back) is not this load's: only a goal run from here writes one
@@ -1419,6 +1566,13 @@
           (set (nth 4 cids) (coco_intern m "\\+"))
           (set (nth 5 cids) (coco_intern m ":-"))
           (set (nth 6 cids) (coco_intern m "|"))
+          (set te_id (coco_intern m "term_expansion"))
+          (set ge_id (coco_intern m "goal_expansion"))
+          (set eof_id (coco_intern m "end_of_file"))
+          (set xbits (coco_xhook_load st m))
+          ;; asked before the first read or never: a hook the file defines
+          ;; is no hook at its start
+          (set atbof (? (and (== up nil) (bitand xbits 1)) 0 1))
           (coco_reader_init (aof r) m text)
           (while (== rc 1)
             ;; each clause is read on to the heap, copied into the store, and
@@ -1429,7 +1583,14 @@
               (if (== (nth scanned text) (cast char 10)) (set line (+ line 1)))
               (set scanned (+ scanned 1)))
             (set at line)
-            (set rc (coco_read_clause (aof r) (aof t)))
+            ;; AND ITS START IS ONE (3.14.0), `begin_of_file', as swipl's:
+            ;; a loaded file's, not an included one's, and dropped when no
+            ;; expansion answers it (rc 3)
+            (if (not atbof)
+                (block (set atbof 1)
+                       (set t (coco_new_atom m "begin_of_file"))
+                       (set rc 3))
+              (set rc (coco_read_clause (aof r) (aof t))))
             ;; A SYNTAX ERROR SKIPS ITS CLAUSE AND THE LOAD GOES ON (3.1.0),
             ;; as swipl's: reported where it stands, and the reader taken up
             ;; after the full stop that ends the clause it was in, as swipl's
@@ -1443,13 +1604,71 @@
                   (coco_reader_resync (aof r))
                   (set rc 1)
                   continue))
-            (if (== rc 1)
+            ;; THE FILE'S END IS A TERM term_expansion/2 IS ASKED OF
+            ;; (3.14.0), once, as swipl's: what it gives is read as the
+            ;; file's last terms -- the loaded file's, never an included
+            ;; one's, whose end is no term to swipl
+            (if (and (== rc 0) (and (== up nil) (and (not ateof) (bitand xbits 1))))
+                (block (set ateof 1)
+                       (set t (coco_new_atom m "end_of_file"))
+                       (set rc 2)))
+            (if (or (== rc 1) (or (== rc 2) (== rc 3)))
                 (block
                  (set active 1)
                  (let ((int ci . 0))
                    (while (< ci csp)
                      (if (== (nth ci ctaking) 0) (set active 0))
                      (set ci (+ ci 1))))
+                 ;; A TERM IS ASKED OF THE PROGRAM'S term_expansion/2 FIRST
+                 ;; (3.14.0), as swipl's load asks it: every term read where
+                 ;; the file is taken -- a directive too, the conditional
+                 ;; ones aside, and before a grammar rule is translated --
+                 ;; and the end of the file. What it gives is read in its
+                 ;; place: a proper list as its terms, `[]' none, and an
+                 ;; error(_, _) it raises reported at the term, which is
+                 ;; dropped. Its terms are on the heap above the mark the
+                 ;; clause winds back to, so the mark moves over them and no
+                 ;; goal run for one may collect (`vouch').
+                 (let ((size_t xs . 0) (int xr . 0) (int xlist . 0) (int xgo . 1) (int xstop . 0)
+                       (size_t omark . mark) (size_t xmark . #'(cast size_t -1)) (int ovouch . vouch)
+                       ;; where the term in hand begins, or the text's end
+                       (size_t toff . #'(? (== rc 2) ($ r len) (? (== rc 3) 0 ($ r cstart)))))
+                   (if (and active (and (bitand xbits 1) (not (coco_consult_cond_dir m t))))
+                       (block
+                        (set xr (coco_consult_xcall st m "term_expansion" 0 t (aof xs) origin at (nth 0 incs) text toff err errlen))
+                        (cond
+                          ((== xr 1)
+                           (set mark (-> m heap_len))
+                           (set xmark mark)
+                           (set vouch 0)
+                           (set xlist (coco_consult_xlist m xs)))
+                          ((== xr -2)
+                           (coco_consult_init_failed err errlen)
+                           (set (-> m heap_len) omark)
+                           (if (== up nil) (coco_inits_free ip))
+                           (coco_reader_free (aof r))
+                           (return -1))
+                          ((== xr -1)
+                           (coco_load_message "ERROR" origin at err)
+                           (set (nth 0 err) (cast char 0))
+                           (set xgo 0)))))
+                   ;; the file's end or start that no expansion answered is
+                   ;; no term
+                   (if (and (>= rc 2) (!= xr 1)) (set xgo 0))
+                   (while xgo
+                     (if xlist
+                         (block
+                          (set xs (coco_deref m xs))
+                          (if (not (coco_is_cons m xs)) break)
+                          (set t (coco_deref m (coco_arg m xs 0)))
+                          (set xs (coco_arg m xs 1)))
+                       (block
+                        (if (== xr 1) (set t xs))
+                        (set xgo 0)))
+                     ;; `end_of_file' ENDS THE FILE WHERE IT STANDS (3.14.0),
+                     ;; as swipl's: written in it, or given by an expansion,
+                     ;; whose terms after it are dropped
+                     (if (coco_consult_eof m t eof_id) (block (set xstop 1) break))
                  ;; `:- G' IS A DIRECTIVE AND NOT A CLAUSE. It used to go
                  ;; straight into coco_assert, which took it for a clause whose
                  ;; head was `:-' of arity one and filed it under a predicate of
@@ -1608,11 +1827,36 @@
                        ;; nothing -- follows a directive that runs no goal.
                        ;; Unregistered, the goal runs as it did, collecting
                        ;; nothing.
+                       ;;
+                       ;; ITS GOAL IS ASKED OF THE PROGRAM'S goal_expansion/2
+                       ;; FIRST (3.14.0), as swipl's '$execute_directive'
+                       ;; expands it (`'$expand_clause'/3' in lib/dcg.cicili):
+                       ;; what that gives runs, and an error(_, _) it raises
+                       ;; is reported at the directive, which does not run
+                       (if (and (== handled 0) (and active (bitand xbits 2)))
+                           (let ((size_t gx . 0) (int gr . 0))
+                             (set gr (coco_consult_xcall st m "$expand_clause" (coco_new_int m 1) t (aof gx)
+                                                         origin at (nth 0 incs) text toff err errlen))
+                             (cond
+                               ((== gr 1) (set t gx))
+                               ((== gr -2)
+                                (coco_consult_init_failed err errlen)
+                                (set (-> m heap_len) omark)
+                                (if (== up nil) (coco_inits_free ip))
+                                (coco_reader_free (aof r))
+                                (return -1))
+                               ((== gr -1)
+                                (coco_load_message "ERROR" origin at err)
+                                (set (nth 0 err) (cast char 0))
+                                (set handled 1)))))
                        (if (and (== handled 0) active)
                            (let ((size_t * mp . nil) (size_t ml . 1) (int pushed . 0) (int dr . 0)
                                  (size_t * tp . nil) (size_t tl . 1) (int theld . 0)
                                  (const char * sfile . #'(-> m sloc_file))
-                                 (int sline . #'(-> m sloc_line)))
+                                 (int sline . #'(-> m sloc_line))
+                                 (const char * ssrc . #'(-> m sloc_src))
+                                 (const char * stext . #'(-> m sloc_text))
+                                 (size_t soff . #'(-> m sloc_off)))
                              (set mp (aof mark))
                              (set pushed (coco_heap_pos_push m (aof mp) (aof ml)))
                              ;; and the clause, which the Warning after a goal
@@ -1624,9 +1868,16 @@
                              ;; and line while its goal runs (2.16.0)
                              (set (-> m sloc_file) origin)
                              (set (-> m sloc_line) at)
+                             ;; and prolog_load_context/2 the rest (3.14.0)
+                             (set (-> m sloc_src) (nth 0 incs))
+                             (set (-> m sloc_text) text)
+                             (set (-> m sloc_off) toff)
                              (set dr (coco_directive st m (coco_arg m t 0) ip at err errlen))
                              (set (-> m sloc_file) sfile)
                              (set (-> m sloc_line) sline)
+                             (set (-> m sloc_src) ssrc)
+                             (set (-> m sloc_text) stext)
+                             (set (-> m sloc_off) soff)
                              (set (-> m dgc) 0)
                              (if theld (coco_heap_root_pop m))
                              (if pushed (coco_heap_root_pop m))
@@ -1658,6 +1909,9 @@
                                    (if (== up nil) (coco_inits_free ip))
                                    (coco_reader_free (aof r))
                                    (return -1)))))
+                      ;; a directive may have defined a hook, or loaded a
+                      ;; file that did
+                      (set xbits (coco_xhook_load st m))
                       (set (-> m heap_len) mark))
                    (block
                     (if active
@@ -1672,7 +1926,7 @@
                          ;; naming it, its head or its body), which through
                          ;; 3.0.4 ended the consult or, a body with a number
                          ;; for a goal, went in.
-                         (let ((size_t culprit . 0) (int dk . 0) (int refused . 0))
+                         (let ((size_t culprit . 0) (int dk . 0) (int refused . 0) (int gerr . 0) (int isdcg . 0))
                            ;; A GRAMMAR RULE IS TRANSLATED HERE AND NOWHERE
                            ;; ELSE (3.13.0, swipl's): a file's rules -- a
                            ;; program's, a library's, a module's own -- come
@@ -1690,9 +1944,32 @@
                                      (block (set dk (? (== ($ derr kind) COCO_DCG_OK)
                                                        COCO_DCG_OOM ($ derr kind)))
                                             (set culprit ($ derr culprit)))
-                                   (set t tr))))
-                           (if (== dk 0) (set refused (coco_consult_refused m t cids (aof culprit))))
+                                   (block (set t tr) (set isdcg 1)))))
+                           ;; A RULE'S BODY IS ASKED OF THE PROGRAM'S
+                           ;; goal_expansion/2 (3.14.0), as swipl's
+                           ;; '$expand_clauses' asks it, a grammar rule's once
+                           ;; it is translated: what that gives is stored, and
+                           ;; an error(_, _) it raises is reported at the
+                           ;; clause, which is dropped
+                           (if (and (== dk 0) (and (bitand xbits 2) (coco_is_compound2 m t ":-")))
+                               (let ((size_t gx . 0) (int gr . 0))
+                                 (set gr (coco_consult_xcall st m "$expand_clause" (coco_new_int m 1) t (aof gx)
+                                                             origin at (nth 0 incs) text toff err errlen))
+                                 (cond
+                                   ((== gr 1) (set t gx))
+                                   ((== gr -2)
+                                    (coco_consult_init_failed err errlen)
+                                    (set (-> m heap_len) omark)
+                                    (if (== up nil) (coco_inits_free ip))
+                                    (coco_reader_free (aof r))
+                                    (return -1))
+                                   ((== gr -1) (set gerr 1)))))
+                           (if (and (== dk 0) (not gerr))
+                               (set refused (coco_consult_refused m t cids (aof culprit))))
                            (cond
+                             (gerr
+                              (coco_load_message "ERROR" origin at err)
+                              (set (nth 0 err) (cast char 0)))
                              ((!= dk 0)
                               (coco_consult_dcg_refusal m dk culprit err errlen)
                               (coco_load_message "ERROR" origin at err)
@@ -1713,8 +1990,27 @@
                                 (coco_load_message "ERROR" origin at "not a clause")))
                              (#t (set n (+ n 1))
                                  ;; a clause defines (3.6.0, `ldefs')
-                                 (set (-> m ldefs) (+ (-> m ldefs) 1)))))))
-                    (set (-> m heap_len) mark))))))
+                                 (set (-> m ldefs) (+ (-> m ldefs) 1))
+                                 ;; a grammar rule makes its predicate a
+                                 ;; non-terminal (3.14.0), as swipl's load
+                                 (if isdcg (coco_consult_nt_mark st m t))
+                                 ;; and one of a hook's asks the hooks again
+                                 (if (coco_xhook_head m t te_id ge_id)
+                                     (set xbits (coco_xhook_load st m))))))))
+                    (set (-> m heap_len) mark))))
+                   ;; the terms an expansion gave are done: the heap goes
+                   ;; back below them -- unless a global's copy read since
+                   ;; raised the mark over its cells (`coco_heap_pos_push',
+                   ;; the gcache's fill), which then stays -- and an
+                   ;; `end_of_file' among them, or the file's own end, ends
+                   ;; the file. A term no expansion answered leaves the mark
+                   ;; as its directive left it: raised, or moved by a
+                   ;; collection
+                   (if (== mark xmark) (set mark omark))
+                   (set vouch ovouch)
+                   (set (-> m heap_len) mark)
+                   (if (or xstop (== rc 2)) (set rc 0))
+                   (if (== rc 3) (set rc 1))))))
           ;; AN `:- if' LEFT OPEN AT THE END IS REPORTED (3.1.0), as swipl
           ;; does, on the line the text ends on, naming where the outermost
           ;; open one stands; what it held was read or skipped as it said

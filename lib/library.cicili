@@ -1239,6 +1239,9 @@
                 . '{"assoc" "pairs" "ordsets" "yall"
                     "aggregate" "ugraphs" "dcg_basics" "dcg_high_order"})
 
+  ;;; each one read, when it is, with no expansion hook of the program's
+  ;;; asked (3.14.0, `coco_module_set_noexp'): a program's term_expansion/2
+  ;;; is not cocolog's own libraries' business
   (func coco_library_preload () (out int)
         (let ((char path [1024]) (char err [512]) (int kind . 0) (int n . 0))
           (for ((size_t i . 0)) (< i 8) ((++ i))
@@ -1247,7 +1250,7 @@
                      (if (lb_find name path 1024 (aof kind))
                          (if (== kind 2)
                              (if (lb_load_pl path name err 512)
-                                 (set n (+ n 1))))))))
+                                 (block (coco_module_set_noexp name) (set n (+ n 1)))))))))
           ;; LIBRARY(ASYNC) IS TIER 1 SINCE 2.8.0: cocolog's green threads,
           ;; preloaded from the binary's library path so async coroutines
           ;; are on by default (async_run/1,2, go/2, yield/0, await/2 and
@@ -1256,7 +1259,7 @@
               (if (lb_find "async" path 1024 (aof kind))
                   (if (== kind 2)
                       (if (lb_load_pl path "async" err 512)
-                          (set n (+ n 1))))))
+                          (block (coco_module_set_noexp "async") (set n (+ n 1)))))))
           ;; AND print_message/2 SINCE 2.16.0 (library/print_message.pl),
           ;; swipl's, which a program calls without asking for a library: the
           ;; kinds, the prefixes, the location line in a load and the error
@@ -1268,7 +1271,7 @@
               (if (lb_find "print_message" path 1024 (aof kind))
                   (if (== kind 2)
                       (if (lb_load_pl path "print_message" err 512)
-                          (set n (+ n 1))))))
+                          (block (coco_module_set_noexp "print_message") (set n (+ n 1)))))))
           (return n)))
 
   ;;; ---- the module and the directive hook -------------------------------

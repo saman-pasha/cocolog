@@ -10507,7 +10507,7 @@ NOT SWIPL'S YET:
   D)), d(D, B)` here, `b(A, C), c(C, D), d(D, B)` there; COMPAT.md); and
   numbervars/3 does not exist.
 - expand_term/2, expand_goal/2, term_expansion/2 and goal_expansion/2 at a
-  load, and non_terminal/1 -- the change after this one.
+  load, and non_terminal/1 -- 3.14.0, below.
 - a rule in a module file: swipl leaves `M:X` unqualified where M is the
   file's own module, cocolog qualifies it (the call is the same: one
   namespace).
@@ -10598,3 +10598,128 @@ them in lib/library.cicili.
 NOT DONE, and stated: an include of a library cocolog compiles in
 (library(lists)) is existence_error, where swipl reads its source, and the
 chart and cocolint read nothing for it either.
+
+## term_expansion/2 and goal_expansion/2 at a load, expand_term/2, expand_goal/2, prolog_load_context/2 and non_terminal/1, as swipl's (3.14.0)
+
+Through 3.13.1 a program's term_expansion/2 and goal_expansion/2 were
+predicates like any other: a load asked neither, expand_term/2 and
+expand_goal/2 did not exist, and prolog_load_context/2 was an unknown
+procedure. A file written for swipl that defined a hook read its terms
+as they stood. Now a load asks them as swipl's does, and the four
+predicates answer.
+
+- A LOAD ASKS term_expansion/2 of each term it reads where the file is
+  taken (lib/kb-consult.cicili, `coco_consult_xcall`): a directive too,
+  never `:- if/elif/else/endif` nor a term in a skipped part, and before a
+  grammar rule is translated. What it gives is read in the term's place, a
+  proper list its terms and `[]` none; an error(_, _) it raises is
+  reported at the term as swipl reports it (`ERROR: F:L:` and the message
+  on the next line) and the term dropped; any other ball ends the load, as
+  a directive's does (consult/1 raises it). A loaded file's start is asked
+  as `begin_of_file` when a hook stands before its first read, its end as
+  `end_of_file` -- an included file's neither, as swipl's -- each dropped
+  when nothing answers, and an `end_of_file` read in a file or given by an
+  expansion ends the file there, the terms after it unread.
+- goal_expansion/2 is asked of each clause's body and each directive's
+  goal (`'$expand_clause'/3` in lib/dcg.cicili), a grammar rule's once it
+  is translated: to a fixed point with no limit, as swipl's, through the
+  control constructs and `M:G`, and through the meta-arguments of the
+  system's meta-predicates (call/N's closure given its extra arguments,
+  findall/3,4, forall/2, bagof/3 and setof/3 through `^`, once/1,
+  ignore/1, not/1, catch/3, catch_with_backtrace/3, setup_call_cleanup/3,
+  setup_call_catcher_cleanup/4, call_cleanup/2, with_output_to/2); an
+  error it raises drops the clause, or the directive, with its report.
+- The hooks a load asks are the program's own (`coco_xhook_bits`): a
+  clause of goal_expansion/2 counts when the program's file defined it or
+  it was asserted unmuted, so library(yall)'s `system:goal_expansion/2`,
+  in the one namespace, is none, and a lambda is never asked. They are
+  asked again after a directive and after a stored clause of one. They
+  never reach cocolog's own libraries: a compiled-in module's text and the
+  preloaded libraries (the vendored swipl ones, async, print_message) are
+  read with the store's `noexp`, each module by its own mark -- never by
+  the read it is nested in: dcg_basics' `:- use_module` reads the
+  libraries after it inside its own read, and through the first cut async
+  and print_message took dcg_basics' mark that way, their own two marks
+  carrying nothing. Under `run` they are read at the program's first ask
+  (its first term_expansion/2 call, or its first directive), after its
+  hooks; a library on the path loaded after a hook is expanded, as
+  swipl's.
+- THE TERMS AN EXPANSION GIVES live on the heap above the consult's
+  `mark`, which moves over them for their reading and back after them
+  (`omark`) -- unless a global's copy read since raised it over the
+  copy's cells (the gcache's fill raises every registered position, the
+  consult's `mark` among them), which then stays. The first cut set the
+  mark back after EVERY term from a value saved before the term's
+  directive ran, and `:- nb_getval(K, _).` left the next read of K a
+  wound-back copy: `run` of a file with `:- nb_setval(dk, f([1,2,3,4,5])).
+  :- nb_getval(dk, _).` answered `nl` for dk, `-s` `_G20`, and a third
+  read a cyclic term -- test/engine.pl's child case found it. The hook's
+  own trail entries are dropped to its mark (3000 expanded terms left
+  24000 cells of trail through a cut without it, and a global the hook
+  read would leave a sentinel naming cells the term's end winds back), and
+  no goal of an expansion's terms collects (`vouch` 0: under
+  COCOLOG_GC_CELLS=2000 a directive an expansion gave collected the rest
+  of the list away and the load raised).
+- expand_term/2 and expand_goal/2: the same, as goals. expand_term/2 of a
+  grammar rule is swipl's list, `[(:- non_terminal(user:N/A)), Clause]`,
+  where the rule's predicate is no non-terminal yet, and the clause alone
+  where it is; a qualified head is declared as swipl declares it
+  (`user:user:qa/2`).
+- non_terminal/1: its spec checked as swipl's is -- each indicator by
+  functor/3, a `//` arity plus two, `uninstantiation_error` for a variable,
+  type_error(predicate_indicator, S) for anything else -- and the
+  predicate made a non-terminal, swipl's attribute (`pattrs` 16), which a
+  grammar rule a load translates also sets and predicate_property/2 tells,
+  after `public`, as swipl's order has it.
+- prolog_load_context/2: `module` (`user`), `file`, `source` (the loaded
+  file where an include stands), `directory` (the file's), `dialect`
+  (`swi`), `term_position` (`'$stream_position'(Char, Line, LinePos,
+  Byte)`, characters counted as swipl counts them reading UTF-8) and
+  `script` (`false`), in swipl's order for a variable key, answered while
+  a hook or a directive's goal runs (`sloc_src`, `sloc_text`, `sloc_off`,
+  set with `sloc_file`), source_location/2 too.
+
+THE CHECKS: test/files/expand.pl (against swipl 9.0.4: the hooks' order
+and reach, the meta-arguments, the conditional directives, the balls that
+end a load, an include from another directory, expand_term/2,
+expand_goal/2, prolog_load_context/2 and nineteen specs of non_terminal/1)
+and test/library.pl's `expansion hooks and the libraries`: no library
+reaches the hooks under `run` and `-s`, a term's place in UTF-8, an
+expansion's terms read after its directive's collections, a global's copy
+kept through them, and 3000 expanded terms leaving no trail and no heap.
+
+ARMS: ninety-six, one a rule, each taken out in a copy of the tree built
+as the release is and run on the two cases (and on expand under
+COCOLOG_GC_CELLS=2000). Ninety-two are red. Three are green and stay as
+guards of cost: the goal hook's count of the program's clauses alone
+(without it yall's clause counts, every clause of every file goes through
+`'$expand_clause'/3`, and library/reasoning/translate.pl's 28 368 lines
+load in 0.17 s where they take 0.06), and `'$expand_clause'/3` and
+expand_goal/2 passing a term by where no goal hook stands. One was green
+and its clause is gone: prolog_load_context/2's walk of a variable key,
+which `'$plc'/2`'s clauses make in swipl's order already. Of the first
+run's greens, five pieces were taken out -- the expansion call's vouch
+save and its backtrace drop (a consult holds `dgc` 0 wherever it asks a
+hook, and the goal hook drops what it does not report), the C half's
+early answer where no load reads, its `source` falling back to `file`
+(every site that sets one sets the other), and prolog_load_context/2's
+`atom(K)` -- and seven went red once a check or a fix reached them:
+setof/3 and `^` (q9, two), the trail, the vouch, the place in UTF-8
+under `-s`, and the two libraries' marks, once a module's read stopped
+taking its nester's.
+
+NOT SWIPL'S YET (COMPAT.md): a yall lambda in a file that loads yall and
+apply itself stays as written, where swipl compiles it; a closure whose
+expansion moves its arguments stays as written, where swipl compiles a
+wrapper; the meta-arguments of a program's own meta_predicate/1 are not
+expanded; prolog_load_context/2's `stream`, `variable_names` and `term`
+answer nothing; and a term_expansion/2 that leaves its result unbound is
+reported with swipl's two lines and the load goes on, where swipl's load
+aborts (COMPAT.md's row for a variable where a clause stands).
+
+PROVED: THE NARROW CASES (the owner's choice; CI runs the whole suite):
+lint first (0 HARD, 0 WARN), then files beside the reference swipl 9.0.4
+(expand's lines among them), library, engine, directives, errors, module,
+reconsult, flowchart, cyclic, units, syntax, string, gc, trace, journal,
+stream, and the solve and state binaries, each GREEN; the card's cites
+checked, five set by hand where an anchor repeats in its file.
