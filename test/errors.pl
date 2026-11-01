@@ -113,7 +113,13 @@ text_read_own :-
           end_of_file_in_quoted('"')-"á"-0),
     own_read('é16\'a', R3),
     check('a letter past ASCII before 16\' makes no radix of it', R3,
-          end_of_file_in_quoted('\'')-"é"-0).
+          end_of_file_in_quoted('\'')-"é"-0),
+    %% a prefix operator's atom too high for an infix operator is swipl's
+    %% operator_expected, no clash; swipl places it a token later
+    own_read('\\+ = a', Id4-_-_),
+    check('a prefix operator\'s atom before = is no clash', Id4, operator_expected),
+    own_read('dynamic ; a', Id5-_-_),
+    check('dynamic before ; is no clash either', Id5, operator_expected).
 
 %% the ball's id, its raw text's codes and its place
 own_read(Text, Id-Codes-Pos) :-

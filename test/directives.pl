@@ -208,15 +208,22 @@ syntax_error(D) :-
     atomic_list_concat(['ERROR: ', U, ':2:12: Syntax error: '], W4),
     has('a column counts bytes, as swipl''s does', W4, Out4),
     %% on a later line of its clause too, and a comment's character is one
-    %% column, its raw text's space (3.10.0; swipl 9.0.4 under C.UTF-8 says
-    %% 3:5 and 4:12, and the files case's swipl reads no UTF-8)
+    %% column, its raw text's space, so the walk past it counts characters
+    %% and the letter past ASCII after it is its bytes (3.10.0; swipl 9.0.4
+    %% under C.UTF-8 says 3:5, 4:12, 5:15 and 6:15, and the files case's
+    %% swipl reads no UTF-8)
     atom_concat(D, '/synutf2.pl', Uw),
-    fixture(Uw, ['x(1).', 'z(1,', ' ''é'' x y).', 'w(/* é */ a b).']),
+    fixture(Uw, ['x(1).', 'z(1,', ' ''é'' x y).', 'w(/* é */ a b).',
+                 'v(/* é */ ''aé''b).', 'u(/* éé */ ''é''b).']),
     ran(Uw, true, Outw, _),
     atomic_list_concat(['ERROR: ', Uw, ':3:5: Syntax error: '], Ww1),
     has('a later line''s column counts bytes', Ww1, Outw),
     atomic_list_concat(['ERROR: ', Uw, ':4:12: Syntax error: '], Ww2),
     has('a comment''s character is one column', Ww2, Outw),
+    atomic_list_concat(['ERROR: ', Uw, ':5:15: Syntax error: '], Ww3),
+    has('the walk past a comment counts its characters', Ww3, Outw),
+    atomic_list_concat(['ERROR: ', Uw, ':6:15: Syntax error: '], Ww4),
+    has('two of them, and a quoted letter after', Ww4, Outw),
     %% THE CONSULT'S OTHER STOPS ARE REPORTS NOW TOO, each in swipl's words
     %% (under_swipl/1 holds the three files' stderr to swipl's, word for
     %% word): an endif, else or elif with no if open is passed over; an if

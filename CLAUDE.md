@@ -1520,7 +1520,7 @@ cocolint index offers no import of it.
   raw read's text, Pos its characters before the token less one, one term
   read and a full stop ending it (`a. b` is `a`); an uncaught one is said
   with its `** here **` lines (`coco_err_extra`). test/files/syntax_text.pl
-  holds 345 lines of it to swipl, test/files/syntax_load.pl 47.
+  holds 360 lines of it to swipl, test/files/syntax_load.pl 47.
 * **`atomic_list_concat/3` with a bound third argument and a non-ground list
   SPLITS**; `/2` cannot split; `atom_concat/3` has `(+,-,+)` and `(-,+,+)` but
   no `(-,-,+)`; `string_concat/3` only `(+,+,-)`. **`sub_atom/5` and

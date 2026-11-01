@@ -10224,3 +10224,58 @@ another place; Raw quoted from a first letter past ASCII whole, where swipl
 quotes its first byte as a character; and `read_term/2,3' from a stream,
 whose error is still 3.9.0's -- the next of these, with library(stream)'s
 other errors.
+
+## The 3.10.0 arms that stayed green, settled (3.10.1)
+
+3.10.0's 139 arms ran to the end: 122 red, 17 green (of the three that had
+not run, the two `** here **' arms were red and the hex escape's end test
+green). Each green arm's code was read again: what a text or a load can show
+got a check that holds it to swipl, and what none can reach was taken out.
+
+CHECKED, each arm red on its check:
+- a prefix operator over an operand that fails counts as pending, so
+  `f(:- a ; )' is operator_balance, where one pending would say punct(;, `)');
+- a closing bracket of another kind after a pending operator ends nothing:
+  `[a = )' and `(a , ]' are cannot_start_term, not operator_balance;
+- a block comment's newline is kept in the raw text (`a /* c\n d */ b');
+- `0'''' is one character code to the raw walk, so `0''' a' is
+  operator_expected and opens no quoted item;
+- a rational's zero denominator is illegal_number (`1r0', `f(2r0)', `- 3r0');
+  the four groups are 15 texts more, and test/files/syntax_text.pl holds 360
+  lines to swipl;
+- a prefix operator's atom before an infix one is no clash (`\+ = a',
+  `dynamic ; a': swipl's operator_expected, held to cocolog's id alone in
+  test/errors.pl, swipl placing it a token later);
+- a load's walk past a comment counts characters, and a quoted letter past
+  ASCII after it its bytes (`v(/* é */ 'aé'b).' and `u(/* éé */ 'é'b).' are
+  5:15 and 6:15, as LANG=C.UTF-8 swipl says; test/directives.pl).
+
+TAKEN OUT, none of it reachable:
+- the guard that kept an operator's mark only when it was the first pending:
+  the mark is read only when one is pending;
+- the clash's token test in a bracket that does not close: a clash breaks
+  the term at its token and nothing after it takes that token, so the
+  bracket always fails there (the field it read went too);
+- the reset at the start of each clause read and goal read: a reader is made
+  empty, only a failing read sets what it reset, and a failed reader reads
+  nothing until the resync, which resets it;
+- the load's two clamps of the error's place: a place is never past the text,
+  and one before the clause's first character walks nothing and is clamped
+  after; the text's clamp past the end likewise;
+- the text's own `end_of_clause' branch for a full stop with nothing before
+  it: the reader says end_of_clause there at the same place;
+- the reader's own word for an open block comment: the raw walk refuses one
+  first, in a load and in a text;
+- the raw walk's return when it read nothing: no caller walks text with
+  nothing in it but layout, and the resync's place is the same;
+- the hex escape's test of a first digit, and its test of the end before
+  the digits: the loop over the digits tests both, and the end test after
+  the digits catches an escape at the end.
+
+FOUND ON THE WAY: swipl 7 reads `f()' as a compound of no arguments, and
+cocolog has none (`cannot_start_term', and compound_name_arity(T, f, 0)
+fails); a row in COMPAT.md.
+
+PROVED: syntax_text and syntax_load (the files case), errors, directives,
+rationals, reconsult, repl, serialize, stream, template, string, red: 0;
+lint 0 HARD 0 WARN; the card's cites checked.

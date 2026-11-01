@@ -1304,11 +1304,9 @@
             ((== kind 5)
              (set id "end_of_file")
              (set pos (- (coco_tx_count (coco_tx_s (aof raw)) 0 ($ raw len) chars) 1)))
-            ((== kind 6) (set id "end_of_clause"))
             (#t
              (set id (coco_reader_id rd (aof a1) (aof a2)))
              (set at (coco_reader_errat rd))
-             (if (> at n) (set at n))
              (cond
                ;; at the end of a text with no full stop: at the `.' swipl put there
                ((and (>= at n) (== kind 1))
