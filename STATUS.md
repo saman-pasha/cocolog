@@ -10345,3 +10345,67 @@ PROVED: the whole files case (syntax_stream, syntax_text and syntax_load
 among it), stream, journal, errors, directives, rationals, reconsult,
 serialize, string, template, repl, lesson 48; lint 0 HARD 0 WARN; the
 card's cites renumbered and checked.
+
+## A compound of no arguments, `f()`, as swipl 7's (3.12.0)
+
+`f()` reads, writes and is a term of its own: a compound whose functor is
+the name and 0, no atom (`f() \== f`, compound/1 holds, atom/1 fails),
+ordered after the atoms and before every compound with arguments, and as a
+goal it calls f/0. Through 3.11.0 `f()` would not read (`cannot_start_term`
+at the `)`) and `compound_name_arity(T, f, 0)` failed. functor/3 and =../2
+refuse it, `domain_error(compound_non_zero_arity, f())`, as swipl 9's do;
+compound_name_arity/3 and compound_name_arguments/3 take it apart and make
+it. A clause's head and a body's goal written `f()` are f/0's and are kept
+as the atom, so clause/2 and listing/1 show `f`, as swipl's do, and
+clause/2 of `f()` asks f/0's clauses. test/files/zero_arity.pl holds 122
+lines of it to swipl: the type tests, the order, the readings and the
+writings (writeq/1, print/1, write/1, write_canonical/1), the errors, the
+calls, a grammar rule `nt() --> [a]`, a fact `p(f())`, and swipl 9.0.4's
+retract/1, which unifies the atom it keeps with `d()` and leaves the clause.
+
+FOUND ON THE WAY, and fixed with it: `[](a)` and `[ ](a)` did not read (a
+compound named by the list's end, swipl 7's), and a quoted `'[]'(a)` read
+as one named by the list's end, where swipl names it by the atom of those
+two characters; the writer wrote both `'[]'(a)`. Now `[](a)` is named by
+the list's end and written bare, and `'[]'(a)` by the atom and written
+quoted (the reader's `bnil` says the brackets made the name).
+
+WHAT IT TOOK:
+- the reader: `name()` makes the FUN cell of the name and 0
+  (`coco-parse-args-body`); `[]` and `[ ]` against a `(` are an
+  application (`coco-parse-primary-body`), and an application's functor is
+  read by `coco_parse_fid`, which tells the quoted `'[]'` from the brackets'.
+- the writer: a functor named by the list's end is written `[]`; the rest
+  of `f()` was there (a canonical application of no arguments).
+- functor/3 and =../2: the domain error.
+- compound_name_arity/3 and compound_name_arguments/3 over
+  `'$compound'/4` (lib/builtins-db.cicili) in place of functor/3 and
+  =../2, after `'$cn_check'/4`'s checks as before.
+- the store: a head of no arguments is the atom's (`coco_assert_from`),
+  and so is a body goal under the constructs swipl compiles in place
+  (`coco_bar_body`, where a body's bar becomes its `;`).
+- clause/2: a head `f()` asks the atom's clauses.
+
+What needed nothing: the call (the step reads a goal of arity 0 by its
+name, as an atom's, and never puts a call of no arguments in the
+registers), unify, compare and the sorts, copy_term/2, the store's put and
+get, findall/3, the globals, the DCG translation and phrase/2.
+
+ARMS: fourteen, one a rule, each red in test/files/zero_arity.pl
+against swipl: the reader's `name()`, the brackets' `[](`, the reset of
+`bnil` after an application, the quoted `'[]'` named by the atom, the
+writer's bare `[]`, functor/3's and =../2's domain errors,
+compound_name_arity/3's two clauses and compound_name_arguments/3's two
+put back over functor/3 and =../2 as through 3.11.0, the body goal kept
+as the atom, the head kept as the atom, and clause/2's clause for `f()`.
+
+NOT SWIPL'S YET, found by the probes and left for their own change:
+current_predicate/2 does not exist (swipl answers
+`current_predicate(g, H)` with `H = g`), and arg/3 with its index unbound
+raises instantiation_error where swipl enumerates (so `arg(_, f(), _)`
+fails there).
+
+PROVED: the whole files case (zero_arity among it), the syntax binary,
+errors, string, directives, reconsult, serialize, journal, stream, engine,
+module_context (with the environment that builds its fixture),
+the term and solve binaries; lint 0 HARD 0 WARN; the card's cites checked.

@@ -128,6 +128,7 @@
     ("$ops"                    1 coco_b_ops)
     ("$op_spec"                3 coco_b_op_spec)
     ("$cn_check"               4 coco_b_cn_check)
+    ("$compound"               4 coco_b_compound)
 
     ("halt"                    1 coco_b_halt1)))
 
@@ -317,13 +318,13 @@
            ;; A C THAT IS NO COMPOUND is checked as swipl checks it, and the
            ;; errors are the predicate's (3.0.0, `'$cn_check'/4'): through
            ;; 2.16 compound_name_arity(C, f, 2) failed where it builds
-           ;; f(_, _), and the arguments' errors were =../2's. There are no
-           ;; compounds of no arguments here, so a name and 0 or [] fail,
-           ;; where swipl makes `f()'.
-           "compound_name_arity(C, N, A) :- compound(C), !, functor(C, N, A)."
-           "compound_name_arity(C, N, A) :- '$cn_check'(C, N, A, 0), functor(C, N, A), compound(C)."
-           "compound_name_arguments(C, N, A) :- compound(C), !, C =.. [N|A]."
-           "compound_name_arguments(C, N, A) :- '$cn_check'(C, N, A, 1), C =.. [N|A], compound(C)."
+           ;; f(_, _), and the arguments' errors were =../2's. A name and 0
+           ;; or [] make `f()' (3.12.0, `'$compound'/4'), where through
+           ;; 3.11.0 they failed.
+           "compound_name_arity(C, N, A) :- compound(C), !, '$compound'(C, N, A, 0)."
+           "compound_name_arity(C, N, A) :- '$cn_check'(C, N, A, 0), '$compound'(C, N, A, 0)."
+           "compound_name_arguments(C, N, A) :- compound(C), !, '$compound'(C, N, A, 1)."
+           "compound_name_arguments(C, N, A) :- '$cn_check'(C, N, A, 1), '$compound'(C, N, A, 1)."
 
            ;; what library(yall) reaches. Attributed variables do not exist
            ;; here, so the attribute-blind copy IS the copy; and with one
@@ -404,6 +405,9 @@
            ;; asserted while this is backtracking does not shift the ones after
            ;; it under the cursor -- which is the hazard `retract' has always
            ;; had against a running query, and is written down in STATUS.md.
+           ;; A HEAD OF NO ARGUMENTS, `f()', asks f/0's clauses (3.12.0, swipl
+           ;; 7's), which the store keeps under the atom
+           "clause(H, B) :- compound(H), compound_name_arity(H, N, 0), !, clause(N, B)."
            "clause(H, B) :- '$pred_count'(H, N, _), N > 0, between(1, N, I), '$clause'(H, B, I)."
 
            ;; ---- current_predicate/1 ---------------------------------------

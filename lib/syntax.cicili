@@ -325,7 +325,16 @@
 ;;; 3.1.0 an argument was read to 999, ISO's, and both were syntax errors.
 (DEFMACRO coco-parse-args-body (P TERM)
   `(let ((size_t * args . nil) (size_t * ps . nil) (size_t n . 0) (size_t cap . 0)
-         (int prec) (int ok . 1) (int oom . 0) (int ostop . #'(-> r stop)))
+         (int prec) (int ok . 1) (int oom . 0) (int ostop . #'(-> r stop))
+         (int bnil . #'(-> r bnil)))
+     (set (-> r bnil) 0)
+     ;; `f()', A COMPOUND OF NO ARGUMENTS (3.12.0), swipl 7's: its functor
+     ;; is the name and 0, and it is no atom
+     (if (coco_is_punct r (coco-ch ")"))
+         (block (if ,P (coco_pos_term r nf (-> r pos) nf nt nil 0))
+                (if (not (coco_next_token r)) (return 0))
+                (set (cof out) (coco_push (-> r m) (coco-cell FUN (coco_parse_fid r name bnil 0))))
+                (return 1)))
      (set (-> r stop) 1)
      (while 1
        (let ((size_t a))
@@ -356,7 +365,7 @@
          (block (free args) (if ,P (free ps)) (return (coco_close_fail r "expected ) closing an argument list" 0))))
      (if ,P (block (coco_pos_term r nf (-> r pos) nf nt ps n) (free ps)))
      (if (not (coco_next_token r)) (block (free args) (return 0)))
-     (set (cof out) (coco_make (-> r m) name (cast u32 n) args))
+     (set (cof out) (coco_make_f (-> r m) (coco_parse_fid r name bnil (cast u32 n)) (cast u32 n) args))
      (free args)
      (return 1)))
 
@@ -411,6 +420,11 @@
        ((coco_is_punct r (coco-ch "["))
         (let ((size_t f . #'(-> r tstart)))
           (if (not (coco_next_token r)) (return 0))
+          ;; `[](a)' and `[ ](a)', the two against a `(' (3.12.0, swipl
+          ;; 7's): a compound named by the list's end, as `{}(' makes one
+          (if (and (coco_is_punct r (coco-ch "]")) (== (coco_peek r) (coco-ch "(")))
+              (block (set (-> r bnil) 1)
+                     (return (,NAMED r maxprec "[]" 0 f (-> r pos) out outprec))))
           (return (,LIST r f out))))
 
        ((coco_is_punct r (coco-ch "{"))
@@ -770,7 +784,12 @@
     (member int          clash_set)
     (member size_t       clash_at)
     (member size_t       lopend)
-    (member size_t       ecomment))
+    (member size_t       ecomment)
+    ;; A NAME `[]' THE BRACKETS MADE (3.12.0): set by `[]' or `[ ]' before a
+    ;; `(' as the application is read, and taken by its arguments' read, so
+    ;; `[](a)' is named by the list's end and a quoted `'[]'(a)' by the atom
+    ;; `'[]'', as swipl 7's
+    (member int          bnil))
 
   (decl) (func coco_reader_init ((coco_reader * r) (coco_machine * m) (const char * src)))
 
@@ -2224,6 +2243,17 @@
           (return 1)))
 
 
+  ;;; THE FUNCTOR AN APPLICATION READS (3.12.0): its name and its arity --
+  ;;; a quoted `'[]'' the atom of those two characters, and `[]' the list's
+  ;;; end only when the brackets made it (BNIL), as swipl 7 tells
+  ;;; `'[]'(a)' from `[](a)'. Through 3.11.0 both were the list's end.
+  (static) (inline)
+  (func coco_parse_fid ((coco_reader * r) (const char * name) (int bnil) (u32 n)) (out u64)
+        (if (and (not bnil) (and (== (nth 0 name) (cast char 91))
+                                 (and (== (nth 1 name) (cast char 93)) (== (nth 2 name) (cast char 0)))))
+            (return (coco_functor_id (-> r m) (coco_intern_tnil (-> r m)) n)))
+        (return (coco_functor_id (-> r m) (coco_intern (-> r m) name) n)))
+
   ;;; THE TWO FAMILIES (the macros at the top of this file say why): the
   ;;; first is every consult's, the second, `_p', builds positions too.
   (static)
@@ -2932,14 +2962,19 @@
                        (if paren (coco_sb_putc b (cast char (coco-ch ")"))))
                        (return 1))))))
 
-          ;; canonical application: `'[]'(X)' quoted, as swipl's, and `{}'
-          ;; as swipl writes it, `{}(a,b)', in a write a program asks for
-          ;; (16, 3.1.0: the reader takes it back since); the engine's own
-          ;; quoted text keeps `'{}'(a,b)', which an older reader takes
-          (if (or (== 0 (strcmp name "[]"))
-                  (and (== (bitand mode 17) 1) (== 0 (strcmp name "{}"))))
-              (coco_write_atom b name (bitor quoted 32))
-            (coco_write_atom b name quoted))
+          ;; canonical application: the atom `'[]'' quoted, `'[]'(X)', and
+          ;; the list's end bare, `[](X)', as swipl 7 tells them apart
+          ;; (3.12.0; through 3.11.0 both `'[]'(X)', which read back as the
+          ;; list's end); and `{}' as swipl writes it, `{}(a,b)', in a write
+          ;; a program asks for (16, 3.1.0: the reader takes it back since);
+          ;; the engine's own quoted text keeps `'{}'(a,b)', which an older
+          ;; reader takes
+          (if (== (coco_name_of m t) (coco_nil_id m))
+              (coco_sb_put b "[]")
+            (if (or (== 0 (strcmp name "[]"))
+                    (and (== (bitand mode 17) 1) (== 0 (strcmp name "{}"))))
+                (coco_write_atom b name (bitor quoted 32))
+              (coco_write_atom b name quoted)))
           (coco_sb_putc b (cast char (coco-ch "(")))
           (for ((u32 i . 0)) (< i n) ((++ i))
             (if (> i 0) (coco_sb_putc b (cast char (coco-ch ","))))

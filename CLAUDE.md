@@ -1197,7 +1197,25 @@ cocolint index offers no import of it.
   quotes. atom/1 fails of `[]`, atomic/1 holds, callable/1 fails, and
   `atom_length([], N)` is 0. **Ask `coco_is_nil` or compare with
   `coco_nil_id`, never `strcmp` with `"[]"`**, and build the list's end
-  with `coco_new_nil` (a module: `coco_m_nil`).
+  with `coco_new_nil` (a module: `coco_m_nil`). So as a functor's name
+  (3.12.0): `[](a)` and `[ ](a)` are named by the list's end, a quoted
+  `'[]'(a)` by the atom (the reader's `bnil`, `coco_parse_fid`), and the
+  writer writes the first bare and the second quoted; through 3.11.0 both
+  read and wrote as `'[]'(a)`, named by the list's end.
+* **A compound of no arguments, `f()`, is a FUN cell of arity 0** (3.12.0,
+  swipl 7's): the header and no argument after it, its functor the name and
+  0. It is no atom (`f() \== f`, compound/1 holds), and as a goal it calls
+  f/0: the step reads a goal of arity 0 by its name, as an atom's. The
+  reader makes one of `name()` (`coco-parse-args-body`), the writer writes
+  `f()`, functor/3 and =../2 refuse it with
+  `domain_error(compound_non_zero_arity, T)` as swipl 9's, and
+  compound_name_arity/3 and compound_name_arguments/3 take it apart and
+  make it (`'$compound'/4`). A clause's head and a body's goal written so
+  are kept as the atom (`coco_assert_from`, `coco_bar_body`), as swipl's
+  clause/2 hands them back; clause/2 of `f()` asks f/0's. **`coco_make(m,
+  name, 0, nil)` makes `f()`, not the atom** (`coco_new_atom`); a call of
+  no arguments never goes through the registers (`cc_env_callable`), so no
+  atom goal is rebuilt as one.
 * **An error names the predicate that raised it** (3.0.0): its second
   argument is `context(system:Name/Arity, _)`, made by `coco_err_ctx` from
   the goal in flight (`kcall`) and a row of `*error-contexts*` in

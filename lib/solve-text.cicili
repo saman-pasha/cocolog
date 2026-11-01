@@ -30,6 +30,10 @@
             (if (not (coco-tag-is REF c))
                 ;; taking a term apart
                 (let ((size_t nm) (size_t ar))
+                  ;; `f()' has no functor/3 (3.12.0, swipl 9's):
+                  ;; compound_name_arity/3 takes it apart
+                  (if (and (coco-tag-is FUN c) (== (coco_arity m t) 0))
+                      (return (coco_domain_error e "compound_non_zero_arity" t)))
                   (if (coco-tag-is FUN c)
                       (block (set nm (coco_new_atom_id m (coco_name_of m t)))
                              (set ar (coco_new_int m (cast i64 (coco_arity m t)))))
@@ -249,6 +253,10 @@
             (if (not (coco-tag-is REF c))
                 (let ((u32 n . 0) (size_t l . #'(coco_arg m g 1)))
                   (if (coco-tag-is FUN c) (set n (coco_arity m t)))
+                  ;; `f()' is no list's term (3.12.0, swipl 9's), and
+                  ;; compound_name_arguments/3 takes it apart
+                  (if (and (coco-tag-is FUN c) (== n 0))
+                      (return (coco_domain_error e "compound_non_zero_arity" t)))
                   (for ((u32 i . 0)) (<= i n) ((++ i))
                     (let ((size_t item . 0))
                       (if (== i 0)

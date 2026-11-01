@@ -1118,6 +1118,48 @@
                                          "system" pred 3))))
           (return 1)))
 
+  ;;; `'$compound'(C, N, X, Which)' (3.12.0): compound_name_arity/3 (Which
+  ;;; 0, X the arity) and compound_name_arguments/3 (1, X the arguments) of
+  ;;; any compound, swipl 7's `f()' among them: C taken apart, or made from
+  ;;; the name and X '$cn_check'/4 checked. functor/3 and =../2 refuse a
+  ;;; compound of no arguments, and through 3.11.0 these two went through
+  ;;; them, so none could be made.
+  (func coco_b_compound ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t c . #'(coco_deref m (coco_m_arg e g 0)))
+              (size_t nm . #'(coco_deref m (coco_m_arg e g 1)))
+              (size_t x . #'(coco_deref m (coco_m_arg e g 2)))
+              (i64 which . 0) (size_t h . 0) (u32 n . 0))
+          (coco_m_int e (coco_m_arg e g 3) (aof which))
+          (if (coco-tag-is FUN (nth c (-> m heap)))
+              (block
+               (set n (coco_arity m c))
+               (if (not (coco_unify m nm (coco_new_atom_id m (coco_name_of m c)))) (return 0))
+               (if (== which 0) (return (? (coco_unify m x (coco_new_int m (cast i64 n))) 1 0)))
+               (let ((size_t lst . #'(coco_new_nil m)) (u32 j . n))
+                 (while (> j 0)
+                   (set j (- j 1))
+                   (set lst (coco_cons m (coco_arg m c j) lst)))
+                 (return (? (coco_unify m x lst) 1 0)))))
+          (if (== which 0)
+              (let ((i64 k . 0))
+                (coco_m_int e x (aof k))
+                (if (> k 4294967295) (return (coco_representation_error e "max_arity")))
+                (set n (cast u32 k))
+                (set h (coco_push m (coco-cell FUN (coco_functor_id m (coco_name_of m nm) n))))
+                (for ((u32 i . 0)) (< i n) ((++ i)) (coco_new_var m)))
+            ;; the arguments, a proper list '$cn_check'/4 walked
+            (let ((size_t t . x))
+              (while (coco_is_cons m t)
+                (set n (+ n 1))
+                (set t (coco_deref m (coco_arg m t 1))))
+              (set h (coco_push m (coco-cell FUN (coco_functor_id m (coco_name_of m nm) n))))
+              (set t x)
+              (while (coco_is_cons m t)
+                (coco_push m (coco-cell REF (coco_deref m (coco_arg m t 0))))
+                (set t (coco_deref m (coco_arg m t 1))))))
+          (return (? (coco_unify m c h) 1 0))))
+
   ;;; '$op_spec'(P, T, N), current_op/3's checks, swipl's in its order
   ;;; (3.0.0): N unbound or an atom (type_error(atom, N)), P unbound or an
   ;;; integer (type_error(integer, P)) of 0 to 1200
