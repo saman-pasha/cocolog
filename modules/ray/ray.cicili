@@ -113,6 +113,9 @@
 ;;;;   ray_mouse_down(+Button)                            left, right, middle -- HELD, level
 ;;;;   ray_mouse_pressed(+Button)                         went down THIS frame -- edge
 ;;;;   ray_mouse_wheel(-X, -Y)                            GetMouseWheelMoveV: this frame's notches, floats
+;;;;   ray_pinch(-Scale)                                  a Mac trackpad pinch, cumulative from 1.0 (1.0 elsewhere)
+;;;;   ray_touch_count(-N)                                GetTouchPointCount: fingers down
+;;;;   ray_touch(+Index, -Id, -X, -Y)                     one of them; Index is raylib's own, 0-based
 ;;;;   ray_frame_time(-Seconds)                           the last frame's
 ;;;;   ray_time(-Seconds)                                 since the window opened
 ;;;;   ray_screenshot(+Path)                              the framebuffer as a PNG, at that path
@@ -178,6 +181,9 @@
     ("$ray_key_pressed" 1 ray_p_key_pressed)
     ("ray_mouse"       2 ray_p_mouse)
     ("ray_mouse_wheel" 2 ray_p_mouse_wheel)
+    ("ray_touch_count" 1 ray_p_touch_count)
+    ("ray_touch"       4 ray_p_touch)
+    ("ray_pinch"       1 ray_p_pinch)
     ("$ray_mouse_down" 1 ray_p_mouse_down)
     ("$ray_mouse_pressed" 1 ray_p_mouse_pressed)
     ("ray_frame_time"  1 ray_p_frame_time)
@@ -317,6 +323,7 @@
   (make :std #t :compile #f)
 
   (include <raylib.h>)
+  (include "gesture.h")
 
   ;;; raylib's types and entry points, declared to Cicili in
   ;;; ./binding.cicili: a Color, a Vector2, a Camera3D and a Texture2D
@@ -1084,6 +1091,39 @@
           (if (not (coco_m_unify_float e (coco_m_arg e g 0) (cast double ($ w x))))
               (return 0))
           (return (coco_m_unify_float e (coco_m_arg e g 1) (cast double ($ w y))))))
+
+  ;;; ---- touch, polled ----
+  ;;; Raylib's own touch API, unchanged. There is no `IsTouchDetected' in
+  ;;; raylib 6: the count is the answer, and zero is no finger. The index
+  ;;; is raylib's, 0-based, so a program walks between(0, Count - 1, I).
+  ;;; Coordinates are raylib's screen pixels, as GetTouchPosition gives
+  ;;; them; unlike the mouse, they are cast to integers because a touch
+  ;;; point is reported for a finger on a glass and the game's touch
+  ;;; events carry whole pixels.
+  (func ray_p_touch_count ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_m_unify_int e (coco_m_arg e g 0)
+                                   (cast i64 (GetTouchPointCount)))))
+
+  ;;; ---- the Mac trackpad pinch ----
+  ;;; NSEventTypeMagnify is not a touch and not a scroll, so it has its
+  ;;; own reader (gesture_macos.m). The portable build answers 1.0,
+  ;;; which is what "no gesture" is; the Prolog surface is the same.
+  (func ray_p_pinch ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_m_unify_float e (coco_m_arg e g 0) (ray_pinch_scale))))
+
+  (func ray_p_touch ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 i . 0))
+          (let ((int rc . #'(ray_iarg e g 0 (aof i))))
+            (if (!= rc 1) (return rc)))
+          (if (or (< i 0) (>= i (GetTouchPointCount))) (return 0))
+          (let ((Vector2 p . #'(GetTouchPosition (cast int i))))
+            (if (not (coco_m_unify_int e (coco_m_arg e g 1)
+                                       (cast i64 (GetTouchPointId (cast int i)))))
+                (return 0))
+            (if (not (coco_m_unify_int e (coco_m_arg e g 2)
+                                       (cast i64 (cast int ($ p x))))) (return 0))
+            (return (coco_m_unify_int e (coco_m_arg e g 3)
+                                      (cast i64 (cast int ($ p y))))))))
 
   (func ray_p_log_level ((coco_engine * e) (size_t g)) (out int)
         (let ((i64 n . 0))

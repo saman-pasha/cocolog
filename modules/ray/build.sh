@@ -66,7 +66,24 @@ mkdir -p "$OUT"
 ( cd "$CICILI" && CPATH="$RAY_INC${CPATH:+:$CPATH}" \
     sbcl --script cicili.lisp --release "$HERE/ray.cicili" )
 
+# The trackpad pinch is platform-specific: Cocoa's NSEventTypeMagnify on
+# macOS, and the same one-function answer (1.0) everywhere else. It is a
+# separate object because it is not Cicili and because only Darwin links
+# a framework.
+GESTURE_OBJ="$HERE/gesture.o"
+GESTURE_LIBS=
+case "$(uname -s)" in
+  Darwin)
+    "$CC" -c -fobjc-arc -I"$RAY_INC" -o "$GESTURE_OBJ" "$HERE/gesture_macos.m"
+    GESTURE_LIBS="-framework Cocoa"
+    ;;
+  *)
+    "$CC" -c -O3 -I"$RAY_INC" -o "$GESTURE_OBJ" "$HERE/gesture_none.c"
+    ;;
+esac
+
 # -O3 is what optimises the .so; Cicili's --release governs its own step.
-"$CC" -shared -fPIC -O3 -I"$RAY_INC" -o "$OUT/ray.so" "$HERE/ray.c" \
-    $RAY_LINK -lX11 -lm -lpthread -ldl
+"$CC" -shared -fPIC -O3 -I"$RAY_INC" -I"$HERE" -o "$OUT/ray.so" "$HERE/ray.c" \
+    "$GESTURE_OBJ" $RAY_LINK -lX11 -lm -lpthread -ldl $GESTURE_LIBS
+rm -f "$GESTURE_OBJ"
 echo "built $OUT/ray.so"
