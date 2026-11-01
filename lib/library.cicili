@@ -76,7 +76,7 @@
           (LIST
            ;; the flags current_prolog_flag/2 answers, for a flag it was not
            ;; given (3.0.0): its C half declines that goal to this clause
-           "current_prolog_flag(F, V) :- var(F), member(F, [bounded, max_integer, min_integer, max_tagged_integer, min_tagged_integer, float_overflow, float_zero_div, float_undefined, float_underflow, float_min, float_max, float_max_integer, double_quotes, text_units, verbose, argv, os_argv, executable]), current_prolog_flag(F, V)."
+           "current_prolog_flag(F, V) :- var(F), member(F, [bounded, max_integer, min_integer, max_tagged_integer, min_tagged_integer, float_overflow, float_zero_div, float_undefined, float_underflow, float_min, float_max, float_max_integer, double_quotes, text_units, verbose, optimise_unify, argv, os_argv, executable]), current_prolog_flag(F, V)."
            "consult(Files) :- '$lf_load'(Files, true)."
            ;; ONE FILE IN BRACKETS IS consult/1 OF THE FILE (2.14.0), swipl's
            ;; `[X] :- !, consult(X).': a missing one raises, as consult(F)
@@ -411,6 +411,10 @@
           (if (== 0 (strcmp flag "verbose"))
               (return (coco_m_unify_atom e (coco_m_arg e g 1)
                                          (? (== (nth 0 lb_verbose) (cast char 0)) "normal" lb_verbose))))
+          ;; `optimise_unify' (3.15.0): swipl's, the process's -- whether a store puts
+          ;; the unifications that begin a clause's body into its head
+          (if (== 0 (strcmp flag "optimise_unify"))
+              (return (coco_m_unify_atom e (coco_m_arg e g 1) (? (coco_optimise_unify) "true" "false"))))
           (if (!= 0 (strcmp flag "executable")) (return 0))
           (lb_exe_resolve)
           (if (== (nth 0 lb_exe_path) (cast char 0)) (return 0))
@@ -512,6 +516,17 @@
                (snprintf lb_verbose (sizeof lb_verbose) "%s" val)
                (coco_verbose_silent_set (== 0 (strcmp val "silent")))
                (return 1)))
+          ;; `optimise_unify' (3.15.0) takes swipl's booleans, the process's
+          ;; (an unbound value is the type error's instantiation_error)
+          (if (== 0 (strcmp flag "optimise_unify"))
+              (block
+               (if (and (coco_m_is_atom e v) (coco_m_text e v val 64))
+                   (block
+                     (if (or (== 0 (strcmp val "true")) (== 0 (strcmp val "on")))
+                         (block (coco_optimise_unify_set 1) (return 1)))
+                     (if (or (== 0 (strcmp val "false")) (== 0 (strcmp val "off")))
+                         (block (coco_optimise_unify_set 0) (return 1)))))
+               (return (coco_m_type_error e "bool" v))))
           (if (== 0 (strcmp flag "generate_debug_info"))
               (block
                (if (coco_m_is_var e v) (return (coco_m_instantiation_error e)))

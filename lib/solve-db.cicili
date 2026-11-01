@@ -220,6 +220,8 @@
   (func coco_bi_assertz ((coco_engine * e) (size_t g)) (out int)
         (return (coco_assert_goal e g 1)))
 
+  (decl) (func coco_retractall_none ((coco_engine * e) (size_t g)) (out int))
+
   (func coco_bi_retract ((coco_engine * e) (size_t g)) (out int)
         (let ((int bad . #'(coco_clause_check e (coco_arg (-> e m) g 0) 0)))
           (if (!= bad 0) (return bad)))
@@ -228,7 +230,10 @@
             ;; -1: the predicate could not be read, and nothing was taken
             (if (< ok 0) (return (coco_fetch_error e)))
             (coco_store_maybe_compact (-> e st) (-> e m))
-            (return (? ok 1 0)))))
+            (if ok (return 1))))
+        (if (== 0 (strcmp (coco_atom_name (-> e m) (coco_name_of (-> e m) g)) "$retractall"))
+            (return (coco_retractall_none e g)))
+        (return 0))
 
   ;;; A PART OF A DECLARATION'S SPEC THAT IS NONE (3.1.0): FORMAL raised as
   ;;; swipl 9.0.4 raises it, NAME/ARITY the frame its raise names
@@ -255,6 +260,36 @@
           (return (coco_raise_ctx e (coco_make1 m "resource_error" (coco_new_atom m "knowledge_base"))
                                   (coco_ectx_pi m "system" (coco_new_atom m (coco_decl_kind kind)) 1
                                                 (coco_new_atom m (-> st write_err)))))))
+
+  ;;; RETRACTALL/1 OF A PREDICATE WITH NO CLAUSES DECLARES IT DYNAMIC
+  ;;; (3.15.0), as swipl's: after `retractall(p(_))' p/1 is a dynamic
+  ;;; predicate, which current_predicate/1 answers, predicate_property/2
+  ;;; calls dynamic and whose clauses are kept as written
+  ;;; (`coco_assert_from'). Asked where `'$retractall'' took nothing, of
+  ;;; G's head: never a name the engine or a compiled-in module implements,
+  ;;; where swipl raises (cocolog keeps facts under such names,
+  ;;; `number(dos)'), nor a predicate with clauses, which a retract made
+  ;;; dynamic already or swipl refuses. 0, the goal's answer, or a raise's.
+  (func coco_retractall_none ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st))
+              (size_t h . #'(coco_deref m (coco_arg m g 0)))
+              (size_t pi . 0) (int rc . 0))
+          (if (and (coco_is_callable m h)
+                   (and (== (coco_arity m h) 2) (== 0 (strcmp (coco_atom_name m (coco_name_of m h)) ":-"))))
+              (set h (coco_deref m (coco_arg m h 0))))
+          (while (and (coco_is_callable m h)
+                      (and (== (coco_arity m h) 2) (== 0 (strcmp (coco_atom_name m (coco_name_of m h)) ":"))))
+            (set h (coco_deref m (coco_arg m h 1))))
+          (if (not (coco_is_callable m h)) (return 0))
+          (if (!= (coco_claim_kind m (coco_name_of m h) (coco_arity m h)) 0) (return 0))
+          (set pi (coco_pred_find st (coco_name_of m h) (coco_arity m h)))
+          (if (< pi (-> st npreds))
+              (if (or ($ (nth pi (-> st preds)) dynamic)
+                      (> (coco_pred_live (aof (nth pi (-> st preds)))) 0))
+                  (return 0)))
+          (set rc (coco_decl_put e 0 (coco_name_of m h) (coco_arity m h)))
+          (return (? (== rc 1) 0 rc))))
 
   ;;; A GRAMMAR RULE'S ARITY, `A + 2' evaluated as swipl's '$pi_head'/2
   ;;; evaluates it: is/2's own errors, named by that frame (the goal in

@@ -104,7 +104,7 @@
               "module_transparent" "multifile" "public" "thread_local"
               "thread_initialization" "volatile" "table")
     ;; THE BAR IS AN OPERATOR OF ITS OWN (3.2.0, swipl's): `a|b' is
-    ;; '|'(a, b), which a clause's body holds as ;/2 (`coco_bar_body') and a
+    ;; '|'(a, b), which a clause's body holds as ;/2 (`coco_clause_compile') and a
     ;; call runs as one. Through 3.1.0 the reader made every bar outside a
     ;; list `;' and op/3 changed nothing it read
     (1105 xfy "|")

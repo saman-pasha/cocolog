@@ -821,6 +821,8 @@
   (decl) (func coco_text_default_set ((int chars)))
   (decl) (func coco_verbose_silent () (out int))
   (decl) (func coco_verbose_silent_set ((int on)))
+  (decl) (func coco_optimise_unify () (out int))
+  (decl) (func coco_optimise_unify_set ((int on)))
   ;; ---- the float flags (2.2.2) ----
   (decl) (func coco_fflags_default () (out int))
   (decl) (func coco_fflags_default_set ((int fl)))
@@ -1532,6 +1534,17 @@
 
   (func coco_verbose_silent_set ((int on))
         (set coco_verbose_quiet on))
+
+  ;;; `optimise_unify' (3.15.0), swipl's and the process's: whether a store puts
+  ;;; the unifications that begin a clause's body into its head
+  ;;; (`coco_clause_compile' in lib/kb-consult.cicili)
+  (static) (var int coco_optu . 1)
+
+  (func coco_optimise_unify () (out int)
+        (return coco_optu))
+
+  (func coco_optimise_unify_set ((int on))
+        (set coco_optu on))
 
   ;;; THE FLOAT FLAGS' DEFAULT (2.2.2): swipl's (0) until a set_prolog_flag/2
   ;;; of one of them, and then what it left, so a machine made after it -- a

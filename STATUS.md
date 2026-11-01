@@ -10504,8 +10504,8 @@ G here.
 NOT SWIPL'S YET:
 - a stored body keeps the translation's nesting, where swipl's compiler
   flattens a conjunction (`a --> (b, c), d` is `a(A, B) :- (b(A, C), c(C,
-  D)), d(D, B)` here, `b(A, C), c(C, D), d(D, B)` there; COMPAT.md); and
-  numbervars/3 does not exist.
+  D)), d(D, B)` here, `b(A, C), c(C, D), d(D, B)` there; COMPAT.md) --
+  3.15.0, below; and numbervars/3 does not exist.
 - expand_term/2, expand_goal/2, term_expansion/2 and goal_expansion/2 at a
   load, and non_terminal/1 -- 3.14.0, below.
 - a rule in a module file: swipl leaves `M:X` unqualified where M is the
@@ -10723,3 +10723,107 @@ lint first (0 HARD, 0 WARN), then files beside the reference swipl 9.0.4
 reconsult, flowchart, cyclic, units, syntax, string, gc, trace, journal,
 stream, and the solve and state binaries, each GREEN; the card's cites
 checked, five set by hand where an anchor repeats in its file.
+
+## clause/2 gives back what swipl's compiler keeps of a clause (3.15.0)
+
+Through 3.14.0 a clause was stored as it was written, and clause/2,
+listing/1 and retract/1 saw the source: `(a, b), c` nested, a variable
+where a goal stands bare, `user:G` qualified, a grammar rule's body as its
+translation nested it. swipl's clause/2 gives back what its compiler made
+of the clause, and so does cocolog's now. A clause is compiled at every
+assert, every consult and every read of a stored clause
+(`coco_clause_compile` in lib/kb-consult.cicili), and runs as it did:
+
+- THE BODY'S CONJUNCTIONS ARE ONE, in the arms of `;`, `->`, `*->` and
+  under `\+` -- the constructs swipl compiles in place -- and never in a
+  goal's argument (call/1's, findall/3's, catch/3's, not/1's).
+- A VARIABLE WHERE A GOAL STANDS IS call/1 of it, and `M:X` call(M:X).
+- `user:G` is G, and any other qualifier is said of each goal under it
+  (`foo:(a, b)` is `foo:a, foo:b`, an inner one winning), lost by the goals
+  swipl compiles in place (`coco_cbody_inline`: `!`, `true`, `fail`, `=`,
+  `==`, `\==`, the type tests); under a variable M each goal is
+  call(M:G). A bar is `;` (3.2.0's, now one walk with the rest), and
+  `f()` the atom (3.12.0's).
+- A `=/2` with a variable the clause names nowhere else is `true`.
+- UNDER swipl's FLAG `optimise_unify` (true by default, a goal and a
+  directive, the process's) THE UNIFICATIONS THAT BEGIN THE BODY GO INTO
+  THE HEAD (`coco_cbody_scan`): `p(X) :- X = f(Y), q(Y)` is `p(f(Y)) :-
+  q(Y)`, a `true` or a `=/2` passed and anything else ending the walk, a
+  qualified one too -- read from the clause as written, where the body
+  compile has already stripped `user:`. Only a STATIC predicate's clause
+  moves, as swipl's: a file's, a library's, and the first an assert gives a
+  predicate that has none and was never declared dynamic. A later assert
+  (assertz/1 makes the predicate dynamic), a `:- dynamic` predicate's
+  clause and one of a predicate retractall/1 made are kept as written, and
+  so is a clause the backend kept, read back (the store's `nomove`, set by
+  `coco_assert_stored`), which a writing process compiled and a reading one
+  must not move again. A variable moves only where the clause names it
+  nowhere else (COMPAT.md: swipl's moves it anyway, and `p(X, Y) :- X =
+  f(Y), Y = 1` then succeeds there for `p(f(2), 2)`).
+- RETRACTALL/1 OF A PREDICATE WITH NO CLAUSES DECLARES IT DYNAMIC
+  (`coco_retractall_none` in lib/solve-db.cicili), as swipl's: a later
+  assert keeps its clause as written and current_predicate/1 answers for
+  it. Not under a builtin's name, where swipl raises and cocolog keeps the
+  fact beside the builtin (library(reasoning)'s word classes; COMPAT.md).
+- A body that changes nothing comes back as the same cell, and the
+  clause's variables are counted (`coco_cbody_count`, the machine's
+  variable map) only when a `=/2` asks; the count gives up past twice the
+  heap's length and 64 nodes, where a cyclic clause (refused at its put
+  after) or a DAG too wide to walk as a tree would never end, and then
+  nothing is made `true` and nothing moves. A body more than 256 deep stays
+  as written below that depth (a 200 000-deep conjunction asserts and runs;
+  swipl's own compiler stops at its C-stack limit).
+
+WHAT MOVES BESIDE THE TEXT: what runs is the source's in every case, but
+the counts move. A nested conjunction is no construct step any more; a
+variable goal is call/1's step and the goal's; a distributed qualifier is
+a free step per goal; and a moved unification is no step at all and an
+index key, so a call keyed on it finds one candidate where the variable
+head left a choice. The backtrace names a variable goal as swipl's does,
+`call(_G)` (test/backtrace.pl), and library(flow/debug)'s step numbers
+moved by one where a body's `sized` became a fact (test/flowdebug.pl).
+predicate_property/2's number_of_rules/1 counts a clause whose body became
+`true` as a fact (COMPAT.md).
+
+THE CHECKS: test/files/clause_body.pl beside swipl 9.0.4, byte for byte --
+two hundred and twenty clauses read back by clause/2 (the
+conjunctions, the arms, the qualifiers, the voids, the moves and the walk's
+ends, a static predicate's three clauses each moving, grammar rules),
+asserted clauses and retract/1 of the compiled form, the cut under a
+qualifier, the counts of rules and clauses, the flag (its errors, its
+place in the enumeration, false and true again), the static and dynamic
+rule (n1 to n6), and a cyclic clause with a `=/2` in its body refused; and
+test/engine.pl's `compiled`: a head variable the body names again kept and
+failing as the source says, a body 200 000 deep, retractall/1 under a
+builtin's name declaring nothing, under a static predicate leaving it
+static, and a `:- dynamic` predicate's clause written through `--embed`
+and read back by a second process, kept as written.
+
+ARMS: forty-one, one a rule, each taken out in a copy of the tree built as
+the release is and run on the two cases. Thirty-four were red at once.
+Three went red once a check reached them: `f()` as the atom on
+test/files/zero_arity.pl, 3.12.0's case; the count's budget on the cyclic
+clause, which without it never ends; and the move for a file's clause past
+the first on z18/1's second and third clauses. Two were green and their
+code is gone: set_prolog_flag/2's own unbound check for optimise_unify
+(the type error raises instantiation_error of an unbound value already) and
+a shortcut for `foo:G` with G a plain goal (14 instructions over a consult
+of library/reasoning/translate.pl, 1 467 over a start-up: nothing). Two
+are green and stay as guards of cost, counted by callgrind over the consult
+of translate.pl's 28 368 lines and over `cocolog query true`: a body that
+changes nothing given back as its own cell (11.9 million instructions of
+625.0, and 0.9 million of 53.6 at start-up) and the move asked only of a
+body that begins with `true` or a `=/2` (9.3 million, and 1.5 million).
+
+NOT SWIPL'S YET (COMPAT.md): a head variable the body names again keeps its
+unification (above); an assert under a builtin's name keeps the fact, where
+swipl raises; and listing/1 lays a clause out in cocolog's way.
+
+PROVED: THE NARROW CASES (the owner's choice; CI runs the whole suite):
+lint first (0 HARD, 0 WARN), then files beside the reference swipl 9.0.4
+(clause_body's lines among them), engine, backtrace, flowdebug, library,
+directives, errors, module, reconsult, flowchart, cyclic, units, syntax,
+string, gc, trace, journal, reason, translate and the solve and state
+binaries, each GREEN; lessons 07, 10, 11 of the basics and 03, 04, 05, 18,
+37 and 43 of the library, which read clauses back, each ending `done`; the
+card's cites checked.

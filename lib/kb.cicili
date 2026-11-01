@@ -1288,7 +1288,12 @@
     ;; `coco_module_load'): a program's term_expansion/2 and
     ;; goal_expansion/2 reach every file a load reads, as swipl's do, and
     ;; never the engine's own predicates, which swipl's are not read for.
-    (member int       noexp))
+    (member int       noexp)
+    ;; 1 WHILE A CLAUSE THE BACKEND KEPT IS READ BACK (3.15.0,
+    ;; `coco_assert_stored'): it was stored as the compiler kept it, and a
+    ;; predicate read whose dynamic declaration comes after its rows would
+    ;; have its first row's unifications moved into the head a second time.
+    (member int       nomove))
 
   (decl) (func coco_store_init ((coco_store * st)))
   (decl) (func coco_store_free ((coco_store * st)))

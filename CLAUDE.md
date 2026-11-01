@@ -521,11 +521,13 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   `text_units` (1.13.0), since 2.0.0 `bounded`, `max_integer`,
   `min_integer`, `max_tagged_integer` and `min_tagged_integer`, and since
   2.2.2 swipl's four float flags and `float_min`, `float_max` and
-  `float_max_integer`, and since 2.16.0 `verbose` (`normal`), are the only
-  flags answered; set_prolog_flag/2 sets `double_quotes`, `text_units`,
-  `generate_debug_info` (taken and unused), the float flags and `verbose`
-  (any atom, the process's: `silent`, swipl -q's, quiets print_message/2's
-  informational and banner kinds), as a goal since 2.2.2, and refuses
+  `float_max_integer`, since 2.16.0 `verbose` (`normal`), and since 3.15.0
+  `optimise_unify` (`true`), are the only flags answered; set_prolog_flag/2
+  sets `double_quotes`, `text_units`, `generate_debug_info` (taken and
+  unused), the float flags, `verbose` (any atom, the process's: `silent`,
+  swipl -q's, quiets print_message/2's informational and banner kinds) and
+  `optimise_unify` (swipl's booleans, the process's: whether a store moves
+  the unifications that begin a body into its head), as a goal since 2.2.2, and refuses
   every other flag in swipl's words. `library(main)` parses the tail.
 * **Exit status is SWI's**: 0 proved, 1 failed silently, 2 threw; `halt(N)`
   is N from `-s`, `run` and `query` alike.
@@ -1267,7 +1269,7 @@ cocolint index offers no import of it.
   `domain_error(compound_non_zero_arity, T)` as swipl 9's, and
   compound_name_arity/3 and compound_name_arguments/3 take it apart and
   make it (`'$compound'/4`). A clause's head and a body's goal written so
-  are kept as the atom (`coco_assert_from`, `coco_bar_body`), as swipl's
+  are kept as the atom (`coco_assert_from`, `coco_clause_compile`), as swipl's
   clause/2 hands them back; clause/2 of `f()` asks f/0's. **`coco_make(m,
   name, 0, nil)` makes `f()`, not the atom** (`coco_new_atom`); a call of
   no arguments never goes through the registers (`cc_env_callable`), so no
@@ -1491,6 +1493,39 @@ cocolint index offers no import of it.
 * **Consulting a file REPLACES the clauses it put in the store last time**
   (per-clause `origins`; `'$from'(Path, Clause)` on the wire); asserted
   clauses and other files' are untouched.
+* **A clause is stored as swipl's compiler keeps it** (3.15.0,
+  `coco_clause_compile` in lib/kb-consult.cicili, at every assert,
+  consult and read of a stored clause, so clause/2, listing/1 and
+  retract/1 see what swipl's see): the body's conjunctions one, in the
+  arms of `;`, `->`, `*->` and `\+` and never in a goal's argument; a
+  variable goal call/1 of it (`M:X` call(M:X)); a bar `;`; `f()` the
+  atom; `user:G` G, and any other qualifier said of each goal under it,
+  lost by the ones swipl compiles in place (`coco_cbody_inline`: `!`,
+  `true`, `fail`, `=`, `==`, `\==`, the type tests), and under a variable
+  M each goal call(M:G); a `=/2` with a variable the clause names
+  nowhere else `true`; and under `optimise_unify` the unifications that
+  begin the body moved into the head (`coco_cbody_scan`: a `true` or a
+  `=/2` passed, anything else ending the walk, a qualified one too, read
+  from the clause as written) -- **of a static predicate's clause only**,
+  as swipl's: a file's, a library's, and the first an assert gives a
+  predicate with no clauses that was never declared dynamic; a later
+  assert, a `:- dynamic` predicate's clause and one of a predicate
+  retractall/1 made are kept as written, and so is a clause the backend
+  kept, read back (the store's `nomove`). **retractall/1 of a predicate
+  with no clauses declares it dynamic** (`coco_retractall_none`, swipl's;
+  not under a builtin's name, where swipl raises). A body that changes
+  nothing comes back as the same cell, and the clause's variables are
+  counted (`coco_cbody_count`, the machine's variable map) only when a
+  `=/2` asks. **A variable moves only where the clause names it nowhere
+  else**: swipl's moves it anyway, and its stored clause then means
+  another thing (`p(X, Y) :- X = f(Y), Y = 1` succeeds for `p(f(2), 2)`
+  there; COMPAT.md). What runs is the source's in every case, but the
+  counts move: a nested conjunction is no construct step any more, a
+  variable goal is call/1's step and the goal's, a distributed qualifier
+  a free step per goal, and a moved unification no step and an index key
+  (a call keyed on it, where a variable head left a choice). **A new
+  compiled-in-place construct gets its kind** (`coco_cbody_kind`) and its
+  walk, or its arms keep their nesting.
 * **An uncaught exception reads as SWI's sentence** (`coco_error_text`):
   `Unknown procedure: main/0`, `Unknown message: Ball`. **An unknown
   procedure's ends on the predicates its name is near** (3.3.0, swipl's
@@ -2542,8 +2577,8 @@ cocolint index offers no import of it.
   (`qual`), never `qm != 0`: in a fresh machine (`cocolog run`, whose
   consult reads each clause from cell 0) the module's atom IS heap cell 0,
   and 2.16.0's first cut dropped every `prolog:message//1` rule under `run`
-  alone. Not swipl's yet (COMPAT.md): a stored body keeps the
-  translation's nesting, where swipl's compiler flattens a conjunction. The two hooks
+  alone. A stored rule is compiled as any clause is (3.15.0, the bullet
+  on what a clause is stored as, below): its conjunctions one. The two hooks
   print_message/2 reads, `prolog:message//1` and `prolog:error_message//1`,
   are stored as `'$prolog_message'/3` and `'$prolog_error_message'/3`
   (`coco_hook_head`), apart from a program's own message/3.
@@ -2578,7 +2613,7 @@ cocolint index offers no import of it.
   reads, `\+ = a` and `dynamic ; a` do not), quoted or bracketed at 0, and
   never before an infix bar. **The bar is '|'/2 at 1105 xfy**, written
   `a|b`, and `;` where it is a goal: a clause's body is stored with `;`
-  (`coco_bar_body` at the assert, so clause/2 hands back `;`), a call of
+  (`coco_clause_compile` at the assert, so clause/2 hands back `;`), a call of
   '|'/2 runs as `;` (the construct, `coco_goal_leaves`), a program's own
   clause for it is kept and never called. **A walk of the control
   constructs takes the bar beside `;`**: the callable check

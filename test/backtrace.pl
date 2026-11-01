@@ -135,9 +135,11 @@ caught(D) :-
                   %% compiles a body, so a goal that is no goal names the
                   %% clause it stands in, p/1, and so does call/N's goal
                   %% where call/N stands in a body, main/0 (through 3.0.4
-                  %% '<meta-call>'/1 and call/2)
-                  [unbound-'p(_)'-'p/1: Arguments are not sufficiently instantiated'-'_G',
-                   number-'p(1)'-'p/1: Type error: `callable\' expected, found `1\' (an integer)'-'1',
+                  %% '<meta-call>'/1 and call/2); the goal in flight is the
+                  %% goal as the clause keeps it, call/1 of the variable,
+                  %% swipl's clause/2 (3.15.0; through 3.14.0 `_G' and `1')
+                  [unbound-'p(_)'-'p/1: Arguments are not sufficiently instantiated'-'call(_G)',
+                   number-'p(1)'-'p/1: Type error: `callable\' expected, found `1\' (an integer)'-'call(1)',
                    closure-'call(1, x)'-'main/0: Type error: `callable\' expected, found `1\' (an integer)'-'call(1,x)']),
            ( atom_concat(D, '/', D1), atomic_list_concat([D1, Name, '.pl'], Fx),
              atomic_list_concat(['main :- write(a), nl, atom_length(abc, _), ', Body, ', write(b).'], M),

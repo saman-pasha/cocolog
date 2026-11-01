@@ -36,7 +36,7 @@ main :-
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
-    update_view(D), sleeps(D),
+    update_view(D), sleeps(D), compiled(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -1802,3 +1802,46 @@ uv_stepped(C, D, F, G, O) :-
              'case "$o" in *finished*) break;; esac; [ $i -lt 400 ] || break; i=$((i+1)); ',
              'o=$(', C, ' --embed ', K, ' --steps 50 step m 2>&1); done'], Cmd),
     proc_run(Cmd, 300000, Out, _), atom_codes(O, Out).
+
+%% a static predicate of the case's own, which retractall/1 of a head no
+%% clause of it matches must leave static
+cc_static(1).
+
+%% a conjunction N deep on its left: ((((a, a), a), ...), a)
+cc_nest(0, a) :- !.
+cc_nest(N, (G, a)) :- N1 is N - 1, cc_nest(N1, G).
+
+compiled(D) :-
+    section('the clause as the compiler keeps it: what swipl cannot be asked (3.15.0)'),
+    %% swipl's compiler moves X = 1 into the head and shows the later goal
+    %% on another variable, `cc_a(1) :- A = 2'; here the clause keeps the
+    %% unification of a variable it names again, and means what it says
+    assertz((cc_a(X1) :- X1 = 1, X1 = 2)),
+    ( clause(cc_a(A1), B1), B1 = (V1 = 1, W1 = 2), V1 == A1, W1 == A1 -> R1 = kept ; R1 = moved ),
+    ( cc_a(_) -> S1 = succeeded ; S1 = failed ),
+    check('a head variable the body names again keeps its unification, and the clause fails', R1-S1, kept-failed),
+    %% below 256 levels a body is made one, past it kept as it was written:
+    %% the walk recurses, and a body 200 000 deep would take the C stack
+    cc_nest(200000, B2), assertz((cc_deep :- B2)),
+    ( clause(cc_deep, C2), C2 = (X2, _), X2 = (_, _) -> R2 = nested ; R2 = flat ),
+    check('a body nested 200 000 deep is stored, its depth past 256 levels as written', R2, nested),
+    %% retractall/1 declares only a predicate with no clauses that nothing
+    %% implements: swipl raises for the other two, cocolog keeps facts
+    %% under a builtin's name (`number(dos)') and leaves a static one so
+    catch(retractall(atom(_)), _, true),
+    ( current_predicate(atom/1) -> R3 = declared ; R3 = not_declared ),
+    check('retractall/1 of a builtin\'s name declares nothing', R3, not_declared),
+    retractall(cc_static(2)),
+    ( predicate_property(cc_static(_), dynamic) -> R4 = dynamic ; R4 = static ),
+    check('retractall/1 that takes no clause of a static predicate leaves it static', R4, static),
+    %% a dynamic predicate's clause is stored as written, and a second
+    %% process that reads it back keeps it so, though the predicate's
+    %% declaration is read after its rows
+    atom_concat(D, '/compiled.pl', F5),
+    fixture(F5, [':- dynamic cc_d/1.', 'cc_d(X) :- X = 1, true.']),
+    atom_concat(D, '/compiled-kb', K5),
+    cocolog(C5),
+    sh_join([C5, ' --embed ', K5, ' consult ', F5, ' >/dev/null 2>&1; ',
+             C5, ' --embed ', K5, ' query ''clause(cc_d(A), _), ( var(A) -> write(kept) ; write(moved) ), nl'' 2>&1 | head -n 1'], Cmd5),
+    proc_run(Cmd5, 60000, Out5, _), atom_codes(O5, Out5),
+    check('a dynamic clause read back by another process keeps its unification', O5, 'kept\n').
