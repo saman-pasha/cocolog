@@ -1,0 +1,172 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-labelledby="title desc">
+  <title id="title">cocolog — a Prolog whose running state is data</title>
+  <desc id="desc">A dark banner with the cocolog wordmark and tagline. On the right a suspended Prolog clause floats beside a database cylinder; Cicili, ZiguratIP and The Coco are named beneath.</desc>
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#060a14"/>
+      <stop offset="0.55" stop-color="#0b1428"/>
+      <stop offset="1" stop-color="#111d3a"/>
+    </linearGradient>
+    <radialGradient id="glow-teal" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#5fe0ce" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#5fe0ce" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow-amber" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#e6b35a" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#e6b35a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0e1b33"/>
+      <stop offset="1" stop-color="#091326"/>
+    </linearGradient>
+    <linearGradient id="db" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#132641"/>
+      <stop offset="1" stop-color="#0b172c"/>
+    </linearGradient>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="1.5" cy="1.5" r="1" fill="#9fb3dd" opacity="0.12"/>
+    </pattern>
+    <marker id="arrow-teal" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0 0 L8 4 L0 8 Z" fill="#5fe0ce" opacity="0.8"/>
+    </marker>
+    <marker id="arrow-amber" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0 0 L8 4 L0 8 Z" fill="#e6b35a" opacity="0.8"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="400" fill="url(#bg)"/>
+  <rect width="1280" height="400" fill="url(#dots)"/>
+
+  <circle cx="1010" cy="188" r="280" fill="url(#glow-teal)"/>
+  <circle cx="760" cy="70" r="190" fill="url(#glow-amber)"/>
+
+  <!-- an orbit: three parts, one system -->
+  <g fill="none" stroke="#233756">
+    <ellipse cx="984" cy="180" rx="232" ry="136" opacity="0.55"/>
+    <ellipse cx="984" cy="180" rx="184" ry="108" stroke-dasharray="2 10" opacity="0.7"/>
+  </g>
+  <circle cx="984" cy="44" r="5" fill="#e6b35a"/>
+  <circle cx="1216" cy="180" r="5" fill="#5fe0ce"/>
+
+  <!-- the name -->
+  <g transform="translate(78 72)">
+    <circle cx="0" cy="0" r="12" fill="none" stroke="#5fe0ce" stroke-width="2"/>
+    <circle cx="13" cy="0" r="12" fill="none" stroke="#e6b35a" stroke-width="2"/>
+    <circle cx="7" cy="11" r="12" fill="none" stroke="#9aa8ff" stroke-width="2"/>
+  </g>
+  <text x="120" y="78" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+        font-size="12" fill="#93a5c8" letter-spacing="4">DURABLE PROLOG</text>
+
+  <text x="72" y="188" font-family="Georgia, 'Times New Roman', serif" font-size="110"
+        font-weight="bold" fill="#f6f1e4" letter-spacing="-4">cocolog</text>
+  <rect x="76" y="202" width="126" height="3" rx="1.5" fill="#5fe0ce" opacity="0.85"/>
+
+  <text x="76" y="238" font-family="Georgia, 'Times New Roman', serif" font-size="25"
+        font-style="italic" fill="#dde5f5">Computation become durable knowledge.</text>
+  <text x="76" y="266" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+        font-size="13" fill="#8d9cbd">A Prolog whose running proofs are data.</text>
+
+  <!-- the three, in one row -->
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12">
+    <g>
+      <rect x="76" y="294" width="100" height="30" rx="15" fill="#101b32" stroke="#3c4b78"/>
+      <circle cx="94" cy="309" r="4" fill="#9aa8ff"/>
+      <text x="106" y="313" fill="#cdd6ef" letter-spacing="1">Cicili</text>
+    </g>
+    <g>
+      <rect x="190" y="294" width="124" height="30" rx="15" fill="#101b32" stroke="#6a5431"/>
+      <circle cx="208" cy="309" r="4" fill="#e6b35a"/>
+      <text x="220" y="313" fill="#cdd6ef" letter-spacing="1">ZiguratIP</text>
+    </g>
+    <g>
+      <rect x="328" y="294" width="124" height="30" rx="15" fill="#101b32" stroke="#2f615e"/>
+      <circle cx="346" cy="309" r="4" fill="#5fe0ce"/>
+      <text x="358" y="313" fill="#cdd6ef" letter-spacing="1">The Coco</text>
+    </g>
+  </g>
+
+  <!-- the proof's life, one line -->
+  <line x1="76" y1="356" x2="528" y2="356" stroke="#263857" stroke-width="1.5"/>
+  <g fill="#5fe0ce">
+    <circle cx="76" cy="356" r="4"/>
+    <circle cx="226" cy="356" r="4"/>
+    <circle cx="376" cy="356" r="4"/>
+    <circle cx="528" cy="356" r="4"/>
+  </g>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10"
+     fill="#7788ab" text-anchor="middle" letter-spacing="1.5">
+    <text x="76" y="378">CONSULT</text>
+    <text x="226" y="378">START</text>
+    <text x="376" y="378">STEP</text>
+    <text x="528" y="378">RESUME</text>
+  </g>
+
+  <!-- the suspended clause -->
+  <g transform="rotate(-7 775 180)">
+    <rect x="650" y="120" width="260" height="120" rx="13" fill="url(#card)" stroke="#315174" stroke-width="1.5"/>
+    <path d="M663 120 H897 A13 13 0 0 1 910 133 V146 H650 V133 A13 13 0 0 1 663 120 Z" fill="#10213b"/>
+    <circle cx="667" cy="133" r="3" fill="#5fe0ce"/>
+    <circle cx="678" cy="133" r="3" fill="#e6b35a"/>
+    <circle cx="689" cy="133" r="3" fill="#9aa8ff"/>
+    <text x="670" y="169" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+          font-size="13" fill="#94a7ca">?- ancestor(tom, X).</text>
+    <text x="670" y="196" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+          font-size="17" fill="#f6f1e4">ancestor(tom, X).</text>
+    <line x1="670" y1="209" x2="890" y2="209" stroke="#243b5c" stroke-width="1"/>
+    <text x="670" y="228" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+          font-size="11" fill="#7f90b3" letter-spacing="1">step 12 · suspended</text>
+    <g fill="#5fe0ce">
+      <rect x="872" y="217" width="4" height="12" rx="1"/>
+      <rect x="880" y="217" width="4" height="12" rx="1"/>
+    </g>
+  </g>
+
+  <rect x="660" y="92" width="108" height="24" rx="12" fill="#0d2428" stroke="#2f615e"/>
+  <circle cx="675" cy="104" r="3" fill="#5fe0ce"/>
+  <text x="685" y="108" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+        font-size="10" fill="#8fe8db" letter-spacing="1.5">SUSPENDED</text>
+
+  <!-- ZiguratIP keeps it -->
+  <g>
+    <path d="M870 96 V254 A120 26 0 0 0 1110 254 V96 Z" fill="url(#db)" stroke="#294868" stroke-width="1.5"/>
+    <ellipse cx="990" cy="96" rx="120" ry="26" fill="#122640" stroke="#4fc9b8" stroke-width="2"/>
+    <path d="M870 150 A120 26 0 0 0 1110 150" fill="none" stroke="#2a4a6a" stroke-width="1.5"/>
+    <path d="M870 204 A120 26 0 0 0 1110 204" fill="none" stroke="#2a4a6a" stroke-width="1.5"/>
+    <path d="M870 254 A120 26 0 0 0 1110 254" fill="none" stroke="#2a4a6a" stroke-width="1.5"/>
+    <g stroke="#4fc9b8" stroke-width="1.5" opacity="0.55">
+      <line x1="922" y1="120" x2="1058" y2="120"/>
+      <line x1="906" y1="132" x2="1074" y2="132"/>
+      <line x1="938" y1="176" x2="1042" y2="176"/>
+      <line x1="914" y1="230" x2="1066" y2="230"/>
+    </g>
+    <text x="990" y="242" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+          font-size="10" fill="#6f81a5" text-anchor="middle" letter-spacing="3">STATE · MVCC</text>
+  </g>
+
+  <!-- store, then resume -->
+  <path d="M790 250 C 840 282, 900 292, 948 286" fill="none" stroke="#5fe0ce"
+        stroke-width="1.5" stroke-dasharray="4 7" marker-end="url(#arrow-teal)" opacity="0.8"/>
+  <g>
+    <rect x="1048" y="292" width="102" height="28" rx="14" fill="#0d2428" stroke="#2f615e"/>
+    <path d="M1062 301 L1074 306 L1062 311 Z" fill="#5fe0ce"/>
+    <text x="1082" y="311" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+          font-size="10" fill="#8fe8db" letter-spacing="1.5">RESUME</text>
+  </g>
+  <path d="M1110 246 C 1132 258, 1128 276, 1120 288" fill="none" stroke="#e6b35a"
+        stroke-width="1.5" stroke-dasharray="4 7" marker-end="url(#arrow-amber)" opacity="0.8"/>
+
+  <!-- the engine, at the edge -->
+  <circle cx="984" cy="44" r="10" fill="none" stroke="#e6b35a" stroke-width="1.5" opacity="0.9"/>
+  <circle cx="984" cy="44" r="3" fill="#e6b35a"/>
+  <circle cx="1216" cy="180" r="10" fill="none" stroke="#5fe0ce" stroke-width="1.5" opacity="0.9"/>
+  <circle cx="1216" cy="180" r="3" fill="#5fe0ce"/>
+  <text x="1216" y="204" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+        font-size="9" fill="#65789c" text-anchor="middle" letter-spacing="2">THE COCO</text>
+  <text x="984" y="24" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+        font-size="9" fill="#65789c" text-anchor="middle" letter-spacing="2">ZIGURATIP</text>
+
+  <!-- the watermark: the neck of a clause -->
+  <text x="1140" y="382" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+        font-size="210" fill="#9fb3dd" opacity="0.03" text-anchor="middle">:-</text>
+</svg>

@@ -1,6 +1,9 @@
 # cocolog
 
-![cocolog, the bridge between the three](art/banner.svg)
+<p align="center">
+  <img src="art/cocolog-banner.svg" alt="cocolog — a Prolog whose running state is data" width="100%">
+</p>
+
 **Computation become durable knowledge.**
 
 cocolog is a Prolog -- the ISO core, the everyday conveniences, and a checked
