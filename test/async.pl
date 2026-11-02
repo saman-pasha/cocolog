@@ -36,7 +36,7 @@ spin(0) :- !.
 spin(N) :- N > 0, M is N - 1, spin(M).
 
 case_values(R) :-
-    go(member(X, [a,b,c]), F),
+    go(member(_X, [a,b,c]), F),
     await(F, R).
 
 case_all(R) :-
@@ -229,7 +229,7 @@ world_size :-
     scratch(D),
     atom_concat(D, '/size.pl', Path),
     fixture(Path,
-            [ 'main :- async_workers(A), async_run((async_workers(B), setenv(''COCOLOG_GREEN_WORKERS'', 5), async_workers(C)), R), R = (async_workers(B1), _, async_workers(C1)), async_workers(E), ( catch((use_module(library(os)), os_cpus(K)), _, fail) -> M is min(256, K) ; M = none ), ( A == M -> S = cores ; S = A ), write(S-B1-C1-E), nl.' ]),
+            [ 'main :- async_workers(A), async_run((async_workers(_B), setenv(''COCOLOG_GREEN_WORKERS'', 5), async_workers(_C)), R), R = (async_workers(B1), _, async_workers(C1)), async_workers(E), ( catch((use_module(library(os)), os_cpus(K)), _, fail) -> M is min(256, K) ; M = none ), ( A == M -> S = cores ; S = A ), write(S-B1-C1-E), nl.' ]),
     cocolog(C),
     size_run(['COCOLOG_GREEN_WORKERS=2 ', C], Path, G3),
     check('COCOLOG_GREEN_WORKERS=2: 2 out and in, the world\'s 2 after it says 5, 5 after', G3, '2-2-2-5'-0),

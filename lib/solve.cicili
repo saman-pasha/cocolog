@@ -200,6 +200,7 @@
     ("$decl_report" 2 coco_bi_decl_report)
     ("listing"      0 coco_bi_listing_all)
     ("listing"      1 coco_bi_listing)
+    ("portray_clause" 1 coco_bi_portray_clause)
 
     ("vacuum_kb"    0 coco_bi_vacuum_kb)
     ("vacuum_kb"    1 coco_bi_vacuum_kb)

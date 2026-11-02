@@ -449,7 +449,7 @@
                 ;; the last clause was another predicate's (3.17.0, swipl's
                 ;; warning). A predicate declared discontiguous is exempt.
                 (if (and (!= (-> s last) 0) (!= (-> s last) (+ i 1))
-                         (== 0 (bitand ($ (nth pi (-> st preds)) declared) 1))
+                         (== 0 (bitand ($ (nth pi (-> st preds)) declared) 3))
                          (or (not (coco_store_is_muted st)) (-> st ownload))
                          (!= origin_path nil))
                     (let ((char what [512])
@@ -1273,6 +1273,15 @@
           (let ((size_t pi . #'(coco_pred_make st (coco_name_of m head) (coco_arity m head)))
                 (size_t stored) (coco_reload * rl . nil))
             (if (>= pi (-> st npreds)) (return 0))
+            ;; the two expansion hooks are multifile in swipl, so their
+            ;; clauses may stand apart; term_expansion/2,4 is the one the
+            ;; system does not otherwise declare here (3.17.0's warning
+            ;; would speak of every file that defines it beside another)
+            (if (and (or (== 0 (strcmp (coco_atom_name m (coco_name_of m head)) "term_expansion"))
+                         (== 0 (strcmp (coco_atom_name m (coco_name_of m head)) "goal_expansion")))
+                     (or (== (coco_arity m head) 2) (== (coco_arity m head) 4)))
+                (set ($ (nth pi (-> st preds)) declared)
+                     (bitor ($ (nth pi (-> st preds)) declared) 2)))
             ;; THE PREDICATE IS FETCHED BEFORE THE CLAUSE IS ADDED, and that is
             ;; not an optimisation -- it is what makes `assertz' mean append
             ;; when the predicate lives in a shared store. Marking it loaded

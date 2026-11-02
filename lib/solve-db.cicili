@@ -494,6 +494,527 @@
   (func coco_g_write_end_cleanup ((int * began)) (return))
   (@endif)
 
+  ;;; ---- laying a clause out as swipl does (3.18.0) -----------------------
+
+  ;;; `portray_clause/1' and `listing/1' share one walk over a clause term.
+  ;;; It is swipl's boot/listing.pl, function for function where it can be:
+  ;;; a body's conjunction one goal a line, a disjunction or an if-then-else
+  ;;; in parentheses with its arrows in a column, a meta-call's goal laid out
+  ;;; inside it, and a term too long for the line wrapped at its arguments.
+  ;;; The layout writes through the ordinary writer, so a quoted atom, an
+  ;;; operator and a number are the writer's forms; what is added here is
+  ;;; where the line breaks and how far they indent.
+
+  (static) (decl) (func lay_pprint ((coco_machine * m) (coco_strbuf * b)
+                                    (size_t t) (int pri)))
+  (static) (decl) (func lay_body ((coco_machine * m) (coco_strbuf * b)
+                                  (size_t t) (int indent) (int do_indent) (int pri)))
+  (static) (decl) (func lay_or ((coco_machine * m) (coco_strbuf * b)
+                                (size_t t) (int indent) (int pri)))
+  (static) (decl) (func lay_or_plain ((coco_machine * m) (coco_strbuf * b)
+                                      (size_t t) (int indent)))
+  (static) (decl) (func lay_meta ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int))
+
+  ;;; A term with this functor and arity.
+  (static)
+  (func lay_is ((coco_machine * m) (size_t t) (const char * name) (u32 n)) (out int)
+        (set t (coco_deref m t))
+        (if (not (coco_is_callable m t)) (return 0))
+        (if (!= (coco_arity m t) n) (return 0))
+        (return (? (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) name)) 1 0)))
+
+  ;;; The column the next character would stand in: characters since the
+  ;;; last newline. The layout's terms are ASCII in the common case; a
+  ;;; character past ASCII costs its bytes here, which only matters at the
+  ;;; wrapping threshold.
+  (static)
+  (func lay_col ((coco_strbuf * b)) (out int)
+        (let ((size_t i . #'(-> b len)) (int n . 0))
+          (while (> i 0)
+            (set i (- i 1))
+            (if (== (nth i (-> b s)) 10) (return n))
+            (set n (+ n 1)))
+          (return n)))
+
+  (static)
+  (func lay_nlindent ((coco_strbuf * b) (int n))
+        (coco_sb_putc b (cast char 10))
+        (for ((int i . 0)) (< i n) ((++ i))
+             (coco_sb_putc b (cast char 32))))
+
+  ;;; An infix operator's two operands' greatest priorities, as swipl's
+  ;;; `infix_op/3' gives them. 1 when OP is one.
+  (static)
+  (func lay_infix ((const char * op) (int * left) (int * right)) (out int)
+        (let ((int pri . 0) (int type . 0))
+          (if (not (coco_op_infix op (aof pri) (aof type))) (return 0))
+          (cond ((== type COCO_XFX)
+                 (set (cof left) (- pri 1)) (set (cof right) (- pri 1)))
+                ((== type COCO_XFY)
+                 (set (cof left) (- pri 1)) (set (cof right) pri))
+                ((== type COCO_YFX)
+                 (set (cof left) pri) (set (cof right) (- pri 1)))
+                (#t (return 0)))
+          (return 1)))
+
+  ;;; A prefix operator's argument's greatest priority, as swipl's
+  ;;; `prefix_op/2' gives it.
+  (static)
+  (func lay_prefix ((const char * op) (int * argpri)) (out int)
+        (let ((int pri . 0) (int type . 0))
+          (if (not (coco_op_prefix op (aof pri) (aof type))) (return 0))
+          (cond ((== type COCO_FX) (set (cof argpri) (- pri 1)))
+                ((== type COCO_FY) (set (cof argpri) pri))
+                (#t (return 0)))
+          (return 1)))
+
+  ;;; A control structure that gets the disjunction layout.
+  (static)
+  (func lay_or_layout ((coco_machine * m) (size_t t)) (out int)
+        (return (or (lay_is m t ";" 2)
+                    (or (lay_is m t "->" 2) (lay_is m t "*->" 2)))))
+
+  ;;; Whether TERM has to stand in parentheses at priority PRI: its functor
+  ;;; is an operator that binds less tightly than the place allows. As
+  ;;; swipl's `term_needs_braces/2', which asks the name and not the arity.
+  (static)
+  (func lay_needs_braces ((coco_machine * m) (size_t t) (int pri)) (out int)
+        (set t (coco_deref m t))
+        (if (not (coco_is_callable m t)) (return 0))
+        (let ((const char * name . #'(coco_atom_name m (coco_name_of m t)))
+              (int p . 0) (int type . 0))
+          (if (coco_op_infix name (aof p) (aof type)) (return (? (> p pri) 1 0)))
+          (if (coco_op_prefix name (aof p) (aof type)) (return (? (> p pri) 1 0)))
+          (return 0)))
+
+  ;;; A term the wrapper leaves on one line however long it is: a named
+  ;;; variable, the empty dict, or an operator. As swipl's `nowrap_term/1'.
+  (static)
+  (func lay_nowrap ((coco_machine * m) (size_t t)) (out int)
+        (set t (coco_deref m t))
+        (if (lay_is m t "$VAR" 1) (return 1))
+        (if (not (coco_is_callable m t)) (return 0))
+        (let ((const char * name . #'(coco_atom_name m (coco_name_of m t)))
+              (u32 n . #'(coco_arity m t))
+              (int p . 0) (int type . 0))
+          (if (and (== n 0) (== 0 (strcmp name "{}"))) (return 1))
+          (if (== n 2) (return (? (coco_op_infix name (aof p) (aof type)) 1 0)))
+          (if (== n 1) (return (? (coco_op_prefix name (aof p) (aof type)) 1 0)))
+          (return 0)))
+
+  ;;; Write TERM's functor, quoted, into B: `~q('s first half when a
+  ;;; compound is wrapped at its arguments.
+  (static)
+  (func lay_fun_name ((coco_machine * m) (coco_strbuf * b) (size_t t))
+        (let ((size_t mark . #'(-> m heap_len))
+              (size_t a . #'(coco_new_atom m (coco_atom_name m (coco_name_of m t)))))
+          (coco_write_pri m b a 601 1200)
+          (set (-> m heap_len) mark)))
+
+  ;;; TERM's written length, capped at swipl's default line width: its
+  ;;; `write_length/3' answers only when the term fits, and the caller then
+  ;;; uses the width itself.
+  (static)
+  (func lay_term_len ((coco_machine * m) (size_t t) (int pri)) (out int)
+        (let ((coco_strbuf tmp) (int n . 0))
+          (coco_sb_init (aof tmp))
+          (coco_write_pri m (aof tmp) t 601 pri)
+          (set n ($ tmp len))
+          (coco_sb_free (aof tmp))
+          (if (> n 78) (set n 78))
+          (return n)))
+
+  ;;; A list too long for its line, one element a line, swipl's
+  ;;; `portray_list/4'. The opening bracket and its space are at INDENT; the
+  ;;; elements at INDENT+2; an improper tail after `| ' at INDENT.
+  (static)
+  (func lay_list ((coco_machine * m) (coco_strbuf * b) (size_t t) (int indent))
+        (coco_sb_put b "[ ")
+        (let ((int eindent . #'(+ indent 2)) (int first . 1))
+          (while 1
+            (set t (coco_deref m t))
+            (if (coco_is_nil m t) break)
+            (if (not (coco_is_cons m t))
+                (block
+                  (lay_nlindent b (- eindent 2))
+                  (coco_sb_put b "| ")
+                  (lay_pprint m b t 999)
+                  break))
+            (if (not first)
+                (block (coco_sb_put b ",") (lay_nlindent b eindent)))
+            (set first 0)
+            (lay_pprint m b (coco_arg m t 0) 999)
+            (set t (coco_arg m t 1)))
+          (lay_nlindent b indent)
+          (coco_sb_put b "]")))
+
+  ;;; A compound too long for its line, its arguments one a line. As swipl's
+  ;;; `pprint_wrapped/4': the name and `(' at INDENT, the arguments at the
+  ;;; column just after it.
+  (static)
+  (func lay_wrapped ((coco_machine * m) (coco_strbuf * b) (size_t t) (int indent))
+        (lay_fun_name m b t)
+        (coco_sb_put b "(")
+        (set indent (lay_col b))
+        (let ((u32 n . #'(coco_arity m t)))
+          (for ((u32 i . 0)) (< i n) ((++ i))
+            (if (> i 0) (block (coco_sb_put b ",") (lay_nlindent b indent)))
+            (lay_pprint m b (coco_arg m t i) 999))
+          (coco_sb_put b ")")))
+
+  ;;; A term at a priority, wrapped at its arguments when swipl would wrap
+  ;;; it: a compound or a list, not one of `lay_nowrap''s, longer than the
+  ;;; line allows and longer than a quarter of it (`pprint/4').
+  (static)
+  (func lay_pprint ((coco_machine * m) (coco_strbuf * b) (size_t t) (int pri))
+        (set t (coco_deref m t))
+        ;; a brace term is a body, its argument laid out as one
+        (if (lay_is m t "{}" 1)
+            (block
+              (let ((int col . #'(lay_col b)))
+                (coco_sb_put b "{ ")
+                (lay_body m b (coco_arg m t 0) (+ col 2) 0 1000)
+                (lay_nlindent b col)
+                (coco_sb_put b "}"))
+              (return)))
+        (if (and (or (coco_is_cons m t)
+                     (and (coco_is_callable m t) (> (coco_arity m t) 0)))
+                 (not (lay_nowrap m t)))
+            (let ((int col . #'(lay_col b))
+                  (int len . #'(lay_term_len m t pri)))
+              (if (and (> (+ col len) 78) (> len 19))
+                  (block
+                    (if (coco_is_cons m t)
+                        (lay_list m b t col)
+                      (lay_wrapped m b t col))
+                    (return)))))
+        (coco_write_pri m b t 601 pri))
+
+  ;;; A conjunction's goals, one a line. The whole left spine is flattened,
+  ;;; as swipl's first comma clause flattens it; the last goal is written at
+  ;;; the comma's right priority and the others at its left.
+  (static)
+  (func lay_conj ((coco_machine * m) (coco_strbuf * b) (size_t t) (int indent))
+        (let ((size_t * ws . nil) (size_t wn . 0) (size_t wc . 0)
+              (size_t * es . nil) (size_t en . 0) (size_t ec . 0))
+          (coco_cells_push (aof ws) (aof wn) (aof wc) t)
+          (while (> wn 0)
+            (set wn (- wn 1))
+            (let ((size_t x . #'(coco_deref m (nth wn ws))))
+              (if (lay_is m x "," 2)
+                  (block
+                    (coco_cells_push (aof ws) (aof wn) (aof wc) (coco_arg m x 1))
+                    (coco_cells_push (aof ws) (aof wn) (aof wc) (coco_arg m x 0)))
+                (coco_cells_push (aof es) (aof en) (aof ec) x))))
+          (for ((size_t i . 0)) (< i en) ((++ i))
+            (if (> i 0)
+                (block (coco_sb_put b ",") (lay_nlindent b indent)))
+            (lay_body m b (nth i es) indent 0
+                      (? (== i (- en 1)) 1000 999)))
+          (free ws)
+          (free es)))
+
+  ;;; Whether ARG is a meta argument of NAME/N whose layout swipl gives its
+  ;;; own place: the integer positions of its meta_predicate declaration.
+  ;;; The declarations swipl's system and libraries give the control
+  ;;; predicates a program uses in a body.
+  (static)
+  (func lay_meta_pos ((const char * name) (u32 n) (u32 i)) (out int)
+        (if (and (== 0 (strcmp name "call")) (and (>= n 1) (<= n 8)) (== i 0))
+            (return 1))
+        (if (and (or (or (== 0 (strcmp name "once")) (== 0 (strcmp name "ignore")))
+                     (== 0 (strcmp name "not")))
+                 (== n 1) (== i 0))
+            (return 1))
+        (if (and (== 0 (strcmp name "catch")) (== n 3) (or (== i 0) (== i 2)))
+            (return 1))
+        (if (and (== 0 (strcmp name "setup_call_cleanup")) (== n 3)) (return 1))
+        (if (and (== 0 (strcmp name "call_cleanup")) (== n 2)) (return 1))
+        (if (and (== 0 (strcmp name "forall")) (== n 2)) (return 1))
+        (if (and (== 0 (strcmp name "findall")) (and (>= n 3) (<= n 4)) (== i 1))
+            (return 1))
+        (if (and (== 0 (strcmp name "aggregate_all")) (== n 3) (== i 1))
+            (return 1))
+        (if (and (== 0 (strcmp name "maplist")) (>= n 2) (== i 0)) (return 1))
+        (if (and (== 0 (strcmp name "foldl")) (== n 4) (== i 0)) (return 1))
+        (if (and (or (== 0 (strcmp name "freeze")) (== 0 (strcmp name "when")))
+                 (== n 2) (== i 1))
+            (return 1))
+        (return 0))
+
+  ;;; Whether NAME/N is a meta predicate whose call swipl's `portray_body/6'
+  ;;; hands to `portray_meta/4' -- not only the ones whose goal gets its own
+  ;;; lines, but every one whose ordinary form is written at priority 999.
+  (static)
+  (func lay_meta_name ((const char * name) (u32 n)) (out int)
+        (if (and (== 0 (strcmp name "call")) (and (>= n 1) (<= n 8))) (return 1))
+        (if (and (or (or (== 0 (strcmp name "once")) (== 0 (strcmp name "ignore")))
+                     (== 0 (strcmp name "not")))
+                 (== n 1))
+            (return 1))
+        (if (and (== 0 (strcmp name "catch")) (== n 3)) (return 1))
+        (if (and (== 0 (strcmp name "setup_call_cleanup")) (== n 3)) (return 1))
+        (if (and (== 0 (strcmp name "call_cleanup")) (== n 2)) (return 1))
+        (if (and (== 0 (strcmp name "forall")) (== n 2)) (return 1))
+        (if (and (== 0 (strcmp name "findall")) (and (>= n 3) (<= n 4))) (return 1))
+        (if (and (or (or (== 0 (strcmp name "bagof")) (== 0 (strcmp name "setof")))
+                     (or (== 0 (strcmp name "aggregate")) (== 0 (strcmp name "aggregate_all"))))
+                 (== n 3))
+            (return 1))
+        (if (and (== 0 (strcmp name "maplist")) (>= n 2)) (return 1))
+        (if (and (== 0 (strcmp name "foldl")) (== n 4)) (return 1))
+        (if (and (or (== 0 (strcmp name "freeze")) (== 0 (strcmp name "when")))
+                 (== n 2))
+            (return 1))
+        (if (and (== 0 (strcmp name "phrase")) (or (== n 2) (== n 3))) (return 1))
+        (if (and (== 0 (strcmp name "with_output_to")) (== n 2)) (return 1))
+        (if (and (or (or (== 0 (strcmp name "dynamic")) (== 0 (strcmp name "multifile")))
+                     (or (== 0 (strcmp name "discontiguous")) (== 0 (strcmp name "public"))))
+                 (== n 1))
+            (return 1))
+        (if (and (or (or (== 0 (strcmp name "volatile")) (== 0 (strcmp name "module_transparent")))
+                     (== 0 (strcmp name "thread_local")))
+                 (== n 1))
+            (return 1))
+        (if (and (== 0 (strcmp name "initialization")) (or (== n 1) (== n 2)))
+            (return 1))
+        (return 0))
+
+  (static)
+  (func lay_nonprimitive ((coco_machine * m) (size_t t)) (out int)
+        (return (or (lay_or_layout m t) (lay_is m t "," 2))))
+
+  ;;; A meta-call whose goal is a conjunction, a disjunction or an
+  ;;; if-then-else, as swipl's `portray_meta/4' writes it: the goal on its
+  ;;; own lines inside the call. Answers 0 when the call is written whole.
+  (static)
+  (func lay_meta ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int)
+        (set t (coco_deref m t))
+        (if (not (coco_is_callable m t)) (return 0))
+        (if (lay_is m t ":" 2) (return 0))
+        (let ((const char * name . #'(coco_atom_name m (coco_name_of m t)))
+              (u32 n . #'(coco_arity m t))
+              (int any . 0))
+          (if (== n 0) (return 0))
+          (if (not (lay_meta_name name n)) (return 0))
+          (for ((u32 i . 0)) (< i n) ((++ i))
+            (if (and (lay_meta_pos name n i)
+                     (lay_nonprimitive m (coco_arg m t i)))
+                (set any 1)))
+          (if (not any)
+              (block (lay_pprint m b t 999) (return 1)))
+          (lay_fun_name m b t)
+          (coco_sb_put b "(")
+          (let ((int ind . #'(lay_col b)))
+            (for ((u32 i . 0)) (< i n) ((++ i))
+              (if (> i 0)
+                  (block (coco_sb_put b ",") (lay_nlindent b ind)))
+              (if (lay_meta_pos name n i)
+                  (lay_body m b (coco_arg m t i) ind 0 999)
+                (lay_pprint m b (coco_arg m t i) 999)))
+            (coco_sb_put b ")")))
+        (return 1))
+
+  ;;; A goal in a body, at INDENT. DO_INDENT says the line has to be started
+  ;;; first: a body's first goal is written where `:-' left the column, and
+  ;;; every goal after it begins its own line.
+  (static)
+  (func lay_body ((coco_machine * m) (coco_strbuf * b) (size_t t)
+                  (int indent) (int do_indent) (int pri))
+        (set t (coco_deref m t))
+        (if do_indent (lay_nlindent b indent))
+        (if (coco-tag-is REF (nth t (-> m heap)))
+            (block (lay_pprint m b t pri) (return)))
+        ;; a disjunction or an if-then-else: parentheses and a column
+        (if (lay_or_layout m t)
+            (block
+              (coco_sb_put b "(   ")
+              (lay_or m b t indent 1200)
+              (lay_nlindent b indent)
+              (coco_sb_put b ")")
+              (return)))
+        ;; an operator too loose for the place: parentheses
+        (if (lay_needs_braces m t pri)
+            (block
+              (coco_sb_put b "( ")
+              (lay_body m b t (+ indent 2) 0 1200)
+              (lay_nlindent b indent)
+              (coco_sb_put b ")")
+              (return)))
+        (if (lay_is m t "," 2)
+            (block (lay_conj m b t indent) (return)))
+        (if (lay_is m t "\\+" 1)
+            (block
+              (coco_sb_put b "\\+ ")
+              (let ((int argpri . 900))
+                (if (not (lay_prefix "\\+" (aof argpri))) (set argpri 900))
+                (lay_body m b (coco_arg m t 0) (+ indent 3) 0 argpri))
+              (return)))
+        (if (lay_meta m b t) (return))
+        (lay_pprint m b t pri))
+
+  ;;; The right-hand side of a disjunction or an if-then-else, after `(   '
+  ;;; at INDENT. As swipl's `portray_or/5' and `portray_or/4'.
+  (static)
+  (func lay_or ((coco_machine * m) (coco_strbuf * b) (size_t t) (int indent) (int pri))
+        (set t (coco_deref m t))
+        (if (lay_needs_braces m t pri)
+            (block
+              (let ((int newindent . #'(+ indent 4)))
+                (coco_sb_put b "(   ")
+                (lay_or_plain m b t newindent)
+                (lay_nlindent b newindent)
+                (coco_sb_put b ")"))
+              (return)))
+        (lay_or_plain m b t indent))
+
+  (static)
+  (func lay_or_plain ((coco_machine * m) (coco_strbuf * b) (size_t t) (int indent))
+        (set t (coco_deref m t))
+        (let ((int lp . 0) (int rp . 0) (int lp2 . 0) (int rp2 . 0))
+          ;; (If -> Then ; Else) and (If *-> Then ; Else)
+          (if (and (lay_is m t ";" 2)
+                   (or (lay_is m (coco_arg m t 0) "->" 2)
+                       (lay_is m (coco_arg m t 0) "*->" 2)))
+              (let ((size_t ift . #'(coco_deref m (coco_arg m t 0)))
+                    (int hard . #'(lay_is m (coco_arg m t 0) "*->" 2))
+                    (int nest . #'(+ indent 4)))
+                (if hard
+                    (block (set lp 1049) (set rp 1049))
+                  (if (not (lay_infix "->" (aof lp) (aof rp)))
+                      (block (set lp 1049) (set rp 1049))))
+                (lay_body m b (coco_arg m ift 0) nest 0 lp)
+                (lay_nlindent b indent)
+                (coco_sb_put b (? hard "*-> " "->  "))
+                (lay_body m b (coco_arg m ift 1) nest 0 rp)
+                (lay_nlindent b indent)
+                (coco_sb_put b ";   ")
+                (if (not (lay_infix ";" (aof lp2) (aof rp2)))
+                    (block (set lp2 1099) (set rp2 1100)))
+                (lay_or m b (coco_arg m t 1) indent rp2)
+                (return)))
+          ;; (If -> Then) and (If *-> Then)
+          (if (or (lay_is m t "->" 2) (lay_is m t "*->" 2))
+              (let ((int hard . #'(lay_is m t "*->" 2))
+                    (int nest . #'(+ indent 4)))
+                (if hard
+                    (block (set lp 1049) (set rp 1049))
+                  (if (not (lay_infix "->" (aof lp) (aof rp)))
+                      (block (set lp 1049) (set rp 1049))))
+                (lay_body m b (coco_arg m t 0) nest 0 lp)
+                (lay_nlindent b indent)
+                (coco_sb_put b (? hard "*-> " "->  "))
+                (lay_or m b (coco_arg m t 1) indent rp)
+                (return)))
+          ;; (A ; B) and (A | B)
+          (if (or (lay_is m t ";" 2) (lay_is m t "|" 2))
+              (let ((int bar . #'(lay_is m t "|" 2))
+                    (int nest . #'(+ indent 4)))
+                (if bar
+                    (block (if (not (lay_infix "|" (aof lp) (aof rp)))
+                               (block (set lp 999) (set rp 1000))))
+                  (if (not (lay_infix ";" (aof lp) (aof rp)))
+                      (block (set lp 1099) (set rp 1100))))
+                (lay_body m b (coco_arg m t 0) nest 0 lp)
+                (lay_nlindent b indent)
+                (coco_sb_put b (? bar "|   " ";   "))
+                (lay_or m b (coco_arg m t 1) indent rp)
+                (return))))
+        ;; not one of the shapes: as a body would write it
+        (lay_body m b t (+ indent 4) 0 1200))
+
+  ;;; A clause term as swipl's `portray_clause/1' writes it: a fact, a rule,
+  ;;; or a directive, at LEFT.
+  (static)
+  (func lay_clause ((coco_machine * m) (coco_strbuf * b) (size_t t) (int left))
+        (set t (coco_deref m t))
+        (if (coco-tag-is REF (nth t (-> m heap)))
+            (block (lay_pprint m b t 1200) (coco_sb_put b ".") (return)))
+        ;; Head :- true is the fact Head
+        (if (and (lay_is m t ":-" 2) (lay_is m (coco_arg m t 1) "true" 0))
+            (block
+              (lay_pprint m b (coco_arg m t 0) 1200)
+              (coco_sb_put b ".")
+              (return)))
+        ;; Head :- Body, Head => Body, Head --> Body
+        (if (or (lay_is m t ":-" 2)
+                (or (lay_is m t "=>" 2) (lay_is m t "-->" 2)))
+            (let ((const char * neck . #'(coco_atom_name m (coco_name_of m t)))
+                  (int lp . 1199) (int rp . 1199))
+              (if (not (lay_infix neck (aof rp) (aof lp)))
+                  (block (set lp 1199) (set rp 1199)))
+              (lay_pprint m b (coco_arg m t 0) lp)
+              (coco_sb_put b " ")
+              (coco_sb_put b neck)
+              ;; A QUALIFIED BODY THAT IS A CONTROL STRUCTURE, as swipl's
+              ;; do_portray_clause/3 lays it out: the module on a line, then
+              ;; the body in parentheses under it.
+              (let ((size_t body . #'(coco_deref m (coco_arg m t 1))))
+                (if (and (lay_is m body ":" 2)
+                         (lay_nonprimitive m (coco_arg m body 1)))
+                    (block
+                      (lay_nlindent b (+ left 4))
+                      (lay_pprint m b (coco_arg m body 0) 1200)
+                      (coco_sb_put b ":")
+                      (lay_nlindent b (+ left 4))
+                      (coco_sb_put b "(   ")
+                      (lay_body m b (coco_arg m body 1) (+ left 8) 0 1200)
+                      (lay_nlindent b (+ left 4))
+                      (coco_sb_put b ")"))
+                  (lay_body m b body (+ left 4) 1 rp)))
+              (coco_sb_put b ".")
+              (return)))
+        ;; :- Directive and ?- Directive
+        (if (or (lay_is m t ":-" 1) (lay_is m t "?-" 1))
+            (block
+              (coco_sb_put b (? (lay_is m t ":-" 1) ":- " "?- "))
+              (lay_body m b (coco_arg m t 0) (+ left 3) 0 1199)
+              (coco_sb_put b ".")
+              (return)))
+        (lay_body m b t left 0 1200)
+        (coco_sb_put b "."))
+
+  ;;; The whole clause in B, its variables named `_' and `A', `B', ... as
+  ;;; numbervars/4's singletons option names them. A cyclic term is left to
+  ;;; the writer's factored form.
+  (func coco_layout_clause ((coco_machine * m) (coco_strbuf * b) (size_t t))
+        (let ((coco_varmap vm . '{ nil nil 0 0 0 }) (int named . 0))
+          ;; a cyclic term is the writer's factored form, as swipl's
+          ;; `numbervars'/write pair gives it
+          (if (not (coco_acyclic m t))
+              (block
+                (coco_write_mode m b t 601 1)
+                (coco_sb_put b ".")
+                (coco_sb_putc b (cast char 10))
+                (return)))
+          (if (coco_acyclic m t)
+              (block
+                (coco_varmap_take m (aof vm))
+                (if (coco_name_vars m t (aof vm))
+                    (block
+                      (set (-> m wcanon) (cast (void *) (aof vm)))
+                      (set (-> m nwnames) 1)
+                      (set named 1))
+                  (coco_varmap_give m (aof vm)))))
+          (lay_clause m b t 0)
+          (coco_sb_putc b (cast char 10))
+          (if named
+              (block
+                (set (-> m wcanon) nil)
+                (set (-> m nwnames) 0)
+                (coco_varmap_give m (aof vm))))))
+
+  ;;; portray_clause/1 (3.18.0): the clause term laid out as listing/1
+  ;;; lays one out, on the current output -- which is stdout here, as
+  ;;; write/1's is. The term itself is untouched.
+  (func coco_bi_portray_clause ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_strbuf b))
+          (coco_sb_init (aof b))
+          (coco_layout_clause (-> e m) (aof b) (coco_arg (-> e m) g 0))
+          (if (!= ($ b s) nil) (coco_out_puts stdout ($ b s)))
+          (coco_sb_free (aof b))
+          (return 1)))
+
   ;;; ---- listing ------------------------------------------------------------
 
   ;;; One predicate, written so that it reads back. A `:- dynamic' line first if
@@ -518,22 +1039,42 @@
           (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
                 (const char * nm . #'(coco_atom_name m ($ (nth pi (-> st preds)) name)))
                 (int dyn . #'($ (nth pi (-> st preds)) dynamic))
-                (int dcl . #'($ (nth pi (-> st preds)) declared)))
+                (int dcl . #'($ (nth pi (-> st preds)) declared))
+                (int pat . #'($ (nth pi (-> st preds)) pattrs)))
 
-            (if (and (not dyn) (not dcl) (== (coco_pred_live p) 0)) (return 0))
+            (if (and (not dyn) (not dcl) (== pat 0) (== (coco_pred_live p) 0))
+                (return 0))
 
             ;; THE DECLARATIONS FIRST, one line each and a blank line after
-            ;; them, as swipl's listing writes them: dynamic, then multifile
-            ;; (3.1.0); a discontiguous declaration it never writes
+            ;; them, in swipl's order: thread_local, dynamic, volatile,
+            ;; multifile, public, then module_transparent. A discontiguous
+            ;; declaration it never writes.
+            (if (bitand pat 8)
+                (block (printf ":- thread_local %s/%u.\n" nm
+                               (cast unsigned ($ (nth pi (-> st preds)) arity)))
+                       (coco_out_note stdout "\n" 1)))
             (if dyn
                 (block (printf ":- dynamic %s/%u.\n" nm
+                               (cast unsigned ($ (nth pi (-> st preds)) arity)))
+                       (coco_out_note stdout "\n" 1)))
+            (if (bitand pat 2)
+                (block (printf ":- volatile %s/%u.\n" nm
                                (cast unsigned ($ (nth pi (-> st preds)) arity)))
                        (coco_out_note stdout "\n" 1)))
             (if (bitand dcl 2)
                 (block (printf ":- multifile %s/%u.\n" nm
                                (cast unsigned ($ (nth pi (-> st preds)) arity)))
                        (coco_out_note stdout "\n" 1)))
-            (if (or dyn (bitand dcl 2)) (coco_out_puts stdout "\n"))
+            (if (bitand pat 1)
+                (block (printf ":- public %s/%u.\n" nm
+                               (cast unsigned ($ (nth pi (-> st preds)) arity)))
+                       (coco_out_note stdout "\n" 1)))
+            (if (bitand pat 4)
+                (block (printf ":- module_transparent %s/%u.\n" nm
+                               (cast unsigned ($ (nth pi (-> st preds)) arity)))
+                       (coco_out_note stdout "\n" 1)))
+            (if (or dyn (or (bitand dcl 2) (or (bitand pat 7) (bitand pat 8))))
+                (coco_out_puts stdout "\n"))
 
             (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
               ;; a clause retracted under a call still open is gone
@@ -541,11 +1082,10 @@
               (let ((size_t mark . #'(-> m heap_len))
                     (size_t t . #'(coco_store_get m st (nth i (-> p clauses)))))
                 (coco_sb_init (aof b))
-                ;; quoted, so an atom that needs them gets them and the line can
-                ;; be pasted back into a file
-                (coco_write_term m (aof b) t 1 0)
+                ;; the clause laid out as swipl's portray_clause/1 lays it
+                ;; out, so what listing/1 shows is what a program reads back
+                (coco_layout_clause m (aof b) t)
                 (if (!= ($ b s) nil) (fputs ($ b s) stdout))
-                (coco_out_puts stdout ".\n")
                 (coco_sb_free (aof b))
                 ;; the clause was copied on to the heap only to be written
                 (set (-> m heap_len) mark)))
