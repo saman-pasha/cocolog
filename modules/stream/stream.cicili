@@ -120,9 +120,10 @@
 ;;;
 ;;; WHAT IS NOT HERE, deliberately: `eof_action/1' other than `eof_code'
 ;;; and `reposition/1' as OPTIONS of open/4 (swipl's values are checked,
-;;; and both are answered as properties); encodings other than UTF-8 (the
-;;; names are checked and taken, and a binary stream is octets); and pipes
-;;; and sockets, which library(process) and library(tcp) own.
+;;; and both are answered as properties); UTF-16/32 encodings (the names
+;;; are checked and taken, while iso_latin_1, octet and ascii are applied;
+;;; a binary stream is octets); and pipes and sockets, which library(process)
+;;; and library(tcp) own.
 ;;;
 ;;; NO DEFPACKAGE -- a file compiled on its own is the whole unit;
 ;;; modules/tcp/tcp.cicili says why at its top.
@@ -143,6 +144,11 @@
 ;;;   stream_seek(+Stream, +Offset, +Whence)           bof, current or eof
 ;;;   stream_size(+Stream, -Bytes)                     the file's, whatever the position
 ;;;   stream_property(?Stream, ?Property)              file_name mode type input output alias position end_of_stream eof_action reposition
+;;;   character_count(+Stream, -Count)                 SWI's: characters read or written from the open
+;;;   line_count(+Stream, -Line)                       the line, from 1
+;;;   line_position(+Stream, -Column)                  the column, from 0
+;;;   is_stream(?Stream)                               a stream handle, an alias or a standard stream
+;;;   stream_position_data(?Field, +Position, -Value)  char_count line_count line_position byte_count
 ;;;   stream_input(-Stream)  stream_output(-Stream)  stream_error(-Stream)   the standard three
 ;;;   -- binary --
 ;;;   stream_get_byte(+Stream, -Byte)                  0..255, or -1 at the end
@@ -233,6 +239,7 @@
     ("$stream_slots"         1 st_p_slots)
     ("$stream_info"          5 st_p_info)
     ("$stream_set_alias"     2 st_p_set_alias)
+    ("$stream_set_enc"       2 st_p_set_enc)
     ("$stream_by_alias"      2 st_p_by_alias)
     ("$stream_alias_of"      2 st_p_alias_of)
     ("$stream_cur"           2 st_p_cur)
@@ -321,7 +328,7 @@
            ;; closed again, where swipl's stays open
            "stream_open(Path, Mode, S) :- stream_open(Path, Mode, [], S, stream_open/3)."
            "stream_open(Path, Mode, Opts, S) :- stream_open(Path, Mode, Opts, S, stream_open/4)."
-           "stream_open(Path, Mode, Opts, S, PI) :- stream_list(Opts, PI), stream_mode(Mode, M, PI), stream_open_opts(Opts, o(text, _), o(T, A), PI), stream_type(T, K), ( nonvar(A) -> stream_alias_free(A, PI) ; true ), '$stream_open'(Path, M, K, N, PI), stream_bind(S, N, A, PI)."
+           "stream_open(Path, Mode, Opts, S, PI) :- stream_list(Opts, PI), stream_mode(Mode, M, PI), stream_open_opts(Opts, o(text, _), o(T, A), PI), stream_type(T, K), ( nonvar(A) -> stream_alias_free(A, PI) ; true ), '$stream_open'(Path, M, K, N, PI), stream_encoding(Opts, E), '$stream_set_enc'(N, E), stream_bind(S, N, A, PI)."
            "stream_bind(S, N, A, _) :- nonvar(A), !, ( S = A -> '$stream_set_alias'(N, A) ; '$stream_close'('$stream'(N), N), fail )."
            "stream_bind(S, N, _, _) :- var(S), !, S = '$stream'(N)."
            "stream_bind(S, N, _, PI) :- '$stream_close'('$stream'(N), N), stream_err(uninstantiation_error(S), PI, 'stream-argument')."
@@ -352,6 +359,17 @@
            "stream_open_opt(O, R, R, PI) :- ( compound(O), functor(O, _, 1) -> true ; stream_err(type_error(option, O), PI) )."
            "stream_type(text, 1)."
            "stream_type(binary, 2)."
+           ;; The encoding the file's text is in. UTF-8 is the default; the
+           ;; other three are one byte per character here. encodings that
+           ;; need a byte order (UTF-16/32) are checked and still read as
+           ;; UTF-8, COMPAT.md's remaining gap.
+           "stream_encoding([], 0)."
+           "stream_encoding([encoding(E)|Os], C) :- !, stream_encoding(Os, C0), stream_encoding_name(E, C0, C)."
+           "stream_encoding([_|Os], C) :- stream_encoding(Os, C)."
+           "stream_encoding_name(iso_latin_1, _, 1)."
+           "stream_encoding_name(octet, _, 2)."
+           "stream_encoding_name(ascii, _, 3)."
+           "stream_encoding_name(_, C, C)."
            "stream_alias_free(A, PI) :- ( ( memberchk(A, [user_input, user_output, user_error]) ; '$stream_by_alias'(A, _) ) -> stream_err(permission_error(open, source_sink, alias(A)), PI) ; true )."
            ;; closing a standard stream does nothing, which is ISO's rule; a
            ;; handle closed before is swipl's existence_error, 'already closed'
@@ -394,6 +412,23 @@
            "stream_prop(S, N, end_of_stream(E)) :- N >= 3, '$stream_info'(S, N, _, M, _), ( M =:= 1 ; M =:= 4 ), ( '$stream_eof'(S, N, stream_property/2) -> E = at ; E = not )."
            "stream_prop(_, _, eof_action(eof_code))."
            "stream_prop(_, N, reposition(B)) :- ( N >= 3 -> B = true ; B = false )."
+
+           ;; ---- SWI's counters and position fields ----
+           ;; The same counters stream_property/2's position exposes. They
+           ;; are asked through stream_slot/3 so a bad stream names the
+           ;; predicate the program called, as swipl's does.
+           "character_count(S, C) :- stream_slot(S, N, character_count/2), '$stream_where'(S, N, C, _, _, _)."
+           "line_count(S, L) :- stream_slot(S, N, line_count/2), '$stream_where'(S, N, _, L, _, _)."
+           "line_position(S, P) :- stream_slot(S, N, line_position/2), '$stream_where'(S, N, _, _, P, _)."
+           "is_stream(S) :- nonvar(S), catch(stream_slot(S, _, is_stream/1), _, fail)."
+           "stream_position_data(F, P, V) :- stream_position_arg(P, F, V)."
+           "stream_position_arg(P, _, _) :- var(P), !, throw(error(instantiation_error, context(arg/3, _)))."
+           "stream_position_arg(P, F, V) :- ( compound(P) -> true ; throw(error(type_error(compound, P), context(arg/3, _))) ), stream_position_field(F, P, V)."
+           "stream_position_field(char_count, P, V) :- arg(1, P, V)."
+           "stream_position_field(line_count, P, V) :- arg(2, P, V)."
+           "stream_position_field(line_position, P, V) :- arg(3, P, V)."
+           "stream_position_field(byte_count, P, V) :- arg(4, P, V)."
+           "stream_position_field(F, _, _) :- nonvar(F), throw(error(domain_error(stream_position_data, F), _))."
            "stream_mode_name(1, read). stream_mode_name(2, write). stream_mode_name(3, append). stream_mode_name(4, update)."
            "stream_type_name(1, text). stream_type_name(2, binary)."
            "stream_std_alias(0, user_input)."
@@ -555,6 +590,7 @@
   ;;; that a peek needs no seek and works on a pipe as well as a file.
   (static) (var FILE * st_file [256])
   (static) (var int st_kind [256])          ; 0 free, 1 text, 2 binary
+  (static) (var int st_enc [256])           ; 0 UTF-8, 1 latin-1, 2 octet, 3 ascii
   (static) (var int st_mode [256])          ; 1 read, 2 write, 3 append, 4 update
   (static) (var char * st_path [256])
   (static) (var u8 st_push [256][8])
@@ -622,13 +658,14 @@
   (static)
   (func st_wrote ((int s) (const char * buf) (size_t n)) (out void)
         (if (== n 0) (return))
-        (if (or (== s 1) (== s 2)) (block (coco_m_out_note s buf n) (return)))
+        ;; the console keeps its own column for ~N; the stream counters are
+        ;; kept for every slot, the standard three included, as swipl's are
+        (if (or (== s 1) (== s 2)) (coco_m_out_note s buf n))
         (if (>= s 3)
-            (block
-              (set (nth s st_open) (? (== (nth (- n 1) buf) (cast char 10)) 0 1))
-              (set (nth s st_nb) (+ (nth s st_nb) (cast i64 n)))
-              (st_pos_walk (cast (const u8 *) buf) n (== (nth s st_kind) 2)
-                           (aof (nth s st_nc)) (aof (nth s st_nl)) (aof (nth s st_lp))))))
+            (set (nth s st_open) (? (== (nth (- n 1) buf) (cast char 10)) 0 1)))
+        (set (nth s st_nb) (+ (nth s st_nb) (cast i64 n)))
+        (st_pos_walk (cast (const u8 *) buf) n (== (nth s st_kind) 2)
+                     (aof (nth s st_nc)) (aof (nth s st_nl)) (aof (nth s st_lp))))
 
   (static)
   (func st_pos_reset ((int s)) (out void)
@@ -820,6 +857,13 @@
   (static)
   (func st_text_codes ((coco_engine * e) (int s) (const u8 * buf) (size_t n)) (out size_t)
         (if (== (nth s st_kind) 2) (return (st_codes e buf n)))
+        (if (!= (nth s st_enc) 0)
+            (block
+             (if (not (coco_m_text_chars e)) (return (st_codes e buf n)))
+             (let ((size_t acc . #'(coco_m_nil e)))
+               (for ((size_t i . n)) (> i 0) ((-- i))
+                    (set acc (coco_m_cons e (coco_m_new_int e (cast i64 (nth (- i 1) buf))) acc)))
+               (return acc))))
         (return (coco_m_codes_of e (cast (const char *) buf) n 0 (coco_m_nil e))))
 
   ;;; A growing byte buffer, for a line, a clause, the rest of a file.
@@ -1228,7 +1272,7 @@
         (let ((int c . #'(st_getc s)) (int n . 1))
           (if (< c 0) (return 0))
           (set (nth 0 out) (cast u8 c))
-          (set n (st_utf8_len c))
+          (set n (? (or (== (nth s st_kind) 2) (!= (nth s st_enc) 0)) 1 (st_utf8_len c)))
           (for ((int i . 1)) (< i n) ((++ i))
                (let ((int d . #'(st_getc s)))
                  (if (< d 0) (return i))
@@ -1244,7 +1288,9 @@
   (func st_get_cp ((int s) (int peek)) (out i64)
         (let ((u8 ch [8]) (int n . #'(st_read_char s ch)) (size_t i . 0) (i64 cp . 0))
           (if (== n 0) (return -1))
-          (set cp (coco_m_utf8_get (cast (const char *) ch) (cast size_t n) (aof i)))
+          (if (or (== (nth s st_kind) 2) (!= (nth s st_enc) 0))
+              (block (set cp (cast i64 (nth 0 ch))) (set i (cast size_t n)))
+            (set cp (coco_m_utf8_get (cast (const char *) ch) (cast size_t n) (aof i))))
           (for ((int j . #'(- n 1))) (>= j (? peek 0 (cast int i))) ((-- j))
                (st_ungetc s (cast int (nth j ch))))
           (return cp)))
@@ -1254,7 +1300,8 @@
   ;;; asks, which the codes predicates do
   (static)
   (func st_peek_cp ((coco_engine * e) (int s) (int units)) (out i64)
-        (if (or (== (nth s st_kind) 2) (and units (not (coco_m_text_chars e))))
+        (if (or (== (nth s st_kind) 2) (!= (nth s st_enc) 0)
+                (and units (not (coco_m_text_chars e))))
             (let ((int c . #'(st_getc s)))
               (st_ungetc s c)
               (return (? (< c 0) -1 (cast i64 c)))))
@@ -1272,9 +1319,14 @@
                 (if peek (st_ungetc s c))
                 (if (>= c 0) (set n (coco_m_utf8_enc name (cast i64 c)))))
               (block
-                (set n (st_read_char s ch))
-                (if peek (for ((int i . #'(- n 1))) (>= i 0) ((-- i)) (st_ungetc s (cast int (nth i ch)))))
-                (memcpy name ch (cast size_t n))))
+                (if (!= (nth s st_enc) 0)
+                    (let ((int c . #'(st_getc s)))
+                      (if (>= c 0) (set n (coco_m_utf8_enc name (cast i64 c))))
+                      (if peek (st_ungetc s c)))
+                  (block
+                    (set n (st_read_char s ch))
+                    (if peek (for ((int i . #'(- n 1))) (>= i 0) ((-- i)) (st_ungetc s (cast int (nth i ch)))))
+                    (memcpy name ch (cast size_t n))))))
           (set (nth n name) (cast char 0))
           (return n)))
 
@@ -1290,6 +1342,13 @@
              (if (> c 255)
                  (return (coco_m_error_msg e "io_error" "write" nil (coco_m_arg e g 0)
                                            "Encoding cannot represent character")))
+             (set (nth 0 b) (cast u8 c))
+             (set k 1))
+            ((and (!= (nth s st_enc) 0)
+                  (> c (? (== (nth s st_enc) 3) 127 255)))
+             (return (coco_m_error_msg e "io_error" "write" nil (coco_m_arg e g 0)
+                                       "Encoding cannot represent character")))
+            ((!= (nth s st_enc) 0)
              (set (nth 0 b) (cast u8 c))
              (set k 1))
             ((and code (and (not (coco_m_text_chars e)) (< c 256)))
@@ -1403,12 +1462,37 @@
                 (let ((int rc . #'(st_put_octets e (coco_m_arg e g 0) s buf n)))
                   (free buf)
                   (return rc)))
-            (st_out_begin s)
-            (set w (fwrite buf 1 n (st_fp s)))
-            (st_out_end s)
-            (st_wrote s buf w)
-            (free buf)
-            (if (!= w n) (return (st_io_write e (coco_m_arg e g 0)))))
+            (if (!= (nth s st_enc) 0)
+                (let ((u8 * out . #'(cast (u8 *) (malloc (+ n 1))))
+                      (size_t k . 0) (size_t i . 0) (int bad . 0))
+                  (if (== out nil)
+                      (block (free buf) (return (coco_m_resource_error e "memory"))))
+                  (while (< i n)
+                    (let ((i64 cp . #'(coco_m_utf8_get buf n (aof i))))
+                      (if (or (< cp 0) (> cp (? (== (nth s st_enc) 3) 127 255)))
+                          (block (set bad 1) break))
+                      (set (nth k out) (cast u8 cp))
+                      (set k (+ k 1))))
+                  (if (not bad)
+                      (block
+                       (st_out_begin s)
+                       (set w (fwrite out 1 k (st_fp s)))
+                       (st_out_end s)
+                       (st_wrote s (cast (const char *) out) w)))
+                  (free out)
+                  (free buf)
+                  (if bad
+                      (return (coco_m_error_msg e "io_error" "write" nil
+                                                (coco_m_arg e g 0)
+                                                "Encoding cannot represent character")))
+                  (if (!= w k) (return (st_io_write e (coco_m_arg e g 0)))))
+              (block
+               (st_out_begin s)
+               (set w (fwrite buf 1 n (st_fp s)))
+               (st_out_end s)
+               (st_wrote s buf w)
+               (free buf)
+               (if (!= w n) (return (st_io_write e (coco_m_arg e g 0)))))))
           (return 1)))
 
   ;;; ---- a term: one clause of text, then the engine's reader ----
@@ -1524,7 +1608,8 @@
                 (if (not (coco_m_unify_atom e (coco_m_arg e g 2) "end_of_file")) (return 0))
                 (if (not want) (return 1))
                 (return (st_unify_where e g (nth s st_nc) (nth s st_nl) (nth s st_lp) (nth s st_nb)))))
-          (if (and (== (nth s st_kind) 2) (not (st_octets_utf8 (aof buf) (aof n))))
+          (if (and (or (== (nth s st_kind) 2) (!= (nth s st_enc) 0))
+                   (not (st_octets_utf8 (aof buf) (aof n))))
               (block (free buf) (return (coco_m_resource_error e "memory"))))
           ;; the scanner grows its buffer to two past every byte it keeps (the
           ;; octets' copy too), so the NUL that makes it a C string has its slot
@@ -1607,6 +1692,17 @@
           (if (>= v 256) (return 0))
           (if (== (nth v st_kind) 0) (return 0))
           (set (cof s) (cast int v))
+          (return 1)))
+
+  ;;; The encoding of slot N, from open/4's encoding(E) option. Called by
+  ;;; the Coco half after the file is open; the value is one of the four
+  ;;; st_enc codes above.
+  (func st_p_set_enc ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (i64 enc . 0))
+          (let ((int rc . #'(st_nslot e g 0 (aof s)))) (if (!= rc 1) (return rc)))
+          (let ((int rc2 . #'(st_iarg e g 1 (aof enc)))) (if (!= rc2 1) (return rc2)))
+          (if (or (< enc 0) (> enc 3)) (set enc 0))
+          (set (nth s st_enc) (cast int enc))
           (return 1)))
 
   (func st_p_set_alias ((coco_engine * e) (size_t g)) (out int)
@@ -1706,6 +1802,28 @@
           ;; swipl's octets; permission_error(output, binary_stream, S)
           ;; through 3.15.2)
           (if (== (nth s st_kind) 2) (return (st_put_octets e sink s text len)))
+          (if (!= (nth s st_enc) 0)
+              (let ((u8 * out . #'(cast (u8 *) (malloc (+ len 1))))
+                    (size_t k . 0) (size_t i . 0) (int bad . 0) (size_t w . 0))
+                (if (== out nil) (return (coco_m_resource_error e "memory")))
+                (while (< i len)
+                  (let ((i64 cp . #'(coco_m_utf8_get text len (aof i))))
+                    (if (or (< cp 0) (> cp (? (== (nth s st_enc) 3) 127 255)))
+                        (block (set bad 1) break))
+                    (set (nth k out) (cast u8 cp))
+                    (set k (+ k 1))))
+                (if (not bad)
+                    (block
+                     (st_out_begin s)
+                     (set w (fwrite out 1 k (st_fp s)))
+                     (st_out_end s)
+                     (st_wrote s (cast (const char *) out) w)))
+                (free out)
+                (if bad
+                    (return (coco_m_error_msg e "io_error" "write" nil sink
+                                              "Encoding cannot represent character")))
+                (if (!= w k) (return (st_io_write e sink)))
+                (return 1)))
           (st_out_begin s)
           (let ((size_t w . #'(fwrite text 1 len (st_fp s))))
             (st_out_end s)
