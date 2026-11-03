@@ -835,7 +835,8 @@
 
   (func th_create ((coco_engine * e) (size_t g)) (out int)
         (let ((char * text . #'(coco_m_term_text e (coco_m_arg e g 0)))
-              (i64 id . -1))
+              (i64 id . -1)
+              (pthread_attr_t attr))
           (if (== text nil)
               (return (coco_m_error e "thread_create" "the goal would not write")))
           (pthread_mutex_lock (aof th_table_lock))
@@ -858,15 +859,23 @@
           ;; STARTED LAST, after the slot is filled in: the thread reads its
           ;; own job the moment it runs, and a half-written one is a race
           ;; that would show up once in a thousand runs and never in a test.
-          (if (!= 0 (pthread_create (aof ($ (nth (cast size_t id) th_jobs) tid)) nil
+          ;; AND WITH A STACK OF ITS OWN: macOS gives a pthread 512 KB, which
+          ;; an engine, a store and a goal worth proving do not fit in; Linux
+          ;; gives 8 MB, and this asks for that everywhere.
+          (pthread_attr_init (aof attr))
+          (pthread_attr_setstacksize (aof attr) 8388608)
+          (let ((int cr . 0))
+            (set cr (pthread_create (aof ($ (nth (cast size_t id) th_jobs) tid)) (aof attr)
                                     th_body
                                     (cast (void *) (aof (nth (cast size_t id) th_jobs)))))
-              (block
-               (pthread_mutex_lock (aof th_table_lock))
-               (set ($ (nth (cast size_t id) th_jobs) live) 0)
-               (pthread_mutex_unlock (aof th_table_lock))
-               (free text)
-               (return (coco_m_error e "thread_create" "the thread would not start"))))
+            (pthread_attr_destroy (aof attr))
+            (if (!= 0 cr)
+                (block
+                 (pthread_mutex_lock (aof th_table_lock))
+                 (set ($ (nth (cast size_t id) th_jobs) live) 0)
+                 (pthread_mutex_unlock (aof th_table_lock))
+                 (free text)
+                 (return (coco_m_error e "thread_create" "the thread would not start")))))
           (return (coco_m_unify_int e (coco_m_arg e g 1) id))))
 
   (static)
