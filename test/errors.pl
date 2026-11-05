@@ -69,6 +69,7 @@ main :-
     near_names,
     text_read_here,
     text_read_own,
+    no_rule_said,
     checks_done.
 
 %% ---- where a text would not read, uncaught (3.10.0) -------------------------
@@ -919,3 +920,19 @@ list_cell_is_dot_2 :-
     check('and a catch/3 sees the refusal: the list is not one', R3, type_error(list, '.'(f, '.'(a)))),
     answer(X2 =.. [f, a, b], X2, R2),
     check('and a proper list still builds its term', R2, f(a, b)).
+
+%% ---- a single-sided predicate no rule of which matched, uncaught (3.19.0) --
+%%
+%% existence_error(matching_rule, Goal) is said as swipl's -g main says it:
+%% the predicate, then `No rule matches' and the goal.
+no_rule_said :-
+    section('a call no rule of a single-sided predicate matched is said as swipl says it'),
+    scratch(D),
+    atom_concat(D, '/norule.pl', F),
+    fixture(F, [ 'p(a) => true.', 'main :- p(b).' ]),
+    cocolog(C),
+    sh_join([C, ' --no-backtrace --local -s ', F, ' 2>&1'], Cmd),
+    shell(Cmd, Out, Rc),
+    check('the program ends with the uncaught error', Rc, 2),
+    has('the predicate, then the goal no rule matched', 'p/1: No rule matches p(b)', Out),
+    shl(['rm -rf ', D]).

@@ -144,6 +144,12 @@
 (decl) (func coco_m_sink_open_install ((func hook ((coco_engine * e) (size_t sink)) (out int))))
 (decl) (func coco_m_out_note ((int fd) (const char * text) (size_t len)))
 (decl) (func coco_m_out_open ((int fd)) (out int))
+;;; and the console's position (3.19.0): characters, the line from 0, the
+;;; column and bytes written to user_output and user_error, one count for
+;;; the two, as swipl's; and the column set, set_stream/2's
+;;; line_position(N) of a standard stream
+(decl) (func coco_m_out_where ((i64 * nc) (i64 * nl) (i64 * lp) (i64 * nb)))
+(decl) (func coco_m_out_set_column ((i64 lp)))
 ;;; A PORTAL, of a module this tree does not know (1.10.15): NAME/ARITY of
 ;;; MODULE answers from outside the run -- a file, a device, the clock -- or
 ;;; changes it, so a journal records each call and a replay answers it from

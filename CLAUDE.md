@@ -1443,9 +1443,12 @@ cocolint index offers no import of it.
   what a compound hands its arguments is `mode & 27`, the operand's 4
   being each operand's own, and what an atom reads `mode & 17`; since then
   64 unicode escapes, 128 write_canonical/1's curly terms and, 3.15.1, 256 a
-  control character as it is, term_to_atom/2's and term_string/2's, so a
-  compound hands on `mode & 475` and an atom reads `mode & 337`: a new bit
-  goes into both masks), and a compound
+  control character as it is, term_to_atom/2's and term_string/2's, and,
+  3.18.0, 512 a space after each comma (spacing(next_argument), the
+  listing's and since 3.19.0 write_term/2's), so a compound hands on
+  `mode & 987` and an atom reads `mode & 337`: a new bit goes into both
+  masks; write_term/2's priority(P) is the machine's `wprec`, P plus one,
+  read by `coco_write_top` alone), and a compound
   is `coco_write_fun`, always inlined, so the
   guard's slow path returns rather than rejoining -- rejoined, every
   compound read its tag and functor again (21 instructions each).
@@ -1502,6 +1505,19 @@ cocolint index offers no import of it.
 * **Consulting a file REPLACES the clauses it put in the store last time**
   (per-clause `origins`; `'$from'(Path, Clause)` on the wire); asserted
   clauses and other files' are untouched.
+* **A single-sided rule is stored `Head :- '$ssu', !, Body`** (3.19.0,
+  `Head, Guard => Body` with the guard before the cut; `coco_assert_from`):
+  the clause compiler takes the mark off and compiles the head with the
+  `_S` opcodes, which match as subsumes_term/2 and bind none of the call's
+  variables (`cc_head_ssu`, out of line, reached by every head program's
+  default case -- a new head executor's default goes there too). A read's
+  end puts `H :- '$ssu_none'(Mod, H)` after each predicate it gave rules
+  (`ssu_pis` on the machine from the read's own base, `ssu_mod` set by
+  module/2), and an assert keeps it last; it raises
+  `existence_error(matching_rule, Goal)`. **A new reader of a clause's
+  body shows a rule through `coco_ssu_body` (clause/2's) or
+  `coco_ssu_rule` (listing/1's) and hides the last clause**, as
+  predicate_property/2's count does.
 * **A clause is stored as swipl's compiler keeps it** (3.15.0,
   `coco_clause_compile` in lib/kb-consult.cicili, at every assert,
   consult and read of a stored clause, so clause/2, listing/1 and
@@ -2672,9 +2688,20 @@ cocolint index offers no import of it.
   `'$stream_position'(Char, Line, LinePos, Byte)`. A binary stream's
   characters are its bytes (swipl's octet): a get_char reads one byte, a
   put past 255 is `io_error(write, S)`, read_term/2 reads bytes past 127 as
-  their characters. Not swipl's: an encoding is checked and not honoured,
-  and a quoted write of a character past 255 into a binary stream raises
-  where swipl's escapes it (COMPAT.md).
+  their characters. **Every encoding is applied** (3.19.0; latin-1, octet
+  and ascii 3.17.0): a slot's encoding (`st_enc`) gives its class
+  (`st_cls`: 0 UTF-8, 1 a byte a character, 2 and 3 UTF-16, 4 UCS-4), the
+  one writer (`st_emit`) encodes the UTF-8 text every put, write and sink
+  hands it, and a UTF-16 or UCS-4 read decodes a character into the
+  pushback (`st_decode1`), its first byte standing for the bytes it took
+  (`st_praw`, `st_rawd`) -- **a new reader or writer of a file goes through
+  them**, or it is UTF-8 whatever the stream says. `''/7`
+  takes the encoding and the BOM; `set_stream/2` is `''/5`
+  (`:PI` rows, both); the console's position is the engine's
+  (`coco_out_note` counts user_output and user_error as one, read by
+  `coco_m_out_where`). Not swipl's: `text` is UTF-8, swipl's `io_warning`
+  for a malformed unit is not said, and a quoted write of a character past
+  255 into a binary stream raises where swipl's escapes it (COMPAT.md).
 
 * **A signal is a halt code** (2.6.0): a handler in `modules/signal` writes
   `4 + SIGNO` into the engine's `halted` cell (the one object a handler may

@@ -11046,3 +11046,86 @@ for byte -- twenty-two `listing/1` cases, a fact that is a rule with a
 `portray_clause/1` terms. Against swipl 10.0.2 here the two outputs are
 identical; swipl 9.0.4's library(listing) has the same layout functions,
 and the files case runs it there.
+
+## Single-sided rules as swipl's, every stream encoding, and set_stream/2 (3.19.0)
+
+A minor, cocolog 3.19.0: a program that worked goes on working, and three
+things swipl's programs reach for are now there -- a `Head => Body` rule
+that matches as swipl's does, the encodings 3.17.0 checked and did not
+apply, and `set_stream/2`.
+
+- A SINGLE-SIDED RULE IS swipl's SSU. `Head => Body` and `Head, Guard =>
+  Body` are stored as `Head :- '$ssu', !, Body` and `Head :- '$ssu', Guard,
+  !, Body` (`coco_assert_from`, lib/kb-consult.cicili), and the clause
+  compiler, finding the mark, takes it off and compiles the head to MATCH
+  the call as subsumes_term/2 does (`coco_clause_code`, six `_S` opcodes,
+  `cc_head_ssu` out of line in lib/kb-compile.cicili, which every head
+  program's default case reaches, so a clause of `:-` pays nothing): a
+  variable met before is `==` to what it met, and a constant or a structure
+  is no match for an unbound argument. A read's end puts a last clause
+  after each single-sided predicate it gave rules, `H :- '$ssu_none'(Mod,
+  H)`, which raises `existence_error(matching_rule, Goal)`, the goal and
+  the context `Mod:` qualified but `user`'s, as swipl's
+  (`coco_consult_ssu_close`; a nested read's rules are its own, a module/2
+  names the module); an assert keeps that clause last
+  (`coco_ssu_keep_last`). clause/2 shows a rule as swipl's does -- the body
+  alone, or `Guard, !, Body` -- listing/1 as `Head => Body` and `Head, Guard
+  => Body`, and neither, nor predicate_property/2's count, shows the last
+  clause. An asserted `(H, G) => B` is refused as a clause of `,/2`, as
+  swipl's assert refuses it. The uncaught error says `p/1: No rule matches
+  p(b)`. Through 3.18.0 a rule was `Head :- !, Body`: a head bound the
+  call's variable where swipl's raises, a call no rule matched failed, and
+  ordsets.pl's `ord_intersection/3` and `ord_subtract/3` answered beside
+  two stand-ins of library(lists), the first five times over: the
+  stand-ins are gone.
+- swipl's `'$skip_list'/3` (Brent's walk, so a cyclic list counts as
+  swipl's does) and `'$unbind_template'/1`, which ordsets.pl's
+  `ord_intersection/2` and aggregate.pl's `foreach/2` call: through 3.18.0
+  both raised existence_error.
+- EVERY ENCODING swipl names is applied by library(stream): UTF-16 either
+  way round, `wchar_t` (UCS-4), and a BOM written with `bom(true)` and
+  looked for by a read, beside 3.17.0's `iso_latin_1`, `octet` and `ascii`;
+  a malformed UTF-16 unit or a code past U+10FFFF is U+FFFD, with the bytes
+  it took counted. `set_stream/2` sets the type (and the encoding it
+  implies), the encoding, the column (a standard stream's is the
+  console's, which the engine now counts for user_output and user_error,
+  one count for the two, as swipl's: `coco_out_note`), and an alias, moved
+  from the stream that had it, and checks the rest of swipl's attributes
+  in swipl's words; `byte_count/2` and a stream's `encoding` and `bom`
+  properties are there. `'$stream_open'/7` takes the encoding and the BOM
+  (3.17.0's `'$stream_set_enc'/2` is gone; test/flowdebug.pl's journal
+  counts one portal fewer again).
+- write_term/2's `spacing(next_argument)` and `priority(P)` are honoured
+  (through 3.18.0 checked and read past): the first the layout's mode 512,
+  the second the priority the write starts at (`wprec` on the machine).
+
+NOT SWIPL'S, and stated: predicate_property/2 answers no `ssu`; a clause the
+compiler cannot take (a frame past 2^24 slots) is matched as a `:-` clause
+would be; `'$unbind_template'/1` of a template a clause's body wrote with a
+constant argument unbinds it where swipl's raises; `text` is the locale's
+encoding to swipl and UTF-8 here; swipl's `io_warning` for a malformed
+UTF-16 unit is not said.
+
+CHECK: test/files/vendored.pl (new; single-sided rules, the two
+helpers, each answer of the ordsets predicates once, a nested read's rules,
+asserted rules and their listing), test/files/stream_counts.pl (new; 175
+lines), test/files/write.pl's spacing and priority lines, test/stream.pl,
+and test/errors.pl's `No rule matches` -- all 92 test/files cases agree
+with swipl 9.0.4. Thirty-nine arms, one a rule (the six `_S` opcodes, the
+read's last clause, the assert's, the guard's split, the module name,
+clause/2's and listing/1's views, the count, the assert's refusal, the
+error's words, the two helpers and the template's check, Brent's walk, the
+stand-ins, the two write options, and nineteen of the stream module's:
+each encoding's writer and reader, UCS-4, a lone unit, a BOM read and
+written, each `set_stream/2` attribute, the console's count, the raw byte
+count, the binary stream's encoding, `byte_count/2`, a position field's
+error), each red in that case.
+
+COST, tools/flow/zero.sh against 3.18.0 (work less its padding): nrev
+65 876 105 to 65 872 570 (-0.005 %), queens 42 901 022 to 43 031 936
+(+0.31 %), lookup 47 822 722 to 47 883 486 (+0.13 %); the work with its
+padding falls 2.4 %, 0.57 % and 0.67 %. The first cut handed
+`cc_head_ssu' the addresses of the head executor's PC and S, which kept
+them out of registers in every executor: nrev ran 2.3 % more instructions
+less its padding. By value both ways, S handed back and the PC stepped by
+`cc_ssu_words', it is the line above.

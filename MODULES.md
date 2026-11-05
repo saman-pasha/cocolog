@@ -671,7 +671,8 @@ Everything they needed was built here instead:
 | `format(codes(H,T), ...)` | `format/1,2,3`, above |
 | `with_output_to/2` | above |
 | `code_type/2`, `must_be/2`, `string/1` | above |
-| `ord_intersection/3`, `ord_subtract/3` | the Lists module, standing in for `library(ordsets)` |
+| `'$skip_list'/3`, `'$unbind_template'/1` | the Builtins module (3.19.0), swipl's own; through 3.18.0 the Lists module kept two stand-ins of `ord_intersection/3` and `ord_subtract/3` beside library(ordsets)'s |
+| `Head => Body` | swipl's single-sided rule (3.19.0), `coco_assert_from` and the clause compiler |
 | `:- module`, `:- use_module`, `:- meta_predicate`, `:- multifile` | accepted and ignored by `coco_directive` |
 
 **`:- module/2`'s export list is ignored.** cocolog has one namespace, so every

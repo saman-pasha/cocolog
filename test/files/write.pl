@@ -83,6 +83,25 @@ wq(T) :- term_to_atom(T, A), write(A), nl.
 wo(T) :- writeq(T), write(' | '), print(T), write(' | '), write(T), write(' | '),
          format("~q ~w", [T, T]), write(' | '), write_term(T, [quoted(true)]), nl.
 
+%% write_term/2's spacing(next_argument) and priority(P) (3.19.0; through
+%% 3.18.0 both were checked and read past): a space after every comma -- an
+%% argument's, a list's and the operator's -- and a term whose operator binds
+%% looser than P in brackets
+sp(f((a,b), [c,d|e], 'x y', {p,q}, - 1, 1-2, (a:-b))).
+sp([1,2,3]).
+sp(g(h(i,j),k)).
+pr(a:-b, 999).
+pr(1+2, 200).
+pr(1+2, 500).
+pr(-(1), 200).
+pr((a,b), 999).
+pr((a,b), 1000).
+pr(- a, 100).
+
+wsp(T) :- write_term(T, [spacing(next_argument), quoted(true)]), nl.
+wpr(T-P) :- write_term(T, [priority(P)]), write(' | '),
+           write_term(T, [priority(P), spacing(next_argument)]), nl.
+
 ws(Cs) :-
     string_codes(S, Cs), writeq(S), write(' | '), print(S), write(' | '),
     write(S), write(' | '), format("~q ~w", [S, S]), write(' | '),
@@ -95,6 +114,8 @@ main :-
     forall(q(T), wq(T)),
     forall(o(T), wo(T)),
     forall(s(Cs), ws(Cs)),
+    forall(sp(T), wsp(T)),
+    forall(pr(T, P), wpr(T-P)),
     X = f(X, '$VAR'(1), 'a''b'), write(X), nl, writeq(X), nl,
     format("~w ~q~n", [X, X]),
     Y = [p, '$VAR'(3)|Y], write(Y), nl, writeq(Y), nl.

@@ -789,7 +789,22 @@
     ;; byte its term in hand starts at, set and put back where those are
     (member const char * sloc_src)
     (member const char * sloc_text)
-    (member size_t     sloc_off))
+    (member size_t     sloc_off)
+    ;; THE SINGLE-SIDED PREDICATES A READ GAVE A CLAUSE (3.19.0, `Head =>
+    ;; Body'), by index in the store, from the read's own base on (a nested
+    ;; read pushes after it and takes its own back): the read's end puts a
+    ;; last clause after each, `H :- '$ssu_none'(Mod, H)', which raises
+    ;; swipl's existence_error(matching_rule, ...) when no head matched
+    ;; (`coco_consult_ssu_close'). MOD is the read's module/2 name, its atom
+    ;; id plus one, 0 for user. Appended.
+    (member size_t *   ssu_pis)
+    (member size_t     nssu)
+    (member size_t     ssu_cap)
+    (member u64        ssu_mod)
+    ;; THE PRIORITY A WRITE STARTS AT (3.19.0, write_term/2's priority(P)), P
+    ;; plus one, 0 for 1200: set around one write by `coco_wt_put' and read by
+    ;; `coco_write_top' alone. Appended.
+    (member int        wprec))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -828,6 +843,8 @@
   (decl) (func coco_fflags_default_set ((int fl)))
   ;; ---- the console's column (2.16.0): `~N' and print_message/2 ----
   (decl) (func coco_out_note ((FILE * f) (const char * s) (size_t n)))
+  (decl) (func coco_out_where ((i64 * nc) (i64 * nl) (i64 * lp) (i64 * nb)))
+  (decl) (func coco_out_set_column ((i64 lp)))
   (decl) (func coco_out_puts ((FILE * f) (const char * s)))
   (decl) (func coco_out_putc ((FILE * f) (int c)))
   (decl) (func coco_out_open ((FILE * f)) (out int))
@@ -1424,6 +1441,7 @@
              (free (-> m cmask))
              (free (-> m cslots))
              (free (-> m bt))
+             (free (-> m ssu_pis))
              (memset m 0 (sizeof coco_machine))
              (return)))
         (for ((size_t i . 0)) (< i (-> m atoms_len)) ((++ i))
@@ -1453,6 +1471,7 @@
         (free (-> m cmask))
         (free (-> m cslots))
         (free (-> m bt))
+        (free (-> m ssu_pis))
         (memset m 0 (sizeof coco_machine)))
 
   ;;; ---- the character buffer ------------------------------------------
@@ -1578,12 +1597,49 @@
   (static) (var int coco_err_mid . 0)
   (static) (var int coco_out_cap . 0)
 
+  ;;; AND THE CONSOLE'S POSITION (3.19.0), what character_count/2,
+  ;;; line_count/2 and line_position/2 answer for user_output and
+  ;;; user_error: ONE for the two, as swipl's, counted by the rules of a
+  ;;; stream's position (library(stream)'s `st_pos_walk') from 0 -- swipl's
+  ;;; standard streams count their lines from 0 -- over what the engine
+  ;;; writes there, and not over a capture's writes to fd 1
+  (static) (var i64 coco_con_nc . 0)
+  (static) (var i64 coco_con_nl . 0)
+  (static) (var i64 coco_con_lp . 0)
+  (static) (var i64 coco_con_nb . 0)
+
   (func coco_out_note ((FILE * f) (const char * s) (size_t n))
         (if (or (== s nil) (== n 0)) (return))
         (let ((int mid . #'(? (== (nth (- n 1) s) (cast char 10)) 0 1)))
           (cond
             ((== f stdout) (set coco_out_mid mid) (if (not coco_out_cap) (set coco_err_mid mid)))
-            ((== f stderr) (set coco_err_mid mid) (if (not coco_out_cap) (set coco_out_mid mid))))))
+            ((== f stderr) (set coco_err_mid mid) (if (not coco_out_cap) (set coco_out_mid mid))))
+          (if (or (== f stderr) (and (== f stdout) (not coco_out_cap)))
+              (block
+                (set coco_con_nb (+ coco_con_nb (cast i64 n)))
+                (for ((size_t i . 0)) (< i n) ((++ i))
+                  (let ((int c . #'(bitand (cast int (nth i s)) 255)))
+                    ;; a byte that continues a UTF-8 character is no character
+                    (if (!= (bitand c 192) 128)
+                        (block
+                          (set coco_con_nc (+ coco_con_nc 1))
+                          (cond ((== c 10) (set coco_con_nl (+ coco_con_nl 1)) (set coco_con_lp 0))
+                                ((== c 13) (set coco_con_lp 0))
+                                ((== c 9) (set coco_con_lp (+ (bitor coco_con_lp 7) 1)))
+                                ((== c 8) (if (> coco_con_lp 0) (set coco_con_lp (- coco_con_lp 1))))
+                                (#t (set coco_con_lp (+ coco_con_lp 1))))))))))))
+
+  ;;; the console's position: characters, the line, the column and bytes
+  (func coco_out_where ((i64 * nc) (i64 * nl) (i64 * lp) (i64 * nb))
+        (set (cof nc) coco_con_nc)
+        (set (cof nl) coco_con_nl)
+        (set (cof lp) coco_con_lp)
+        (set (cof nb) coco_con_nb))
+
+  ;;; and its column set, set_stream/2's line_position(N) of a standard
+  ;;; stream (3.19.0, swipl's three share it)
+  (func coco_out_set_column ((i64 lp))
+        (set coco_con_lp lp))
 
   (func coco_out_puts ((FILE * f) (const char * s))
         (if (== s nil) (return))

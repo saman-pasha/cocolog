@@ -1117,6 +1117,130 @@
           (set (-> st nomove) was)
           (return ok)))
 
+  ;;; ---- a single-sided predicate's rules (3.19.0, `Head => Body') ------
+
+  ;;; whether the term on the heap is a rule as `coco_assert_from' stores
+  ;;; it: `H :- '$ssu', ...'
+  (func coco_ssu_clause ((coco_machine * m) (size_t clause)) (out int)
+        (set clause (coco_deref m clause))
+        (if (not (coco_is_compound2 m clause ":-")) (return 0))
+        (let ((size_t b . #'(coco_deref m (coco_arg m clause 1))))
+          (if (not (coco_is_compound2 m b ",")) (return 0))
+          (let ((size_t a . #'(coco_deref m (coco_arg m b 0))))
+            (return (and (coco-tag-is ATOM (nth a (-> m heap)))
+                         (== 0 (strcmp (coco_atom_name m (coco_name_of m a)) "$ssu")))))))
+
+  ;;; A READ NOTES THE PREDICATE, once, from its own base on
+  ;;; (`coco_consult_oid'): its end puts the last clause after it
+  (func coco_ssu_note ((coco_machine * m) (size_t pi))
+        (let ((size_t i . #'(-> m nssu)))
+          (while (> i 0)
+            (if (== (nth (- i 1) (-> m ssu_pis)) pi) (return))
+            (set i (- i 1))))
+        (if (>= (-> m nssu) (-> m ssu_cap))
+            (let ((size_t ncap . #'(? (== (-> m ssu_cap) 0) 16 (* (-> m ssu_cap) 2)))
+                  (void * grown . #'(realloc (cast (void *) (-> m ssu_pis)) (* ncap (sizeof size_t)))))
+              (if (== grown nil) (return))
+              (set (-> m ssu_pis) (cast (size_t *) grown))
+              (set (-> m ssu_cap) ncap)))
+        (set (nth (-> m nssu) (-> m ssu_pis)) pi)
+        (set (-> m nssu) (+ (-> m nssu) 1)))
+
+  ;;; THE LAST CLAUSE, `H :- '$ssu_none'(Mod, H)', H the predicate's head of
+  ;;; fresh variables, MOD the module's atom id plus one, 0 for user, and
+  ;;; for a pattern any module (-1)
+  (static)
+  (func coco_ssu_last ((coco_store * st) (coco_machine * m) (size_t pi) (u64 mod)) (out size_t)
+        (let ((u64 nid . #'($ (nth pi (-> st preds)) name))
+              (u32 n . #'($ (nth pi (-> st preds)) arity))
+              (size_t h . 0) (size_t md . 0))
+          (if (== n 0)
+              (set h (coco_new_atom_id m nid))
+              (block
+               (set h (coco_push_struct_raw m (coco-cell FUN (coco_functor_id m nid n)) n))
+               (for ((u32 i . 0)) (< i n) ((++ i))
+                 (set (nth (+ h (+ (cast size_t i) 1)) (-> m heap))
+                      (coco-cell REF (+ h (+ (cast size_t i) 1)))))))
+          (cond ((== mod (cast u64 -1)) (set md (coco_new_var m)))
+                ((== mod 0) (set md (coco_new_atom m "user")))
+                (#t (set md (coco_new_atom_id m (- mod 1)))))
+          (return (coco_make2 m ":-" h (coco_make2 m "$ssu_none" md h)))))
+
+  ;;; AN ASSERT KEEPS THE LAST CLAUSE LAST: the one there goes and a new one
+  ;;; is put after the rule just added, wherever that went
+  (func coco_ssu_keep_last ((coco_store * st) (coco_machine * m) (size_t pi))
+        (coco_retract st m (coco_ssu_last st m pi (cast u64 -1)))
+        (coco_assert_from st m (coco_ssu_last st m pi 0) 1 0 nil 0 nil))
+
+  ;;; A READ'S END (`coco_consult_oid'): the last clause after each
+  ;;; predicate it noted from BASE on, the file's own -- a re-read puts it
+  ;;; where the last one stood -- and the notes taken back. It names no
+  ;;; path, so it is never a clause the not-together warning speaks of
+  (func coco_consult_ssu_close ((coco_store * st) (coco_machine * m) (size_t base)
+                                (u64 oid) (coco_origin_seen * seen))
+        (let ((size_t i . #'(+ base 0)))
+          (while (< i (-> m nssu))
+            (coco_assert_from st m (coco_ssu_last st m (nth i (-> m ssu_pis)) (-> m ssu_mod)) 1 oid nil 0 seen)
+            (set i (+ i 1))))
+        (set (-> m nssu) base))
+
+  ;;; WHAT clause/2 AND listing/1 SHOW for a stored body B: a rule's guard,
+  ;;; its cut and its body as swipl's clause/2 does -- `Guard, !, Body', and
+  ;;; the body alone for a rule with no guard -- and -1 for the last clause,
+  ;;; which neither shows; any other body as it is
+  (func coco_ssu_body ((coco_machine * m) (size_t b)) (out size_t)
+        (set b (coco_deref m b))
+        (if (and (coco_is_compound2 m b "$ssu_none") (== (coco_arity m b) 2))
+            (return (cast size_t -1)))
+        (if (not (coco_is_compound2 m b ",")) (return b))
+        (let ((size_t a . #'(coco_deref m (coco_arg m b 0)))
+              (size_t r . #'(coco_deref m (coco_arg m b 1))))
+          (if (not (and (coco-tag-is ATOM (nth a (-> m heap)))
+                        (== 0 (strcmp (coco_atom_name m (coco_name_of m a)) "$ssu"))))
+              (return b))
+          (if (coco_is_compound2 m r ",")
+              (let ((size_t c . #'(coco_deref m (coco_arg m r 0))))
+                (if (and (coco-tag-is ATOM (nth c (-> m heap)))
+                         (== 0 (strcmp (coco_atom_name m (coco_name_of m c)) "!")))
+                    (return (coco_deref m (coco_arg m r 1))))))
+          (return r)))
+
+  ;;; WHAT listing/1 WRITES for a stored clause T: a rule as swipl writes it,
+  ;;; `Head => Body' or `Head, Guard => Body' -- the goals between the mark
+  ;;; and the first cut its guard -- and -1 for the last clause, which it
+  ;;; does not write; any other clause as it is
+  (func coco_ssu_rule ((coco_machine * m) (size_t t)) (out size_t)
+        (set t (coco_deref m t))
+        (if (not (coco_is_compound2 m t ":-")) (return t))
+        (let ((size_t h . #'(coco_arg m t 0))
+              (size_t b . #'(coco_deref m (coco_arg m t 1))))
+          (if (coco_is_compound2 m b "$ssu_none") (return (cast size_t -1)))
+          (if (not (coco_ssu_clause m t)) (return t))
+          (let ((size_t r . #'(coco_deref m (coco_arg m b 1)))
+                (size_t gs [64]) (size_t ng . 0) (size_t body . 0) (int found . 0))
+            (while (not found)
+              (let ((size_t g . r) (size_t rest . 0) (int more . 0))
+                (if (coco_is_compound2 m r ",")
+                    (block (set g (coco_deref m (coco_arg m r 0)))
+                           (set rest (coco_arg m r 1))
+                           (set more 1)))
+                (if (and (coco-tag-is ATOM (nth g (-> m heap)))
+                         (== 0 (strcmp (coco_atom_name m (coco_name_of m g)) "!")))
+                    (block (set found 1)
+                           (set body (? more (coco_deref m rest) (coco_new_atom m "true"))))
+                  (block
+                    ;; no commit, or a guard longer than this keeps: as stored
+                    (if (or (not more) (>= ng 64)) (return t))
+                    (set (nth ng gs) g)
+                    (set ng (+ ng 1))
+                    (set r (coco_deref m rest))))))
+            (if (== ng 0) (return (coco_make2 m "=>" h body)))
+            (let ((size_t gd . #'(nth (- ng 1) gs)) (size_t i . #'(- ng 1)))
+              (while (> i 0)
+                (set i (- i 1))
+                (set gd (coco_make2 m "," (nth i gs) gd)))
+              (return (coco_make2 m "=>" (coco_make2 m "," h gd) body))))))
+
   (func coco_assert_from ((coco_store * st) (coco_machine * m) (size_t clause)
                           (int at_end) (u64 origin) (const char * origin_path)
                           (int at) (coco_origin_seen * seen)) (out int)
@@ -1131,21 +1255,31 @@
         ;; swipl's does. Through 3.12.0 every rule that came this way was
         ;; translated, the asserted ones too.
 
-        ;; A SINGLE-SIDED RULE IS TRANSLATED HERE, the way a grammar rule
-        ;; is: SWI >= 8.4 writes deterministic dispatch as `Head => Body',
-        ;; and its own libraries (assoc.pl, ordsets.pl) now use it, so a
-        ;; byte-identical vendor cannot be read without it. The translation
-        ;; is `Head :- !, Body' -- first head that unifies commits, which is
-        ;; what those libraries mean by it. It is an APPROXIMATION: real SSU
-        ;; refuses a head that would bind the CALLER's variables, so a call
-        ;; that under-instantiates the dispatch argument can bind it here
-        ;; where SWI would raise. Every legitimate call is identical.
+        ;; A SINGLE-SIDED RULE (3.19.0, swipl's SSU), `Head => Body' or
+        ;; `Head, Guard => Body', is STORED as `Head :- '$ssu', !, Body' or
+        ;; `Head :- '$ssu', Guard, !, Body': the leading `'$ssu'' tells the
+        ;; compiler to MATCH the head, as subsumes_term/2 does -- binding none
+        ;; of the call's variables (`coco_clause_code', the `_S' opcodes) --
+        ;; and the cut commits to the first rule whose head and guard hold.
+        ;; A read puts a last clause after the predicate's rules, which raises
+        ;; existence_error(matching_rule, Goal) when none matched
+        ;; (`coco_consult_ssu_close'), and an assert keeps one there
+        ;; (`coco_ssu_keep_last'); clause/2 and listing/1 show the rule as
+        ;; swipl's do and hide the last clause (`coco_ssu_body',
+        ;; `coco_ssu_rule'). Through 3.18.0 the rule was `Head :- !, Body',
+        ;; which bound a call's variable where swipl's raises, and ordsets.pl's
+        ;; predicates beside library(lists)'s stand-ins answered every solution
+        ;; twice or more.
         (if (and (coco_is_callable m clause) (== (coco_arity m clause) 2)
                  (== 0 (strcmp (coco_atom_name m (coco_name_of m clause)) "=>")))
-            (set clause
-                 (coco_make2 m ":-" (coco_arg m clause 0)
-                             (coco_make2 m "," (coco_new_atom m "!")
-                                         (coco_arg m clause 1)))))
+            (let ((size_t lh . #'(coco_deref m (coco_arg m clause 0))) (size_t gd . 0) (int hasg . 0)
+                  (size_t rest . #'(coco_make2 m "," (coco_new_atom m "!") (coco_arg m clause 1))))
+              (if (and (coco_is_callable m lh) (== (coco_arity m lh) 2)
+                       (== 0 (strcmp (coco_atom_name m (coco_name_of m lh)) ",")))
+                  (block (set gd (coco_arg m lh 1)) (set hasg 1)
+                         (set lh (coco_deref m (coco_arg m lh 0)))))
+              (if hasg (set rest (coco_make2 m "," gd rest)))
+              (set clause (coco_make2 m ":-" lh (coco_make2 m "," (coco_new_atom m "$ssu") rest)))))
 
         ;; A MODULE-QUALIFIED HEAD IS STRIPPED HERE. cocolog has one
         ;; namespace, so `error:has_type(T, X) :- B' can only mean
@@ -1355,6 +1489,9 @@
             ;; it is a variant of becomes the file's, and nothing is added.
             (if (and (!= origin 0) (!= seen nil))
                 (if (not (coco_reload_for st m seen pi origin origin_path at (aof rl))) (return 0)))
+            ;; a single-sided rule a read gives (3.19.0): the read's end puts
+            ;; the last clause after its predicate's rules
+            (if (and (> (-> m lreads) 0) (coco_ssu_clause m clause)) (coco_ssu_note m pi))
             (if (and (!= rl nil) (coco_reload_adopt st m rl pi clause origin))
                 (return 1))
             ;; A CYCLIC CLAUSE IS REFUSED (1.10.19), as SWI refuses one with
@@ -1397,6 +1534,8 @@
                       (set ($ (nth pi (-> st preds)) loaded) 1))))
             (if (and (not (coco_store_is_muted st)) (!= (-> st on_assert) nil))
                 ((-> st on_assert) st (-> st ctx) stored))
+            ;; and one a program asserts keeps the last clause last
+            (if (and (== (-> m lreads) 0) (coco_ssu_clause m clause)) (coco_ssu_keep_last st m pi))
             (return 1))))
 
   ;;; What a `:- if(G)' may ask, read below the engine. A directive takes
@@ -1562,13 +1701,24 @@
           ;; own to replace, and passes no SEEN: a module's clauses each
           ;; looked their predicate up in it, a walk per clause.
           (let ((size_t depth . #'(-> st nroots)) (size_t hdepth . #'(-> m nhroots))
-                (int dgc . #'(-> m dgc)))
+                (int dgc . #'(-> m dgc))
+                ;; THE SINGLE-SIDED PREDICATES THIS READ GIVES RULES (3.19.0),
+                ;; noted after an outer read's, and its module, user until a
+                ;; module/2 says otherwise
+                (size_t sbase . #'(-> m nssu)) (u64 smod . #'(-> m ssu_mod)))
+            (set (-> m ssu_mod) 0)
             ;; THE READS UNDER WAY (3.7.0): the outermost runs the main goal
             ;; a nested one hands it (`ltop', which every outermost read
             ;; sets as it begins: no read but a nested one reads it)
             (set (-> m lreads) (+ (-> m lreads) 1))
             (set n (coco_consult_owned st m text origin oid (aof seen) err errlen
                                        nil nil 0))
+            ;; its end puts the last clause after each of its predicates'
+            ;; rules, a read's own as the rules are
+            (if (>= n 0)
+                (coco_consult_ssu_close st m sbase oid (? reread (aof seen) nil))
+                (set (-> m nssu) sbase))
+            (set (-> m ssu_mod) smod)
             (set (-> m lreads) (- (-> m lreads) 1))
             (set (-> st nroots) depth)
             (set (-> m nhroots) hdepth)

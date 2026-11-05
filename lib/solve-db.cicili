@@ -164,7 +164,10 @@
           (if (coco-tag-is REF (nth c (-> m heap))) (return (coco_instantiation_error e)))
           (set head c)
           (if (and (coco-tag-is FUN (nth c (-> m heap))) (== (coco_arity m c) 2))
-              (if (== (coco_name_of m c) (coco-id m ":-"))
+              (if (or (== (coco_name_of m c) (coco-id m ":-"))
+                      ;; a single-sided rule's head and body too (3.19.0):
+                      ;; `(H, G) => B' is a clause of `,'/2 to swipl's assert
+                      (== 0 (strcmp (coco_atom_name m (coco_name_of m c)) "=>")))
                   (block (set head (coco_deref m (coco_arg m c 0)))
                          (set body (coco_arg m c 1))
                          (set rule 1))))
@@ -1081,10 +1084,13 @@
               (if (coco_pred_dead p i) continue)
               (let ((size_t mark . #'(-> m heap_len))
                     (size_t t . #'(coco_store_get m st (nth i (-> p clauses)))))
+                ;; a single-sided rule as swipl writes it, and the
+                ;; predicate's last clause not at all (3.19.0, `coco_ssu_rule')
+                (set t (coco_ssu_rule m t))
                 (coco_sb_init (aof b))
                 ;; the clause laid out as swipl's portray_clause/1 lays it
                 ;; out, so what listing/1 shows is what a program reads back
-                (coco_layout_clause m (aof b) t)
+                (if (!= t (cast size_t -1)) (coco_layout_clause m (aof b) t))
                 (if (!= ($ b s) nil) (fputs ($ b s) stdout))
                 (coco_sb_free (aof b))
                 ;; the clause was copied on to the heap only to be written

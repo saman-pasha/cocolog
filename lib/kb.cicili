@@ -68,6 +68,16 @@
     ("UNIFY_VAR" 6)
     ("UNIFY_VAL" 7)
     ("UNIFY_CONST" 8)
+    ;; a SINGLE-SIDED head (3.19.0, `Head => Body'): the head MATCHES the
+    ;; call and binds none of its variables, swipl's subsumes_term/2 -- a
+    ;; variable met before is `==' to what it met, and a constant or a
+    ;; structure against an unbound argument is no match
+    ("GET_VAL_S" 9)
+    ("UNIFY_VAL_S" 10)
+    ("GET_CONST_S" 11)
+    ("GET_STRUCT_S" 12)
+    ("GET_STRUCT_T_S" 13)
+    ("UNIFY_CONST_S" 14)
     ("GOAL_STRUCT" 20)
     ("GOAL_ATOM" 21)
     ("GOAL_VAR" 22)
@@ -266,7 +276,11 @@
                  (if (not (cc_match_const m (coco_deref m S) c)) (set ok 0)))
              (set S (+ S 1)))
            break)
-         (default (set ok 0))))))
+         ;; a single-sided head's, out of line (3.19.0)
+         (default
+          (let ((size_t ns . #'(cc_head_ssu m cd w pc S frame call args)))
+            (if (== ns (cast size_t -1)) (set ok 0) (set S ns))
+            (set pc (+ pc (cc_ssu_words w)))))))))
 
 ;;; THE BODY PROGRAM, WRITTEN ONCE AND RUN BY THREE EXECUTORS: the one for a
 ;;; clause entered with registers (`coco_clause_run_r', Stage 3), the one
@@ -1779,6 +1793,20 @@
   (decl) (func coco_assert_from ((coco_store * st) (coco_machine * m) (size_t clause)
                                (int at_end) (u64 origin) (const char * origin_path)
                                (int at) (coco_origin_seen * seen)) (out int))
+
+  ;;; A SINGLE-SIDED PREDICATE'S RULES (3.19.0, `Head => Body', lib/kb-consult.cicili):
+  ;;; whether a clause on the heap is one (its body opens on `'$ssu''); a read's
+  ;;; note of its predicate, and its end's last clause after each it noted;
+  ;;; an assert's last clause kept last; the body clause/2 shows for a stored
+  ;;; body -- the rule's guard, cut and body as swipl's is -- and the clause
+  ;;; listing/1 writes, `Head => Body'; -1 for the last clause, which both hide
+  (decl) (func coco_ssu_clause ((coco_machine * m) (size_t clause)) (out int))
+  (decl) (func coco_ssu_note ((coco_machine * m) (size_t pi)))
+  (decl) (func coco_ssu_keep_last ((coco_store * st) (coco_machine * m) (size_t pi)))
+  (decl) (func coco_consult_ssu_close ((coco_store * st) (coco_machine * m) (size_t base)
+                                     (u64 oid) (coco_origin_seen * seen)))
+  (decl) (func coco_ssu_body ((coco_machine * m) (size_t b)) (out size_t))
+  (decl) (func coco_ssu_rule ((coco_machine * m) (size_t t)) (out size_t))
 
   ;;; A clause as a backend stores it: bare, or `'$from'(Path, Clause)'
   ;;; carrying the name of the file that consulted it. Either goes into the
