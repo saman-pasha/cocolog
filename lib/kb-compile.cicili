@@ -1215,6 +1215,11 @@
           (if (and (== ar 1) (or (== nm (-> uc n_not)) (== nm (-> uc n_once)) (== nm (-> uc n_ignore)))
                    (cc_bad_leaf uc (+ t 1) 0))
               (return -1))
+          ;; nor of a variable, which may hold $/0 when it runs (3.21.0):
+          ;; the construct's step guards its frame (`coco_ite_meta')
+          (if (and (== ar 1) (or (== nm (-> uc n_not)) (== nm (-> uc n_once)) (== nm (-> uc n_ignore)))
+                   (coco-tag-is REF (nth (coco_store_deref st (+ t 1)) (-> st cells))))
+              (return -1))
           (if (and (== ar 1) (or (== nm (-> uc n_neg)) (== nm (-> uc n_not))))
               (block (set (cof ct) (+ t 1)) (return 2)))
           (if (and (== ar 1) (== nm (-> uc n_once)))
@@ -1774,6 +1779,125 @@
           (if (>= (+ pf 1) 33554431) (return 0))
           (return (coco-bar-of pf))))
 
+  ;;; WHETHER A STORED BODY HOLDS $/0 WHERE ITS CLAUSE RUNS IT (3.21.0):
+  ;;; `coco_det0_in''s walk, over the store's cells -- the atom at a leaf of
+  ;;; the control structure, `,', `;', `|', `->', `*->', `\+', `$/1''s goal
+  ;;; and the goal of `:' and `@', and not in a goal another frame runs
+  ;;; (call/N's, findall/3's). 4096 nodes at most.
+  ;;; META: and in the goal of once/1, ignore/1 and not/1, which an
+  ;;; environment runs in place (`cc_det0_any')
+  (static)
+  (func cc_det0_walk ((coco_store * st) (coco_machine * m) (size_t g) (u32 * budget) (int meta)) (out int)
+        (while 1
+          (let ((u64 c . 0) (u64 nm . 0) (u32 n . 0) (size_t fid . 0))
+            (if (== (cof budget) 0) (return 0))
+            (set (cof budget) (- (cof budget) 1))
+            (set g (coco_store_deref st g))
+            (set c (nth g (-> st cells)))
+            (if (coco-tag-is ATOM c) (return (== (cast u64 (coco-payload c)) (coco-id m "$"))))
+            (if (not (coco-tag-is FUN c)) (return 0))
+            (set fid (cast size_t (coco-payload c)))
+            (set nm ($ (nth fid (-> m functors)) name))
+            (set n ($ (nth fid (-> m functors)) arity))
+            (cond
+              ((and (== n 2) (or (== nm (coco-id m ",")) (== nm (coco-id m ";")) (== nm (coco-id m "|"))
+                                 (== nm (coco-id m "->")) (== nm (coco-id m "*->"))))
+               (block (if (cc_det0_walk st m (+ g 1) budget meta) (return 1))
+                      (set g (+ g 2))))
+              ((and (== n 1) (or (== nm (coco-id m "\\+")) (== nm (coco-id m "$"))))
+               (set g (+ g 1)))
+              ((and meta (== n 1) (or (== nm (coco-id m "once")) (== nm (coco-id m "ignore"))
+                                      (== nm (coco-id m "not"))))
+               (set g (+ g 1)))
+              ((and (== n 2) (== nm (coco-id m ":"))) (set g (+ g 2)))
+              ((and (== n 2) (== nm (coco-id m "@"))) (set g (+ g 1)))
+              (#t (return 0)))))
+        (return 0))
+
+  (static)
+  (func cc_det0_in ((coco_store * st) (coco_machine * m) (size_t body)) (out int)
+        (let ((u32 budget . 4096))
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
+          (return (cc_det0_walk st m body (aof budget) 0))))
+
+  ;;; ...or in the goal of a meta-predicate an environment runs in place:
+  ;;; such a body is built whole, its constructs the step's
+  (static)
+  (func cc_det0_any ((coco_store * st) (coco_machine * m) (size_t body)) (out int)
+        (let ((u32 budget . 4096))
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
+          (return (cc_det0_walk st m body (aof budget) 1))))
+
+  ;;; how many times the store variable V occurs in the term at T: 4096
+  ;;; nodes at most, past which a large negative number
+  (static)
+  (func cc_occurs ((coco_store * st) (coco_machine * m) (size_t t) (size_t v) (u32 * budget)) (out i64)
+        (let ((u64 c . 0) (i64 n . 0))
+          (if (== (cof budget) 0) (return -1000000))
+          (set (cof budget) (- (cof budget) 1))
+          (set t (coco_store_deref st t))
+          (set c (nth t (-> st cells)))
+          (if (coco-tag-is REF c) (return (? (== t v) 1 0)))
+          (if (not (coco-tag-is FUN c)) (return 0))
+          (let ((u32 ar . #'($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity)))
+            (for ((u32 i . 0)) (< i ar) ((++ i))
+              (set n (+ n (cc_occurs st m (+ t (+ (cast size_t i) 1)) v budget)))))
+          (return n)))
+
+  ;;; THE BODY'S LAST GOAL IS ONE SWIPL COMPILES IN PLACE (3.21.0, $/0):
+  ;;; the rightmost goal of its conjunction, as pl-comp.c compiles it
+  ;;; without -O -- =/2 with a variable on either side
+  ;;; (compileBodyUnify); ==/2 and \==/2 with two variables the clause
+  ;;; names twice or more, or one and an atom or a small integer
+  ;;; (compileBodyEQ, compileBodyNEQ); var/1, nonvar/1 and the nine type
+  ;;; tests of a variable the clause named before (compileBodyVar1,
+  ;;; compileBodyNonVar1, compileTypeTest). Such a goal is no call, so no
+  ;;; last call either; any other is. arg/3 in last place never is: its
+  ;;; third argument must be a variable met there first and named again.
+  (static)
+  (func cc_det_inline_last ((coco_store * st) (coco_machine * m) (size_t head) (size_t body)) (out int)
+        (let ((size_t g . #'(coco_store_deref st body)) (u64 c . 0)
+              (u64 nm . 0) (u32 n . 0) (u32 hops . 0))
+          ;; the rightmost goal of the conjunction
+          (while (< hops 100000)
+            (set c (nth g (-> st cells)))
+            (if (not (coco-tag-is FUN c)) break)
+            (if (not (and (== ($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity) 2)
+                          (== ($ (nth (cast size_t (coco-payload c)) (-> m functors)) name) (coco-id m ","))))
+                break)
+            (set g (coco_store_deref st (+ g 2)))
+            (set hops (+ hops 1)))
+          (set c (nth g (-> st cells)))
+          (if (not (coco-tag-is FUN c)) (return 0))
+          (set nm ($ (nth (cast size_t (coco-payload c)) (-> m functors)) name))
+          (set n ($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity))
+          (let ((size_t a . #'(coco_store_deref st (+ g 1))) (size_t b . 0)
+                (int av . 0) (int bv . 0) (i64 an . 0) (i64 bn . 0) (u32 budget . 4096))
+            (set av (coco-tag-is REF (nth a (-> st cells))))
+            ;; a variable's occurrences in the whole clause
+            (if av (set an (+ (cc_occurs st m head a (aof budget)) (cc_occurs st m body a (aof budget)))))
+            (if (== n 2)
+                (block
+                 (set b (coco_store_deref st (+ g 2)))
+                 (set bv (coco-tag-is REF (nth b (-> st cells))))
+                 (if bv (set bn (+ (cc_occurs st m head b (aof budget)) (cc_occurs st m body b (aof budget)))))
+                 (if (== nm (coco-id m "=")) (return (or av bv)))
+                 (if (or (== nm (coco-id m "==")) (== nm (coco-id m "\\==")))
+                     (let ((int ak . #'(or (coco-tag-is ATOM (nth a (-> st cells))) (coco-tag-is INT (nth a (-> st cells)))))
+                           (int bk . #'(or (coco-tag-is ATOM (nth b (-> st cells))) (coco-tag-is INT (nth b (-> st cells))))))
+                       (if (or (and av (< an 2)) (and bv (< bn 2))) (return 0))
+                       (return (or (and av bv) (and av bk) (and bv ak)))))
+                 (return 0)))
+            (if (and (== n 1)
+                     (or (== nm (coco-id m "var")) (== nm (coco-id m "nonvar"))
+                         (== nm (coco-id m "integer")) (== nm (coco-id m "rational"))
+                         (== nm (coco-id m "float")) (== nm (coco-id m "number"))
+                         (== nm (coco-id m "atomic")) (== nm (coco-id m "atom"))
+                         (== nm (coco-id m "string")) (== nm (coco-id m "compound"))
+                         (== nm (coco-id m "callable"))))
+                (return (and av (>= an 2))))
+            (return 0))))
+
   (func coco_clause_code ((coco_store * st) (coco_machine * m) (size_t clause)) (out coco_code *)
         (let ((coco_code * cd . #'(coco_code_find st clause)))
           (if (!= cd nil) (return cd))
@@ -1872,10 +1996,22 @@
             ;; functor of an atom's name and no arguments -- before the
             ;; environment, whose units are its too
             (set (-> cd ptag) (coco_head_tag st m head))
-            (if (and (cc_env_enabled) (!= body 0))
+            ;; -- not for a body that holds $/0 where an environment would
+            ;; run it (3.21.0): the step's constructs guard their frames
+            (if (and (cc_env_enabled) (!= body 0) (not (cc_det0_any st m body)))
                 (cc_compile_env st m cd head body))
             ;; and whether entering it takes more than the plain executor
             (set (-> cd ex) (+ (? (> ngd 0) 1 0) (? (!= (-> cd env) 0) 2 0)))
+            ;; A BODY THAT HOLDS $/0 (3.21.0) is closed by its frame's exit
+            ;; marker as it is entered, and built whole -- no guard run as
+            ;; the clause is entered, no environment: every goal after the
+            ;; `$' a frame (`coco_try_clause', `coco_det0')
+            (if (and (!= body 0) (cc_det0_in st m body)) (set (-> cd ex) 4))
+            ;; and A BODY WHOSE LAST GOAL SWIPL COMPILES IN PLACE (8):
+            ;; hidden from a guard it would take on as a last call
+            ;; (`coco_det_enter')
+            (if (and (!= body 0) (cc_det_inline_last st m head body))
+                (set (-> cd ex) (bitor (-> cd ex) 8)))
             (if (not (coco_code_put st clause cd))
                 (block (coco_code_free cd) (return nil)))
             (return cd)))))

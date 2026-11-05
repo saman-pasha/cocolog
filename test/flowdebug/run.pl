@@ -206,3 +206,6 @@ noted_up(X) :- ( up_step(X) -> note(X) ; true ), throw(error(noted(X), noted_up/
 %% it one of its own (1.11.7)
 each_hook(_, []).
 each_hook(G, [S|Ss]) :- call(G, S), each_hook(G, Ss).
+
+%% $/0 (cocolog 3.21.0): a cut, with no port of its own
+guarded(Y) :- $, inc(1, Y).

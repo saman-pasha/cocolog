@@ -154,7 +154,12 @@ control(D) :-
     check('choose(-1): after the condition fails the call is the else''s, though the then''s comes first',
           C4, [ choose/1-'query.g1'-p1-exit, (>)/2-'p1.c1.g1.a1.if.g1'-none-fail,
                 inc/2-'p1.c1.g1.else.g1'-p2-exit, (is)/2-'p2.c1.g1'-none-exit,
-                inc/2-'p1.c1.g2'-p2-exit, (is)/2-'p2.c1.g1'-none-exit ]).
+                inc/2-'p1.c1.g2'-p2-exit, (is)/2-'p2.c1.g1'-none-exit ]),
+    %% $/0 (3.21.0) makes no call: the call after it is the box after it
+    debugged(D, guarded, guarded(Y5), ['Y'=Y5], [], R5),
+    calls(R5, C5),
+    check('guarded(Y): $/0 makes no call, and the call after it is the box after it',
+          C5, [ guarded/1-'query.g1'-p1-exit, inc/2-'p1.c1.g2'-p2-exit, (is)/2-'p2.c1.g1'-none-exit ]).
 
 %% ---- the values that crossed --------------------------------------------
 

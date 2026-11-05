@@ -483,7 +483,9 @@ findings_det_at(D) :-
                  '    @(( X = 1 | X = 2 ), m), @(assertz(t26(X)), m), t26(X).',
                  'gof25(X) :- @(q25(X), m).',
                  'gog25(X) :- $(q25(X)).',
-                 'p25(1).', 'q25(1).', 'q25(2).']),
+                 'p25(1).', 'q25(1).', 'q25(2).',
+                 'goh25(X) :- $, q25(X).',
+                 'goi25(1) :- ($).', 'goi25(2).']),
     flow_graph(god25('-'), G1, [source(DF)]),
     flow_findings(G1, Fs1),
     findall(T1-L1:C1, member(finding(_, unknown_procedure, _, _, _, where(_, L1, C1), T1, _), Fs1), Ts1),
@@ -506,7 +508,22 @@ findings_det_at(D) :-
     atom_codes(SvgA, SvgCs),
     yes_no(( sub_atom(SvgA, _, _, _, 'one solution and no choice point, or an error'),
              sub_atom(SvgA, _, _, _, 'as its goal, in the module named') ), Y5),
-    check('each is drawn with its note', Y5, yes).
+    check('each is drawn with its note', Y5, yes),
+    %% $/0 (3.21.0) is a cut, and past it the clause is deterministic: it
+    %% succeeds once, or raises -- through 3.20.0 a call nothing defined
+    flow_graph(goh25('-'), G6, [source(DF)]),
+    flow_findings(G6, Fs6),
+    check('$/0 is control: no finding of the clause that holds it', Fs6, []),
+    G6 = graph(_, _, P6, _, _),
+    flow_graph(goi25('-'), G7, [source(DF)]),
+    G7 = graph(_, _, P7, _, _),
+    findall(K6-Det6, ( member(panel(I6, K6, _, _, _, _, Det6, _), P6), I6 > 0, K6 == goh25/1 ), D6),
+    findall(K7-Det7, ( member(panel(I7, K7, _, _, _, _, Det7, _), P7), I7 > 0, K7 == goi25/1 ), D7),
+    check('past $/0 a clause is deterministic (q25/1 has two answers), and $/0 commits as ! does',
+          D6-D7, [goh25/1-det]-[goi25/1-det]),
+    flow_findings(G7, Fs7),
+    findall(W7, member(finding(_, W7, _, _, _, _, _, _), Fs7), Ws7),
+    check('a clause after one that $/0 commits is never tried', Ws7, [unreachable_clause]).
 
 %% AN INCLUDED FILE IS READ WHERE ITS INCLUDE STANDS (3.13.1), as the
 %% engine reads it and as swipl's include/1 is textual: its predicates are

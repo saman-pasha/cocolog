@@ -37,6 +37,29 @@
   `(bitor (bitor (coco-bar-low ,b) (coco-bar-sysbit))
           (coco-bar-of (cast u64 (coco-payload (nth ,g (-> m heap)))))))
 
+;;; $/0's (3.21.0): the continuation `dgk' names while no guard is on, which
+;;; no frame is; a height no choice stack reaches, for a marker whose frame
+;;; `$' took away; and a guard frame's two flags in its `clause_ix', under
+;;; the guard below it (`coco_det_push')
+(DEFMACRO coco-det-none () `(cast size_t -1))
+(DEFMACRO coco-det-gone () `288230376151711744)
+(DEFMACRO coco-det-on (cx) `(bitand ,cx 1))
+(DEFMACRO coco-det-set (cx) `(bitand ,cx 2))
+(DEFMACRO coco-det-below (cx) `(>> ,cx 2))
+
+;;; WHETHER NAME/ARITY IS A ROW OF ONE OF SWIPL'S TABLES -- its transparent
+;;; predicates, its foreign ones -- a function of one row a line
+;;; (lib/swipl-det.cicili, generated): a build that reads no table -- a test
+;;; binary -- answers no for every name
+(DEFMACRO coco-emit-det-table (fname table)
+  (LET ((rows (IF (BOUNDP table) (SYMBOL-VALUE table) NIL)))
+    `(func ,fname ((const char * name) (u32 arity)) (out int)
+       (cond
+         ,@(MAPCAR (LAMBDA (row)
+                     `((and (== arity ,(SECOND row)) (== 0 (strcmp name ,(FIRST row)))) (return 1)))
+                   rows)
+         (#t (return 0))))))
+
 (generic impl-solve-loop
   ()
 
@@ -47,6 +70,8 @@
         (set (-> e m) m)
         (set (-> e st) st)
         (set (-> e trace) coco_trace_default)
+        ;; no guard on (3.21.0, $/0)
+        (set (-> e dgk) (coco-det-none))
         ;; the root's names are the store's names; a green alias points at
         ;; the host, which outlives every task's machine
         (set (-> st name_m) (cast (void *) (coco_troot m))))
@@ -124,7 +149,18 @@
         ;; running there is no frame open on any predicate to want one
         (if (and (-> e gc) (== (-> (-> e m) running) 0) (!= (-> (-> e st) ntpreds) 0))
             (coco_tomb_sweep_all (-> e st) (-> e m)))
-        (set (-> e goals) (coco_k_push e goal 0 (coco_k_empty e))))
+        ;; NO GUARD ON (3.21.0), and a goal that holds $/0 run in a frame
+        ;; its exit marker closes: the `'<meta-call>'/1' swipl compiles a
+        ;; query into, its height the search's floor
+        (set (-> e dgh) 0)
+        (set (-> e dgk) (coco-det-none))
+        (set (-> e goals)
+             (coco_k_push e goal 0
+                          (? (coco_det0_in (-> e m) goal)
+                             (coco_k_push e (coco_make1_f (-> e m) (coco-fid (-> e m) "$det_end" 1)
+                                                          (coco_new_int (-> e m) 0))
+                                          0 (coco_k_empty e))
+                             (coco_k_empty e)))))
 
   ;;; WHAT A SUCCEEDED ENGINE LEAVES IS CUT (3.1.0): a host done with an
   ;;; answer (the toplevel, `-s', `run', a directive, run_isolated/2) and a
@@ -959,6 +995,506 @@
                             k))
           (return 1)))
 
+  ;;; ---- $/0, swipl's determinism guard (3.21.0) ----------------------------
+  ;;;
+  ;;; `$' GUARDS THE FRAME IT RUNS IN AND CUTS AS `!' DOES THERE, as swipl's
+  ;;; I_DET: the clause it is written in, or the `'<meta-call>'/1' a goal
+  ;;; holding it is called in. From there on the frame must succeed
+  ;;; deterministically: failing out of it is determinism_error(PI, det,
+  ;;; fail, guard), exiting it with a choice point it made determinism_
+  ;;; error(PI, det, nondet, guard). AND ITS LAST CALL TAKES THE GUARD ON,
+  ;;; as swipl's I_DEPART hands a frame's flags to the frame it calls: over
+  ;;; the caller's own frame where no choice point is younger than it --
+  ;;; swipl's last-call optimisation, the caller's guard the callee's now
+  ;;; and its `$' no longer the callee's own -- else in a frame of its own.
+  ;;; Either way the kind is then guard_in_caller, and PI the first frame
+  ;;; down the guards whose own `$' set its guard, else the frame's own
+  ;;; (pl-wam.c's determinism_error()). A last call over the caller's frame
+  ;;; to a transparent predicate drops the guard and keeps the `$'
+  ;;; (I_DEPART's `clear(FR, FR_CLEAR_NEXT)'): `$, once(fail)' fails with no
+  ;;; error. A goal swipl compiles in place is no call, and call/N's goal
+  ;;; and a disjunction's left arm none of the frame's last calls (I_USERCALL
+  ;;; and `;''s I_CALL).
+  ;;;
+  ;;; A GUARDED FRAME HAS A GUARD FRAME: a GOAL frame at its height, its
+  ;;; alternative `'$det_fail0'(D)' -- failing into it is the frame's
+  ;;; failure -- its continuation the frame's EXIT MARKER, its barrier the
+  ;;; frame's owner word, and in `clause_ix' the guard frame under it (as
+  ;;; `dgh') and its two flags, 1 on (swipl's FR_DETGUARD) and 2 its own `$'
+  ;;; (FR_DETGUARD_SET). The exit marker `'$det_end'(_)' closes the body of
+  ;;; a clause that holds `$' (`ex' 4, `coco_try_clause') and a goal holding
+  ;;; it called (`coco_det_k'); it is the frame's exit, its last call's and
+  ;;; theirs, where every guard frame whose marker it is is asked, the
+  ;;; innermost first, as swipl's frames exit (`coco_det_end'). The
+  ;;; innermost's marker is `dgk', so a last call is a call whose
+  ;;; continuation is `dgk': one compare where the step calls.
+
+  ;;; THE GUARD ON, from the guard frame DGH names: its exit marker while
+  ;;; its guard is on, else none
+  (func coco_det_top ((coco_engine * e) (size_t dgh))
+        (set (-> e dgh) dgh)
+        (set (-> e dgk) (coco-det-none))
+        (if (!= dgh 0)
+            (let ((coco_choice * c . #'(aof (nth (- dgh 1) (-> e choices)))))
+              (if (coco-det-on (-> c clause_ix)) (set (-> e dgk) (-> c goals))))))
+
+  ;;; whether the frame at D is a guard frame
+  (weak)
+  (func coco_det_is ((coco_engine * e) (size_t d)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (size_t c . 0))
+          (if (>= d (-> e nchoices)) (return 0))
+          (if (!= ($ (nth d (-> e choices)) kind) COCO_CH_GOAL) (return 0))
+          (set c (coco_deref m ($ (nth d (-> e choices)) call)))
+          (if (!= (nth c (-> m heap)) (coco-cell FUN (coco-fid m "$det_fail0" 1))) (return 0))
+          (return (== (cast size_t (coco-signed-payload (nth (coco_deref m (+ c 1)) (-> m heap)))) d))))
+
+  ;;; A GUARD FRAME PUSHED for a frame of owner word OW, OWN where the
+  ;;; frame's own `$' set it, MK the frame's exit marker. Its alternative is
+  ;;; built before the push, below the frame's heap mark, as catch/3's
+  ;;; recovery is, and failing into it is no Redo of anything the program
+  ;;; wrote. 0 when memory refused.
+  (weak)
+  (func coco_det_push ((coco_engine * e) (size_t ow) (int own) (size_t mk)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t d . #'(-> e nchoices))
+              (size_t alt . 0))
+          (set alt (coco_make1_f m (coco-fid m "$det_fail0" 1) (coco_new_int m (cast i64 d))))
+          (if (not (coco_push_choice e COCO_CH_GOAL alt mk ow)) (return 0))
+          (set ($ (nth d (-> e choices)) clause_ix) (bitor (<< (-> e dgh) 2) (? own 3 1)))
+          (set ($ (nth d (-> e tchoices)) printr) 0)
+          (set (-> e dgh) (+ d 1))
+          (set (-> e dgk) mk)
+          (return 1)))
+
+  ;;; a frame above D that may still retry: none DEAD, CATCH, CATCH_RETRY
+  ;;; or SPENT -- the kinds `coco_catch_exit' passes over: a catch frame
+  ;;; retries nothing -- nor a CLAUSE frame only trace keeps
+  ;;; (`coco_det_exit')
+  (weak)
+  (func coco_det_live ((coco_engine * e) (size_t d)) (out int)
+        (let ((size_t i . #'(+ d 1)))
+          (while (< i (-> e nchoices))
+            (let ((int fk . #'($ (nth i (-> e choices)) kind)))
+              (if (and (!= fk COCO_CH_DEAD) (!= fk COCO_CH_CATCH) (!= fk COCO_CH_CATCH_RETRY)
+                       (!= fk COCO_CH_SPENT)
+                       (not (and (-> e trace) (== fk COCO_CH_CLAUSE)
+                                 ($ (nth i (-> e tchoices)) printr)
+                                 ($ (nth i (-> e tchoices)) last))))
+                  (return 1)))
+            (set i (+ i 1)))
+          (return 0)))
+
+  ;;; the predicate an owner word names, determinism_error/4's first
+  ;;; argument: Name/Arity, `'<meta-call>'/1' for a word with no owner
+  (weak) (cold)
+  (func coco_det_pi ((coco_machine * m) (size_t ow)) (out size_t)
+        (let ((size_t p . #'(cast size_t (coco-bar-pred ow))))
+          (if (or (== p 0) (> p (-> m functors_len)))
+              (set p (+ (cast size_t (coco-fid m "<meta-call>" 1)) 1)))
+          (return (coco_make2 m "/" (coco_new_atom_id m ($ (nth (- p 1) (-> m functors)) name))
+                              (coco_new_int m (cast i64 ($ (nth (- p 1) (-> m functors)) arity)))))))
+
+  ;;; error(determinism_error(PI, det, WHAT, KIND), CTX) raised for a frame
+  ;;; of owner word OW: KIND `guard' where its own `$' set its guard (OWN),
+  ;;; PI its own; else `guard_in_caller', PI the first frame down the guards
+  ;;; from DGH whose own `$' did, or its own where none did. Answers as
+  ;;; `coco_raise_ctx' does.
+  (weak) (cold)
+  (func coco_det_raise ((coco_engine * e) (size_t ow) (int own) (size_t dgh)
+                        (const char * what) (size_t ctx)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (size_t pw . ow) (size_t args [4]))
+          (if (not own)
+              (let ((size_t h . dgh))
+                (while (!= h 0)
+                  (let ((coco_choice * c . #'(aof (nth (- h 1) (-> e choices)))))
+                    (if (coco-det-set (-> c clause_ix)) (block (set pw (-> c barrier)) break))
+                    (set h (coco-det-below (-> c clause_ix)))))))
+          (set (nth 0 args) (coco_det_pi m pw))
+          (set (nth 1 args) (coco_new_atom m "det"))
+          (set (nth 2 args) (coco_new_atom m what))
+          (set (nth 3 args) (coco_new_atom m (? own "guard" "guard_in_caller")))
+          (return (coco_raise_ctx e (coco_make m "determinism_error" 4 args) ctx))))
+
+  ;;; WHAT THE FRAME HAS LEFT CUTS NO LOWER THAN BASE, its guard frame's
+  ;;; top: each goal's barrier between K and the marker MK raised to it, its
+  ;;; owner kept, and there each `$cut' cuts to it, and each `$softcut' and
+  ;;; `$/1' exit names a frame that went. These are the frame's own goals,
+  ;;; made since it was entered, and no choice point holds them: every one
+  ;;; younger than the frame is gone.
+  (weak)
+  (func coco_det_floor ((coco_engine * e) (size_t k) (size_t mk) (size_t base))
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t f . #'(coco_deref m k)))
+          (while (and (!= f mk) (== (nth f (-> m heap)) (coco-cell FUN (coco-fid m "$k" 3))))
+            (let ((size_t gk . #'(coco_deref m (+ f 1)))
+                  (size_t w . #'(cast size_t (coco-signed-payload (nth (+ f 2) (-> m heap)))))
+                  (u64 gc . 0))
+              (if (< (coco-bar-low w) base)
+                  (set (nth (+ f 2) (-> m heap)) (coco-int-cell (cast i64 (bitor (coco-bar-tag w) base)))))
+              (set gc (nth gk (-> m heap)))
+              (cond
+                ((== gc (coco-cell FUN (coco-fid m "$cut" 1)))
+                 (set (nth (coco_deref m (+ gk 1)) (-> m heap)) (coco-int-cell (cast i64 base))))
+                ((or (== gc (coco-cell FUN (coco-fid m "$softcut" 1)))
+                     (== gc (coco-cell FUN (coco-fid m "$det_exit" 3))))
+                 (set (nth (coco_deref m (+ gk 1)) (-> m heap)) (coco-int-cell (cast i64 (coco-det-gone))))))
+              (set f (coco_deref m (+ f 3)))))))
+
+  ;;; `$': its frame found by the frame's exit marker, the first
+  ;;; `'$det_end'' down its continuation K, whose barrier is the frame's
+  ;;; height and owner. Every choice point the frame made is cut, as
+  ;;; swipl's I_DET cuts the frame's -- those of a `\+', a condition or a
+  ;;; `$/1' it is inside with them -- and the frame guarded: a guard frame
+  ;;; of its own where it has none, else the one it has (its `$' ran
+  ;;; before, or a last call gave it one) set, its exit now this frame's.
+  ;;; No marker (a goal no frame of cocolog's closes) is `!'. No inference:
+  ;;; swipl compiles `$' in place.
+  (weak)
+  (func coco_det0 ((coco_engine * e) (size_t k) (size_t b) (int * ret)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t mk . 0) (size_t f . #'(coco_deref m k)) (u32 hops . 0))
+          (while (and (== mk 0) (< hops 1000000)
+                      (== (nth f (-> m heap)) (coco-cell FUN (coco-fid m "$k" 3))))
+            (if (== (nth (coco_deref m (+ f 1)) (-> m heap)) (coco-cell FUN (coco-fid m "$det_end" 1)))
+                (set mk f)
+                (block (set f (coco_deref m (+ f 3))) (set hops (+ hops 1)))))
+          (set (-> e frees) (+ (-> e frees) 1))
+          (if (== mk 0)
+              (let ((size_t bl . #'(coco-bar-low b)))
+                (if (< bl (-> e nchoices))
+                    (block (if (-> e ncleanup) (set k (coco_cleanup_cut e bl k)))
+                           (set (-> e nchoices) bl)
+                           (if (-> e trace) (coco_trace_cut e bl))))
+                (set (-> e goals) k)
+                (return 1)))
+          (let ((size_t mb . #'(cast size_t (coco-signed-payload (nth (+ mk 2) (-> m heap)))))
+                (size_t nk . #'(coco_deref m (+ mk 3)))
+                (size_t h . 0) (size_t ow . 0) (size_t d . 0) (size_t cut . 0) (int have . 0))
+            (set h (coco-bar-low mb))
+            (set ow (coco-bar-tag mb))
+            (if (== (coco-bar-pred ow) 0) (set ow (coco_mc_tag m)))
+            ;; guarded already: by its own `$' (the guard frame's marker is
+            ;; MK) or by a last call (the marker of the frame it was called
+            ;; from, NK)
+            (if (!= (-> e dgh) 0)
+                (block (set d (- (-> e dgh) 1))
+                       (if (and (<= d h) (coco_det_is e d)
+                                (or (== ($ (nth d (-> e choices)) goals) mk)
+                                    (== ($ (nth d (-> e choices)) goals) nk)))
+                           (set have 1))))
+            (set cut (? (and have (== d h)) (+ h 1) h))
+            (if (< cut (-> e nchoices))
+                (block (if (-> e ncleanup) (set k (coco_cleanup_cut e cut k)))
+                       (set (-> e nchoices) cut)
+                       (if (-> e trace) (coco_trace_cut e cut))))
+            (if have
+                (let ((coco_choice * c . #'(aof (nth d (-> e choices)))))
+                  (set (-> c clause_ix) (bitor (-> c clause_ix) 3))
+                  (set (-> c goals) mk)
+                  (coco_det_top e (+ d 1)))
+                (if (not (coco_det_push e ow 1 mk))
+                    (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2))))
+            (coco_det_floor e k mk (-> e nchoices))
+            (set (-> e goals) k)
+            (return 1))))
+
+  ;;; `'$det_end'(_)': a guarded frame's EXIT, its last call's and theirs.
+  ;;; Each guard frame whose marker this is -- the innermost first, each the
+  ;;; guard on when its turn comes -- is asked whether a frame above it may
+  ;;; still retry (`coco_det_live'): one that may is a choice point the
+  ;;; frame left, determinism_error(PI, det, nondet, KIND) named by the
+  ;;; frame; else the guard frame goes, and every dead one above it. A
+  ;;; guard a last call took off asks nothing. No inference.
+  (weak)
+  (func coco_det_end ((coco_engine * e) (size_t g) (size_t k) (int * ret)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (while (!= (-> e dgh) 0)
+            (let ((size_t d . #'(- (-> e dgh) 1)) (size_t cx . 0) (size_t ow . 0))
+              (if (not (and (coco_det_is e d)
+                            (== (coco_deref m (+ ($ (nth d (-> e choices)) goals) 1)) g)))
+                  break)
+              (set cx ($ (nth d (-> e choices)) clause_ix))
+              (set ow ($ (nth d (-> e choices)) barrier))
+              (let ((int live . #'(coco_det_live e d)))
+                (if (and (coco-det-on cx) live)
+                    (let ((int rc . 0))
+                      (set (-> e kcall) 0)
+                      (set rc (coco_det_raise e ow (coco-det-set cx) (coco-det-below cx) "nondet"
+                                              (coco_owner_ctx e ow)))
+                      (if (== rc 2) (return 1))
+                      (set (cof ret) rc)
+                      (return 2)))
+                ;; the guard frame goes: popped, with the dead above it,
+                ;; where nothing above it may retry, else left DEAD under
+                ;; what may -- a guard a last call took off asked nothing
+                (if live
+                    (set ($ (nth d (-> e choices)) kind) COCO_CH_DEAD)
+                    (set (-> e nchoices) d)))
+              (coco_det_top e (coco-det-below cx))))
+          (set (-> e frees) (+ (-> e frees) 1))
+          (set (-> e goals) k)
+          (return 1)))
+
+  ;;; `'$det_fail0'(D)': backtracking took guard frame D (`coco_backtrack'
+  ;;; pops it first) -- its frame FAILED, determinism_error(PI, det, fail,
+  ;;; KIND) named by the frame, unless a last call took its guard off, when
+  ;;; the failure goes on. A program's own call of it names no guard frame
+  ;;; and fails. No inference.
+  (weak) (cold)
+  (func coco_det_fail0 ((coco_engine * e) (size_t g) (int * ok) (int * ret)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t d . #'(cast size_t (coco-signed-payload (nth (coco_deref m (coco_arg m g 0)) (-> m heap)))))
+              (size_t cx . 0) (size_t ow . 0))
+          (set (-> e frees) (+ (-> e frees) 1))
+          (if (or (!= d (-> e nchoices)) (>= d (-> e choice_cap))
+                  (!= (coco_deref m ($ (nth d (-> e choices)) call)) g))
+              (block (set (cof ok) 0) (return 1)))
+          (set cx ($ (nth d (-> e choices)) clause_ix))
+          (set ow ($ (nth d (-> e choices)) barrier))
+          (coco_det_top e (coco-det-below cx))
+          (if (not (coco-det-on cx)) (block (set (cof ok) 0) (return 1)))
+          (let ((int rc . 0))
+            (set (-> e kcall) 0)
+            (set rc (coco_det_raise e ow (coco-det-set cx) (coco-det-below cx) "fail"
+                                    (coco_owner_ctx e ow)))
+            (if (== rc 2) (return 1))
+            (set (cof ret) rc)
+            (return 2))))
+
+  ;;; THE GUARD ON AFTER FRAMES WENT OTHERWISE THAN BY ITS OWN STEPS -- a
+  ;;; throw's unwinding (`coco_throw', before it answers that a catch took
+  ;;; the ball), a thaw: the innermost guard frame is the topmost one the
+  ;;; stack still holds, at or under the one `dgh' named, found by a walk
+  ;;; down where that one went (a popped slot may hold a frame pushed since)
+  (func coco_det_unwound ((coco_engine * e))
+        (if (!= (-> e dgh) 0)
+            (let ((size_t h . #'(? (> (-> e dgh) (-> e nchoices)) (-> e nchoices) (-> e dgh))))
+              (while (and (> h 0) (not (coco_det_is e (- h 1))))
+                (set h (- h 1)))
+              (coco_det_top e h))))
+
+  ;;; A LAST CALL OF THE INNERMOST GUARDED FRAME -- a call whose
+  ;;; continuation K is the frame's exit marker -- takes the guard on, as
+  ;;; swipl's I_DEPART hands a frame's flags to the frame it calls: over
+  ;;; the frame itself where nothing above its guard frame may retry
+  ;;; (swipl's last-call optimisation: the callee's frame IS the caller's,
+  ;;; its `$' no longer its own, and for a transparent predicate, TR, the
+  ;;; guard dropped -- FR_CLEAR_NEXT -- and the `$' kept for the frames
+  ;;; above to find), else in a guard frame of its own. OW the callee's
+  ;;; owner word. 0 when memory refused.
+  (weak)
+  (func coco_det_call ((coco_engine * e) (size_t k) (size_t ow) (int tr)) (out int)
+        (let ((size_t d . #'(- (-> e dgh) 1)))
+          (if (or (== (-> e dgh) 0) (not (coco_det_is e d))
+                  (!= ($ (nth d (-> e choices)) goals) k)
+                  (not (coco-det-on ($ (nth d (-> e choices)) clause_ix))))
+              (return 1))
+          (if (coco_det_live e d) (return (coco_det_push e ow 0 k)))
+          (let ((coco_choice * c . #'(aof (nth d (-> e choices)))))
+            (set (-> c barrier) ow)
+            (if tr
+                (block (set (-> c clause_ix) (- (-> c clause_ix) 1))
+                       (set (-> e dgk) (coco-det-none)))
+                (set (-> c clause_ix) (- (-> c clause_ix) (coco-det-set (-> c clause_ix))))))
+          (return 1)))
+
+  ;;; swipl's transparent predicates and its foreign ones
+  ;;; (lib/swipl-det.cicili)
+  (coco-emit-det-table coco_det_transparent_name *swipl-transparent*)
+  (coco-emit-det-table coco_det_foreign_name *swipl-foreign*)
+
+  ;;; whether the predicate NID/N a last call reaches is transparent:
+  ;;; swipl's, or the program's (module_transparent/1, meta_predicate/1:
+  ;;; `pattrs' 4) where PI names it in the store
+  (weak) (cold)
+  (func coco_det_transparent ((coco_engine * e) (u64 nid) (u32 n) (size_t pi)) (out int)
+        (if (coco_det_transparent_name (coco_atom_name (-> e m) nid) n) (return 1))
+        (if (< pi ($ (cof (-> e st)) npreds))
+            (return (!= (bitand ($ (nth pi ($ (cof (-> e st)) preds)) pattrs) 4) 0)))
+        (return 0))
+
+  ;;; A BUILTIN THAT FAILED AS THE INNERMOST GUARDED FRAME'S LAST CALL (K
+  ;;; the frame's marker) failed in a frame the guard came to, as swipl's
+  ;;; foreign predicate's does: determinism_error(PI, det, fail,
+  ;;; guard_in_caller) named by the builtin, system:Name/Arity, PI the
+  ;;; first frame down the guards whose `$' set its guard -- under the
+  ;;; frame its call took over, or from it where a choice point was younger
+  ;;; -- else the builtin's own. Not a transparent one over the frame,
+  ;;; whose guard it took off; one swipl compiles in place is no last call
+  ;;; (`coco_det_enter'). 1 the failure goes on, else as `coco_raise_ctx'
+  ;;; answers.
+  (weak) (cold)
+  (func coco_det_bfail ((coco_engine * e) (size_t g) (size_t k) (u64 nid) (u32 n)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t d . #'(- (-> e dgh) 1)) (int lco . 0) (size_t ow . 0) (size_t cx . 0))
+          (if (or (== (-> e dgh) 0) (not (coco_det_is e d))
+                  (!= ($ (nth d (-> e choices)) goals) k)
+                  (not (coco-det-on ($ (nth d (-> e choices)) clause_ix))))
+              (return 1))
+          (set cx ($ (nth d (-> e choices)) clause_ix))
+          (set lco (not (coco_det_live e d)))
+          (if (and lco (coco_det_transparent e nid n (cast size_t -1)))
+              (block (set ($ (nth d (-> e choices)) clause_ix) (- cx 1))
+                     (set (-> e dgk) (coco-det-none))
+                     (return 1)))
+          (set ow (bitor (coco-bar-of (coco_functor_id m nid n)) (coco-bar-sysbit)))
+          (set (-> e kcall) g)
+          (return (coco_det_raise e ow 0 (? lco (coco-det-below cx) (-> e dgh)) "fail"
+                                  (coco_owner_ctx e ow)))))
+
+  ;;; WHETHER G HOLDS `$/0' WHERE ITS FRAME RUNS IT: the atom, at a leaf of
+  ;;; its control structure -- `,', `;', `|', `->', `*->', `\+', `$/1''s
+  ;;; goal, the goal of `:' and of `@' -- and not in a goal it hands another
+  ;;; frame (call/N's, findall/3's). 4096 nodes at most, past which it is
+  ;;; taken to hold none.
+  (weak)
+  (func coco_det0_walk ((coco_machine * m) (size_t g) (u32 * budget)) (out int)
+        (while 1
+          (let ((u64 c . 0) (u64 nm . 0) (u32 n . 0))
+            (if (== (cof budget) 0) (return 0))
+            (set (cof budget) (- (cof budget) 1))
+            (set g (coco_deref m g))
+            (set c (nth g (-> m heap)))
+            (if (coco-tag-is ATOM c) (return (== (cast u64 (coco-payload c)) (coco-id m "$"))))
+            (if (not (coco-tag-is FUN c)) (return 0))
+            (set nm (coco_name_of m g))
+            (set n (coco_arity m g))
+            (cond
+              ((and (== n 2) (or (== nm (coco-id m ",")) (== nm (coco-id m ";")) (== nm (coco-id m "|"))
+                                 (== nm (coco-id m "->")) (== nm (coco-id m "*->"))))
+               (block (if (coco_det0_walk m (coco_arg m g 0) budget) (return 1))
+                      (set g (coco_arg m g 1))))
+              ((and (== n 1) (or (== nm (coco-id m "\\+")) (== nm (coco-id m "$"))))
+               (set g (coco_arg m g 0)))
+              ((and (== n 2) (== nm (coco-id m ":"))) (set g (coco_arg m g 1)))
+              ((and (== n 2) (== nm (coco-id m "@"))) (set g (coco_arg m g 0)))
+              (#t (return 0)))))
+        (return 0))
+
+  (func coco_det0_in ((coco_machine * m) (size_t g)) (out int)
+        (let ((u32 budget . 4096))
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
+          (return (coco_det0_walk m g (aof budget)))))
+
+  ;;; THE CONTINUATION A GOAL G CALLED IN A FRAME OF ITS OWN RUNS ON TO --
+  ;;; call/N's, once/1's and their kin's, a search's -- K: an exit marker
+  ;;; before it where G holds `$/0', under the frame's barrier B, for the
+  ;;; `$' to guard that frame; and where K is the guarded frame's exit
+  ;;; (`dgk') and G no last call of it (swipl's I_USERCALL makes none), a
+  ;;; step between that hides it. 0 where the heap would not grow.
+  ;;; WHETHER PREDICATE PI OF NAME NID AND ARITY N IS ONE FRAME TO THE
+  ;;; GUARD: a predicate of cocolog's library, defined by clauses, that
+  ;;; swipl defines in C (lib/swipl-det.cicili's *swipl-foreign*) --
+  ;;; between/3, sub_atom/5, atom_concat/3
+  (weak) (cold)
+  (func coco_det_opaque ((coco_engine * e) (u64 nid) (u32 n) (size_t pi)) (out int)
+        (if (>= pi ($ (cof (-> e st)) npreds)) (return 0))
+        (if (or (not ($ (nth pi ($ (cof (-> e st)) preds)) library))
+                ($ (nth pi ($ (cof (-> e st)) preds)) own))
+            (return 0))
+        (return (coco_det_foreign_name (coco_atom_name (-> e m) nid) n)))
+
+  ;;; A CALL OF PREDICATE PI, goal G of name NID and arity N, whose
+  ;;; continuation K is the innermost guarded frame's exit (`dgk' set):
+  ;;; its last call, which takes the guard on (`coco_det_call'), named by
+  ;;; the predicate's own owner word. ONE THAT IS ONE FRAME TO THE GUARD
+  ;;; (`coco_det_opaque') has an exit marker of its own, which its guard
+  ;;; frame's marker becomes, and its body runs on to it past a step that
+  ;;; hides it: its clauses' last calls are none of the guarded frame's,
+  ;;; and the frame is named as swipl's foreign one, system:Name/Arity --
+  ;;; the continuation its body runs on to, answered: K, or that step;
+  ;;; -1 when memory refused. The step's own K is never handed by its
+  ;;; address: taken so, it lived on the stack, and naive reverse paid a
+  ;;; store an inference to clear it.
+  (weak)
+  (func coco_det_pcall ((coco_engine * e) (size_t g) (size_t k) (u64 nid) (u32 n) (size_t pi)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t kk . #'(coco_det_kk e k)) (u64 pf . 0) (size_t ow . 0) (int op . 0))
+          (if (!= kk (-> e dgk)) (return k))
+          (set pf (? (== n 0) (coco_functor_id m nid 0)
+                     (cast u64 (coco-payload (nth (coco_deref m g) (-> m heap))))))
+          (set ow (? (>= (+ pf 1) 33554431) 0 (coco-bar-of pf)))
+          (set op (coco_det_opaque e nid n pi))
+          (if op (set ow (bitor ow (coco-bar-sysbit))))
+          (if (not (coco_det_call e kk ow (coco_det_transparent e nid n pi))) (return (cast size_t -1)))
+          (if (and op (== (-> e dgk) kk))
+              (let ((size_t de . #'(coco_make1_f m (coco-fid m "$det_end" 1) (coco_new_int m 0)))
+                    (size_t mk . 0))
+                (set mk (coco_k_push e de ow kk))
+                (set ($ (nth (- (-> e dgh) 1) (-> e choices)) goals) mk)
+                (set (-> e dgk) mk)
+                (return (coco_k_push e (coco_new_atom_id m (coco-id m "$det_hide")) ow mk))))
+          (return k)))
+
+  (weak)
+  (func coco_det_k ((coco_engine * e) (size_t g) (size_t b) (size_t k)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m)))
+          (if (coco_det0_in m g)
+              (return (coco_k_push e (coco_make1_f m (coco-fid m "$det_end" 1) (coco_new_int m 0)) b k)))
+          (if (== (coco_det_kk e k) (-> e dgk))
+              (return (coco_k_push e (coco_new_atom_id m (coco-id m "$det_hide")) b k)))
+          (return k)))
+
+  ;;; ...asked only where it can answer anything but K: a guard on, or a
+  ;;; goal named by a construct -- `$' itself, or a structure that may hold
+  ;;; it -- so a meta-call of a plain goal pays two tests
+  (static) (inline)
+  (func coco_det_kq ((coco_engine * e) (size_t g) (size_t b) (size_t k)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m))
+              (u64 nm . #'(coco_name_of m (coco_deref m g))))
+          (if (or (!= (-> e dgk) (coco-det-none)) (coco_is_construct m nm))
+              (return (coco_det_k e g b k)))
+          (return k)))
+
+  ;;; A META-PREDICATE'S CALL THAT IS THE INNERMOST GUARDED FRAME'S LAST
+  ;;; (K its exit): once/1, ignore/1, not/1 -- swipl's transparent
+  ;;; predicates, so over the caller's frame the guard goes off, else it
+  ;;; is a guard frame of their own (`coco_det_call'). OW their word. 0
+  ;;; when memory refused.
+  (weak)
+  (func coco_det_meta ((coco_engine * e) (size_t k) (size_t ow)) (out int)
+        (let ((size_t kk . #'(coco_det_kk e k)))
+          (if (!= kk (-> e dgk)) (return 1))
+          (return (coco_det_call e kk ow 1))))
+
+  ;;; ...and catch/3's: where it takes a guard frame of its own, that
+  ;;; frame's exit is the catch's goal's and its recovery's, INSIDE the
+  ;;; catch, as swipl's catch/3 frame checks its determinism where its
+  ;;; catch is still on: the exit marker's goal it answers, for the catch
+  ;;; to build its two exits round. 0 no guard frame of its own, -1 memory
+  ;;; refused.
+  (weak)
+  (func coco_det_catch ((coco_engine * e) (size_t k) (size_t ow)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t kk . #'(coco_det_kk e k)) (size_t h0 . #'(-> e dgh)))
+          (if (!= kk (-> e dgk)) (return 0))
+          (if (not (coco_det_call e kk ow 1)) (return (cast size_t -1)))
+          (if (== (-> e dgh) h0) (return 0))
+          (return (coco_make1_f m (coco-fid m "$det_end" 1) (coco_new_int m 0)))))
+
+  ;;; IF-THEN-ELSE WHOSE CONDITION C IS A META-PREDICATE'S GOAL (once/1,
+  ;;; ignore/1, not/1): as `coco_ite', and a C that holds $/0 run in a
+  ;;; frame of its own, a `'<meta-call>'/1' its exit marker closes, its
+  ;;; height the condition's (3.21.0)
+  (weak)
+  (func coco_ite_meta ((coco_engine * e) (size_t c) (size_t t) (size_t els) (size_t k) (size_t b))
+        (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t h0 . #'(-> e nchoices)))
+          ;; a goal named by no construct holds no `$' where it runs
+          (if (or (not (coco_is_construct m (coco_name_of m (coco_deref m c))))
+                  (not (coco_det0_in m c)))
+              (return (coco_ite e c t els k b)))
+          (if (not (coco_push_choice e COCO_CH_GOAL els k b)) (return 0))
+          (let ((size_t k1 . #'(coco_k_push e t b k))
+                (size_t cut . #'(coco_make1_f m (coco-fid m "$cut" 1) (coco_new_int m (cast i64 h0))))
+                (size_t de . #'(coco_make1_f m (coco-fid m "$det_end" 1) (coco_new_int m 0))))
+            (set (-> e goals)
+                 (coco_k_push e c (bitor (-> e nchoices) (coco-bar-tag b))
+                              (coco_k_push e de (bitor (-> e nchoices) (coco_mc_tag m))
+                                           (coco_k_push e cut b k1)))))
+          (return 1)))
+
   (static)
   ;;; A CONTROL CONSTRUCT, run: `true', `fail', `,', `!', the cuts, `;',
   ;;; `->', `*->', `\+', `once', `ignore', `call', `catch', `throw' and
@@ -1098,7 +1634,15 @@
                                      (return 1)))))
                      (if (not (coco_push_choice e COCO_CH_GOAL (coco_arg m g 1) k sb))
                          (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
-                     (set (-> e goals) (coco_k_push e (coco_arg m g 0) sb k)))))
+                     ;; ITS LEFT ARM IS NO LAST CALL of a guarded frame, as
+                     ;; swipl's C_OR calls it with I_CALL; the right arm is
+                     ;; (3.21.0, $/0)
+                     (set (-> e goals)
+                          (coco_k_push e (coco_arg m g 0) sb
+                                       (? (and (!= (-> e dgk) (coco-det-none))
+                                               (== (coco_det_kk e k) (-> e dgk)))
+                                          (coco_k_push e (coco_new_atom_id m (coco-id m "$det_hide")) sb k)
+                                          k))))))
 
                   ((and (== n 2) (== nid (coco-id m "->")))
                    ;; a bare if-then fails when the condition does. `$fail'
@@ -1131,8 +1675,12 @@
                        (return 0))
                    (if (not (coco_goal_ok m (coco_arg m g 0)))
                        (return (coco_construct_bad e g "not" 1 ret)))
-                   (coco_ite e (coco_arg m g 0) (coco_new_atom_id m (coco-id m "$fail"))
-                             (coco_new_atom_id m (coco-id m "$true")) k (coco-sys-bar b g)))
+                   ;; a guarded frame's last call (3.21.0, `coco_det_meta')
+                   (if (and (!= (-> e dgk) (coco-det-none))
+                            (not (coco_det_meta e k (coco-bar-tag (coco-sys-bar b g)))))
+                       (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
+                   (coco_ite_meta e (coco_arg m g 0) (coco_new_atom_id m (coco-id m "$fail"))
+                                  (coco_new_atom_id m (coco-id m "$true")) k (coco-sys-bar b g)))
 
                   ((and (== n 1) (== nid (coco-id m "\\+")))
                    (coco-with-parts (sb)
@@ -1164,8 +1712,11 @@
                   ((and (== n 1) (== nid (coco-id m "once")))
                    (if (not (coco_goal_ok m (coco_arg m g 0)))
                        (return (coco_construct_bad e g "once" 1 ret)))
-                   (coco_ite e (coco_arg m g 0) (coco_new_atom_id m (coco-id m "$true"))
-                             (coco_new_atom_id m (coco-id m "$fail")) k (coco-sys-bar b g)))
+                   (if (and (!= (-> e dgk) (coco-det-none))
+                            (not (coco_det_meta e k (coco-bar-tag (coco-sys-bar b g)))))
+                       (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
+                   (coco_ite_meta e (coco_arg m g 0) (coco_new_atom_id m (coco-id m "$true"))
+                                  (coco_new_atom_id m (coco-id m "$fail")) k (coco-sys-bar b g)))
 
                   ;; `ignore(G)' is the same construct with the failure arm
                   ;; saying yes: run G, keep the first solution's bindings if
@@ -1180,8 +1731,11 @@
                        (return 0))
                    (if (not (coco_goal_ok m (coco_arg m g 0)))
                        (return (coco_construct_bad e g "ignore" 1 ret)))
-                   (coco_ite e (coco_arg m g 0) (coco_new_atom_id m (coco-id m "$true"))
-                             (coco_new_atom_id m (coco-id m "$true")) k (coco-sys-bar b g)))
+                   (if (and (!= (-> e dgk) (coco-det-none))
+                            (not (coco_det_meta e k (coco-bar-tag (coco-sys-bar b g)))))
+                       (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
+                   (coco_ite_meta e (coco_arg m g 0) (coco_new_atom_id m (coco-id m "$true"))
+                                  (coco_new_atom_id m (coco-id m "$true")) k (coco-sys-bar b g)))
 
                   ((and (== n 1) (== nid (coco-id m "call")))
                    ;; call/1 is opaque to cut: the goal runs under a barrier of
@@ -1194,10 +1748,12 @@
                    ;; frame it runs in (`coco_meta_bar')
                    (if (not (coco_goal_ok m (coco_arg m g 0)))
                        (return (coco_call_bad e g (coco_arg m g 0) b k 1 ret)))
-                   (set (-> e goals) (coco_k_push e (coco_arg m g 0)
-                                                  (coco_meta_bar e (coco_arg m g 0) b k
-                                                                 (cast u64 (coco-payload (nth g (-> m heap)))))
-                                                  k)))
+                   ;; and its goal no last call of the frame (I_USERCALL),
+                   ;; a $/0 in it its own frame's (3.21.0, `coco_det_kq')
+                   (let ((size_t mb . #'(coco_meta_bar e (coco_arg m g 0) b k
+                                                       (cast u64 (coco-payload (nth g (-> m heap)))))))
+                     (set (-> e goals) (coco_k_push e (coco_arg m g 0) mb
+                                                    (coco_det_kq e (coco_arg m g 0) mb k)))))
 
                   ((and (== n 3) (== nid (coco-id m "catch")))
                    ;; The catcher and the recovery goal are put on the heap as
@@ -1223,21 +1779,44 @@
                    ;; (3.1.0): what an error there names, past a last call
                    ;; too (`coco-sys-bar', `coco_meta_bar'), and a structure
                    ;; with a goal that is no goal in it is its error whole
+                   ;;
+                   ;; A GUARDED FRAME'S LAST CALL (3.21.0, $/0): catch/3
+                   ;; takes the guard on as swipl's transparent catch/3 does
+                   ;; -- off over the caller's frame, else a guard frame of
+                   ;; its own under the catch frame, whose exit is the
+                   ;; goal's and the recovery's inside the catch, DE its
+                   ;; marker's goal (`coco_det_catch'). Its goal is no last
+                   ;; call of it (`coco_det_kq')
+                   (let ((size_t de . 0) (size_t kr . k))
+                     (if (!= (-> e dgk) (coco-det-none))
+                         (block
+                          (set de (coco_det_catch e k (coco-bar-tag (coco-sys-bar b g))))
+                          (if (== de (cast size_t -1))
+                              (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
+                          (if (!= de 0) (set kr (coco_k_push e de (coco-sys-bar b g) k)))))
+                   ;; THE GOAL'S EXITS BUILT BEFORE THE FRAME, as its catcher
+                   ;; is, so a ball the catch takes leaves the guard frame's
+                   ;; marker where it was
                    (let ((size_t cr . #'(coco_make2_f m (coco-fid m "$catch" 2)
                                                     (coco_arg m g 1) (coco_arg m g 2)))
                          (size_t ci . #'(-> e nchoices))
-                         (size_t cb . #'(coco-sys-bar b g)))
-                     (if (not (coco_push_choice e COCO_CH_CATCH cr k cb))
+                         (size_t cb . #'(coco-sys-bar b g))
+                         (size_t kx . 0) (size_t mb . 0))
+                     (set kx (coco_k_push e (coco_make1_f m (coco-fid m "$catch_exit" 1)
+                                                         (coco_new_int m (cast i64 ci)))
+                                          cb k))
+                     (if (!= de 0)
+                         (block (set kx (coco_k_push e de cb kx))
+                                (set ($ (nth (- (-> e dgh) 1) (-> e choices)) goals) kx)
+                                (set (-> e dgk) kx)))
+                     (if (not (coco_push_choice e COCO_CH_CATCH cr kr cb))
                          (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
+                     (set mb (coco_meta_bar e (coco_arg m g 0) 0 k
+                                            (cast u64 (coco-payload (nth g (-> m heap))))))
                      (set (-> e goals)
-                          (coco_k_push e (coco_arg m g 0)
-                                       (coco_meta_bar e (coco_arg m g 0) 0 k
-                                                      (cast u64 (coco-payload (nth g (-> m heap)))))
-                                       (coco_k_push e (coco_make1_f m (coco-fid m "$catch_exit" 1)
-                                                                    (coco_new_int m (cast i64 ci)))
-                                                    cb k)))
+                          (coco_k_push e (coco_arg m g 0) mb (coco_det_kq e (coco_arg m g 0) mb kx)))
                      (if (not (coco_goal_ok m (coco_arg m g 0)))
-                         (return (coco_construct_bad e g "catch" 3 ret)))))
+                         (return (coco_construct_bad e g "catch" 3 ret))))))
 
                   ;;; The goal of a catch has EXITED (`coco_catch_exit')
                   ((and (== n 1) (== nid (coco-id m "$catch_exit")))
@@ -1312,22 +1891,32 @@
                          ;; arguments go to C, under its module
                          (if hasq (set built (coco_make2 m ":" cq built)))
                          ;; opaque to cut, exactly as call/1 is, and run in
-                         ;; the frame call/1's would be (3.1.0)
-                         (set (-> e goals)
-                              (coco_k_push e built
-                                           (coco_meta_bar e built b k
-                                                          (cast u64 (coco-payload (nth g (-> m heap)))))
-                                           k))))))
+                         ;; the frame call/1's would be (3.1.0), no last call
+                         ;; of a guarded frame (3.21.0)
+                         (let ((size_t mb . #'(coco_meta_bar e built b k
+                                                             (cast u64 (coco-payload (nth g (-> m heap)))))))
+                           (set (-> e goals)
+                                (coco_k_push e built mb (coco_det_kq e built mb k))))))))
 
                   ;; M:G, a goal (3.1.0)
                   ((and (== n 2) (== nid (coco-id m ":")))
                    (return (coco_colon e g k b ok ret)))
 
                   ;; $(G), its exit and its failure, and G@M (3.20.0): last,
-                  ;; so no construct before them tests them; `$/0' is none
-                  ;; yet, and passes to the predicate it names
+                  ;; so no construct before them tests them; and $/0, the
+                  ;; guarded frame's exit, its guard's failure and the step
+                  ;; that hides an exit (3.21.0)
                   ((and (== n 1) (== nid (coco-id m "$")))
                    (return (coco_det e g k b ret)))
+                  ((and (== n 0) (== nid (coco-id m "$")))
+                   (return (coco_det0 e k b ret)))
+                  ((and (== n 1) (== nid (coco-id m "$det_end")))
+                   (return (coco_det_end e g k ret)))
+                  ((and (== n 1) (== nid (coco-id m "$det_fail0")))
+                   (return (coco_det_fail0 e g ok ret)))
+                  ((and (== n 0) (== nid (coco-id m "$det_hide")))
+                   (block (set (-> e frees) (+ (-> e frees) 1))
+                          (set (-> e goals) k)))
                   ((and (== n 3) (== nid (coco-id m "$det_exit")))
                    (return (coco_det_exit e g k ret)))
                   ((and (== n 2) (== nid (coco-id m "$det_fail")))
@@ -1871,6 +2460,9 @@
                                (block
                                  (if (< (coco_fetch_error_regs e) 0) (return -1))
                                  continue))
+                           ;; never a guarded frame's last call: that one's
+                           ;; first goal is no register's (3.21.0,
+                           ;; `coco_try_clause_det')
                            (if (> pn 0)
                                (let ((u64 key . #'(coco_cell_key m (nth (* (cast size_t (-> e acur)) 8)
                                                                        (-> e areg))))
@@ -2056,7 +2648,14 @@
                                  (set (-> e goals) k))
                                 (#t
                                  (if tport (coco_trace_port e "Fail" tD g))
-                                 (set ok 0))))
+                                 (set ok 0)
+                                 ;; a guarded frame's last call that failed
+                                 ;; (3.21.0, $/0, `coco_det_bfail'): 2 the
+                                 ;; raise was caught, -1 nothing caught it
+                                 (if (!= (-> e dgk) (coco-det-none))
+                                     (let ((int dr . #'(coco_det_bfail e g (coco_det_kk e k) nid n)))
+                                       (if (== dr -1) (return -1))
+                                       (if (== dr 2) (set ok 1)))))))
                        ;; nobody's builtin: the knowledge base decides -- the
                        ;; predicate by the index the functor remembers for
                        ;; this store, looked up once (`coco_pred_of' hashes)
@@ -2089,6 +2688,14 @@
                                                (< (-> f1 dmod) 0))))
                                  (set (-> f1 fgen) coco_extern_generation))))
                           (#t (set pi (coco_pred_of st m g))))
+                         ;; A LAST CALL OF A GUARDED FRAME takes its guard on
+                         ;; (3.21.0, $/0, `coco_det_pcall'): one compare while
+                         ;; no guard is on
+                         (if (and (!= (-> e dgk) (coco-det-none)) (< pi ($ (cof st) npreds)))
+                             (block
+                              (set k (coco_det_pcall e g k nid n pi))
+                              (if (== k (cast size_t -1))
+                                  (return (coco_fail_err e "out of memory")))))
                          (cond
                           ((>= pi ($ (cof st) npreds))
                            ;; A RAISE FROM INSIDE THE LOOP IS NOT A `return'.

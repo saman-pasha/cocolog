@@ -87,7 +87,7 @@ main :-
 %% a name the engine adds that this table has no arity for stops the build
 %% by name, so the two cannot drift apart. `$' names, `[]' and `:-' are the
 %% engine's own markers, never a goal of a program's -- but `$' alone,
-%% $/1 (3.20.0), is a program's.
+%% $/1 (3.20.0) and $/0 (3.21.0), is a program's.
 ft_construct_arities(true, [0]).
 ft_construct_arities(fail, [0]).
 ft_construct_arities(false, [0]).
@@ -107,7 +107,7 @@ ft_construct_arities(throw, [1]).
 ft_construct_arities(trace, [0]).
 ft_construct_arities(notrace, [0]).
 ft_construct_arities(:, [2]).
-ft_construct_arities($, [1]).
+ft_construct_arities($, [0, 1]).
 ft_construct_arities(@, [2]).
 
 ft_constructs(Root, Ks) :-

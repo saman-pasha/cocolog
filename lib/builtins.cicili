@@ -168,8 +168,8 @@
     ("," 2) (";" 2) ("->" 2) ("*->" 2) ("\\+" 1) ("not" 1) ("once" 1) ("ignore" 1)
     ("call" 1) ("call" 2) ("call" 3) ("call" 4) ("call" 5) ("call" 6) ("call" 7) ("call" 8)
     ("catch" 3) ("throw" 1)
-    ;; 3.20.0's
-    ("$" 1) ("@" 2)))
+    ;; 3.20.0's, and $/0 (3.21.0)
+    ("$" 1) ("@" 2) ("$" 0)))
 
 (DEFPARAMETER *builtins-prolog*
   (FORMAT NIL "~{~A ~}"
@@ -1383,9 +1383,16 @@
           (if bad (return bad)))
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t lst . 0)
-              (size_t goal . #'(coco_make2 m "," (coco_m_arg e g 0)
-                                         (coco_make1 m "\\+" (coco_m_arg e g 1))))
-              (int fr . #'(coco_engine_findall e (coco_new_atom m "x") goal (aof lst) (aof g) 2)))
+              (size_t c . #'(coco_m_arg e g 0))
+              (size_t a . #'(coco_m_arg e g 1))
+              (size_t goal . 0) (int fr . 0))
+          ;; EACH OF THE TWO IS A GOAL OF ITS OWN, as swipl's forall/2 calls
+          ;; them: one that holds $/0 is called, so that its `$' guards
+          ;; its own frame and cuts nothing of the other's (3.21.0)
+          (if (coco_det0_in m c) (set c (coco_make1 m "call" c)))
+          (if (coco_det0_in m a) (set a (coco_make1 m "call" a)))
+          (set goal (coco_make2 m "," c (coco_make1 m "\\+" a)))
+          (set fr (coco_engine_findall e (coco_new_atom m "x") goal (aof lst) (aof g) 2))
           (if (== fr 2) (return 2))
           (if (not fr) (return -1))
           ;; no counterexample means the list is empty

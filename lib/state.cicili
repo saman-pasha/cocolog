@@ -608,6 +608,12 @@
                                "the frozen machine could not be read (at offset %llu)"
                                (cast ullong ($ z pos)))
                      (return 0)))
+          ;; THE GUARD ON (3.21.0, $/0): its guard frames came back as GOAL
+          ;; frames, their flags in `clause_ix', and the innermost is the
+          ;; topmost of them
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
+          (set (-> e dgh) (-> e nchoices))
+          (coco_det_unwound e)
           (return 1)))
 
   ) ; impl-state

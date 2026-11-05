@@ -678,6 +678,9 @@
                 (if (!= (-> x tchoices) nil)
                     (set ($ (nth k (-> x tchoices)) goal)
                          (coco_gc_moved bits pre n ($ (nth k (-> x tchoices)) goal)))))
+              ;; and the guard on read again from its guard frame, whose
+              ;; exit marker moved with it (3.21.0, $/0)
+              (coco_det_top x (-> x dgh))
               (set x (cast (coco_engine *) (-> x outer)))))
           (free (cast (void *) tmp)) (free (cast (void *) hmp))
           (for ((size_t r . 0)) (< r (-> m nhroots)) ((++ r))

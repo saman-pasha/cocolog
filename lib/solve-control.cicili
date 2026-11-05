@@ -544,6 +544,37 @@
           (let ((u64 left . #'(- lim (-> e steps))))
             (return (? (< left (cast u64 (-> cd ngd))) (cast u32 left) (-> cd ngd))))))
 
+  ;;; THE CONTINUATION K AS A LAST CALL READS IT: dereferenced, and under
+  ;;; trace past the Exit markers of the calls it returns through -- a
+  ;;; traced call keeps its frame, where swipl's debugger makes no last
+  ;;; call, and cocolog's trace goes on making them (COMPAT.md)
+  (weak)
+  (func coco_det_kk ((coco_engine * e) (size_t k)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m)) (size_t f . #'(coco_deref m k)))
+          (if (-> e trace)
+              (while (and (== (nth f (-> m heap)) (coco-cell FUN (coco-fid m "$k" 3)))
+                          (== (nth (coco_deref m (+ f 1)) (-> m heap))
+                              (coco-cell FUN (coco-fid m "$trace_exit" 3))))
+                (set f (coco_deref m (+ f 3)))))
+          (return f)))
+
+  ;;; A CLAUSE OF EX (its code's `ex') ENTERED OVER GOALS, $/0's part
+  ;;; (3.21.0): a body that holds `$' (4) closed by its frame's exit
+  ;;; marker, `'$det_end'(_)' under the clause's barrier TB, for its `$' to
+  ;;; find (`coco_det0'); and one whose last goal swipl compiles in place
+  ;;; (8, `cc_det_inline_last') a step between that goal and a guarded
+  ;;; frame's exit -- its own, or the caller's whose last call this is (GL)
+  ;;; -- for that goal is no call, and its failure is the frame's. The
+  ;;; continuation the body runs on to; 0 where the heap would not grow.
+  (weak)
+  (func coco_det_enter ((coco_engine * e) (u32 ex) (int gl) (size_t goals) (size_t tb)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m)) (size_t k . goals))
+          (if (bitand ex 4)
+              (set k (coco_k_push e (coco_make1_f m (coco-fid m "$det_end" 1) (coco_new_int m 0)) tb k)))
+          (if (and (bitand ex 8) (or (bitand ex 4) gl))
+              (set k (coco_k_push e (coco_new_atom_id m (coco-id m "$det_hide")) tb k)))
+          (return k)))
+
   ;;; THE CLAUSE MATCHED IN THE STORE AND ITS BODY COPIED, for a program
   ;;; that could not be had or could not run (`coco_store_unify': the store
   ;;; is never bound, a heap cell is made only where an unbound variable of
@@ -561,11 +592,18 @@
           (set matched (coco_store_unify m st call shead (aof vm)))
           (if matched
               (block
-               ;; its body's goals the clause's, as a compiled one's (3.1.0)
-               (set (-> e goals)
-                    (? (== sbody 0) goals
-                       (coco_k_push_body e (coco_store_get_vm m st sbody (aof vm))
-                                         (bitor barrier (coco_head_tag st m shead)) goals)))
+               ;; its body's goals the clause's, as a compiled one's (3.1.0),
+               ;; and a body that holds $/0 closed by its frame's exit
+               ;; marker (3.21.0), as `coco_try_clause' closes one
+               (if (== sbody 0)
+                   (set (-> e goals) goals)
+                   (let ((size_t hb . #'(coco_store_get_vm m st sbody (aof vm)))
+                         (size_t tb . #'(bitor barrier (coco_head_tag st m shead)))
+                         (size_t g2 . goals))
+                     (if (coco_det0_in m hb)
+                         (set g2 (coco_k_push e (coco_make1_f m (coco-fid m "$det_end" 1) (coco_new_int m 0))
+                                              tb goals)))
+                     (set (-> e goals) (coco_k_push_body e hb tb g2))))
                (coco_varmap_give m (aof vm))
                (return 1)))
           (coco_varmap_give m (aof vm))
@@ -606,7 +644,7 @@
           (set ($ er parent) goals)
           (set ($ er barrier) barrier)
           (set ($ er next) 0)
-          (if (== (-> cd ex) 3)
+          (if (== (bitand (-> cd ex) 3) 3)
               (let ((u32 gdone . 0))
                 (set matched (coco_clause_run_ge m st cd call args roots (aof ng) regs (aof er)
                                                  (coco_guard_budget e cd) (aof gdone)))
@@ -655,9 +693,119 @@
           (if (!= args nil) (return -1))
           (return (coco_try_store e cl call goals barrier tmark hmark))))
 
+  ;;; A CLAUSE WHOSE CODE IS NO PLAIN ONE, ENTERED WHERE $/0 HAS A PART IN
+  ;;; IT (3.21.0): a body that holds `$' (`ex' 4), one whose last goal swipl
+  ;;; compiles in place (8), one not compiled yet, and any while a guard is
+  ;;; on. A LAST CALL OF A GUARDED FRAME (GOALS its exit marker,
+  ;;; `dgk', GL) runs no guard as it is entered and makes no environment,
+  ;;; as under trace: its last goal is a call the guard goes on to, which a
+  ;;; goal done in place would pass by. The body runs on to K: its frame's
+  ;;; exit marker for a body that holds `$', a step that hides the guard
+  ;;; for a last goal done in place (`coco_det_enter'). As `coco_try_clause'
+  ;;; answers, whose entry this is, the body entered as it enters one -- the
+  ;;; same steps, written here twice so that the plain clause's function
+  ;;; keeps its registers: with this in it, it kept GOALS on the stack and
+  ;;; naive reverse ran 5.4 instructions a call more. A guarded frame's
+  ;;; last call puts its first goal in no register: the step that calls it
+  ;;; from a frame hands it the guard (`coco_det_pcall'), and the step that
+  ;;; takes the registers asks nothing.
+  (weak)
+  (func coco_try_clause_det ((coco_engine * e) (coco_pred * p) (size_t ix) (size_t call)
+                             (const size_t * args) (size_t goals) (size_t barrier))
+        (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st))
+              (size_t tmark . #'($ (cof m) trail_len))
+              (size_t hmark . #'($ (cof m) heap_len))
+              (size_t cl . #'(nth ix (-> p clauses)))
+              (coco_code * cd . #'(cast (coco_code *) (nth ix (-> p codes))))
+              (size_t roots [64]) (size_t ng . 0)
+              (int nxt . #'(- 1 (-> e acur)))
+              (size_t * regs . nil)
+              (int matched . -1) (int gl . 0) (size_t k . goals)
+              (u32 x . 0))
+          ;; the program from the predicate's own slot, or compiled the first
+          ;; time, as `coco_try_clause' has it; one that cannot be had is
+          ;; matched in the store
+          (if (== cd nil)
+              (block (set cd (coco_clause_code st m cl))
+                     (set (nth ix (-> p codes)) (cast (void *) cd))))
+          (if (== cd nil)
+              (block (if (!= args nil) (return -1))
+                     (return (coco_try_store e cl call goals barrier tmark hmark))))
+          (set x (bitand (-> cd ex) 7))
+          (if (!= (-> e dgk) (cast size_t -1))
+              (set gl (== (coco_det_kk e goals) (-> e dgk))))
+          (if (and (not gl) (coco_regs_ok e cd))
+              (set regs (aof (nth (* (cast size_t nxt) 8) (-> e areg)))))
+          (if (>= (-> cd ex) 4)
+              (set k (coco_det_enter e (-> cd ex) gl goals (bitor barrier (-> cd ptag)))))
+          (cond
+            ((== x 1)
+             (let ((u32 gdone . 0))
+               (set matched (coco_clause_run_g m st cd call args roots (aof ng) regs
+                                               (? gl 0 (coco_guard_budget e cd)) (aof gdone)))
+               (if (!= matched -1) (set (-> e steps) (+ (-> e steps) (cast u64 gdone))))
+               (if (< gdone (-> cd ngd)) (set regs nil))))
+            ((and (>= x 2) (<= x 3) (== (-> e trace) 0) (not gl))
+             (return (coco_try_env e cd cl call args goals barrier)))
+            ((== x 3)
+             (let ((u32 gdone . 0))
+               (set matched (coco_clause_run_g m st cd call args roots (aof ng) nil 0 (aof gdone)))
+               (set regs nil)))
+            ((and (== regs nil) (== args nil))
+             (set matched (coco_clause_run m st cd call roots (aof ng))))
+            (#t
+             (set matched (coco_clause_run_r m st cd call args roots (aof ng) regs))))
+          (if (== matched 1)
+              ;; entered: as `coco_try_clause' enters a body, over K
+              (let ((size_t from . 0) (size_t tb . #'(bitor barrier (-> cd ptag))))
+                (cond
+                  ((!= regs nil)
+                   (set (-> e afid) (-> cd rfid))
+                   (set (-> e aarity) (-> cd rarity))
+                   (set (-> e acur) nxt)
+                   (set (-> e nbar) tb)
+                   (set (-> e nset) 2))
+                  ((> ng 0)
+                   (set (-> e ngoal) (coco_deref m (nth 0 roots)))
+                   (set (-> e nbar) tb)
+                   (set (-> e nset) 1)
+                   (set from 1)))
+                (set (-> e goals) (? (== ng from) k
+                                     (coco_k_push_roots e (aof (nth from roots)) (- ng from) tb k)))
+                (return 1)))
+          (coco_undo_to m tmark)
+          (set ($ (cof m) heap_len) hmark)
+          (if (== matched 0) (return 0))
+          ;; a program that could not run: the long way, over the
+          ;; continuation it was given -- an exit marker the body was to run
+          ;; on to went with the heap it was on -- or for a call in the
+          ;; registers back to the caller, to build it first
+          (if (!= args nil) (return -1))
+          (return (coco_try_store e cl call goals barrier tmark hmark))))
+
+  ;;; whether a clause of code CD is entered by `coco_try_clause_det': any
+  ;;; while a guard is on, one not compiled yet, one that holds $/0 or ends
+  ;;; on a goal swipl compiles in place. So no clause puts its first goal
+  ;;; in the registers as a guarded frame's last call (the det entry writes
+  ;;; none), and the step that takes them asks nothing: asked there, every
+  ;;; step of naive reverse paid 3 instructions. The kind asked first, before
+  ;;; the guard, cost naive reverse 2 instructions a call more: the
+  ;;; registers fell out otherwise
+  (static) (inline)
+  (func coco_det_code ((coco_engine * e) (coco_code * cd)) (out int)
+        (return (or (!= (-> e dgk) (cast size_t -1)) (== cd nil) (>= (-> cd ex) 4))))
+
   (static)
   (func coco_try_clause ((coco_engine * e) (coco_pred * p) (size_t ix) (size_t call)
                          (const size_t * args) (size_t goals) (size_t barrier)) (out int)
+        ;; THOSE ARE ENTERED BY A FUNCTION OF THEIR OWN (3.21.0), called with
+        ;; the arguments this one came in with -- a jump -- so the rest of
+        ;; this function keeps 3.20.0's registers: a call of it lower down,
+        ;; its code at hand there, cost naive reverse 8 instructions a call
+        (if (coco_det_code e (cast (coco_code *) (nth ix (-> p codes))))
+            (return (coco_try_clause_det e p ix call args goals barrier)))
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st))
               (size_t tmark . #'($ (cof m) trail_len))
@@ -2020,6 +2168,9 @@
                          (coco_store_maybe_compact st m))
                       (block (set (-> bst len) pmark)
                              (coco_store_shrink_empty bst)))
+                    ;; and the guard on is the one the unwinding left
+                    ;; (3.21.0, $/0)
+                    (coco_det_unwound e)
                     (return 1)))
 
               (if (!= kind COCO_CH_CATCH)
@@ -2051,6 +2202,7 @@
                        ;; the private cell can go with the recovered term
                        (block (set (-> bst len) pmark)
                               (coco_store_shrink_empty bst)))
+                     (coco_det_unwound e)
                      (return 1)))
                 (coco_undo_to m mark))
               (set (-> e nchoices) ci)))

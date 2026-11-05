@@ -7,7 +7,7 @@
 %  it), what a load and an assert refuse, what a meta-call asks of them
 %  before it runs, and how listing/1 lays $/1 out. Run by BOTH
 %  SWI-Prolog and cocolog, output compared byte for byte; each line is one
-%  of swipl 9.0.4's answers. Not here: $/0 (cocolog has none yet); a
+%  of swipl 9.0.4's answers. Not here: $/0 (test/files/det_guard.pl); a
 %  variable of G its clause names nowhere else, which G binds and the
 %  error's G shows bound, where swipl's decompiled goal has a fresh one;
 %  context_module/1, which cocolog has not; and a load's refusal whose

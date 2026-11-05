@@ -36,7 +36,7 @@ main :-
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
-    update_view(D), sleeps(D), compiled(D), det_traced(D),
+    update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -1954,3 +1954,99 @@ det_traced(D) :-
                   'main :- m(0, A), m(99999999, B), write([A, B]), nl.' ]),
     last_line_of(F4, main, 30000, W4),
     check('a $/1 exit a program wrote cuts nothing', W4, '[yes,yes]').
+
+%% $/0 ANSWERS AS IT DOES UNDER TRACE, UNDER A COLLECTOR THAT RUNS EVERY
+%% 2000 CELLS, AND IN A MACHINE FROZEN AND THAWED EACH 25 INFERENCES
+%% (3.21.0). test/files/det_guard.pl holds swipl's answers untraced; here
+%% the same file's: a traced call keeps its frame, and the guard reads a
+%% last call past the Exit marker the trace puts after it (`coco_det_kk');
+%% a collection moves the guard frame's exit marker, and the guard on is
+%% read again from it (`coco_det_top'); and a thaw finds the innermost
+%% guard frame again, the topmost GOAL frame that is one
+%% (`coco_det_unwound'). A guard frame is no Redo of anything.
+det_guard_runs(D) :-
+    section('$/0 under trace, a collector, and a freeze and a thaw'),
+    cocolog(C),
+    sh_join([C, ' --local run test/files/det_guard.pl main 2>/dev/null'], Cmd0),
+    proc_run(Cmd0, 60000, Out0, _), atom_codes(U, Out0),
+    ( sub_atom(U, _, _, _, 'caught(error(determinism_error(p/1,det,nondet,guard_in_caller)') -> H = yes ; H = no ),
+    check('untraced: the case answers', H, yes),
+    sh_join([C, ' --trace --local run test/files/det_guard.pl main 2>/dev/null'], Cmd1),
+    proc_run(Cmd1, 120000, Out1, _), atom_codes(T, Out1),
+    check('traced: the same answers', T, U),
+    sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' --local run test/files/det_guard.pl main 2>/dev/null'], Cmd2),
+    proc_run(Cmd2, 60000, Out2, _), atom_codes(G, Out2),
+    check('a collection every 2000 cells: the same answers', G, U),
+    sh_join(['COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 ', C,
+             ' --local run test/files/det_guard.pl main 2>/dev/null'], Cmd3),
+    proc_run(Cmd3, 60000, Out3, _), atom_codes(K, Out3),
+    check('each collection a freeze''s materialisation: the same answers', K, U),
+    %% a machine frozen and thawed each 25 inferences, its guard frames
+    %% on the choice stack across every turn
+    atom_concat(D, '/det_turns.pl', F),
+    fixture(F, [ 'p(1). p(2).', 'cnt(0) :- !.', 'cnt(N) :- $, N1 is N - 1, cnt(N1).',
+                 'g1 :- $, cnt(40), p(_).', 'g2 :- $, cnt(40), q2.', 'q2 :- cnt(30), fail.' ]),
+    atom_concat(D, '/det_turns_kb', Kb),
+    sh_join([C, ' --embed ', Kb, ' consult ', F, ' >/dev/null 2>&1'], CCons),
+    shl([CCons]),
+    det_turns(C, Kb, g1, E1),
+    check('frozen and thawed: a last call''s nondet exit', E1,
+          'error(determinism_error(p/1,det,nondet,guard_in_caller),context(p/1,_))'),
+    det_turns(C, Kb, g2, E2),
+    check('frozen and thawed: a last call''s failure', E2,
+          'error(determinism_error(q2/0,det,fail,guard_in_caller),context(q2/0,_))'),
+    %% and failing into a guard frame prints no Redo
+    atom_concat(D, '/det_guard_redo.pl', F8),
+    fixture(F8, [ 'q(1).', 'p :- catch(($, q(_), fail), _, true).', 'main :- p.' ]),
+    sh_join([C, ' --trace run ', F8, ' main 2>&1'], Cmd8),
+    proc_run(Cmd8, 30000, Out8, _), atom_codes(A8, Out8),
+    ( sub_atom(A8, _, _, _, 'Redo') -> R8 = redo ; R8 = none ),
+    check('failing into a guard frame prints no Redo', R8, none).
+
+%% GOAL run as machine NAME of store KB, 25 inferences a turn: what it
+%% printed, its variables `_'
+det_turns(C, Kb, Goal, Printed) :-
+    atom_concat(m_, Goal, Name),
+    sh_join([C, ' --embed ', Kb, ' start ', Name, ' "catch(', Goal, ', E, true), print(E), nl" >/dev/null 2>&1'],
+            Start),
+    shl([Start]),
+    det_turn(C, Kb, Name, 0, [], Cs),
+    atom_codes(A0, Cs),
+    det_text(A0, Printed).
+
+det_turn(_, _, _, 40, Acc, Acc) :- !.
+det_turn(C, Kb, Name, I, Acc, Cs) :-
+    sh_join([C, ' --embed ', Kb, ' --steps 25 step ', Name, ' 2>&1'], Cmd),
+    proc_run(Cmd, 30000, Out, _),
+    atom_codes(A, Out),
+    (   sub_atom(A, B, _, _, ': suspended at')
+    ->  sub_atom(A, 0, B, _, Before), det_before(Before, Name, Mine),
+        atom_codes(Mine, MC), append(Acc, MC, Acc1),
+        I1 is I + 1,
+        det_turn(C, Kb, Name, I1, Acc1, Cs)
+    ;   sub_atom(A, B, _, _, ': finished after')
+    ->  sub_atom(A, 0, B, _, Before), det_before(Before, Name, Mine0),
+        atom_codes(Mine0, MC0), append(Acc, MC0, Cs)
+    ;   Cs = Acc
+    ).
+
+%% what a turn printed before its status line: the text before NAME, the
+%% answer lines (`  1. ...') left out
+det_before(Before, Name, Mine) :-
+    (   sub_atom(Before, P, _, _, Name) -> sub_atom(Before, 0, P, _, B0) ; B0 = Before ),
+    atomic_list_concat(Ls, '\n', B0),
+    exclude([L]>>sub_atom(L, 0, _, _, '  '), Ls, Keep),
+    atomic_list_concat(Keep, '', Mine).
+
+%% the text with each `_G123' written `_'
+det_text(A0, A) :-
+    atom_codes(A0, Cs0),
+    det_vars(Cs0, Cs),
+    atom_codes(A, Cs).
+
+det_vars([], []).
+det_vars([0'_, 0'G|T0], [0'_|T]) :- !, det_digits(T0, T1), det_vars(T1, T).
+det_vars([C|T0], [C|T]) :- det_vars(T0, T).
+
+det_digits([C|T0], T) :- C >= 0'0, C =< 0'9, !, det_digits(T0, T).
+det_digits(T, T).

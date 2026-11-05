@@ -615,6 +615,9 @@ flow_an_item(P, St0, St, Ctx, M0, M, [meta(phrase, Head, [':'|Ms], [Ns], [])]) :
 flow_an_item(_:G, St0, St, Ctx, M0, M, Ns) :- !,
     flow_an_item(G, St0, St, Ctx, M0, M, Ns).
 flow_an_item(!, St, St, _, M, M, [cut]) :- !.
+%% $/0 (cocolog 3.21.0) cuts as ! does, and has no port of its own; what
+%% it guards is the determinism's (flow_guarded_nls/3)
+flow_an_item($, St, St, _, M, M, [cut]) :- !.
 %% nothing after fail or throw runs: the state is dead past them
 flow_an_item(fail, St, [dead-dead|St], _, M, M, [failn]) :- !.
 flow_an_item(false, St, [dead-dead|St], _, M, M, [failn]) :- !.
@@ -1127,7 +1130,8 @@ flow_vars_final(Vs, St, S) :-
 %% choice left after a clause's last cut makes it nondet, and it is det
 %% when no clause that can be reached can fail.
 flow_pred_det([], _, _, semidet) :- !.
-flow_pred_det(Cls, NLs, CM, Det) :-
+flow_pred_det(Cls, NLs0, CM, Det) :-
+    flow_guarded_nls(Cls, NLs0, NLs),
     (   flow_alternatives(Cls, CM) -> Det = nondet
     ;   flow_late_choice(NLs) -> Det = nondet
     ;   flow_pred_total(Cls, NLs, CM) -> Det = det
@@ -1143,6 +1147,32 @@ flow_pred_total(Cls, NLs, CM) :-
     flow_nodes_total(LastNs),
     (   Init == [] -> true ; flow_committed(Cls) ),
     forall(member(Ns, InitNs), ( flow_after_cut(Ns, After), flow_nodes_total(After) )).
+
+%% A CLAUSE THAT HOLDS $/0 (cocolog 3.21.0) at the top of its body is past
+%% the first such `$' guarded: it succeeds once and leaves no choice point,
+%% or raises a determinism error -- so each clause's nodes are read up to
+%% that `$''s cut, its top-level cuts and the body's !/0 and $/0 goals
+%% being one to one
+flow_guarded_nls([], [], []).
+flow_guarded_nls([cl(_, B, _, _)|Cls], [Ns0|NLs0], [Ns|NLs]) :-
+    flow_conj(B, Gs),
+    include(flow_cut_goal, Gs, Cuts),
+    (   nth1(K, Cuts, C), flow_guard_goal(C)
+    ->  flow_upto_cut(K, Ns0, Ns)
+    ;   Ns = Ns0
+    ),
+    flow_guarded_nls(Cls, NLs0, NLs).
+
+flow_cut_goal(G) :- ( G == ! ; flow_guard_goal(G) ), !.
+flow_cut_goal(G) :- nonvar(G), G = '$at'(G0, _), G0 == !.
+
+flow_guard_goal(G) :- G == ($), !.
+flow_guard_goal(G) :- nonvar(G), G = '$at'(G0, _), G0 == ($).
+
+flow_upto_cut(1, [cut|_], [cut]) :- !.
+flow_upto_cut(K, [cut|Ns0], [cut|Ns]) :- !, K1 is K - 1, flow_upto_cut(K1, Ns0, Ns).
+flow_upto_cut(K, [N|Ns0], [N|Ns]) :- !, flow_upto_cut(K, Ns0, Ns).
+flow_upto_cut(_, [], []).
 
 flow_late_choice(NLs) :-
     member(Ns, NLs),
@@ -1222,7 +1252,7 @@ flow_committed(Cls) :-
 
 flow_has_cut(B) :-
     flow_conj(B, Gs),
-    memberchk(!, Gs).
+    member(G, Gs), flow_cut_goal(G), !.
 
 %% a bound argument whose patterns all differ picks at most one clause
 flow_indexed(Cls, CM) :-
