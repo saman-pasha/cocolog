@@ -199,6 +199,7 @@ The masculine noun "avance" means "progress".
 The feminine noun "muestra" means "exhibition".
 The masculine noun "resto" means "remainder".
 The feminine noun "técnica" means "technique".
+The feminine noun "investigación" means "investigation".
 The feminine noun "investigación" means "research".
 The feminine noun "vía" means "way".
 The verb "apunta" means "notes".
@@ -2669,6 +2670,49 @@ The name "copenhague" means "Copenhagen".
 "broadcast" is the participle of "broadcasts".
 The preposition "en términos de" means "in terms of".
 The adverb "como si nada" means "as if it were nothing".
+The name "coi" means "IOC".
+The preposition "por orden de" means "by order of".
+The adverb "por casualidad" means "by chance".
+The preposition "muy cerca de" means "very near".
+The masculine noun "equipo de fondo" means "cross-country team".
+"equipos de fondo" is the plural of "equipo de fondo".
+The masculine noun "esquí de fondo" means "cross-country skiing".
+The masculine noun "esquí" means "skiing".
+The masculine noun "esquí" means "ski".
+The masculine adjective "nórdico" means "Nordic".
+The feminine adjective "nórdica" means "Nordic".
+"nórdicos" is the plural of "nórdico".
+"nórdicas" is the plural of "nórdica".
+The masculine noun "director" means "director".
+The masculine noun "enlace" means "link".
+The masculine noun "vínculo" means "link".
+"utilizase" is the past subjunctive of "utiliza".
+"utilizasen" is the plural of "utilizase".
+The feminine noun "perfusión" means "perfusion".
+"perfusiones" is the plural of "perfusión".
+The adverb "a la vez" means "at the same time".
+The feminine noun "mujer de la limpieza" means "cleaning woman".
+"mujeres de la limpieza" is the plural of "mujer de la limpieza".
+"mujer de la limpieza" is a person.
+The masculine noun "positivo" means "positive test".
+"positivos" is the plural of "positivo".
+The adjective "contundente" means "forceful".
+The feminine noun "censura" means "censure".
+The verb "censura" means "censures".
+The masculine noun "borrón" means "blot".
+"borrones" is the plural of "borrón".
+The feminine noun "indefensión" means "helplessness".
+The conjunction "tal como" means "just as".
+"coi" is an acronym.
+"ioc" is an acronym.
+"antidopaje" is the plural of "antidopaje".
+The adverb "quizás" means "maybe".
+The adverb "puede que" means "maybe".
+"ignora" takes the question.
+"utiliza" takes the passive.
+The verb "viene" marks the passive.
+"goza" takes "de" before the phrase.
+"disfruta" takes "de" before the phrase.
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

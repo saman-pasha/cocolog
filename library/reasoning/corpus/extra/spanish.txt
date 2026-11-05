@@ -263,6 +263,9 @@ The feminine noun "muestra" means "exhibition".
 # `una vía más instintiva' a way; `apuntó Claude Lebet' he noted, not aimed
 The masculine noun "resto" means "remainder".
 The feminine noun "técnica" means "technique".
+# the IOC report: `una investigación' is an investigation (of the IOC, of the Congress, of the police), said
+# before the research, which `a través de la investigación' wants
+The feminine noun "investigación" means "investigation".
 The feminine noun "investigación" means "research".
 The feminine noun "vía" means "way".
 The verb "apunta" means "notes".
@@ -4267,3 +4270,78 @@ The name "copenhague" means "Copenhagen".
 The preposition "en términos de" means "in terms of".
 # `come se niente fosse': `como si nada'
 The adverb "como si nada" means "as if it were nothing".
+# the IOC report (AnCora CESS-CAST-P-20020301-99): `El COI abrió ayer ... una investigación': the IOC, the name the
+# acronym stands for
+The name "coi" means "IOC".
+# `por orden de su presidente': by order of
+The preposition "por orden de" means "by order of".
+# `al descubrir, por casualidad, material médico': by chance
+The adverb "por casualidad" means "by chance".
+# `muy cerca de Salt Lake City': very near (the adverb went to the end of the clause)
+The preposition "muy cerca de" means "very near".
+# `el equipo de fondo de la Federación Austriaca de Esquí', `el esquí de fondo': cross-country, the team and the sport
+The masculine noun "equipo de fondo" means "cross-country team".
+"equipos de fondo" is the plural of "equipo de fondo".
+The masculine noun "esquí de fondo" means "cross-country skiing".
+# `director de esquí nórdico austríaco': skiing, the sport, said before the ski; Nordic, said before Norse; and the
+# director, said before the conductor
+The masculine noun "esquí" means "skiing".
+The masculine noun "esquí" means "ski".
+The masculine adjective "nórdico" means "Nordic".
+The feminine adjective "nórdica" means "Nordic".
+"nórdicos" is the plural of "nórdico".
+"nórdicas" is the plural of "nórdica".
+The masculine noun "director" means "director".
+# `cualquier vínculo de su delegación con el dopaje': a link, before the bond -- the dictionary's `enlace' said again
+# first, so that it stays the word written for a link (`con links contra el nazismo')
+The masculine noun "enlace" means "link".
+The masculine noun "vínculo" means "link".
+# `ese material se utilizase para perfusiones': the past subjunctive in `-se', which the dictionary gives for reading
+# only, and the perfusion, which it lacks
+"utilizase" is the past subjunctive of "utiliza".
+"utilizasen" is the plural of "utilizase".
+The feminine noun "perfusión" means "perfusion".
+"perfusiones" is the plural of "perfusión".
+# `una práctica prohibida y, a la vez, extremadamente peligrosa': at the same time
+The adverb "a la vez" means "at the same time".
+# `una mujer de la limpieza': a cleaning woman
+The feminine noun "mujer de la limpieza" means "cleaning woman".
+"mujeres de la limpieza" is the plural of "mujer de la limpieza".
+"mujer de la limpieza" is a person.
+# `el positivo de Mühlegg': a positive test, the noun
+The masculine noun "positivo" means "positive test".
+"positivos" is the plural of "positivo".
+# `quiso ser contundente en la censura del esquiador': forceful, before conclusive; censure, before censorship; and
+# `Llaneras censuró a los dirigentes': censured, before censored
+The adjective "contundente" means "forceful".
+The feminine noun "censura" means "censure".
+The verb "censura" means "censures".
+# `Es un borrón en la historia del deporte español': a blot
+The masculine noun "borrón" means "blot".
+"borrones" is the plural of "borrón".
+# `por la indefensión que sufrió': helplessness
+The feminine noun "indefensión" means "helplessness".
+# `tal como había adelantado el pasado miércoles': just as
+The conjunction "tal como" means "just as".
+# `El COI': the acronym goes out in capitals, into the lesson's language and into English (`The Ioc' before)
+"coi" is an acronym.
+"ioc" is an acronym.
+# `las medidas antidopaje': the adjective is its own plural (`control antidopaje' read, the plural did not)
+"antidopaje" is the plural of "antidopaje".
+# `pero puede que ese material se utilizase para perfusiones': maybe, an adverb of two words before its clause --
+# the dictionary's `quizás' said again first, so that it stays the word written for maybe (`Puede que no le había
+# gustado' was written for `Forse non le era piaciuto': `puede que' takes the subjunctive)
+The adverb "quizás" means "maybe".
+The adverb "puede que" means "maybe".
+# `Ignoro de qué está hablando el COI': the verb of not knowing takes the question
+"ignora" takes the question.
+# `puede que ese material se utilizase para perfusiones': a thing's reflexive is the passive, that material was used
+"utiliza" takes the passive.
+# `Su principal queja viene dada por un hecho evidente': `venir' and a participle is the passive, as Italian's `venire'
+The verb "viene" marks the passive.
+# `goza, también, de una enorme fama internacional': the verb of enjoying takes its phrase with `de', which English
+# says bare
+"goza" takes "de" before the phrase.
+# ... and `disfrutar', the writer's word for enjoys: `Godranno di qualche boccata d'ossigeno' is `Disfrutarán de
+# alguna bocanada', and with the phrase governed it was written bare
+"disfruta" takes "de" before the phrase.

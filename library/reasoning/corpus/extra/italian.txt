@@ -5652,3 +5652,47 @@ The verb "trasmette" means "broadcasts".
 # at it, the purpose's word of two, and as if it were nothing, an adverb of four
 The word "tale da" begins the purpose.
 The adverb "come se niente fosse" means "as if it were nothing".
+# the IOC report (Spanish into Italian): the IOC, the name the Italian acronym stands for
+The name "cio" means "IOC".
+The preposition "per ordine di" means "by order of".
+The adverb "per caso" means "by chance".
+The preposition "molto vicino a" means "very near".
+The feminine noun "squadra di fondo" means "cross-country team".
+"squadre di fondo" is the plural of "squadra di fondo".
+The masculine noun "sci di fondo" means "cross-country skiing".
+The masculine noun "sci" means "skiing".
+The masculine adjective "nordico" means "Nordic".
+The feminine adjective "nordica" means "Nordic".
+"nordici" is the plural of "nordico".
+"nordiche" is the plural of "nordica".
+# (the dictionary's `collegamento' said again first, so that it stays the word written for a link: `con links contra
+# el nazismo' was `con legami')
+The masculine noun "collegamento" means "link".
+The masculine noun "legame" means "link".
+The feminine noun "perfusione" means "perfusion".
+"perfusioni" is the plural of "perfusione".
+The adverb "allo stesso tempo" means "at the same time".
+The feminine noun "donna delle pulizie" means "cleaning woman".
+"donne delle pulizie" is the plural of "donna delle pulizie".
+"donna delle pulizie" is a person.
+The masculine noun "positivo" means "positive test".
+"positivi" is the plural of "positivo".
+The masculine adjective "incisivo" means "forceful".
+The feminine adjective "incisiva" means "forceful".
+The feminine noun "censura" means "censure".
+The verb "censura" means "censures".
+The feminine noun "macchia" means "blot".
+The feminine noun "impotenza" means "helplessness".
+"cio" is an acronym.
+"ioc" is an acronym.
+"antidoping" is the plural of "antidoping".
+# `una casa alquilada': rented, where the dictionary's verb hires (and a writer with no word for `rented' refused it)
+The verb "affitta" means "rents".
+# `bolsas vacías de sangre': the adjective's plural, said before the verb's (`vuotano' was written for it)
+"vuote" is the plural of "vuota".
+"ignora" takes the question.
+# `envía muestras a su laboratorio': a sample is `campione', where the writer's word was `dimostrazione' (a
+# demonstration); the champion said again first, so that it stays the noun's meaning
+The masculine noun "campione" means "champion".
+The masculine noun "campione" means "sample".
+"gode" takes "di" before the phrase.

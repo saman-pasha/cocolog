@@ -9138,6 +9138,178 @@ read into an English-worded IR and written into any lesson's language),
   transmission' (the programme); `famous guests to the public, reread' (12: guests known to the public); `posits an
   accession to a culture of the war, to be able to play us' (13); and `the culture of the war' (14: the article). The
   next sample's controls take these reports in.
+  The IOC report (AnCora CESS-CAST-P-20020301-99, 17 sentences: the IOC's investigation of the medical material the
+  Austrian cross-country team left in a rented house near Salt Lake City, and the Spanish laboratory IMIM, Spanish into
+  Italian and English: 17 of 17 and 15 of 17 on a fresh store, 15 and 12 with the new store alone, 10 and 12 with the
+  new code on the old store, 9 and 10 before; reasoning 1.0.32). The sample was taken on the cocolog 3.19.5 binary,
+  master's a71af87 merged as ed72782, and cocolog stays 3.19.5: the controls read every sentence alike on 3.19.2 and
+  3.19.5 (3 400 sentences, 0 differ, 6 695 124 592 inferences on both). The article's sentences fall from 38.6 million
+  inferences into Italian and 38.2 into English to 14.1 and 13.7. English refuses 15 for the third person nobody names,
+  on purpose (`Reiteró, también, que se iban a endurecer las medidas'), and 3 (below).
+  It needed these SHAPES, each with its arm red (test/translate.pl's `newspaper_coi': 31 checks, 28 arms, 27 red in the
+  section and one guard of cost that stays green, below; an arm is a library directory of symlinks whose
+  reasoning/translate.pl is the edited copy, `COCOLOG_LIBRARY=ARM cocolog query "use_module('test/translate.pl'),
+  newspaper_coi, checks_done"', under a second a run, and every arm is run in seven seconds, three at a time): A
+  RELATIVE CLAUSE WITH TWO VERBS, THE SECOND RIGHT AFTER THE COORDINATOR (`La oficina del sheriff, que declinó hacer
+  comentarios y dirigió cualquier pregunta al COI, reconoció ...' -- the office that declined to comment and directed
+  every question to the IOC; read to its coordinator the clause left `y dirigió ...' to the sentence, which was divided
+  there, and English refused the half with nobody named: tr_relative_clause/4), the second verb in the first one's
+  tense, person and number, each a verb's or a modal's form (tr_verb_lexeme/1: tr_form/5 gives any word as itself, a
+  present third person singular, and the first cut took `il' and `vi' for the second verb of `che si occupa ... e il
+  Ministero'), asked in a sentence that has the pattern only ('$tr_rel_two_verbs', tr_rel_two_verbs_note/1, a guard of
+  cost whose arm stays green) -- two arms; a word that is a noun as well as a participle is the noun after a verb of
+  suffering, receiving or causing (`sufrieron heridas al manipular el material' suffered wounds, and read as the
+  participle said of the subject it was `suffered injured' and `soffrirono feriti': tr_ptc_noun_here/2); THE WORD FOR
+  `nor' AND A PHRASE, SET OFF AFTER THE SUBJECT (`Ningún deportista español, ni ninguna federación, envía muestras a su
+  laboratorio' -- no sportsman, nor any federation, sends them; read as a coordinated subject the halves had no reading
+  with their commas, and the sentence was refused: tr_insertion_off/4), the phrase travelling as mid(nor(Phrase)) and
+  written after the subject between its commas, with English's `any' where the source denied it again (`nor any
+  federation') -- two arms; a word after a noun that is its adjective as well as a verb is the adjective only where it
+  is the verb the reading took (the guard of `Una spesa media, per una famiglia ...' refused any piece that opens on a
+  determiner, a noun, an adjective and a comma, and `Ningún deportista español, ni ...' had no reading:
+  tr_adjective_not_verb/3); THE NEAR FUTURE IN THE PAST IS THE CONDITIONAL (`Reiteró que se iban a endurecer las
+  medidas' -- that they would be tightened, and word by word it was `si andavano a indurire': tr_near_future/3, the
+  imperfect's conditional beside the present's future), the reflexive the infinitive's and a thing's reflexive the
+  passive, the thing after the verb its subject -- three arms; an English name the source's lesson calls an acronym goes
+  out in capitals (`El COI' is the IOC, `"ioc" is an acronym.', and it came out `The Ioc': tr_word_text/4), with a
+  quotation's closing mark on it too (tr_name_caps/2) -- two arms; `Nordic' takes its capital (en_nationality/1); a
+  reporting clause between two quotations, the first closing on a word with its capital (`"Ignoro de qué está hablando
+  el COI", dijo Mayer, "pero ...' -- with the small word's marks alone the reporting clause was read into the sentence
+  and written after the second quotation: cmid/1, tr_closes_quote/1); `WHAT' AFTER A PREPOSITION OPENS AN INDIRECT
+  QUESTION (`Ignoro de qué está hablando el COI' is what the IOC is talking about, and read with `qué' for the
+  determiner of the word after it -- `habla' is speech too -- it was `of what speech': wh(pp(Preposition, what),
+  Clause), read in a sentence with a word that asks `what' only, '$tr_what_word'), English putting the preposition after
+  the clause (`what the IOC is speaking of') and the lesson's language before the word that asks (`de qué', `di cosa'),
+  the doer after its verb the subject (tr_rel_subject_fix/2), and the quotation's closing mark the source's last word
+  carried after the preposition, on the word or as its case (`"I ignore what the dog speaks" of' was written:
+  tr_what_mark_off/4) -- six arms; a relative clause set off on the subject's last phrase of `of' keeps its commas (`La
+  oficina del sheriff, que declinó ..., reconoció', where it was `the office of the sheriff that declined':
+  tr_set_off_subject/5), its closing comma before the verb in the lesson's language too -- two arms; a noun that can say
+  a sample says it in the plural with no determiner (`envía muestras a su laboratorio' are samples, where `muestra' is
+  the newspaper's exhibition first, which `la muestra' keeps: tr_sample_noun/1); an activity English names with no
+  article, as an -ism (`con el dopaje' is with doping: en_mass_activity/1); THE EVENT ONE IS IN IS A PHRASE OF `at'
+  (`Segura estuvo presente ... en los Juegos de Salt Lake' was present AT the Games, where it was `in the Games':
+  tr_comp_out/7, en_event_noun/1), the games in the plural only (`state proseguendo nel cosiddetto gioco del cerino' is
+  continuing in the game, and the first cut wrote `at the so-called game') -- three arms; and the verb of enjoying takes
+  its phrase bare in English (`goza, también, de una enorme fama' was `enjoys, of an enormous fame': en_bare_object/1).
+  Two guards of the first cut, the question of `what' read to the end of the words with no comma, and never past a
+  quotation's mark, had arms that stayed green and changed no text, the article's fifth sentence 21 and 102 inferences
+  dearer with them, and are gone: the reporting clause's reader (cmid/1, above) sets the quotation apart with its
+  commas.
+  It needed these WORDS in `extra/' (the two readers: a line moves the reader of one language and the writer of the
+  other; the dictionary's own word is said again first where it must stay the one written): Spanish `investigación' (an
+  investigation, said before the research), the name `coi' (the IOC) and `"coi" is an acronym.', `por orden de' (by
+  order of), `por casualidad' (by chance), `muy cerca de' (very near), `equipo de fondo' (a cross-country team) and
+  `esquí de fondo', `esquí' (skiing, before the ski), `nórdico' (Nordic, before Norse), `director' (a director, before
+  the conductor), `vínculo' (a link, before the bond, with `enlace' said again first), `utilizase' (the past subjunctive
+  in `-se', which the dictionary gives for reading only), `perfusión', `a la vez' (at the same time), `mujer de la
+  limpieza' (a cleaning woman, a person), `positivo' (a positive test, the noun), `contundente' (forceful, before
+  conclusive), `censura' (censure, the noun and the verb), `borrón' (a blot), `indefensión' (helplessness), `tal como'
+  (just as), `antidopaje' (its own plural), `puede que' (maybe, with `quizás' said again first), `"ignora" takes the
+  question.', `"utiliza" takes the passive.', `The verb "viene" marks the passive.' (`viene dada por' is is given by, as
+  Italian's `venire'), `"goza" takes "de" before the phrase.' and `"disfruta" takes "de" before the phrase.'; Italian
+  the name `cio' and `"cio" is an acronym.', `per ordine di', `per caso', `molto vicino a', `squadra di fondo' and `sci
+  di fondo', `sci' (skiing), `nordico' (Nordic, before a northerner), `legame' (a link, with `collegamento' said again
+  first), `perfusione', `allo stesso tempo', `donna delle pulizie' (a person), `positivo' (a positive test), `incisivo'
+  (forceful), `censura' (censure, the noun and the verb), `macchia' (a blot, before the stain), `impotenza'
+  (helplessness), `antidoping' (its own plural), `affitta' (rents, where the dictionary's verb hires, and a writer with
+  no word for `rented' refused it), `vuote' (the plural of the adjective, said before the verb's, `vuotano'), `"ignora"
+  takes the question.', `campione' (a sample, with the champion said again first) and `"gode" takes "di" before the
+  phrase.'. The first meaning moved for 10 Spanish words and 11 Italian ones (Spanish `censura' censure, `contundente'
+  forceful, `director' a director, `esquí' skiing, `investigación' an investigation, `nórdico' and `nórdica' Nordic,
+  `positivo' a positive test, `quizás' maybe, before perhaps, `vínculo' a link; Italian `affitta' rents, `censura'
+  censure, `impotenza' helplessness, `incisivo' and `incisiva' forceful, `legame' a link, `macchia' a blot, `nordico'
+  and `nordica' Nordic, `positivo' a positive test, `sci' skiing), the writer's first word for 1 Spanish meaning and 2
+  Italian ones (Spanish forceful `contundente'; Italian forceful `incisivo', sample `campione', where it was
+  `dimostrazione', a demonstration), and none was lost.
+  THE CONTROLS (cocolog 3.19.5, store KB300, 128 count files, 3 428 sentences: the earlier set with the television
+  reports in, it_9296_9309, both directions; this report is not among them): the last version's translator against this
+  one, on the one store, 19 sentences in 14 files read differently, all better -- `at' the meeting, the funeral and the
+  trial (5: `Thus one checked at the meeting', `At a second meeting among representatives', `The participants at the
+  funeral', `prosecutor at the trial', `the positions of the parts at the trial'), the relative clause set off on the
+  last phrase of `of' (4: `the Lebanese player, who signed for 350 million pesetas,' and `il giocatore libanese, che
+  siglò ...,'; `the group "Insula", which takes charge of ...' and `el grupo "Insula", que se encarga ...,'), the verb
+  of enjoying (3: `will enjoy a discount of 30%', `they have enjoyed days of rest', `will enjoy some puff of oxygen'),
+  the near future in the past and the present (2: `but we will not remain like silly either' and `ma neanche rimarremo
+  come tonti', where it was `we do not go to remain' and `ci andiamo a rimanere'), the noun after a verb of causing (2:
+  `without that causes descents of prices' and `retrocessioni di prezzi', where it was `dropped' and `calato'),
+  Tatoeba's `No entiendo de qué hablan', refused before and `I do not understand what they speak of' and `Non capisco di
+  cosa parlano' now (2), and it_9947_9966 6, refused before and read into English now (`The ambitious project will
+  depart next Tuesday with the course "human missions in the blank", the first one of the gender in Europe, which will
+  be held by the astronaut Roberto Vittori, beside the "school of aerospace engineering" of the university La Sapienza')
+  -- and the inferences fall 0.595 % (6 759 647 265 to 6 719 429 906) and rise 0.073 % outside the four sentences that
+  fall by over a million (the Lord of the Rings' eleventh, es_20020102-112 11, 24.4 million inferences to 3.0 in each
+  language, and the Veloso interview's tenth, it_9225_9269 10, 1.7 to 0.5, both relative clauses with two verbs read at
+  once, the texts the same). Every sentence rises but ten, by 636 inferences at the median, the largest the Rognoni
+  interview's nineteenth (+0.13 million of 176.3, refused both ways), es_20000802-31 4 (+0.13 of 5.1) and es_20020801-17
+  14 (+0.12 of 2.4), the texts the same. Bytes and characters read every sentence alike (0 differ, the bytes 0.011 %
+  more). The DATA COLUMN (the last version's translator on its own store, KB293, against this one on the new): 43
+  sentences in 18 files, -0.580 % (6 758 601 876 to 6 719 429 906), +0.089 % outside the four. THE CODE ALONE (this
+  translator on KB293): 16 sentences in 11 files, every one among the 19, -0.595 % (to 6 718 386 451), +0.073 % outside
+  the four; the three left are the verb of enjoying, which needs `"goza" takes "de" before the phrase.' and its kin. THE
+  STORE ALONE (the last version's translator on KB293 and on KB300): 24 sentences in 6 files, +0.015 % (to 6 759 647
+  265), all better but two -- `investigation' for `investigación' (16: `The investigation of the Congress of EEUU
+  against the president Bill Clinton', `L'investigazione del Congresso', `The managers of the investigation', where it
+  was the research) and `director' for `director' (6: `The director of RNE', `general director of RTVE', `the theatrical
+  director Lluís Pasqual', Tatoeba's `I knew the director in person', where it was the conductor) -- and the two of the
+  stated costs below.
+  THE FIRST ROUND'S REGRESSIONS, found by reading the texts of every column and mended. Of the store (KB299, the store
+  alone, 33 sentences): a line said first is the reader's meaning and the other language's writer's word, so `puede que'
+  was the Spanish written for every Italian `forse' and `magari' (8: `Puede que no le había gustado', `puede que
+  Giulietta no ha apreciado', `Y para hoy, puede que, un nuevo atisbo', `salvarla puede que,'), `legame' the Italian for
+  every link (`con legami contro il nazismo' for `con links contra el nazismo'), and `vínculo' the Spanish for one: the
+  dictionary's `quizás', `collegamento' and `enlace' are said again first now. Of the code (the one store, KB299, 20
+  sentences): the games read as an event in the singular too (`You are continuing at the so-called game of the
+  matchstick', it_9714_9749 11: the plural only now, its arm red), and Italian's `godere di', governed now, wrote the
+  Spanish `disfrutar' bare (`Disfrutarán alguna bocanada de oxígeno', it_9472_9484 9: `"disfruta" takes "de" before the
+  phrase.' says the Spanish writer's word). The first cut's arms found three green: the event arm was never built (its
+  edit's text stood twice in the file, and the builder stopped; the runner now refuses an arm with no library), and the
+  two guards above.
+  THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (27 control sentences into English, the three heaviest risers of
+  the first round -- the Venice report's fourth, 85.4 million inferences, es_20020601-51 2, 20.2, and it_9967_9998 25,
+  19.7 -- and 24 picked at random of 0.1 to 2 million, over a copy of the library per rule on KB300): the first cut was
+  +0.560 % of the controls outside the four, and +3.202 % of the 27 (137.4 million inferences to 141.8), 96 % of it the
+  relative clause with two verbs (4.22 million): the reflexive verb `si occupa' is one word, and tr_form/5, which gives
+  any word as itself, a present third person singular, took `il' and `vi' after `e' for the second verb, so the clause
+  read its first half and failed on the second 234 times in the Venice sentence (+2.70 million), and as often in the
+  other two (+0.99 and +0.69). The rule's own note first, made once a sentence in place of the wider note of a
+  coordinator and a verb's form, saved 0.11 % of the 27; the verb's class asked of both verbs (tr_verb_lexeme/1) saved
+  the rest. The final cut is +0.085 % of the 27 (to 137.5 million), the texts the first cut's, and the note is a guard
+  of cost (+0.162 % without it): of the 117 thousand inferences left, the reader of the aside of `nor' is 38.6 thousand,
+  the reader of `what' after a preposition 31.2 and its note 22.5, the noun after a verb of suffering 15.6, the two-verb
+  note itself 13.2 and the adjective's guard 8.9, no other rule over 800. Over the whole controls the code is +0.073 %
+  outside the four.
+  THE STATED COSTS: a first meaning that serves the news and not every text -- `investigación' is an investigation
+  (research second: `"Stradivari desarrolló su técnica a través de la investigación' is `through the investigation' and
+  `tramite l'investigazione', es_20010202-169 14, the two texts of the store alone that are worse), `muestra' a sample
+  only in the plural with no determiner, `positivo' a positive test as a noun, `esquí' skiing, `director' a director
+  (the conductor second), `censura' censure (censorship second), `macchia' a blot (a stain second), `campione' the
+  writer's word for a sample -- and the writer's `contundente' and `incisivo' for forceful; `quizás' is maybe before
+  perhaps to the reader, which no sentence of the controls shows; it_9947_9966 6, refused before, is read into English
+  with `the blank' for space and `beside' for at; and the inferences, +0.073 % outside the four on the one store and
+  +0.015 % for the store alone.
+  The report LEAVES, of the 17 into Italian (English alike unless it says): `un'investigazione scoprendo, per caso,
+  materiale medico' and `on discovering, material medical ... by chance' (1: `al descubrir' is when it discovered, the
+  adverb written last in English, `medical material'), `per la squadra di fondo' and `for the cross-country team' (the
+  house rented BY the team: the agent after a participle and its place is a phrase of `for'), `d'Esquí' and `of Esquí'
+  (the name keeps the source's word) and `il contenzioso dei recenti JJOO' and `the dispute of the recent JJOO' (the
+  holding of the recent Games); `2 d'oro' and `2 of gold' (2: gold); `La sospetta del CIO' (3: `Il sospetto', the noun's
+  gender taken from the verb's form), `sospetto che' (the verb after a subject with its relative clause, `sospetta
+  che'), `potettero' (`poterono') and `sommamente pericolosi' (`estremamente pericolosa', the adjective's agreement with
+  the practice lost), and English refuses it: a clause of `when' with `todo el material' inside the subject's relative
+  clause has no reading (tr_read_nested/4 for the relative clause fails); `Il suo laboratorio Istituto Municipale
+  d'Investigazione Medica (IMIM-IMAS) riconosciuto dal CIO gode, anche,' and `His Institute Municipal laboratory of
+  Medical Investigation ... acknowledged by the IOC also enjoys,' (7: the apposition's commas lost and the name's words
+  reordered in English, its laboratory, `recognised', the comma after `enjoys'); `come esperto nella materia' and `as
+  expert in the matter' (8: `as an expert on the subject'); `di competizioni estere' and `of foreign competitions' (11:
+  from); `si potrebbe avere evitato' and `one could have avoided' (12: `si sarebbe potuto evitare', it could have been
+  avoided, the passive of the modal's perfect); `affermò' and `they affirmed' (14: he affirmed, the reporting clause's
+  subject nobody names); `mercoledì passato' (15: `lo scorso mercoledì'); and `sfruttò l'intervista di TV per chiedere
+  "perdono" al ciclista Joan Llaneras, medaglia d'oro in Sydney, per l'impotenza che soffrì' and `exploited the
+  interview of TV to ask "pardon" to the cyclist Joan Llaneras, medal of gold in Sydney, for the helplessness that
+  suffered' (16: took advantage of the TV interview to apologise to the cyclist, the gold medallist, for the
+  helplessness he suffered: `pedir perdón' is an idiom, the doer of the relative clause after its verb is not read, and
+  `in Sydney' is `a Sydney'). The next sample's controls take this report in.
 
 ## Tutorials are documentation that runs
 

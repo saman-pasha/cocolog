@@ -384,6 +384,7 @@ main :-
     section_89,
     section_90,
     section_91,
+    section_92,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -11990,6 +11991,119 @@ section_91_3 :-
 
 lesson_91(spanish, 21, 'The feminine noun "película" means "film". "películas" is the plural of "película". The masculine noun "ciclo" means "cycle". "dedicadas" is the participle of "dedica". "dedicadas" is feminine. "dedicadas" is the plural of "dedicada". The feminine noun "batalla" means "battle". "batallas" is the plural of "batalla". The verb "propone" means "proposes". The feminine noun "entrevista" means "interview". The feminine noun "televisión" means "television". "televisiones" is the plural of "televisión". The verb "desnuda" means "undresses". The reflexive verb "desnuda" means "strips". "desnudar" is the infinitive of "desnuda". The verb "emite" means "broadcasts". "emitida" is the participle of "emite". "emitida" is feminine. The feminine noun "noche" means "evening". The feminine noun "libertad" means "freedom". The feminine noun "interpelación" means "interpellation". The masculine noun "ministro" means "minister". "ministro" is a person. The masculine noun "correo" means "mail". "correos" is the plural of "correo". The feminine noun "guerra" means "war". The masculine noun "cinismo" means "cynicism". The verb "denuncia" means "denounces". "denunciar" is the infinitive of "denuncia". The verb "exalta" means "exalts". The feminine noun "transmisión" means "transmission". The masculine noun "programa" means "programme". The masculine noun "juicio" means "judgement". The verb "desarrolla" means "develops". "desarrollado" is the participle of "desarrolla". The feminine noun "mujer" means "woman". "mujeres" is the plural of "mujer". "mujer" is a person. "noche" is a time. The feminine demonstrative "esta" means "this". The masculine demonstrative "este" means "this". The masculine noun "general" means "general". "general" is a person. The word "por" joins the time. "defendido" is the participle of "defiende". "quieren" is the plural of "quiere". "dedicado" is the participle of "dedica". The reflexive verb "dedica" means "dedicates".').
 lesson_91(italian, 21, 'The masculine noun "film" means "film". "film" is the plural of "film". The masculine noun "ciclo" means "cycle". The verb "dedica" means "devotes". "dedicato" is the participle of "dedica". "dedicati" is the participle of "dedica". "dedicati" is the plural of "dedicato". The feminine noun "battaglia" means "battle". "battaglie" is the plural of "battaglia". The verb "propone" means "proposes". The feminine noun "intervista" means "interview". The verb "intervista" means "interviews". The feminine noun "televisione" means "television". "televisioni" is the plural of "televisione". The verb "denuda" means "bares". The reflexive verb "denuda" means "strips". "denudare" is the infinitive of "denuda". The verb "trasmette" means "broadcasts". "trasmessa" is the participle of "trasmette". "trasmessa" is feminine. "broadcast" is the past of "broadcasts". "broadcast" is the participle of "broadcasts". The feminine noun "sera" means "evening". The feminine noun "libertà" means "freedom". The feminine noun "interrogazione" means "interpellation". The masculine noun "ministro" means "minister". "ministro" is a person. The feminine noun "posta" means "mail". "poste" is the plural of "posta". The preposition "contro" means "against". The masculine noun "contro" means "con". "contro" is the plural of "contro". The feminine noun "guerra" means "war". The masculine noun "cinismo" means "cynicism". The verb "denuncia" means "denounces". "denunciare" is the infinitive of "denuncia". The verb "esalta" means "exalts". The feminine noun "trasmissione" means "transmission". The masculine noun "programma" means "programme". The masculine noun "giudizio" means "judgement". The verb "sviluppa" means "develops". "sviluppato" is the participle of "sviluppa". "rai" is a name. The feminine noun "donna" means "woman". "donne" is the plural of "donna". "donna" is a person. "un''" is the elision of "una". "vogliono" is the plural of "vuole". The adverb "ancora" means "still". "potere" is the infinitive of "può". "poter" is the infinitive of "può". "sera" is a time. The masculine noun "generale" means "general". "generale" is a person. "difeso" is the participle of "difende". The feminine noun "volta" means "time". "volte" is the plural of "volta". The adverb "in ogni caso" means "in any case".').
+
+section_92 :-
+    format("~n92. a Spanish report on the IOC and the Austrian team, into Italian and English: an acronym, a relative clause with two verbs, a noun of suffering, an aside of neither, the near future in the past, a question of what after a preposition, a reporting clause between quotations, a relative clause on the subject's last phrase, samples, doping, an event one is at, the verb of enjoying~n", []),
+    lesson_92(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('the IOC section''s Spanish lesson and a twenty-second part, under its own name', NS),
+    lesson_92(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and the Italian one', NI),
+    section_92_1, section_92_2, section_92_3,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_92(L, Text) :- lesson_91(L, A), lesson_92(L, 22, B), atomic_list_concat([A, ' ', B], Text).
+
+section_92_1 :-
+    ( reason_translate('El perro, que come el pan y bebe el agua, duerme.', spanish, english, X92V1) -> S92V1 = X92V1 ; S92V1 = refused ),
+    must('A RELATIVE CLAUSE WITH TWO VERBS, THE SECOND RIGHT AFTER THE COORDINATOR: `La oficina del sheriff, que declinó hacer comentarios y dirigió cualquier pregunta al COI, reconoció'' -- the office that declined to comment and directed every question to the IOC; read to its coordinator the clause left `y dirigió ...'' to the sentence, and English refused the half with nobody named (tr_relative_clause/4, the note of tr_front_coord_note/1)', S92V1,
+         'The dog, who eats the bread and drinks the water, sleeps.'),
+    ( reason_translate('El perro, que come el pan y bebe el agua, duerme.', spanish, italian, X92V2) -> S92V2 = X92V2 ; S92V2 = refused ),
+    must('... in each language', S92V2,
+         'Il cane, che mangia il pane e beve l''acqua, dorme.'),
+    ( reason_translate('El perro sufrió heridas.', spanish, english, X92V3) -> S92V3 = X92V3 ; S92V3 = refused ),
+    must('A WORD THAT IS A NOUN AS WELL AS A PARTICIPLE IS THE NOUN AFTER A VERB OF SUFFERING, RECEIVING OR CAUSING: `sufrieron heridas al manipular el material'' suffered injuries, and read as the participle said of the subject it was `suffered injured'' (tr_ptc_noun_here/2)', S92V3,
+         'The dog suffered wounds.'),
+    ( reason_translate('El perro sufrió heridas.', spanish, italian, X92V4) -> S92V4 = X92V4 ; S92V4 = refused ),
+    must('... in each language, where it was `soffrirono feriti''', S92V4,
+         'Il cane soffrì ferite.'),
+    ( reason_translate('Ningún perro, ni ningún gato, come el pan.', spanish, english, X92V5) -> S92V5 = X92V5 ; S92V5 = refused ),
+    must('THE WORD FOR `NOR'' AND A PHRASE, SET OFF AFTER THE SUBJECT: `Ningún deportista español, ni ninguna federación, envía muestras'' -- no sportsman, nor any federation, sends them; the verb is the subject''s, and the phrase travels as mid(nor(Phrase)), English''s `any'' where the source denied it again (tr_insertion_off/4)', S92V5,
+         'No dog, nor any cat, eats the bread.'),
+    ( reason_translate('Ningún perro, ni ningún gato, come el pan.', spanish, italian, X92V6) -> S92V6 = X92V6 ; S92V6 = refused ),
+    must('... in each language', S92V6,
+         'Nessun cane, né nessun gatto, mangia il pane.'),
+    ( reason_translate('Ningún perro grande, ni ningún gato, come el pan.', spanish, english, X92V7) -> S92V7 = X92V7 ; S92V7 = refused ),
+    must('A WORD AFTER A NOUN THAT IS ITS ADJECTIVE AS WELL AS A VERB IS THE ADJECTIVE ONLY WHERE IT IS THE VERB THE READING TOOK: the guard of `Una spesa media, per una famiglia ...'' refused any piece that opens on a determiner, a noun, an adjective and a comma, and the sentence had no reading (tr_adjective_not_verb/3)', S92V7,
+         'No big dog, nor any cat, eats the bread.'),
+    ( reason_translate('El perro dijo que se iban a vender las casas.', spanish, english, X92V8) -> S92V8 = X92V8 ; S92V8 = refused ),
+    must('THE NEAR FUTURE IN THE PAST IS THE CONDITIONAL: `Reiteró que se iban a endurecer las medidas'' -- that they would be tightened, and word by word it was `si andavano a indurire''; the reflexive is the infinitive''s, and a thing''s reflexive the passive (tr_near_future/3)', S92V8,
+         'The dog said that the houses would be sold.'),
+    ( reason_translate('El perro dijo que el gato iba a comer el pan.', spanish, english, X92V9) -> S92V9 = X92V9 ; S92V9 = refused ),
+    must('... and with no reflexive', S92V9,
+         'The dog said that the cat would eat the bread.'),
+    ( reason_translate('El COI duerme.', spanish, english, X92V10) -> S92V10 = X92V10 ; S92V10 = refused ),
+    must('AN ENGLISH NAME THE SOURCE''S LESSON CALLS AN ACRONYM GOES OUT IN CAPITALS: `El COI'' is the IOC, `"ioc" is an acronym.'', and it came out `The Ioc'' (tr_word_text/4)', S92V10,
+         'The IOC sleeps.'),
+    ( reason_translate('El COI duerme.', spanish, italian, X92V11) -> S92V11 = X92V11 ; S92V11 = refused ),
+    must('... and the lesson''s word, its own acronym', S92V11,
+         'Il CIO dorme.').
+
+section_92_2 :-
+    ( reason_translate('"El perro come con el COI", dijo el gato.', spanish, english, X92V12) -> S92V12 = X92V12 ; S92V12 = refused ),
+    must('... with a quotation''s closing mark on it, which the name''s capitals were given with (tr_name_caps/2)', S92V12,
+         '"The dog eats with the IOC", the cat said.'),
+    ( reason_translate('"El perro come con el COI", dijo el gato, "pero el gato duerme.', spanish, english, X92V13) -> S92V13 = X92V13 ; S92V13 = refused ),
+    must('A REPORTING CLAUSE BETWEEN TWO QUOTATIONS, THE FIRST CLOSING ON A WORD WITH ITS CAPITAL: `"Ignoro de qué está hablando el COI", dijo Mayer, "pero ...'' -- with the small word''s marks alone the reporting clause was read into the sentence and written after the second quotation (cmid/1, tr_closes_quote/1)', S92V13,
+         '"The dog eats with the IOC", the cat said, "but the cat sleeps.'),
+    ( reason_translate('"El perro come con el COI", dijo el gato, "pero el gato duerme.', spanish, italian, X92V14) -> S92V14 = X92V14 ; S92V14 = refused ),
+    must('... in each language', S92V14,
+         '"Il cane mangia con il CIO", disse il gatto, "ma il gatto dorme.'),
+    ( reason_translate('El perro nórdico duerme.', spanish, english, X92V15) -> S92V15 = X92V15 ; S92V15 = refused ),
+    must('`Nordic'' takes its capital (en_nationality/1)', S92V15,
+         'The Nordic dog sleeps.'),
+    ( reason_translate('El perro ignora de qué habla el gato.', spanish, english, X92V16) -> S92V16 = X92V16 ; S92V16 = refused ),
+    must('`WHAT'' AFTER A PREPOSITION OPENS AN INDIRECT QUESTION: `Ignoro de qué está hablando el COI'' -- read with `qué'' for the determiner of the word after it, it was `of what speech''; English puts the preposition after the clause, and the doer after its verb is its subject (wh(pp(Preposition, what), Clause), tr_rel_subject_fix/2)', S92V16,
+         'The dog ignores what the cat speaks of.'),
+    ( reason_translate('El perro ignora de qué habla el gato.', spanish, italian, X92V17) -> S92V17 = X92V17 ; S92V17 = refused ),
+    must('... the lesson''s language before the word that asks', S92V17,
+         'Il cane ignora di cosa parla il gatto.'),
+    ( reason_translate('"Ignoro de qué habla el COI", dijo el gato, "pero el perro duerme.', spanish, english, X92V18) -> S92V18 = X92V18 ; S92V18 = refused ),
+    must('... and the quotation''s closing mark the source''s last word carried goes after the preposition', S92V18,
+         '"I ignore what the IOC speaks of", the cat said, "but the dog sleeps.'),
+    ( reason_translate('"Ignoro de qué habla el COI", dijo el gato, "pero el perro duerme.', spanish, italian, X92V19) -> S92V19 = X92V19 ; S92V19 = refused ),
+    must('... in each language', S92V19,
+         '"Ignoro di cosa parla il CIO", disse il gatto, "ma il cane dorme.'),
+    ( reason_translate('"Ignoro de qué habla el perro", dijo el gato.', spanish, english, X92V20) -> S92V20 = X92V20 ; S92V20 = refused ),
+    must('... and so does a closing mark the writer carries as the word''s case: `"I ignore what the dog speaks" of'' was written (tr_what_mark_off/4)', S92V20,
+         '"I ignore what the dog speaks of", the cat said.'),
+    ( reason_translate('La casa del perro, que duerme, es grande.', spanish, english, X92V21) -> S92V21 = X92V21 ; S92V21 = refused ),
+    must('A RELATIVE CLAUSE SET OFF ON THE SUBJECT''S LAST PHRASE OF `of'' KEEPS ITS COMMAS: `La oficina del sheriff, que declinó ..., reconoció'' (tr_set_off_subject/5)', S92V21,
+         'The house of the dog, who sleeps, is big.'),
+    ( reason_translate('La casa del perro, que duerme, es grande.', spanish, italian, X92V22) -> S92V22 = X92V22 ; S92V22 = refused ),
+    must('... in each language, its closing comma before the verb', S92V22,
+         'La casa del cane, che dorme, è grande.').
+
+section_92_3 :-
+    ( reason_translate('El perro envía muestras.', spanish, english, X92V23) -> S92V23 = X92V23 ; S92V23 = refused ),
+    must('A NOUN THAT CAN SAY A SAMPLE SAYS IT IN THE PLURAL WITH NO DETERMINER: `envía muestras a su laboratorio'' are samples, where `muestra'' is the newspaper''s exhibition first (tr_sample_noun/1)', S92V23,
+         'The dog sends samples.'),
+    ( reason_translate('El perro envía muestras.', spanish, italian, X92V24) -> S92V24 = X92V24 ; S92V24 = refused ),
+    must('... in each language', S92V24,
+         'Il cane spedisce campioni.'),
+    ( reason_translate('El perro ve la muestra.', spanish, english, X92V25) -> S92V25 = X92V25 ; S92V25 = refused ),
+    must('... and with its determiner the exhibition, which says which show', S92V25,
+         'The dog sees the exhibition.'),
+    ( reason_translate('El perro habla con el dopaje.', spanish, english, X92V26) -> S92V26 = X92V26 ; S92V26 = refused ),
+    must('AN ACTIVITY ENGLISH NAMES WITH NO ARTICLE, AS AN -ISM: `con el dopaje'' is with doping (en_mass_activity/1)', S92V26,
+         'The dog speaks with doping.'),
+    ( reason_translate('El perro estuvo presente en los juegos.', spanish, english, X92V27) -> S92V27 = X92V27 ; S92V27 = refused ),
+    must('THE EVENT ONE IS IN IS A PHRASE OF `at'': `presente ... en los Juegos de Salt Lake'' was present AT the Games, where it was `in the Games'' (tr_comp_out/7, en_event_noun/1)', S92V27,
+         'The dog was present at the games.'),
+    ( reason_translate('El perro duerme en el juego.', spanish, english, X92V28) -> S92V28 = X92V28 ; S92V28 = refused ),
+    must('... the games in the plural only: `state proseguendo nel cosiddetto gioco del cerino'' is continuing in the game, and the first cut wrote `at the so-called game''', S92V28,
+         'The dog sleeps in the game.'),
+    ( reason_translate('El perro goza de la fama.', spanish, english, X92V29) -> S92V29 = X92V29 ; S92V29 = refused ),
+    must('THE VERB OF ENJOYING TAKES ITS PHRASE BARE IN ENGLISH: `goza, también, de una enorme fama'' was `enjoys, of an enormous fame'' (en_bare_object/1)', S92V29,
+         'The dog enjoys the fame.'),
+    ( reason_translate('El perro goza de la fama.', spanish, italian, X92V30) -> S92V30 = X92V30 ; S92V30 = refused ),
+    must('... and Italian keeps its `di''', S92V30,
+         'Il cane gode della fama.'),
+    ( reason_translate('La queja viene dada por un hecho.', spanish, english, X92V31) -> S92V31 = X92V31 ; S92V31 = refused ),
+    must('SPANISH `venir'' AND A PARTICIPLE IS THE PASSIVE, as Italian''s `venire'': `Su principal queja viene dada por un hecho evidente'' was `comes given for'' (`"viene" marks the passive.'')', S92V31,
+         'The complaint is given by a fact.').
+
+lesson_92(spanish, 22, 'The name "coi" means "IOC". "coi" is an acronym. "ioc" is an acronym. The verb "sufre" means "suffers". "sufrió" is the past of "sufre". The feminine noun "herida" means "wound". "heridas" is the plural of "herida". "herida" is the participle of "hiere". "heridas" is the participle of "hiere". The verb "hiere" means "injures". The verb "bebe" means "drinks". The masculine noun "agua" means "water". "agua" is not feminine. The masculine adjective "nórdico" means "Nordic". The verb "vende" means "sells". "vender" is the infinitive of "vende". "vende" takes the passive. "va" takes the future. "iba" is the imperfect of "va". "iban" is the imperfect of "van". The verb "ignora" means "ignores". "ignoro" is the first person of "ignora". "ignora" takes the question. The verb "habla" means "speaks". The verb "envía" means "sends". The feminine noun "muestra" means "exhibition". The feminine noun "muestra" means "sample". "muestras" is the plural of "muestra". The masculine noun "dopaje" means "doping". The masculine noun "juego" means "game". "juegos" is the plural of "juego". The adjective "presente" means "present". The verb "goza" means "enjoys". "goza" takes "de" before the phrase. The feminine noun "fama" means "fame". The feminine noun "queja" means "complaint". The masculine noun "hecho" means "fact". The verb "viene" means "comes". The verb "viene" marks the passive. "dijo" is the past of "dice". "said" is the past of "says". "dada" is the participle of "da". "dada" is feminine.').
+lesson_92(italian, 22, 'The name "cio" means "IOC". "cio" is an acronym. "ioc" is an acronym. The verb "soffre" means "suffers". "soffrì" is the past of "soffre". The feminine noun "ferita" means "wound". "ferite" is the plural of "ferita". The verb "beve" means "drinks". The feminine noun "acqua" means "water". The masculine adjective "nordico" means "Nordic". The verb "vende" means "sells". The verb "ignora" means "ignores". "ignoro" is the first person of "ignora". "ignora" takes the question. The verb "parla" means "speaks". The verb "spedisce" means "sends". The masculine noun "campione" means "champion". The masculine noun "campione" means "sample". "campioni" is the plural of "campione". The feminine noun "mostra" means "exhibition". The masculine noun "dopaggio" means "doping". The masculine noun "gioco" means "game". "giochi" is the plural of "gioco". The adjective "presente" means "present". The verb "gode" means "enjoys". "gode" takes "di" before the phrase. The feminine noun "fama" means "fame". The feminine noun "lamentela" means "complaint". The masculine noun "fatto" means "fact".').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support
