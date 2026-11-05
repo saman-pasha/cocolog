@@ -3,7 +3,7 @@
 One table for everything a program written for SWI-Prolog can trip over. Each
 row was checked by running the same goal on both systems (SWI-Prolog 9.0.4, and
 the installed 10.0.2 where the two agree; cocolog 3.1.0, every row checked
-again on it, and the rows 3.2.0, 3.4.0, 3.5.0, 3.13.0, 3.14.0, 3.15.0, 3.16.0, 3.17.0, 3.18.0 and 3.19.0 changed on those) — not recalled
+again on it, and the rows 3.2.0, 3.4.0, 3.5.0, 3.13.0, 3.14.0, 3.15.0, 3.16.0, 3.17.0, 3.18.0, 3.19.0 and 3.20.0 changed on those) — not recalled
 from the code — and the column on the right says what to write instead.
 
 The rows that can give a **silently wrong answer** come first, because they are
@@ -14,6 +14,7 @@ an existence error, an instantiation error, a refusal by name.
 
 | what | SWI-Prolog | cocolog | what to do |
 |---|---|---|---|
+| the goal of a determinism error `$(G)` raises, of a variable its clause names nowhere else (`p :- $(q(_)).` over `q(1). q(2).`) | the clause's goal decompiled: the variable fresh, `determinism_error(q(_), det, nondet, goal)` | G as it ran, the variable bound: `determinism_error(q(1), det, nondet, goal)` (3.20.0) | name the variable twice to see it the same in both |
 | `retract/1` | re-executable: `findall(X, retract(p(X)), L)` takes every clause, `[1,2,3]` | **deterministic**: removes the first match and leaves no choice point, `[1]` | `retractall/1` for all of them; or a recursion that retracts one and recurses until `retract/1` fails |
 | `clause/2` changing its predicate during its own enumeration | the clauses that stood when it began: `findall(X, ( clause(q(X), true), ( X == 1 -> retract(q(1)) ; true ) ), L)` over `q(1). q(2). q(3).` is `[1,2,3]`, and with `asserta(q(0))` in the retract's place `[1,2,3]` too | the count taken when it began and each clause read by its place among the live ones then: `[1,3]`, and `[1,1,1]`. A CALL of the predicate keeps ISO's logical update view as swipl's does (since 2.3.0; through 2.2.5 a retry read the live clauses too) | `findall/3` the clauses first, then change the predicate |
 | a clause whose body begins with a unification of a head variable that the body names again (`p(X) :- X = 1, X = 2.`, `p(X, Y) :- X = f(Y), Y = 1.`) | its compiler moves the unification into the head anyway, and `clause/2` shows the later goal on another variable: `p(1) :- A = 2`, and `p(f(A), A) :- A = A` -- which is also what runs, so `p(f(2), 2)` succeeds where the source says it fails | moves a unification only where its variable is named nowhere else in the clause (3.15.0), and runs what the source says: `p(X) :- X = 1, X = 2` as written, and `p(f(A), A) :- A = 1`; a plain one moves as swipl's does (`p(X) :- X = f(Y), q(Y)` is `p(f(Y)) :- q(Y)`) | write the term in the head |
@@ -60,12 +61,15 @@ an existence error, an instantiation error, a refusal by name.
 | `:- include(F).` of a file already open on the way down to it, or sixty-four files deep | reads it again, and again, until the process is killed | `No permission to include source_sink `F'`, error(permission_error(include, source_sink, F), _), and the load ends there, what it read before standing (3.5.0; through 3.4.0 include/1 was no directive, and a goal of it an unknown procedure) | an include that ends |
 | `:- include(library(N)).` of a library cocolog compiles in (`lists`, `apply`, `dcg_basics`, ...) | reads the library's source where the directive stands, and its `:- module/2` makes the rest of the including file that module's (`mine(1)` after it is `lists:mine(1)`) | ``source_sink `library(lists)' does not exist``, and the load ends: the library is in the binary, and there is no source to read (a library on the library path is read, 3.5.0) | `:- use_module(library(N)).`, a no-op here |
 | a module whose load a ball ended, after it had defined something, in a thread or `run_isolated/2` made after | the thread sees what the load defined before the ball: the module is loaded, as in the thread that loaded it | passes the module by (3.6.0): a store made after reads no module whose last read stopped short, so the thread sees none of it, where the store that loaded it keeps what it read | load the module whole before making the thread |
+| `$(G)` of a library predicate's last answer (`$(member(X, [1]))`, `$(select(X, [1], R))`, `$(between(1, 1, X))`, `$(nth0(I, [a], E))`) | succeeds: each leaves no choice point on its last answer | `determinism_error(member(1, [1]), det, nondet, goal)` (3.20.0, where `$/1` came): cocolog's member/2, select/3, between/3 and nth0/3 and nth1/3 with the index unbound leave one there, which nothing showed before | `$(once(G))`, or memberchk/2 |
 | `use_module(F)` of a file with no `:- module/2` | refuses it, ``Domain error: `module_header' expected``, and the load directive fails; the file is a loaded file all the same, as swipl's source files are | loads it, one namespace, its clauses callable as any file's; a file read that way is loaded on swipl's rule (3.6.0: once a read of it defined something) | `ensure_loaded(F)` for a file with no module |
 | `swipl -g Goal file.pl` against `cocolog run file.pl Goal`, `file.pl` holding `:- initialization(G, main).` | runs Goal, then G in the toplevel's place, and halts | runs G after the load and halts; Goal is not run (the main goal IS the program: `-s file.pl` would otherwise call main/0 and then G, main twice). Since 3.7.0 G is the whole load's, a nested file's too, after every after_load goal, the last one registered | the goal in the main, or no main |
 | `consult/1` as a goal of a running program, of a file holding `:- initialization(G, main).` | runs G once the program's goal is done (the toplevel's place), and halts | runs G when that consult ends and halts: the rest of the goal that consulted is not run | `initialization(G, main)` in the script |
 
 ## Not there at all (`existence_error`)
 
+`$/0` (swipl's: the clause it stands in is deterministic from there on; `$/1` and
+`@/2` are there since 3.20.0, the control constructs swipl's compiler makes them),
 `numbervars/3`, `freeze/2` and coroutining, `table/1` and tabling (since 3.2.0
 `:- table p/2.` reads, `table` being swipl's 1150 fx operator, and the load
 reports `table/1` as an unknown procedure and goes on), swipl's dicts and the

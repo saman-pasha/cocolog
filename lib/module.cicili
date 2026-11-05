@@ -1573,16 +1573,13 @@
   ;;; variable, type_error(callable, GOAL) for anything else -- and for a
   ;;; control structure with a goal that is no goal anywhere in it (3.1.0,
   ;;; `coco_goal_ok'), the whole of it, as swipl compiles it before it runs
+  ;;; -- and a G@M's own fault, its module's (3.20.0, `coco_goal_formal')
   (func coco_m_goal_bad ((coco_engine * e) (size_t goal) (const char * mod)
                          (const char * name) (u32 arity)) (out int)
         (let ((coco_machine * m . #'(-> e m)))
           (set goal (coco_deref m goal))
           (if (coco_goal_ok m goal) (return 0))
-          (if (coco-tag-is REF (nth goal (-> m heap)))
-              (return (coco_m_raise_pi e (coco_new_atom m "instantiation_error")
-                                       mod name arity)))
-          (return (coco_m_raise_pi e (coco_make2 m "type_error" (coco_new_atom m "callable") goal)
-                                   mod name arity))))
+          (return (coco_m_raise_pi e (coco_goal_formal m goal) mod name arity))))
 
   ;;; an unbound culprit is an instantiation_error (3.0.0), as swipl's
   ;;; PL_error() makes ERR_TYPE of a variable; type_error(variable, T) stays

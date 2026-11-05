@@ -803,6 +803,162 @@
             (set (-> e goals) (coco_k_push e gl b k))
             (return 1))))
 
+  ;;; ---- $(G) and G@M (3.20.0, swipl's) -------------------------------------
+  ;;;
+  ;;; $(G) IS G, WHICH MUST SUCCEED AND LEAVE NO CHOICE POINT: a GOAL frame
+  ;;; at CI is pushed before G runs, its alternative `'$det_fail'($(G),
+  ;;; Ctx)' -- failing into it is G's failure, determinism_error(G, det,
+  ;;; fail, goal) -- G runs with its cut its own (the height after the
+  ;;; frame), as swipl's `$(!)' cuts G alone, and `'$det_exit'(CI, $(G),
+  ;;; Ctx)' after it asks whether a choice point G made is left:
+  ;;; determinism_error(G, det, nondet, goal) with G as it exited, else the
+  ;;; frame goes. CTX is the frame swipl's compile puts `$/1' in: the
+  ;;; clause it is written in, `'<meta-call>'/1' where it was meta-called or
+  ;;; is a search's own goal (`coco-with-parts'). The alternative and the
+  ;;; exit are built before the push, below the frame's heap mark, as
+  ;;; catch/3's recovery is, and neither step is an inference (swipl's `$'
+  ;;; is compiled in place: `frees'). Answers as `coco_construct' does.
+  ;;; Not swipl's: a variable of G its clause names nowhere else is bound in
+  ;;; the error's G, where swipl's decompiled goal has a fresh one (COMPAT.md).
+
+  ;;; determinism_error(G, det, WHAT, goal), D the `$(G)'
+  (weak) (cold)
+  (func coco_det_error ((coco_machine * m) (size_t d) (const char * what)) (out size_t)
+        (let ((size_t args [4]))
+          (set (nth 0 args) (coco_arg m (coco_deref m d) 0))
+          (set (nth 1 args) (coco_new_atom m "det"))
+          (set (nth 2 args) (coco_new_atom m what))
+          (set (nth 3 args) (coco_new_atom m "goal"))
+          (return (coco_make m "determinism_error" 4 args))))
+
+  (weak)
+  (func coco_det ((coco_engine * e) (size_t g) (size_t k) (size_t b) (int * ret)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (coco-with-parts (sb)
+            (let ((size_t ci . #'(-> e nchoices))
+                  (size_t ctx . 0) (size_t alt . 0) (size_t ex . 0)
+                  (size_t args [3]))
+              ;; a search's own goal, or the host's, is compiled into a
+              ;; `'<meta-call>'/1' too: G's errors and its own name it
+              (if (== (coco-bar-pred sb) 0) (set sb (bitor (coco-bar-low sb) (coco_mc_tag m))))
+              (set ctx (coco_owner_ctx e sb))
+              (set alt (coco_make2_f m (coco-fid m "$det_fail" 2) g ctx))
+              (set (nth 0 args) (coco_new_int m (cast i64 ci)))
+              (set (nth 1 args) g)
+              (set (nth 2 args) ctx)
+              (set ex (coco_make_f m (coco-fid m "$det_exit" 3) 3 args))
+              (if (not (coco_push_choice e COCO_CH_GOAL alt k sb))
+                  (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
+              ;; failing into it is no Redo of anything the program wrote
+              (set ($ (nth ci (-> e tchoices)) printr) 0)
+              (set (-> e frees) (+ (-> e frees) 1))
+              (set (-> e goals) (coco_k_push e (coco_arg m g 0)
+                                             (bitor (-> e nchoices) (coco-bar-tag sb))
+                                             (coco_k_push e ex sb k)))))
+          (return 1)))
+
+  ;;; `'$det_exit'(CI, $(G), Ctx)': G exited. A frame above CI it may still
+  ;;; retry is a choice point left -- none DEAD (a catch's that exited, a
+  ;;; soft cut's else), CATCH_RETRY or SPENT, the kinds `coco_catch_exit'
+  ;;; passes over, where a CATCH frame G made is gone, its goal having
+  ;;; exited through `$catch_exit' before this; and no CLAUSE frame only
+  ;;; trace kept, its last candidate entered (`last', set by
+  ;;; `coco_select_clause', cleared where a traced call pushes the frame,
+  ;;; whose PRINTR says so: the push itself writes it for no other, a store
+  ;;; every choice point would pay, and a frame no traced call pushed goes
+  ;;; at its last candidate as it does untraced; CLOCKED is none under
+  ;;; trace, `coco_clock_mark') -- else the frame at CI and every dead one
+  ;;; above it go
+  (weak)
+  (func coco_det_exit ((coco_engine * e) (size_t g) (size_t k) (int * ret)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t ci . #'(cast size_t (coco-signed-payload
+                                            (nth (coco_deref m (coco_arg m g 0)) (-> m heap)))))
+              (size_t c . 0))
+          ;; the frame `$(G)' pushed, or no marker of its own: one a
+          ;; program wrote names no frame and cuts nothing
+          (if (< ci (-> e nchoices))
+              (set c ($ (nth ci (-> e choices)) call)))
+          (if (and (< ci (-> e nchoices))
+                   (== (nth c (-> m heap)) (coco-cell FUN (coco-fid m "$det_fail" 2))))
+              (let ((int live . 0) (size_t i . #'(+ ci 1)))
+                (while (< i (-> e nchoices))
+                  (let ((int fk . #'($ (nth i (-> e choices)) kind)))
+                    (if (and (!= fk COCO_CH_DEAD) (!= fk COCO_CH_CATCH_RETRY) (!= fk COCO_CH_SPENT)
+                             (not (and (-> e trace) (== fk COCO_CH_CLAUSE)
+                                       ($ (nth i (-> e tchoices)) printr)
+                                       ($ (nth i (-> e tchoices)) last))))
+                        (block (set live 1) break)))
+                  (set i (+ i 1)))
+                (if live
+                    (let ((int rc . 0))
+                      (set (-> e kcall) (coco_arg m g 1))
+                      (set rc (coco_raise_ctx e (coco_det_error m (coco_arg m g 1) "nondet")
+                                              (coco_arg m g 2)))
+                      (if (== rc 2) (return 1))
+                      (set (cof ret) rc)
+                      (return 2)))
+                (set (-> e nchoices) ci)))
+          (set (-> e frees) (+ (-> e frees) 1))
+          (set (-> e goals) k)
+          (return 1)))
+
+  ;;; `'$det_fail'($(G), Ctx)': G failed
+  (weak) (cold)
+  (func coco_det_fail ((coco_engine * e) (size_t g) (int * ret)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (int rc . 0))
+          (set (-> e kcall) (coco_arg m g 0))
+          (set rc (coco_raise_ctx e (coco_det_error m (coco_arg m g 0) "fail") (coco_arg m g 1)))
+          (if (== rc 2) (return 1))
+          (set (cof ret) rc)
+          (return 2)))
+
+  ;;; G@M IS G, CALLED WITH M FOR ITS CONTEXT MODULE. One namespace has no
+  ;;; context to set, so G runs as the program's goal, with the cut of the
+  ;;; clause it is written in -- transparent, as swipl's -- and in that
+  ;;; clause's frame (META: an unknown procedure in G names the clause,
+  ;;; swipl's I_CALLATM making no last call); meta-called -- by call/1, a
+  ;;; frame of swipl's own, a search's root, or in a structure compiled
+  ;;; into a `'<meta-call>'/1' -- G runs in a `'<meta-call>'/1', as
+  ;;; swipl's call/1 compiles it. An unbound M is instantiation_error, an M
+  ;;; that is no atom type_error(module, M), each named by the frame G@M
+  ;;; runs in; a meta-call asked them first (`coco_goal_check') -- and
+  ;;; whether G is a goal, which no clause stores otherwise (a load refuses
+  ;;; it, a variable G is call/1 of G@M) -- so here they are a clause's
+  ;;; `@(foo, M)' and the unbound parts of a structure's, whose unbound G
+  ;;; the step raises as it takes it, in the same frame. No inference of
+  ;;; its own. Answers as `coco_construct' does.
+  (weak)
+  (func coco_at ((coco_engine * e) (size_t g) (size_t k) (size_t b) (int * ret)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t gl . #'(coco_deref (-> e m) (coco_arg (-> e m) g 0)))
+              (size_t mo . #'(coco_deref (-> e m) (coco_arg (-> e m) g 1)))
+              (size_t formal . 0) (int bad . 0))
+          (cond
+            ((coco-tag-is REF (nth mo (-> m heap)))
+             (block (set bad 1) (set formal (coco_new_atom m "instantiation_error"))))
+            ((or (not (coco-tag-is ATOM (nth mo (-> m heap)))) (coco_is_nil m mo))
+             (block (set bad 1) (set formal (coco_make2 m "type_error" (coco_new_atom m "module") mo)))))
+          (if bad
+              (let ((int rc . 0))
+                (set (-> e kcall) g)
+                (set rc (coco_raise_ctx e formal
+                                        (? (== (coco-bar-pred b) 0)
+                                           (coco_ectx_pi m "system" (coco_new_atom m "<meta-call>") 1
+                                                         (coco_new_var m))
+                                           (coco_owner_ctx e b))))
+                (if (== rc 2) (return 1))
+                (set (cof ret) rc)
+                (return 2)))
+          (set (-> e frees) (+ (-> e frees) 1))
+          (set (-> e goals)
+               (coco_k_push e gl
+                            (? (or (coco-bar-sys b) (coco-bar-meta b) (== (coco-bar-pred b) 0))
+                               (bitor (coco-bar-low b) (coco_mc_tag m))
+                               (bitor b (coco-bar-metabit)))
+                            k))
+          (return 1)))
+
   (static)
   ;;; A CONTROL CONSTRUCT, run: `true', `fail', `,', `!', the cuts, `;',
   ;;; `->', `*->', `\+', `once', `ignore', `call', `catch', `throw' and
@@ -1166,6 +1322,18 @@
                   ;; M:G, a goal (3.1.0)
                   ((and (== n 2) (== nid (coco-id m ":")))
                    (return (coco_colon e g k b ok ret)))
+
+                  ;; $(G), its exit and its failure, and G@M (3.20.0): last,
+                  ;; so no construct before them tests them; `$/0' is none
+                  ;; yet, and passes to the predicate it names
+                  ((and (== n 1) (== nid (coco-id m "$")))
+                   (return (coco_det e g k b ret)))
+                  ((and (== n 3) (== nid (coco-id m "$det_exit")))
+                   (return (coco_det_exit e g k ret)))
+                  ((and (== n 2) (== nid (coco-id m "$det_fail")))
+                   (return (coco_det_fail e g ret)))
+                  ((and (== n 2) (== nid (coco-id m "@")))
+                   (return (coco_at e g k b ret)))
 
                   (#t (return 0)))
           (return 1)))
@@ -2004,6 +2172,9 @@
                                         (set (-> tc depth) tD)
                                         (set (-> tc printr) 1)
                                         (set (-> tc exited) 0)
+                                        ;; its selection says when it enters
+                                        ;; its last candidate (`coco_det_exit')
+                                        (set (-> tc last) 0)
                                         (coco_rec_hkey e ci)))
                                   ;; and records the heads it tried that did not
                                   ;; match and the clause entered, after the

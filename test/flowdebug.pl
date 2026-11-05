@@ -513,7 +513,23 @@ asked_why(D) :-
     ( x_el(X4, why, _) -> Y4w = said ; Y4w = none ),
     ( W4 = [exited(1, top/2, _, _)] -> W4s = exited ; W4s = W4 ),
     check('a run that answered: its top call exited, and no <why>', W4s-Y4w, exited-none),
-    asked_why_own(D).
+    asked_why_own(D),
+    asked_why_det(D).
+
+%% $(G) AND G@M ARE CONTROL (3.20.0): no port of their own, as once/1, and
+%% each call in them matched to its box inside
+asked_why_det(D) :-
+    atomic_list_concat([D, '/det10.pl'], F10),
+    fixture(F10, ['l10(1).', 'l10b(1).', 't10 :- $(l10(X)), @(l10b(X), m), X > 5.']),
+    atomic_list_concat([D, '/det10'], B10),
+    flow_debug(t10, B10, [source(F10)], R10),
+    flow_why(R10, W10), why_shape(W10, S10),
+    R10 = run(_, _, _, _, Calls10, _, _, _),
+    findall(N10-Box10, member(call(_, N10, _, _, Box10, _, _, _, _, _), Calls10), Bs10),
+    check('$(G) and G@M: no port of their own, each call in its box inside',
+          S10-Bs10,
+          [why(t10/0, [entered(1, [exited(l10/1), exited(l10b/1), failed((>)/2)])])]
+          -[t10/0-'query.g1', l10/1-'p1.c1.g1.g1', l10b/1-'p1.c1.g2.g1', (>)/2-'p1.c1.g3']).
 
 %% a program of two files debugged from its top: the chart has a panel for
 %% the top's predicates alone, so the why stopped at the first call into the

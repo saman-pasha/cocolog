@@ -659,6 +659,13 @@ flow_an_item(once(G), St0, St, Ctx, M0, M, [meta(once, once('…'), [':'], [Ns],
 flow_an_item(ignore(G), St0, St, Ctx, M0, M, [meta(ignore, ignore('…'), [':'], [Ns], [])]) :- !,
     flow_an_seq(G, St0, St1, Ctx, M0, M, Ns),
     flow_join(St0, St1, St).
+%% swipl's control constructs (cocolog 3.20.0): $(G) is G, which must
+%% succeed once, and G@M is G with M for its context module
+flow_an_item($(G), St0, St, Ctx, M0, M, [meta($, $('…'), [':'], [Ns], [])]) :- !,
+    flow_an_seq(G, St0, St, Ctx, M0, M, Ns).
+flow_an_item(@(G, Mo), St0, St, Ctx, M0, M, [meta(@, @('…', Mo), [':', MM], [Ns], [])]) :- !,
+    flow_arg_mode(Mo, St0, MM),
+    flow_an_seq(G, St0, St, Ctx, M0, M, Ns).
 flow_an_item(catch(G, Ball, R), St0, St, Ctx, M0, M, [catchc(Gn, Ball, Rn)]) :- !,
     flow_an_seq(G, St0, St1, Ctx, M0, M1, Gn),
     flow_catcher_state(Ball, St0, StR),
@@ -1177,18 +1184,21 @@ flow_node_nondet(ite(_, Arms, Else)) :- !,
     ;   Else \== none, flow_nodes_nondet(Else)
     ).
 flow_node_nondet(meta(phrase, _, _, [Ns], _)) :- !, flow_nodes_nondet(Ns).
+flow_node_nondet(meta(@, _, _, [Ns], _)) :- !, flow_nodes_nondet(Ns).
 flow_node_nondet(catchc(G, _, R)) :-
     (   flow_nodes_nondet(G) -> true ; flow_nodes_nondet(R) ).
 
 %% findall/3,4 fails only on a list it is handed; aggregate_all/3 on a
 %% result it is handed, or for max or min of nothing; forall/2 on a
-%% counter-example; ignore/1 never; once/1 as its goal does
+%% counter-example; ignore/1 never; once/1 as its goal does; $/1 never (a
+%% goal that fails raises determinism_error), and @/2 as its goal does
 flow_meta_can_fail(findall, _, Ms, _, CF) :- !,
     (   Ms = [_, _, '-'|_] -> CF = false ; CF = true ).
 flow_meta_can_fail(aggregate_all, aggregate_all(Spec, _, _), [_, _, MR], _, CF) :- !,
     (   MR == '-', nonvar(Spec), \+ flow_agg_partial(Spec) -> CF = false ; CF = true ).
 flow_meta_can_fail(forall, _, _, _, true) :- !.
 flow_meta_can_fail(ignore, _, _, _, false) :- !.
+flow_meta_can_fail($, _, _, _, false) :- !.
 flow_meta_can_fail(cond_wait_until, _, _, _, false) :- !.    % it waits until the goal holds
 flow_meta_can_fail(httpd_serve, _, _, _, false) :- !.        % a page that fails is a 404
 flow_meta_can_fail(_, _, _, [Ns], CF) :-

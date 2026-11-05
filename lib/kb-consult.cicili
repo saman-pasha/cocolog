@@ -725,15 +725,28 @@
   ;;; - THE UNIFICATIONS THAT BEGIN THE BODY GO INTO THE HEAD, under swipl's
   ;;;   flag `optimise_unify' (`coco_cbody_scan'): `p(X) :- X = f(Y), q(Y)'
   ;;;   is `p(f(Y)) :- q(Y)', and a body left with nothing is `true'.
+  ;;; - `$(G)' IS COMPILED IN PLACE (3.20.0), its G an arm (`$((a, (b,
+  ;;;   c)))' is `$((a, b, c))', `$(X)' `$(call(X))'), and keeps no qualifier
+  ;;;   of its own: `foo:$(p)' is `$(foo:p)'.
+  ;;; - G@M IS SAID OF EACH GOAL UNDER IT (3.20.0), as a qualifier is,
+  ;;;   through the constructs and into a `$': `@((a ; b), m)' is `@(a, m) ;
+  ;;;   @(b, m)', `@($(p), m)' `$(@(p, m))', the innermost `@' winning and
+  ;;;   a qualifier staying inside it (`foo:@(p, m)' is `@(foo:p, m)',
+  ;;;   `@(user:p, m)' `@(p, m)'); the goals the compiler makes no call of
+  ;;;   lose it, and under a variable qualifier each goal is call(@(M:G, A)).
+  ;;; - A VARIABLE GOAL UNDER A VARIABLE MODULE is call(M:X) (3.20.0; through
+  ;;;   3.19.5 `M:(a, X)' made it call(call(M:X))).
   ;;; The compile's state: the clause, its variables counted on the first
-  ;;; question (COUNTED 1, or -1 where the walk gave up), and the goals that
-  ;;; went into the head.
+  ;;; question (COUNTED 1, or -1 where the walk gave up), the goals that
+  ;;; went into the head, and AT the module of the `@' the walk is inside
+  ;;; (`(size_t)-1' for none).
   (struct coco_cbody
     (member size_t        clause)
     (member int           counted)
     (member coco_varmap * vm)
     (member size_t *      drop)
-    (member u32           ndrop))
+    (member u32           ndrop)
+    (member size_t        at))
 
   ;;; Each unbound variable's occurrences in the whole clause, once: an
   ;;; explicit stack, and past twice the heap's length and 64 nodes the
@@ -813,9 +826,10 @@
                             (== 0 (strcmp nm "rational")))))))
 
   ;;; Which construct G is, by its characters (`coco_cbody_goal'): 1 `,',
-  ;;; 2 `;', 3 '|', 4 `->', 5 `*->', 6 `\+', 7 `:', 8 `=', 0 none. A name is
-  ;;; compared only where its first byte could be a construct's: a strcmp a
-  ;;; node cost the translator's consult 1.3 million instructions (3.2.0).
+  ;;; 2 `;', 3 '|', 4 `->', 5 `*->', 6 `\+', 7 `:', 8 `=', 9 `$/1', 10
+  ;;; `@/2', 0 none. A name is compared only where its first byte could be a
+  ;;; construct's: a strcmp a node cost the translator's consult 1.3
+  ;;; million instructions (3.2.0).
   (static)
   (func coco_cbody_kind ((coco_machine * m) (size_t g)) (out int)
         (if (not (coco-tag-is FUN (nth g (-> m heap)))) (return 0))
@@ -825,11 +839,14 @@
           (if (or (== n 0) (> n 2)) (return 0))
           (set c0 (bitand (cast int (nth 0 nm)) 255))
           (if (== n 1)
-              (return (? (and (== c0 92) (and (== (bitand (cast int (nth 1 nm)) 255) (coco-ch "+"))
-                                              (== (nth 2 nm) 0)))
-                         6 0)))
+              (block
+                (if (and (== c0 (coco-ch "$")) (== (nth 1 nm) 0)) (return 9))
+                (return (? (and (== c0 92) (and (== (bitand (cast int (nth 1 nm)) 255) (coco-ch "+"))
+                                                (== (nth 2 nm) 0)))
+                           6 0))))
           (if (not (or (or (or (== c0 (coco-ch ",")) (== c0 (coco-ch ";"))) (or (== c0 (coco-ch "|")) (== c0 (coco-ch "-"))))
-                       (or (or (== c0 (coco-ch "*")) (== c0 (coco-ch ":"))) (== c0 (coco-ch "=")))))
+                       (or (or (== c0 (coco-ch "*")) (== c0 (coco-ch ":")))
+                           (or (== c0 (coco-ch "=")) (== c0 (coco-ch "@"))))))
               (return 0))
           (set c1 (bitand (cast int (nth 1 nm)) 255))
           (if (== c1 0)
@@ -838,6 +855,7 @@
                     ((== c0 (coco-ch "|")) (return 3))
                     ((== c0 (coco-ch ":")) (return 7))
                     ((== c0 (coco-ch "=")) (return 8))
+                    ((== c0 (coco-ch "@")) (return 10))
                     (#t (return 0))))
           (if (and (== c0 (coco-ch "-")) (and (== c1 (coco-ch ">")) (== (nth 2 nm) 0))) (return 4))
           (if (and (== c0 (coco-ch "*")) (== 0 (strcmp nm "*->"))) (return 5))
@@ -851,6 +869,19 @@
         (let ((size_t q . #'(coco_make2 m ":" mod g)))
           (if (coco-tag-is REF (nth (coco_deref m mod) (-> m heap))) (return (coco_make1 m "call" q)))
           (return q)))
+
+  ;;; G as written under MOD and inside the `@' the walk is in (3.20.0):
+  ;;; `coco_cbody_qual''s answer outside one, else @(G, A) with G
+  ;;; qualified, call/1 of it under a variable MOD
+  (static)
+  (func coco_cbody_wrap ((coco_machine * m) (coco_cbody * cb) (size_t g) (size_t mod)) (out size_t)
+        (if (== (-> cb at) (cast size_t -1)) (return (coco_cbody_qual m g mod)))
+        (let ((size_t q . #'(? (== mod (cast size_t -1)) g (coco_make2 m ":" mod g)))
+              (size_t r . 0))
+          (set r (coco_make2 m "@" q (-> cb at)))
+          (if (and (!= mod (cast size_t -1)) (coco-tag-is REF (nth (coco_deref m mod) (-> m heap))))
+              (return (coco_make1 m "call" r)))
+          (return r)))
 
   (decl) (func coco_cbody_goal ((coco_machine * m) (coco_cbody * cb) (size_t g) (size_t mod)
                                 (int depth)) (out size_t))
@@ -913,7 +944,7 @@
               (set ok (coco_cbody_push m r (aof v) (aof vn) (aof vcap) loc))
               (set t (coco_deref m (coco_arg m t 1)))))
           (if (not ok)
-              (block (if (!= v loc) (free v)) (return (coco_cbody_qual m g mod))))
+              (block (if (!= v loc) (free v)) (return (coco_cbody_wrap m cb g mod))))
           (if same (block (if (!= v loc) (free v)) (return g)))
           ;; made again, from its last goal back
           (set r (cast size_t -1))
@@ -932,15 +963,42 @@
   (func coco_cbody_goal ((coco_machine * m) (coco_cbody * cb) (size_t g) (size_t mod) (int depth))
         (out size_t)
         (set g (coco_deref m g))
-        (if (> depth 256) (return (coco_cbody_qual m g mod)))
+        (if (> depth 256) (return (coco_cbody_wrap m cb g mod)))
+        ;; a variable goal: call/1 of it as it stands, qualified and inside
+        ;; its `@', one call/1 under a variable module too
         (if (coco-tag-is REF (nth g (-> m heap)))
-            (return (coco_make1 m "call" (coco_cbody_qual m g mod))))
+            (block
+              (if (and (== (-> cb at) (cast size_t -1))
+                       (or (== mod (cast size_t -1))
+                           (not (coco-tag-is REF (nth (coco_deref m mod) (-> m heap))))))
+                  (return (coco_make1 m "call" (coco_cbody_qual m g mod))))
+              (if (== (-> cb at) (cast size_t -1))
+                  (return (coco_cbody_qual m g mod)))
+              (return (coco_make1 m "call"
+                                  (coco_make2 m "@" (? (== mod (cast size_t -1)) g (coco_make2 m ":" mod g))
+                                              (-> cb at))))))
         (if (and (coco-tag-is FUN (nth g (-> m heap))) (== (coco_arity m g) 0))
             (set g (coco_new_atom_id m (coco_name_of m g))))
         (if (not (coco_is_callable m g)) (return (coco_cbody_qual m g mod)))
         (let ((int k . #'(coco_cbody_kind m g)) (u64 nid . #'(coco_name_of m g)))
           (cond
             ((== k 1) (return (coco_cbody_conj m cb g mod depth)))
+            ;; $(G): G an arm, in place
+            ((== k 9)
+             (let ((size_t a . #'(coco_deref m (coco_arg m g 0)))
+                   (size_t ra . #'(coco_cbody_arm m cb a mod (+ depth 1))))
+               (if (== ra a) (return g))
+               (return (coco_make1 m "$" ra))))
+            ;; G@M: G's goals each inside M, the innermost `@' winning (an M
+            ;; that is no module, a load and an assert refuse)
+            ((== k 10)
+             (let ((size_t gg . #'(coco_deref m (coco_arg m g 0)))
+                   (size_t am . #'(coco_deref m (coco_arg m g 1)))
+                   (size_t sat . #'(-> cb at)) (size_t r . 0))
+               (set (-> cb at) am)
+               (set r (coco_cbody_goal m cb gg mod (+ depth 1)))
+               (set (-> cb at) sat)
+               (return r)))
             ((and (>= k 2) (<= k 5))
              (let ((size_t a . #'(coco_deref m (coco_arg m g 0)))
                    (size_t b . #'(coco_deref m (coco_arg m g 1)))
@@ -957,8 +1015,11 @@
              (let ((size_t mm . #'(coco_deref m (coco_arg m g 0)))
                    (size_t gg . #'(coco_deref m (coco_arg m g 1))))
                (cond
-                 ;; M:X, X a variable: call/1 of it as written
-                 ((coco-tag-is REF (nth gg (-> m heap))) (return (coco_make1 m "call" g)))
+                 ;; M:X, X a variable: call/1 of it as written, inside its
+                 ;; `@' (3.20.0)
+                 ((coco-tag-is REF (nth gg (-> m heap)))
+                  (return (coco_make1 m "call" (? (== (-> cb at) (cast size_t -1)) g
+                                                  (coco_make2 m "@" g (-> cb at))))))
                  ((and (coco-tag-is ATOM (nth mm (-> m heap))) (not (coco_is_nil m mm)))
                   (block
                     (if (== 0 (strcmp (coco_atom_name m (coco_name_of m mm)) "user"))
@@ -973,9 +1034,9 @@
             ((== k 8)
              (for ((u32 i . 0)) (< i (-> cb ndrop)) ((++ i))
                (if (== (nth i (-> cb drop)) g) (return (cast size_t -1)))))))
-        (if (== mod (cast size_t -1)) (return g))
+        (if (and (== mod (cast size_t -1)) (== (-> cb at) (cast size_t -1))) (return g))
         (if (coco_cbody_inline (coco_arity m g) (coco_atom_name m (coco_name_of m g))) (return g))
-        (return (coco_cbody_qual m g mod)))
+        (return (coco_cbody_wrap m cb g mod)))
 
   ;;; THE UNIFICATIONS THAT BEGIN THE BODY (3.15.0), as swipl's compiler
   ;;; takes them into the head: the leading goals walked, a `true' and a
@@ -1045,6 +1106,7 @@
           (set ($ cb vm) (aof vm))
           (set ($ cb drop) nil)
           (set ($ cb ndrop) 0)
+          (set ($ cb at) (cast size_t -1))
           (set nh h)
           (if (and lift (and (coco_optimise_unify)
                              (and (coco-tag-is FUN (nth h (-> m heap))) (> (coco_arity m h) 0))))
@@ -1904,7 +1966,7 @@
                 (set ok (coco_fv_keep fv b))
               (if (and (coco_is_callable m b) (not (coco_is_nil m b)))
                   (let ((u64 nid . #'(coco_name_of m b)) (u32 n . #'(coco_arity m b)))
-                    (if (and (== n 1) (== nid (nth 4 ids)))
+                    (if (and (== n 1) (or (== nid (nth 4 ids)) (== nid (nth 11 ids))))
                         (block (set b (coco_arg m b 0)) (set next 1))
                       (if (== n 2)
                           (cond
@@ -1912,6 +1974,12 @@
                              (let ((size_t q . #'(coco_deref m (coco_arg m b 0))))
                                (if (coco-tag-is REF (nth q (-> m heap))) (set ok (coco_fv_keep fv q)))
                                (set b (coco_arg m b 1))
+                               (set next 1)))
+                            ;; G@M (3.20.0): its module, then its goal
+                            ((== nid (nth 12 ids))
+                             (let ((size_t q . #'(coco_deref m (coco_arg m b 1))))
+                               (if (coco-tag-is REF (nth q (-> m heap))) (set ok (coco_fv_keep fv q)))
+                               (set b (coco_arg m b 0))
                                (set next 1)))
                             ((or (or (== nid (nth 0 ids)) (== nid (nth 1 ids)))
                                  (or (or (== nid (nth 2 ids)) (== nid (nth 3 ids))) (== nid (nth 6 ids))))
@@ -1934,11 +2002,12 @@
   (static)
   (func coco_fv_control ((coco_machine * m) (size_t t) (const u64 * ids)) (out int)
         (let ((u64 nid . #'(coco_name_of m t)) (u32 n . #'(coco_arity m t)))
-          (if (== n 1) (return (== nid (nth 4 ids))))
+          (if (== n 1) (return (or (== nid (nth 4 ids)) (== nid (nth 11 ids)))))
           (if (!= n 2) (return 0))
           (return (or (or (or (== nid (nth 0 ids)) (== nid (nth 1 ids)))
                           (or (== nid (nth 2 ids)) (== nid (nth 3 ids))))
-                      (or (== nid (nth 6 ids)) (== nid (nth 7 ids)))))))
+                      (or (or (== nid (nth 6 ids)) (== nid (nth 7 ids)))
+                          (== nid (nth 12 ids)))))))
 
   ;;; SWIPL'S COUNT of each variable kept: T walked with CONTROL 1 where
   ;;; it is the body's control, 0 in the head and inside a goal. Frames:
@@ -2113,10 +2182,13 @@
                           ((and (== n 2) (or (== nid (nth 2 ids)) (== nid (nth 3 ids))))
                            (set ok (and (coco_fv_push4 fv 0 (coco_arg m g 1) 0 0)
                                         (coco_fv_push4 fv 0 (coco_arg m g 0) 0 0))))
-                          ((and (== n 1) (== nid (nth 4 ids)))
+                          ((and (== n 1) (or (== nid (nth 4 ids)) (== nid (nth 11 ids))))
                            (set ok (coco_fv_push4 fv 0 (coco_arg m g 0) 0 0)))
-                          ((and (== n 2) (== nid (nth 7 ids)))
-                           (let ((size_t mq . #'(coco_deref m (coco_arg m g 0))))
+                          ;; M:G, and G@M (3.20.0): the module, then the goal
+                          ((and (== n 2) (or (== nid (nth 7 ids)) (== nid (nth 12 ids))))
+                           (let ((u32 mi . #'(? (== nid (nth 12 ids)) 1 0))
+                                 (size_t mq . 0))
+                             (set mq (coco_deref m (coco_arg m g mi)))
                              (cond
                                ((coco-tag-is REF (nth mq (-> m heap)))
                                 ;; one the count takes for a singleton is never
@@ -2124,9 +2196,9 @@
                                 (let ((i64 i . #'(coco_fv_at fv mq)))
                                   (if (or (< i 0) (not (bitand (nth i (-> fv flag)) 1)))
                                       (block (set (cof q) mq) (set r 2))
-                                    (set ok (coco_fv_push4 fv 0 (coco_arg m g 1) 0 0)))))
+                                    (set ok (coco_fv_push4 fv 0 (coco_arg m g (- 1 mi)) 0 0)))))
                                ((coco_module_name m mq)
-                                (set ok (coco_fv_push4 fv 0 (coco_arg m g 1) 0 0)))
+                                (set ok (coco_fv_push4 fv 0 (coco_arg m g (- 1 mi)) 0 0)))
                                (#t (set (cof q) mq) (set r 4)))))
                           (#t
                            (if (not (and (== n 2) (and (or (== nid (nth 9 ids)) (== nid (nth 10 ids)))
@@ -2187,6 +2259,8 @@
   ;;; callable term and nothing more, and `p :- foo:3' went in. FV is set
   ;;; where a variable stands for a goal or a module before the walk ends
   ;;; (3.19.3): the clause is then asked by `coco_fresh_fault'.
+  ;;; `$(G)' AND G@M ARE CONTROL TOO (3.20.0, swipl's): G walked, and an M
+  ;;; of G@M asked before its G, as `M:G''s is (IDS[11] and IDS[12]).
   (static)
   (func coco_consult_goals ((coco_machine * m) (size_t b) (const u64 * ids) (size_t * mod) (int * fv))
         (out int)
@@ -2195,14 +2269,15 @@
           (if (coco-tag-is REF (nth b (-> m heap))) (block (set (cof fv) 1) (return 1)))
           (if (or (not (coco_is_callable m b)) (coco_is_nil m b)) (return 0))
           (let ((u64 nid . #'(coco_name_of m b)) (u32 n . #'(coco_arity m b)))
-            (if (and (== n 1) (== nid (nth 4 ids)))
+            (if (and (== n 1) (or (== nid (nth 4 ids)) (== nid (nth 11 ids))))
                 (block (set b (coco_arg m b 0)) continue))
-            (if (and (== n 2) (== nid (nth 7 ids)))
-                (let ((size_t q . #'(coco_deref m (coco_arg m b 0))))
+            (if (and (== n 2) (or (== nid (nth 7 ids)) (== nid (nth 12 ids))))
+                (let ((int at . #'(== nid (nth 12 ids))) (size_t q . 0))
+                  (set q (coco_deref m (coco_arg m b (? at 1 0))))
                   (if (coco-tag-is REF (nth q (-> m heap))) (set (cof fv) 1))
                   (if (not (or (coco-tag-is REF (nth q (-> m heap))) (coco_module_name m q)))
                       (block (set (cof mod) q) (return 2)))
-                  (set b (coco_arg m b 1))
+                  (set b (coco_arg m b (? at 0 1)))
                   continue))
             (if (not (and (== n 2) (or (or (== nid (nth 0 ids)) (== nid (nth 1 ids)))
                                          (or (== nid (nth 2 ids)) (== nid (nth 3 ids)))
@@ -3163,9 +3238,10 @@
               ;; left open at the end names (3.1.0)
               (int cline [16])
               ;; the control names a body is walked by, `:-', `:' and `=>',
-              ;; interned once (`coco_consult_refused'), and ==/2's and
-              ;; \==/2's (`coco_fresh_fault', 3.19.3)
-              (u64 cids [11])
+              ;; interned once (`coco_consult_refused'), ==/2's and
+              ;; \==/2's (`coco_fresh_fault', 3.19.3), and `$' and `@'
+              ;; (3.20.0)
+              (u64 cids [13])
               ;; WHERE THE CLAUSE IN HAND BEGINS, counted forward and never
               ;; back: `scanned' is how far the newline count has read and
               ;; `line' the answer at that point, so the whole file is walked
@@ -3218,6 +3294,8 @@
           (set (nth 8 cids) (coco_intern m "=>"))
           (set (nth 9 cids) (coco_intern m "=="))
           (set (nth 10 cids) (coco_intern m "\\=="))
+          (set (nth 11 cids) (coco_intern m "$"))
+          (set (nth 12 cids) (coco_intern m "@"))
           (set te_id (coco_intern m "term_expansion"))
           (set ge_id (coco_intern m "goal_expansion"))
           (set eof_id (coco_intern m "end_of_file"))

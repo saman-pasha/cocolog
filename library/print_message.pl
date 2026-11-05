@@ -666,10 +666,24 @@ message_to_string(Term, Str) :-
 '$pm_swi_message'(initialization_error(Error, Goal, File:Line)) -->
     [ url(File:Line), ': ~p '-[Goal] ],
     '$pm_translate'(Error).
+%% the determinism errors: swipl's three no cocolog goal raises (3.20.0;
+%% with no det/1, no procedure is a deterministic one), then `$(G)''s two
+'$pm_swi_message'(determinism_error(PI, det, Found, property)) -->
+    [ 'Procedure ~p called from a deterministic procedure'-[PI] ],
+    '$pm_det_error'(Found).
+'$pm_swi_message'(determinism_error(PI, det, fail, guard)) -->
+    [ 'Procedure ~p failed after $-guard'-[PI] ].
+'$pm_swi_message'(determinism_error(PI, det, fail, guard_in_caller)) -->
+    [ 'Procedure ~p failed after $-guard in caller'-[PI] ].
 '$pm_swi_message'(determinism_error(Goal, det, fail, goal)) -->
     [ 'Goal ~p failed'-[Goal] ].
 '$pm_swi_message'(determinism_error(Goal, det, nondet, goal)) -->
     [ 'Goal ~p succeeded with a choice point'-[Goal] ].
+
+'$pm_det_error'(nondet) -->
+    [ ' succeeded with a choicepoint'-[] ].
+'$pm_det_error'(fail) -->
+    [ ' failed'-[] ].
 
 %% Where an error was raised, before its text: the context's predicate.
 '$pm_location'(X) -->

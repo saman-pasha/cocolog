@@ -86,7 +86,8 @@ main :-
 %% quoted strings of *construct-names* -- and the arities are written here:
 %% a name the engine adds that this table has no arity for stops the build
 %% by name, so the two cannot drift apart. `$' names, `[]' and `:-' are the
-%% engine's own markers, never a goal of a program's.
+%% engine's own markers, never a goal of a program's -- but `$' alone,
+%% $/1 (3.20.0), is a program's.
 ft_construct_arities(true, [0]).
 ft_construct_arities(fail, [0]).
 ft_construct_arities(false, [0]).
@@ -106,6 +107,8 @@ ft_construct_arities(throw, [1]).
 ft_construct_arities(trace, [0]).
 ft_construct_arities(notrace, [0]).
 ft_construct_arities(:, [2]).
+ft_construct_arities($, [1]).
+ft_construct_arities(@, [2]).
 
 ft_constructs(Root, Ks) :-
     atomic_list_concat([Root, '/lib/solve.cicili'], P),
@@ -128,7 +131,7 @@ ft_constructs(Root, Ks) :-
             Ks0),
     sort(Ks0, Ks).
 
-ft_marker(N) :- ( N == '[]' ; N == (:-) ; atom_concat('$', _, N) ), !.
+ft_marker(N) :- ( N == '[]' ; N == (:-) ; ( atom_concat('$', S, N), S \== '' ) ), !.
 
 %% the quoted strings of a Lisp list, up to the `))' that closes it; a
 %% backslash in a string escapes the next character

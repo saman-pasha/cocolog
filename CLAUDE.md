@@ -1027,10 +1027,13 @@ much later.
   `no dispatch id`, and one added there wants its arities in
   tools/flow/tables.pl (`ft_construct_arities/2`), or `make modules` stops
   naming it (3.2.0's bar did). **The dispatch names -- the constructs, the builtin rows
-  and the arithmetic names -- are held to `coco_machine.ids [192]`**, and a
-  build past it stops naming both numbers: a new builtin that would pass it
-  shares a C half with others by an argument (3.2.0's four declarations are
-  one row, `'$declare'/2`, under clauses of the Prolog half).
+  and the arithmetic names -- are held to `coco_machine.ids [256]`** (192
+  through 3.19.5, 191 used, which 3.20.0's `$`, `@` and their two markers
+  passed), and a build past it stops naming both numbers: a new builtin
+  that would pass it shares a C half with others by an argument (3.2.0's
+  four declarations are one row, `'$declare'/2`, under clauses of the
+  Prolog half). A construct name a frame or a program never names first is
+  appended at the table's end, so the names before it keep their ids.
 
 ## Parsi
 
@@ -1321,6 +1324,26 @@ cocolint index offers no import of it.
   guards' and the environment's in `coco_try_clause`, the units' link,
   `cc_ulink`), or its goals' errors name the caller. One OR an entry: nrev
   +0.44 % of zero.sh's work, +0.15 % less its padding.
+* **`$/1` and `@/2` are swipl's control constructs** (3.20.0; `coco_det`,
+  `coco_det_exit`, `coco_det_fail` and `coco_at` in lib/solve-loop.cicili):
+  `$(G)` pushes a GOAL frame whose alternative is `'$det_fail'($(G), Ctx)`,
+  runs G with its own cut and then `'$det_exit'(CI, $(G), Ctx)`, which asks
+  whether a frame above CI may still retry -- none DEAD, CATCH_RETRY or
+  SPENT, the kinds `coco_catch_exit` passes over: **a new kind that is no
+  choice point goes into that list too**. Neither step is an inference
+  (`frees`). **Under trace a clause frame stays at its last candidate, and
+  its shadow frame's `last` says so**: set by the selection, cleared by the
+  traced push alone, which `printr` marks -- a clear in every push cost
+  queens 27 032 instructions and lookup 23 415 -- and a frame no traced call
+  pushed (trace/0 turned on mid-run) goes at its last candidate as it does
+  untraced. A meta-call asks a G@M's module and goal before it runs
+  (`coco_goal_check`: 2 an instantiation error, 3 type_error(module, M);
+  `coco_goal_formal` builds the ball), so **a new raiser of a meta-call's
+  goal that is no goal builds its formal there**. The store says G@M of each
+  goal under it, as a qualifier is (`coco_cbody`'s `at`, `coco_cbody_wrap`),
+  and every refusal walk takes `$` and `@` as control (ids 11 and 12 of the
+  consult's and the assert's tables). test/files/det_at.pl holds it to
+  swipl, test/engine.pl's `det_traced` the trace.
 * **A cut runs the cleanups of the frames it takes** (3.1.0,
   setup_call_cleanup/3): a setup_call_cleanup/3 frame is a goal frame,
   `'$scc_fail'/2`, and each of the four cuts -- the goal `!`, `$cut`, an
@@ -2208,10 +2231,11 @@ cocolint index offers no import of it.
   `coco_trace_cut`): the Fail port is printed from the call's frame, and
   through 1.10.22 the cut took it, so a clause that cut and then failed
   printed no Fail (and a window's call never ended, `fate="open"`). A
-  frame's kind is asked in six places -- `coco_backtrack`'s drop test,
+  frame's kind is asked in seven places -- `coco_backtrack`'s drop test,
   the `$trace_exit` marker's search, the `;` Redo's search,
-  `coco_trace_reopen`, `$catch_exit`'s scan and `coco_frames_on`'s walk
-  (the update view's) -- and a new kind goes to all six. **A frame is a
+  `coco_trace_reopen`, `$catch_exit`'s scan, `coco_frames_on`'s walk
+  (the update view's) and, since 3.20.0, `$det_exit`'s scan
+  (`coco_det_exit`) -- and a new kind goes to all seven. **A frame is a
   call's by its depth (> 0), never by its goal**:
   a goal can be heap cell 0, and `--trace run F t` printed no Fail for an
   atom goal written first. A Redo reopens only the calls it is inside

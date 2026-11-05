@@ -71,6 +71,7 @@ main :-
     text_read_own,
     no_rule_said,
     qualified_guard_said,
+    det_said,
     checks_done.
 
 %% ---- where a text would not read, uncaught (3.10.0) -------------------------
@@ -936,6 +937,63 @@ no_rule_said :-
     shell(Cmd, Out, Rc),
     check('the program ends with the uncaught error', Rc, 2),
     has('the predicate, then the goal no rule matched', 'p/1: No rule matches p(b)', Out),
+    shl(['rm -rf ', D]).
+
+%% ---- $(G) that failed or left a choice point, uncaught (3.20.0) ------------
+%%
+%% determinism_error(G, det, fail|nondet, goal) is said as swipl's -g main
+%% says it: the clause, then `Goal G failed' or `Goal G succeeded with a
+%% choice point' (test/files/det_at.pl holds print_message/2's to swipl),
+%% and the backtrace says nothing of the engine's own `'$det_fail'' and
+%% `'$det_exit'' (the G is G as it ran, where swipl's has the clause's
+%% fresh variables: COMPAT.md).
+det_said :-
+    section('a $(G) that failed or left a choice point is said as swipl says it'),
+    scratch(D),
+    atom_concat(D, '/detfail.pl', F1),
+    fixture(F1, [ 'main :- $(fail).' ]),
+    atom_concat(D, '/detnondet.pl', F2),
+    fixture(F2, [ 'p(1). p(2).', 'main :- $(p(_)), true.' ]),
+    cocolog(C),
+    sh_join([C, ' --local -s ', F1, ' 2>&1'], Cmd1),
+    shell(Cmd1, Out1, Rc1),
+    check('the program ends with the uncaught error', Rc1, 2),
+    has('a failure: the clause, then the goal', 'main/0: Goal fail failed', Out1),
+    has('the goal that raised is the $(G)', 'ERROR: In:\nERROR:   $fail\n', Out1),
+    ( sub_atom(Out1, _, _, _, '$det_') -> Own1 = shown ; Own1 = hidden ),
+    check('the backtrace hides the engine''s own goals', Own1, hidden),
+    sh_join([C, ' --local -s ', F2, ' 2>&1'], Cmd2),
+    shell(Cmd2, Out2, _),
+    has('a choice point left: the goal as it exited',
+        'main/0: Goal p(1) succeeded with a choice point', Out2),
+    has('the goal that raised is the $(G), as it exited', 'ERROR: In:\nERROR:   $p(1)\n', Out2),
+    ( sub_atom(Out2, _, _, _, '$det_') -> Own2 = shown ; Own2 = hidden ),
+    check('and hides its exit', Own2, hidden),
+    %% and G@M whose M is no module, the G@M the goal that raised
+    atom_concat(D, '/atmodule.pl', F3),
+    fixture(F3, [ 'main :- M = 3, @(writeln(x), M).' ]),
+    sh_join([C, ' --local -s ', F3, ' 2>&1'], Cmd3),
+    shell(Cmd3, Out3, _),
+    has('a G@M whose M is no module', 'main/0: Type error: `module\' expected, found `3\' (an integer)', Out3),
+    has('the goal that raised is the G@M', 'ERROR: In:\nERROR:   @(writeln(x),3)\n', Out3),
+    %% and the determinism errors of swipl's other kinds, a program's ball
+    forall(member(K-W-S, [ property-fail-'Procedure foo/0 called from a deterministic procedure failed',
+                           property-nondet-'Procedure foo/0 called from a deterministic procedure succeeded with a choicepoint',
+                           guard-fail-'Procedure foo/0 failed after $-guard',
+                           guard_in_caller-fail-'Procedure foo/0 failed after $-guard in caller' ]),
+           ( atomic_list_concat([D, '/det_', K, '_', W, '.pl'], F4),
+             format(atom(L4), 'main :- throw(error(determinism_error(foo/0, det, ~w, ~w), _)).', [W, K]),
+             fixture(F4, [L4]),
+             sh_join([C, ' --no-backtrace --local -s ', F4, ' 2>&1'], Cmd4),
+             shell(Cmd4, Out4, _),
+             atomic_list_concat(['a determinism error of kind ', K, ', ', W], Label4),
+             has(Label4, S, Out4) )),
+    %% and one that is no `det' one is no sentence of swipl's
+    atom_concat(D, '/det_semidet.pl', F5),
+    fixture(F5, [ 'main :- throw(error(determinism_error(foo/0, semidet, fail, property), _)).' ]),
+    sh_join([C, ' --no-backtrace --local -s ', F5, ' 2>&1'], Cmd5),
+    shell(Cmd5, Out5, _),
+    has('a determinism error that is no det one', 'Unknown error term: determinism_error(foo/0,semidet,fail,property)', Out5),
     shl(['rm -rf ', D]).
 
 %% A RULE A MODULE QUALIFIES HAS NO GUARD (3.19.2, swipl's): `foo:(p, g =>

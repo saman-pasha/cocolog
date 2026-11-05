@@ -498,11 +498,13 @@
     ;; to zero -- which is what makes a THAWED machine refill rather than
     ;; trust ids from an atom table that is no longer there.
     ;;
-    ;; 192 is written out because a Cicili array size is one token and a
+    ;; 256 is written out because a Cicili array size is one token and a
     ;; `#define' of your own is invisible to the language. The macro that
     ;; fills it checks the count at EXPANSION time, so a name added past the
-    ;; end is a build error rather than a stray write.
-    (member u64        ids [192])
+    ;; end is a build error rather than a stray write. (192 through 3.19.5,
+    ;; 191 of them used; 3.20.0's `$/1' and `@/2' and their two markers
+    ;; passed it.)
+    (member u64        ids [256])
     (member int        ids_ready)
     ;; THE ENGINE'S OWN FUNCTORS, INTERNED ONCE WITH THE ATOMS. `'$k'/3' is
     ;; built once per goal proven, and `coco_make' interned its name from a

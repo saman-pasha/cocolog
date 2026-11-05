@@ -834,7 +834,10 @@
                             (cast size_t (-> c cend))))
               (if (coco_try_clause e p ix call nil goals ci)
                   (block
-                   (if (and last (== (-> e trace) 0)) (set (-> e nchoices) ci))
+                   (if last
+                       (if (or (== (-> e trace) 0) (== ($ (nth ci (-> e tchoices)) printr) 0))
+                           (set (-> e nchoices) ci)
+                           (set ($ (nth ci (-> e tchoices)) last) 1)))
                    (return 1)))))
           (return 0)))
 
@@ -884,10 +887,19 @@
                 ;; `coco_try_clause'. A `!' in the body cuts back to before
                 ;; this call. Under trace the frame STAYS even on the last
                 ;; clause: failing back past it is what prints the Fail port,
-                ;; and a popped frame fails in silence
+                ;; and a popped frame fails in silence -- and it says it has
+                ;; no more to try (`last', 3.20.0), the frame no untraced
+                ;; run has, which `$/1''s exit passes over (`coco_det_exit').
+                ;; A frame no traced call pushed (`printr' 0: pushed before
+                ;; trace/0 turned the trace on) prints nothing and goes as
+                ;; it would untraced, so the frames a trace keeps are its
+                ;; own, whose push wrote `last'
                 (if (coco_try_clause e p ix call nil goals ci)
                     (block
-                     (if (and last (== (-> e trace) 0)) (set (-> e nchoices) ci))
+                     (if last
+                         (if (or (== (-> e trace) 0) (== ($ (nth ci (-> e tchoices)) printr) 0))
+                             (set (-> e nchoices) ci)
+                             (set ($ (nth ci (-> e tchoices)) last) 1)))
                      (return 1)))
                 ;; that head did not match: the machine is back at the marks;
                 ;; try the next
@@ -1693,7 +1705,8 @@
           (coco_sb_free (aof tb))))
 
   ;;; the engine's own goals, never a program's: a cut to a height, a
-  ;;; catch's exit, a trace marker, the constructs' `$true' and `$fail'
+  ;;; catch's exit, `$/1''s exit and failure, a trace marker, the constructs' `$true'
+  ;;; and `$fail'
   (static)
   (func coco_bt_own ((coco_machine * m) (size_t g)) (out int)
         (let ((u64 c . #'(nth g (-> m heap))))
@@ -1704,6 +1717,7 @@
               (let ((u64 f . #'(cast u64 (coco-payload c))))
                 (return (or (== f (coco-fid m "$cut" 1)) (== f (coco-fid m "$softcut" 1))
                             (== f (coco-fid m "$catch_exit" 1))
+                            (== f (coco-fid m "$det_exit" 3)) (== f (coco-fid m "$det_fail" 2))
                             (== f (coco-fid m "$trace_exit" 3))))))
           (return 0)))
 
@@ -2367,6 +2381,39 @@
                        (snprintf out len "Cannot represent due to `%s'" a1)
                        (return)))
 
+            ;; THE DETERMINISM ERRORS (3.20.0), swipl's sentences: `$(G)''s
+            ;; two, G as it ran, and the three no cocolog goal raises (no
+            ;; det/1: no procedure is a deterministic one)
+            (if (and (== fa 4) (== 0 (strcmp fn "determinism_error")))
+                (block (coco_err_say m (coco_arg m f 1) a2 (sizeof a2))
+                       (if (== 0 (strcmp a2 "det"))
+                           (block
+                             (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
+                             (coco_err_say m (coco_arg m f 2) a2 (sizeof a2))
+                             (coco_err_say m (coco_arg m f 3) a3 (sizeof a3))
+                             (if (== 0 (strcmp a3 "goal"))
+                                 (block
+                                   (if (== 0 (strcmp a2 "fail"))
+                                       (block (snprintf out len "Goal %s failed" a1) (return)))
+                                   (if (== 0 (strcmp a2 "nondet"))
+                                       (block (snprintf out len "Goal %s succeeded with a choice point" a1)
+                                              (return)))))
+                             (if (== 0 (strcmp a3 "property"))
+                                 (block
+                                   (if (== 0 (strcmp a2 "fail"))
+                                       (block (snprintf out len "Procedure %s called from a deterministic procedure failed" a1)
+                                              (return)))
+                                   (if (== 0 (strcmp a2 "nondet"))
+                                       (block (snprintf out len "Procedure %s called from a deterministic procedure succeeded with a choicepoint" a1)
+                                              (return)))))
+                             (if (== 0 (strcmp a2 "fail"))
+                                 (block
+                                   (if (== 0 (strcmp a3 "guard"))
+                                       (block (snprintf out len "Procedure %s failed after $-guard" a1) (return)))
+                                   (if (== 0 (strcmp a3 "guard_in_caller"))
+                                       (block (snprintf out len "Procedure %s failed after $-guard in caller" a1)
+                                              (return)))))))))
+
             ;; AND WHAT THE BALL SAYS BESIDES (2.11.1), in SWI's shape, when
             ;; its context is context(P, Why) -- "P: Not enough resources: K
             ;; (Why)", Why unquoted -- which is how a read of the knowledge base
@@ -2704,12 +2751,8 @@
   (weak) (cold)
   (func coco_goal_bad_at ((coco_engine * e) (size_t g) (size_t b)) (out int)
         (if (== (coco-bar-pred b) 0) (return (coco_goal_bad e g "system" "<meta-call>" 1)))
-        (let ((coco_machine * m . #'(-> e m))
-              (size_t ctx . #'(coco_owner_ctx e b))
-              (size_t gd . #'(coco_deref (-> e m) g)))
-          (if (coco-tag-is REF (nth gd (-> m heap)))
-              (return (coco_raise_ctx e (coco_new_atom m "instantiation_error") ctx)))
-          (return (coco_raise_ctx e (coco_make2 m "type_error" (coco_new_atom m "callable") gd) ctx))))
+        (let ((size_t ctx . #'(coco_owner_ctx e b)))
+          (return (coco_raise_ctx e (coco_goal_formal (-> e m) g) ctx))))
 
   ;;; WHETHER A GOAL SWIPL COMPILES BEFORE IT CALLS IT IS ONE: callable,
   ;;; and its control structure -- `,', `;', `->', `*->', `\+' -- has
@@ -2720,10 +2763,16 @@
   ;;; walked in a loop and the first by recursion, 256 deep and a million
   ;;; nodes at most, past which the goal is taken as one -- a cyclic one
   ;;; among them, which then runs as it always did.
+  ;;; `$(G)' and G@M are control too (3.20.0): G is walked, and an M that
+  ;;; is bound and no atom is the compile's type_error(module, M), 3 with
+  ;;; *MC set -- the first fault met, left to right, as swipl's compile
+  ;;; meets it; an unbound M is the goal's to raise as it runs. 1 a goal,
+  ;;; 0 a leaf that is none.
   (weak)
-  (func coco_goal_leaves ((coco_machine * m) (size_t g) (int depth) (u32 * budget)) (out int)
+  (func coco_goal_leaves ((coco_machine * m) (size_t g) (int depth) (u32 * budget) (size_t * mc))
+        (out int)
         (while 1
-          (let ((u64 c . 0) (u64 nm . 0) (u32 n . 0))
+          (let ((u64 c . 0) (u64 nm . 0) (u32 n . 0) (int r . 0))
             (if (== (cof budget) 0) (return 1))
             (set (cof budget) (- (cof budget) 1))
             (set g (coco_deref m g))
@@ -2738,19 +2787,69 @@
                                  (== nm (coco-id m "->")) (== nm (coco-id m "*->"))
                                  (== nm (coco-id m "|"))))
                (if (> depth 256) (return 1))
-               (if (not (coco_goal_leaves m (coco_arg m g 0) (+ depth 1) budget)) (return 0))
+               (set r (coco_goal_leaves m (coco_arg m g 0) (+ depth 1) budget mc))
+               (if (!= r 1) (return r))
                (set g (coco_arg m g 1)))
-              ((and (== n 1) (== nm (coco-id m "\\+")))
+              ((and (== n 1) (or (== nm (coco-id m "\\+")) (== nm (coco-id m "$"))))
+               (set g (coco_arg m g 0)))
+              ((and (== n 2) (== nm (coco-id m "@")))
+               (let ((size_t mo . #'(coco_deref m (coco_arg m g 1))))
+                 (if (and (not (coco-tag-is REF (nth mo (-> m heap))))
+                          (or (not (coco-tag-is ATOM (nth mo (-> m heap)))) (coco_is_nil m mo)))
+                     (block (set (cof mc) mo) (return 3))))
                (set g (coco_arg m g 0)))
               (#t (return 1)))))
         (return 1))
 
-  (func coco_goal_ok ((coco_machine * m) (size_t g)) (out int)
+  ;;; WHAT A META-CALL'S GOAL G IS BEFORE IT RUNS, as swipl's call/1 finds
+  ;;; it: 1 a goal; 0 not one, type_error(callable, G) of the whole; 2 an
+  ;;; instantiation_error; 3 type_error(module, *MC). A G@M called is
+  ;;; asked first (3.20.0): its module and its goal unbound, its module no
+  ;;; atom, and the qualifiers of its goal the same, then its goal as any
+  ;;; goal, whose fault is G@M's whole -- swipl's call/1 takes the two
+  ;;; apart before it compiles, where an `@' inside a structure is
+  ;;; compiled, its unbound module raised as it runs
+  (weak)
+  (func coco_goal_check ((coco_machine * m) (size_t g) (size_t * mc)) (out int)
         (let ((u32 budget . 1000000))
           (if (not (-> m ids_ready)) (coco_ids_fill m))
           (set g (coco_deref m g))
           (if (not (coco_is_callable m g)) (return 0))
-          (return (coco_goal_leaves m g 0 (aof budget)))))
+          (if (and (coco-tag-is FUN (nth g (-> m heap))) (== (coco_arity m g) 2)
+                   (== (coco_name_of m g) (coco-id m "@")))
+              (let ((size_t mo . #'(coco_deref m (coco_arg m g 1)))
+                    (size_t gl . #'(coco_deref m (coco_arg m g 0))))
+                (if (coco-tag-is REF (nth mo (-> m heap))) (return 2))
+                (if (coco-tag-is REF (nth gl (-> m heap))) (return 2))
+                (if (or (not (coco-tag-is ATOM (nth mo (-> m heap)))) (coco_is_nil m mo))
+                    (block (set (cof mc) mo) (return 3)))
+                (while (coco_is_compound2 m gl ":")
+                  (set mo (coco_deref m (coco_arg m gl 0)))
+                  (if (coco-tag-is REF (nth mo (-> m heap))) (return 2))
+                  (if (or (not (coco-tag-is ATOM (nth mo (-> m heap)))) (coco_is_nil m mo))
+                      (block (set (cof mc) mo) (return 3)))
+                  (set gl (coco_deref m (coco_arg m gl 1))))
+                (if (coco-tag-is REF (nth gl (-> m heap))) (return 2))
+                (return (coco_goal_leaves m gl 0 (aof budget) mc))))
+          (return (coco_goal_leaves m g 0 (aof budget) mc))))
+
+  (func coco_goal_ok ((coco_machine * m) (size_t g)) (out int)
+        (let ((size_t mc . 0))
+          (return (== (coco_goal_check m g (aof mc)) 1))))
+
+  ;;; THE FORMAL OF A META-CALL'S GOAL THAT IS NO GOAL (`coco_goal_check'):
+  ;;; instantiation_error for a variable or an unbound part of a G@M,
+  ;;; type_error(module, M), else type_error(callable, G) of the whole.
+  ;;; Asked where a raise is due, and built then (`coco_goal_bad' and its
+  ;;; kin, declared in lib/solve.cicili).
+  (func coco_goal_formal ((coco_machine * m) (size_t g)) (out size_t)
+        (let ((size_t mc . 0) (int r . 0))
+          (set g (coco_deref m g))
+          (if (coco-tag-is REF (nth g (-> m heap))) (return (coco_new_atom m "instantiation_error")))
+          (set r (coco_goal_check m g (aof mc)))
+          (if (== r 2) (return (coco_new_atom m "instantiation_error")))
+          (if (== r 3) (return (coco_make2 m "type_error" (coco_new_atom m "module") mc)))
+          (return (coco_make2 m "type_error" (coco_new_atom m "callable") g))))
 
   ;;; THE OWNER A CONTROL STRUCTURE'S PARTS RUN UNDER, B its own word, G the
   ;;; structure and K what follows it: B itself for one written in its
@@ -2802,6 +2901,9 @@
   ;;; swipl's I_USERCALL keeps it; any other runs in F's frame. Its height
   ;;; is the stack's now. For catch/3 B has no owner here, whatever the
   ;;; catch's own: swipl's catch/3 is a frame wherever it is called.
+  ;;; `$(G)' and G@M are no structure here (3.20.0): a `$(G)' called runs
+  ;;; its parts in a `'<meta-call>'/1' by `coco_part_bar''s rule for a word
+  ;;; META or SYS, and a G@M its G by `coco_at''s.
   (static)
   (func coco_meta_bar ((coco_engine * e) (size_t g) (size_t b) (size_t k) (u64 f)) (out size_t)
         (let ((coco_machine * m . #'(-> e m)) (size_t h . #'(-> e nchoices))

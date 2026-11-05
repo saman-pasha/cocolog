@@ -36,7 +36,7 @@ main :-
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
-    update_view(D), sleeps(D), compiled(D),
+    update_view(D), sleeps(D), compiled(D), det_traced(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -1851,3 +1851,106 @@ compiled(D) :-
              C5, ' --embed ', K5, ' query ''clause(cc_d(A), _), ( var(A) -> write(kept) ; write(moved) ), nl'' 2>&1 | head -n 1'], Cmd5),
     proc_run(Cmd5, 60000, Out5, _), atom_codes(O5, Out5),
     check('a dynamic clause read back by another process keeps its unification', O5, 'kept\n').
+
+%% $/1 UNDER TRACE ANSWERS AS IT DOES UNTRACED (3.20.0). Trace keeps a
+%% clause frame for every call, the last candidate's too, for its Fail
+%% port; $/1's exit passes over a frame whose selection entered its last
+%% candidate (`last' on the tracer's shadow frame), or every traced $(G)
+%% would see a choice point an untraced run never made -- and over what
+%% trace keeps around it: the catch frame a goal that exited left (DEAD)
+%% and the frame above it that would retry the goal (CATCH_RETRY), and a
+%% call's own frame its cut kept (SPENT). A disjunction's frame is one,
+%% though its slot held a traced call's that had no clause left.
+det_traced(D) :-
+    section('$/1 under trace answers as it does untraced'),
+    atom_concat(D, '/det_traced.pl', F),
+    fixture(F, [ 'p(1). p(2). q(1). r(X) :- q(X). s(X) :- p(X), !.',
+                 't(G, R) :- catch(( G -> R = yes ; R = no ), error(E, _),',
+                 '    ( E = determinism_error(_, _, W, _) -> R = W ; R = E )).',
+                 'main :- findall(R, ( member(G, [$(q(_)), $((true ; true)), $(p(1)), $((p(X), X > 1)),',
+                 '                                $(r(_)), $(p(_)), $((q(Y), q(Y))), $(fail),',
+                 '                                $(catch(q(_), _, true)), $(s(_))]), t(G, R) ), Rs),',
+                 '    write(Rs), nl.' ]),
+    last_line_of(F, main, 30000, U),
+    check('untraced: deterministic, nondeterministic and failed', U,
+          '[yes,nondet,yes,yes,yes,nondet,yes,fail,yes,yes]'),
+    cocolog(C),
+    sh_join([C, ' --trace run ', F, ' main 2>/dev/null'], Cmd),
+    proc_run(Cmd, 30000, Out, _),
+    (   chomp(Out, Body), codes_lines(Body, Lines), Lines \== [], last(Lines, L), atom_codes(T, L)
+    ->  true
+    ;   T = nothing
+    ),
+    check('traced: the same answers', T, '[yes,nondet,yes,yes,yes,nondet,yes,fail,yes,yes]'),
+    %% a disjunction's frame is a choice point whatever its slot held before
+    %% (`last' is a clause frame's alone)
+    atom_concat(D, '/det_traced_or.pl', F5),
+    fixture(F5, [ 'q(1).',
+                  't(G, R) :- catch(( G -> R = yes ; R = no ), error(E, _),',
+                  '    ( E = determinism_error(_, _, W, _) -> R = W ; R = E )).',
+                  'main :- t($(q(_)), A), t($((true ; true)), B), t($(q(_)), C), t($((q(_) ; true)), D),',
+                  '    t($((fail ; true ; true)), E), write([A, B, C, D, E]), nl.' ]),
+    sh_join([C, ' --trace run ', F5, ' main 2>/dev/null'], Cmd5),
+    proc_run(Cmd5, 30000, Out5, _),
+    (   chomp(Out5, Body5), codes_lines(Body5, Lines5), Lines5 \== [], last(Lines5, L5),
+        atom_codes(T5, L5)
+    ->  true
+    ;   T5 = nothing
+    ),
+    check('traced: a disjunction''s frame is a choice point', T5, '[yes,nondet,yes,nondet,nondet]'),
+    %% and failing into $/1's own frame is no Redo of the clause it stands in
+    atom_concat(D, '/det_redo.pl', F7),
+    fixture(F7, [ 'p :- catch($(fail), _, true).', 'main :- p.' ]),
+    sh_join([C, ' --trace run ', F7, ' main 2>&1'], Cmd7),
+    proc_run(Cmd7, 30000, Out7, _), atom_codes(A7, Out7),
+    ( sub_atom(A7, _, _, _, 'Redo') -> R7 = redo ; R7 = none ),
+    check('failing into $/1''s own frame prints no Redo', R7, none),
+    %% a body deeper than the store's compile walks (256 constructs) keeps
+    %% its `@' where the walk stops, as a qualifier is kept there
+    atom_concat(D, '/det_deep.pl', F6),
+    fixture(F6, [ 'mk(0, G, G) :- !.', 'mk(N, G0, \\+ G) :- N1 is N - 1, mk(N1, G0, G).',
+                  'has_at(T) :- compound(T), ( T = @(_, _) -> true ; T =.. [_|As], member(A, As), has_at(A) ).',
+                  'main :- mk(300, p, B), assertz((deep :- @(B, m))), clause(deep, Body),',
+                  '    ( has_at(Body) -> write(kept) ; write(lost) ), nl.' ]),
+    last_line_of(F6, main, 30000, W6),
+    check('a body deeper than the compile''s walk keeps its @ where the walk stops', W6, kept),
+    %% trace/0 inside $(G): a frame pushed before it, retried to its last
+    %% clause under the trace, is gone as it is untraced, and one that
+    %% still has a clause to try is a choice point though its slot held a
+    %% traced frame that had none (`last' is the traced push's)
+    atom_concat(D, '/det_trace_on.pl', F2),
+    fixture(F2, [ ':- dynamic d/1.', 'd(1). d(2). d(3).',
+                  'p(1). p(2). q(1). on(1) :- trace, fail. on(2).',
+                  'r :- q(_), q(_), q(_), q(_), q(_).',
+                  't(G, R) :- catch(( G -> R = yes ; R = no ), error(E, _),',
+                  '    ( E = determinism_error(_, _, W, _) -> R = W ; R = E )).',
+                  'main :- t($((p(X), on(X))), A), notrace, trace, r, !, notrace,',
+                  '    t($((p(_), trace)), B), notrace,',
+                  '    d(Z), Z == 1, retract(d(3)), t($((d(Y), on(Y))), C), notrace,',
+                  '    write([A, B, C]), nl.' ]),
+    last_line_of(F2, main, 30000, V),
+    check('trace/0 inside $(G): a spent frame goes, a live one stays', V, '[yes,nondet,yes]'),
+    %% and a predicate with a dead clause (the logical update view) selects
+    %% out of line, and says so of its last candidate too
+    atom_concat(D, '/det_traced_dead.pl', F3),
+    fixture(F3, [ ':- dynamic r/1.', 'r(1). r(2).',
+                  't(G, R) :- catch(( G -> R = yes ; R = no ), error(E, _),',
+                  '    ( E = determinism_error(_, _, W, _) -> R = W ; R = E )).',
+                  'main :- r(X), X == 1, retract(r(2)), t($(r(_)), A), write(A), nl.' ]),
+    last_line_of(F3, main, 30000, W1),
+    check('untraced: a call that cannot see the dead clause is deterministic', W1, yes),
+    sh_join([C, ' --trace run ', F3, ' main 2>/dev/null'], Cmd3),
+    proc_run(Cmd3, 30000, Out3, _),
+    (   chomp(Out3, Body3), codes_lines(Body3, Lines3), Lines3 \== [], last(Lines3, L3),
+        atom_codes(T3, L3)
+    ->  true
+    ;   T3 = nothing
+    ),
+    check('traced: the same', T3, yes),
+    %% the exit is the engine's own: one a program writes names no frame of
+    %% `$/1''s, and cuts nothing
+    atom_concat(D, '/det_marker.pl', F4),
+    fixture(F4, [ 'm(C, R) :- ( member(X, [1, 2]), ''$det_exit''(C, $(true), x), X == 2 -> R = yes ; R = no ).',
+                  'main :- m(0, A), m(99999999, B), write([A, B]), nl.' ]),
+    last_line_of(F4, main, 30000, W4),
+    check('a $/1 exit a program wrote cuts nothing', W4, '[yes,yes]').

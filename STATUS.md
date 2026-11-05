@@ -11479,3 +11479,137 @@ is gone: a variable a left branch counted back to 0 pushed again onto the
 branch list it was on. Narrow cases green: files, errors, directives,
 reconsult, library, engine, cyclic, lint, flowchart, flowdebug, argv, and
 lesson basics/02 alone.
+
+## `$/1` and `G@M`, swipl's control constructs (3.20.0)
+
+`$(G)` is G, which must succeed and leave no choice point, and `G@M` is G
+called with M its context module: two of swipl's control constructs, which
+3.19.5 took for goals. Both are constructs now (`*construct-names*`, so the
+dispatch ids are held to 256 where they were 192, 191 of them used), and
+neither is an inference of its own (statistics/2 counts G's alone, as
+swipl's).
+
+`$(G)` RAN: a GOAL frame at CI before G runs, its alternative `'$det_fail'($(G),
+Ctx)`, and `'$det_exit'(CI, $(G), Ctx)` after it. Failing into the frame is
+G's failure, `determinism_error(G, det, fail, goal)`; a frame above CI that
+may still retry when G exits is a choice point left,
+`determinism_error(G, det, nondet, goal)` with G as it exited (`$(p(X)),
+X > 1` raises at p's exit, before the test, as swipl's); else the frame goes.
+G's cut is its own (`$(!)` cuts G alone). CTX is the frame swipl's compile
+puts it in: the clause it is written in, or `'<meta-call>'/1' where it was
+meta-called (call/1, once/1, catch/3, findall/3, a search's own goal). Not a
+choice point above CI: a DEAD frame (a catch's whose goal exited, a soft
+cut's else), CATCH_RETRY and SPENT, the kinds `coco_catch_exit` passes over;
+a CATCH frame G made is gone by then, and CLOCKED is none under trace.
+
+UNDER TRACE every call keeps a clause frame, its last candidate's too, for
+its Fail port, and `$(G)` would see a choice point no untraced run made. The
+tracer's shadow frame says so (`last`): set by the selection when it enters
+the last candidate, cleared where a traced call pushes the frame, which
+`printr` marks. A clear in every push cost queens 27 032 instructions and
+lookup 23 415 (zero.sh, work less padding); the traced push's alone costs
+what the whole change does (below). A frame no traced call
+pushed -- trace/0 turned on inside G -- goes at its last candidate as it
+does untraced (found by the arms: `$((p(X), on(X)))` with `on(1) :- trace,
+fail.` answered `nondet` where untraced it answers `yes`).
+
+G@M RAN: one namespace has no context module to set, so G runs as the
+program's goal, the cut the clause's (transparent, as swipl's), in the
+clause's frame -- an unknown procedure in it names the clause, swipl's
+I_CALLATM making no last call -- and meta-called in `'<meta-call>'/1'. An
+unbound M is an instantiation error and an M that is no atom (`[]` among
+them) type_error(module, M), named by the frame G@M runs in.
+
+META-CALLED, swipl's call/1 asks a G@M first, in the caller's frame: M
+unbound, then G unbound, an instantiation error; M no atom, type_error(module,
+M); the qualifiers of G the same; then G as any goal, whose fault is the
+whole G@M's (`coco_goal_check`, `coco_goal_formal`). Inside a structure an
+`@` whose M is bound and no atom is the compile's type_error(module, M), the
+first fault met left to right, and one whose M is unbound raises as it runs,
+in `'<meta-call>'/1' (`G = (true, @(foo, _)), call(G)`). once/1 and its kin
+ask theirs before any of it runs: `once((writeln(a), @(foo, 3)))` writes
+nothing.
+
+WHAT A CLAUSE STORES, as swipl's compiler keeps it: `$(G)`'s G is an arm
+(`$((a, (b, c)))` is `$((a, b, c))`, `$(X)` `$(call(X))`); G@M is said of
+each goal under it, as a qualifier is, through the constructs and into a
+`$` (`@((a ; b), m)` is `@(a, m) ; @(b, m)`, `@($(p), m)` `$(@(p, m))`), the
+innermost `@` winning and a qualifier staying inside it (`foo:@(p, m)` is
+`@(foo:p, m)`, `@(user:p, m)` `@(p, m)`), the goals compiled in place losing
+it (`@(true, m)` is `true`), under a variable qualifier each goal
+call(@(M:G, A)), and past the compile's 256 constructs the rest as one
+`@`. In passing: a variable goal under a variable module is call(M:X),
+where 3.15.0's compile made it call(call(M:X)).
+
+LOADS AND ASSERTS walk both as control (3.19.2's and 3.19.3's walks): `@`'s
+module before its goal, so `@(foo, 3)` is type_error(module, 3), `@(3, m)`
+type_error(callable, ...) of the body, and `@(foo, M), M = a` an
+instantiation error, the module a fresh variable.
+
+MESSAGES: an uncaught determinism error is said as swipl's -- `Goal G
+failed`, `Goal G succeeded with a choice point`, and its three other kinds
+(`property`, `guard`, `guard_in_caller`), in the engine's printer and in
+library(print_message)'s, which had the two of `goal` since 2.16.0 -- and
+the backtrace hides `'$det_fail'/2` and `'$det_exit'/3`. listing/1 and
+portray_clause/1 lay `$(G)` and `@(G, M)` out as swipl's. A `'$det_exit'`
+a program writes names no frame of `$/1`'s and cuts nothing.
+
+NOT SWIPL'S, and stated (COMPAT.md): `$/0`; the error's G holds the clause's
+own variables as G bound them, where swipl's decompiled goal has a fresh one
+for a variable the clause names nowhere else; and `$(member(X, [1]))` is
+nondet, as are select/3, between/3 at its bound and nth0/3 and nth1/3 with
+the index unbound on their last answers, where swipl's leave no choice point
+(their determinism, which nothing showed before).
+
+LIBRARY(FLOW) CHARTS BOTH (library/flow/read.pl, analyse.pl, layout.pl): a
+`$(G)` and a G@M are boxes with G inside them, as once/1's is -- a goal
+under them is read and placed (`nope25/1 is not defined` at its own
+column), its bars and asserts found; `$(G)` is det and never fails, its
+failure an error, and G@M is what its G is; the reader takes `$` and `@`,
+a symbol's token, as a goal's name. The generated tables have both
+arities (tools/flow/tables.pl, where `$` alone is no engine marker), and
+the debugger's calls inside them are matched to the chart's boxes
+(test/flowdebug.pl's why).
+
+THE CARD: X3's cite of lib/builtins.cicili moved with the construct list,
+and its anchor repeats in the file, so the range is corrected by hand
+(tools/cocolint/traps.jsonl).
+
+CHECK: test/files/det_at.pl (new; 294 lines with swipl 9.0.4: $(G) run
+plain and meta-called, G@M run plain and meta-called, what 49 clauses
+store, what 23 loads refuse and 25 of 27 asserts, listing/1 and
+portray_clause/1, the messages, the inference counts) -- all 97
+test/files cases agree; test/engine.pl's `det_traced` (untraced and
+`--trace`, trace/0 inside a `$`, a predicate with a dead clause, a
+disjunction's frame, a body deeper than the compile, a program's own
+`'$det_exit'`); test/errors.pl's `det_said` (the uncaught messages, their
+backtraces, G@M's, swipl's other kinds and one that is no `det` one);
+test/flowchart.pl's `findings_det_at` and test/flowdebug.pl's
+`asked_why_det`. 115 arms, each a rule taken out of one build by an
+environment variable (`coco_arm`) -- 110 in the engine, the store and the
+walks, 5 of library(print_message)'s rules -- and every one red in those
+checks but arm 83: a conjunction whose list of goals cannot grow, memory
+refused, stored as one `@` over the whole, which no case reaches; it is
+kept and stated. Five pieces of the first cut changed no answer and are
+gone: a CATCH frame passed over at `$(G)`'s exit (a catch G made is DEAD
+or gone by then); a CLOCKED frame passed over under trace (the clock marks
+no frame in a traced engine, `coco_clock_mark`); `coco_at`'s own test of an
+unbound G (the step raises the same error from the same frame); and `$` and
+`@` as structures to the meta-call's walk and its raise (`coco_part_bar`'s
+rule already gives their parts the meta-call's word). Thirteen arms of
+library(flow), each red in test/flowchart.pl, the two analyser boxes in
+test/flowdebug.pl too: the boxes, their notes, their determinism, the
+reader's meta arguments, its bars, its places and the symbol's token. Four
+of the debugger's matcher (library/flow/dbgmatch.pl: `$` and `@` as goals
+of their own and in the plan's meta items) stayed green, its own(all)
+probe among them -- the chart's boxes are what it matches -- and are gone;
+so is their place in the walk of a library's bodies for the world it
+reaches (`flow_goals_in/2`), as no library body writes either, nor not/1.
+
+THE UNTRACED ENGINE (tools/flow/zero.sh, work less padding, 3.19.5 to
+3.20.0): nrev 66 102 847 to 66 103 004 (+157), queens 43 031 803 to
+43 031 930 (+127), lookup 47 895 011 to 47 904 510 (+9 499, 0.020 %).
+
+Narrow cases green: lint, files, trace, backtrace, window, journal,
+engine, errors, gc, directives, static, script, reconsult, flowchart,
+flowdebug, and the test binaries solve, module, state, term and syntax.

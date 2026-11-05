@@ -248,7 +248,13 @@
     ;; the record a body's later goals are reached from (Stage 5)
     "$e"
     ;; the neck, so a clause splits into head and body without a strcmp
-    ":-"))
+    ":-"
+    ;; $/1, the goal that must succeed deterministically, and G@M, G run
+    ;; with M for its context module (3.20.0, swipl's): `coco_det',
+    ;; `coco_at', and the two markers `$/1' leaves -- its exit, which asks
+    ;; whether G left a choice point, and the alternative that says G
+    ;; failed. Last, so every name before them keeps its index
+    "$" "@" "$det_exit" "$det_fail"))
 
 ;;; THE FUNCTORS THE ENGINE BUILDS, interned once beside the names. Every
 ;;; one of these was `coco_make' with a C string -- `strlen', the atom
@@ -262,7 +268,9 @@
 ;;; which a goal's barrier names as its owner (3.1.0, `coco-bar-pred').
 (DEFPARAMETER *functor-names*
   '(("$k" 3) ("$cut" 1) ("$softcut" 1) ("$catch" 2) ("$catch_exit" 1)
-    ("$trace_exit" 3) ("<meta-call>" 1)))
+    ("$trace_exit" 3) ("<meta-call>" 1)
+    ;; $/1's exit and its failure (3.20.0, `coco_det')
+    ("$det_exit" 3) ("$det_fail" 2)))
 
 (DEFUN coco-fid-index (name arity)
   (OR (POSITION (LIST name arity) *functor-names* :TEST #'EQUAL)
@@ -308,13 +316,13 @@
         (SETF names (APPEND names (LIST name)))))
     names))
 
-;;; 192 is the array in `coco_machine'. A Cicili array size is one token, so
+;;; 256 is the array in `coco_machine'. A Cicili array size is one token, so
 ;;; the bound cannot be computed there -- it is checked HERE instead, at
 ;;; expansion time, which turns "one builtin too many" into a build error
 ;;; with a name on it rather than a write past the end of a struct.
 (DEFUN coco-check-ids ()
-  (WHEN (> (LENGTH *dispatch-names*) 192)
-    (ERROR "coco: ~D dispatch names, and coco_machine.ids holds 192"
+  (WHEN (> (LENGTH *dispatch-names*) 256)
+    (ERROR "coco: ~D dispatch names, and coco_machine.ids holds 256"
            (LENGTH *dispatch-names*))))
 
 (DEFUN coco-id-index (name)
@@ -851,11 +859,18 @@
   ;;; EXITED remembers that the call has passed its Exit port, so a resumed
   ;;; frame whose remaining heads all fail is discarded in silence -- which
   ;;; is what SWI's clause indexing does by never keeping the frame at all.
+  ;;; LAST (3.20.0) says a CLAUSE frame's selection entered its last
+  ;;; candidate, a frame only trace keeps (`coco_select_clause'): what an
+  ;;; untraced run has no frame for, so `$/1''s exit counts it as none
+  ;;; (`coco_det_exit'). It sits in the padding after EXITED, cleared by the
+  ;;; traced call's push alone (PRINTR 1): cleared by every push, it cost
+  ;;; queens 27 000 instructions of 43 million.
   (struct coco_tchoice
     (member size_t   goal)
     (member int      depth)
     (member int      printr)
-    (member int      exited))
+    (member int      exited)
+    (member int      last))
 
   (struct coco_engine
     (member coco_machine * m)
@@ -1393,6 +1408,11 @@
   ;;; Interns the dispatcher's whole vocabulary into `m->ids'. Called once
   ;;; per machine, from the top of `coco_engine_next'.
   (decl) (func coco_ids_fill ((coco_machine * m)))
+  ;;; the formal a meta-call's goal that is no goal raises: a variable's
+  ;;; instantiation_error, a G@M's type_error(module, M), else
+  ;;; type_error(callable, G) of the whole (3.20.0, `coco_goal_check' in
+  ;;; lib/solve-control.cicili), for the raisers here
+  (decl) (func coco_goal_formal ((coco_machine * m) (size_t g)) (out size_t))
   (decl) (func coco_builtin_index ((coco_machine * m) (u64 nid) (u32 arity)) (out int))
   (decl) (func coco_builtin_call ((coco_engine * e) (int ix) (size_t g)) (out int))
   ;; whether the module walk passes a name a program file took over (3.1.0)
@@ -2434,17 +2454,11 @@
   ;;; `'<meta-call>'/1' for a goal the loop meets (call/N's, a conjunction's
   ;;; in a meta-call), `once/1' and its kin for their own argument. The
   ;;; raise's answer: 2 caught, -1 not. Through 2.16 the context was empty.
+  ;;; A G@M's own fault is its formal (3.20.0, `coco_goal_formal').
   (weak) (cold)
   (func coco_goal_bad ((coco_engine * e) (size_t g) (const char * mod)
                        (const char * name) (u32 arity)) (out int)
-        (let ((coco_machine * m . #'(-> e m)))
-          (set g (coco_deref m g))
-          (if (coco-tag-is REF (nth g (-> m heap)))
-              (return (coco_raise_named e (coco_new_atom m "instantiation_error")
-                                        mod name arity)))
-          (return (coco_raise_named e (coco_make2 m "type_error"
-                                                  (coco_new_atom m "callable") g)
-                                    mod name arity))))
+        (return (coco_raise_named e (coco_goal_formal (-> e m) g) mod name arity)))
 
   ;;; What a refused allocation raises (1.10.28): error(resource_error(memory),
   ;;; _), built on a heap that still has room -- a C buffer was refused, or

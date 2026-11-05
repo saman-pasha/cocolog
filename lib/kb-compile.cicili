@@ -854,6 +854,9 @@
     (member u64 n_cut)
     (member u64 n_dtrue)
     (member u64 n_dfail)
+    ;; `$' and `@' (3.20.0), which `cc_bad_leaf' walks through
+    (member u64 n_det)
+    (member u64 n_at)
     (member u64 f_cut)
     ;; the owner of a unit inside a structure `once/1' and its kin are
     ;; called with: `'<meta-call>'/1', SYS (3.1.0, `cc_ulink')
@@ -1144,7 +1147,9 @@
   ;;; term, for the construct to raise type_error(callable, G) of the whole
   ;;; (`coco_goal_ok') where swipl's compile of G does, before any of it
   ;;; runs -- compiled in place, `once((fail, 1))' failed and raised
-  ;;; nothing. A variable, an atom and a compound are goals.
+  ;;; nothing. A variable, an atom and a compound are goals. `$(G)' and
+  ;;; G@M are walked too (3.20.0), and a G@M whose M is bound and no atom is
+  ;;; one (`coco_goal_check': type_error(module, M)).
   (static)
   (func cc_bad_leaf ((coco_ucomp * uc) (size_t t) (u32 depth)) (out int)
         (let ((coco_store * st . #'(-> uc st)) (coco_machine * m . #'(-> uc m)) (u64 c . 0))
@@ -1161,7 +1166,14 @@
                                     (== nm (-> uc n_arrow)) (== nm (-> uc n_soft))))
                  (if (cc_bad_leaf uc (+ t 1) (+ depth 1)) (return 1))
                  (set t (+ t 2)))
-                ((and (== ar 1) (== nm (-> uc n_neg)))
+                ((and (== ar 1) (or (== nm (-> uc n_neg)) (== nm (-> uc n_det))))
+                 (set t (+ t 1)))
+                ((and (== ar 2) (== nm (-> uc n_at)))
+                 (let ((size_t mo . #'(coco_store_deref st (+ t 2))) (u64 mc . 0))
+                   (set mc (nth mo (-> st cells)))
+                   (if (and (not (coco-tag-is REF mc))
+                            (or (not (coco-tag-is ATOM mc)) (== (coco-payload mc) (coco_nil_id m))))
+                       (return 1)))
                  (set t (+ t 1)))
                 (#t (return 0)))))
           (return 0)))
@@ -1441,9 +1453,11 @@
           (set ($ uc ok) 1)
           ;; the names a construct is told by: the machine's own, or
           ;; interned here when it has none yet
-          (let ((u64 nm [14]) (u64 fc . 0))
+          (let ((u64 nm [16]) (u64 fc . 0))
             (if (not (coco_unit_names m nm (aof fc)))
-                (block (set (nth 0 nm) (coco_intern m ";"))
+                (block (set (nth 14 nm) (coco_intern m "$"))
+                       (set (nth 15 nm) (coco_intern m "@"))
+                       (set (nth 0 nm) (coco_intern m ";"))
                        (set (nth 1 nm) (coco_intern m "->"))
                        (set (nth 2 nm) (coco_intern m "*->"))
                        (set (nth 3 nm) (coco_intern m "\\+"))
@@ -1472,6 +1486,8 @@
             (set ($ uc n_cut) (nth 11 nm))
             (set ($ uc n_dtrue) (nth 12 nm))
             (set ($ uc n_dfail) (nth 13 nm))
+            (set ($ uc n_det) (nth 14 nm))
+            (set ($ uc n_at) (nth 15 nm))
             (set ($ uc f_cut) fc))
           (set comma ($ uc n_comma))
           ;; a body with no construct after its guards makes none, and is

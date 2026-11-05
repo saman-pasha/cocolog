@@ -132,15 +132,18 @@
                   (set n (coco_arity m b))
                   (if (== (cof budget) 0) (block (set r -1) break))
                   (set (cof budget) (- (cof budget) 1))
-                  (if (and (== n 1) (== nid (coco-id m "\\+")))
+                  ;; `$(G)' and G@M are control too (3.20.0), G@M's module
+                  ;; asked before its goal, as M:G's is
+                  (if (and (== n 1) (or (== nid (coco-id m "\\+")) (== nid (coco-id m "$"))))
                       (block (set b (coco_arg m b 0)) continue))
-                  (if (and (== n 2) (== nid (coco-id m ":")))
-                      (let ((size_t q . #'(coco_deref m (coco_arg m b 0))))
+                  (if (and (== n 2) (or (== nid (coco-id m ":")) (== nid (coco-id m "@"))))
+                      (let ((int at . #'(== nid (coco-id m "@"))) (size_t q . 0))
+                        (set q (coco_deref m (coco_arg m b (? at 1 0))))
                         (if (coco-tag-is REF (nth q (-> m heap))) (set (cof fv) 1))
                         (if (not (or (coco-tag-is REF (nth q (-> m heap)))
                                      (and (coco-tag-is ATOM (nth q (-> m heap))) (not (coco_is_nil m q)))))
                             (block (set (cof mod) q) (set r 2) break))
-                        (set b (coco_arg m b 1))
+                        (set b (coco_arg m b (? at 0 1)))
                         continue))
                   (if (and (== n 2) (or (or (== nid (coco-id m ",")) (== nid (coco-id m ";")))
                                           (or (== nid (coco-id m "->")) (== nid (coco-id m "*->")))
@@ -227,7 +230,9 @@
           (if fv
               ;; the names the consult interns, from the machine's table
               ;; (`:-' and `=>', which the walk asks nothing of, none)
-              (let ((u64 ids [11]) (size_t q . 0) (int f . 0))
+              (let ((u64 ids [13]) (size_t q . 0) (int f . 0))
+                (set (nth 11 ids) (coco-id m "$"))
+                (set (nth 12 ids) (coco-id m "@"))
                 (set (nth 0 ids) (coco-id m ","))
                 (set (nth 1 ids) (coco-id m ";"))
                 (set (nth 2 ids) (coco-id m "->"))
@@ -836,6 +841,10 @@
         (if (and (or (== 0 (strcmp name "freeze")) (== 0 (strcmp name "when")))
                  (== n 2) (== i 1))
             (return 1))
+        ;; $(0) and @(0, +) (3.20.0)
+        (if (and (or (and (== 0 (strcmp name "$")) (== n 1)) (and (== 0 (strcmp name "@")) (== n 2)))
+                 (== i 0))
+            (return 1))
         (return 0))
 
   ;;; Whether NAME/N is a meta predicate whose call swipl's `portray_body/6'
@@ -848,6 +857,8 @@
                      (== 0 (strcmp name "not")))
                  (== n 1))
             (return 1))
+        (if (and (== 0 (strcmp name "$")) (== n 1)) (return 1))
+        (if (and (== 0 (strcmp name "@")) (== n 2)) (return 1))
         (if (and (== 0 (strcmp name "catch")) (== n 3)) (return 1))
         (if (and (== 0 (strcmp name "setup_call_cleanup")) (== n 3)) (return 1))
         (if (and (== 0 (strcmp name "call_cleanup")) (== n 2)) (return 1))
@@ -1459,13 +1470,15 @@
 
   ;;; THE NAMES THE ENVIRONMENT'S COMPILER TELLS A CONSTRUCT BY (Stage 6),
   ;;; from the vocabulary interned once per machine (lib/kb.cicili asks):
-  ;;; NAMES[0 .. 13] the atoms `;', `->', `*->', `\+', `not', `once',
-  ;;; `ignore', `,', `true', `fail', `false', `!', `$true' and `$fail', and
-  ;;; FCUT the functor `'$cut'/1'. 0, with nothing written, before the
-  ;;; vocabulary is interned. Interned at every compile instead, they cost
-  ;;; each clause 1 300 instructions.
+  ;;; NAMES[0 .. 15] the atoms `;', `->', `*->', `\+', `not', `once',
+  ;;; `ignore', `,', `true', `fail', `false', `!', `$true', `$fail', `$' and
+  ;;; `@', and FCUT the functor `'$cut'/1'. 0, with nothing written, before
+  ;;; the vocabulary is interned. Interned at every compile instead, they
+  ;;; cost each clause 1 300 instructions.
   (func coco_unit_names ((coco_machine * m) (u64 * names) (u64 * fcut)) (out int)
         (if (not (-> m ids_ready)) (return 0))
+        (set (nth 14 names) (coco-id m "$"))
+        (set (nth 15 names) (coco-id m "@"))
         (set (nth 0 names) (coco-id m ";"))
         (set (nth 1 names) (coco-id m "->"))
         (set (nth 2 names) (coco-id m "*->"))
