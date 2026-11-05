@@ -456,7 +456,7 @@ httpd_mode(M, _) :-
                 'httpd: concurrency(none | thread | thread(N) | green | green(N))')).
 
 httpd_count(N, _) :- integer(N), N > 0, !.
-httpd_count(N, Which) :-
+httpd_count(N, _Which) :-
     throw(error(domain_error(httpd_concurrency, N),
                 'httpd: the worker count of concurrency/1 is a positive integer')).
 

@@ -141,7 +141,7 @@ convert(D) :-
     with_output_to(codes(NC), forall(member(N, Test), ( write(N), nl ))),
     write_file_from_codes(NP, NC), !.
 
-convert_split(Src, D, Split, Names) :-
+convert_split(Src, _D, Split, Names) :-
     csv_path(Split, pixels, PP), csv_path(Split, boxes, BP),
     write_file_from_codes(PP, []), write_file_from_codes(BP, []),
     side(S),

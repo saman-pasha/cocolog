@@ -8373,6 +8373,15 @@ What stops working:
   `atom_codes(A, "[]")` makes the atom `'[]'`, which is not `[]`. A program
   that tested the list's end with atom/1, or built `'[]'` from text and
   compared it with `[]`, now takes the other branch.
+- TEXT THAT 2.x WROTE READS BACK OTHERWISE (cicilang's finding, on
+  3.16.0): 2.x wrote the atom `'[]'` as `[]`, the two being one atom then,
+  so a term it wrote as text with `'[]'` in it -- a cache of clauses
+  written by writeq/1, say -- reads back under 3.x with the list's end
+  where the atom stood, and nothing says so. cicilang's per-header
+  summaries of libc++ 18 held `operator([])` 5 666 times in 440 files,
+  each one the empty list as 3.x read it: the subscript operator lost.
+  Drop such text and write it again. An `--embed` store written by 2.x
+  asks the same question, and is not tested.
 - A compound given as text raises `type_error` (split_string/4,
   string_chars/2, atom_string/2, upcase_atom/2, term_to_atom/2's text and
   the rest), where through 2.16 its writing was the text. A list that mixes
@@ -11046,3 +11055,211 @@ for byte -- twenty-two `listing/1` cases, a fact that is a rule with a
 `portray_clause/1` terms. Against swipl 10.0.2 here the two outputs are
 identical; swipl 9.0.4's library(listing) has the same layout functions,
 and the files case runs it there.
+
+## Single-sided rules as swipl's, every stream encoding, and set_stream/2 (3.19.0)
+
+A minor, cocolog 3.19.0: a program that worked goes on working, and three
+things swipl's programs reach for are now there -- a `Head => Body` rule
+that matches as swipl's does, the encodings 3.17.0 checked and did not
+apply, and `set_stream/2`.
+
+- A SINGLE-SIDED RULE IS swipl's SSU. `Head => Body` and `Head, Guard =>
+  Body` are stored as `Head :- '$ssu', !, Body` and `Head :- '$ssu', Guard,
+  !, Body` (`coco_assert_from`, lib/kb-consult.cicili), and the clause
+  compiler, finding the mark, takes it off and compiles the head to MATCH
+  the call as subsumes_term/2 does (`coco_clause_code`, six `_S` opcodes,
+  `cc_head_ssu` out of line in lib/kb-compile.cicili, which every head
+  program's default case reaches, so a clause of `:-` pays nothing): a
+  variable met before is `==` to what it met, and a constant or a structure
+  is no match for an unbound argument. A read's end puts a last clause
+  after each single-sided predicate it gave rules, `H :- '$ssu_none'(Mod,
+  H)`, which raises `existence_error(matching_rule, Goal)`, the goal and
+  the context `Mod:` qualified but `user`'s, as swipl's
+  (`coco_consult_ssu_close`; a nested read's rules are its own, a module/2
+  names the module); an assert keeps that clause last
+  (`coco_ssu_keep_last`). clause/2 shows a rule as swipl's does -- the body
+  alone, or `Guard, !, Body` -- listing/1 as `Head => Body` and `Head, Guard
+  => Body`, and neither, nor predicate_property/2's count, shows the last
+  clause. An asserted `(H, G) => B` is refused as a clause of `,/2`, as
+  swipl's assert refuses it. The uncaught error says `p/1: No rule matches
+  p(b)`. Through 3.18.0 a rule was `Head :- !, Body`: a head bound the
+  call's variable where swipl's raises, a call no rule matched failed, and
+  ordsets.pl's `ord_intersection/3` and `ord_subtract/3` answered beside
+  two stand-ins of library(lists), the first five times over: the
+  stand-ins are gone.
+- swipl's `'$skip_list'/3` (Brent's walk, so a cyclic list counts as
+  swipl's does) and `'$unbind_template'/1`, which ordsets.pl's
+  `ord_intersection/2` and aggregate.pl's `foreach/2` call: through 3.18.0
+  both raised existence_error.
+- EVERY ENCODING swipl names is applied by library(stream): UTF-16 either
+  way round, `wchar_t` (UCS-4), and a BOM written with `bom(true)` and
+  looked for by a read, beside 3.17.0's `iso_latin_1`, `octet` and `ascii`;
+  a malformed UTF-16 unit or a code past U+10FFFF is U+FFFD, with the bytes
+  it took counted. `set_stream/2` sets the type (and the encoding it
+  implies), the encoding, the column (a standard stream's is the
+  console's, which the engine now counts for user_output and user_error,
+  one count for the two, as swipl's: `coco_out_note`), and an alias, moved
+  from the stream that had it, and checks the rest of swipl's attributes
+  in swipl's words; `byte_count/2` and a stream's `encoding` and `bom`
+  properties are there. `'$stream_open'/7` takes the encoding and the BOM
+  (3.17.0's `'$stream_set_enc'/2` is gone; test/flowdebug.pl's journal
+  counts one portal fewer again).
+- write_term/2's `spacing(next_argument)` and `priority(P)` are honoured
+  (through 3.18.0 checked and read past): the first the layout's mode 512,
+  the second the priority the write starts at (`wprec` on the machine).
+
+NOT SWIPL'S, and stated: predicate_property/2 answers no `ssu`; a clause the
+compiler cannot take (a frame past 2^24 slots) is matched as a `:-` clause
+would be; `'$unbind_template'/1` of a template a clause's body wrote with a
+constant argument unbinds it where swipl's raises; `text` is the locale's
+encoding to swipl and UTF-8 here; swipl's `io_warning` for a malformed
+UTF-16 unit is not said.
+
+CHECK: test/files/vendored.pl (new; single-sided rules, the two
+helpers, each answer of the ordsets predicates once, a nested read's rules,
+asserted rules and their listing), test/files/stream_counts.pl (new; 175
+lines), test/files/write.pl's spacing and priority lines, test/stream.pl,
+and test/errors.pl's `No rule matches` -- all 92 test/files cases agree
+with swipl 9.0.4. Thirty-nine arms, one a rule (the six `_S` opcodes, the
+read's last clause, the assert's, the guard's split, the module name,
+clause/2's and listing/1's views, the count, the assert's refusal, the
+error's words, the two helpers and the template's check, Brent's walk, the
+stand-ins, the two write options, and nineteen of the stream module's:
+each encoding's writer and reader, UCS-4, a lone unit, a BOM read and
+written, each `set_stream/2` attribute, the console's count, the raw byte
+count, the binary stream's encoding, `byte_count/2`, a position field's
+error), each red in that case.
+
+COST, tools/flow/zero.sh against 3.18.0 (work less its padding): nrev
+65 876 105 to 65 872 570 (-0.005 %), queens 42 901 022 to 43 031 936
+(+0.31 %), lookup 47 822 722 to 47 883 486 (+0.13 %); the work with its
+padding falls 2.4 %, 0.57 % and 0.67 %. The first cut handed
+`cc_head_ssu' the addresses of the head executor's PC and S, which kept
+them out of registers in every executor: nrev ran 2.3 % more instructions
+less its padding. By value both ways, S handed back and the PC stepped by
+`cc_ssu_words', it is the line above.
+
+## The compiler's load-time warnings, as swipl's (3.19.1)
+
+A load says swipl's second block of warnings now, the one its compiler
+gives where the reader gave `Singleton variables: [X]` (3.17.0): a
+variable marked singleton that the clause names twice or more
+(`Singleton-marked variable appears more than once: _X`, a name of `_` and
+a capital, or of `__`; `_x` is not marked); a variable a branch of a
+disjunction or an if-then-else meets for the first time at its last
+occurrence (`Singleton variable in branch: Y`), or a \+ does (`Singleton
+variable in \+: Y`), the innermost of the two naming it; one a \+ meets
+for the first time and names once, though the clause names it after, as
+its bindings never leave the \+; and a test ==/2 or \==/2 of two
+variables, one of which no goal before gave a value (`Test is always
+false: X==Y`, `Test is always true: X\==Y`, and of one with itself `Test
+is always true: X==X`). Each rule was probed against swipl 9.0.4 case by
+case, 135 clauses, and these are its answers: a branch starts from what
+was met before the disjunction and what any branch met is met after it; a
+\+ keeps what it met; `->` and `*->` with no else are no branch, and nor
+is `|` outside a grammar rule; `M:G` is G; a meta-call's goal (findall/3,
+once/1, call/1, not/1, forall/2, catch/3) is only its occurrences; a
+grammar rule's `{}` holds a goal and its `\+` and `|` are the rule's own;
+a single-sided rule's guard is walked before its body; a directive has
+the reader's block alone; a test gives the variable it met first no
+value, so a second test of it warns again, though the branch check counts
+it met. The block is said once its clause is stored, after the
+not-together warning, as swipl's: none for a clause refused, and none for
+one term_expansion/2 replaced (swipl checks what the expansion gave; this
+checks the clause read). lib/kb-consult.cicili, `coco_cw_clause` and the
+walk under it; the state of a variable is two bits, met and set.
+
+ONE COUNT FOR BOTH BLOCKS: the reader's block counted each variable by a
+walk of the clause of its own (`coco_var_occurs` once a name), and one
+walk now counts them all (`coco_cw_count`), which the compiler's block
+reads as it goes. Consulting library/reasoning/translate.pl (28 368
+lines), callgrind's instructions: 390 483 056 on 3.19.0, the walk a name
+103 million of it (26 %), and 322 742 764 now (-17.35 %), both blocks 27
+million. The clock, three pairs of 44 to 65 ms, says nothing larger.
+Halving the search of the reader's names, which the walk asks at each
+occurrence, moved the count 0.004 % and was taken out.
+
+WHAT IT FOUND IN THE TREE: test/template.pl's `a query variable shadows
+a context name` passed the context `[I=outer]`, a fresh variable where
+the name `'I'` was meant, so there was no name to shadow (it is `'I'`
+now, and green); the opencv lessons 15, 16 and 17 named a variable `_Lb`,
+`_T`, `_L` that they use twice (named plainly now); test/reconsult.pl's
+`E3` in the condition of an if-then-else was a singleton in a branch, and
+the clause above it bound `C` to nothing. The reader's singletons the
+tree printed since 3.17.0 are gone from library/httpd.pl, test/httpd.pl,
+test/tensors.pl and lessons 28, 31, 39, 42 and 54 (each a variable the
+clause never used, made `_`); library/reasoning/ (corpus/build.pl, nine in
+translate.pl), test/reason.pl and test/translate.pl keep theirs for the
+reasoning library's next number.
+
+NOT SWIPL'S, and stated: an anonymous variable in a test is written `_G3`
+where swipl's is `_1454`, and the block is the clause read's, not an
+expansion's. A clause whose body holds `foo:3` inside a disjunction is
+stored, where swipl refuses it as no callable term (`coco_consult_refused`
+does not look under `:`), so its block is said: found by these probes, and
+refused since 3.19.2 (below).
+
+CHECK: test/files/warnings_branch.pl (new; 225 lines, with swipl 9.0.4)
+-- all 93 test/files cases agree. Thirty arms, one a rule, each red in
+that case: the multiton check, its `__` and its capital; the immediate
+check, its last occurrence, its first meeting, its once only and its `_`
+names; a branch's start and the union after; `->` with no else; `|` in a
+goal and in a rule; the \+'s name, its end check, the end check's once
+only and its `_` names, and what it keeps; `:` and `{}`; the test in a
+rule's body, of a term that is no variable, of a variable a goal set, of
+one with itself, `\==`'s words, the value it gives and the meeting it
+counts; the guard; the block said at the store and not for an expansion's
+clause. The directive's early return is a guard of cost: a directive's
+block would never be said, as the store says it.
+
+## What a load and an assert refuse of a qualified clause, as swipl's (3.19.2)
+
+A goal under `M:G` is G to the check a body is asked: `p :- foo:3` is
+refused, where through 3.19.1 `M:G` was a callable term and nothing more
+and the clause went in, and `assertz((p :- foo:3))` succeeded. swipl
+9.0.4's rules, probed clause by clause: the qualifiers on top of a body
+are taken off and the rest walked, so `p :- foo:(a, 3)` names `a,3` and
+`p :- a, foo:3` the whole body; a module that is neither an atom nor a
+variable is type_error(module, M), the walk's first fault winning (`3,
+4:foo` names the body, `4:foo, 3` module 4); a variable module on top of
+a body that will not do is an instantiation error, a module's fault
+under it still its own, and inside a body the body's fault (`a, M:3`
+names `a,_:3`). The qualifiers of a whole clause and of a head come off
+too: `foo:3.` is type_error(callable, 3), `3:foo.` type_error(module, 3),
+`M:foo.` an instantiation error, `foo:(p :- 3)` names `3`. A
+single-sided rule's guard, a cut and its body are one body, `x, 3 => true`
+naming `3,!,true` (through 3.19.1 the load asked a `=>` clause nothing),
+and a rule a module qualifies has no guard, swipl's: `foo:(p, g => b)` is
+a clause of `,/2` and refused, where the store peeled the qualifier and
+split the guard after all. The list's end is no goal (`p :- []`, swipl
+7's). At an assert `assertz(foo:7)` is type_error(callable, 7), where it
+failed, and a cycle of qualifiers on a clause or a head
+type_error(acyclic_term, X), on a body representation_error(cyclic_term),
+as swipl's. lib/kb-consult.cicili (`coco_consult_refused`,
+`coco_consult_body_refused`, `coco_consult_unqualify`,
+`coco_consult_goals`) and lib/solve-db.cicili (`coco_clause_check`,
+`coco_clause_unqualify`, `coco_body_check`, `coco_body_callable`), the
+same rules on two walks: the load's recursive over a read clause, the
+assert's on its worklist and budget.
+
+NOT SWIPL'S, and stated: a variable called at its first occurrence (`p
+:- X.`, `p :- M:foo.`, `assertz((p :- foo:X))`) is stored as call/1 of
+it, where swipl's compiler refuses it as an instantiation error -- a rule
+of what the compiler has met, found by these probes and left for its own
+change; `"s"` is codes here, so `p :- foo:"s"` goes in; and a refused
+qualified guard says one line, where swipl adds where its boot file
+defines `,/2`.
+
+CHECK: test/files/qualified_goals.pl (new; 126 lines with swipl 9.0.4,
+the load's and the assert's) and test/errors.pl's qualified guard -- all
+94 test/files cases agree. Twenty-six arms, one a rule, each red: the
+load's `[]`, its walk under `:`, a module inside, the clause's and the
+head's variable and non-atom modules, the clause's qualifiers and the
+head's, the body's top, its variable module and that module's own fault,
+its non-atom module, the `=>` clause, the guard's body and a qualified
+guard; the assert's `[]`, its walk under `:`, a module inside, the
+clause's and the head's qualifiers, a non-atom module, the cycle, the
+body's top, its variable module, its non-atom module and the walk's
+module fault. A test of a variable module in the assert's clause
+qualifiers was green and is gone: `coco_type_error` makes an unbound
+culprit an instantiation error, as swipl's PL_error does.

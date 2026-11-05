@@ -51,9 +51,9 @@ meaningful. Everything these files needed was built in cocolog instead:
 | `*->` | the soft cut, `lib/solve.cicili` |
 | `code_type/2` | `lib/builtins.cicili` |
 | `must_be/2` | `lib/builtins.cicili`, standing in for `library(error)` |
-| `ord_intersection/3`, `ord_subtract/3` | `lib/lists.cicili`, standing in for `library(ordsets)` when it is not consulted |
+| `'$skip_list'/3`, `'$unbind_template'/1` | `lib/builtins-db.cicili` (3.19.0), swipl's own: ordsets.pl's `ord_intersection/2` and aggregate.pl's `foreach/2` call them. Through 3.18.0 two stand-ins of `ord_intersection/3` and `ord_subtract/3` in `lib/lists.cicili` answered beside ordsets.pl's, each solution more than once |
 | `type_error/2`, `domain_error/2`, `compound_name_arity/3` | `lib/builtins.cicili` -- ordsets.pl and assoc.pl call them by name |
-| `Head => Body` | translated on assert to `Head :- !, Body` by `coco_assert` in `lib/kb-consult.cicili`; see the comment there for what that approximation does and does not keep |
+| `Head => Body` | swipl's single-sided rule (3.19.0): stored as `Head :- '$ssu', !, Body` by `coco_assert_from` in `lib/kb-consult.cicili`, its head compiled to match without binding the call, and a last clause after the rules that raises `existence_error(matching_rule, Goal)`; see the comment there. Through 3.18.0 it was `Head :- !, Body`, which bound a call's variable where swipl's raises |
 | `:- if` / `:- elif` / `:- else` / `:- endif` | conditional reading in `coco_consult`, with conditions decidable below the engine: `true`, `fail`, `\\+`, and `current_predicate(Name/Arity)` against the store -- which answers assoc.pl's probe for SWI's `$btree_find_node` VM intrinsic with the truthful no |
 | `div` | the operator in `lib/syntax.cicili`, floored division in `lib/solve-arith.cicili` |
 | `copy_term_nat/2`, `instantiation_error/1`, `strip_module/3`, `compound_name_arguments/3`, `cyclic_term/1`, `acyclic_term/1` | `lib/builtins.cicili` -- yall.pl's runtime path. `copy_term_nat` IS `copy_term` here (no attributed variables), and `cyclic_term` answers no, consistently with an engine that assumes acyclic terms throughout |
@@ -68,11 +68,11 @@ meaningful. Everything these files needed was built in cocolog instead:
 `aggregate_all(count(Expr), Goal, R)`: SWI 9.0.4 reads the compound
 template through its nested-template rules and answers `count(0)`;
 cocolog's native builtin reads it as "count the solutions" -- which is
-what SWI's own documentation says -- and answers their number. And
-`foreach/2` (exported by aggregate.pl) reaches SWI's
-`'$unbind_template'` VM intrinsic, which does not exist here, so calling
-it raises existence_error. Nothing in cocolog or its tests uses either
-shape; test/files/aggregate.pl covers everything both systems agree on.
+what SWI's own documentation says -- and answers their number. Nothing in
+cocolog or its tests uses that shape; test/files/aggregate.pl covers
+everything both systems agree on. `foreach/2` (exported by aggregate.pl)
+runs since 3.19.0, over the `'$unbind_template'/1` built for it
+(test/files/vendored.pl); through 3.18.0 it raised existence_error.
 
 **`:- module/2`'s export list is ignored**, because cocolog has one namespace.
 Every predicate in these files is callable, including the ones upstream keeps

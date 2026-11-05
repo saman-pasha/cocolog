@@ -231,7 +231,7 @@ queries :-
     rendered('{% query member(_X, [a, b]) %}x{% endquery %}', text, [], G75),
     check('an underscored variable is not put in the context', G75, 'xx'),
     rendered('{% query tpl_price(I, P) %}{{ I }}{% endquery %}',
-             text, [I=outer], G76),
+             text, ['I'=outer], G76),
     check('a query variable shadows a context name', G76, 'applepear'),
     rendered('{% query var(X) %}{{ X }}{% endquery %}', text, [], G77),
     check('an unbound query variable is not in the body', G77,

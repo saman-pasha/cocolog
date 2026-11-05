@@ -107,7 +107,6 @@ two_spellings(D, _) :-
 a_librarys_clauses(D) :-
     section('a library''s own clauses never reach the knowledge base'),
     atom_concat(D, '/libstore', S),
-    cocolog(C),
     %% tier 1, compiled into the binary: library(lists) defines member/2, and
     %% its clauses carry origin 0 exactly as a runtime assertz does -- so
     %% nothing but the MUTE that put them there can tell them apart.
@@ -250,7 +249,7 @@ reports(D) :-
     cocolog_out(A3, Out3),
     ( re_first_atom('answer\\([^\n]*\\)', Out3, T3) -> term_to_atom(G3, T3) ; G3 = none ),
     check('a syntax error: the goal succeeds with the clauses either side of it', G3, answer([1, 2])),
-    ( re_first_atom('ERROR: [^\n]*Syntax error[^\n]*', Out3, E3) -> R3 = reported ; R3 = silent ),
+    ( re_first_atom('ERROR: [^\n]*Syntax error[^\n]*', Out3, _) -> R3 = reported ; R3 = silent ),
     check('and the error is reported', R3, reported).
 
 %% A FILE LOADED AS A MODULE IS READ AGAIN AS THAT MODULE (2.14.0). The

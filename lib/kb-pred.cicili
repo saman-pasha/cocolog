@@ -960,8 +960,13 @@
           ;; `meta_predicate' exists to tell a module system which
           ;; arguments to qualify, and with no modules there is nothing to say.
           ;; module/2 and meta_predicate/1 define (3.6.0, `ldefs'), as swipl's
+          ;; and names the module a single-sided rule's error names (3.19.0)
           (if (and (== n 2) (== 0 (strcmp name "module")))
-              (block (set (-> m ldefs) (+ (-> m ldefs) 1)) (return 1)))
+              (let ((size_t mn . #'(coco_deref m (coco_arg m g 0))))
+                (if (coco-tag-is ATOM (nth mn (-> m heap)))
+                    (set (-> m ssu_mod) (+ (coco_name_of m mn) 1)))
+                (set (-> m ldefs) (+ (-> m ldefs) 1))
+                (return 1)))
           (if (or (and (<= n 2) (>= n 1) (== 0 (strcmp name "use_module")))
                   (and (== n 1) (== 0 (strcmp name "ensure_loaded"))))
               (block

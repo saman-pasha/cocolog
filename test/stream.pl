@@ -194,9 +194,10 @@ counters(D) :-
     check('is_stream knows handles and aliases, not names or variables, and forgets a closed one',
           G3, yes-yes-no-no-no-no),
     answer(( stream_open(P, read, S4), stream_property(S4, position(Pos4)),
-             catch(stream_position_data(bad, Pos4, _), error(E4, _), true),
+             catch(stream_position_data(bad, Pos4, _), E4, true),
              stream_close(S4) ), E4, G4),
-    check('an unknown position field is SWI''s domain error', G4, domain_error(stream_position_data, bad)).
+    %% swipl's ball is error/1 here, with no context (3.19.0)
+    check('an unknown position field is SWI''s domain error', G4, error(domain_error(stream_position_data, bad))).
 
 %% ---- encodings -------------------------------------------------------------
 
@@ -308,12 +309,12 @@ properties(D) :-
     section('stream_property'),
     path(D, 'q.txt', Q),
     answer(( stream_open(Q, write, [type(binary)], S1), findall(P, stream_property(S1, P), Ps1), stream_close(S1) ), Ps1, G1),
-    check('ISO''s properties: file_name, mode, type, direction, position, eof_action, reposition', G1,
-          [file_name(Q), mode(write), type(binary), output, position('$stream_position'(0, 1, 0, 0)),
+    check('ISO''s properties: file_name, mode, type, encoding (3.19.0), direction, position, eof_action, reposition', G1,
+          [file_name(Q), mode(write), type(binary), encoding(octet), output, position('$stream_position'(0, 1, 0, 0)),
            eof_action(eof_code), reposition(true)]),
     answer(( stream_open(Q, update, S2), findall(P, stream_property(S2, P), Ps2), stream_close(S2) ), Ps2, G2),
     check('update is input and output both, and an input stream says whether it is at its end', G2,
-          [file_name(Q), mode(update), type(text), input, output, position('$stream_position'(0, 1, 0, 0)),
+          [file_name(Q), mode(update), type(text), encoding(utf8), input, output, position('$stream_position'(0, 1, 0, 0)),
            end_of_stream(at), eof_action(eof_code), reposition(true)]),
     answer(( findall(A, stream_property(_, alias(A)), As) ), As, G3),
     check('the standard three carry their aliases', G3, [user_input, user_output, user_error]),
@@ -557,7 +558,30 @@ codes(D) :-
           'answer([97,226,130,172,233],97-226-226)'),
     answer(( open(F, write, S3), catch(put_code(S3, -1), E3, true), close(S3) ), E3, G3), ball(G3, B3),
     %% swipl's (3.16.0; through 3.15.2 representation_error(character_code))
-    check('a negative code is type_error(character, C)', B3, type_error(character, -1)).
+    check('a negative code is type_error(character, C)', B3, type_error(character, -1)),
+    %% a UTF-16 stream writes characters under bytes too (3.19.0): a code
+    %% below 256 is no byte there, and nl/1's newline is a unit of two bytes
+    path(D, 'bytes16.txt', F5),
+    sh_join(['COCOLOG_TEXT_UNITS=bytes ', C4, ' --local query "use_module(library(stream)), ',
+             'open(''', F5, ''', write, S, [encoding(utf16le)]), put_code(S, 233), nl(S), close(S), ',
+             'open(''', F5, ''', read, R, [type(binary)]), read_stream_to_codes(R, Bs), close(R), ',
+             'write(answer(Bs)), nl" 2>/dev/null'], Cmd5),
+    proc_run(Cmd5, 60000, Out5, _),
+    ( re_first_atom('answer\\([^\n]*\\)', Out5, A5) -> true ; A5 = Out5 ),
+    check('under bytes: a UTF-16 stream takes a code as a character, nl/1 as one', A5, 'answer([233,0,10,0])'),
+    %% a seek is counted again from after the BOM the open read, no
+    %% character (3.19.0)
+    path(D, 'bom.txt', F6),
+    answer(( open(F6, write, S6, [bom(true)]), write(S6, abc), close(S6),
+             open(F6, read, R6), stream_seek(R6, 4), character_count(R6, C6), byte_count(R6, B6),
+             get_char(R6, K6), close(R6) ), C6-B6-K6, G6),
+    check('a seek past a BOM counts from after it', G6, 1-4-b),
+    %% a UCS-4 value past U+10FFFF is U+FFFD, where swipl's hands the
+    %% number on (COMPAT.md): no character holds it here
+    path(D, 'ucs.txt', F7),
+    answer(( open(F7, write, W7, [type(binary)]), forall(member(B7, [0, 0, 17, 0]), put_byte(W7, B7)), close(W7),
+             open(F7, read, R7, [encoding(wchar_t)]), read_stream_to_codes(R7, C7), close(R7) ), C7, G7),
+    check('a UCS-4 value past U+10FFFF reads as U+FFFD', G7, [65533]).
 
 %% ---- the sink: what the engine does with no module, and cell 0 -------------
 

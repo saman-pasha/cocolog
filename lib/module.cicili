@@ -480,6 +480,8 @@
   (decl) (func coco_m_sink_open_call ((coco_engine * e) (size_t sink)) (out int))
   (decl) (func coco_m_out_note ((int fd) (const char * text) (size_t len)))
   (decl) (func coco_m_out_open ((int fd)) (out int))
+  (decl) (func coco_m_out_where ((i64 * nc) (i64 * nl) (i64 * lp) (i64 * nb)))
+  (decl) (func coco_m_out_set_column ((i64 lp)))
 
   ;;; ---- a goal on a machine of its own ---------------------------------
   ;;;
@@ -1357,6 +1359,12 @@
         (if (== fd 1) (return (coco_out_open stdout)))
         (if (== fd 2) (return (coco_out_open stderr)))
         (return 0))
+
+  (func coco_m_out_where ((i64 * nc) (i64 * nl) (i64 * lp) (i64 * nb))
+        (coco_out_where nc nl lp nb))
+
+  (func coco_m_out_set_column ((i64 lp))
+        (coco_out_set_column lp))
 
   ;;; Filled in by the composition root; null until it is, which is what
   ;;; every out-of-tree embedder and every test binary leaves them.

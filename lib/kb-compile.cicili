@@ -89,6 +89,13 @@
   (static) (func cc_UNIFY_VAR () (out u64) (return (cc-op "UNIFY_VAR")))
   (static) (func cc_UNIFY_VAL () (out u64) (return (cc-op "UNIFY_VAL")))
   (static) (func cc_UNIFY_CONST () (out u64) (return (cc-op "UNIFY_CONST")))
+  ;; a single-sided head's (3.19.0): it matches, binding nothing of the call's
+  (static) (func cc_GET_VAL_S () (out u64) (return (cc-op "GET_VAL_S")))
+  (static) (func cc_UNIFY_VAL_S () (out u64) (return (cc-op "UNIFY_VAL_S")))
+  (static) (func cc_GET_CONST_S () (out u64) (return (cc-op "GET_CONST_S")))
+  (static) (func cc_GET_STRUCT_S () (out u64) (return (cc-op "GET_STRUCT_S")))
+  (static) (func cc_GET_STRUCT_T_S () (out u64) (return (cc-op "GET_STRUCT_T_S")))
+  (static) (func cc_UNIFY_CONST_S () (out u64) (return (cc-op "UNIFY_CONST_S")))
   (static) (func cc_GOAL_STRUCT () (out u64) (return (cc-op "GOAL_STRUCT")))
   (static) (func cc_GOAL_ATOM () (out u64) (return (cc-op "GOAL_ATOM")))
   (static) (func cc_GOAL_VAR () (out u64) (return (cc-op "GOAL_VAR")))
@@ -123,6 +130,12 @@
   (static) (func cc_op ((u64 w)) (out u64) (return (bitand w 255)))
   (static) (func cc_k ((u64 w)) (out size_t) (return (cast size_t (bitand (>> w 8) 16777215))))
   (static) (func cc_n ((u64 w)) (out u64) (return (>> w 32)))
+  ;;; the words after a single-sided head's instruction it reads: a
+  ;;; constant's or a functor's (3.19.0, `cc_head_ssu')
+  (static) (inline)
+  (func cc_ssu_words ((u64 w)) (out size_t)
+        (let ((u64 op . #'(cc_op w)))
+          (return (? (and (>= op (cc-op "GET_CONST_S")) (<= op (cc-op "UNIFY_CONST_S"))) 1 0))))
 
   ;;; A growing word buffer, for the two programs as they are emitted.
   (struct coco_cbuf
@@ -187,7 +200,7 @@
   (static)
   (func cc_head_args ((coco_store * st) (coco_machine * m) (size_t src) (u32 an)
                       (coco_varmap * vm) (u32 * nvars) (coco_cbuf * b)
-                      (coco_cframe ** q) (size_t * qlen) (size_t * qcap)) (out int)
+                      (coco_cframe ** q) (size_t * qlen) (size_t * qcap) (int ssu)) (out int)
         (let ((int ok . 1))
           (for ((u32 j . 0)) (< j an) ((++ j))
             (let ((size_t sa . #'(coco_store_deref st (+ src (+ (cast size_t j) 1))))
@@ -196,7 +209,7 @@
               (cond
                 ((coco-tag-is REF cs)
                  (let ((size_t k . #'(cc_var vm sa nvars (aof sfirst))))
-                   (if (not (cc_emit b (cc_word (? sfirst (cc_UNIFY_VAR) (cc_UNIFY_VAL)) k 0)))
+                   (if (not (cc_emit b (cc_word (? sfirst (cc_UNIFY_VAR) (? ssu (cc_UNIFY_VAL_S) (cc_UNIFY_VAL))) k 0)))
                        (set ok 0))))
                 ((coco-tag-is FUN cs)
                  (let ((size_t t . #'(cast size_t (cof nvars)))
@@ -205,7 +218,7 @@
                    (if (not (cc_emit b (cc_word (cc_UNIFY_VAR) t 0))) (set ok 0))
                    (if (not (cc_frames_push q qlen qcap sa t sn)) (set ok 0))))
                 (#t
-                 (if (not (cc_emit b (cc_word (cc_UNIFY_CONST) 0 0))) (set ok 0))
+                 (if (not (cc_emit b (cc_word (? ssu (cc_UNIFY_CONST_S) (cc_UNIFY_CONST)) 0 0))) (set ok 0))
                  (if (not (cc_emit b cs)) (set ok 0))))))
           (return ok)))
 
@@ -214,7 +227,7 @@
   ;;; structures those queued are worked off in order.
   (static)
   (func cc_compile_head ((coco_store * st) (coco_machine * m) (size_t head)
-                         (coco_varmap * vm) (u32 * nvars) (coco_cbuf * b)) (out int)
+                         (coco_varmap * vm) (u32 * nvars) (coco_cbuf * b) (int ssu)) (out int)
         (let ((coco_cframe * q . nil) (size_t qlen . 0) (size_t qcap . 0) (size_t qi . 0)
               (u64 c . #'(nth head (-> st cells))) (int ok . 1))
           (if (not (coco-tag-is FUN c)) (return 1))
@@ -226,27 +239,27 @@
                 (cond
                   ((coco-tag-is REF ca)
                    (let ((size_t k . #'(cc_var vm a nvars (aof first))))
-                     (if (not (cc_emit b (cc_word (? first (cc_GET_VAR) (cc_GET_VAL)) k i)))
+                     (if (not (cc_emit b (cc_word (? first (cc_GET_VAR) (? ssu (cc_GET_VAL_S) (cc_GET_VAL))) k i)))
                          (set ok 0))))
                   ((coco-tag-is FUN ca)
                    (let ((u32 an . #'($ (nth (cast size_t (coco-payload ca)) (-> m functors)) arity)))
                      ;; the argument index in K, which has twenty-four bits
                      (if (> i 16777215) (set ok 0))
-                     (if (not (cc_emit b (cc_word (cc_GET_STRUCT) (cast u64 i) (cast u64 an))))
+                     (if (not (cc_emit b (cc_word (? ssu (cc_GET_STRUCT_S) (cc_GET_STRUCT)) (cast u64 i) (cast u64 an))))
                          (set ok 0))
                      (if (not (cc_emit b (coco-payload ca))) (set ok 0))
-                     (if (not (cc_head_args st m a an vm nvars b (aof q) (aof qlen) (aof qcap)))
+                     (if (not (cc_head_args st m a an vm nvars b (aof q) (aof qlen) (aof qcap) ssu))
                          (set ok 0))))
                   (#t
-                   (if (not (cc_emit b (cc_word (cc_GET_CONST) 0 i))) (set ok 0))
+                   (if (not (cc_emit b (cc_word (? ssu (cc_GET_CONST_S) (cc_GET_CONST)) 0 i))) (set ok 0))
                    (if (not (cc_emit b ca)) (set ok 0)))))))
           (while (and ok (< qi qlen))
             (let ((size_t src . #'($ (nth qi q) src)) (size_t t . #'($ (nth qi q) k))
                   (u32 an . #'($ (nth qi q) n))
                   (u64 cs0 . #'(nth ($ (nth qi q) src) (-> st cells))))
-              (if (not (cc_emit b (cc_word (cc_GET_STRUCT_T) t (cast u64 an)))) (set ok 0))
+              (if (not (cc_emit b (cc_word (? ssu (cc_GET_STRUCT_T_S) (cc_GET_STRUCT_T)) t (cast u64 an)))) (set ok 0))
               (if (not (cc_emit b (coco-payload cs0))) (set ok 0))
-              (if (not (cc_head_args st m src an vm nvars b (aof q) (aof qlen) (aof qcap)))
+              (if (not (cc_head_args st m src an vm nvars b (aof q) (aof qlen) (aof qcap) ssu))
                   (set ok 0))
               (set qi (+ qi 1))))
           (free q)
@@ -1470,7 +1483,7 @@
           (if (or (== ($ uc emap) nil) (== ($ uc einit) nil) (-> m oom)) (set ($ uc ok) 0))
           (coco_varmap_take m (aof vm))
           ;; the head again, for its numbering
-          (if (and ($ uc ok) (not (cc_compile_head st m head (aof vm) (aof ($ uc nvars)) (aof hb))))
+          (if (and ($ uc ok) (not (cc_compile_head st m head (aof vm) (aof ($ uc nvars)) (aof hb) 0)))
               (set ($ uc ok) 0))
           (free ($ hb w))
           ;; the body's goals as `cc_compile_body' takes them: up to 63, and
@@ -1769,8 +1782,25 @@
             (if (not (or (coco-tag-is ATOM (nth head (-> st cells)))
                          (coco-tag-is FUN (nth head (-> st cells)))))
                 (return nil))
-            (coco_varmap_take m (aof vm))
-            (if (not (cc_compile_head st m head (aof vm) (aof nvars) (aof hb))) (set ok 0))
+            ;; A SINGLE-SIDED RULE (3.19.0, `Head => Body', stored `Head :-
+            ;; '$ssu', Rest'): the mark comes off, and the head MATCHES the
+            ;; call -- a variable met before `==' to what it met, a constant
+            ;; or a structure against an unbound argument no match -- as
+            ;; swipl's subsumes_term/2 does (the `_S' opcodes, `cc_head_ssu')
+            (let ((int ssu . 0))
+              (if (!= body 0)
+                  (let ((size_t b . #'(coco_store_deref st body)) (u64 bc . 0))
+                    (set bc (nth b (-> st cells)))
+                    (if (and (coco-tag-is FUN bc)
+                             (== ($ (nth (cast size_t (coco-payload bc)) (-> m functors)) arity) 2)
+                             (== 0 (strcmp (coco_atom_name m ($ (nth (cast size_t (coco-payload bc)) (-> m functors)) name)) ",")))
+                        (let ((size_t a . #'(coco_store_deref st (+ b 1))) (u64 ac . 0))
+                          (set ac (nth a (-> st cells)))
+                          (if (and (coco-tag-is ATOM ac)
+                                   (== 0 (strcmp (coco_atom_name m (cast u64 (coco-payload ac))) "$ssu")))
+                              (block (set ssu 1) (set body (+ b 2))))))))
+              (coco_varmap_take m (aof vm))
+              (if (not (cc_compile_head st m head (aof vm) (aof nvars) (aof hb) ssu)) (set ok 0)))
             (set nvhead nvars)
             (if (and ok (!= body 0))
                 (if (not (cc_compile_body st m body (aof vm) (aof nvars) (aof bb) (aof ngoals)
@@ -1858,6 +1888,61 @@
               (return (? (== (nth (cast size_t (coco-payload ca)) (-> m bigs))
                              (nth (cast size_t (coco-payload c)) (-> m bigs))) 1 0))))
             (#t (return 0)))))
+
+  ;;; A SINGLE-SIDED HEAD'S INSTRUCTIONS (3.19.0, `Head => Body'), out of
+  ;;; line and weak: every head program's default case hands this any
+  ;;; opcode it does not know, so a clause of `:-' pays nothing for them.
+  ;;; The head MATCHES and binds none of the call's variables: a variable
+  ;;; met before is `==' to what it met, and a constant or a structure is
+  ;;; no match for an unbound argument -- there is no write mode, so S is
+  ;;; only ever read. PC stands at the word after the instruction (a
+  ;;; constant's or a functor's, which the caller steps past by
+  ;;; `cc_ssu_words'), S at the structure's next argument, and ARGS names
+  ;;; the arguments in registers, or the call its term (nil). It answers S
+  ;;; as the instruction leaves it, or -1 when the instruction did not
+  ;;; match -- by value both ways: a head executor that handed the
+  ;;; addresses of its PC and S kept them out of registers, and naive
+  ;;; reverse ran 2.3 % more instructions less its padding.
+  (weak)
+  (func cc_head_ssu ((coco_machine * m) (coco_code * cd) (u64 w) (size_t pc) (size_t S)
+                     (size_t * frame) (size_t call) (const size_t * args)) (out size_t)
+        (switch (cast int (cc_op w))
+          (case (cc-op "GET_VAL_S")
+            (let ((size_t i . #'(cast size_t (cc_n w))))
+              (return (? (== 0 (coco_compare m (nth (cc_k w) frame)
+                                             (? (!= args nil) (nth i args) (+ call (+ i 1)))))
+                         S (cast size_t -1)))))
+          (case (cc-op "GET_CONST_S")
+            (let ((u64 c . #'(nth pc (-> cd head)))
+                  (size_t i . #'(cast size_t (cc_n w)))
+                  (size_t a . #'(coco_deref m (? (!= args nil) (nth i args) (+ call (+ i 1))))))
+              (if (coco-tag-is REF (nth a (-> m heap))) (return (cast size_t -1)))
+              (return (? (cc_match_const m a c) S (cast size_t -1)))))
+          (case (cc-op "GET_STRUCT_S")
+            ;; the argument index is in K, the arity in N
+            (let ((u64 fid . #'(nth pc (-> cd head)))
+                  (size_t i . #'(cc_k w))
+                  (size_t a . #'(coco_deref m (? (!= args nil) (nth i args) (+ call (+ i 1))))))
+              (if (and (coco-tag-is FUN (nth a (-> m heap)))
+                       (== (coco-payload (nth a (-> m heap))) fid))
+                  (return (+ a 1)))
+              (return (cast size_t -1))))
+          (case (cc-op "GET_STRUCT_T_S")
+            ;; the temporary is in K, the arity in N
+            (let ((u64 fid . #'(nth pc (-> cd head)))
+                  (size_t a . #'(coco_deref m (nth (cc_k w) frame))))
+              (if (and (coco-tag-is FUN (nth a (-> m heap)))
+                       (== (coco-payload (nth a (-> m heap))) fid))
+                  (return (+ a 1)))
+              (return (cast size_t -1))))
+          (case (cc-op "UNIFY_VAL_S")
+            (return (? (== 0 (coco_compare m (nth (cc_k w) frame) S)) (+ S 1) (cast size_t -1))))
+          (case (cc-op "UNIFY_CONST_S")
+            (let ((u64 c . #'(nth pc (-> cd head)))
+                  (size_t a . #'(coco_deref m S)))
+              (if (coco-tag-is REF (nth a (-> m heap))) (return (cast size_t -1)))
+              (return (? (cc_match_const m a c) (+ S 1) (cast size_t -1)))))
+          (default (return (cast size_t -1)))))
 
   ;;; Answers 1 when the head matched (the goals are built), 0 when it did
   ;;; not, and -1 when it could not run at all -- no frame to be had -- which
@@ -1965,7 +2050,11 @@
                         (if (not (cc_match_const m (coco_deref m S) c)) (set ok 0)))
                     (set S (+ S 1)))
                   break)
-                (default (set ok 0)))))
+                ;; a single-sided head's, out of line (3.19.0)
+                (default
+                 (let ((size_t ns . #'(cc_head_ssu m cd w pc S frame call nil)))
+                   (if (== ns (cast size_t -1)) (set ok 0) (set S ns))
+                   (set pc (+ pc (cc_ssu_words w))))))))
           (if (not ok)
               (block (if (!= frame frame_small) (coco_cslots_give m frame frcap)) (return 0)))
           ;; ---- the body ----

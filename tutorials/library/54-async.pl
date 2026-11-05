@@ -44,7 +44,7 @@ spin(N) :- N > 0, M is N - 1, spin(M).
 
 %% the work each green thread does, its answer in the second argument
 case_value(R) :-
-    go(member(X, [a,b,c]), F),
+    go(member(_X, [a,b,c]), F),
     await(F, R).
 
 case_chan(R) :-
@@ -85,7 +85,7 @@ case_retract(R) :-
     assertz(q(2)),
     channel(C),
     go((retract(q(2)), channel_send(C, gone)), F),
-    channel_recv(C, X),
+    channel_recv(C, _X),
     await(F, _),
     ( catch(q(2), _, fail) -> R = still ; R = gone ).
 

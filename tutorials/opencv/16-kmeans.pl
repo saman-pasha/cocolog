@@ -42,7 +42,7 @@ main :-
     format("~n-- a photograph in six~n"),
     photo(P), cv_imread(P, Ph), cv_resize(Ph, 0.5, Ph2), cv_kmeans(Ph2, 6, Ph6),
     cv_hconcat([Ph2, Ph6], Row), out('16-kmeans.png', Path), cv_imwrite(Path, Row), show('written', Path),
-    cv_cvt_color(Noisy, bgr2rgb, _T), cv_free(_T),
+    cv_cvt_color(Noisy, bgr2rgb, Rgb), cv_free(Rgb),
 
     cv_free_all([Sc, Noisy, Small, Q, QSmall, Ph, Ph2, Ph6, Row]),
     cv_handles(N), must('every handle freed', N, 0),

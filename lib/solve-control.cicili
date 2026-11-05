@@ -2284,6 +2284,9 @@
                   ;; not exist, swipl's words when its dwim cannot read it
                   (if (and (== 0 (strcmp a1 "procedure")) (coco_err_is_pi m (coco_arg m f 1)))
                       (block (snprintf out len "Unknown procedure: %s" a2) (return)))
+                  ;; a single-sided predicate no rule of which matched (3.19.0)
+                  (if (== 0 (strcmp a1 "matching_rule"))
+                      (block (snprintf out len "No rule matches %s" a2) (return)))
                   (snprintf out len "%s `%s' does not exist" a1 a2)
                   (return)))
 

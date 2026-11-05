@@ -355,7 +355,7 @@ cs_floor(0.35).         %% what the all-positions accuracy must clear
 test -->
     Ps = params(t28_cs),
     cs_stream(_, V, Stream, Len),
-    { cs_windows(Len, _, Held, N, _), cs_batches(Held, Batches), length(Batches, NB), cs_batch(B), Seen is NB * B },
+    { cs_windows(Len, _, Held, _, _), cs_batches(Held, Batches), length(Batches, NB), cs_batch(B), Seen is NB * B },
     constants(B, Ctx),
     { evaluate(Batches, Ps, Stream, Ctx, 0, 0, 0, 0, Hits, Total, LHits, LTotal),
       Acc is Hits / Total, LAcc is LHits / LTotal,

@@ -3265,7 +3265,7 @@
   (func coco_write_top ((coco_machine * m) (coco_strbuf * b) (size_t t)
                         (int mode) (int named)) (out int)
         (let ((size_t from . #'(-> b len))
-              (int rc . #'(coco_write_rec m b t mode 1200 0)))
+              (int rc . #'(coco_write_rec m b t mode (? (> (-> m wprec) 0) (- (-> m wprec) 1) 1200) 0)))
           (if (-> m wcyc)
               (block
                (set (-> b len) from)

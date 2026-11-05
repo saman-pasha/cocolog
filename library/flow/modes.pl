@@ -247,6 +247,12 @@ flow_mode('$decl_report', 2, ['+', '+'], det).
 %% message of it (3.3.0): fails for a name that is neither an atom nor
 %% a compound
 flow_mode('$dwim_predicates', 2, ['+', '-'], semidet).
+%% aggregate.pl's foreach/2: the arguments of a template unbound again
+%% (3.19.0, swipl's)
+flow_mode('$unbind_template', 1, ['+'], det).
+%% ordsets.pl's: the cells of a list skipped, and what stands after them
+%% (3.19.0, swipl's)
+flow_mode('$skip_list', 3, ['-', '?', '-'], det).
 flow_mode(ensure_loaded, 1, ['+'], det).
 flow_mode(use_module, 1, ['+'], det).
 flow_mode(use_module, 2, ['+', '+'], det).

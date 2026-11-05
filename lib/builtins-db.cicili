@@ -209,6 +209,12 @@
                     (size_t t . #'(coco_store_get m st (nth at (-> p clauses))))
                     (size_t h . 0) (size_t bdy . 0))
                 (coco_clause_parts m t (aof h) (aof bdy))
+                ;; a single-sided rule's body as swipl's clause/2 shows it, and
+                ;; the predicate's last clause none (3.19.0, `coco_ssu_body')
+                (if (!= bdy 0)
+                    (let ((size_t sb . #'(coco_ssu_body m bdy)))
+                      (if (== sb (cast size_t -1)) (block (coco_m_undo e mark) (return 0)))
+                      (set bdy sb)))
                 ;; a fact's body is `true', which is what SWI answers too
                 (if (== bdy 0) (set bdy (coco_new_atom m "true")))
                 (if (not (coco_m_unify e head h))
@@ -216,6 +222,63 @@
                 (if (not (coco_m_unify e (coco_m_arg e g 1) bdy))
                     (block (coco_m_undo e mark) (return 0)))
                 (return 1))))))
+
+  ;;; '$unbind_template'(T) (3.19.0, swipl's), which aggregate.pl's foreach/2
+  ;;; asks after each goal it proves: every argument of the compound T is
+  ;;; unbound again and stays T's. An argument that names an older cell names
+  ;;; the variable it was made from (`=..' writes each argument dereferenced),
+  ;;; which is unbound; one that names a newer one was the variable itself,
+  ;;; bound since, and is unbound in place -- so a constant a clause's body
+  ;;; wrote, which stands after the template too, is unbound where swipl's
+  ;;; raises. swipl's unbinds the argument cells as they are. Through
+  ;;; 3.18.0 there was none, and foreach/2 raised.
+  (func coco_b_unbind_template ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t t . #'(coco_deref (coco_m_machine e) (coco_m_arg e g 0))))
+          (if (not (coco-tag-is FUN (nth t (-> m heap)))) (return 1))
+          (let ((u32 n . #'(coco_arity m t)))
+            ;; an argument that never was a variable is no template, swipl's
+            ;; type_error(template, T), asked of every argument first: one in
+            ;; its own cell, or one naming an older cell that holds a value
+            ;; and was no variable (=../2 makes each argument name its cell)
+            (for ((u32 i . 0)) (< i n) ((++ i))
+              (let ((size_t s . #'(+ t (+ (cast size_t i) 1))) (u64 c . 0))
+                (set c (nth s (-> m heap)))
+                (if (not (coco-tag-is REF c)) (return (coco_m_type_error e "template" t)))
+                (if (and (< (cast size_t (coco-payload c)) s)
+                         (not (coco-tag-is REF (nth (cast size_t (coco-payload c)) (-> m heap)))))
+                    (return (coco_m_type_error e "template" t)))))
+            (for ((u32 i . 0)) (< i n) ((++ i))
+              (let ((size_t s . #'(+ t (+ (cast size_t i) 1))) (u64 c . 0))
+                (set c (nth s (-> m heap)))
+                (if (coco-tag-is REF c)
+                    (let ((size_t x . #'(cast size_t (coco-payload c))))
+                      (if (< x s)
+                          (set (nth x (-> m heap)) (coco-cell REF x))
+                          (set (nth s (-> m heap)) (coco-cell REF s))))))))
+          (return 1)))
+
+  ;;; '$skip_list'(Length, List, Tail) (3.19.0, swipl's, which ordsets.pl
+  ;;; asks): the list cells of List skipped and what stands after them, a
+  ;;; cycle walked by swipl's own rule -- Brent's, the slow cell moved at
+  ;;; each power of two -- so a cyclic list counts and ends where swipl's does
+  (func coco_b_skip_list ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t l . #'(coco_deref (coco_m_machine e) (coco_m_arg e g 1)))
+              (size_t s . 0) (i64 len . 0) (size_t mark . #'(coco_m_mark e)))
+          (set s l)
+          (if (coco_is_cons m l)
+              (let ((i64 power . 1) (i64 lam . 0) (int more . 1))
+                (while more
+                  (if (== power lam) (block (set s l) (set power (* power 2)) (set lam 0)))
+                  (set lam (+ lam 1))
+                  (set len (+ len 1))
+                  (set l (coco_deref m (coco_arg m l 1)))
+                  (if (or (not (coco_is_cons m l)) (== l s)) (set more 0)))))
+          (if (not (coco_m_unify_int e (coco_m_arg e g 0) len)) (return 0))
+          (if (not (coco_m_unify e (coco_m_arg e g 2) l))
+              (block (coco_m_undo e mark) (return 0)))
+          (return 1)))
 
   ;;; Every predicate the store DEFINES, as Name/Arity: one with a clause, or
   ;;; one declared dynamic (an assert declares it too), discontiguous or
@@ -608,7 +671,7 @@
             (if (>= pi ($ (cof st) npreds)) (return 0))
             (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
             (let ((coco_pred * p . #'(aof (nth pi ($ (cof st) preds))))
-                  (size_t rules . 0) (size_t mark . #'($ (cof m) heap_len))
+                  (size_t rules . 0) (size_t lasts . 0) (size_t mark . #'($ (cof m) heap_len))
                   (u64 tid . #'(coco_intern m "true")))
               (if (and (== (coco_pred_live p) 0) (not (-> p dynamic)) (not (-> p declared)))
                   (return 0))
@@ -620,6 +683,9 @@
                 (let ((size_t t . #'(coco_store_get m st (nth i ($ (nth pi ($ (cof st) preds)) clauses))))
                       (size_t ch . 0) (size_t cb . 0))
                   (coco_clause_parts m t (aof ch) (aof cb))
+                  ;; a single-sided predicate's last clause is none of them (3.19.0)
+                  (if (and (!= cb 0) (== (coco_ssu_body m cb) (cast size_t -1)))
+                      (block (set lasts (+ lasts 1)) (set cb 0)))
                   (if (and (!= cb 0)
                            (not (and (coco-tag-is ATOM (nth (coco_deref m cb) (-> m heap)))
                                      (== (coco_name_of m (coco_deref m cb)) tid))))
@@ -646,7 +712,7 @@
               ;; of one declared dynamic
               (if (or (> (coco_pred_live p) 0) (-> p dynamic))
                   (block
-                    (set (nth n v) (coco_make1 m "number_of_clauses" (coco_new_int m (cast i64 (coco_pred_live p))))) (++ n)
+                    (set (nth n v) (coco_make1 m "number_of_clauses" (coco_new_int m (cast i64 (- (coco_pred_live p) lasts))))) (++ n)
                     (set (nth n v) (coco_make1 m "number_of_rules" (coco_new_int m (cast i64 rules)))) (++ n)))
               (set (nth n v) (coco_new_atom m "defined")) (++ n)
               (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_list e v n)))))))

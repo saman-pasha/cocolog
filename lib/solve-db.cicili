@@ -102,8 +102,9 @@
         ;; call/N is a construct at every arity
         (return (== nid (coco-id m "call"))))
 
-  ;;; A BODY HOLDS ONLY GOALS: a number or a string where a goal stands --
-  ;;; under `,', `;', `->', `*->' or `\+' as well as alone -- is none, and
+  ;;; A BODY HOLDS ONLY GOALS: a number, a string or (3.19.2) the list's
+  ;;; end where a goal stands -- under `,', `;', `->', `*->' or `\+' as
+  ;;; well as alone -- is none, and
   ;;; SWI refuses the clause with type_error(callable, Body). A variable is
   ;;; call/1 of whatever it is bound to when the clause runs, as ISO has it.
   ;;; BUDGET is the control terms it may walk before it answers -1, and the
@@ -113,20 +114,29 @@
   ;;; first, as the recursion took it (3.15.1): `assertz((p :- B))' with B
   ;;; nested 200 000 deep on its left recursed that deep, past the 8 MB C
   ;;; stack of GitHub's Apple silicon Mac (6 MB here). -2 is no memory.
+  ;;; `M:G' is G, and an M that is neither an atom nor a variable answers 2
+  ;;; with M in MOD (3.19.2, swipl's; through 3.19.1 `M:G' was a goal).
   (static)
-  (func coco_body_callable ((coco_machine * m) (size_t b) (size_t * budget)) (out int)
+  (func coco_body_callable ((coco_machine * m) (size_t b) (size_t * budget) (size_t * mod)) (out int)
         (let ((size_t * wl . nil) (size_t wlen . 0) (size_t wcap . 0) (int r . 1))
           (while 1
             (set b (coco_deref m b))
             (if (not (coco-tag-is REF (nth b (-> m heap))))
                 (let ((u64 nid . 0) (u32 n . 0))
-                  (if (not (coco_is_callable m b)) (block (set r 0) break))
+                  (if (or (not (coco_is_callable m b)) (coco_is_nil m b)) (block (set r 0) break))
                   (set nid (coco_name_of m b))
                   (set n (coco_arity m b))
                   (if (== (cof budget) 0) (block (set r -1) break))
                   (set (cof budget) (- (cof budget) 1))
                   (if (and (== n 1) (== nid (coco-id m "\\+")))
                       (block (set b (coco_arg m b 0)) continue))
+                  (if (and (== n 2) (== nid (coco-id m ":")))
+                      (let ((size_t q . #'(coco_deref m (coco_arg m b 0))))
+                        (if (not (or (coco-tag-is REF (nth q (-> m heap)))
+                                     (and (coco-tag-is ATOM (nth q (-> m heap))) (not (coco_is_nil m q)))))
+                            (block (set (cof mod) q) (set r 2) break))
+                        (set b (coco_arg m b 1))
+                        continue))
                   (if (and (== n 2) (or (or (== nid (coco-id m ",")) (== nid (coco-id m ";")))
                                           (or (== nid (coco-id m "->")) (== nid (coco-id m "*->")))
                                           (== nid (coco-id m "|"))))
@@ -156,37 +166,95 @@
   ;;; the whole body. Through 1.10.5 the first three made assert and retract
   ;;; FAIL, and `assertz((foo :- 3))' stored the clause. Answers 0 when the
   ;;; clause may go on, else what the raise answered.
+  ;;; THE QUALIFIERS ON TOP OF A CLAUSE OR A HEAD, taken off as swipl's
+  ;;; strip_module does (3.19.2, the load's `coco_consult_unqualify'):
+  ;;; T left on what they qualify, and 0; else what the raise answered --
+  ;;; type_error(module, M) for a module that is no atom, which
+  ;;; `coco_type_error' makes an instantiation error for a variable, and
+  ;;; for a cycle of them (`X = foo:X') type_error(acyclic_term, X), swipl's
+  (static)
+  (func coco_clause_unqualify ((coco_engine * e) (size_t * t)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (size_t steps . 0))
+          (set (cof t) (coco_deref m (cof t)))
+          (while (and (coco-tag-is FUN (nth (cof t) (-> m heap)))
+                      (and (== (coco_arity m (cof t)) 2) (== (coco_name_of m (cof t)) (coco-id m ":"))))
+            (let ((size_t q . #'(coco_deref m (coco_arg m (cof t) 0))))
+              (if (not (and (coco-tag-is ATOM (nth q (-> m heap))) (not (coco_is_nil m q))))
+                  (return (coco_type_error e "module" q)))
+              (set steps (+ steps 1))
+              (if (and (== steps 4096) (!= 1 (coco_acyclic m (cof t))))
+                  (return (coco_type_error e "acyclic_term" (cof t))))
+              (set (cof t) (coco_deref m (coco_arg m (cof t) 1)))))
+          (return 0)))
+
+  ;;; A BODY'S REFUSAL AT AN ASSERT, as at a load (3.19.2,
+  ;;; `coco_consult_body_refused'): the qualifiers on its top taken off,
+  ;;; the rest walked, a goal that is no goal naming what was left and a
+  ;;; module that is no atom itself; under a variable module on top a body
+  ;;; that will not do is an instantiation error. 0, or what the raise
+  ;;; answered.
+  (static)
+  (func coco_body_check ((coco_engine * e) (size_t body)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (size_t mod . 0) (size_t budget . 4096)
+              (size_t steps . 0) (int qv . 0) (int bc . 0))
+          (set body (coco_deref m body))
+          (while (and (coco-tag-is FUN (nth body (-> m heap)))
+                      (and (== (coco_arity m body) 2) (== (coco_name_of m body) (coco-id m ":"))))
+            (let ((size_t q . #'(coco_deref m (coco_arg m body 0))))
+              (if (coco-tag-is REF (nth q (-> m heap)))
+                  (block (set qv 1) (set body (coco_arg m body 1)) break))
+              (if (not (and (coco-tag-is ATOM (nth q (-> m heap))) (not (coco_is_nil m q))))
+                  (return (coco_type_error e "module" q)))
+              (set steps (+ steps 1))
+              (if (and (== steps 4096) (!= 1 (coco_acyclic m body)))
+                  (return (coco_cyclic_error e)))
+              (set body (coco_deref m (coco_arg m body 1)))))
+          ;; 4096 control terms: a body past that is asked whether it is
+          ;; cyclic, and walked again with no budget when it is not
+          (set bc (coco_body_callable m body (aof budget) (aof mod)))
+          (if (== bc -1)
+              (block
+               (if (!= 1 (coco_acyclic m body)) (return (coco_cyclic_error e)))
+               (set budget (cast size_t -1))
+               (set bc (coco_body_callable m body (aof budget) (aof mod)))))
+          (if (== bc -2) (return (coco_mem_error e)))
+          (if (== bc 2) (return (coco_type_error e "module" mod)))
+          (if (== bc 0)
+              (return (? qv (coco_instantiation_error e)
+                         (coco_type_error e "callable" (coco_deref m body)))))
+          (return 0)))
+
   (static)
   (func coco_clause_check ((coco_engine * e) (size_t c) (int asserting)) (out int)
         (let ((coco_machine * m . #'(-> e m))
-              (size_t head) (size_t body . 0) (int rule . 0))
+              (size_t head) (size_t body . 0) (int rule . 0) (int bad . 0))
           (set c (coco_deref m c))
+          (if (coco-tag-is REF (nth c (-> m heap))) (return (coco_instantiation_error e)))
+          ;; THE CLAUSE'S QUALIFIERS AND THE HEAD'S ARE TAKEN OFF (3.19.2,
+          ;; swipl's): `assertz(foo:7)' is type_error(callable, 7), where it
+          ;; failed, and `assertz(3:foo)' type_error(module, 3), where it
+          ;; went in
+          (set bad (coco_clause_unqualify e (aof c)))
+          (if (!= bad 0) (return bad))
           (if (coco-tag-is REF (nth c (-> m heap))) (return (coco_instantiation_error e)))
           (set head c)
           (if (and (coco-tag-is FUN (nth c (-> m heap))) (== (coco_arity m c) 2))
-              (if (== (coco_name_of m c) (coco-id m ":-"))
+              (if (or (== (coco_name_of m c) (coco-id m ":-"))
+                      ;; a single-sided rule's head and body too (3.19.0):
+                      ;; `(H, G) => B' is a clause of `,'/2 to swipl's assert
+                      (== 0 (strcmp (coco_atom_name m (coco_name_of m c)) "=>")))
                   (block (set head (coco_deref m (coco_arg m c 0)))
                          (set body (coco_arg m c 1))
                          (set rule 1))))
+          (set bad (coco_clause_unqualify e (aof head)))
+          (if (!= bad 0) (return bad))
           (if (coco-tag-is REF (nth head (-> m heap))) (return (coco_instantiation_error e)))
           (if (not (coco_is_callable m head)) (return (coco_type_error e "callable" head)))
           (if (coco_static_pred m (coco_name_of m head) (coco_arity m head))
               (return (coco_permission_error e "modify" "static_procedure"
                                              (coco_indicator m (coco_name_of m head)
                                                              (coco_arity m head)))))
-          ;; 4096 control terms: a body past that is asked whether it is
-          ;; cyclic, and walked again with no budget when it is not
-          (if (and asserting rule)
-              (let ((size_t budget . 4096)
-                    (int bc . #'(coco_body_callable m body (aof budget))))
-                (if (== bc -1)
-                    (block
-                     (if (!= 1 (coco_acyclic m body)) (return (coco_cyclic_error e)))
-                     (set budget (cast size_t -1))
-                     (set bc (coco_body_callable m body (aof budget)))))
-                (if (== bc -2) (return (coco_mem_error e)))
-                (if (== bc 0)
-                    (return (coco_type_error e "callable" (coco_deref m body))))))
+          (if (and asserting rule) (return (coco_body_check e body)))
           (return 0)))
 
   (static)
@@ -1081,10 +1149,13 @@
               (if (coco_pred_dead p i) continue)
               (let ((size_t mark . #'(-> m heap_len))
                     (size_t t . #'(coco_store_get m st (nth i (-> p clauses)))))
+                ;; a single-sided rule as swipl writes it, and the
+                ;; predicate's last clause not at all (3.19.0, `coco_ssu_rule')
+                (set t (coco_ssu_rule m t))
                 (coco_sb_init (aof b))
                 ;; the clause laid out as swipl's portray_clause/1 lays it
                 ;; out, so what listing/1 shows is what a program reads back
-                (coco_layout_clause m (aof b) t)
+                (if (!= t (cast size_t -1)) (coco_layout_clause m (aof b) t))
                 (if (!= ($ b s) nil) (fputs ($ b s) stdout))
                 (coco_sb_free (aof b))
                 ;; the clause was copied on to the heap only to be written

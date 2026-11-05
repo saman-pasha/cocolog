@@ -187,6 +187,13 @@ fixtures(syntax_load, Sandbox) :- !,
     forall(member(F-Text, [ 's5.pl'-"s5a(1).\nc(3) d", 's6.pl'-"s6a(1).\nc(3)",
                             's9.pl'-"s9a(1).\n  x :- 0'" ]),
            ( atomic_list_concat([Sandbox, '/', F], P), write_file_from_codes(P, Text) )).
+%% a file whose single-sided rules stand on both sides of a load directive,
+%% the file it loads, and one whose directive says what no rule matched
+fixtures(vendored, Sandbox) :- !,
+    forall(member(F-Lines, [ 'vs.pl'-['vs(a) => true.', ':- ensure_loaded(vsub).', 'vs(b) => true.'],
+                             'vsub.pl'-['vsub(x) => true.'],
+                             'vs2.pl'-[':- catch(vs(z), E, print_message(error, E)).'] ]),
+           ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
 fixtures(_, _).
 
 %% what makes a file read once a source file, as swipl's, and what leaves it

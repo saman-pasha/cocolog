@@ -28,7 +28,7 @@ main :-
     cv_new(100, 100, '8u', 0, Sq), cv_rectangle(Sq, [30, 30, 40, 40], 255, -1),
     cv_corner_harris(Sq, 2, 3, 0.04, H), cv_type(H, HT), must('the response is 32f', HT, '32f'),
     cv_minmax(H, _, HMax, _, _), Cut is 0.5 * HMax, cv_threshold(H, Cut, 255, binary, Hp32), cv_convert(Hp32, '8u', Hp),
-    cv_connected_components(Hp, NPeaks, _L), must('four peaks in the response (plus the background)', NPeaks, 5),
+    cv_connected_components(Hp, NPeaks, PeakLabels), must('four peaks in the response (plus the background)', NPeaks, 5),
     cv_good_features(Sq, 10, 0.01, 10, Pts), length(Pts, NP), must('Shi-Tomasi finds the same four', NP, 4),
     findall([RX, RY], (member([FX, FY], Pts), RX is round(FX), RY is round(FY)), Rounded), msort(Rounded, Sorted),
     ( Sorted = [[A, B], [C, D], [E, F], [G, I]], near(A, 30), near(B, 30), near(C, 30), near(D, 69), near(E, 69), near(F, 30), near(G, 69), near(I, 69)
@@ -76,7 +76,7 @@ main :-
     cv_draw_keypoints(Ph, Ko, green, Drawn), cv_draw_keypoints(Warped, Kw, cyan, DrawnW),
     cv_hconcat([Drawn, DrawnW], Row), out('17-features.png', Path), cv_imwrite(Path, Row), show('written', Path),
 
-    cv_free_all([Sq, H, Hp32, Hp, _L, Ph, Do, Ds, Da, Warped, Dw, Drawn, DrawnW, Row]),
+    cv_free_all([Sq, H, Hp32, Hp, PeakLabels, Ph, Do, Ds, Da, Warped, Dw, Drawn, DrawnW, Row]),
     cv_handles(N), must('every handle freed', N, 0),
     format("~ndone~n").
 

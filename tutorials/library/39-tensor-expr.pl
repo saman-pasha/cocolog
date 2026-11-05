@@ -111,7 +111,7 @@ main :-
     must('a form nothing defines is refused', Unknown, refused),
 
     write('9. a procedure: a DCG rule, its bindings V = E, its list what it made'), nl,
-    phrase(normalise(X, Z0), Made), length(Made, NMade),
+    phrase(normalise(X, _), Made), length(Made, NMade),
     must('normalise made four tensors: Mu, C, Sd and Z', NMade, 4),
     exec(normalise(X, Z)), ZL := list(Z),
     must('exec(normalise(X, Z)) answers Z and frees the other three', ZL, [[-1.0, 1.0], [-1.0, 1.0]]),
