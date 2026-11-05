@@ -11812,8 +11812,12 @@ printer's ports, a Redo of `'$member_'/3`, the answers one inference later,
 the clock's keys, 19 999 retries of between/3's where there were 20 000),
 test/engine.pl (three pinned counts, 1105 to 1075, 1162 to 1122 and 834 to
 804: between/3's answers one guard cheaper each, and no retry after the
-last) and test/flowdebug.pl (thirteen checks: member/2's calls exit where
-they failed, and its helper's are `'$member_'/3`).
+last), test/flowdebug.pl (thirteen checks: member/2's calls exit where
+they failed, and its helper's are `'$member_'/3`) and test/repl.pl, which
+CI's suite found after the commit: the toplevel's `member(X, [a,b])` closes
+`X = b.`, as swipl's, where it waited for a third `;` and said `false.`; the
+`;` and the `false.` are `member(X, [a,b]) ; fail`'s now, and a check of its
+own holds member/2's full stop.
 
 THE ARMS, a build each, the rule taken out, each red: member/2's,
 select/3's and nth0/3's and nth1/3's old clauses back (det_guard.pl, 6, 6
@@ -11858,4 +11862,6 @@ backtrace, journal, gc, errors, directives, static, script, reconsult,
 library, cyclic, meter, string, units, rationals, async, thread, cowork,
 serialize, template, hex, astar, argv, reason, normalise, translate,
 process, text, os, signal, stream and lint, the test binaries term,
-syntax, solve, module and state, and lesson 51.
+syntax, solve, module and state, and lesson 51; and repl, once CI's suite
+on the commit had found it red (CI's whole suite is the gate this ring of
+cases is not).
