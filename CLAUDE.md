@@ -8677,6 +8677,224 @@ read into an English-worded IR and written into any lesson's language),
   English `the made phone calls' (the phone calls made), `to hold the contacts' (to keep in touch) and `to attain the
   ransom' (to obtain it); and `el 17 de julio próximo' (13: `el próximo 17 de julio'). The next sample's controls take
   this report in.
+  The ceramist report (AnCora CESS-CAST-P-20011202-118, 26 sentences, the paper's report on the ceramist of Gràcia who
+  keeps the lower panels of Salvador Seguí's plaque and offers them to the `Comando Ciudadano Justiciero' that kidnapped
+  it, Spanish into Italian and English: 26 of 26 and 19 of 26 on a fresh store, 17 and 10 with the new store alone, 6
+  and 5 with the new code on the old store, 5 and 4 before; reasoning 1.0.29). The sample was taken on the cocolog
+  3.18.0 binary, master's 914e98a merged as 3f471ba, and cocolog stays 3.18.0; master's 0979598, b35b25b and 81579bd
+  (cocolog 3.19.0, 3.19.1 and 3.19.2) came during the sample, change nothing under library/reasoning/, and are not
+  merged: the next sample takes them. The article's sentences fall from 54.6 million inferences into Italian and 54.4
+  into English to 23.9 and 23.3. English refuses 5, 7, 13, 14, 16, 22 and 26 for the third person nobody names, on
+  purpose: `A Xavier Oliveras le encargó el monumento Enric Ángela, ...' and `Al nutrido acto inaugural asistió incluso
+  el comisario de policía del Raval' take the subject after the verb for an object, `Después telefoneó sin éxito al
+  ayuntamiento', `"No conseguí averiguar con quién tenía que hablar"' (the imperfect's first person is spelled as its
+  third, and no pronoun says which), `recuerda', `Ahora los ofrece ...' and the middle piece of 26, `Me da risa'.
+  It needed these SHAPES, each with its arm red (test/translate.pl's `newspaper_ceram': 40 checks, 48 arms, 43 red in
+  the section, one red in newspaper_es and four guards of cost that stay green, below; an arm is a library directory of
+  symlinks whose reasoning/translate.pl is the edited copy, `COCOLOG_LIBRARY=ARM cocolog query
+  "use_module('test/translate.pl'), newspaper_ceram, checks_done"', under two seconds a run, and every arm is run in
+  twenty seconds, four at a time): a participle after the copula's phrase of `of' takes the phrase after it (`Xavier
+  Oliveras es el autor de la placa original dedicada al Salvador Seguí' is the plaque devoted TO him, and with the
+  phrase the copula's English wrote `the devoted plaque to': tr_participle_predicate/3); AN ARTICLE BEFORE A FIRST NAME
+  THE LESSON STATES, WITH CAPITALS AFTER IT, IS NO NOUN'S ARTICLE (`dedicada al Salvador Seguí' is to Salvador Seguí --
+  `salvador' is a noun too, and it was `the Saviour Seguí': tr_np/3), never before a name the lesson does not state
+  (`Pedro ve la Tate Gallery' keeps its article, a guard) -- two arms; a participle after a comma with nothing to close
+  it takes its agent (`la placa ..., secuestrada por el comando' was kidnapped BY it, where the phrase of `por' was the
+  clause's, `for the commando': tr_phrase_aside/4); A HEADING IN CAPITALS AT THE HEAD OF A SENTENCE IS A PIECE OF ITS
+  OWN (`EL ENCARGO La historia de estos plafones es genuinamente kafkiana' is the heading and then the sentence, and
+  read as one piece it had no reading: tr_caps_heads/2), and so are `LA PERIPECIA' and `EN EL TALLER'; a count after the
+  verb opens its subject (`La placa la forman cuatro plafones' is four panels forming it, and with a count no subject's
+  first word the sentence was refused: tr_subject_opener/1); `se' before an object pronoun is the verb's own where the
+  lesson states its reflexive meaning (`Un camión de reparto apuró el giro en la calle de la Cadena y se los cargó'
+  wrecked them, `The reflexive verb "carga" means "wrecks".', and taken for the dative of `le los' it was `loaded them
+  to her': tr_expand/3), and a verb with no reflexive meaning keeps the dative (`Pedro se los da' gives them to her, a
+  guard) -- two arms; A CAPITALISED WORD AFTER A STREET'S NOUN AND ITS `of' IS THE STREET'S NAME (`en la esquina de la
+  calle de la Cadena' -- `cadena' is a chain to the lesson, and it was `of the Chain': tr_stated_names0/2, `"calle" is a
+  street.', and `plaza', `avenida', `paseo', `rambla' and `carretera', Italian's `via', `piazza', `corso', `viale',
+  `vicolo' and `strada'); the corner of a street is where one is AT (`en la esquina de la calle' was `in the corner':
+  tr_comps_out/7), and the corner of a house one to be in (a guard) -- two arms; the person after the infinitive of a
+  verb of taking is a phrase of `from' (`para saber el coste de la placa ... y reclamarlo a la aseguradora del camión'
+  is to demand it FROM the insurer, where English wrote `to': tr_comps_out/7), after the infinitive's pronoun and after
+  its object (`reclamar el coste a la aseguradora') -- three arms; `returns' and an infinitive is the infinitive's verb
+  done again (`volvió a hacer los plafones dañados' made them again, where English wrote `returned to make':
+  tr_write/4); A PREPOSITION AND THE QUESTION WORD FOR WHO OPEN AN INDIRECT QUESTION (`no conseguí averiguar con quién
+  tenía que hablar' is with whom I had to speak, and the words had no reading: tr_complements0/4, after a verb that
+  takes the question and after the infinitive of one, `"averigua" takes the question.') -- two arms -- asked in a
+  sentence with a word the lesson gives `who' only ('$tr_who_word', made once a sentence in tr_into_ir/4: a guard of
+  cost, whose arm stays green), and English writes `whom' (tr_comp_out/7); THE PRETERITE OF `ir' IS THE VERB OF GOING
+  WHERE A PHRASE OF `to' FOLLOWS IT (`el ceramista ... fue a la plaza de Sant Jaume' went to the square, and read as the
+  copula's past it was `was to the square', where Italian has no `fu' for it, `andò': tr_copula_goes/4), in a clause a
+  coordinator joins, and with no phrase of `to' it stays the copula (`La casa fue de Pedro', a guard) -- three arms; a
+  preposition and `quien' open a free relative (`entregarlos en el ayuntamiento a quien correspondiera' is to the one it
+  was due to, and `quien' was read as the relative of the phrase before it, which no phrase took: tr_np/3,
+  tr_phrase_words/4, tr_complements0/4) -- two arms, and the word's own relative test asked before its lexeme's, in a
+  sentence with such a word ('$tr_free_rel'), a guard red on the store alone; English writes `whom' after a preposition,
+  for a person (`el hombre con quien habla Juan' was `with which': tr_relative_out/5); A PERSON MARKED AFTER AN
+  ACCUSATIVE PRONOUN IS THE ONE IT GOES TO (`Ahora los ofrece desinteresadamente al comando' offers them TO it --
+  Spanish marks no second object with `a' -- and read as the person object the commando was what was offered, `Li offre
+  il commando': tr_accusative_dative/4), with adverbs between the pronoun and the person, and only where the person's
+  marker stands among the source's words (`Se les llamará chicos', whose `les' a lesson may leave no dative, was `Li si
+  chiamerà a ragazzi': a guard red in newspaper_es, which the whole case found) -- three arms; `in case' is an English
+  connector (`por si desea reponerlos': en_connector/1); THE WORD FOR `like' AND A CLAUSE THAT NAMES ITS SUBJECT IS A
+  COMMENT OF `as' (`que el monumento a Seguí quede como él se merece' is as he deserves, where it was `like he
+  deserves': tr_complements0/4), a subject after its verb too, read with nobody named and an object (`como dice el
+  ceramista': tr_rel_subject_fix/2) -- two arms -- asked only where a verb form stands among the first four words after
+  it, with only words that may go before a verb before it (tr_like_head/3, tr_like_pre/1: a guard of cost, whose arm
+  stays green; with a verb form anywhere, `como "un punto de encuentro"' was read for the verb `encuentro'); A PRONOUN
+  OF SOMEBODY OR NOBODY WITH ITS PHRASES IS A SUBJECT (`Por fin alguien con sensibilidad se ha preocupado de que ...' --
+  the phrase reader reads no pronoun: tr_subject/6, tr_subject_shape/4), an object pronoun after its phrases the verb's,
+  and never before a phrase of `of', which says how many of them (`se nessuno di voi ci ha mai creduto' is none of you,
+  a guard) -- three arms, and the subject reader's clause a rule whose arm stays green, which stays for its cost
+  (without it the shape's reading is asked again further on); an object before the infinitive is the verb's, never one
+  after it (`Creo que van a restaurar la parte de arriba' had the part for the restoring, and taken for the verb's
+  object it left nobody to go: tr_read_generic/4), and THE VERB OF GOING IN THE PRESENT BEFORE `a' AND AN INFINITIVE IS
+  THE NEAR FUTURE (`"va" takes the future.': `they will restore', `restaureranno', where it was `they go to restore' and
+  `vadano a restaurare': tr_near_future/3), in a clause of `that' too -- three arms; THE SIDE AFTER A COLON MAY BE A
+  CLAUSE OF `that' ALONE, A COMMA, A COORDINATOR AND A CLAUSE (`Pensé: que se vayan al carajo, y me volví con los
+  plafones' is what I thought and then what I did, and no clause read the first half: tr_read_after_colon/5); an adverb
+  at the head, its comma, a coordinator and the rest (`En todo caso, y aunque no soy restaurador, me pongo a su
+  disposición' -- a coordinator after the front's comma opened a second clause with nothing before it: tr_read0/4); A
+  NOUN'S OWN CLAUSE AFTER AN INSERTION BETWEEN COMMAS (`En cuanto al anuncio por parte del Ayuntamiento, tras el
+  publicitado robo, de que habían empezado hace dos meses los trámites para restaurarla' is the announcement THAT they
+  had begun, and read after the insertion it was a relative clause on the theft, `of which': tr_read0/4, tr_that_set/1);
+  `puts' with its own pronoun and nothing put is putting oneself somewhere (`me pongo a su disposición' is I put myself
+  at his disposal, and with the pronoun dropped it was `I put at his disposal': tr_write/4); `al' AND THE INFINITIVE OF
+  A VERB WHOSE MEANING THE LESSON STATES WITH ITS PRONOUN (`Al enterarse de la acción del Comando ...' is on finding out
+  about it, and the front had no reading: tr_complements0/4, upon(reflexive(F), Cs)), its governed phrase marked
+  (tr_ptc_governed/4) and crossed by that meaning (tr_cross_comp/2, '$tr_gov_sense'), and the lesson's language writes
+  its gerund (`Venendo a sapere della azione') -- three arms; and a relative clause between its commas after the front
+  of `al' is its last phrase's (`Al enterarse de la acción del Comando Ciudadano Justiciero, que secuestró la placa ...'
+  is the commando that kidnapped it, and with the front ended at the comma the clause was one of `that' with nobody
+  named: tr_upon_rest/5).
+  It needed these WORDS in `extra/' (the two readers: a line moves the reader of one language and the writer of the
+  other; the dictionary's own word is said again first where it must stay the one written): Spanish `ceramista' (a
+  ceramist, a person of either sex), the name `Comando Ciudadano Justiciero' and `justiciero' (a vigilante, a person),
+  `frecuenta' (frequents, with its forms: the dictionary has no `frecuentar'), `placa' (a plaque, the plate second),
+  `plafón' (a panel, with `junta' and then `tablero' said again first, so that they stay the words written for a board
+  and a panel), `semirrelieve' (a half-relief), `genuinamente', `"coloca" takes the passive.', `despacho' (an office,
+  with `oficina' said again first), `camión de reparto' (a delivery truck), `apura el giro' (cuts the corner, with its
+  forms), `carga' (loads, and wrecks with its own pronoun), `servicio jurídico' (the legal service), `de inmediato'
+  (immediately, `inmediatamente' said again first), `averigua' (finds out, with its forms, taking the question), `de
+  Herodes a Pilatos' (from pillar to post), `harta' (satiates, and gets fed up with its pronoun; `sacia' said again
+  first), `al carajo' (to hell), `desidia' (neglect, `negligencia' said again first) and `mala educación' (bad manners),
+  `entera' (informs, and finds out about with its pronoun, taking `de'; `informa' said again first), `peripecia' (a
+  misadventure), `artículo de regalo' (a gift item), `desinteresadamente' (selflessly), `por si' (in case), `a
+  disposición de' (at the disposal of) and `a su disposición' (at his disposal), `por fin' (finally, `finalmente' said
+  again first), `de arriba' (upper, `superior' said again first), `publicitado' (publicised), `da risa' (amuses,
+  `divierte' said again first), `a buenas horas' (belatedly), `fija' (notices with its pronoun, taking `en'), `"calle"
+  is a street.' and the other five, the tenses and persons of `tiene que' (the dictionary gives the modal no imperfect,
+  no future and no first person, and `tenía que hablar' had no reading), `preocupa' (concerns, said again first, and
+  worries with its pronoun, taking `de' before the clause; `concierne' said before it), `"va" takes the future.' and
+  English's `wrapped' (the upstream verb table's row for `wrap' is broken, and the writer made `wraped'); Italian
+  `ceramista', `giustiziere', `frequenta' (frequents, `attends' said again first), `targa' (a plaque, the number plate
+  first still), `mezzorilievo', `primavera' (the writer's word for spring was `fonte', a spring of water), `angolo' (a
+  corner, the angle said again first: the writer's word was `angoletto'), `bancone' (a counter, where the writer's word
+  was `contatore', a meter), `colloca' (places, where the writer's word was `dispone'), `camion delle consegne',
+  `stringe la curva' (with its forms), `sfascia' (wrecks, with its forms), `servizio legale', `scopre' (finds out,
+  `discovers' said again first, taking the question), `da Erode a Pilato', `stufa' (gets fed up with its pronoun,
+  `stews' said again first), `al diavolo', `maleducazione', `viene a sapere' (finds out about, with its forms and
+  gerund, taking `di'), `peripezia', `articolo da regalo', `disinteressatamente' (`disinterestedly' said again first),
+  `nel caso che' (in case, with the subjunctive: `nel caso' alone joined `nel caso di', in the case of), `a disposizione
+  di' and `a sua disposizione', `pubblicizzato', `diverte' (amuses, with its forms: the dictionary has no `divertire'),
+  `kafkiano', `laboratorio' (a workshop, the lab said again first: the writer's word was the English `workshop'), the
+  past and the participles of `spacca' (the dictionary gives `spaccare' none, and the Italian was refused), the six
+  streets, `chiamata' (a call, where the writer's word was `richiamo', a recall), `assicuratrice' (an insurer: the
+  Italian had no word for one, and the sentence was refused), `ceramica' (pottery: the dictionary's noun is mud),
+  `accuratamente' (carefully), `preoccupa' (worries, with its forms: the dictionary has no `preoccupare'),
+  `restauratore' and `restauratrice' (a restorer, persons), `formalità' (formalities) and English's `wrapped'. The first
+  meaning moved for 4 Spanish words and 6 Italian ones (Spanish `carga' loads, `despacho' an office, `entera' informs,
+  `placa' a plaque; Italian `accuratamente' carefully, `bancone' a counter, `ceramica' pottery, `chiamata' a call,
+  `colloca' places, `stufa' stews), the writer's first word for 1 Spanish meaning and 7 Italian ones (Spanish genuinely
+  `genuinamente'; Italian call `chiamata', corner `angolo', counter `bancone', spring `primavera', workshop
+  `laboratorio', places `colloca', worries `preoccupa'), and none was lost.
+  THE CONTROLS (cocolog 3.18.0, store KB287, 124 count files, 3 348 sentences: the earlier set with the Grazioli trial
+  in, it_9310_9323, both directions; this report is not among them): the last version's translator against this one, on
+  the one store, 13 sentences read differently, all better -- the near future (9: Tatoeba's `I will sleep in the flat',
+  `What will I do with his letter?', `Do you doubt that he will win?', `you will fatten', and Italian `Dormirò
+  nell'appartamentino', `Cosa farò', `Dubiti che lui vincerà?', `ingrasserai' and `Non durerà', where they were `I go to
+  sleep', `What do I go to make' and `vado a dormire'), `whom' after a preposition (2: `for the lawyers, to whom one
+  retains 20% of the incomes', `to whom an objective and uniform reference point is needed') and `again' (2: `And the
+  panther sharpens the claws again', `I will call the two and a half ones again') -- and the inferences rise 0.152 % (6
+  637 129 931 to 6 647 206 601): 3 338 sentences rise, by 1 021 inferences at the median, and the ten that fall are
+  Tatoeba's near futures (784 at most). Bytes and characters read every sentence alike (0 differ, the bytes 0.011 %
+  more). The DATA COLUMN (the last version's translator on its own store, KB279, against this one on the new): 26
+  sentences, the code's 13 and the store's 13, +0.178 % (6 635 403 451 to 6 647 206 601). THE CODE ALONE (this
+  translator on KB279): 4 sentences, all among the 13 (the near future needs `"va" takes the future.'), +0.152 % (to 6
+  645 470 382), and every sentence rises. THE STORE ALONE (the last version's translator on KB279 and on KB287): 13
+  sentences, +0.026 % (to 6 637 129 931), 10 better, each a word of the report's lines -- `collocata' and `collocare'
+  for `colocada' and `colocar' (3, where it was `disposta' and `disporre'), `un angolo molto solitario' (where it was
+  `angoletto'), `would have amused him' and `lo habría divertido' for `l'avrebbe divertito' (where it was `would have
+  him fun' and `lo tendría divertido'), `could place between the 70 and the 90 thousand lire', `Era preocupado
+  sinceramente de que', and Tatoeba's `They put to work immediately' and `si misero a lavorare subito' (where it was `of
+  immediate' and `d'immediato') -- and three that are the stated costs below. KB287 and the KB285 before it read every
+  sentence of the controls alike, with either translator (the lines that keep the writers' words move no sentence of
+  them).
+  THE FIRST ROUNDS' REGRESSIONS, found by reading the texts of every column, the whole case and the writers' first
+  words, and mended. Of the store (the store-alone columns of the first stores, KB281 to KB285): `"anuncio" means
+  "announcement".', said for the report's `En cuanto al anuncio', made every ad an announcement (`un tablón donde dejar
+  anuncios diversos', `un bonito anuncio de biquinis'), and is gone (the report's `the ad on the part of the town
+  council' is the cost); `por fin' and `de inmediato' said first were the Spanish writer's words for finally and
+  immediately (`Por fin, la reprimenda', `Me ha dicho de inmediato', `desde de inmediato' for `da subito', five
+  sentences), and `da risa' its word for amuses, which has no participle, so that `la cosa l'avrebbe divertito' was
+  refused: the dictionary's `finalmente', `inmediatamente' and `divierte' are said again first; Italian `nel caso', a
+  conjunction with the subjunctive, took `nel caso di' for it, and five sentences were refused in both languages (`Nel
+  caso di un bambino, poi, è ancora meglio', `tre nel caso delle Eolie', `nel caso del Giglio'): it is `nel caso che'
+  now; and the writers' first words of the last store found six Spanish words the new lines had moved (informs `entera',
+  concerns `preocupa', satiates `harta', upper `de arriba', neglect `desidia', panel `plafón'), and saying `tablero'
+  again first moved the word for a board from `junta' to `tablero': the dictionary's words are said again first, `junta'
+  before `tablero' (KB287, the final store). Of the code: the dative rule took `Se les llamará chicos', whose hand
+  lesson leaves `les' no dative (`Li si chiamerà a ragazzi', the whole case's newspaper_es), and asks the person's
+  marker among the words now; a pronoun's phrases kept as one term inside a phrase of `of' broke the crossing, and the
+  clitic guard of tr_subject_shape/4 stands in its place; the reflexive `puts' cut its search before its test, and
+  `Pedro se pone en la casa' was refused (once/1 now); and the comment of `as' cut the reader around it where its test
+  held and its reading failed (once/1 now).
+  THE COST OF THE CODE, FOUND BY TAKING EACH HUNK OUT (twenty sentences of the controls of 0.3 to 3 million inferences,
+  Spanish into English, over a copy of the library per hunk on the old store, KB279): the first cut rose 42 731
+  inferences of 14.53 million (+0.294 %), and the comment of `as' was 26 598 of it, its clause asked of every word for
+  `like' with a verb form anywhere after it -- the four words, the words before the verb form and a reading that names
+  its subject leave 100 --; and taking each rule out of the next cut, the question word after a preposition was 11 500
+  (two clauses, 6 900 and 4 600, that asked the lexicon of the word after every preposition: they are asked now in a
+  sentence with a word the lesson gives `who' only, a note made once a sentence), the heading in capitals 4 200, the
+  noun's own clause after an insertion 2 300, the pronoun's shape 1 500 and the verb of going 500, no other rule over
+  500. The final cut rises 32 748 (+0.225 %, 14 567 146). Over the whole controls every sentence rises, by 1 017
+  inferences at the median, and the code alone is +0.152 %: the largest rises are the Rognoni interview's nineteenth
+  (+0.12 million of 176.1, refused both ways), the Venice report's eighth (+0.09 of 250.5) and es_20001201-176 5 (+74
+  736 of 3.39 million, +2.2 %: `como podía esperarse de los dos equipos' is asked as the comment of `as' and read as
+  before), the text the same.
+  THE STATED COSTS: a first meaning that serves the news and not every text -- `placa' is a plaque (a plate second),
+  `despacho' an office (the dispatch second), `entera' informs (whole, the adjective, second), `carga' loads (the load,
+  the noun, second), Italian `bancone' a counter (a bar second), `chiamata' a call, `colloca' places (disposes second),
+  `stufa' stews (the stove second) -- and the writers' `genuinamente' for genuinely, `primavera', `angolo', `bancone',
+  `laboratorio', `colloca', `chiamata' and `preoccupa'; the store alone's three: `Era sinceramente preoccupato che ...'
+  (it_10059_10095 29) is refused into English, where it was `It was worried earnestly that ...' (`preoccupato' is a
+  verb's participle now, and English refuses its passive with nobody named, on purpose), and Tatoeba's `No tienes que
+  decírselo a tus padres', refused before, is read now in both languages and wrong (`You must not say him your parents',
+  `Non devi dirselo i tuoi genitori': the persons of `tiene que' read it, and no rule reads the person a dative pronoun
+  joined to an infinitive says again); `En cuanto al anuncio ...' is the ad (above); and the inferences, +0.152 % on the
+  one store and +0.152 % for the code alone.
+  The report LEAVES, of the 26 into Italian: `rapito dal commando' (2: the plaque's `rapita', the participle agreeing
+  with no noun after the apposition) and `davanti al loro abissale stato' (its: `en vista del suo pessimo stato');
+  `salva' for `guarda' (3: keeps) and `inferiori' (lower); `Gli commissionò il monumento Enric Ángela ... a Xavier
+  Oliveras' (5: the dative said twice, and the subject after the verb), `dopo fissarsi in una targa' (`dopo aver notato
+  una targa'), `Sindacato di Cuadros' and `nella strada di Balmes' (`in via Balmes'); `si collocò' (6: `fu collocata')
+  and `nell'angolo della strada della Cadena con Sant Rafael'; `per conoscere il costo' (11: `sapere'); `la
+  rimpiazzerebbe subito ritornò a fare' (12: `l'avrebbe sostituita', `rifece'); `dopo' written last (13); `con chi
+  doveva parlare' (14: `dovevo', the first person); `Quello fu d'Herodes Pilatos' (16: the adverb of the lesson's line
+  not read after the copula, `da Erode a Pilato'); `d'un luogo a altri' (18: `da un posto all'altro'); `che si vanno al
+  diavolo' and `mi ritornai' (19: `vadano', `tornai'); `miscelata' (20: `mischiata'); `gli tolse la polvere ai pannelli'
+  (21: `spolverò i pannelli', the dative said twice), `così salvati' (kept), `in Gràcia' (`a Gràcia') and `che gli costò
+  trovarli' (which he had trouble finding); `adesso' written last (22); `infine' and `rimane' (23: `finalmente', the
+  subjunctive `rimanga'); and `che anche è danneggiata' (24: `che è anche'). Of the 19 into English: `in front of their
+  abysmal state' (2: given its dreadful state); `saves the inferior panels' (3: keeps the lower ones); `the street of
+  the Cadena' (6, 10, 12: Cadena Street) and `with Sant Rafael'; `a pair of years' (9: a couple); `a call of the legal
+  service' and `to know the cost' (11: from, find out); `would replace her immediately made the damaged panels ... to
+  substitute them again' (12: it, and `again' after the purpose); `to hand them in the town council to the one that
+  corresponded' (15: to whoever it concerned); `I conserve' and `many doors of office' (17: keep, office doors); `Nobody
+  knew nothing' and `of a place to others' (18: anything, from one place to another); `and mixed bad manners with
+  bureaucracy' and `they regret' (20: bad manners mixed with bureaucracy, he complains); `to restore her', `removed him
+  the dust to the panels', `saved in the bottom of his workshop of ceramist of gift item so' and `who cost him to find
+  them' (21); `they say' and `remains' (23); `that also is damaged' (24); and `I am not restorer' and `at his disposal'
+  (25: a restorer, theirs). The next sample's controls take this report in.
 
 ## Tutorials are documentation that runs
 

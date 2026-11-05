@@ -5353,3 +5353,170 @@ The masculine noun "rapito" means "kidnap victim".
 "rapito" is a person.
 # `per tenere i contatti e alla fine ottenere il riscatto': in the end, one adverb (`alla fine di' stays the preposition)
 The adverb "alla fine" means "in the end".
+# The ceramist and the plaque (AnCora CESS-CAST-P-20011202-118), Spanish into Italian: `Un ceramista de Gràcia',
+# `un ceramista di Gràcia', a person of either sex
+The noun "ceramista" means "ceramist".
+"ceramista" is not feminine.
+"ceramisti" is the plural of "ceramista".
+"ceramista" is a person.
+# `los justicieros': `i giustizieri'
+The masculine noun "giustiziere" means "vigilante".
+"giustizieri" is the plural of "giustiziere".
+"giustiziere" is a person.
+# `que frecuentan el restaurante': `che frequentano' (the dictionary's `attends' said again first)
+"frequenta" means "attends".
+"frequenta" means "frequents".
+# `la placa original': `la targa', a plaque (the number plate stays its first meaning)
+The feminine noun "targa" means "plaque".
+# `semirrelieves de cerámica': `mezzirilievi di ceramica'
+The masculine noun "mezzorilievo" means "half-relief".
+"mezzirilievi" is the plural of "mezzorilievo".
+# `en la primavera de 1983': `nella primavera' (the writer's word for spring was `fonte', a spring of water)
+"primavera" means "spring".
+# `en la esquina de la calle': `nell'angolo' (the writer's word for a corner was `angoletto'; the angle said again first)
+"angolo" means "angle".
+The masculine noun "angolo" means "corner".
+# `un par de mostradores': `un paio di banconi' (the writer's word for a counter was `contatore', a meter)
+The masculine noun "bancone" means "counter".
+# `La placa ... se colocó': `la targa fu collocata' (the writer's word for places was `dispone')
+"colloca" means "places".
+# `Un camión de reparto apuró el giro ... y se los cargó': `un camion delle consegne strinse la curva e li sfasciò'
+The masculine noun "camion delle consegne" means "delivery truck".
+"camion delle consegne" is the plural of "camion delle consegne".
+The verb "stringe la curva" means "cuts the corner".
+"stringono la curva" is the plural of "stringe la curva".
+"stringere la curva" is the infinitive of "stringe la curva".
+"strinse la curva" is the past of "stringe la curva".
+"strinsero la curva" is the past of "stringono la curva".
+"stretto la curva" is the participle of "stringe la curva".
+The verb "sfascia" means "wrecks".
+"sfasciano" is the plural of "sfascia".
+"sfasciare" is the infinitive of "sfascia".
+"sfasciò" is the past of "sfascia".
+"sfasciarono" is the past of "sfasciano".
+"sfasciato" is the participle of "sfascia".
+"sfasciata" is the participle of "sfascia".
+"sfasciata" is feminine.
+# `del servicio jurídico del ayuntamiento': `del servizio legale del comune'
+The masculine noun "servizio legale" means "legal service".
+"servizi legali" is the plural of "servizio legale".
+# `No conseguí averiguar': `non riuscii a scoprire' (the dictionary's `discovers' said again first)
+"scopre" means "discovers".
+"scopre" means "finds out".
+# `Aquello fue de Herodes a Pilatos': `da Erode a Pilato'
+The adverb "da Erode a Pilato" means "from pillar to post".
+# `hasta que me harté': `finché mi stufai' (the dictionary's `stews' said again first)
+"stufa" means "stews".
+The reflexive verb "stufa" means "gets fed up".
+# `que se vayan al carajo': `al diavolo'
+The adverb "al diavolo" means "to hell".
+# `una desidia absoluta y mala educación': `maleducazione'
+The feminine noun "maleducazione" means "bad manners".
+# `Al enterarse de la acción del Comando': `venendo a sapere dell'azione'
+The verb "viene a sapere" means "finds out about".
+"vengono a sapere" is the plural of "viene a sapere".
+"venire a sapere" is the infinitive of "viene a sapere".
+"venne a sapere" is the past of "viene a sapere".
+"vennero a sapere" is the past of "vengono a sapere".
+"venuto a sapere" is the participle of "viene a sapere".
+"venendo a sapere" is the gerund of "viene a sapere".
+"viene a sapere" takes "di" before the phrase.
+# `Oliveras recordó la peripecia': `la peripezia'
+The feminine noun "peripezia" means "misadventure".
+"peripezie" is the plural of "peripezia".
+# `su taller de ceramista de artículo de regalo': `articoli da regalo'
+The masculine noun "articolo da regalo" means "gift item".
+"articoli da regalo" is the plural of "articolo da regalo".
+# `los ofrece desinteresadamente': `disinteressatamente' (the dictionary's `disinterestedly' said again first)
+"disinteressatamente" means "disinterestedly".
+"disinteressatamente" means "selflessly".
+# `por si desea reponerlos': `nel caso che desideri rimetterli' (`nel caso' alone would join `nel caso di', in the case of)
+The conjunction "nel caso che" means "in case".
+"nel caso che" takes the subjunctive.
+# `a disposición de los justicieros': `a disposizione dei giustizieri'
+The preposition "a disposizione di" means "at the disposal of".
+# `tras el publicitado robo': `il pubblicizzato furto'
+The masculine adjective "pubblicizzato" means "publicised".
+The feminine adjective "pubblicizzata" means "publicised".
+"pubblicizzati" is the plural of "pubblicizzato".
+"pubblicizzate" is the plural of "pubblicizzata".
+# `Me da risa': `mi diverte' (the dictionary has no `divertire')
+The verb "diverte" means "amuses".
+"divertono" is the plural of "diverte".
+"divertire" is the infinitive of "diverte".
+"divertì" is the past of "diverte".
+"divertirono" is the past of "divertono".
+"divertito" is the participle of "diverte".
+# `es genuinamente kafkiana': `kafkiana'
+The masculine adjective "kafkiano" means "kafkaesque".
+The feminine adjective "kafkiana" means "kafkaesque".
+"kafkiani" is the plural of "kafkiano".
+"kafkiane" is the plural of "kafkiana".
+# `en el fondo de su taller de ceramista': `del suo laboratorio' (the writer's word for a workshop was the English
+# `workshop'; the lab said again first)
+"laboratorio" means "lab".
+The masculine noun "laboratorio" means "workshop".
+# `Los dos inferiores resultaron destrozados': `risultarono spaccati' (the dictionary gives `spaccare' no past and no
+# participle, and the Italian was refused)
+"spaccò" is the past of "spacca".
+"spaccarono" is the past of "spaccano".
+"spaccava" is the imperfect of "spacca".
+"spaccavano" is the imperfect of "spaccano".
+"spaccato" is the participle of "spacca".
+"spaccata" is the participle of "spacca".
+"spaccata" is feminine.
+"spaccati" is the participle of "spacca".
+"spaccati" is the plural of "spaccato".
+"spaccate" is the participle of "spacca".
+"spaccate" is feminine.
+"spaccate" is the plural of "spaccata".
+# a street's name after its noun and `di' (`via della Spiga'), as the Spanish `calle de la Cadena'
+"via" is a street.
+"piazza" is a street.
+"corso" is a street.
+"viale" is a street.
+"vicolo" is a street.
+"strada" is a street.
+# `una llamada del servicio jurídico': `una chiamata' (the writer's word for a call was `richiamo', a recall)
+The feminine noun "chiamata" means "call".
+# `reclamarlo a la aseguradora del camión': `alla compagnia d'assicurazione' -- the Italian had no word for an
+# insurer, and the sentence was refused
+The feminine noun "assicuratrice" means "insurer".
+"assicuratrici" is the plural of "assicuratrice".
+# `semirrelieves de cerámica': `mezzirilievi di ceramica' (the dictionary's noun `ceramica' is mud, and the Italian
+# had no word for pottery)
+"ceramica" means "pottery".
+# `non riuscii a scoprire con chi dovevo parlare'
+"scopre" takes the question.
+# `envolvió cuidadosamente los plafones': English's past of `wraps' (the upstream verb table's row for it is broken,
+# and the writer made `wraped')
+"wrapped" is the past of "wraps".
+"wrapped" is the participle of "wraps".
+# `envolvió cuidadosamente los plafones': `avvolse accuratamente' (the Italian had no word for carefully)
+"accuratamente" means "carefully".
+# `se ha preocupado de que ...': `si è preoccupato che' (the dictionary has no `preoccupare')
+The verb "preoccupa" means "worries".
+The reflexive verb "preoccupa" means "worries".
+"preoccupano" is the plural of "preoccupa".
+"preoccupare" is the infinitive of "preoccupa".
+"preoccupò" is the past of "preoccupa".
+"preoccuparono" is the past of "preoccupano".
+"preoccupava" is the imperfect of "preoccupa".
+"preoccupavano" is the imperfect of "preoccupano".
+"preoccupato" is the participle of "preoccupa".
+"preoccupata" is the participle of "preoccupa".
+"preoccupata" is feminine.
+"preoccupati" is the participle of "preoccupa".
+"preoccupati" is the plural of "preoccupato".
+# `aunque no soy restaurador', a restorer (the Italian vocabulary has none)
+The masculine noun "restauratore" means "restorer".
+"restauratori" is the plural of "restauratore".
+"restauratore" is a person.
+The feminine noun "restauratrice" means "restorer".
+"restauratrici" is the plural of "restauratrice".
+"restauratrice" is a person.
+# `me pongo a su disposición', at his disposal
+The adverb "a sua disposizione" means "at his disposal".
+# `habían empezado hace dos meses los trámites para restaurarla', the formalities (the Italian vocabulary has none)
+The feminine noun "formalità" means "formality".
+"formalità" is the plural of "formalità".

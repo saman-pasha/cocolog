@@ -3489,6 +3489,129 @@ The masculine noun "rapito" means "kidnap victim".
 "rapiti" is the plural of "rapito".
 "rapito" is a person.
 The adverb "alla fine" means "in the end".
+The noun "ceramista" means "ceramist".
+"ceramista" is not feminine.
+"ceramisti" is the plural of "ceramista".
+"ceramista" is a person.
+The masculine noun "giustiziere" means "vigilante".
+"giustizieri" is the plural of "giustiziere".
+"giustiziere" is a person.
+"frequenta" means "attends".
+"frequenta" means "frequents".
+The feminine noun "targa" means "plaque".
+The masculine noun "mezzorilievo" means "half-relief".
+"mezzirilievi" is the plural of "mezzorilievo".
+"primavera" means "spring".
+"angolo" means "angle".
+The masculine noun "angolo" means "corner".
+The masculine noun "bancone" means "counter".
+"colloca" means "places".
+The masculine noun "camion delle consegne" means "delivery truck".
+"camion delle consegne" is the plural of "camion delle consegne".
+The verb "stringe la curva" means "cuts the corner".
+"stringono la curva" is the plural of "stringe la curva".
+"stringere la curva" is the infinitive of "stringe la curva".
+"strinse la curva" is the past of "stringe la curva".
+"strinsero la curva" is the past of "stringono la curva".
+"stretto la curva" is the participle of "stringe la curva".
+The verb "sfascia" means "wrecks".
+"sfasciano" is the plural of "sfascia".
+"sfasciare" is the infinitive of "sfascia".
+"sfasciò" is the past of "sfascia".
+"sfasciarono" is the past of "sfasciano".
+"sfasciato" is the participle of "sfascia".
+"sfasciata" is the participle of "sfascia".
+"sfasciata" is feminine.
+The masculine noun "servizio legale" means "legal service".
+"servizi legali" is the plural of "servizio legale".
+"scopre" means "discovers".
+"scopre" means "finds out".
+The adverb "da Erode a Pilato" means "from pillar to post".
+"stufa" means "stews".
+The reflexive verb "stufa" means "gets fed up".
+The adverb "al diavolo" means "to hell".
+The feminine noun "maleducazione" means "bad manners".
+The verb "viene a sapere" means "finds out about".
+"vengono a sapere" is the plural of "viene a sapere".
+"venire a sapere" is the infinitive of "viene a sapere".
+"venne a sapere" is the past of "viene a sapere".
+"vennero a sapere" is the past of "vengono a sapere".
+"venuto a sapere" is the participle of "viene a sapere".
+"venendo a sapere" is the gerund of "viene a sapere".
+"viene a sapere" takes "di" before the phrase.
+The feminine noun "peripezia" means "misadventure".
+"peripezie" is the plural of "peripezia".
+The masculine noun "articolo da regalo" means "gift item".
+"articoli da regalo" is the plural of "articolo da regalo".
+"disinteressatamente" means "disinterestedly".
+"disinteressatamente" means "selflessly".
+The conjunction "nel caso che" means "in case".
+"nel caso che" takes the subjunctive.
+The preposition "a disposizione di" means "at the disposal of".
+The masculine adjective "pubblicizzato" means "publicised".
+The feminine adjective "pubblicizzata" means "publicised".
+"pubblicizzati" is the plural of "pubblicizzato".
+"pubblicizzate" is the plural of "pubblicizzata".
+The verb "diverte" means "amuses".
+"divertono" is the plural of "diverte".
+"divertire" is the infinitive of "diverte".
+"divertì" is the past of "diverte".
+"divertirono" is the past of "divertono".
+"divertito" is the participle of "diverte".
+The masculine adjective "kafkiano" means "kafkaesque".
+The feminine adjective "kafkiana" means "kafkaesque".
+"kafkiani" is the plural of "kafkiano".
+"kafkiane" is the plural of "kafkiana".
+"laboratorio" means "lab".
+The masculine noun "laboratorio" means "workshop".
+"spaccò" is the past of "spacca".
+"spaccarono" is the past of "spaccano".
+"spaccava" is the imperfect of "spacca".
+"spaccavano" is the imperfect of "spaccano".
+"spaccato" is the participle of "spacca".
+"spaccata" is the participle of "spacca".
+"spaccata" is feminine.
+"spaccati" is the participle of "spacca".
+"spaccati" is the plural of "spaccato".
+"spaccate" is the participle of "spacca".
+"spaccate" is feminine.
+"spaccate" is the plural of "spaccata".
+"via" is a street.
+"piazza" is a street.
+"corso" is a street.
+"viale" is a street.
+"vicolo" is a street.
+"strada" is a street.
+The feminine noun "chiamata" means "call".
+The feminine noun "assicuratrice" means "insurer".
+"assicuratrici" is the plural of "assicuratrice".
+"ceramica" means "pottery".
+"scopre" takes the question.
+"wrapped" is the past of "wraps".
+"wrapped" is the participle of "wraps".
+"accuratamente" means "carefully".
+The verb "preoccupa" means "worries".
+The reflexive verb "preoccupa" means "worries".
+"preoccupano" is the plural of "preoccupa".
+"preoccupare" is the infinitive of "preoccupa".
+"preoccupò" is the past of "preoccupa".
+"preoccuparono" is the past of "preoccupano".
+"preoccupava" is the imperfect of "preoccupa".
+"preoccupavano" is the imperfect of "preoccupano".
+"preoccupato" is the participle of "preoccupa".
+"preoccupata" is the participle of "preoccupa".
+"preoccupata" is feminine.
+"preoccupati" is the participle of "preoccupa".
+"preoccupati" is the plural of "preoccupato".
+The masculine noun "restauratore" means "restorer".
+"restauratori" is the plural of "restauratore".
+"restauratore" is a person.
+The feminine noun "restauratrice" means "restorer".
+"restauratrici" is the plural of "restauratrice".
+"restauratrice" is a person.
+The adverb "a sua disposizione" means "at his disposal".
+The feminine noun "formalità" means "formality".
+"formalità" is the plural of "formalità".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
