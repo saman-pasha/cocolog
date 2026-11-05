@@ -1599,7 +1599,9 @@
     (member u64 *  etmpl)
     ;; WHAT ENTERING THE CLAUSE TAKES beyond the plain executor: 0 nothing,
     ;; 1 its guards, 2 its environment, 3 both -- so `coco_try_clause' asks
-    ;; a plain clause one question, the one it asked through 1.9.2
+    ;; a plain clause one question, the one it asked through 1.9.2 -- and 4
+    ;; (3.21.0) a body that holds $/0, built whole and closed by its
+    ;; frame's exit marker (`coco_try_clause_det')
     (member u32    ex)
     ;; AN ENVIRONMENT HAS NAMED THIS CODE (`envd'), so a clause that dies
     ;; retires it instead of freeing it (`coco_code_drop'); GCMARK is the
@@ -1616,7 +1618,13 @@
     ;; the barrier its body leaves on the continuation, which is how an
     ;; error a body goal raises names the clause's predicate, as swipl's
     ;; frames do
-    (member u64    ptag))
+    (member u64    ptag)
+    ;; A LAST GOAL SWIPL COMPILES IN PLACE (3.21.1, `cc_det_inline_last'):
+    ;; under a guard that goal is no call, and a step hides the guard from
+    ;; it (`coco_det_enter'). A field of its own, not a bit of `ex': as one
+    ;; (3.21.0) every clause ending so went the guarded entry's way while
+    ;; no guard was on, about 90 instructions an entry
+    (member u32    dlast))
 
   ;;; The clause's code, compiled on the first ask; null when it could not
   ;;; be compiled (out of memory, a head that is not callable), and the

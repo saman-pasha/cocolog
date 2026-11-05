@@ -1370,8 +1370,8 @@ cocolint index offers no import of it.
   barriers of the cuts after it over its frame (`coco_det_floor`), as a
   cut never clears swipl's flag. **What a clause entry adds is kept off the
   plain path**: `coco_try_clause` hands every clause to
-  `coco_try_clause_det` while a guard is on, and a code that holds `$` or
-  ends on a goal swipl compiles in place (`ex` 4 and 8, below), with its
+  `coco_try_clause_det` while a guard is on, and a code that holds `$`
+  (`ex` 4, below), with its
   own arguments -- a jump -- and the det entry writes no register for a
   guarded frame's last call, so the step that takes the registers asks
   nothing: asked in the step, or with the test inside the body, naive
@@ -2130,8 +2130,12 @@ cocolint index offers no import of it.
     environment, 3 both, so `coco_try_clause` asks a plain clause one
     question; and since 3.21.0 4, a body that holds `$/0`, built whole
     and closed by its frame's exit marker (no guard run, no environment),
-    and bit 8, a last goal swipl compiles in place, hidden from a guard
-    (`'$det_hide'`), both entered by `coco_try_clause_det`. Guards and an environment have their own executor
+    entered by `coco_try_clause_det`. A last goal swipl compiles in place
+    is the code's `dlast` (3.21.1), hidden from a guard by a step
+    (`'$det_hide'`): a field of its own, so a clause ending so enters
+    by the plain path while no guard is on -- as 3.21.0's bit 8 of `ex`
+    it went the det entry's way every time, about 90 instructions an
+    entry, and a loop over two such clauses ran 8 % more. Guards and an environment have their own executor
     (`coco_clause_run_ge`) and their own copy of the guards' runner
     (`cc-guards-body`); guards that stop short build the body from the one
     they stopped at and make no environment, as 1.9.2 built it.

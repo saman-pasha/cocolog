@@ -11715,3 +11715,34 @@ on their last answers, which `$/0` shows as `$/1` did.
 Narrow cases green: lint, files, errors, backtrace, window, journal,
 directives, static, script, reconsult, trace, gc, engine, flowchart,
 flowdebug, and the test binaries solve, module, state, term and syntax.
+
+## A clause ending on a goal swipl compiles in place keeps the plain entry (3.21.1)
+
+3.21.0 marked a clause whose last goal swipl compiles in place (`X = Y`,
+`X == Y`, a type test) as bit 8 of its code's `ex`, and `coco_try_clause`
+sent every code of `ex` 4 or more to the guarded entry, whether a guard was
+on or not. The mark matters only under a guard (the step that hides the
+guard from that goal), so every entry of such a clause paid the guarded
+entry's own work besides the plain function's prologue and
+`coco_det_enter`: about 90 instructions. A loop of 100 000 turns over two
+such clauses (`cp(X, Y) :- Y = X.`, `tt(X) :- atom(X).`) ran 242.3 million
+instructions on 3.20.0, 262.5 million on 3.21.0 (+8.3 %) and 245.6 million
+now (+1.4 %: the guard's compare where a framed call is made, 2
+instructions, and the loop's registers). None of zero.sh's three programs
+has such a clause, which is how 3.21.0's measurement missed it.
+
+The mark is the code's own field now, `dlast`, appended to `coco_code`, and
+`ex` has 3.20.0's values and 4. A clause ending so enters by the plain path
+while no guard is on, and by the guarded one under a guard.
+`coco_try_env`'s test of the guards-and-environment kind is 3.20.0's again
+(`ex` 3). Arm 52, the det entry's `dlast`, is red in the case, and arms 35
+and 36 follow the code. `(cold)` on `coco_det_pcall` was tried: it made all
+three of zero.sh's programs dearer (nrev +0.16 %, lookup +0.58 % over the
+build without it) and is not shipped.
+
+tools/flow/zero.sh against 3.20.0 (work less padding): nrev 66 103 059 to
+66 334 010 (+0.35 %), queens 43 031 930 to 43 342 034 (+0.72 %), lookup
+47 904 208 to 48 129 511 (+0.47 %). Start-up is unchanged: `cocolog query
+true` counts 33 291 186 instructions on 3.20.0 and 33 338 459 on 3.21.0,
+both binaries in the checkout (a copy elsewhere finds no `library/` beside
+it, preloads nothing, and counts 12.9 million).

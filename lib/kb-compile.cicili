@@ -2007,11 +2007,11 @@
             ;; the clause is entered, no environment: every goal after the
             ;; `$' a frame (`coco_try_clause', `coco_det0')
             (if (and (!= body 0) (cc_det0_in st m body)) (set (-> cd ex) 4))
-            ;; and A BODY WHOSE LAST GOAL SWIPL COMPILES IN PLACE (8):
+            ;; and A BODY WHOSE LAST GOAL SWIPL COMPILES IN PLACE (`dlast'):
             ;; hidden from a guard it would take on as a last call
             ;; (`coco_det_enter')
             (if (and (!= body 0) (cc_det_inline_last st m head body))
-                (set (-> cd ex) (bitor (-> cd ex) 8)))
+                (set (-> cd dlast) 1))
             (if (not (coco_code_put st clause cd))
                 (block (coco_code_free cd) (return nil)))
             (return cd)))))

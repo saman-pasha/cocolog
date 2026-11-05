@@ -558,20 +558,20 @@
                 (set f (coco_deref m (+ f 3)))))
           (return f)))
 
-  ;;; A CLAUSE OF EX (its code's `ex') ENTERED OVER GOALS, $/0's part
-  ;;; (3.21.0): a body that holds `$' (4) closed by its frame's exit
-  ;;; marker, `'$det_end'(_)' under the clause's barrier TB, for its `$' to
-  ;;; find (`coco_det0'); and one whose last goal swipl compiles in place
-  ;;; (8, `cc_det_inline_last') a step between that goal and a guarded
+  ;;; A CLAUSE OF CODE CD ENTERED OVER GOALS, $/0's part (3.21.0): a body
+  ;;; that holds `$' (`ex' 4) closed by its frame's exit marker,
+  ;;; `'$det_end'(_)' under the clause's barrier TB, for its `$' to find
+  ;;; (`coco_det0'); and one whose last goal swipl compiles in place
+  ;;; (`dlast', `cc_det_inline_last') a step between that goal and a guarded
   ;;; frame's exit -- its own, or the caller's whose last call this is (GL)
   ;;; -- for that goal is no call, and its failure is the frame's. The
   ;;; continuation the body runs on to; 0 where the heap would not grow.
   (weak)
-  (func coco_det_enter ((coco_engine * e) (u32 ex) (int gl) (size_t goals) (size_t tb)) (out size_t)
-        (let ((coco_machine * m . #'(-> e m)) (size_t k . goals))
-          (if (bitand ex 4)
+  (func coco_det_enter ((coco_engine * e) (coco_code * cd) (int gl) (size_t goals) (size_t tb)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m)) (size_t k . goals) (int own . #'(== (-> cd ex) 4)))
+          (if own
               (set k (coco_k_push e (coco_make1_f m (coco-fid m "$det_end" 1) (coco_new_int m 0)) tb k)))
-          (if (and (bitand ex 8) (or (bitand ex 4) gl))
+          (if (and (-> cd dlast) (or own gl))
               (set k (coco_k_push e (coco_new_atom_id m (coco-id m "$det_hide")) tb k)))
           (return k)))
 
@@ -644,7 +644,7 @@
           (set ($ er parent) goals)
           (set ($ er barrier) barrier)
           (set ($ er next) 0)
-          (if (== (bitand (-> cd ex) 3) 3)
+          (if (== (-> cd ex) 3)
               (let ((u32 gdone . 0))
                 (set matched (coco_clause_run_ge m st cd call args roots (aof ng) regs (aof er)
                                                  (coco_guard_budget e cd) (aof gdone)))
@@ -694,9 +694,9 @@
           (return (coco_try_store e cl call goals barrier tmark hmark))))
 
   ;;; A CLAUSE WHOSE CODE IS NO PLAIN ONE, ENTERED WHERE $/0 HAS A PART IN
-  ;;; IT (3.21.0): a body that holds `$' (`ex' 4), one whose last goal swipl
-  ;;; compiles in place (8), one not compiled yet, and any while a guard is
-  ;;; on. A LAST CALL OF A GUARDED FRAME (GOALS its exit marker,
+  ;;; IT (3.21.0): a body that holds `$' (`ex' 4), one not compiled yet, and
+  ;;; any while a guard is on, one whose last goal swipl compiles in place
+  ;;; (`dlast') among them. A LAST CALL OF A GUARDED FRAME (GOALS its exit marker,
   ;;; `dgk', GL) runs no guard as it is entered and makes no environment,
   ;;; as under trace: its last goal is a call the guard goes on to, which a
   ;;; goal done in place would pass by. The body runs on to K: its frame's
@@ -733,13 +733,13 @@
           (if (== cd nil)
               (block (if (!= args nil) (return -1))
                      (return (coco_try_store e cl call goals barrier tmark hmark))))
-          (set x (bitand (-> cd ex) 7))
+          (set x (-> cd ex))
           (if (!= (-> e dgk) (cast size_t -1))
               (set gl (== (coco_det_kk e goals) (-> e dgk))))
           (if (and (not gl) (coco_regs_ok e cd))
               (set regs (aof (nth (* (cast size_t nxt) 8) (-> e areg)))))
-          (if (>= (-> cd ex) 4)
-              (set k (coco_det_enter e (-> cd ex) gl goals (bitor barrier (-> cd ptag)))))
+          (if (or (== (-> cd ex) 4) (-> cd dlast))
+              (set k (coco_det_enter e cd gl goals (bitor barrier (-> cd ptag)))))
           (cond
             ((== x 1)
              (let ((u32 gdone . 0))
@@ -786,8 +786,11 @@
           (return (coco_try_store e cl call goals barrier tmark hmark))))
 
   ;;; whether a clause of code CD is entered by `coco_try_clause_det': any
-  ;;; while a guard is on, one not compiled yet, one that holds $/0 or ends
-  ;;; on a goal swipl compiles in place. So no clause puts its first goal
+  ;;; while a guard is on, one not compiled yet, one that holds $/0 -- and
+  ;;; one that ends on a goal swipl compiles in place only under a guard,
+  ;;; the step that hides it being for a guard alone (3.21.1: sent there
+  ;;; whatever the guard, each such entry cost about 90 instructions more,
+  ;;; a loop over two of them 8 %). So no clause puts its first goal
   ;;; in the registers as a guarded frame's last call (the det entry writes
   ;;; none), and the step that takes them asks nothing: asked there, every
   ;;; step of naive reverse paid 3 instructions. The kind asked first, before
