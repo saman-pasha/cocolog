@@ -8941,6 +8941,189 @@ read into an English-worded IR and written into any lesson's language),
   the dust to the panels', `saved in the bottom of his workshop of ceramist of gift item so' and `who cost him to find
   them' (21); `they say' and `remains' (23); `that also is damaged' (24); and `I am not restorer' and `at his disposal'
   (25: a restorer, theirs). The next sample's controls take this report in.
+  The two television reports (VIT-9296..9309, 14 sentences: Alba Parietti's interview on Danish and Swedish television,
+  and a parliamentary question on the RAI programme `generale per una sera', Italian into Spanish and English: 14 of 14
+  and 14 of 14 on a fresh store, 10 and 12 with the new store alone, 3 and 3 with the new code on the old store, 3 and 3
+  before; reasoning 1.0.31). The sample was taken on the cocolog 3.19.2 binary, master's 81579bd merged as 2bfab94, and
+  cocolog stays 3.19.2; master's 51833fe and f7b0389 (cocolog 3.19.3 and 3.19.4) came during the sample, change nothing
+  under library/reasoning/, and are not merged: the next sample takes them. The commit before this one (c4b9894, the
+  load with no warning) counted 167 warnings: they were 177, the 167 blocks and ten warnings of 11 variables a clause
+  names once, in 10 clauses. The article's sentences fall from 35.4 million inferences in each language to 31.8 into
+  Spanish and 31.7 into English.
+  It needed these SHAPES, each with its arm red (test/translate.pl's `newspaper_tv': 44 checks, 36 arms, all red in the
+  section; an arm is a library directory of symlinks whose reasoning/translate.pl is the edited copy,
+  `COCOLOG_LIBRARY=ARM cocolog query "use_module('test/translate.pl'), newspaper_tv, checks_done"', under a second a
+  run, and every arm is run in twenty seconds, two at a time): A NAME AND A NUMBER OF ONE OR TWO DIGITS ARE ONE NAME
+  (`"cinici e diseducativi" i film - Wargames di rai 1' is the channel Rai 1, as `Canale 5' and `Tg 4' are names; read
+  apart, the number was a count with no noun and the headline was refused: tr_name_numbers/3, a name the lesson states,
+  in small letters too, `"rai" is a name.', or a capital word the lesson does not know), never a count, where a noun
+  follows the number (`a Roma 24 anni fa' is in Rome 24 years ago, and joined as the name `Roma 24' the Veloso
+  interview's 34th sentence was refused in both languages: found by the controls) -- two arms; TWO ADJECTIVES JOINED
+  BEFORE A DETERMINER SAY WHAT THE PHRASE IS (`"cinici e diseducativi" i film' heads the films that are cynical and
+  miseducative, and the coordination, read before the clause of one adjective can be and cut, refused the piece:
+  tr_read0/4), in a piece of ten words at most with no comma (a guard of cost, whose arm stays green: `Lapidario ma
+  significativo il commento del primo presidente ..., Nicola Marvulli:' was asked as one and cost 67 thousand inferences
+  more, its text the same), and a quotation that closes inside the sentence before a determiner is no mark of the
+  sentence (with the mark the sentence's it came out `"The films are cynical and miseducative".': tr_head_mark/4) --
+  never a quotation the speaker's verb follows (`"in ogni caso" puntualizza lui, "comincerò ...' kept its comma and its
+  marks, which the first cut, any word after the close, lost in six texts of the controls: `"He clarifies, in any case"
+  I "will commence', `"Hablará tras el 21 de julio" dice', and two refused), the lesson of the side the text is read on
+  asked (tr_from_side/3 before tr_head_mark/4: with the target's language set, Spanish took no Italian determiner and
+  wrote `"Las películas son cínicas y deseducativas"') -- four arms; a demonstrative and an article at the head of the
+  side after a colon have their copula read in (`un'iniziativa "cinica e diseducativa": questo il giudizio dei deputati'
+  -- this IS the judgement, and read without its verb English wrote `this the judgement': tr_demonstrative_copula/3); A
+  BARE NOUN THAT IS ITS OWN PLURAL TAKES THE NUMBER OF THE PARTICIPLE AFTER IT (`un ciclo di film dedicati' is a cycle
+  of FILMS, `"film" is the plural of "film".', and read in the singular it came out `un ciclo de película dedicadas':
+  tr_cross_np/2, agrn/1); A PARTICIPLE IN THE OBJECT'S PHRASE OF `of' TAKES THE PHRASE AFTER IT WHERE ENGLISH SAYS THE
+  PARTICIPLE WITH THAT PREPOSITION, after any verb (`Il programma propone un ciclo di film dedicati alle grandi
+  battaglie' is a cycle of films DEDICATED TO them, and with the phrase of `to' the clause's English wrote `a cycle of
+  dedicated film to the big battles': tr_participle_predicate/3, en_ptc_takes/2, `dedicates', `devotes', `addresses',
+  `links', `destines', `assigns'), never a phrase English does not say the participle with, which may be the verb's
+  (`compró un coche usado en Madrid') -- two arms; A SINGULAR NOUN THAT IS A COMMAND TOO, BEFORE A PHRASE OF `to' OR
+  `of', HEADS A HEADING (`Intervista alle televisioni danese e svedese' is the interview, and read as the command
+  `intervista!' English wrote `Interview to the Danish and Swedish televisions' or refused it: tr_noun_heading_start/1),
+  and AN INTERVIEW IS WITH SOMEBODY (`In un'intervista a una tv danese' -- the Italian and the Spanish say the one
+  interviewed with `to', and the phrase of `to' right after the noun is `with', the Spanish writer's `con':
+  tr_cross_comps/2, tr_interview_comp/1), only after the noun for an interview (`dà un libro a una donna' gives it TO
+  her) -- three arms; AN INFINITIVE WITH ITS REFLEXIVE PRONOUN CROSSES BY THE MEANING THE LESSON GIVES IT SO, as the
+  verb of a clause does (`la libertà delle donne di denudarsi davanti ai telespettatori' is their freedom to STRIP, `The
+  reflexive verb "denuda" means "strips".', and crossed by the plain `bares' it came out `to bare', which Spanish has no
+  verb for, and the sentence was refused: tr_cross_comp/2), the pronoun going with the reading unless English too says
+  the meaning of oneself (en_true_reflexive/1), and the lesson's writer puts its own back where its verb states the
+  meaning as reflexive (`desnudarse', tr_comp_out/7) -- two arms; A SECOND AGENT AFTER THE COMMA, WITH ITS OWN TIME, IS
+  THE PARTICIPLE'S (`in una intervista trasmessa giovedì sera dalla tv danese, e ieri da quella svedese' is broadcast by
+  the Danish television, and yesterday by the Swedish one, the participle left out; read as the clause's, the second was
+  a phrase of `from': tr_second_agent/2); a day and its part before the agent (`trasmessa giovedì sera dalla tv danese'
+  was broadcast on Thursday evening BY it, and with the time read alone the agent was `from the Danish television':
+  tr_reduced_agent/3), in a subject too, where the phrase ended at the participle (tr_phrase_words0/4,
+  tr_time_before_agent/2), and English says a weekday and its part with `on' (tr_comp_out/7) -- four arms; TWO HEADINGS
+  PARTED BY A DASH ARE EACH READ AS A PIECE OF ITS OWN (`"cinici e diseducativi" i film - Wargames di rai 1' -- the
+  readers of a heading ask for the whole piece, which neither half was, and the headline was refused: tr_read0/4,
+  tr_as_piece/2), each half eight words at most with no comma and no verb in the second; a name with its phrase of `of'
+  is a heading (`Wargames di rai 1': tr_verbless0/3); A HEADING WITH ITS PURPOSE, THE RELATIVE CLAUSE ON ITS LAST PHRASE
+  (`Una interrogazione parlamentare per denunciare il cinismo della trasmissione "generale per una sera", che esalta la
+  cultura della guerra' -- the programme, which exalts it; divided at the comma, the clause was one of `that' with
+  nobody named, which English refused: tr_verbless0/3), asked only where a word that begins the purpose stands before
+  the comma (a guard of cost); a second noun that is a preposition too says no kind (`al ministro delle poste contro
+  "generale per una sera"' is the question against the programme, and `contro' is a noun too, the con of pros and cons
+  -- read as the kind of mail, English wrote `the con mails': tr_np/3); A DEMONSTRATIVE THE COPULA SAYS IS A NOUN TAKES
+  THE NOUN'S GENDER (`questo il giudizio' is `este es el juicio', `Esa es la principal conclusión' `Quella è la
+  principale conclusione', and written as the lesson's own neuter it was `esto es el juicio', `Quello è':
+  tr_subject_out/6, the lesson's first demonstrative in the noun's gender, never one of no gender); a title's words are
+  no verb's complements (`il cinismo della trasmissione "generale per una sera"' came out `de la transmisión a "general
+  durante una noche"', the general marked as the clause's object: tr_np_out/5); A DENIED INFINITIVE'S `still' IS ITS
+  `yet', inside it (`di non aver ancora sviluppato un sentimento comune' is of not having YET developed one -- pulled to
+  the clause's verb, English wrote `has still accused': tr_comps_out/7, and tr_pull_adverb/3 takes no adverb right after
+  a denied infinitive), and English's `not' stands after the preposition a gerund takes (`of not having evolved', where
+  it was `not of having evolved': tr_comp_out/7) -- three arms; A SERIES OF INFINITIVES AFTER A COMMA ARE ALL THE
+  VERB'S, EACH WITH ITS PREPOSITION (`ha accusato le donne di non essersi evolute ..., di non aver sviluppato' accused
+  them of not having evolved, of not having developed, and with the verb's preposition for its first infinitive alone
+  the second came out `not to have developed': tr_comps_out/7), and the lesson's writer gives each its word (`de no
+  dormir, de no comer', where it was `no de dormir, no comer': the plain and the denied infinitive after a comma, and
+  the word before a denied plain infinitive, `de no dormir', tr_comp_out/7) -- five arms; A DENIED INFINITIVE AFTER THE
+  WORD THE SOURCE KEPT BEFORE IT TAKES NO OTHER (`fiel a su consigna de no arremeter' is `fedele alla sua direttiva di
+  non assalire', where it was `di non d'assalire', and the first cut's word before a denied infinitive wrote `di di non
+  assalire': tr_comps_out/7, found by the controls), the plain infinitive's writer asking what the one with its pronouns
+  asks (tr_infx_lead/1: the word a kept word leaves out, and the participle's word); A PRONOUN ON A MODAL'S INFINITIVE
+  IS THE OBJECT OF THE INFINITIVE AFTER IT (`vuole poterlo mangiare' wants to be able to eat it -- Italian and Spanish
+  put the pronoun of the second infinitive on the modal before it, `poterlo', `doverlo', `volerlo', `poderlo', and
+  written where it stood English said `to can him to eat': tr_comps_out/7), a purpose's too; and English says what is on
+  television with `on' (`le donne che si spogliano in tv', en_on_noun/1).
+  It needed these WORDS in `extra/' (the two readers: a line moves the reader of one language and the writer of the
+  other; the dictionary's own word is said again first where it must stay the one written): Italian `movimento' (a
+  movement, where the dictionary's first is a motion, which the Spanish writer wrote `mociones'), `spoglia' (strips, and
+  undresses with its pronoun, with its forms), `denuda' (bares, and strips with its pronoun, with its forms),
+  `telespettatore' and `telespettatrice' (television viewers, persons), `soubrette' (a showgirl, a person, its own
+  plural), the infinitive and the participles of `evolve' (the dictionary has none) with the copula its auxiliary and
+  its reflexive meaning, `sul piano di' (in terms of), the copula as the auxiliary of `cambia' (`l'uomo italiano non è
+  cambiato' has not changed; the Lazio report's `i valori non sono cambiati molto' was `no son cambiados'), `"alba" is a
+  name.' (a first name, where the word is the dawn), `divertito' and `divertita' (amused, where the dictionary's
+  adjective is fun), `intervistatore' and `intervistatrice' (interviewers, persons), `maschilista' (sexist), `mammone'
+  (mother-fixated), `cinico' and `cinica' (cynical: the dictionary has the noun, the cynic, alone), `diseducativo' and
+  `diseducativa', `progressista' (progressive, with `progressivo' said again first, so that it stays the word written
+  for a gradual increase), `interrogazione' (an interpellation, a parliamentary question), `cambia canale' (changes the
+  channel, with its forms), `esalta' (exalts, with its forms), the name `copenaghen' (Copenhagen, a city), English's
+  `broadcast' as the past and the participle of `broadcasts' (its rule made `broadcasted'), `trasmette' (broadcasts,
+  where the dictionary's verb conveys it, with its participles), `"rai" is a name.', `The word "tale da" begins the
+  purpose.' and `come se niente fosse' (as if it were nothing); Spanish `desnuda' with its pronoun (undresses, then
+  strips), `telespectador' and `telespectadora', `vedette' (a showgirl), `divertido' and `divertida' (fun said again
+  first, then amused), `entrevistador' and `entrevistadora', `machista', `enmadrado' and `enmadrada', `deseducativo' and
+  `deseducativa', `cambia de canal' with its forms, `exalta' with its forms, the name `copenhague', `broadcast', `en
+  términos de' (in terms of: the Spanish writer had no word for it, and the sentence was refused) and `como si nada'.
+  The first meaning moved for 5 Italian words and 1 Spanish one (Italian `cinico' cynical, `divertito' and `divertita'
+  amused, `movimento' a movement, `trasmette' broadcasts; Spanish `telespectador' a television viewer), the writer's
+  first word for 1 Italian meaning and no Spanish one (an interpellation, `interrogazione', where it was
+  `interpellanza'), and none was lost.
+  THE CONTROLS (cocolog 3.19.2, store KB293, 126 count files, 3 400 sentences: the earlier set with the ceramist report
+  in, es_20011202-118, both directions; these reports are not among them): the last version's translator against this
+  one, on the one store, 12 sentences in 12 count files read differently, all better -- the demonstrative in its noun's
+  gender (4: `Quella era la condizione', `Quella è la principale conclusione', `Quella è una buona risposta', `Este es
+  el texto del documento'), the agent after a day or an adverb (4: `promulgated on Thursday by the senate' and `por el
+  senado', where it was `from the senate' and `del senado'; `a request advanced by the magistrates', and the Spanish of
+  that sentence, it_10011_10058 18, refused before, is read now), `on Saturday morning', `on television', `la sua
+  direttiva di non assalire' (es_20000903-30 5, where it was `di non d'assalire') and `podrán tener lugar' for `potranno
+  svolgersi' (it_9792_9799 2, where it was `realizarse': the reflexive meaning, takes place) -- and the inferences fall
+  0.031 % (6 697 195 993 to 6 695 124 592) and rise 0.032 % outside the two sentences that fall by over a million
+  (it_9270_9295 8 in each language, 44.3 million to 42.2, its text the same: `Tg 4' is one name). 3 390 sentences rise,
+  by 333 inferences at the median, the largest it_10011_10058 18 (+0.26 million of 1.97 into English, a new reading),
+  it_9605_9636 5 (+0.10 of 2.10, the agent), Tempi's twentieth (+0.07 of 339.2, refused both ways) and it_9763_9774 12
+  (+28 775 of 86 755, `Monica Ferretti Genova - Sestri P pacifismo "mascalzone".': the two headings of the dash asked
+  and failing, its text the same). Bytes and characters read every sentence alike (0 differ, the bytes 0.011 % more).
+  The DATA COLUMN (the last version's translator on its own store, KB287, against this one on the new): 16 sentences,
+  +0.011 % (6 694 395 669 to 6 695 124 592), +0.074 % outside the two. THE CODE ALONE (this translator on KB287): the
+  same 12 sentences, -0.031 %, +0.032 % outside the two. THE STORE ALONE (the last version's translator on KB287 and on
+  KB293): 4 sentences, all better, +0.042 % (to 6 697 195 993), 2 871 sentences rising by 275 inferences at the median
+  -- `spogliarono la Francia' for `desnudaron a Francia' (es_20020601-51 3, where it was `svestirono'), `after having
+  broadcast' (it_9270_9295 20, where it was `broadcasted') and the Lazio report's `the values have not changed' and `no
+  han cambiado' (it_9511_9539 14, where they were `are not changed' and `no son cambiados').
+  THE FIRST ROUND'S REGRESSIONS, found by reading the texts of the one store and mended, each with its arm red: the word
+  before a denied infinitive wrote `alla sua direttiva di di non assalire' after the source's kept `de' (the kept word's
+  clause takes the plain and the denied infinitive now, tr_comps_out/7); `a Roma 24 anni fa' was the name `Roma 24' and
+  the Veloso interview's 34th sentence was refused in both languages (no name before a noun's count); and the head mark
+  of a quotation that closes before more words, first asked of any word after the close, lost the marks and the comma of
+  Cecchi Paone's quotations (it_9270_9295 10 in both languages, `"He clarifies, in any case" I "will commence', 15 and
+  19 in Spanish, `"Esta negociación mía con la Fininvest" dice que Cecchi Paone', and 14 refused in both): only a
+  determiner after the close takes the mark from the sentence now, asked with the side already set. The hand lesson
+  showed one more: the lesson's neuter `esto', a demonstrative of no gender, came first for `Questa è la casa', and the
+  writer takes the first demonstrative in the noun's gender, never one of no gender. Two older checks changed with the
+  rules: the Bovalino section's `The dog sleeps Sunday morning.' is `on Sunday morning', and the bank section's guard
+  that a bare number is no object asks `El perro va al Tg 444.' (in test/translate.pl and in lesson 46's section 77):
+  `Tg 4' is one name now, and in that section's lesson a name after `al' is the object of `va', `The dog goes the Tg 4.'
+  -- the guard's arm is red on `Tg 444'. The section's insertion first dropped `newspaper_grazioli_checks_2' from
+  test/translate.pl, which the whole case found (`Unknown procedure'), and it is back.
+  THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (18 control sentences of 0.1 to 2 million inferences picked at
+  random and the riser it_9926_9946 17, into English, over a copy of the library per rule on KB293): the first cut rose
+  79 961 inferences of 10.19 million (+0.78 %), and 67 456 of them were the two adjectives joined, which asked the
+  heading reader of `Lapidario ma significativo il commento del primo presidente della suprema corte di Cassazione,
+  Nicola Marvulli: ...' (+6.5 % of the sentence, its text the same), and the rest the name and its number (6 891, the
+  digits asked of every word), the interview (2 246), the heading with its purpose (1 634) and the noun heading (985).
+  What paid was the cheap tests first: the joined adjectives in a piece of ten words at most with no comma, the length
+  of the word after a name before its digits, the shape of the phrase of `to' before the interview's noun, a word that
+  begins the purpose before the comma, and the preposition before the noun heading's verb form; the nineteen rise 8 547
+  (+0.084 %), every text the same, and the guards of cost' arms stay green.
+  THE STATED COSTS: a first meaning that serves the news and not every text -- `movimento' is a movement (a motion
+  second), `trasmette' broadcasts (conveys second), `cinico' cynical (the cynic second), `divertito' amused (fun
+  second), Spanish `telespectador' a television viewer -- and the writer's `interrogazione' for an interpellation
+  (`interpellanza' before); `potranno svolgersi' is `podrán tener lugar' (above); `tale da poterci giocare' is `to be
+  able to play us' (the pronoun goes after the infinitive, and `ci' is still read as `us', where it says `with it'); the
+  dash rule's failed reading of a byline (+28.8 thousand inferences, above); and the inferences, +0.032 % outside the
+  two that fall, +0.042 % for the store alone.
+  The reports LEAVE, of the 14 into Spanish: `la libertad de las mujeres italianas desnudarse' (4, 8: the word before an
+  infinitive after a noun's phrase of `of', `de desnudarse'); `El que no quiere ver' (5: `Quien'); `que se define ex
+  feminista' (6: `como ex feminista'), `en términos de la solidaridad' (the article) and `una sensación común' (`un
+  sentimiento'); `Interpelación en "general durante una noche"' (9: `sobre', `por una noche'); `los diputados
+  progresivos' (11: `progresistas', the Spanish writer's word for progressive), `al ministro de los correos' (`de
+  Correos') and `la transmisión' for the programme; `a finales de los que huéspedes famosos al público, releen' (12: `al
+  final de los cuales invitados conocidos por el público releen') and `un juego de simulacro' (`de simulación'); and
+  `postula una accesión ... para podernos jugar como si nada' (13: `presupone una adhesión ... tal como para poder jugar
+  con ella'); of the 14 into English: `All the movements among the televisions' (1: the moves between the channels);
+  `and by the Swedish one yesterday' (4: the adverb last); `The one that does not want to see, can change the channel'
+  (5: whoever); `The Parietti, which defines ex feminist' (6: who calls herself one -- a name with its article is no
+  person by its shape, as a club's is not) and `in terms of the solidarity'; `It is still sexist and mother-fixated' (7:
+  he, the man before the colon not carried after it); `the minister of the mails' (11: the minister of Posts) and `the
+  transmission' (the programme); `famous guests to the public, reread' (12: guests known to the public); `posits an
+  accession to a culture of the war, to be able to play us' (13); and `the culture of the war' (14: the article). The
+  next sample's controls take these reports in.
 
 ## Tutorials are documentation that runs
 

@@ -2621,6 +2621,54 @@ The reflexive verb "preocupa" means "worries".
 "preocupa" takes "de" before the clause.
 "va" takes the future.
 The adverb "a su disposición" means "at his disposal".
+The reflexive verb "desnuda" means "undresses".
+The reflexive verb "desnuda" means "strips".
+The masculine noun "telespectador" means "television viewer".
+The feminine noun "telespectadora" means "television viewer".
+"telespectadoras" is the plural of "telespectadora".
+"telespectadora" is a person.
+The feminine noun "vedette" means "showgirl".
+"vedettes" is the plural of "vedette".
+"vedette" is a person.
+The masculine adjective "divertido" means "fun".
+The masculine adjective "divertido" means "amused".
+The feminine adjective "divertida" means "fun".
+The feminine adjective "divertida" means "amused".
+The masculine noun "entrevistador" means "interviewer".
+The feminine noun "entrevistadora" means "interviewer".
+"entrevistadoras" is the plural of "entrevistadora".
+"entrevistadora" is a person.
+The adjective "machista" means "sexist".
+"machista" is not feminine.
+"machistas" is the plural of "machista".
+The masculine adjective "enmadrado" means "mother-fixated".
+"enmadrados" is the plural of "enmadrado".
+The feminine adjective "enmadrada" means "mother-fixated".
+"enmadradas" is the plural of "enmadrada".
+The masculine adjective "deseducativo" means "miseducative".
+"deseducativos" is the plural of "deseducativo".
+The feminine adjective "deseducativa" means "miseducative".
+"deseducativas" is the plural of "deseducativa".
+The verb "cambia de canal" means "changes the channel".
+"cambian de canal" is the plural of "cambia de canal".
+"cambiar de canal" is the infinitive of "cambia de canal".
+"cambió de canal" is the past of "cambia de canal".
+"cambiado de canal" is the participle of "cambia de canal".
+The verb "exalta" means "exalts".
+"exaltan" is the plural of "exalta".
+"exaltar" is the infinitive of "exalta".
+"exaltó" is the past of "exalta".
+"exaltaron" is the past of "exaltan".
+"exaltaba" is the imperfect of "exalta".
+"exaltaban" is the imperfect of "exaltan".
+"exaltado" is the participle of "exalta".
+"exaltada" is the participle of "exalta".
+"exaltada" is feminine.
+The name "copenhague" means "Copenhagen".
+"broadcast" is the past of "broadcasts".
+"broadcast" is the participle of "broadcasts".
+The preposition "en términos de" means "in terms of".
+The adverb "como si nada" means "as if it were nothing".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

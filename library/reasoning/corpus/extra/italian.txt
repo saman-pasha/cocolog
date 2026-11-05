@@ -5520,3 +5520,135 @@ The adverb "a sua disposizione" means "at his disposal".
 # `habían empezado hace dos meses los trámites para restaurarla', the formalities (the Italian vocabulary has none)
 The feminine noun "formalità" means "formality".
 "formalità" is the plural of "formalità".
+# ---- the TV reports (VIT-9296..9309): Alba Parietti's interview and the question on "generale per una sera"
+# `Tutti i movimenti tra le televisioni': the moves between the channels, where the dictionary's first is a
+# motion, which the Spanish writer wrote `mociones'
+The masculine noun "movimento" means "movement".
+# `Parietti: difendo le donne che si spogliano in tv': the women who undress
+The verb "spoglia" means "strips".
+The reflexive verb "spoglia" means "undresses".
+"spogliano" is the plural of "spoglia".
+"spogliare" is the infinitive of "spoglia".
+"spogliò" is the past of "spoglia".
+"spogliarono" is the past of "spogliano".
+"spogliava" is the imperfect of "spoglia".
+"spogliavano" is the imperfect of "spogliano".
+"spogliato" is the participle of "spoglia".
+"spogliata" is the participle of "spoglia".
+"spogliata" is feminine.
+"spogliati" is the participle of "spoglia".
+"spogliate" is the participle of "spoglia".
+"spogliate" is feminine.
+# `la libertà delle donne italiane di denudarsi davanti ai telespettatori': to strip in front of the viewers
+The verb "denuda" means "bares".
+The reflexive verb "denuda" means "strips".
+"denudano" is the plural of "denuda".
+"denudare" is the infinitive of "denuda".
+"denudò" is the past of "denuda".
+"denudarono" is the past of "denudano".
+"denudato" is the participle of "denuda".
+"denudata" is the participle of "denuda".
+"denudata" is feminine.
+The masculine noun "telespettatore" means "television viewer".
+"telespettatori" is the plural of "telespettatore".
+"telespettatore" is a person.
+The feminine noun "telespettatrice" means "television viewer".
+"telespettatrici" is the plural of "telespettatrice".
+"telespettatrice" is a person.
+# `ha detto la soubrette': a showgirl, a person, her own plural
+The feminine noun "soubrette" means "showgirl".
+"soubrette" is the plural of "soubrette".
+"soubrette" is a person.
+# `di non essersi evolute sul piano della solidarietà': not having evolved (the dictionary has no infinitive and
+# no participle of `evolve'), in terms of solidarity
+"evolvere" is the infinitive of "evolve".
+"evoluto" is the participle of "evolve".
+"evoluta" is the participle of "evolve".
+"evoluta" is feminine.
+"evoluti" is the participle of "evolve".
+"evolute" is the participle of "evolve".
+"evolute" is feminine.
+"è" is the auxiliary of "evolve".
+The reflexive verb "evolve" means "evolves".
+The preposition "sul piano di" means "in terms of".
+# `l'uomo italiano non è cambiato': has not changed, the intransitive perfect (the writer still builds `ha
+# cambiato le regole' with `has', where the clause has an object); the Lazio report's `i valori non sono
+# cambiati molto' was `no son cambiados'
+"è" is the auxiliary of "cambia".
+# `Alba Parietti': a first name, where the word is the dawn
+"alba" is a name.
+# `Davanti alla divertita intervistatrice': the amused interviewer, where the dictionary's adjective is fun
+The masculine adjective "divertito" means "amused".
+"divertiti" is the plural of "divertito".
+The feminine adjective "divertita" means "amused".
+"divertite" is the plural of "divertita".
+The masculine noun "intervistatore" means "interviewer".
+"intervistatori" is the plural of "intervistatore".
+"intervistatore" is a person.
+The feminine noun "intervistatrice" means "interviewer".
+"intervistatrici" is the plural of "intervistatrice".
+"intervistatrice" is a person.
+# `è ancora maschilista e mammone': sexist, and tied to his mother
+The adjective "maschilista" means "sexist".
+"maschilista" is not feminine.
+"maschilisti" is the plural of "maschilista".
+"maschiliste" is the plural of "maschilista".
+"maschiliste" is feminine.
+The masculine adjective "mammone" means "mother-fixated".
+"mammoni" is the plural of "mammone".
+# `"cinici e diseducativi" i film': cynical (the dictionary has the noun, the cynic, alone) and miseducative
+The masculine adjective "cinico" means "cynical".
+"cinici" is the plural of "cinico".
+The feminine adjective "cinica" means "cynical".
+"ciniche" is the plural of "cinica".
+The masculine adjective "diseducativo" means "miseducative".
+"diseducativi" is the plural of "diseducativo".
+The feminine adjective "diseducativa" means "miseducative".
+"diseducative" is the plural of "diseducativa".
+# `il giudizio dei deputati progressisti': progressive (the dictionary's `progressivo' said again first, so that it
+# stays the word written for a gradual increase)
+The masculine adjective "progressivo" means "progressive".
+The feminine adjective "progressiva" means "progressive".
+The adjective "progressista" means "progressive".
+"progressista" is not feminine.
+"progressisti" is the plural of "progressista".
+"progressiste" is the plural of "progressista".
+"progressiste" is feminine.
+# `in una interrogazione al ministro delle poste': a parliamentary question, an interpellation (the Spanish
+# dictionary's `interpelación')
+The feminine noun "interrogazione" means "interpellation".
+"interrogazioni" is the plural of "interrogazione".
+# `chi non vuole vedere, può cambiare canale': change the channel, where `canale' is a canal first
+The verb "cambia canale" means "changes the channel".
+"cambiano canale" is the plural of "cambia canale".
+"cambiare canale" is the infinitive of "cambia canale".
+"cambiò canale" is the past of "cambia canale".
+"cambiato canale" is the participle of "cambia canale".
+# `che esalta la cultura della guerra': exalts
+The verb "esalta" means "exalts".
+"esaltano" is the plural of "esalta".
+"esaltare" is the infinitive of "esalta".
+"esaltò" is the past of "esalta".
+"esaltarono" is the past of "esaltano".
+"esaltava" is the imperfect of "esalta".
+"esaltavano" is the imperfect of "esaltano".
+"esaltato" is the participle of "esalta".
+"esaltata" is the participle of "esalta".
+"esaltata" is feminine.
+# `Copenaghen - Alba Parietti ...': the city
+The name "copenaghen" means "Copenhagen".
+"copenaghen" is a city.
+# `la trasmissione che Raiuno manda in onda da ieri': has broadcast, where English's rule made `broadcasted'
+"broadcast" is the past of "broadcasts".
+"broadcast" is the participle of "broadcasts".
+# `un'intervista trasmessa giovedì sera dalla tv danese': broadcast, where the dictionary's verb conveys it
+The verb "trasmette" means "broadcasts".
+"trasmesso" is the participle of "trasmette".
+"trasmessa" is the participle of "trasmette".
+"trasmessa" is feminine.
+# `"cinici e diseducativi" i film - Wargames di rai 1': the broadcaster, which the paper writes in small letters
+"rai" is a name.
+# `una adesione ad una cultura della guerra, tale da poterci giocare come se niente fosse': such as to be able to play
+# at it, the purpose's word of two, and as if it were nothing, an adverb of four
+The word "tale da" begins the purpose.
+The adverb "come se niente fosse" means "as if it were nothing".

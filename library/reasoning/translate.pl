@@ -620,8 +620,8 @@ tr_each_ir([Piece-Stop0|Ps], From, [ir(S, Stop)|Ss]) :-
 tr_read_ir(Piece0, Stop0, From, S, Stop) :-
     tr_caps_piece(Piece0, Piece),
     tr_piece_words(Piece, Words00), Words00 \== [],
+    tr_from_side(From, Words00, Side),                 % (first: the head mark asks the lesson)
     tr_head_mark(Words00, Stop0, Words0t, Stop1),
-    tr_from_side(From, Words0t, Side),
     tr_tail_mark(Side, Words0t, Stop1, Words0c, Stop),
     tr_caps_names(Side, Words0c, Words0q),
     tr_quote_names(Side, Words0q, Words0r),
@@ -630,7 +630,8 @@ tr_read_ir(Piece0, Stop0, From, S, Stop) :-
     tr_elision_names(Side, Words0, Words0e1),
     tr_dash_names(Side, Words0e1, Words0e),
     tr_particle_names(Side, first, Words0e, Words0p),
-    tr_stated_names(Side, Words0p, Words0a0),
+    tr_stated_names(Side, Words0p, Words0a00),
+    tr_name_numbers(Side, Words0a00, Words0a0),
     tr_title_lower(Side, Words0a0, Words0a),
     tr_month_lower(Side, Words0a, Words0b0),
     tr_colon_lower(Side, Words0b0, Words0b1),
@@ -1102,7 +1103,24 @@ tr_colon_lower(foreign, Ws0, Ws) :-
     append(A, [colon|B], Ws).
 tr_colon_lower(_, Ws, Ws).
 
-tr_head_mark([w(W, Q)|Ws], Stop0, [w(W, upper)|Ws], Stop) :- memberchk(Q, [qopen, qopenu]), !, tr_stop_open(Stop0, Stop).
+%% (never a quotation that closes inside the sentence before a determiner: `"cinici e diseducativi" i film' quotes the
+%% two adjectives, and with the mark taken for the sentence's it came out `"The films are cynical and miseducative".'
+%% A quotation the speaker's verb follows keeps it: `"in ogni caso" puntualizza lui, "comincerò ...')
+%% A NAME AND A NUMBER OF ONE OR TWO DIGITS ARE ONE NAME: `Wargames di rai 1' is the channel Rai 1, as `Formula 1' and
+%% `Canale 5' are names; read apart, the number was a count with no noun and the headline was refused. A name the lesson
+%% states, in small letters too, or a capital word the lesson does not know
+tr_name_numbers(foreign, [w(N, C), w(D, lower)|Ws0], [w(Name, upper)|Ws]) :-
+    atom(D), atom_length(D, DL), DL =< 2, tr_digits_start(D), tr_digits(D), atom(N), \+ tr_digits(N),
+    ( tr_solve(name(N)) -> true ; C == upper, \+ tr_known_word(foreign, N) ),
+    \+ ( Ws0 = [w(NW, _)|_], atom(NW), tr_is(foreign, w(NW, lower), noun) ), !,       % a count: `a Roma 24 anni fa'
+    tr_cap(N, NC), atomic_list_concat([NC, D], ' ', Name),
+    tr_name_numbers(foreign, Ws0, Ws).
+tr_name_numbers(Side, [W|Ws0], [W|Ws]) :- !, tr_name_numbers(Side, Ws0, Ws).
+tr_name_numbers(_, [], []).
+tr_head_mark([w(W, Q)|Ws], Stop0, [w(W, upper)|Ws], Stop) :-
+    memberchk(Q, [qopen, qopenu]),
+    \+ ( append(_, [w(_, C), D|_], Ws), memberchk(C, [qclose, qcloseu]), D = w(_, _), tr_determiner(foreign, D, _, _) ), !,
+    tr_stop_open(Stop0, Stop).
 tr_head_mark(Ws, Stop, Ws, Stop).
 %% ... AND A CLOSING MARK ON THE LAST WORD OF A QUOTATION THAT OPENED AT THE
 %% HEAD IS THE SENTENCE'S TOO: `"servono nove miliardi, ma prima il
@@ -1728,6 +1746,14 @@ tr_elision_names0([W|Ws0], [W|Ws]) :- tr_elision_names0(Ws0, Ws).
 tr_demonstrative_copula(foreign, [w(D, DC), A|Ws], [w(D, DC), w(Cop, lower), A|Ws]) :-
     tr_language(italian), atom(D), tr_demonstrative_form(D, Cop),
     A = w(AW, _), atom(AW), tr_determiner(foreign, A, _, article), !.
+%% ... AND AT THE HEAD OF THE SIDE AFTER A COLON: `un'iniziativa "cinica e diseducativa": questo il giudizio dei
+%% deputati progressisti' -- this IS the deputies' judgement; read without its verb, the demonstrative was an
+%% object pronoun and English wrote `this the judgement'
+tr_demonstrative_copula(foreign, Ws0, Ws) :-
+    memberchk(colon, Ws0), tr_language(italian),
+    append(Pre, [colon, w(D, DC), A|Rest], Ws0), atom(D), tr_demonstrative_form(D, Cop),
+    A = w(AW, _), atom(AW), tr_determiner(foreign, A, _, article), !,
+    append(Pre, [colon, w(D, DC), w(Cop, lower), A|Rest], Ws).
 tr_demonstrative_copula(_, Ws, Ws).
 tr_demonstrative_form(D, 'è') :- memberchk(D, [questo, questa, quello, quella]).
 tr_demonstrative_form(D, sono) :- memberchk(D, [questi, queste, quelli, quelle]).
@@ -5480,6 +5506,12 @@ tr_cross_np(app(NP0, yearw, w(Y0, C)), app(NP, yearw, w(Y, C))) :- !,           
 tr_cross_np(app(NP0, title, Cs0), app(NP, title, Cs)) :- !, tr_cross_np(NP0, NP), tr_cross_comps(Cs0, Cs).
 tr_cross_np(app(NP0, Kind, K), app(NP, Kind, Inner)) :- !,
     tr_cross_np(NP0, NP), tr_aside_inner(K, Inner0), tr_aside_participle(NP0, Inner0, Inner).
+%% A BARE NOUN THAT IS ITS OWN PLURAL TAKES THE NUMBER OF THE PARTICIPLE AFTER IT: `un ciclo di film dedicati' is a
+%% cycle of FILMS dedicated -- `"film" is the plural of "film".', and read in the singular the phrase came out
+%% `un ciclo de película dedicadas', the participle's own plural beside it (agrn/1, tr_rel_number/5)
+tr_cross_np(rel(np(none, Q, A, w(W, C), singular), L0, Cs0), NP) :-
+    select(agrn(plural), Cs0, Cs1), atom(W), tr_lexeme(foreign, W, _, plural), !,
+    tr_cross_np(rel(np(none, Q, A, w(W, C), plural), L0, Cs1), NP).
 tr_cross_np(rel(NP0, L0, Cs0), rel(NP, L, Cs)) :- !,
     tr_cross_np(NP0, NP),
     ( tr_personal_here(L0, NP0, L1) -> L = L1 ; tr_lexeme_across(L0, english, L) ),     % (tr_verb_across/5)
@@ -5826,6 +5858,13 @@ tr_cross_comps([C0, Q|Cs0], [C|Cs]) :-
     tr_partitive_off(C0, C1), tr_quantity_comp(Q), !,
     tr_cross_comp(C1, C), tr_cross_comps([Q|Cs0], Cs).
 tr_cross_comps([C0|Cs0], [C|Cs]) :- tr_personal_comp(C0, Cs0, C), !, tr_cross_comps(Cs0, Cs).   % (tr_personal_comp/3)
+%% AN INTERVIEW IS WITH SOMEBODY: `Intervista alle televisioni danese e svedese', `In un'intervista a una tv danese'
+%% -- the Italian and the Spanish say the one interviewed with `to', and English wrote `Interview to the Danish and
+%% Swedish televisions'. The phrase of `to' right after the noun is `with' (the Spanish writer's `con')
+tr_cross_comps([C0, P0|Cs0], [C, P|Cs]) :-
+    tr_side_here(foreign), ( P0 = pp(_, _) ; P0 = fr(pp(_, _)) ), tr_to_phrase(P0, W, Mk), tr_interview_comp(C0), !,
+    tr_cross_comp(C0, C), tr_cross_comp(P0, P1), tr_to_phrase(P1, _, Mk), tr_with_phrase(P1, W, P),
+    tr_cross_comps(Cs0, Cs).
 %% A RANGE OF ROLES IS NO ROLE: `da giudice di legittimità a giudice di merito'
 %% is from judge of legitimacy to judge of merit, and the role of tr_cross_comp/2
 %% made the first end `as judge' -- `como juez de legitimidad a juez de mérito'.
@@ -5887,6 +5926,16 @@ tr_cross_comps([pp(W0, NP0), PP|Cs0], [pp(W, NP)|Cs]) :-
     tr_cross_comp(pp(W0, NP0), pp(W, NP1)), NP1 = np(_, _, _, _, _), !,
     tr_cross_comps([PP|Cs0], Cs).
 tr_cross_comps([C0|Cs0], [C|Cs]) :- tr_cross_comp(C0, C), tr_cross_comps(Cs0, Cs).
+%% (the phrase of `to', bare or in front, and the complement whose noun is an interview)
+tr_to_phrase(pp(w(P, C), _), w(P, C), pp) :- atom(P), tr_means_to(foreign, P), !.
+tr_to_phrase(fr(pp(w(P, C), _)), w(P, C), fr) :- atom(P), tr_means_to(foreign, P), !.
+tr_to_phrase(pp(w(to, C), _), w(to, C), pp) :- !.
+tr_to_phrase(fr(pp(w(to, C), _)), w(to, C), fr).
+tr_interview_comp(C) :-
+    ( C = obj(NP) ; C = pp(_, NP) ; C = fr(pp(_, NP)) ), NP = np(_, _, _, w(N, _), _), atom(N),
+    tr_lexeme(foreign, N, L, _), tr_solve(mean(L, interview)), !.
+tr_with_phrase(pp(w(_, C), NP), _, pp(w(with, C), NP)).
+tr_with_phrase(fr(pp(w(_, C), NP)), _, fr(pp(w(with, C), NP))).
 
 tr_relational_np(NP0, pp(w(P, _), _), NP) :-
     NP0 = np(_, _, _, w(NW, _), _), atom(NW), atom(P), tr_side_here(foreign),
@@ -6154,6 +6203,16 @@ tr_cross_comp(pinf(w(P, C), L), pinf(w(PT, C), LT)) :- !,
 tr_cross_comp(infx(L, A, [R, P]), infx(LT, A, [Cl])) :-
     atom(R), atom(P), tr_solve(partitive(P)), memberchk(R, [mi, ti, ci, vi, si]), !,
     tr_lexeme_across(L, english, LT), tr_cross_enclitic(R, Cl).
+%% AN INFINITIVE WITH ITS REFLEXIVE PRONOUN CROSSES BY THE MEANING THE LESSON GIVES IT SO, as the verb of a
+%% clause does (tr_verb_across/5): `la libertà delle donne di denudarsi davanti ai telespettatori' is their
+%% freedom to STRIP (`The reflexive verb "denuda" means "strips".'), and crossed by the plain `bares' it came out
+%% `to bare', which Spanish has no verb for, and the sentence was refused. The pronoun goes with the reading,
+%% unless English too says the meaning of oneself (en_true_reflexive/1), and the lesson's writer puts its own
+%% back where its verb states the meaning as reflexive (tr_comp_out/7)
+tr_cross_comp(infx(L, A, Cls0), infx(LT, A, Cls)) :-
+    atom(L), select(R, Cls0, Cls1), atom(R), tr_reflexive_word(R), tr_solve(mean_as(L, LT, reflexive)), !,
+    ( en_true_reflexive(LT) -> Cls2 = Cls0 ; Cls2 = Cls1 ),
+    maplist(tr_cross_enclitic, Cls2, Cls).
 tr_cross_comp(infx(L, A, Cls0), infx(LT, A, Cls)) :- !,
     tr_lexeme_across(L, english, LT), maplist(tr_cross_enclitic, Cls0, Cls).
 tr_cross_comp(pred(L), pred(LT)) :- !, tr_lexeme_across(L, english, LT).
@@ -6370,7 +6429,8 @@ tr_clause_post(foreign, Words, s(A, SuIn, G, CsIn), S) :- !,
     tr_ago_phrase(Cs02b, Cs02c),
     tr_there_clitic(L, Cs02c, Cs03),
     tr_object_appos(Cs03, Cs04),
-    tr_participle_predicate(L, Cs04, Cs1),
+    tr_second_agent(Cs04, Cs04b),
+    tr_participle_predicate(L, Cs04b, Cs1),
     tr_subject_agreement(Su, Words, L, Asp, Cs1, Cs1a),
     tr_pred_after_phrase(Su, Words, Cs1a, Cs1b),
     tr_adj_subject_comma(Su, Cs1b, Cs),
@@ -6541,7 +6601,35 @@ tr_participle_predicate(L, Cs0, Cs) :-
     append(Front, [obj(O), pp(Q, rel(N, Part, [])), pp(P, X)|Tail], Cs0),
     tr_means_of(foreign, Q), P = w(PW, _), atom(PW), \+ tr_means_of(foreign, P), !,
     append(Front, [obj(O), pp(Q, rel(N, Part, [pp(P, X)]))|Tail], Cs1), tr_participle_predicate(L, Cs1, Cs).
+%% ... AND AFTER ANY VERB, WHERE THE PARTICIPLE'S MEANING TAKES THE PHRASE'S PREPOSITION IN ENGLISH: `Il programma
+%% propone un ciclo di film dedicati alle grandi battaglie' is a cycle of films DEDICATED TO the great battles, and
+%% with the phrase of `to' the clause's English wrote `a cycle of dedicated film to the big battles'. A phrase of
+%% another verb may be the verb's (`compró un coche usado en Madrid'), so only where English says the participle
+%% with that preposition (en_ptc_takes/2); the participle's own agreement marks may be there already
+tr_participle_predicate(L, Cs0, Cs) :-
+    append(Front, [obj(O), pp(Q, rel(N, Part, Ms)), pp(P, X)|Tail], Cs0),
+    tr_means_of(foreign, Q), forall(member(M, Ms), ( M = agr(_) ; M = agrn(_) )),
+    P = w(PW, _), atom(PW), \+ tr_means_of(foreign, P), atom(Part),
+    tr_lexeme_across(Part, english, PE), tr_prep_across(PW, PT), en_ptc_takes(PE, PT), !,
+    append(Ms, [pp(P, X)], Ms1),
+    append(Front, [obj(O), pp(Q, rel(N, Part, Ms1))|Tail], Cs1), tr_participle_predicate(L, Cs1, Cs).
 tr_participle_predicate(_, Cs, Cs).
+%% A SECOND AGENT AFTER THE COMMA, WITH ITS OWN TIME: `in una intervista trasmessa giovedì sera dalla tv danese, e
+%% ieri da quella svedese' -- broadcast by the Danish television, and yesterday by the Swedish one, the participle left
+%% out. Read as the clause's, `da quella svedese' was a phrase of `from' and English wrote `from the Swedish one'. A
+%% reduced relative whose agent ends its complements, and after the comma a coordinator, adverbs or a time, and the
+%% word for `by' and its phrase, then a comma: the second agent is the participle's, and the comma closes it
+tr_second_agent(Cs0, Cs) :-
+    append(Pre, [pp(Q, rel(N, L, RCs0)), sep, cnj(Co)|Rest0], Cs0), last(RCs0, by(_)),
+    append(Mid, [pp(w(B, BC), NP2), sep|Rest], Rest0), Mid \== [],
+    forall(member(X, Mid), ( X = adv(_) ; X = at_time(_) )),
+    atom(B), tr_means_by(foreign, w(B, BC)), !,
+    append(RCs0, [sep, cnj(Co)|Mid], RCs1), append(RCs1, [by(NP2)], RCs),
+    append(Pre, [pp(Q, rel(N, L, RCs)), sep|Rest], Cs).
+tr_second_agent(Cs, Cs).
+%% the participles English says with a preposition after them
+en_ptc_takes(dedicates, to).    en_ptc_takes(devotes, to).    en_ptc_takes(addresses, to).
+en_ptc_takes(links, to).        en_ptc_takes(destines, to).   en_ptc_takes(assigns, to).
 tr_appos_head(name(_)).
 tr_appos_head(np(_, _, _, _, _)).
 tr_appos_phrase(name(_)).
@@ -7192,6 +7280,18 @@ tr_read0(foreign, Kind, Words0, join(aside, join(dashes, S1, S2), S3)) :-
     tr_clause_words(Left0, Left), tr_clause_words(Right0, Right),
     tr_read(foreign, Kind, Left, S1),
     tr_read(foreign, statement, Right, S3), !.
+%% TWO HEADINGS PARTED BY A DASH: `"cinici e diseducativi" i film - Wargames di rai 1' -- what the films are, and whose
+%% series it is. Each half reads alone as the heading it is, and the readers of a heading ask for the whole piece,
+%% which neither half was, so the headline was refused. Each half is read as a piece of its own; the halves are
+%% short, neither has a comma, and the second has no verb
+tr_read0(foreign, statement, Words0, join(dash, S1, S2)) :-
+    memberchk(dash, Words0), tr_global('$tr_piece', P0), P0 == Words0,
+    append(Left, [dash|Right], Words0), Left = [_, _|_], Right = [_, _|_],
+    \+ memberchk(dash, Right), \+ memberchk(comma, Left), \+ memberchk(comma, Right),
+    length(Left, NL), NL =< 8, length(Right, NR), NR =< 8,
+    \+ ( member(w(V, _), Right), atom(V), tr_verb_form_any(V) ),
+    tr_as_piece(Left, tr_read(foreign, statement, Left, S1)),
+    tr_as_piece(Right, tr_as_heading(Right, tr_verbless(foreign, Right, S2))), !.
 %% ... and the reporting clause set off with dashes, a closing dash or none:
 %% `bisognerebbe sapere come sono finiti lì – ha spiegato un soccorritore -.'
 %% -- and never ONE capitalised word before the dash that a phrase reads:
@@ -8710,6 +8810,23 @@ tr_read0(foreign, statement, Words0, S) :-
     tr_subject_pps(PPs, Of, Rest),
     ( Of == [] -> Subject = NP ; Subject = with(NP, Of) ),
     S = s(none, Subject, g(CL, present, simple, no), [adj(As)|Rest]).
+%% ... AND TWO ADJECTIVES JOINED: `"cinici e diseducativi" i film' heads the films that are cynical and miseducative.
+%% The coordination is read before the clause above can be, and cut, so the piece was refused: the first adjective
+%% and its coordinator are taken off, the rest read as the clause above reads it, and they are put back before the
+%% adjective it found
+tr_read0(foreign, statement, Words0, S) :-
+    Words0 = [A1, Co, A2, D|_], Co = w(CW, _), atom(CW), tr_coord(foreign, Co),
+    \+ memberchk(comma, Words0), length(Words0, NW0), NW0 =< 10,      % (a heading: short, and no comma in it)
+    A2 = w(_, _), tr_determiner(foreign, D, _, _), tr_all_adjectives(foreign, [A1]),
+    tr_global('$tr_piece', P0), P0 == Words0, Words1 = [A2, D|_], append([A1, Co], Words1, Words0),
+    nb_setval('$tr_piece', Words1),
+    (   tr_verbless(foreign, Words1, gap([], [oc(NP, As2)|PPs])) -> nb_setval('$tr_piece', P0)
+    ;   nb_setval('$tr_piece', P0), fail
+    ),
+    tr_copula_lexeme(CL),
+    tr_subject_pps(PPs, Of, Rest), !,
+    ( Of == [] -> Subject = NP ; Subject = with(NP, Of) ),
+    S = s(none, Subject, g(CL, present, simple, no), [adj([A1, Co|As2])|Rest]).
 %% A QUESTION WORD AND A PHRASE, NO VERB: `Quanto tempo?' -- how much time,
 %% the question of an interview that asks how long. The question word asks
 %% (quantity/1) and the phrase after it is what it asks of; qnp/2 holds both,
@@ -9016,6 +9133,12 @@ tr_named_third_singular(name(_)).
 tr_named_third_singular(np(_, _, _, _, singular)).
 tr_named_third_singular(with(NP, _)) :- tr_named_third_singular(NP).
 %% a goal run with these words read as a heading, which may have no verb
+%% (a goal with the words the piece being read, as tr_as_heading/2 makes them the heading)
+tr_as_piece(Words, Goal) :-
+    tr_global('$tr_piece', P0), nb_setval('$tr_piece', Words),
+    (   call(Goal) -> nb_setval('$tr_piece', P0)
+    ;   nb_setval('$tr_piece', P0), fail
+    ).
 tr_as_heading(Words, Goal) :-
     tr_global('$tr_heading', H0), nb_setval('$tr_heading', Words),
     (   call(Goal) -> nb_setval('$tr_heading', H0)
@@ -9042,7 +9165,14 @@ tr_noun_heading_start([D, N, P|_]) :-
     P = w(PW, _), atom(PW), tr_is(foreign, P, preposition), !.
 tr_noun_heading_start([N, P|_]) :-
     N = w(V, VC), VC \== upper, atom(V), tr_plural_noun_word(N),
-    P = w(PW, _), atom(PW), tr_means_of(foreign, P).
+    P = w(PW, _), atom(PW), tr_means_of(foreign, P), !.
+%% ... AND A SINGULAR NOUN THAT IS A COMMAND TOO, BEFORE A PHRASE OF `to' OR `of': `Intervista alle televisioni danese e
+%% svedese' heads the interview WITH them, and read as the command `intervista!' English wrote `Interview to the Danish
+%% and Swedish televisions' (the verbless reading asks for no other verb in the piece)
+tr_noun_heading_start([N, P|_]) :-
+    P = w(PW, _), atom(PW), ( tr_means_of(foreign, P) ; tr_means_to(foreign, PW) ),
+    N = w(V, VC), VC \== upper, atom(V), tr_is(foreign, N, noun), tr_lexeme(foreign, V, L, singular), tr_class(foreign, L, noun),
+    tr_verb_form_any(V), !.
 
 tr_head_connector_lifted(Side, [W|_], [adv(W)|_]) :-
     W = w(C, _), atom(C), tr_connector(Side, C), \+ tr_coord(Side, W).
@@ -9890,6 +10020,23 @@ tr_verbless0(foreign, Words0, gap([], [obj(NP)])) :-
         PPs = [_|_], forall(member(X, PPs), X = pp(_, _)), last(PPs, pp(_, nrc(_, _, _))),
         NP = with(NP0, PPs)
     ), !.
+%% ... AND A HEADING WITH ITS PURPOSE, THE CLAUSE ON ITS LAST PHRASE: `Una interrogazione parlamentare per denunciare
+%% il cinismo della trasmissione "generale per una sera", che esalta la cultura della guerra' -- the programme, which
+%% exalts it. Divided at the comma, the clause was one of `that' with nobody named, which English refused. The same
+%% shape as above, the phrase's complements a purpose and its object
+tr_verbless0(foreign, Words0, gap([], Cs0)) :-
+    Words0 = [D0, _|_], tr_determiner(foreign, D0, _, _),
+    append(F, [comma, w(R, _)|RC], Words0), F = [_|_], atom(R), tr_relative_word(foreign, R),
+    \+ memberchk(comma, F),
+    once(( member(w(PW, _), F), atom(PW), tr_purpose_word(PW) )),
+    \+ ( member(w(R0, _), F), atom(R0), tr_relative_word(foreign, R0) ),
+    once(( member(w(V0, _), RC), atom(V0), tr_verb_form_any(V0) )),
+    (   tr_global('$tr_piece', Piece), Piece == Words0
+    ;   tr_global('$tr_heading', H), H == Words0
+    ),
+    nb_setval('$tr_read_aspect', simple), nb_setval('$tr_read_group', none),
+    tr_complements(foreign, Words0, Cs0),
+    Cs0 = [obj(_)|_], memberchk(purpose(_), Cs0), last(Cs0, pp(_, nrc(_, _, _))), !.
 tr_verbless0(Side, Words0, gap(Front, Back)) :-
     Words0 \== [],
     %% and one word of it at least is the lesson's: `¡Lárgate!' is a verb
@@ -9964,6 +10111,10 @@ tr_verbless0(Side, Words0, gap(Front, Back)) :-
         ;   Back = [obj(pronoun(_)), purpose(_)|_]
         ;   Back = [obj(NP0)|PPs], tr_heading_np(NP0),
             forall(member(X, PPs), ( X = pp(P, _), tr_means_of(Side, P) ))
+        %% ... AND A NAME WITH ITS PHRASE OF `of': `Wargames di rai 1', the second half of a headline, names the series
+        %% and whose it is (a name alone stays refused, as a bare phrase does)
+        ;   Back = [obj(name(_)), pp(P1, _)|PPs1], tr_means_of(Side, P1),
+            forall(member(X, PPs1), ( X = pp(P, _), tr_means_of(Side, P) ))
         %% ... AND WHO A THING IS FOR, AND THE THING: `A voi il calcolo del
         %% numero di cene al ristorante ...' -- over to you the reckoning, a
         %% line that hands the reader something to do. A phrase of a
@@ -16013,7 +16164,11 @@ tr_np(foreign, [D, N, M], np(det(DK, DL, D), none, [nmod(M)], N, Number)) :-
     D = w(_, _), tr_determiner(foreign, D, DL, DK),
     tr_lexeme(foreign, NW, NL, Number), tr_class(foreign, NL, noun),
     tr_lexeme(foreign, MW, ML, Number), tr_class(foreign, ML, noun),
-    \+ ( Number == singular, tr_verb_lexeme(MW) ), !.
+    \+ ( Number == singular, tr_verb_lexeme(MW) ),
+    %% (... AND A SECOND NOUN THAT IS NO PREPOSITION: `al ministro delle poste contro "generale per una sera"' is
+    %% the question against the programme, and `contro' is a noun too, the con of pros and cons -- read as the
+    %% kind of mail, English wrote `the con mails')
+    \+ tr_is(foreign, w(MW, lower), preposition), !.
 %% ... AND TWO BARE NOUNS, a headline's: `Ciampi boccia legge inappellabilità' is
 %% Ciampi rejecting the law on unappealability, and read with the second as an
 %% adjective of the first -- the reading the general clause below gives any
@@ -17146,6 +17301,14 @@ tr_reduced_agent(foreign, [T, P|Rest], Cs) :-
     T = w(_, _), P = w(_, _), Rest = [_|_], tr_is(foreign, P, preposition), tr_means_by(foreign, P),
     \+ tr_is(foreign, T, preposition),
     tr_complements(foreign, [T], Cs1), Cs1 = [C1], ( C1 = at_time(_) ; C1 = adv(_) ),
+    tr_reduced_agent(foreign, [P|Rest], Cs2), Cs2 = [by(_)|_], !,
+    append(Cs1, Cs2, Cs).
+%% ... and a day and its part: `un'intervista trasmessa giovedì sera dalla tv danese' was broadcast on Thursday
+%% evening BY Danish television, and it was `from the Danish television'
+tr_reduced_agent(foreign, [T1, T2, P|Rest], Cs) :-
+    T1 = w(_, _), T2 = w(_, _), P = w(_, _), Rest = [_|_], tr_is(foreign, P, preposition), tr_means_by(foreign, P),
+    \+ tr_is(foreign, T1, preposition),
+    tr_complements(foreign, [T1, T2], Cs1), Cs1 = [at_time(_)],
     tr_reduced_agent(foreign, [P|Rest], Cs2), Cs2 = [by(_)|_], !,
     append(Cs1, Cs2, Cs).
 %% ... AND A TIME: `los hechos ocurridos el pasado domingo arrastran la
@@ -20560,7 +20723,10 @@ tr_phrase_words0(Side, Words, PW, Rest) :-
     %% whole of it was one phrase closed by a participle with its agent, the
     %% other readings cut away, and the sentence refused
     \+ ( tr_is(Side, w(P, lower), noun), \+ ( member(Q, Front), tr_is(Side, Q, noun) ) ),
-    Rest0 = [B|_], tr_is(Side, B, preposition),
+    %% (or a day, a time or an adverb before the agent: `in una intervista trasmessa giovedì sera dalla tv danese' was
+    %% broadcast on Thursday evening BY it, and with the phrase ended at the participle the agent was a phrase of
+    %% `from' -- the word for `by' within the next two words, as tr_reduced_agent/3 reads them)
+    Rest0 = [B|_], ( tr_is(Side, B, preposition) -> true ; tr_time_before_agent(Side, Rest0) ),
     %% (the agent first, or after adjuncts: `efectuado a principios del
     %% pasado mes de mayo por el Consell Executiu' -- tr_reduced_agent/3)
     %% ... AND ENDING AT A COMMA, where what follows it is no part of the agent:
@@ -20850,6 +21016,10 @@ tr_phrase_words0(Side, Words, PW, Rest) :-
         \+ tr_degree_start(Side, Rest),             % `el más débil': `más' is a preposition too
         \+ tr_degree_before_participle(Side, PW, Rest)   % `una adhesión más limitada'
     ), !.
+%% (a day, a time or an adverb, one word or two, and then the word for `by')
+tr_time_before_agent(Side, [T|Ws]) :-
+    T = w(TW, _), atom(TW), ( tr_time_word(Side, TW) ; tr_plain_adverb(Side, T) ), !,
+    ( Ws = [B|_] ; Ws = [_, B|_] ), B = w(_, _), tr_means_by(Side, B), !.
 
 %% an object pronoun standing as one: not an article or a possessive with
 %% its noun after it -- `la casa', `los libros', English's `her house'
@@ -22882,6 +23052,12 @@ tr_write(To, Kind, s(Asked, Subject, g(L, T, A, Neg0), Comps00), Outs) :-
     (   To == foreign, Subject == impersonal, tr_impersonal_modal(L, IM)
     ->  LT = IM, ImpDrop = yes, SubjectOut = [], Person = third, Number = singular, Noun = none
     ;   tr_null_subject(To, Subject, L, Comps, SubjectW),
+        %% (the noun the copula says a demonstrative is, for the demonstrative's gender: tr_subject_out/6)
+        (   To == foreign, Subject = pronoun(third, singular, w(DW, _)), memberchk(DW, [this, that]), L == is,
+            Comps = [obj(np(_, _, _, w(PN, _), PNb))|_], atom(PN)
+        ->  nb_setval('$tr_dem_pred', p(PN, PNb))
+        ;   nb_setval('$tr_dem_pred', none)
+        ),
         tr_subject_out(To, SubjectW, SubjectOut0, Person, Number0, Noun),
         tr_verb_number(To, Noun, Number0, Number),
         (   SC == yes, SubjectOut0 \== [] -> append(SubjectOut0, [o(',', comma)], SubjectOut)
@@ -23342,7 +23518,9 @@ tr_pull_adverb(Cs0, Cs, Adv) :-
     %% (never `also' that opens an insertion on a phrase of a preposition, which it is said of: `la
     %% struttura urbana tende, anche con l'aiuto dell'acqua salmastra, a facilitare' tends, also with the
     %% help of the water, and pulled to the verb it was `also tends, with the help')
-    \+ ( A == also, last(Pre, sep), Post = [pp(_, _)|_] ), !,
+    \+ ( A == also, last(Pre, sep), Post = [pp(_, _)|_] ),
+    %% (nor one right after a denied infinitive, which is the infinitive's: `di non aver ancora sviluppato')
+    \+ ( last(Pre, neg(I)), tr_verbal_inf(I) ), !,
     append(Pre, Post, Cs), Adv = w(A, C).
 %% ... AND A MANNER ADVERB IN `-ly' THE SOURCE PUT RIGHT AFTER ITS VERB, BEFORE AN
 %% OBJECT OR A CLAUSE: `el Kremlin confirmó ayer oficialmente los temores' officially
@@ -23541,6 +23719,13 @@ tr_subject_out(To, name(W), [o(N, upper)], third, singular, none) :- !,
 %% (English agrees with its own word: `everyone' is singular, whatever the
 %% number of the lesson's `tutti')
 tr_subject_out(english, pronoun(third, _, w(W, C)), [o(W, C)], third, N, none) :- en_tonic(W, N), !.
+%% A DEMONSTRATIVE THE COPULA SAYS IS A NOUN TAKES THE NOUN'S GENDER: `Questa è la casa del cane' is `Esta es la casa',
+%% and with the pronoun written as the lesson's own neuter `esto' it came out `Esto es la casa', `esto es el juicio';
+%% the lesson's first demonstrative in the noun's gender is the pronoun (`questa', `esta'), never one of no gender
+tr_subject_out(foreign, pronoun(third, singular, w(W, C)), [o(T, C)], third, singular, none) :-
+    memberchk(W, [this, that]), tr_global('$tr_dem_pred', p(NW, singular)),
+    tr_noun_lexeme(foreign, NW, singular, _, Noun), atom(Noun), tr_noun_gender(Noun, G), G \== none,
+    tr_det_meanings(demonstrative, W, Ms), member(T, Ms), tr_gender(T, G), !.
 tr_subject_out(To, pronoun(P, N, w(W, C)), Outs, P, N, none) :- !,
     (   tr_pronoun_across(To, subject, w(W, C), P, N, T) -> Outs = [o(T, C)]
     ;   To == foreign, W == it -> Outs = []                                % `It rains': the verb says who
@@ -24049,8 +24234,16 @@ tr_np_out(To, app(NP, label, w(N, C)), Outs, Noun, Number) :- !,
 tr_np_out(To, app(NP, apposed, w(N, _)), Outs, Noun, Number) :- !,
     tr_np_out(To, NP, O1, Noun, Number), append(O1, [o(',', comma), o(N, upper), o(',', comma)], Outs).
 %% ... a title, after its phrase (tr_np/3's)
+%% (a title's words are no verb's complements, and a person in them takes no marker: `il cinismo della
+%% trasmissione "generale per una sera"' came out `de la transmisión a "general durante una noche"', the general
+%% marked as the clause's object -- tr_marker/3 asks the verb being written, which the title has none of)
 tr_np_out(To, app(NP, title, Cs), Outs, Noun, Number) :- !,
-    tr_np_out(To, NP, O1, Noun, Number), tr_comps_out(To, Cs, none, singular, _, O2, A2), append([O1, O2, A2], Outs).
+    tr_np_out(To, NP, O1, Noun, Number),
+    tr_global('$tr_verb', V0), nb_setval('$tr_verb', none),
+    (   tr_comps_out(To, Cs, none, singular, _, O2, A2) -> nb_setval('$tr_verb', V0)
+    ;   nb_setval('$tr_verb', V0), fail
+    ),
+    append([O1, O2, A2], Outs).
 tr_np_out(To, app(NP, Kind, Inner), Outs, Noun, Number) :- !,
     tr_np_out(To, NP, O1, Noun, Number), tr_aside_out(To, Kind, Inner, Noun, Number, O2), append(O1, O2, Outs).
 %% A YEAR TAKES THE ARTICLE WHERE THE LESSON SAYS SO: `The article "il"
@@ -25355,6 +25548,30 @@ tr_comps_out(english, [adj(As), pp(w(of, C), X)|Cs], Noun, Number, Clitics, Outs
 %% `ASKS' FOR SOMETHING OF SOMEBODY IS `ASKS SOMEBODY FOR IT': `El Ayuntamiento ha pedido un informe a la
 %% concesionaria FCC' has asked the contractor FCC for a report, and English wrote the lesson's order, `has asked for
 %% a report to the contractor'
+%% A DENIED INFINITIVE'S `still' IS ITS `yet', inside it: `di non aver ancora sviluppato un sentimento comune' is of
+%% not having YET developed one -- pulled to the clause's verb, English wrote `has still accused'
+tr_comps_out(english, [neg(I), adv(w(still, C))|Cs], Noun, Number, Clitics, Outs, Advs) :-
+    tr_verbal_inf(I), !,
+    tr_comp_out(english, neg(I), Noun, Number, _, O0, _), tr_note_pred(neg(I)),
+    ( append(O1, [Last], O0) -> append(O1, [o(yet, C), Last], O) ; O = O0 ),
+    tr_comps_out(english, Cs, Noun, Number, Clitics, Rest, Advs), append(O, Rest, Outs).
+%% ... AND A SERIES OF INFINITIVES AFTER A COMMA ARE ALL THE VERB'S, each with its preposition: `ha accusato le donne
+%% di non essersi evolute ..., di non aver sviluppato un sentimento comune' accused them of not having evolved, of not
+%% having developed one, and with the verb's preposition for its first infinitive alone (tr_en_prep_gerund/1) the
+%% second came out `not to have developed'
+tr_comps_out(english, [sep, I|Cs], Noun, Number, Clitics, Outs, Advs) :-
+    tr_verbal_inf(I), tr_global('$tr_inf_seen', yes), tr_global('$tr_last_pred', none),
+    tr_global('$tr_verb', V0), ( V0 = refl(V) -> true ; V = V0 ), atom(V), en_prep_gerund(V, _), !,
+    nb_setval('$tr_inf_seen', no),
+    tr_comps_out(english, [sep, I|Cs], Noun, Number, Clitics, Outs, Advs).
+%% A PRONOUN ON A MODAL'S INFINITIVE IS THE OBJECT OF THE INFINITIVE AFTER IT: `vuole poterlo mangiare' wants to be
+%% able to eat it -- Italian and Spanish put the pronoun of the second infinitive on the modal before it (`poterlo',
+%% `doverlo', `volerlo', `poderlo'), and written where it stood English said `to be able him to eat'; a purpose too
+%% (`per poterlo vedere', to be able to see it)
+tr_comps_out(english, [K0, inf(IL)|Cs], Noun, Number, Clitics, Outs, Advs) :-
+    ( K0 = infx(L, simple, Cls), K = inf(L) ; K0 = purp(infx(L, simple, Cls)), K = purp(inf(L)) ),
+    memberchk(L, [can, must, wants]), Cls = [_|_], forall(member(C, Cls), ( C = w(_, _) ; C = dat(w(_, _)) )), !,
+    tr_comps_out(english, [K, infx(IL, simple, Cls)|Cs], Noun, Number, Clitics, Outs, Advs).
 tr_comps_out(english, [obj(NP), pp(w(to, _), P)|Cs], Noun, Number, Clitics, Outs, Advs) :-
     tr_global('$tr_verb', asks), \+ en_counted(P), !,
     tr_np_out(english, P, PO, _, _), tr_np_out(english, NP, NO, _, _),
@@ -25677,10 +25894,13 @@ tr_comps_out(foreign, Cs0, Noun, Number, Clitics, Outs, Advs) :-
 %% las reformas y anclar a su país' -- both are what he wants, and with the
 %% first infinitive the verb being written, the second took the word
 %% `continuare' takes, `e a ancorare'
-tr_comps_out(foreign, [cnj(K)|Cs], Noun, Number, Clitics, Outs, Advs) :-
-    Cs = [inf(_)|_], tr_global('$tr_inf_governor', gov(V, V0)), tr_global('$tr_verb', V1), V1 == V, !,
+%% ... AND SO IS ONE AFTER A COMMA: `ha accusato le donne di dormire, di mangiare il pane' is `de dormir, de comer el
+%% pan', and with the first infinitive's verb the one being written the second took no word
+tr_comps_out(foreign, [K|Cs], Noun, Number, Clitics, Outs, Advs) :-
+    ( K = cnj(_) ; K == sep ), Cs = [I|_], ( I = inf(_) ; I = neg(inf(_)) ),
+    tr_global('$tr_inf_governor', gov(V, V0)), tr_global('$tr_verb', V1), V1 == V, !,
     nb_setval('$tr_verb', V0),
-    tr_comp_out(foreign, cnj(K), Noun, Number, Clitic, Out, Adv),
+    tr_comp_out(foreign, K, Noun, Number, Clitic, Out, Adv),
     tr_comps_out(foreign, Cs, Noun, Number, Clitics1, Outs1, Advs1),
     append(Clitic, Clitics1, Clitics), append(Out, Outs1, Outs), append(Adv, Advs1, Advs).
 %% ... AND `AGO' IS WRITTEN BEFORE THE TIME WHERE THE LESSON'S WORD BEGINS IT
@@ -25771,7 +25991,7 @@ tr_comps_out(english, [C, obj(NP)|Cs], Noun, Number, Clitics, Outs, Advs) :-
     append([Cl1, Cl2, Cl3], Clitics), append([O1, O2, O3], Outs), append([A1, A2, A3], Advs).
 %% a word the source kept before its infinitive (nprep/1) is written, and the infinitive after it takes no other
 tr_comps_out(foreign, [nprep(P), I|Cs], Noun, Number, Clitics, Outs, Advs) :-
-    ( I = infx(_, _, _) ; I = neg(infx(_, _, _)) ), !,
+    ( I = infx(_, _, _) ; I = neg(infx(_, _, _)) ; I = inf(_) ; I = neg(inf(_)) ), !,
     tr_comp_out(foreign, nprep(P), Noun, Number, _, O1, _),
     tr_with_infx_kept(tr_comp_out(foreign, I, Noun, Number, _, O2, _)),
     tr_comps_out(foreign, Cs, Noun, Number, Clitics, O3, Advs), append([O1, O2, O3], Outs).
@@ -25918,9 +26138,16 @@ tr_comp_out(To, per(Lead, CC, S), _, _, [], Outs, []) :- !,
     ;   Lead == dash -> append([[o('–', lower)], CO, SO, [o('–', lower)]], Outs)
     ;   append(CO, SO, Outs)
     ).
-tr_comp_out(foreign, neg(C), Noun, Number, [], Outs, []) :- C = infx(_, _, _), tr_infx_lead(P), !,  % `de no haber ...'
+%% (and of a plain infinitive the same: `ha accusato le donne di non dormire' is `de no dormir', and with the denial
+%% written first and the word by the infinitive's writer it came out `no de dormir')
+tr_comp_out(foreign, neg(C), Noun, Number, [], Outs, []) :- ( C = infx(_, _, _) ; C = inf(_) ), tr_infx_lead(P), !,  % `de no haber ...'
     tr_negation_word(No), tr_with_infx_kept(tr_comp_out(foreign, C, Noun, Number, [], Outs0, [])),
     Outs = [o(P, lower), o(No, lower)|Outs0].
+%% ... and English's `not' after the preposition a gerund takes: `ha accusato le donne di non essersi evolute' accused
+%% them OF NOT having evolved, where it was `not of having evolved'
+tr_comp_out(english, neg(C), Noun, Number, [], Outs, []) :- tr_verbal_inf(C), tr_en_prep_gerund(Pr), !,
+    tr_comp_out(english, C, Noun, Number, [], Outs0, []),
+    ( Outs0 = [o(Pr, PC)|R] -> Outs = [o(Pr, PC), o(not, lower)|R] ; Outs = [o(not, lower)|Outs0] ).
 tr_comp_out(To, neg(C), Noun, Number, [], [o(No, lower)|Outs], []) :- !,
     ( To == english -> No = not ; tr_negation_word(No) ),
     tr_comp_out(To, C, Noun, Number, [], Outs, []).
@@ -26431,6 +26658,12 @@ tr_comp_out(english, oadj(As, _, _), Noun, Number, Cl, Outs, Advs) :- !,
 tr_comp_out(english, at_time(np(Det, none, [], w(D, C), Nb)), _, _, [], [o(on, lower)|Outs], []) :-
     atom(D), tr_weekday(D), ( Det == none ; Det = det(article, the, _) ), !,
     tr_with_time_noun(tr_np_out(english, np(none, none, [], w(D, C), Nb), Outs, _, _)).
+%% ... and a weekday and its part: `trasmessa giovedì sera' was broadcast ON Thursday evening, where it was `broadcast
+%% Thursday evening'
+tr_comp_out(english, at_time(NP), _, _, [], [o(on, lower)|Outs], []) :-
+    NP = app(np(none, none, [], w(D, _), singular), part, np(none, none, [], w(_, _), singular)),
+    atom(D), tr_weekday(D), !,
+    tr_with_time_noun(tr_np_out(english, NP, Outs, _, _)).
 %% ... and a date: `tendrá lugar el 4 de junio' takes place ON June 4
 %% (with its year too: `la banda che il 7 novembre del settantasette rapì il duca' kidnapped him on November 7, '77)
 tr_comp_out(english, at_time(NP), _, _, [], [o(on, lower)|Outs], []) :-
@@ -26604,7 +26837,7 @@ tr_comp_out(To, inf(L), _, _, [], Outs, []) :-
     ;   tr_verb_takes_gerund
     ->  tr_gerund_out(foreign, LT, G), Outs = [o(G, lower)], tr_infinitive_verb(L)
     ;   once(tr_solve(infinitive_of(Inf, LT))),
-        ( tr_verb_takes(P) -> Outs = [o(P, lower), o(Inf, lower)] ; Outs = [o(Inf, lower)] ),
+        ( tr_infx_lead(P) -> Outs = [o(P, lower), o(Inf, lower)] ; Outs = [o(Inf, lower)] ),
         tr_infinitive_verb(L)
     ).
 
@@ -26638,8 +26871,11 @@ tr_comp_out(english, infx(L, Asp, Cls), _, _, [], Outs, []) :- !,
 %% di aver ucciso' is `acusado de haber matado', `"acusa" takes "de" before the infinitive.' -- the reader takes the
 %% source's word off as the verb's, and written bare it was `acusado haber matado'. Not where the source kept its
 %% word as a complement of its own (nprep/1, written just before: tr_infx_kept/0))
-tr_comp_out(foreign, infx(L, Asp, Cls), _, Number, [], Outs, []) :- !,
+tr_comp_out(foreign, infx(L, Asp, Cls0), _, Number, [], Outs, []) :- !,
     tr_lexeme_across(L, foreign, LT),
+    %% (the reflexive pronoun of a meaning the lesson states as reflexive, as tr_verb_out/4 writes a clause's:
+    %% `to strip' is `desnudarse', `The reflexive verb "desnuda" means "strips".')
+    (   atom(LT), \+ memberchk(refl, Cls0), tr_solve(mean_as(LT, L, reflexive)) -> Cls = [refl|Cls0] ; Cls = Cls0 ),
     maplist(tr_enclitic_out, Cls, Ps),
     (   Asp == perfect
     ->  tr_infinitive_auxiliary(LT, Cls, AuxInf), tr_joined_infinitive(AuxInf, Ps, J),
@@ -26832,7 +27068,7 @@ tr_on_head(rel(NP, _, _), N) :- tr_on_head(NP, N).
 tr_on_head(rc(NP, _, _), N) :- tr_on_head(NP, N).
 %% (... and a beach and the sand: `en la playa de Llevant', `en la arena' are on them)
 en_on_noun(N) :- memberchk(N, [internet, net, web, website, webpage, page, site, homepage, 'home page', screen, board, noticeboard,
-                                 island, beach, sand]).
+                                 island, beach, sand, television]).    % `in tv' is on television
 tr_span_word(NP, PT) :- tr_counted(NP), tr_span_class(NP, Class), tr_solve(begin(PT, Class)), !.
 tr_counted(np(_, Num, _, _, _)) :- Num \== none, !.
 tr_counted(np(det(article, a, _), _, _, _, _)).
