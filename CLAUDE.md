@@ -1452,6 +1452,16 @@ cocolint index offers no import of it.
   is `coco_write_fun`, always inlined, so the
   guard's slow path returns rather than rejoining -- rejoined, every
   compound read its tag and functor again (21 instructions each).
+* **A load warns in swipl's two blocks** (3.17.0, 3.19.1;
+  `coco_consult_singletons`, `coco_cw_clause` in lib/kb-consult.cicili):
+  the reader's `Singleton variables: [X]` as the term is read, and the
+  compiler's -- a singleton-marked name used twice, a branch's or a \+'s
+  singleton, a test of a variable no goal set -- once its clause is
+  stored, after the not-together warning. test/files/warnings_branch.pl
+  holds the rules to swipl. **A file of the tree loads with no warning**
+  (library/reasoning/ still has its reader's singletons): a variable a
+  clause never uses is `_`, and one it uses twice is named plainly, never
+  `_X` -- the walk found a check in test/template.pl that tested nothing.
 * **A directive is a GOAL.** `coco_directive` answers the ones that act on the
   reader (`op/3`, `set_prolog_flag/2` of `double_quotes`, `text_units` or
   `generate_debug_info` -- any other flag is the goal's since 2.2.2,

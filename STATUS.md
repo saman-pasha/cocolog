@@ -8373,6 +8373,15 @@ What stops working:
   `atom_codes(A, "[]")` makes the atom `'[]'`, which is not `[]`. A program
   that tested the list's end with atom/1, or built `'[]'` from text and
   compared it with `[]`, now takes the other branch.
+- TEXT THAT 2.x WROTE READS BACK OTHERWISE (cicilang's finding, on
+  3.16.0): 2.x wrote the atom `'[]'` as `[]`, the two being one atom then,
+  so a term it wrote as text with `'[]'` in it -- a cache of clauses
+  written by writeq/1, say -- reads back under 3.x with the list's end
+  where the atom stood, and nothing says so. cicilang's per-header
+  summaries of libc++ 18 held `operator([])` 5 666 times in 440 files,
+  each one the empty list as 3.x read it: the subscript operator lost.
+  Drop such text and write it again. An `--embed` store written by 2.x
+  asks the same question, and is not tested.
 - A compound given as text raises `type_error` (split_string/4,
   string_chars/2, atom_string/2, upcase_atom/2, term_to_atom/2's text and
   the rest), where through 2.16 its writing was the text. A list that mixes
@@ -11129,3 +11138,76 @@ padding falls 2.4 %, 0.57 % and 0.67 %. The first cut handed
 them out of registers in every executor: nrev ran 2.3 % more instructions
 less its padding. By value both ways, S handed back and the PC stepped by
 `cc_ssu_words', it is the line above.
+
+## The compiler's load-time warnings, as swipl's (3.19.1)
+
+A load says swipl's second block of warnings now, the one its compiler
+gives where the reader gave `Singleton variables: [X]` (3.17.0): a
+variable marked singleton that the clause names twice or more
+(`Singleton-marked variable appears more than once: _X`, a name of `_` and
+a capital, or of `__`; `_x` is not marked); a variable a branch of a
+disjunction or an if-then-else meets for the first time at its last
+occurrence (`Singleton variable in branch: Y`), or a \+ does (`Singleton
+variable in \+: Y`), the innermost of the two naming it; one a \+ meets
+for the first time and names once, though the clause names it after, as
+its bindings never leave the \+; and a test ==/2 or \==/2 of two
+variables, one of which no goal before gave a value (`Test is always
+false: X==Y`, `Test is always true: X\==Y`, and of one with itself `Test
+is always true: X==X`). Each rule was probed against swipl 9.0.4 case by
+case, 135 clauses, and these are its answers: a branch starts from what
+was met before the disjunction and what any branch met is met after it; a
+\+ keeps what it met; `->` and `*->` with no else are no branch, and nor
+is `|` outside a grammar rule; `M:G` is G; a meta-call's goal (findall/3,
+once/1, call/1, not/1, forall/2, catch/3) is only its occurrences; a
+grammar rule's `{}` holds a goal and its `\+` and `|` are the rule's own;
+a single-sided rule's guard is walked before its body; a directive has
+the reader's block alone; a test gives the variable it met first no
+value, so a second test of it warns again, though the branch check counts
+it met. The block is said once its clause is stored, after the
+not-together warning, as swipl's: none for a clause refused, and none for
+one term_expansion/2 replaced (swipl checks what the expansion gave; this
+checks the clause read). lib/kb-consult.cicili, `coco_cw_clause` and the
+walk under it; the state of a variable is two bits, met and set.
+
+ONE COUNT FOR BOTH BLOCKS: the reader's block counted each variable by a
+walk of the clause of its own (`coco_var_occurs` once a name), and one
+walk now counts them all (`coco_cw_count`), which the compiler's block
+reads as it goes. Consulting library/reasoning/translate.pl (28 368
+lines), callgrind's instructions: 390 483 056 on 3.19.0, the walk a name
+103 million of it (26 %), and 322 742 764 now (-17.35 %), both blocks 27
+million. The clock, three pairs of 44 to 65 ms, says nothing larger.
+Halving the search of the reader's names, which the walk asks at each
+occurrence, moved the count 0.004 % and was taken out.
+
+WHAT IT FOUND IN THE TREE: test/template.pl's `a query variable shadows
+a context name` passed the context `[I=outer]`, a fresh variable where
+the name `'I'` was meant, so there was no name to shadow (it is `'I'`
+now, and green); the opencv lessons 15, 16 and 17 named a variable `_Lb`,
+`_T`, `_L` that they use twice (named plainly now); test/reconsult.pl's
+`E3` in the condition of an if-then-else was a singleton in a branch, and
+the clause above it bound `C` to nothing. The reader's singletons the
+tree printed since 3.17.0 are gone from library/httpd.pl, test/httpd.pl,
+test/tensors.pl and lessons 28, 31, 39, 42 and 54 (each a variable the
+clause never used, made `_`); library/reasoning/ (corpus/build.pl, nine in
+translate.pl), test/reason.pl and test/translate.pl keep theirs for the
+reasoning library's next number.
+
+NOT SWIPL'S, and stated: an anonymous variable in a test is written `_G3`
+where swipl's is `_1454`, and the block is the clause read's, not an
+expansion's. A clause whose body holds `foo:3` inside a disjunction is
+stored, where swipl refuses it as no callable term (`coco_consult_refused`
+does not look under `:`), so its block is said: found by these probes, not
+fixed here.
+
+CHECK: test/files/warnings_branch.pl (new; 225 lines, with swipl 9.0.4)
+-- all 93 test/files cases agree. Thirty arms, one a rule, each red in
+that case: the multiton check, its `__` and its capital; the immediate
+check, its last occurrence, its first meeting, its once only and its `_`
+names; a branch's start and the union after; `->` with no else; `|` in a
+goal and in a rule; the \+'s name, its end check, the end check's once
+only and its `_` names, and what it keeps; `:` and `{}`; the test in a
+rule's body, of a term that is no variable, of a variable a goal set, of
+one with itself, `\==`'s words, the value it gives and the meeting it
+counts; the guard; the block said at the store and not for an expansion's
+clause. The directive's early return is a guard of cost: a directive's
+block would never be said, as the store says it.

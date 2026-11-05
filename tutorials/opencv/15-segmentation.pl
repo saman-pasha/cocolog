@@ -41,7 +41,7 @@ main :-
     cv_new(120, 160, '8uc3', black, Img),
     cv_circle(Img, [55, 60], 35, [200, 180, 160], -1), cv_circle(Img, [105, 60], 35, [200, 180, 160], -1),
     cv_gray(Img, Gr), cv_threshold(Gr, 50, 255, binary, Mask),
-    cv_connected_components(Mask, NBefore, _Lb), must('as one blob they are one component', NBefore, 2),
+    cv_connected_components(Mask, NBefore, Lb), must('as one blob they are one component', NBefore, 2),
     cv_distance_transform(Mask, Dist), cv_minmax(Dist, _, DMax, _, _),
     Cut is 0.8 * DMax, cv_threshold(Dist, Cut, 255, binary, Peaks32), cv_convert(Peaks32, '8u', Peaks),
     cv_connected_components(Peaks, NPeaks, Markers), must('the distance peaks are two markers (plus background)', NPeaks, 3),
@@ -73,7 +73,7 @@ main :-
     cv_cvt_color(Fg, gray2bgr, Fg3), cv_and(Ph, Fg3, CutOut), cv_resize(Fl, [309, 451], FlS), cv_hconcat([FlS, CutOut], Row2),
     out('15-floodfill-grabcut.png', Path2), cv_imwrite(Path2, Row2), show('and flood fill beside GrabCut', Path2),
 
-    cv_free_all([Sq, Dt, Blobs, Labels, Img, Gr, Mask, _Lb, Dist, Peaks32, Peaks, Markers, Sc, Fl, Ph, Fg, LeftOf, Mk8, MkC, Dn, Dn8, DnC, Row, Fg3, CutOut, FlS, Row2]),
+    cv_free_all([Sq, Dt, Blobs, Labels, Img, Gr, Mask, Lb, Dist, Peaks32, Peaks, Markers, Sc, Fl, Ph, Fg, LeftOf, Mk8, MkC, Dn, Dn8, DnC, Row, Fg3, CutOut, FlS, Row2]),
     cv_handles(N), must('every handle freed', N, 0),
     format("~ndone~n").
 

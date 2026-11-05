@@ -959,7 +959,7 @@ knowledge_base(D, Root) :-
 %% fails on a loaded machine; what must not drift is which predicates are
 %% allowed into the table -- the module's, and only when the backend had
 %% nothing for them.
-the_prewarm(D) :-
+the_prewarm(_D) :-
     section('prewarm/1: the absences a module''s predicates leave in the store'),
     cocolog(C),
     %% WITH NO BACKEND THERE IS NOTHING TO REMEMBER, and it still succeeds --

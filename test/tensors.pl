@@ -85,7 +85,7 @@ lines_matching(Args, Pat, N) :-
     sh_join([Args, ' 2>/dev/null'], A), cocolog_run(A, Text, _, 600000),
     atom_codes(Text, Cs), re_lines(Pat, Cs, Ls), length(Ls, N).
 
-wire(D, W, T, _) :-
+wire(_D, W, T, _) :-
     section('wire: the tutorial''s clauses, and the table'),
     sh_join([W, ' run tutorials/tensor/07-xor.pl train'], Train),
     lines_matching(Train, '^saved$', N1),

@@ -159,7 +159,7 @@ train -->
     W0 = zeros([2, 1]), B0 = zeros([1]),
     { phrase(expr(loss(X, Y, W0, B0), _), Goals),
       format("the loss, as goals: ~w~n", [Goals]) },
-    fit_under(X, Y, LG, WG, BG),
+    fit_under(X, Y, _LG, WG, BG),
     { WG = [W1, W2] },
     % the weights travel as a parameter list, two tensors made from the numbers
     W = [[W1], [W2]], B = [BG],
