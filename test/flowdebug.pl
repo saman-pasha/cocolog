@@ -346,7 +346,7 @@ diverged(D) :-
 %% ---- the journal ---------------------------------------------------------
 %%
 %% flip/1's probe and replay with journal(true): the probe journals each
-%% portal call its library calls make -- open/3's '$stream_open'/5, write/2's
+%% portal call its library calls make -- open/3's '$stream_open'/7, write/2's
 %% '$stream_out'/3 and format/3, close/1's, read_file_to_codes/2 -- and the replay is answered
 %% from them, so it reads the one byte the probe wrote and answers too, and
 %% the file holds that one byte. grow/1 loads a file, which no journal

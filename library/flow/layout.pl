@@ -793,7 +793,7 @@ flow_draw_stub(panel(Id, Key, Kind, CM, D, stub(N, Rule, Body), Det, _), Docs,
     (   Body = rows(Rows) -> true ; Rows = [] ),
     flow_panel_head(Key, CM, Rows, Docs, HeadSegs),
     flow_det_text(Det, DT),
-    (   Rule = rule(Depth, Ps), Depth \== all, D > Depth
+    (   Rule = rule(Depth, _), Depth \== all, D > Depth
     ->  format(atom(L2), 'not drawn: deeper than depth(~w)', [Depth])
     ;   Rule = rule(_, Ps), Ps \== all
     ->  L2 = 'not drawn: not one of only(...)'

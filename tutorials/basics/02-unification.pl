@@ -60,9 +60,8 @@ main :-
     must('X is 1 + 1 evaluates it', Sum, 2),
 
     format("~n-- == does not bind, which is what makes it safe in a guard~n"),
-    ( Free == anything -> G = bound ; G = left_alone ),
+    guarded(_, G, V),
     must('an unbound variable == atom', G, left_alone),
-    ( var(Free) -> V = still_a_hole ; V = filled ),
     must('and the variable afterwards', V, still_a_hole),
 
     format("~n-- unification is STRUCTURAL, so it works to any depth~n"),
@@ -74,6 +73,14 @@ main :-
     must('head', Head, a),
     must('tail', Tail, [b, c]),
     format("~ndone~n").
+
+%% A HOLE GIVEN TO A GUARD: `==' asks about it and binds nothing, so it is
+%% still a hole after. (Written in the clause that made the hole, var/1
+%% would ask of a variable no goal had set, an answer the compiler already
+%% knows, and it warns at the load: `Test is always true: var(Free)'.)
+guarded(Free, G, V) :-
+    ( Free == anything -> G = bound ; G = left_alone ),
+    ( var(Free) -> V = still_a_hole ; V = filled ).
 
 %% ---- the two helpers every lesson here carries ------------------------
 %% REPEATED ON PURPOSE, in every file. A tutorial you can copy anywhere and

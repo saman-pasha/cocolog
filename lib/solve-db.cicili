@@ -115,12 +115,16 @@
   ;;; nested 200 000 deep on its left recursed that deep, past the 8 MB C
   ;;; stack of GitHub's Apple silicon Mac (6 MB here). -2 is no memory.
   ;;; `M:G' is G, and an M that is neither an atom nor a variable answers 2
-  ;;; with M in MOD (3.19.2, swipl's; through 3.19.1 `M:G' was a goal).
+  ;;; with M in MOD (3.19.2, swipl's; through 3.19.1 `M:G' was a goal). FV
+  ;;; is set where a variable stands for a goal or a module (3.19.3), and
+  ;;; the clause is then asked by `coco_fresh_fault'.
   (static)
-  (func coco_body_callable ((coco_machine * m) (size_t b) (size_t * budget) (size_t * mod)) (out int)
+  (func coco_body_callable ((coco_machine * m) (size_t b) (size_t * budget) (size_t * mod) (int * fv))
+        (out int)
         (let ((size_t * wl . nil) (size_t wlen . 0) (size_t wcap . 0) (int r . 1))
           (while 1
             (set b (coco_deref m b))
+            (if (coco-tag-is REF (nth b (-> m heap))) (set (cof fv) 1))
             (if (not (coco-tag-is REF (nth b (-> m heap))))
                 (let ((u64 nid . 0) (u32 n . 0))
                   (if (or (not (coco_is_callable m b)) (coco_is_nil m b)) (block (set r 0) break))
@@ -132,6 +136,7 @@
                       (block (set b (coco_arg m b 0)) continue))
                   (if (and (== n 2) (== nid (coco-id m ":")))
                       (let ((size_t q . #'(coco_deref m (coco_arg m b 0))))
+                        (if (coco-tag-is REF (nth q (-> m heap))) (set (cof fv) 1))
                         (if (not (or (coco-tag-is REF (nth q (-> m heap)))
                                      (and (coco-tag-is ATOM (nth q (-> m heap))) (not (coco_is_nil m q)))))
                             (block (set (cof mod) q) (set r 2) break))
@@ -192,17 +197,18 @@
   ;;; the rest walked, a goal that is no goal naming what was left and a
   ;;; module that is no atom itself; under a variable module on top a body
   ;;; that will not do is an instantiation error. 0, or what the raise
-  ;;; answered.
+  ;;; answered. A variable where a goal or a module stands (3.19.3) has
+  ;;; the clause asked as at a load, head HEAD and all (`coco_fresh_fault').
   (static)
-  (func coco_body_check ((coco_engine * e) (size_t body)) (out int)
+  (func coco_body_check ((coco_engine * e) (size_t head) (size_t body)) (out int)
         (let ((coco_machine * m . #'(-> e m)) (size_t mod . 0) (size_t budget . 4096)
-              (size_t steps . 0) (int qv . 0) (int bc . 0))
+              (size_t steps . 0) (int qv . 0) (int bc . 0) (int fv . 0) (size_t b0 . body))
           (set body (coco_deref m body))
           (while (and (coco-tag-is FUN (nth body (-> m heap)))
                       (and (== (coco_arity m body) 2) (== (coco_name_of m body) (coco-id m ":"))))
             (let ((size_t q . #'(coco_deref m (coco_arg m body 0))))
               (if (coco-tag-is REF (nth q (-> m heap)))
-                  (block (set qv 1) (set body (coco_arg m body 1)) break))
+                  (block (set qv 1) (set fv 1) (set body (coco_arg m body 1)) break))
               (if (not (and (coco-tag-is ATOM (nth q (-> m heap))) (not (coco_is_nil m q))))
                   (return (coco_type_error e "module" q)))
               (set steps (+ steps 1))
@@ -211,13 +217,35 @@
               (set body (coco_deref m (coco_arg m body 1)))))
           ;; 4096 control terms: a body past that is asked whether it is
           ;; cyclic, and walked again with no budget when it is not
-          (set bc (coco_body_callable m body (aof budget) (aof mod)))
+          (set bc (coco_body_callable m body (aof budget) (aof mod) (aof fv)))
           (if (== bc -1)
               (block
                (if (!= 1 (coco_acyclic m body)) (return (coco_cyclic_error e)))
                (set budget (cast size_t -1))
-               (set bc (coco_body_callable m body (aof budget) (aof mod)))))
+               (set bc (coco_body_callable m body (aof budget) (aof mod) (aof fv)))))
           (if (== bc -2) (return (coco_mem_error e)))
+          (if fv
+              ;; the names the consult interns, from the machine's table
+              ;; (`:-' and `=>', which the walk asks nothing of, none)
+              (let ((u64 ids [11]) (size_t q . 0) (int f . 0))
+                (set (nth 0 ids) (coco-id m ","))
+                (set (nth 1 ids) (coco-id m ";"))
+                (set (nth 2 ids) (coco-id m "->"))
+                (set (nth 3 ids) (coco-id m "*->"))
+                (set (nth 4 ids) (coco-id m "\\+"))
+                (set (nth 5 ids) 0)
+                (set (nth 6 ids) (coco-id m "|"))
+                (set (nth 7 ids) (coco-id m ":"))
+                (set (nth 8 ids) 0)
+                (set (nth 9 ids) (coco-id m "=="))
+                (set (nth 10 ids) (coco-id m "\\=="))
+                (set f (coco_fresh_fault m head b0 ids (aof q)))
+                (if (== f 0) (return 0))
+                (if (== f 2) (return (coco_instantiation_error e)))
+                (if (== f 4) (return (coco_type_error e "module" q)))
+                (if (== f 1)
+                    (return (? qv (coco_instantiation_error e)
+                               (coco_type_error e "callable" (coco_deref m body)))))))
           (if (== bc 2) (return (coco_type_error e "module" mod)))
           (if (== bc 0)
               (return (? qv (coco_instantiation_error e)
@@ -254,7 +282,7 @@
               (return (coco_permission_error e "modify" "static_procedure"
                                              (coco_indicator m (coco_name_of m head)
                                                              (coco_arity m head)))))
-          (if (and asserting rule) (return (coco_body_check e body)))
+          (if (and asserting rule) (return (coco_body_check e head body)))
           (return 0)))
 
   (static)

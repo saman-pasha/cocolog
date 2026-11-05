@@ -1,9 +1,10 @@
 %  The compiler's load-time warnings, after the reader's singleton list:
-%  a singleton-marked variable named twice, a variable a branch or a \+
-%  meets first at its last occurrence, one a \+ names once though the
-%  clause names it after, and a test of two variables, one of them met
-%  first. Run by BOTH SWI-Prolog and cocolog, output compared byte for
-%  byte; each clause is one of swipl 9.0.4's answers, probed one by one.
+%  a singleton-marked variable its count makes two or more, a variable new
+%  to a disjunction that a branch names once and nothing names after, one
+%  a \+ names once though the clause names it after, and a test of two
+%  variables, one of them unset. Run by BOTH SWI-Prolog and cocolog,
+%  output compared byte for byte; each clause is one of swipl 9.0.4's
+%  answers, probed one by one. The type tests are warnings_tests.pl's.
 
 %% a variable marked singleton, named twice: `_X' and `__x' are marked,
 %% `_x' is not, and the two blocks stand apart
@@ -13,7 +14,7 @@ m3(__x, __x).
 m4(_X, _X, _Y, _Y, Z).
 m5(__, __).
 
-%% a branch: the variable first met at its last occurrence in it
+%% a branch: a variable new to the disjunction that a branch names once
 b1(X) :- ( X = 1, Y = 2 ; Z = 3 ).
 b2(X) :- ( X = 1 -> Y = 2 ; true ).
 b3(X) :- ( X = 1, Y = 2 ; Y = 3 ).
@@ -45,6 +46,54 @@ d9(Z) :- ( Y = 1 ; true ), Y, Z = 1.
 e1(_X, _X) :- ( Y = 1 ; true ), W = 1.
 e2(_B) :- ( _C = 1 ; true ).
 e3(Z) :- ( _Y = 1, _Y = 2 ; true ), Z = 1.
+
+%% the count's rule, where a first meeting at the last occurrence is no
+%% answer: a branch names the variable once though the other names it
+%% more, and a count of one in both branches is one; and swipl's order of
+%% the lines, a head argument's variable by its place, every other by its
+%% first occurrence
+k1 :- ( X = 1 ; foo(( X ; X )) ).
+k2 :- ( X = 1 ; bar(X, X) ).
+k3 :- ( bar(X, X) ; X = 1 ).
+k4 :- ( X = 1 ; X = 2, X = 3 ).
+k5 :- ( X = 1, X = 2 ; X = 3 ).
+k6(A, B) :- ( C = 1 ; true ), _Z = A, _Z = B.
+k7(f(X), Y) :- ( Z = 1 ; W = 2 ), ( Y = 1 ; V = 1 ), X = 1.
+k8 :- ( _X = 1 ; true ), _X = 2.
+k9 :- ( _X = 1 ; _X = 2 ).
+l1(Y, A) :- ( _Q = 1 ; true ), _Q = Y, ( B = 1 ; true ), A = 1.
+l5(f(_W), _V) :- _W = 1, _W = 2, _V = 1, _V = 2.
+foo:l6(f(_W), _V) :- _W = 1, _W = 2, _V = 1, _V = 2.
+l7(f(_B), _A), [x] --> [_B, _A], [_A, _B].
+l8 --> { ( Y = 1 ; true ) }, [a].
+
+%% `$/1' and `@/2' are control, and in a grammar rule non-terminals; \+
+%% and `:' are control there too
+n1 :- $(( Y = 1 ; true )).
+n2 :- @(( Y = 1 ; true ), m).
+n3 --> $(( { Y = 1 } ; [] )).
+n4 --> @(( { Y = 1 } ; [] ), m).
+n5 --> \+ ( { Y = 1 } ; [] ).
+n6 --> m:( { Y = 1 } ; [] ).
+
+%% a qualified clause is the clause; a qualified grammar rule is no rule
+foo:(o1 :- ( Y = 1 ; true )).
+foo:bar:(o2 :- ( Y = 1 ; true ), Y = 2).
+foo:(o3 --> ( { Y = 1 } ; [] )).
+
+%% the reader's count is the whole term's: a head that is no callable term
+%% and a module are counted too
+X :- foo.
+M:o6 :- true.
+M:(o7 :- true).
+3 :- Z = 1.
+foo:M:(o8 :- true).
+o9(M) :- M:( Q = 1 ; true ).
+
+%% a name `_x' is a name: the reader and a branch warn of it
+l2 :- _x = 1.
+l3 :- ( _x = 1 ; true ).
+l4(_x, _x).
 
 %% a meta-call's goal is only its occurrences
 f1(L) :- findall(X, ( Y = 1 ; true ), L).
