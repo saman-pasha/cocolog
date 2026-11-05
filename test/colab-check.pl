@@ -28,6 +28,8 @@
 
 :- use_module(library(json)).
 
+:- discontiguous cb_do/2.
+
 cb_main :-
     current_prolog_flag(argv, [_, Verb|Rest]),
     cb_do(Verb, Rest).

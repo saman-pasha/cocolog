@@ -11003,3 +11003,46 @@ thread, websocket, tcp, httpd, process, async, backtrace, cyclic, gc, trace,
 window, flowchart, reconsult, argv, http, hex, store-lock, reason,
 translate, normalise, groups, ruler, zigurat-tls, tls, crypto and the 133
 lessons (tutorials), each GREEN.
+
+## listing/1 and portray_clause/1 laid out as swipl's (3.18.0)
+
+The next of 3.1.0's list: a clause written by `listing/1` was one line per
+fact and one line in all for a rule, its variables `_G` and a heap cell, and
+`portray_clause/1` did not exist. A minor, cocolog 3.18.0: what `listing/1`
+shows is a clause a person can read, and `portray_clause/1` writes the same
+form for a term a program holds.
+
+- THE WALK IS swipl's `library(listing)`, function for function:
+  `do_portray_clause/3`, `portray_body/6`, `portray_or/4,5`, `pprint/4`,
+  `portray_list/4`, `portray_meta/4` and `pprint_wrapped/3` (lib/solve-db.cicili,
+  `lay_*`). A body's conjunction is one goal a line, a disjunction or an
+  if-then-else stands in parentheses with its arrows in a column, `\+` puts
+  its goal where swipl puts it, and a meta-call's goal -- `call((a, b))`,
+  `findall/3`'s second argument -- gets its own lines. A term longer than
+  the 78-column line is wrapped at its arguments, a list one element a line.
+  The writer gained `spacing(next_argument)` (mode 512: `f(a, b)`,
+  `[a, b|c]`), which only this layout asks for.
+- `listing/1` names a clause's variables as `numbervars/4`'s
+  `singletons(true)` does -- `_` for one met once, `A`, `B`, ... -- and
+  collapses `Head :- true` to the fact. Its declarations are swipl's order:
+  `thread_local`, `dynamic`, `volatile`, `multifile`, `public`,
+  `module_transparent`; a `discontiguous` declaration is still not written.
+  A qualified control body is laid out as swipl lays it out.
+- `portray_clause/1` is there (lib/solve.cicili's table, an ordinary
+  builtin), and it quotes as swipl's listing does: `f('don\'t')`, and
+  `f(B)` for `f('$VAR'(1))`, where through 3.17.0 `listing/1` wrote
+  `f('don''t')` and `f('$VAR'(1))` (COMPAT.md).
+- A cyclic term is written in the writer's factored form,
+  `@(S_1, [S_1=f(S_1)])`, as swipl's is.
+
+NOT SWIPL'S, and stated: `listing/1` of a consulted clause names its
+variables `A`, `B`, ... where swipl restores the source file's names, and it
+shows a head unification swipl's compiler moved into the head. `listing/0`
+still lists the program alone, not the libraries swipl's lists.
+
+CHECK: test/files/listing_layout.pl, run by both systems and compared byte
+for byte -- twenty-two `listing/1` cases, a fact that is a rule with a
+`true` body, a long list and a long compound, and fourteen
+`portray_clause/1` terms. Against swipl 10.0.2 here the two outputs are
+identical; swipl 9.0.4's library(listing) has the same layout functions,
+and the files case runs it there.

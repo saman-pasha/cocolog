@@ -1,6 +1,9 @@
 # cocolog
 
-![cocolog, the bridge between the three](art/banner.svg)
+<p align="center">
+  <img src="art/cocolog-banner.svg" alt="cocolog — a Prolog whose running state is data" width="100%">
+</p>
+
 **Computation become durable knowledge.**
 
 cocolog is a Prolog -- the ISO core, the everyday conveniences, and a checked
@@ -311,5 +314,5 @@ the verdict.
 * [emacs/README.md](emacs/README.md) -- cocolog-mode: the colour-variable
   reading, the in-comment tests, the shadow engine and its checks.
 
-cocolog 2.12.1. README.md says what it is, STATUS.md what is proven, MODULES.md
+cocolog 3.18.0. README.md says what it is, STATUS.md what is proven, MODULES.md
 how a module is written.

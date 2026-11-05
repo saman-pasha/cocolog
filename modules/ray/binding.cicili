@@ -98,6 +98,9 @@
      (decl) (func GetMouseX () (out int))
      (decl) (func GetMouseY () (out int))
      (decl) (func GetMouseWheelMoveV () (out Vector2))
+     (decl) (func GetTouchPosition ((int index)) (out Vector2))
+     (decl) (func GetTouchPointId ((int index)) (out int))
+     (decl) (func GetTouchPointCount () (out int))
 
      ;;; ---- 2D ----
      (decl) (func DrawPixel ((int posX) (int posY) (Color color)))
@@ -138,4 +141,10 @@
      (decl) (func DrawTextureRec ((Texture2D texture) (Rectangle source) (Vector2 position) (Color tint)))
      (decl) (func DrawTexturePro ((Texture2D texture) (Rectangle source) (Rectangle dest) (Vector2 origin)
                                   (float rotation) (Color tint)))
+
+     ;;; ---- Cocoa's trackpad pinch, from gesture_macos.m / gesture_none.c ----
+     ;;; Not raylib's: macOS sends it as NSEventTypeMagnify, which GLFW
+     ;;; never turns into a scroll or a touch point. The declaration is
+     ;;; here because this is where Cicili's C declarations live.
+     (decl) (func ray_pinch_scale () (out double))
      ))

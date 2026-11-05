@@ -906,9 +906,20 @@
   (decl) (func coco_write_term ((coco_machine * m) (coco_strbuf * b) (size_t t)
                               (int quoted) (int ignore_ops)) (out int))
   (decl) (func coco_write_canonical ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int))
+  ;;; A write at a stated priority, for a layout that indents a clause: the
+  ;;; mode word is the writer's (1, 8, 16, 64, 512 for listing/1's and
+  ;;; portray_clause/1's layout) and MAXPREC the priority the term stands at.
+  (decl) (func coco_write_pri ((coco_machine * m) (coco_strbuf * b) (size_t t)
+                              (int mode) (int maxprec)) (out int))
   ;;; write_canonical/1's and `~k''s text, swipl's (3.1.0): no operators,
   ;;; and the variables `_' and `A', `B', ... by when the write meets them
   (decl) (func coco_write_canon ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int))
+
+  ;;; Name a term's variables as numbervars/4 with singletons(true) names
+  ;;; them: one met once is `_', the others `A' ... `Z', `A1' .... The map
+  ;;; is then handed to the writer as `wcanon' (3.18.0, listing/1's and
+  ;;; portray_clause/1's layout).
+  (decl) (func coco_name_vars ((coco_machine * m) (size_t t) (coco_varmap * vm)) (out int))
 
   ;;; PRINT/1'S FORM (2.2.4), swipl's print/1 and format's `~p': quoted, and
   ;;; with numbervars, so `'$VAR'(1)' is written `B' (mode 8,
@@ -2797,7 +2808,7 @@
   (func coco_write_list ((coco_machine * m) (coco_strbuf * b) (size_t t)
                        (int mode) (u32 depth)) (out int)
         (coco_sb_putc b (cast char (coco-ch "[")))
-        (let ((int first . 1) (int kids . #'(bitand mode 475))
+        (let ((int first . 1) (int kids . #'(bitand mode 987))
               (size_t kept . #'(cast size_t -1)) (size_t lam . 0) (size_t power . 1024))
           (while 1
             (set t (coco_deref m t))
@@ -2809,7 +2820,10 @@
                    (if (== lam power)
                        (block (if (-> m wcyc) break)
                               (set kept t) (set power (* power 2)) (set lam 0)))
-                   (if (not first) (coco_sb_putc b (cast char (coco-ch ","))))
+                   (if (not first)
+                       (block (coco_sb_putc b (cast char (coco-ch ",")))
+                              ;; spacing(next_argument) (3.18.0)
+                              (if (!= 0 (bitand mode 512)) (coco_sb_putc b (cast char 32)))))
                    (set first 0)
                    (coco_write_rec m b (coco_arg m t 0) kids 999 (+ depth 1))
                    (set t (coco_arg m t 1))
@@ -2879,9 +2893,9 @@
               (int quoted . #'(bitand mode 337))
               ;; what this write's operands and arguments carry down:
               ;; quoted 1, ignore_ops 2, numbervars 8, escapes 16 and 64,
-              ;; write_canonical/1's braces 128 (the operand's 4 is each
-              ;; operand's own)
-              (int kids . #'(bitand mode 475)))
+              ;; write_canonical/1's braces 128, next_argument's comma
+              ;; spaces 512 (the operand's 4 is each operand's own)
+              (int kids . #'(bitand mode 987)))
 
           ;; THE ATOM `'[]'' AS AN OPERATOR IS WRITTEN QUOTED, and the list's
           ;; end is none (3.15.1, swipl's): op/3 of `'[]'' declares the atom,
@@ -2946,8 +2960,13 @@
                          (let ((int gb . #'(coco_needs_gap (coco_sb_last b) (coco_sb_first (aof ob)))))
                            (if gb (coco_sb_putc b (cast char 32)))
                            (if (!= ($ ob s) nil) (coco_sb_put b ($ ob s)))
-                           (if (or gb (coco_needs_gap (coco_sb_last (aof ob))
-                                                      (coco_sb_first (aof rb))))
+                           (if (or gb
+                                   (coco_needs_gap (coco_sb_last (aof ob))
+                                                   (coco_sb_first (aof rb)))
+                                   ;; spacing(next_argument): `a, b' and `a| b'
+                                   (and (!= 0 (bitand mode 512))
+                                        (or (== 0 (strcmp name ","))
+                                            (== 0 (strcmp name "|")))))
                                (coco_sb_putc b (cast char 32))))
                          (if (!= ($ rb s) nil) (coco_sb_put b ($ rb s)))
                          (coco_sb_free (aof ob))
@@ -3020,7 +3039,10 @@
               (coco_write_atom b name quoted)))
           (coco_sb_putc b (cast char (coco-ch "(")))
           (for ((u32 i . 0)) (< i n) ((++ i))
-            (if (> i 0) (coco_sb_putc b (cast char (coco-ch ","))))
+            (if (> i 0)
+                (block (coco_sb_putc b (cast char (coco-ch ",")))
+                       ;; spacing(next_argument) (3.18.0)
+                       (if (!= 0 (bitand mode 512)) (coco_sb_putc b (cast char 32)))))
             (coco_write_rec m b (coco_arg m t i) kids 999 (+ depth 1)))
           (return (coco_sb_putc b (cast char (coco-ch ")"))))))
 
@@ -3259,6 +3281,10 @@
                        (int quoted) (int ignore_ops)) (out int)
         (return (coco_write_top m b t (bitor (? quoted 1 0) (? ignore_ops 2 0)) 1)))
 
+  (func coco_write_pri ((coco_machine * m) (coco_strbuf * b) (size_t t)
+                        (int mode) (int maxprec)) (out int)
+        (return (coco_write_rec m b t mode maxprec 0)))
+
   ;;; What goes into the database: quoted, so it reads back, and with operators
   ;;; kept, so a person looking at the table can see what the clause says.
   (func coco_write_storable ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int)
@@ -3300,6 +3326,9 @@
                          (set j (+ j 1))))))
           (free wl) (free vars)
           (return ok)))
+
+  (func coco_name_vars ((coco_machine * m) (size_t t) (coco_varmap * vm)) (out int)
+        (return (coco_canon_vars m t vm)))
 
   ;;; write_canonical/1 AND `~k' AS swipl's (3.1.0): quoted with swipl's
   ;;; character escapes, operators ignored and a curly term functional
