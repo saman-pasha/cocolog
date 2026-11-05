@@ -11333,6 +11333,8 @@ false, `var(a)` too), and its `Singleton
 variable in branch: X` of `p :- (X ; foo((X ; X))).`, where the other
 branch names the variable only inside a goal -- 3.19.1's rule is a first
 meeting at the last occurrence, swipl's a count of one in either branch.
+Both are said since 3.19.5, and `$/1` and `@/2` are control to the
+warnings (below).
 
 CHECK: test/files/fresh_goals.pl (new; 162 lines with swipl 9.0.4, the
 load's instantiation errors and the assert's type errors, whose variables
@@ -11361,3 +11363,119 @@ case alone each time), and the narrow cases each of 3.19.0 to 3.19.3 ran
 did not include it. The case names `/7` now, and so do two comments that
 said `/5` (test/flowdebug.pl, library/flow/dbgdraw.pl); nothing in the
 engine changed. CHECK: journal and flowdebug green.
+
+## The compiler's warnings by swipl's two passes, and its type tests (3.19.5)
+
+A load's second block of warnings, the compiler's (3.19.1), is made now by
+swipl's own two passes over the clause (pl-comp.c 9.0.4), and says what
+they say.
+
+FIRST THE COUNT (analyseVariables2; `coco_cwa_walk` in
+lib/kb-consult.cicili): each named variable's occurrences, a disjunction in
+the body's control counting the variables new to it as the larger of its
+two branches, each branch from 0. A variable new to a disjunction that
+either branch names once is a branch's singleton until the clause names it
+again after the disjunction; one new to a \+ that it names once is the
+\+'s, which nothing clears. Through 3.19.4 a branch's singleton was one
+first met at its last occurrence, and three shapes swipl warns of were not
+said: a branch that names the variable once though the other names it more
+(`p :- (X = 1 ; bar(X, X)).`, `(X = 1 ; X = 2, X = 3)`, either way round),
+and one the other branch names only inside a goal (`p :- (X = 1 ;
+foo((X ; X))).`). The lines come in swipl's order of its variables, a head
+argument's by its place and every other by its first occurrence
+(`l5(f(_W), _V) :- ...` says `_V` before `_W`), a line each.
+
+THEN THE COMPILE (`coco_cwc_walk`), goal by goal: the head and every goal
+set the variables they name, but the tests compiled in place. A type test
+-- var, nonvar, integer, rational, float, number, atomic, atom, string,
+compound, callable -- of a variable named once, or of one no goal set, has
+an answer the compiler knows, and swipl says it (`Test is always true:
+var(X)`, `Test is always false: atom(X)`); the test is then a call, which
+sets the variable. Of a bound term too (`Test is always false:
+atom(f(X))`, `... true: callable(f(X))`), said only where the term names a
+variable, as messages.pl drops one that names none (`atom(a)`,
+`atom(f(_))`). ==/2 and \==/2 are 3.19.1's rules, swipl's eq_singleton and
+eq_vv: a void operand is never ==, and the test is a call that sets the
+rest; two variables one of them unset are never == but the same, and set
+neither; a variable and a constant are compiled in place. A branch starts
+from what was set before its disjunction, and what either set is set after
+it; a \+ keeps what it set.
+
+THE CONTROL OF BOTH: `,`, `;`, `|`, `->`, `*->`, `\+` and `:` in a body,
+and `$/1` and `@/2`, control to swipl's compiler (`$((Y = 1 ; true))` has a
+branch and `@(var(X), m)` a test; `@` is no operator in swipl 9.0.4, so the
+cases write it so); `|` is a branch of the compile, and of the count only
+in a grammar rule, whose translation makes it `;`. In a grammar rule `{}`
+holds goals, a list is a terminal, and `$/1`, `@/2` and a goal named like a
+test are non-terminals, which its translation calls. A qualified clause
+`M:(H :- B)` is the clause (through 3.19.4 its block was not said); a
+qualified grammar rule or single-sided rule is none, as swipl translates
+neither. A meta-call's goal is no goal of the clause's.
+
+THE READER'S BLOCK: a name `_x`, an underscore and a small letter, is a
+name to swipl's warn_singleton() and warned of as any other (`Singleton
+variables: [_x]`, `Singleton variable in branch: _x`); `_X` and `__x` stay
+exempt, as swipl's. Through 3.19.4 every name beginning `_` was.
+
+ONE COUNT FOR BOTH BLOCKS, as 3.19.1 made it: the first cut walked the term
+three times -- the reader's count, swipl's count and the compile -- and
+consulting library/reasoning/translate.pl (28 368 lines) took 6.16 % more
+instructions (callgrind: 321 763 514 on 3.19.4, 341 589 335): the compile
+marked the variables of every goal of every clause (8.3 million) and the
+two walks told the names apart by strcmp (5.3 million more). Now swipl's
+count is the reader's count too (`coco_consult_singletons`, one walk, its
+five arrays one block of memory), the compile is walked only for a clause
+whose count met one of its tests, as no other has a line to say, and a
+goal's name is told by its first character before any strcmp
+(`coco_cw_goal_kind`): 315 089 727, 2.07 % fewer than 3.19.4, the two walks
+23.9 million where 3.19.4's count and walk were 28.6. The clock, seven
+alternating runs of 29 to 42 ms of user time each, says nothing larger.
+
+WHAT IT FOUND IN THE TREE: library/flow/layout.pl's `Rule = rule(Depth,
+Ps)`, in an if-then-else's condition, named `Ps` once (a branch's singleton
+by the count; `_` now); and tutorials/basics/02-unification.pl asked
+`var(Free)` of a variable no goal of its clause had set (`Free ==
+anything` before it sets none), which swipl's compiler answers at the load: the hole goes to a helper now,
+`guarded/3`, whose tests ask of an argument, and the lesson says why. Every
+other file of the tree (415, and lib/swipl's) loads as it did on 3.19.3.
+
+THE EMBEDDED STORE is built from ZiguratIP 1.0.2 (2a65f81), whose read of a
+row's chain stays inside its page's hexmap slice: a reader that learnt the
+file's length while a writer had grown it a chunk ahead, and read a
+64-byte block near the hexmap's end after the writer cut the file back,
+touched a page past its end -- the SIGBUS GitHub's macOS 15 runner took in
+the server's groups and ruler cases (CI runs 64 and 65), reproduced on
+Linux against the mapping (MVCCS-cicili/README.md has it). A block is the
+rest of the page's slice, 64 bytes at most, now.
+
+NOT SWIPL'S, and stated: 3.19.1's (an anonymous variable in a test is
+written `_G3` where swipl's is `_552`, and the block is the clause read's,
+not an expansion's); and `$/1` and `@/2` run as goals still -- control to
+the warnings alone -- and swipl's refusal of `@(G, M)` with M unbound or no
+atom is not made.
+
+CHECK: test/files/warnings_tests.pl (new; 129 lines with swipl 9.0.4) and
+test/files/warnings_branch.pl (the count's rule, its order, `_x`, `$` and
+`@`, qualified clauses, the whole term's count) -- all 96 test/files cases
+agree. Forty-seven arms, one a rule, each red in those cases, from one
+build in which an environment variable takes one rule out at a time: the
+count's left branch of one, its right branch of one, its larger branch,
+its right branch from 0, a later occurrence clearing a branch's singleton,
+the \+'s singleton and its leaving the branch list, a head argument's
+place, `|` in a grammar rule and in a body, `:`, `$`, `@` and `{}` as
+control and `$` and `@` as a rule's non-terminals; `_x` a name to both
+blocks and to the reader's alone, `__x` and `_X` marked; a type test of a
+void variable and of an unset one, its setting, of a bound term, its answer
+and the names it must name; ==/2's void operand, two variables setting
+neither and a constant in place; a branch's start and the union after;
+`|`, `->`, \+, `:`, `$`, `@` and `{}` in the compile, and in a rule's body
+`$` and `@` and the tests named so as non-terminals; the head's qualifier,
+a qualified clause, a qualified rule, a rule's pushback and a single-sided
+rule's guard; the count of a head that is no callable term and of a
+module. Two are guards of cost, their arms green: a directive's compile
+block, never said (a directive is not stored), and the compile walked only
+where a test was counted. One piece of the first cut changed no answer and
+is gone: a variable a left branch counted back to 0 pushed again onto the
+branch list it was on. Narrow cases green: files, errors, directives,
+reconsult, library, engine, cyclic, lint, flowchart, flowdebug, argv, and
+lesson basics/02 alone.

@@ -90,7 +90,9 @@ said `--version` 3.1.0, the checkout's system under the copy's script, and
 **ZiguratIP is the owner's.** It was unfrozen for engine fixes
 (`TCP_NODELAY`, the unmap resume mark, rollback-on-disconnect, the streams
 guard's writer preference, the page list, the chunked grow, the commit clock
-settle, the open's hexmap read a page at a time -- 1.0.1). After touching
+settle, the open's hexmap read a page at a time -- 1.0.1; a row's chain
+read inside its page's hexmap slice, so a reader whose mapping a writer
+shrank under it takes no SIGBUS -- 1.0.2). After touching
 it: rebuild it, then `make schema` here. A change to
 `MVCCS-cicili/mvccs-lib.cicili` also rebuilds cocolog's embedded engine,
 transpiled from the same file through the `embed/mvccs-lib.cicili` symlink.
@@ -1452,13 +1454,22 @@ cocolint index offers no import of it.
   is `coco_write_fun`, always inlined, so the
   guard's slow path returns rather than rejoining -- rejoined, every
   compound read its tag and functor again (21 instructions each).
-* **A load warns in swipl's two blocks** (3.17.0, 3.19.1;
+* **A load warns in swipl's two blocks** (3.17.0, 3.19.1, 3.19.5;
   `coco_consult_singletons`, `coco_cw_clause` in lib/kb-consult.cicili):
-  the reader's `Singleton variables: [X]` as the term is read, and the
-  compiler's -- a singleton-marked name used twice, a branch's or a \+'s
-  singleton, a test of a variable no goal set -- once its clause is
-  stored, after the not-together warning. test/files/warnings_branch.pl
-  holds the rules to swipl. **A file of the tree loads with no warning**
+  the reader's `Singleton variables: [X]` as the term is read (`_X` and
+  `__x` exempt, `_x` not), and the compiler's -- a singleton-marked name
+  used twice, a branch's or a \+'s singleton, a test whose answer the
+  compiler knows (`X==Y` of a variable no goal set, `var(X)` of one,
+  `atom(f(X))`) -- once its clause is stored, after the not-together
+  warning. **It is swipl's two passes** (pl-comp.c, since 3.19.5): the
+  count of the variables (`coco_cwa_walk`, a disjunction counting the
+  variables new to it as its larger branch) and the compile
+  (`coco_cwc_walk`, every goal setting what it names but the tests
+  compiled in place); a new control construct goes into both, and a
+  grammar rule's body is its translation's (`$/1` and `@/2` are
+  non-terminals there). test/files/warnings_branch.pl and
+  test/files/warnings_tests.pl hold the rules to swipl. **A file of the
+  tree loads with no warning**
   (library/reasoning/ still has its reader's singletons): a variable a
   clause never uses is `_`, and one it uses twice is named plainly, never
   `_X` -- the walk found a check in test/template.pl that tested nothing.
