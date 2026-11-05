@@ -366,14 +366,6 @@ cb_bi_entry(Toks, Dir, e(Dir, Pos, En, Fo, RTags)) :-
     atom_string(En0, EnS), atom_string(Fo, FoS),
     cb_english_side(Pos, En0, En, W),
     cb_admits(Pos, W), cb_foreign_word(Fo).
-
-%% a capitalised noun or adjective as lowered(Word), which cb_common_words/2
-%% keeps or drops once every entry has been read; any other word as itself
-cb_english_side(Pos, En0, lowered(W), W) :-
-    memberchk(Pos, [noun, adjective]),
-    atom_codes(En0, [C|Cs]), C >= 0'A, C =< 0'Z, !,
-    L is C + 32, atom_codes(W, [L|Cs]).
-cb_english_side(_, En, En, En).
 %% a number: the dictionary writes the cardinals as a bare pair with the
 %% paradigm named beside it -- <l>four</l><r>cuatro</r><par n="three__num"/>
 %% -- and the two paradigms that add nothing to the word are the numbers
@@ -389,6 +381,14 @@ cb_bi_entry(Toks, Dir, e(Dir, existential, 'there is', Fo, RTags)) :-
     \+ ( member(T, Toks), cb_prefix('par ', T) ),
     append(_, ["l", "there", B, "is", VT, "", "/l"|_], Toks), memberchk(B, ["b/", "b /"]), cb_prefix('s n="vblex"', VT),
     cb_side(Toks, "r", "/r", FoS, RTags), atom_string(Fo, FoS), cb_foreign_word(Fo).
+
+%% a capitalised noun or adjective as lowered(Word), which cb_common_words/2
+%% keeps or drops once every entry has been read; any other word as itself
+cb_english_side(Pos, En0, lowered(W), W) :-
+    memberchk(Pos, [noun, adjective]),
+    atom_codes(En0, [C|Cs]), C >= 0'A, C =< 0'Z, !,
+    L is C + 32, atom_codes(W, [L|Cs]).
+cb_english_side(_, En, En, En).
 
 %% the word and the tags between an opening and a closing token; a <b/>
 %% between them is a blank, so the entry is more than one word
@@ -445,7 +445,7 @@ cb_foreign_word(W) :-
 cb_lower_codes([]).
 cb_lower_codes([C|Cs]) :- C >= 0'a, C =< 0'z, !, cb_lower_codes(Cs).
 cb_lower_codes([195, C|Cs]) :- !, ( C >= 128, C =< 158 -> fail ; true ), cb_lower_codes(Cs).
-cb_lower_codes([C|Cs]) :- C >= 192, C =< 222, current_prolog_flag(text_units, characters), !, fail.    % a capital, as a code point
+cb_lower_codes([C|_]) :- C >= 192, C =< 222, current_prolog_flag(text_units, characters), !, fail.    % a capital, as a code point
 cb_lower_codes([C|Cs]) :- C >= 128, !, cb_lower_codes(Cs).
 
 %% ---- the order, so the first meaning is the canonical one ------------------------
@@ -580,19 +580,6 @@ cb_entry(e(_, adjective, En, Fo, _)) :- !,
     ;   cb_adjective(Fo, none, En, [], none)
     ),
     cb_superlatives(Fo, Forms).
-%% THE ABSOLUTE SUPERLATIVE, `le pesantissime accuse': every form the
-%% paradigm tags sup, stated of the plain form in its own gender and number
-%% -- `"pesantissime" is the superlative of "pesanti".' -- which the reader
-%% takes as the lesson's word for `very' before that form. Once a form, as
-%% a verb's forms are once a lexeme.
-cb_superlatives(Fo, Forms) :-
-    forall(( cb_lemma(Fo, Stem, Par), cb_par(Par, Suf, Tags), memberchk(sup, Tags),
-             atom_concat(Stem, Suf, S), \+ cb_formed(S, superlative), cb_sup_base(Forms, Tags, B) ),
-           ( assertz(cb_formed(S, superlative)), cb_line('"~w" is the superlative of "~w".', [S, B]) )).
-cb_sup_base(Forms, Tags, B) :-
-    ( memberchk(pl, Tags) -> N = pl ; N = sg ),
-    ( memberchk(f, Tags) -> G = f ; G = m ),
-    ( cb_form(Forms, [adj, G, N], B) -> true ; cb_form(Forms, [adj, mf, N], B) ).
 cb_entry(e(_, verb, En, Fo, _)) :- !,
     cb_forms(Fo, Forms),
     (   cb_verb_form(Forms, [pri, p3, sg], L)
@@ -623,6 +610,19 @@ cb_entry(e(_, preposition, En, Fo, _)) :- !, cb_line('The preposition "~w" means
 cb_entry(e(_, number, En, Fo, _)) :- !, cb_line('The number "~w" means "~w".', [Fo, En]).
 cb_entry(e(_, conjunction, En, Fo, _)) :- !, cb_line('The conjunction "~w" means "~w".', [Fo, En]).
 cb_entry(_).
+%% THE ABSOLUTE SUPERLATIVE, `le pesantissime accuse': every form the
+%% paradigm tags sup, stated of the plain form in its own gender and number
+%% -- `"pesantissime" is the superlative of "pesanti".' -- which the reader
+%% takes as the lesson's word for `very' before that form. Once a form, as
+%% a verb's forms are once a lexeme.
+cb_superlatives(Fo, Forms) :-
+    forall(( cb_lemma(Fo, Stem, Par), cb_par(Par, Suf, Tags), memberchk(sup, Tags),
+             atom_concat(Stem, Suf, S), \+ cb_formed(S, superlative), cb_sup_base(Forms, Tags, B) ),
+           ( assertz(cb_formed(S, superlative)), cb_line('"~w" is the superlative of "~w".', [S, B]) )).
+cb_sup_base(Forms, Tags, B) :-
+    ( memberchk(pl, Tags) -> N = pl ; N = sg ),
+    ( memberchk(f, Tags) -> G = f ; G = m ),
+    ( cb_form(Forms, [adj, G, N], B) -> true ; cb_form(Forms, [adj, mf, N], B) ).
 
 cb_line(Fmt, Args) :- format(Fmt, Args), nl.
 

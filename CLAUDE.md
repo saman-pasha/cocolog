@@ -1459,9 +1459,15 @@ cocolint index offers no import of it.
   singleton, a test of a variable no goal set -- once its clause is
   stored, after the not-together warning. test/files/warnings_branch.pl
   holds the rules to swipl. **A file of the tree loads with no warning**
-  (library/reasoning/ still has its reader's singletons): a variable a
+  (library/reasoning/ too since reasoning 1.0.30): a variable a
   clause never uses is `_`, and one it uses twice is named plainly, never
   `_X` -- the walk found a check in test/template.pl that tested nothing.
+  **A predicate's clauses stand together**: reasoning 1.0.30 moved 159
+  blocks of translate.pl (and 8 of reason.pl, normalise.pl and
+  corpus/build.pl) up to their predicate's first clause, each predicate's
+  clauses in their order, which a dump of every clause before and after
+  holds equal; a helper goes after the predicate whose clause calls it,
+  never between two of its clauses.
 * **A directive is a GOAL.** `coco_directive` answers the ones that act on the
   reader (`op/3`, `set_prolog_flag/2` of `double_quotes`, `text_units` or
   `generate_debug_info` -- any other flag is the goal's since 2.2.2,

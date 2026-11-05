@@ -245,7 +245,7 @@ lesson :-
     section('the lesson: one hundred and eighty-nine lines, three hundred and eleven terms'),
     lesson_text(Text),
     reason_tokens(Text, Tokens),
-    findall(S, member('.', Tokens), Stops), length(Stops, NS),
+    findall(_, member('.', Tokens), Stops), length(Stops, NS),
     check('one hundred and eighty-nine sentences', NS, 189),
     reason_learn(Text, Terms),
     length(Terms, NT),

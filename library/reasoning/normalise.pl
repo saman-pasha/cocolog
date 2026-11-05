@@ -657,9 +657,6 @@ ng_shape(26, Seed, [P-'S', does-'K', not-'N', V-'R'|Rest]) :-              % Ali
     ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), ng_word(noun, Seed, 4, N), ng_np(Seed, 12, N, Obj),
     ng_place(Seed, 5, Pl), append(Obj, Pl, Rest).
 
-ng_place(Seed, Salt, [Prep-'R', Q-'O']) :-
-    ng_choose(Seed, Salt, [in, at, near], Prep), Salt1 is Salt + 1, ng_word(place, Seed, Salt1, Q).
-
 %% questions, six shapes: the first word says so and the text ends in `?',
 %% which the tokeniser makes a stop; `who' is the subject it asks for and
 %% `what' or `where' the object, so the assembler copies them where they
@@ -802,6 +799,9 @@ ng_shape(54, Seed, Pairs) :-                                                % Th
         append([[is-'R', the-'T'], FP, [of-'K', q(V)-'M']], Tail)
     ),
     append(Head, Tail, Pairs).
+
+ng_place(Seed, Salt, [Prep-'R', Q-'O']) :-
+    ng_choose(Seed, Salt, [in, at, near], Prep), Salt1 is Salt + 1, ng_word(place, Seed, Salt1, Q).
 
 %% a quantity as an object: a number and its noun -- a unit pluralised
 %% (`500 euros') or a thing pluralised (`three vineyards') -- and one time
@@ -953,30 +953,6 @@ ng_apply(conjoin_shared, Seed, st(Ps, Cs), st(Out, Cs2)) :-
     findall(P, ( member(P, Head), P \= _-'D', P \= _-'K', P \= _-'N' ), CleanHead),   % the phrase, never its `does not'
     append([Ps, Join, Rest], Out), append(CleanHead, Rest, Second), append(Cs, [Second], Cs2).
 
-%% a mention before the first relation and no S there: the head is the
-%% subject phrase, `"casa"' or `the noun "casa"'
-ng_mention_head(Ps, Head, Rest) :-
-    append(Head, [R-'R'|Rest0], Ps), memberchk(_-'M', Head), \+ memberchk(_-'S', Head), !,
-    Rest = [R-'R'|Rest0].
-
-%% what else is said of a word: an adjective, a class, a meaning
-ng_lesson_rest(Seed, Rest) :-
-    ng_pick(Seed, 45, 3, K),
-    (   K =:= 0 -> ng_wadj(Seed, 46, A), Rest = [is-'R', A-'A']
-    ;   K =:= 1 -> ng_word(wclass, Seed, 46, C), ng_art(C, Art), Rest = [is-'R', Art-'T', C-'O']
-    ;   ng_word(vq, Seed, 46, V), ng_meaning(Seed, 47, E), Rest = [V-'R', q(E)-'M']
-    ).
-
-%% a fact shape for it, its own subject taken off: a few seeds tried, and
-%% `sleeps' when none of them is a fact
-ng_fact_rest(Seed, K, Rest) :-
-    K < 8, S2 is Seed * 41 + K,
-    ng_sentence(S2, Qs),
-    (   Qs = [_-'S'|Rest0], \+ ng_question(Qs) -> Rest = Rest0
-    ;   K1 is K + 1, ng_fact_rest(Seed, K1, Rest)
-    ), !.
-ng_fact_rest(Seed, _, Rest) :- S2 is Seed * 41 + 8, ng_shape(5, S2, [_-'S'|Rest]).
-
 %% a filler or a hedge after the `and': joins a second sentence itself when
 %% none has been joined, so the transform stands alone in a test
 ng_apply(filler_join, Seed, st(Ps, Cs), st(Out, Cs2)) :-
@@ -1048,6 +1024,30 @@ ng_apply(in_language, Seed, st(Ps, Cs), st(Out, Cs)) :-
 %% word as a capitalised subject, as it refuses `Small business
 %% management'; so does a closed word (`"the" is an article').
 ng_apply(unquote, _, st(Ps, Cs), st(Qs, Cs)) :- ng_unquote(Ps, head, Qs).
+
+%% a mention before the first relation and no S there: the head is the
+%% subject phrase, `"casa"' or `the noun "casa"'
+ng_mention_head(Ps, Head, Rest) :-
+    append(Head, [R-'R'|Rest0], Ps), memberchk(_-'M', Head), \+ memberchk(_-'S', Head), !,
+    Rest = [R-'R'|Rest0].
+
+%% what else is said of a word: an adjective, a class, a meaning
+ng_lesson_rest(Seed, Rest) :-
+    ng_pick(Seed, 45, 3, K),
+    (   K =:= 0 -> ng_wadj(Seed, 46, A), Rest = [is-'R', A-'A']
+    ;   K =:= 1 -> ng_word(wclass, Seed, 46, C), ng_art(C, Art), Rest = [is-'R', Art-'T', C-'O']
+    ;   ng_word(vq, Seed, 46, V), ng_meaning(Seed, 47, E), Rest = [V-'R', q(E)-'M']
+    ).
+
+%% a fact shape for it, its own subject taken off: a few seeds tried, and
+%% `sleeps' when none of them is a fact
+ng_fact_rest(Seed, K, Rest) :-
+    K < 8, S2 is Seed * 41 + K,
+    ng_sentence(S2, Qs),
+    (   Qs = [_-'S'|Rest0], \+ ng_question(Qs) -> Rest = Rest0
+    ;   K1 is K + 1, ng_fact_rest(Seed, K1, Rest)
+    ), !.
+ng_fact_rest(Seed, _, Rest) :- S2 is Seed * 41 + 8, ng_shape(5, S2, [_-'S'|Rest]).
 
 ng_unquote([], _, []).
 ng_unquote([q(W)-'M'|Ps], head, [W-'S'|Qs]) :- ng_head_bare(W), !, ng_unquote(Ps, rest, Qs).

@@ -468,7 +468,7 @@
 %% made from it, and no code, test or lesson in the tree spells the number.
 %% Bump it in the commit that changes library/reasoning/, never afterwards.
 
-reason_version(1, 0, 29).
+reason_version(1, 0, 30).
 
 reason_version(Version) :-
     reason_version(Major, Minor, Patch),
@@ -1052,14 +1052,14 @@ re_negative(G, S) :- compound(G), G =.. [P, X], !, re_arg(X, XA), re_predicate(P
 re_negative(G, S) :- re_helper(G), G =.. [V, X, C], atom(C), rl_letter_class(C), !, re_arg(X, XA), re_verb(V, not, VP), atomic_list_concat([XA, ' ', VP, ' a ', C], S).
 re_negative(G, S) :- compound(G), G =.. [V, X, Y], re_of_noun(V, N), !, re_arg(X, XA), re_arg(Y, YA), atomic_list_concat([XA, ' is not the ', N, ' of ', YA], S).
 re_negative(G, S) :- compound(G), G =.. [V, X, Y], !, re_arg(X, XA), re_arg(Y, YA), re_verb(V, not, VP), atomic_list_concat([XA, ' ', VP, ' ', YA], S).
-
-%% mother_of, plural_of: a relation a noun the reader met names
-re_of_noun(V, N) :- atom(V), atom_concat(N, '_of', V), N \== '', re_noun(N).
 re_negative(G, S) :-
     compound(G), G =.. [V, X, Y, Z], atomic_list_concat(Parts, '_', V), append(Front, [Prep], Parts), Front \== [], !,
     atomic_list_concat(Front, '_', V2), re_verb(V2, not, VP),
     re_arg(X, XA), re_arg(Y, YA), re_arg(Z, ZA), atomic_list_concat([XA, ' ', VP, ' ', YA, ' ', Prep, ' ', ZA], S).
 re_negative(G, S) :- format(atom(S), "not ~w", [G]).
+
+%% mother_of, plural_of: a relation a noun the reader met names
+re_of_noun(V, N) :- atom(V), atom_concat(N, '_of', V), N \== '', re_noun(N).
 
 %% `a king' for a class noun the reader met, `attacked' for anything else
 re_predicate(P, is, PA) :-
@@ -1314,6 +1314,7 @@ rt_tokens([C|Cs], [word(W, Case)|Ts]) :-
     rt_lowers([C|More], Ls),
     atom_codes(W, Ls),
     rt_tokens(Rest, Ts).
+rt_tokens([_|Cs], Ts) :- rt_tokens(Cs, Ts).
 
 %% a word is capitalised by its first letter: an ASCII capital, or one of
 %% U+00C0..U+00DE -- the bytes 195 and 128..158 in UTF-8, the
@@ -1322,7 +1323,6 @@ rt_word_case([C|_], upper) :- rt_upper(C), !.
 rt_word_case([195, B|_], upper) :- rt_upper2(B), !.
 rt_word_case([C|_], upper) :- rt_upper_cp(C), rt_chars, !.
 rt_word_case(_, lower).
-rt_tokens([_|Cs], Ts) :- rt_tokens(Cs, Ts).
 
 rt_stop(46). rt_stop(33). rt_stop(63).                          % . ! ?
 
@@ -1467,21 +1467,6 @@ rs_question(question(X, Goal)) -->
 rs_question(question(X, Goal)) -->
     [word(Wh, _)], { Wh == what ; Wh == whom }, rs_aux, rs_qsubject(S), rs_verb_place(V, X, Pl),
     { rs_claim(V, S, X, Pl, Goal) }.
-
-%% the verb and a place after it: `keep in Leeds' as it is written, or
-%% `keep_in Leeds' as the assembler writes it, taken apart again
-rs_verb_place(V, O, Pl) --> rs_verb_word_place(W, O, Pl), { rs_base(W, V) }.
-rs_verb_word_place(W, O, Pl) -->
-    rs_verb_word(W0),
-    (   rs_proper(Place), { rs_unjoin(W0, W, Prep) } -> { Pl = Prep-Place }
-    ;   { W = W0 }, rs_place_opt(O, Pl)
-    ).
-
-%% keep_in -> keep, in: a relation the assembler joined, taken apart when
-%% the object it asks for stood in front
-rs_unjoin(V0, V, Prep) :-
-    atomic_list_concat(Parts, '_', V0), append(Front, [Prep], Parts), Front \== [], rl_preposition(Prep), !,
-    atomic_list_concat(Front, '_', V).
 rs_question(question(X, Goal)) -->
     [word(where, _)], rs_aux, rs_qsubject(S), rs_verb(V), rs_object_opt(fact, O, Extra),
     { rs_claim(V, S, O, in-X, P), rs_goal(Extra, P, Goal) }.
@@ -1498,6 +1483,21 @@ rs_question(question(N, (P, reason_count(O, U, N)))) -->
     { rs_claim(V, S, O, Pl, P) }.
 rs_question(question(amount(N, Q))) -->
     rs_copula, rs_det(def), rs_noun(N), rs_quantity(Q).
+
+%% the verb and a place after it: `keep in Leeds' as it is written, or
+%% `keep_in Leeds' as the assembler writes it, taken apart again
+rs_verb_place(V, O, Pl) --> rs_verb_word_place(W, O, Pl), { rs_base(W, V) }.
+rs_verb_word_place(W, O, Pl) -->
+    rs_verb_word(W0),
+    (   rs_proper(Place), { rs_unjoin(W0, W, Prep) } -> { Pl = Prep-Place }
+    ;   { W = W0 }, rs_place_opt(O, Pl)
+    ).
+
+%% keep_in -> keep, in: a relation the assembler joined, taken apart when
+%% the object it asks for stood in front
+rs_unjoin(V0, V, Prep) :-
+    atomic_list_concat(Parts, '_', V0), append(Front, [Prep], Parts), Front \== [], rl_preposition(Prep), !,
+    atomic_list_concat(Front, '_', V).
 
 %% `The rent is [not] 500 euros': the one sentence with a definite subject,
 %% and the amount a definite object has -- what `how much' reads back
@@ -1807,14 +1807,14 @@ rl_closed(W) :- rl_question(W).
 rl_closed(W) :- rl_preposition(W).
 rl_closed(W) :- rl_conjunction(W).
 rl_pronoun(it).   rl_pronoun(he).   rl_pronoun(she).  rl_pronoun(they).
+rl_pronoun(we).   rl_pronoun(i).    rl_pronoun(you).  rl_pronoun(him).
+rl_pronoun(her).  rl_pronoun(them). rl_pronoun(us).   rl_pronoun(me).
+rl_pronoun(his).  rl_pronoun(its).  rl_pronoun(their). rl_pronoun(our).
 rl_subject_pronoun(she). rl_subject_pronoun(he). rl_subject_pronoun(they).   % the ones that stand for a subject; not `it'
 %% question words: closed, so that `Who' at the head of a sentence is never
 %% read as somebody's name
 rl_question(who).   rl_question(whom).  rl_question(what).  rl_question(which).
 rl_question(where). rl_question(when).  rl_question(why).   rl_question(how).
-rl_pronoun(we).   rl_pronoun(i).    rl_pronoun(you).  rl_pronoun(him).
-rl_pronoun(her).  rl_pronoun(them). rl_pronoun(us).   rl_pronoun(me).
-rl_pronoun(his).  rl_pronoun(its).  rl_pronoun(their). rl_pronoun(our).
 %% prepositions: closed, so a phrase after the object is LEFT OVER and the
 %% sentence fails. Without this the position rule -- the noun is the last
 %% word -- read `Alice owns a house in Rome' as a `rome' that is `house'
