@@ -12,11 +12,11 @@
 %  SWI-Prolog and cocolog, output compared byte for byte; each line is one
 %  of swipl 9.0.4's answers. Every library predicate a case calls is called
 %  once first (`warm'): swipl's first call of one it has not resolved yet
-%  makes no last call. Not here: a guarded last call into member/2,
-%  maplist/2 and the other library predicates swipl writes in Prolog,
-%  whose errors name swipl's own helpers (lists:member_/3); a $/1 whose
-%  goal holds $/0; and `\+ \+ ($, G)', which stops swipl 9.0.4 on an
-%  assertion.
+%  makes no last call. Not here: a guarded last call into a library
+%  predicate swipl writes in Prolog other than member/2, select/3, nth0/3,
+%  nth1/3 and maplist/2, whose errors would name swipl's own helpers; a
+%  $/1 whose goal holds $/0; and `\+ \+ ($, G)', which stops swipl 9.0.4
+%  on an assertion.
 
 :- use_module(library(lists)).   % cocolint: T1 -- swipl runs this file too, and the import is its portable form
 :- use_module(library(apply)).   % cocolint: T1 -- swipl runs this file too, and the import is its portable form
@@ -31,7 +31,8 @@ warm :-
     catch(true, _, true), once(true), ignore(true), forall(fail, true),
     findall(_, fail, _), setup_call_cleanup(true, true, true),
     aggregate_all(count, fail, _), not(fail), between(1, 1, _),
-    atom_length(a, _), succ_or_zero(1).
+    atom_length(a, _), succ_or_zero(1), member(_, [1]), select(_, [a], _),
+    nth0(_, [a], _), nth1(_, [a], _), maplist(q, [_]).
 
 succ_or_zero(_).
 
@@ -243,6 +244,25 @@ u37 :- q(X), (fail ; X > 1).
 t40(X) :- $, X = 1.
 t41(X, Y) :- $, f(X) = f(Y).
 
+%% ---- a last call into the list library (3.22.0): its last answer leaves
+%% no choice point, and its frames are named as swipl names them
+l1 :- $, member(_, [1, 2]).
+l2 :- $, member(_, [1]).
+l3 :- $, member(X, [1, 2]), X > 1.
+l4 :- $, select(_, [a, b], _).
+l5 :- $, select(_, [a], _).
+l6 :- $, nth0(_, [a, b], _).
+l7 :- $, nth0(_, [a], _).
+l8 :- $, nth1(_, [a, b], _).
+l9 :- $, nth1(_, [a], _).
+l10 :- $, between(1, 2, _).
+l11 :- $, between(1, 1, _).
+l12 :- $, maplist(p, [_, _]).
+l13 :- $(member(_, [1])).
+l14 :- $(between(1, 1, _)).
+l15 :- $(select(_, [a], _)).
+l16 :- $(nth1(_, [a], _)).
+
 %% ---- a recursion each turn of which is guarded -------------------------
 len([], 0).
 len([_|T], N) :- $, len(T, N0), N is N0 + 1.
@@ -255,7 +275,8 @@ runs([a1,a2,a3,a4,a5,a6,a7,a8,a9,b1,b2,b3,b4,b5,b6,b7,b8,b9,c1,c2,c3,c5,c7,c8,c9
       d1,d2,d3,d4,d5,d6,d7,d8,d9,e1,e2,e3,e4,e5,e6,e7,e8,e9,g5,g6,g7,k1,k2,k3,k5,k6,k7,
       m4,m5,m6,m7,m8,m9,n1,n2,n3,n5,h1,h2,h3,h4,h5,h6,h7,h8,h9,i1,i3,i4,i5,i6,i7,i8,i9,
       j1(a),j1(1),j2,j4,j6(1),j6(2),j7,w1,w2,w3,w4,w5,w6,w7,w8,w9,w10,x1,x2,x3,x4,x10,x6,x7,x9,
-      y1,y2,y3,y4,y5,y6,z1,z2,z3,z4,z5,z6,z7,z8,z9,o1,o2,o3,o4,o5,o6,o7,o8,o9,o10,o11,o12,o13,o14,o15,o16,o17,o18,t33,t34,t35,t36,t37,t40(2),t41(1,2),r1,r2]).
+      y1,y2,y3,y4,y5,y6,z1,z2,z3,z4,z5,z6,z7,z8,z9,o1,o2,o3,o4,o5,o6,o7,o8,o9,o10,o11,o12,o13,o14,o15,o16,o17,o18,t33,t34,t35,t36,t37,t40(2),t41(1,2),
+      l1,l2,l3,l4,l5,l6,l7,l8,l9,l10,l11,l12,l13,l14,l15,l16,r1,r2]).
 
 main :-
     warm,

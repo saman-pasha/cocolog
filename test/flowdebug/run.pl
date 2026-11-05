@@ -209,3 +209,12 @@ each_hook(G, [S|Ss]) :- call(G, S), each_hook(G, Ss).
 
 %% $/0 (cocolog 3.21.0): a cut, with no port of its own
 guarded(Y) :- $, inc(1, Y).
+
+%% a choice point at a box of the program's own (cocolog 3.22.0): member/2's
+%% answers are its helper's since then, a call of no box, so the redo and
+%% the fail the binding view shows at a call's box are mem/2's, written as
+%% member/2 was through 3.21
+mem(X, [X|_]).
+mem(X, [_|T]) :- mem(X, T).
+pick_mem(X) :- mem(X, [1,2,3]), X > 1.
+all_mem :- findall(Z, mem(Z, [1,2]), _).

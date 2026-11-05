@@ -627,7 +627,11 @@
           (if (!= (-> r jr) nil) (coco_jr_unwrap))
           (set ($ (cof m) rec) nil)
           (set (-> r root) nil)
-          ;; the question, over what the run left bound
+          ;; the question, over what the run left bound -- at a failure
+          ;; nothing (3.22.0): a run that failed past its last choice point
+          ;; undid nothing on the way, and a last answer that left none (a
+          ;; member/2 of swipl's) left its bindings for the question to see
+          (if (== out 0) (coco_undo_to m tmark))
           (if (!= (-> r ask) 0) (coco_window_ask e r (nth 1 hold) (aof hmark)))
           ;; every binding undone: a window is for watching
           (coco_undo_to m tmark)
@@ -1085,12 +1089,17 @@
           (return 0)))
 
   ;;; the predicate an owner word names, determinism_error/4's first
-  ;;; argument: Name/Arity, `'<meta-call>'/1' for a word with no owner
+  ;;; argument: Name/Arity, `'<meta-call>'/1' for a word with no owner, and
+  ;;; a library helper swipl names by its own name and module as swipl
+  ;;; names it (3.22.0, *frame-contexts*: lists:member_/3)
   (weak) (cold)
   (func coco_det_pi ((coco_machine * m) (size_t ow)) (out size_t)
-        (let ((size_t p . #'(cast size_t (coco-bar-pred ow))))
+        (let ((size_t p . #'(cast size_t (coco-bar-pred ow))) (size_t fc . 0))
           (if (or (== p 0) (> p (-> m functors_len)))
               (set p (+ (cast size_t (coco-fid m "<meta-call>" 1)) 1)))
+          (if (coco_frame_ctx m ($ (nth (- p 1) (-> m functors)) name)
+                              ($ (nth (- p 1) (-> m functors)) arity) (aof fc))
+              (return (coco_deref m (coco_arg m fc 0))))
           (return (coco_make2 m "/" (coco_new_atom_id m ($ (nth (- p 1) (-> m functors)) name))
                               (coco_new_int m (cast i64 ($ (nth (- p 1) (-> m functors)) arity)))))))
 

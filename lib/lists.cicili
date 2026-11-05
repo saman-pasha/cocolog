@@ -94,12 +94,20 @@
            "'$append2'([], [])."
            "'$append2'([L|Ls], As) :- append(L, Ws, As), '$append2'(Ls, Ws)."
 
-           "member(X, [X|_])."
-           "member(X, [_|T]) :- member(X, T)."
+           ;; member/2 and select/3 as swipl writes them (3.22.0): the rest of
+           ;; the list is the helper's FIRST argument, so the last element's
+           ;; call, keyed on `[]', has one candidate and leaves no choice
+           ;; point -- `$, member(X, [1])' is det, as swipl's. A determinism
+           ;; error names the helper as swipl does, lists:member_/3
+           ;; (*frame-contexts*)
+           "member(X, [H|T]) :- '$member_'(T, X, H)."
+           "'$member_'(_, X, X)."
+           "'$member_'([H|T], X, _) :- '$member_'(T, X, H)."
 
            ;; ---- select and its relatives ---------------------------------
-           "select(X, [X|T], T)."
-           "select(X, [H|T], [H|R]) :- select(X, T, R)."
+           "select(X, [H|T], R) :- '$select3_'(T, H, X, R)."
+           "'$select3_'(T, H, H, T)."
+           "'$select3_'([H2|T], H, X, [H|R]) :- '$select3_'(T, H2, X, R)."
            "select(X, [X|T], Y, [Y|T])."
            "select(X, [H|T], Y, [H|R]) :- select(X, T, Y, R)."
            "selectchk(X, L, R) :- select(X, L, R), !."
@@ -126,11 +134,14 @@
            ;; ---- position -------------------------------------------------
            ;; nth0/3 and nth1/3 are determinate when the index is bound --
            ;; the C half, in one step -- and enumerate when it is not: the
-           ;; C half declines that call to these clauses (1.12.2).
-           "nth0(N, L, E) :- '$nth_gen'(L, 0, N, E)."
-           "nth1(N, L, E) :- '$nth_gen'(L, 1, N, E)."
-           "'$nth_gen'([H|_], B, B, H)."
-           "'$nth_gen'([_|T], B, N, E) :- C is B + 1, '$nth_gen'(T, C, N, E)."
+           ;; C half declines that call to these clauses (1.12.2), swipl's
+           ;; (3.22.0): the rest of the list first, so the last element's
+           ;; answer leaves no choice point, and a determinism error names
+           ;; lists:nth_gen/5
+           "nth0(N, L, E) :- L = [H|T], '$nth_gen'(T, E, H, 0, N)."
+           "nth1(N, L, E) :- L = [H|T], '$nth_gen'(T, E, H, 1, N)."
+           "'$nth_gen'(_, E, E, B, B)."
+           "'$nth_gen'([H|T], E, _, N, B) :- M is N + 1, '$nth_gen'(T, E, H, M, B)."
            "nth0(N, L, E, R) :- integer(N), !, N >= 0, '$nth_sel'(L, 0, N, E, R)."
            "nth0(N, L, E, R) :- '$nth_sel'(L, 0, N, E, R)."
            "nth1(N, L, E, R) :- integer(N), !, N >= 1, '$nth_sel'(L, 1, N, E, R)."
@@ -146,7 +157,7 @@
            ;; then `[_, X]', and for `[a|T]' T = [], then T = [X]. Nothing
            ;; is checked here: the C half asked once, and the helper the
            ;; recursion comes back to tests nothing, so each answer after
-           ;; the first is one step (between/3's `'$between_up'/3').
+           ;; the first is one step (as between/3's helper's are).
            ;; Through 3.0.0 last/2 was the C half's alone, and a partial
            ;; list failed
            "last([X|Xs], L) :- '$last_gen'(Xs, X, L)."

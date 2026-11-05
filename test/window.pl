@@ -177,8 +177,8 @@ printed :-
     recorded_ports(w_look(z, _), R2),
     printed_ports(F, w_look(z, _), P2),
     check('a call that exited and is backtracked past with no clause left goes quietly in both',
-          R2-P2, P2-[ call-0-w_look, call-1-w_pairs, exit-1-w_pairs, call-1-member, call-2-member,
-                      call-3-member, fail-3-member, fail-2-member, fail-1-member, fail-0-w_look ]),
+          R2-P2, P2-[ call-0-w_look, call-1-w_pairs, exit-1-w_pairs, call-1-member, call-2-'$member_',
+                      call-3-'$member_', fail-3-'$member_', fail-2-'$member_', fail-1-member, fail-0-w_look ]),
     shl(['rm -rf ', D]).
 
 %% Port-Depth-Name, each depth from the first port's
@@ -357,11 +357,13 @@ window :-
     section('answers, exceptions and texts'),
     '$trace_window'(w_pick(_), [from(1), answers(2)], Es7, End7),
     check('answers(2): the run goes on to the second answer, and says where each came',
-          End7, end(answer, 9, [6, 9])),
+          End7, end(answer, 10, [7, 10])),
     maplist(win_key, Es7, Ks7),
     win_kinds(Ks7, redo, Redo7),
-    check('the Redo of member/2 after 1 > 1 fails, and after the first answer',
-          Redo7, [redo(3, member, ['_', '[1,2,3]']), redo(6, member, ['_', '[2,3]'])]),
+    %% member/2's answers are '$member_'/3's since 3.22.0, the list's rest
+    %% its first argument, as swipl's lists:member_/3
+    check('the Redo of member/2''s helper after 1 > 1 fails, and after the first answer',
+          Redo7, [redo(4, '$member_', ['[2,3]', '_', '1']), redo(7, '$member_', ['[3]', '_', '2'])]),
     '$trace_window'(w_safe(_), [from(1)], Es8, End8),
     maplist(win_key, Es8, Ks8),
     win_kinds(Ks8, throw, Th8), win_kinds(Ks8, catch, Ca8),
@@ -661,8 +663,8 @@ retried :-
             NDs3),
     msort(NDs3, [N3-D3|_]),
     ( N3 * 100 < D3 -> R3 = apart ; R3 = N3-D3 ),
-    check('a retry pending as findall/3''s search ends ends there: between/3''s 20 000 and w_pm/2''s last, a hundredth of findall''s time at most (the least of three runs)',
-          NR3-Pm3-R3, 20001-[2]-apart),
+    check('a retry pending as findall/3''s search ends ends there: between/3''s 19 999 (its last answer leaves no choice point) and w_pm/2''s last, a hundredth of findall''s time at most (the least of three runs)',
+          NR3-Pm3-R3, 20000-[2]-apart),
     %% ... and one pending when the run fails ends with the run
     w_retries(w_rte, [time(1, 0)], E4, Rs4, _),
     check('a retry pending when the run fails ends with it',
@@ -755,17 +757,18 @@ run_timed :-
           E1-Rd1-N1-Ks1-Sum1, end(answer, 9, [9])-6-512-[none-1-0, !/0-1-0, w_cnt/1-4-0]-adds_up),
     w_rt_rows(w_fa(_), E2, _, Ks2, Sum2),
     check('into findall/3''s engine and out: every inner step its goal''s, the first too, and each answer handed back a step of none',
-          E2-Ks2-Sum2, end(answer, 10, [10])-[none-4-0, findall/3-1-0, member/2-4-retried, w_fa/1-1-0]-adds_up),
+          E2-Ks2-Sum2, end(answer, 10, [10])-[none-4-0, '$member_'/3-3-retried, findall/3-1-0, member/2-1-0, w_fa/1-1-0]-adds_up),
     %% 20 000 answers copied into the store and the list built of them at
     %% the end are findall/3's own, after the inner engine's last step: some
     %% 2 ms, where the 20 001 answers handed back are some 0.8
     w_rt_rows(w_big(_), _, R3, Ks3, Sum3),
     w_rt_ns(R3, findall/3, F3), w_rt_ns(R3, none, A3),
     ( F3 > A3 -> C3 = own ; C3 = F3-A3 ),
-    %% between/3's answers are '$between_up'/3's since 3.0.0, which checks
-    %% nothing: between/3 checks once, and its one step goes on there
-    ( memberchk('$between_up'/3-S3-T3, Ks3) -> true ; S3 = 0, T3 = 0 ),
-    check('findall/3''s copies are its own, not the answers'': its time over none''s, between/3''s 20 000 steps retried in ''$between_up''/3',
+    %% between/3's answers are a helper's since 3.0.0, which checks
+    %% nothing: between/3 checks once, and its one step goes on there --
+    %% '$between_n'/3 since 3.22.0, which counts the answers down
+    ( memberchk('$between_n'/3-S3-T3, Ks3) -> true ; S3 = 0, T3 = 0 ),
+    check('findall/3''s copies are its own, not the answers'': its time over none''s, between/3''s 20 000 steps retried in ''$between_n''/3',
           C3-S3-T3-Sum3, own-20000-retried-adds_up),
     %% THE BEST OF FIVE PROBES: findall/3's copies are some 0.85 ms and
     %% member/2's three steps some 1.5 us, so one interruption of those

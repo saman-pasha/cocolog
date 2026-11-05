@@ -11746,3 +11746,116 @@ tools/flow/zero.sh against 3.20.0 (work less padding): nrev 66 103 059 to
 true` counts 33 291 186 instructions on 3.20.0 and 33 338 459 on 3.21.0,
 both binaries in the checkout (a copy elsewhere finds no `library/` beside
 it, preloads nothing, and counts 12.9 million).
+
+## member/2, select/3, nth0/3, nth1/3 and between/3 leave no choice point on their last answer (3.22.0)
+
+As swipl's: `$, member(X, [1])` is deterministic, and so is the last answer
+of each of the five, where through 3.21 each left a choice point there --
+which `$/1` (3.20.0) and `$/0` (3.21.0) showed as
+`determinism_error(member/2, det, nondet, guard_in_caller)` and swipl does
+not.
+
+THE FOUR LIST PREDICATES ARE SWIPL'S CLAUSES (lib/lists.cicili):
+`member(X, [H|T]) :- '$member_'(T, X, H).`, select/3 over `'$select3_'/4`,
+and nth0/3 and nth1/3 with the index unbound over `'$nth_gen'/5` (`L =
+[H|T]` first, as swipl's). The rest of the list is the helper's FIRST
+argument, so the call for the last element is keyed on `[]` and has one
+candidate. A determinism error names each helper as swipl names it:
+`*frame-contexts*` (lib/solve.cicili) takes a fourth field, swipl's own
+name, and `coco_det_pi` asks it -- `lists:member_/3`, `lists:select3_/4`,
+`lists:nth_gen/5`.
+
+BETWEEN/3 COUNTS ITS ANSWERS DOWN (lib/builtins.cicili). Its C half,
+`'$between'/4`, checks the three arguments as before and now decides a
+bound X itself (`L =< X =< H`), so `between(1, 3, 2)` is one step of C
+after the guard where it was three; for an unbound X it fails on an empty
+range and else hands `'$between_n'/3` N, the count of the answers after the
+first. The answer at 0 is the first clause's, keyed on 0, which cuts; any
+other count passes the first three clauses by the index, answers in the
+fourth and goes on in the fifth (two guards and a call an answer, where
+3.0.0's took three guards and a call, and a failing retry after the last).
+`inf` and `infinite` are N `inf`, an upper bound of none
+(`'$between_inf'/2`). A range whose count passes 64 bits (L < 0 =< H, H - L
+past the largest integer, `coco_sub_ovf`) is N `A+B`, the counts of L..-1
+and 0..H, each of which fits, enumerated one after the other.
+
+WITH THEM, sub_atom/5, atom_concat/3 in mode (-,-,+), clause/2 and
+string_code/3 leave no choice point on their last answers either, as
+swipl's: each enumerates through between/3. What still leaves one where
+swipl's does not (COMPAT.md): maplist/2..5, include/3, exclude/3 and
+partition/4,6, which write the goal first and the list after it, so every
+element leaves one; and current_op/3.
+
+A WINDOW'S QUESTION AT A FAILURE SEES NOTHING BOUND
+(`coco_engine_window`, lib/solve-loop.cicili). `'$trace_window'/4`'s
+`ask(Cond, Holds)` is asked over the bindings the run left, and a run that
+failed past its last choice point undid nothing on the way: test/window.pl's
+`w_pick(X)` (`member(X, [1,2,3]), X > 1`) left X = 3 for the question once
+member/2's last answer left no choice point to undo it. The run is undone
+to its start before the question at a failure (`out` 0).
+
+THE TRACER AND THE DEBUGGER show the helpers' calls, as they showed
+`'$between_up'/3`'s and `'$nth_gen'/4`'s: a retry inside member/2 is
+`Redo: '$member_'(...)`, as swipl prints a helper of the program's own --
+swipl's tracer hides its library's helpers and prints the Redo at the
+visible call (COMPAT.md). In library(flow/debug) a helper's calls have no
+box, so the binding view shows no Redo at member/2's box; test/flowdebug.pl
+holds a Redo and a Fail at a box with the program's own `mem/2` now
+(test/flowdebug/run.pl, two checks).
+
+THE CASES. test/files/det_guard.pl: 180 lines, swipl 9.0.4's byte for byte
+(sixteen more, l1..l16, the five's last answers and the helpers' names);
+test/files/between.pl, new: 48 lines, between/3's answers, its errors, the
+bounds of 64 bits, `inf`, a bound X and which answers leave no choice
+point. Moved with the helpers: test/window.pl (the recorder's and the
+printer's ports, a Redo of `'$member_'/3`, the answers one inference later,
+the clock's keys, 19 999 retries of between/3's where there were 20 000),
+test/engine.pl (three pinned counts, 1105 to 1075, 1162 to 1122 and 834 to
+804: between/3's answers one guard cheaper each, and no retry after the
+last) and test/flowdebug.pl (thirteen checks: member/2's calls exit where
+they failed, and its helper's are `'$member_'/3`).
+
+THE ARMS, a build each, the rule taken out, each red: member/2's,
+select/3's and nth0/3's and nth1/3's old clauses back (det_guard.pl, 6, 6
+and 10 lines); `coco_det_pi`'s ask of `*frame-contexts*` (det_guard.pl, 8:
+the error names `'$member_'/3`, though the context the row gives still
+names `lists:member_/3`); and between/3's seven (between.pl) -- the cut at
+0 (and det_guard.pl, 4), `inf`'s clause (6), `A+B`'s clause (6), the
+overflow's test in the C half (8: the count wrapped, and `-1..max` raises
+int_overflow at its second answer), the bound X's range in the C half (10),
+the bound X's clause and the empty range's failure; without the cut at 0,
+the clause for a bound X or the empty range's failure, the enumeration runs
+on past its last answer. And the window's undo at a failure: test/window.pl's `at a
+failure, what the failure left: nothing bound`.
+
+THE COST, callgrind over `cocolog run`, the same program's run with no
+work taken away, 3.21.1 to 3.22.0, instructions:
+- between/3, an answer of 200 000: 553 135 418 to 534 959 203 (-3.3 %); a
+  range of two, entered, enumerated and passed, 50 000 times: -7.4 %; a
+  bound X: -23.4 %; once/1 of one: -0.1 %; clause/2 of 20 facts: -1.9 %.
+- member/2, an answer of 200 000: -0.4 %; select/3: -0.5 %; nth0/3 and
+  nth1/3: +0.77 % (22 instructions an answer, the helper's fifth argument).
+- a SHORT call is where member/2 and select/3 pay: they are a call deeper,
+  one inference more at their entry, as swipl's. `( member(a, [a,b,c]) ->
+  true ; true )`, answered at the first element and cut: +442 instructions
+  a turn (+20.8 % of the loop's turn); at the third and last, +152
+  (+3.3 %); `select(b, [a,b,c], _)` cut: +563 (+15.4 %); `nth1(I, [a,b,c],
+  c)`: -479 (-6.6 %).
+- tools/flow/zero.sh, work less padding: nrev 66 334 230 to 66 333 912,
+  queens 43 342 109 to 40 342 889 (-6.92 %: its select/3 leaves no choice
+  point after the last of each list), lookup 48 129 715 to 48 128 803.
+
+THE COUNTS MOVE, the translator's among them: a member/2 or select/3 that
+answers is an inference more, a last answer an inference less, and each
+answer of between/3 one fewer. Four sections of test/translate.pl, their
+inferences on 3.21.1 and 3.22.0, the same library: newspaper_bank 2 680 862
+to 2 684 590 (+0.14 %), newspaper_corsica 4 179 243 to 4 170 669
+(-0.21 %), question_roles 664 264 to 664 550 (+0.04 %), newspaper_rognoni
+3 186 706 to 3 189 149 (+0.08 %); every text the same (the case is green).
+
+Narrow cases green: files, window, trace, engine, flowdebug, flowchart,
+backtrace, journal, gc, errors, directives, static, script, reconsult,
+library, cyclic, meter, string, units, rationals, async, thread, cowork,
+serialize, template, hex, astar, argv, reason, normalise, translate,
+process, text, os, signal, stream and lint, the test binaries term,
+syntax, solve, module and state, and lesson 51.

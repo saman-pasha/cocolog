@@ -1379,9 +1379,27 @@ cocolint index offers no import of it.
   3.20.0: nrev +0.35 %, queens +0.72 %, lookup +0.58 %). **A local whose
   address the loop takes lives on the stack**: `coco_det_pcall` hands its
   continuation back rather than taking `&k`, which cost nrev a store an
-  inference. test/files/det_guard.pl holds 164 lines to swipl 9.0.4,
+  inference. test/files/det_guard.pl holds 180 lines to swipl 9.0.4,
   test/engine.pl's `det_guard_runs` the trace, the collector, KMAT and a
   freeze; COMPAT.md has what is not swipl's.
+* **member/2, select/3, nth0/3, nth1/3 and between/3 leave no choice point
+  on their last answer** (3.22.0, swipl's): the first four are swipl's
+  clauses, the rest of the list the helper's FIRST argument (`'$member_'/3`,
+  `'$select3_'/4`, `'$nth_gen'/5`), so the last element's call, keyed on
+  `[]`, has one candidate; between/3's C half decides a bound X itself and
+  hands an unbound one the count of the answers after the first, which
+  `'$between_n'/3` counts down to a clause keyed on 0 that cuts (`inf` for
+  no upper bound, `A+B` for a range whose count passes 64 bits). A
+  determinism error names each helper by swipl's own name and module: a
+  row of `*frame-contexts*` takes a fourth field, swipl's name
+  (`lists:member_/3`), which `coco_det_pi` asks. sub_atom/5,
+  atom_concat/3, clause/2 and string_code/3 are deterministic on their
+  last answers with them. **A library predicate that would leave a choice
+  point on its last element wants its list first in a helper** --
+  maplist/2..5, include/3, exclude/3 and partition/4,6 still write the
+  goal first and leave one on every element (COMPAT.md). member/2 and
+  select/3 are a call deeper for it: one inference more at their entry, as
+  swipl's.
 * **A cut runs the cleanups of the frames it takes** (3.1.0,
   setup_call_cleanup/3): a setup_call_cleanup/3 frame is a goal frame,
   `'$scc_fail'/2`, and each of the four cuts -- the goal `!`, `$cut`, an
@@ -1397,9 +1415,9 @@ cocolint index offers no import of it.
   answer paid a failing C call and a backtrack where 2.16's integer(X)
   guard had failed inside the clause's entry: 1.6 times the time,
   found by test/window.pl's retry counts. Check once at the entry and
-  recurse through a helper that checks nothing (`'$between_up'/3`), or
-  let the C half fail where a guard would (numlist/3 is one clause over
-  `'$numlist'/3`).
+  recurse through a helper that checks nothing (`'$between_n'/3`, through
+  3.21 `'$between_up'/3`), or let the C half fail where a guard would
+  (numlist/3 is one clause over `'$numlist'/3`).
 * **The backtrace is written by the throw, before anything unwinds**
   (1.10.17, `coco_bt_capture` beside `coco_throw`), and only for a ball no
   catch on the chain of engines would take as things stand
@@ -2656,7 +2674,9 @@ cocolint index offers no import of it.
 * **A window asks where it stopped** (1.10.16, D4): `'$trace_window'/4`'s
   `ask(Cond, Holds)` proves Cond in an engine of its own (ten million
   inferences, no collection) between the run's end and the undo, over the
-  bindings the run left; Cond's cell is a root beside the goal's
+  bindings the run left -- at a failure none (3.22.0: the run is undone
+  first, as a run that failed past its last choice point undid nothing on
+  the way); Cond's cell is a root beside the goal's
   (`hold[1]`), because a collection on the way to the window moves it.
   `flow_when/4` bisects over runs stopped at `to(I)` and asked -- each a
   child process replaying the probe's journal -- and `flow_why/2`

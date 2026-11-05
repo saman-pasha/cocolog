@@ -391,19 +391,32 @@
 
            ;; ---- between/3, which enumerates and so must be clauses --------
            ;; '$between'/4 checks the three as swipl's between/3 does, ONCE A
-           ;; CALL (3.0.0): L an integer, H one or `inf' or `infinite' (H1
-           ;; the bound, `inf' for both), X an integer or unbound. The
-           ;; integer(X) guard stays first, so an unbound X goes on at the
-           ;; guard's cost, and the answers come from '$between_up'/3, which
-           ;; checks nothing. With the check in the clause the recursion came
-           ;; back to, every answer paid a failing C call and a backtrack
-           ;; where the guard had failed in the clause's entry, and
+           ;; CALL (3.0.0): L an integer, H one or `inf' or `infinite', X an
+           ;; integer or unbound. The integer(X) guard stays first, so an
+           ;; unbound X goes on at the guard's cost, and the answers come
+           ;; from a helper that checks nothing ('$between_up'/3 through
+           ;; 3.21, '$between_n'/3 since). With the check in the clause the
+           ;; recursion came back to, every answer paid a failing C call and a
+           ;; backtrack where the guard had failed in the clause's entry, and
            ;; `forall(between(1, 3000000, _), true)' took 1.6 times 2.16.1's
-           ;; time.
-           "between(L, H, X) :- integer(X), !, '$between'(L, H, X, H1), X >= L, X =< H1."
-           "between(L, H, X) :- '$between'(L, H, X, H1), '$between_up'(L, H1, X)."
-           "'$between_up'(L, H, L) :- L =< H."
-           "'$between_up'(L, H, X) :- L < H, M is L + 1, '$between_up'(M, H, X)."
+           ;; time. THE LAST ANSWER LEAVES NO CHOICE POINT (3.22.0), as
+           ;; swipl's C between/3's: '$between'/4 decides a bound X itself and
+           ;; hands an unbound one N, the count of the answers after the
+           ;; first, which '$between_n'/3 counts down. The answer at 0 is the
+           ;; first clause's, keyed on 0, which cuts (`$, between(1, 1, X)' is
+           ;; det); any other count passes the first three clauses by the
+           ;; index, answers in the fourth and goes on in the fifth. `inf' is
+           ;; an upper bound of none, and A+B a range whose count passes 64
+           ;; bits (L < 0 =< H), counted as its two halves.
+           "between(L, H, X) :- integer(X), !, '$between'(L, H, X, _)."
+           "between(L, H, X) :- '$between'(L, H, X, N), '$between_n'(N, L, X)."
+           "'$between_n'(0, L, L) :- !."
+           "'$between_n'(inf, L, X) :- !, '$between_inf'(L, X)."
+           "'$between_n'(A+B, L, X) :- !, ( '$between_n'(A, L, X) ; '$between_n'(B, 0, X) )."
+           "'$between_n'(_, L, L)."
+           "'$between_n'(N, L, X) :- N1 is N - 1, M is L + 1, '$between_n'(N1, M, X)."
+           "'$between_inf'(L, L)."
+           "'$between_inf'(L, X) :- M is L + 1, '$between_inf'(M, X)."
 
            ;; ---- clause/2, over the primitive that answers by position -----
            ;; The count is taken once and the position enumerated, so a clause
@@ -1617,28 +1630,41 @@
 
   ;;; ---- arithmetic in the small ----------------------------------------
 
-  ;;; '$between'(L, H, X, H1), the C half of between/3 (3.0.0), swipl's
+  ;;; '$between'(L, H, X, N), the C half of between/3 (3.0.0), swipl's
   ;;; checks in its order: L an integer, H an integer or `inf' or
   ;;; `infinite', each unbound instantiation_error and else
-  ;;; type_error(integer, T); then X an integer or unbound -- it succeeds,
-  ;;; H1 the bound, `inf' for either infinity, which `=<' evaluates -- or
-  ;;; else type_error(integer, X). Through 2.16 an integer(X) guard alone
-  ;;; stood before the answers: a bound X that was no integer failed, L and
-  ;;; H were compared as any numbers, and between(1, inf, a) ran for ever.
+  ;;; type_error(integer, T); then X an integer or unbound, or else
+  ;;; type_error(integer, X). Through 2.16 an integer(X) guard alone stood
+  ;;; before the answers: a bound X that was no integer failed, L and H
+  ;;; were compared as any numbers, and between(1, inf, a) ran for ever.
+  ;;; A BOUND X IS ANSWERED HERE (3.22.0): it succeeds when L =< X =< H.
+  ;;; For an unbound one it fails where H < L and else hands
+  ;;; '$between_n'/3 N, the count of the answers after the first: H - L,
+  ;;; `inf' for either infinity, and `A+B' where H - L passes 64 bits (L <
+  ;;; 0 =< H), the two halves' counts, L..-1 and 0..H, each of which fits.
   (func coco_b_between ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t l . #'(coco_m_arg e g 0)) (size_t h . #'(coco_m_arg e g 1))
-              (size_t x . #'(coco_m_arg e g 2)) (i64 v . 0) (const char * hn . nil))
+              (size_t x . #'(coco_m_arg e g 2)) (i64 lv . 0) (i64 hv . 0) (i64 xv . 0)
+              (i64 d . 0) (int inf . 0) (const char * hn . nil))
           (if (coco_m_is_var e l) (return (coco_m_instantiation_error e)))
-          (if (not (coco_m_int e l (aof v))) (return (coco_m_type_error e "integer" l)))
+          (if (not (coco_m_int e l (aof lv))) (return (coco_m_type_error e "integer" l)))
           (if (coco_m_is_var e h) (return (coco_m_instantiation_error e)))
           (set hn (coco_m_atom e h))
           (if (and (!= hn nil) (or (== 0 (strcmp hn "inf")) (== 0 (strcmp hn "infinite"))))
-              (set h (coco_new_atom m "inf"))
-              (if (not (coco_m_int e h (aof v))) (return (coco_m_type_error e "integer" h))))
-          (if (and (not (coco_m_is_var e x)) (not (coco_m_int e x (aof v))))
-              (return (coco_m_type_error e "integer" x)))
-          (return (coco_m_unify e (coco_m_arg e g 3) h))))
+              (set inf 1)
+              (if (not (coco_m_int e h (aof hv))) (return (coco_m_type_error e "integer" h))))
+          (if (not (coco_m_is_var e x))
+              (block
+               (if (not (coco_m_int e x (aof xv))) (return (coco_m_type_error e "integer" x)))
+               (if (and (>= xv lv) (or inf (<= xv hv))) (return 1))
+               (return 0)))
+          (if inf (return (coco_m_unify e (coco_m_arg e g 3) (coco_new_atom m "inf"))))
+          (if (> lv hv) (return 0))
+          (if (not (coco_sub_ovf hv lv (aof d)))
+              (return (coco_m_unify_int e (coco_m_arg e g 3) d)))
+          (return (coco_m_unify e (coco_m_arg e g 3)
+                                (coco_make2 m "+" (coco_new_int m (- -1 lv)) (coco_new_int m hv))))))
 
   ;;; `succ(?X, ?Y)' -- Y is X+1, either way round, over NATURAL numbers only,
   ;;; which is what makes `succ(X, 0)' fail rather than answer -1.
