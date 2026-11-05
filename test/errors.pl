@@ -70,6 +70,7 @@ main :-
     text_read_here,
     text_read_own,
     no_rule_said,
+    qualified_guard_said,
     checks_done.
 
 %% ---- where a text would not read, uncaught (3.10.0) -------------------------
@@ -935,4 +936,21 @@ no_rule_said :-
     shell(Cmd, Out, Rc),
     check('the program ends with the uncaught error', Rc, 2),
     has('the predicate, then the goal no rule matched', 'p/1: No rule matches p(b)', Out),
+    shl(['rm -rf ', D]).
+
+%% A RULE A MODULE QUALIFIES HAS NO GUARD (3.19.2, swipl's): `foo:(p, g =>
+%% b)' is a clause of `,'/2 and refused so, where through 3.19.1 the store
+%% peeled the qualifier and split the guard after all. swipl says a second
+%% line, where its boot file defines `,'/2, which test/files/ cannot hold.
+qualified_guard_said :-
+    section('a qualified single-sided rule''s guard is refused, a clause of '',''/2'),
+    scratch(D),
+    atom_concat(D, '/qguard.pl', F),
+    fixture(F, [ 'foo:(p, g => a).',
+                 'main :- ( catch(clause(p, _), _, fail) -> writeln(stored) ; writeln(none) ).' ]),
+    cocolog(C),
+    sh_join([C, ' --no-backtrace --local -s ', F, ' 2>&1'], Cmd),
+    shell(Cmd, Out, _),
+    has('the load says the permission error', 'No permission to modify static procedure `(\',\')/2\'', Out),
+    has('and stores nothing', none, Out),
     shl(['rm -rf ', D]).

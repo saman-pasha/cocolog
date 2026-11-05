@@ -1767,29 +1767,90 @@
             (snprintf what (sizeof what) "line %d, column %d: Syntax error: %s" eline ecol why))
           (coco_load_note "ERROR" nil 0 what)))
 
+  ;;; a term a qualifier may name: an atom, and not the list's end
+  (static)
+  (func coco_module_name ((coco_machine * m) (size_t q)) (out int)
+        (return (and (coco-tag-is ATOM (nth q (-> m heap))) (not (coco_is_nil m q)))))
+
   ;;; A BODY HOLDS ONLY GOALS (3.1.0, a load's, as assert's
   ;;; `coco_body_callable'): 1 when every goal of B's control spine -- under
   ;;; `,', `;', `->', `*->', `\+' and since 3.2.0 the bar -- is a callable
-  ;;; term or a variable (call/1 of it, as ISO has it), 0 when one is not.
-  ;;; IDS are those names' ids, `:-''s and the bar's, interned once a
-  ;;; consult; a body read from text is no cycle, and its depth is the
-  ;;; reader's.
+  ;;; term or a variable (call/1 of it, as ISO has it), 0 when one is not;
+  ;;; the list's end is none (3.19.2, swipl 7's: `p :- [].' went in).
+  ;;; IDS are those names' ids, `:-''s, the bar's, `:''s and `=>''s,
+  ;;; interned once a consult; a body read from text is no cycle, and its
+  ;;; depth is the reader's.
+  ;;;
+  ;;; A GOAL QUALIFIED BY A MODULE IS ITS GOAL (3.19.2, swipl's): under
+  ;;; `M:G' the walk goes on into G, and an M that is neither an atom nor a
+  ;;; variable is the fault -- 2, with M in MOD. Through 3.19.1 `M:G' was a
+  ;;; callable term and nothing more, and `p :- foo:3' went in.
   (static)
-  (func coco_consult_goals ((coco_machine * m) (size_t b) (const u64 * ids)) (out int)
+  (func coco_consult_goals ((coco_machine * m) (size_t b) (const u64 * ids) (size_t * mod)) (out int)
         (while 1
           (set b (coco_deref m b))
           (if (coco-tag-is REF (nth b (-> m heap))) (return 1))
-          (if (not (coco_is_callable m b)) (return 0))
+          (if (or (not (coco_is_callable m b)) (coco_is_nil m b)) (return 0))
           (let ((u64 nid . #'(coco_name_of m b)) (u32 n . #'(coco_arity m b)))
             (if (and (== n 1) (== nid (nth 4 ids)))
                 (block (set b (coco_arg m b 0)) continue))
+            (if (and (== n 2) (== nid (nth 7 ids)))
+                (let ((size_t q . #'(coco_deref m (coco_arg m b 0))))
+                  (if (not (or (coco-tag-is REF (nth q (-> m heap))) (coco_module_name m q)))
+                      (block (set (cof mod) q) (return 2)))
+                  (set b (coco_arg m b 1))
+                  continue))
             (if (not (and (== n 2) (or (or (== nid (nth 0 ids)) (== nid (nth 1 ids)))
                                          (or (== nid (nth 2 ids)) (== nid (nth 3 ids)))
                                          (== nid (nth 6 ids)))))
                 (return 1))
-            (if (not (coco_consult_goals m (coco_arg m b 0) ids)) (return 0))
+            (let ((int r . #'(coco_consult_goals m (coco_arg m b 0) ids mod)))
+              (if (!= r 1) (return r)))
             (set b (coco_arg m b 1))))
         (return 1))
+
+  ;;; THE QUALIFIERS ON TOP OF A HEAD OR A CLAUSE, taken off as swipl's
+  ;;; strip_module does (3.19.2): T is left on what they qualify; 0 when
+  ;;; that is all, 2 for a variable module, 4 for one that is no atom (in
+  ;;; OUT)
+  (static)
+  (func coco_consult_unqualify ((coco_machine * m) (size_t * t) (const u64 * ids) (size_t * out))
+        (out int)
+        (set (cof t) (coco_deref m (cof t)))
+        (while (and (coco_is_callable m (cof t))
+                    (and (== (coco_arity m (cof t)) 2) (== (coco_name_of m (cof t)) (nth 7 ids))))
+          (let ((size_t q . #'(coco_deref m (coco_arg m (cof t) 0))))
+            (if (coco-tag-is REF (nth q (-> m heap))) (return 2))
+            (if (not (coco_module_name m q)) (block (set (cof out) q) (return 4)))
+            (set (cof t) (coco_deref m (coco_arg m (cof t) 1)))))
+        (return 0))
+
+  ;;; A BODY'S REFUSAL, as swipl's compiler gives it (3.19.2): the
+  ;;; qualifiers on its top taken off, and the rest walked -- a goal that is
+  ;;; no goal names what was left (`foo:(a, 3)' names `a,3', `(a, foo:3)'
+  ;;; the whole), and a module that is no atom names itself, the walk's
+  ;;; first fault winning. Under a variable module on top, a body that will
+  ;;; not do is an instantiation error, its module's fault still its own.
+  ;;; 0, 1 (OUT the body), 2 or 4 (OUT the module), as
+  ;;; `coco_consult_refused' answers.
+  (static)
+  (func coco_consult_body_refused ((coco_machine * m) (size_t b) (const u64 * ids) (size_t * out))
+        (out int)
+        (let ((size_t q . 0) (int r . 0))
+          (set b (coco_deref m b))
+          (while (and (coco_is_callable m b)
+                      (and (== (coco_arity m b) 2) (== (coco_name_of m b) (nth 7 ids))))
+            (set q (coco_deref m (coco_arg m b 0)))
+            (if (coco-tag-is REF (nth q (-> m heap)))
+                (block
+                 (set r (coco_consult_goals m (coco_arg m b 1) ids out))
+                 (return (? (== r 1) 0 (? (== r 2) 4 2)))))
+            (if (not (coco_module_name m q)) (block (set (cof out) q) (return 4)))
+            (set b (coco_deref m (coco_arg m b 1))))
+          (set r (coco_consult_goals m b ids out))
+          (if (== r 1) (return 0))
+          (if (== r 0) (block (set (cof out) b) (return 1)))
+          (return 4)))
 
   ;;; WHAT A LOAD REFUSES OF A CLAUSE, as swipl's does (3.1.0): 1 with the
   ;;; term the report names in OUT -- the clause when it is no callable term
@@ -1798,20 +1859,50 @@
   ;;; where the clause or its head stands; 3 for `[].', which swipl passes
   ;;; over in silence; 0 for a clause that may go on. Through 3.0.4 the
   ;;; first ended the consult (`not a clause') and the body went in.
+  ;;;
+  ;;; THE QUALIFIERS AND A SINGLE-SIDED RULE ARE ASKED TOO (3.19.2, swipl's):
+  ;;; `foo:3.' names `3', `3:foo.' is type_error(module, 3), `M:foo.' an
+  ;;; instantiation error, the clause's qualifiers (`foo:(p :- 3)') and the
+  ;;; head's taken off as the body's are (`coco_consult_body_refused'); 4
+  ;;; is a module's fault, OUT the module. A single-sided rule's body is its
+  ;;; guard, a cut and its body, `x, 3 => true' naming `3,!,true', and
+  ;;; under a qualifier its head is not split, as swipl's: `foo:(p, g =>
+  ;;; b)' is a clause of `,'/2, 5 (the store, which peels the qualifier,
+  ;;; would have split it).
   (static)
   (func coco_consult_refused ((coco_machine * m) (size_t t) (const u64 * ids) (size_t * out))
         (out int)
-        (set t (coco_deref m t))
-        (if (coco-tag-is REF (nth t (-> m heap))) (return 2))
-        (if (coco_is_nil m t) (return 3))
-        (if (not (coco_is_callable m t)) (block (set (cof out) t) (return 1)))
-        (if (and (== (coco_arity m t) 2) (== (coco_name_of m t) (nth 5 ids)))
-            (let ((size_t h . #'(coco_deref m (coco_arg m t 0))))
-              (if (coco-tag-is REF (nth h (-> m heap))) (return 2))
-              (if (not (coco_is_callable m h)) (block (set (cof out) h) (return 1)))
-              (if (not (coco_consult_goals m (coco_arg m t 1) ids))
-                  (block (set (cof out) (coco_deref m (coco_arg m t 1))) (return 1)))))
-        (return 0))
+        (let ((int r . 0) (int qual . 0) (int hasb . 0) (size_t h . 0) (size_t b . 0))
+          (set t (coco_deref m t))
+          (if (coco-tag-is REF (nth t (-> m heap))) (return 2))
+          (if (coco_is_nil m t) (return 3))
+          (set h t)
+          (set r (coco_consult_unqualify m (aof t) ids out))
+          (if (!= r 0) (return r))
+          (if (!= t h) (set qual 1))
+          (if (coco-tag-is REF (nth t (-> m heap))) (return 2))
+          (if (not (coco_is_callable m t)) (block (set (cof out) t) (return 1)))
+          (if (and (== (coco_arity m t) 2)
+                   (or (== (coco_name_of m t) (nth 5 ids)) (== (coco_name_of m t) (nth 8 ids))))
+              (block
+               (set h (coco_deref m (coco_arg m t 0)))
+               (set b (coco_arg m t 1)) (set hasb 1)
+               (if (and (== (coco_name_of m t) (nth 8 ids))
+                        (and (coco_is_callable m h)
+                             (and (== (coco_arity m h) 2) (== (coco_name_of m h) (nth 0 ids)))))
+                   (block
+                    ;; a qualified rule's guard is no guard: a clause of `,'/2
+                    (if qual (return 5))
+                    (set b (coco_make2 m "," (coco_arg m h 1)
+                                       (coco_make2 m "," (coco_new_atom m "!") b)))
+                    (set h (coco_deref m (coco_arg m h 0))))))
+            (set h t))
+          (set r (coco_consult_unqualify m (aof h) ids out))
+          (if (!= r 0) (return r))
+          (if (coco-tag-is REF (nth h (-> m heap))) (return 2))
+          (if (not (coco_is_callable m h)) (block (set (cof out) h) (return 1)))
+          (if hasb (return (coco_consult_body_refused m b ids out)))
+          (return 0)))
 
   ;;; swipl's sentence for a refused clause: `Type error: `callable'
   ;;; expected, found `3' (an integer)', the culprit written as print/1
@@ -2330,9 +2421,9 @@
               ;; and the line each frame's `:- if' stands on, which an if
               ;; left open at the end names (3.1.0)
               (int cline [16])
-              ;; the control names a body is walked by and `:-', interned
-              ;; once (`coco_consult_refused')
-              (u64 cids [7])
+              ;; the control names a body is walked by, `:-', `:' and `=>',
+              ;; interned once (`coco_consult_refused')
+              (u64 cids [9])
               ;; WHERE THE CLAUSE IN HAND BEGINS, counted forward and never
               ;; back: `scanned' is how far the newline count has read and
               ;; `line' the answer at that point, so the whole file is walked
@@ -2381,6 +2472,8 @@
           (set (nth 4 cids) (coco_intern m "\\+"))
           (set (nth 5 cids) (coco_intern m ":-"))
           (set (nth 6 cids) (coco_intern m "|"))
+          (set (nth 7 cids) (coco_intern m ":"))
+          (set (nth 8 cids) (coco_intern m "=>"))
           (set te_id (coco_intern m "term_expansion"))
           (set ge_id (coco_intern m "goal_expansion"))
           (set eof_id (coco_intern m "end_of_file"))
@@ -2803,6 +2896,13 @@
                               (coco_load_message "ERROR" origin at
                                                  "Arguments are not sufficiently instantiated"))
                              ((== refused 3) (set culprit 0))
+                             ((== refused 4)
+                              (coco_consult_type_text m "module" culprit err errlen)
+                              (coco_load_message "ERROR" origin at err)
+                              (set (nth 0 err) (cast char 0)))
+                             ((== refused 5)
+                              (coco_load_message "ERROR" origin at
+                                                 "No permission to modify static procedure `(',')/2'"))
                              ((not (coco_assert_from st m t 1 oid origin at seen))
                               (if (!= (nth 0 (-> st assert_err)) (cast char 0))
                                   (block (snprintf err errlen "%s" (-> st assert_err))

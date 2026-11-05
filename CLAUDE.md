@@ -1491,7 +1491,10 @@ cocolint index offers no import of it.
   clause's first byte as swipl's raw read walks it (`coco_reader_resync`,
   the reader's `cstart`, over `coco_raw_walk` since 3.10.0). So are an endif, else or elif with no if open,
   an if the file never closes (named at its end), and a term that is no
-  clause -- `3.`, `foo :- 3.`, `bar :- (a, 1).` in swipl's words;
+  clause -- `3.`, `foo :- 3.`, `bar :- (a, 1).`, since 3.19.2 `p :- foo:3.`
+  and `3:foo.` (the qualifiers taken off, a goal under `M:` walked: one
+  set of rules on two walks, `coco_consult_refused` and assert's
+  `coco_clause_check`: a new rule goes into both) -- in swipl's words;
   `[].` passes in silence, and a variable is reported where swipl's load
   aborts (COMPAT.md). A `use_module`/`ensure_loaded` that
   loads nothing is reported the same way (since 1.8.39: SWI's ERROR

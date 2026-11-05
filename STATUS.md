@@ -11196,8 +11196,8 @@ NOT SWIPL'S, and stated: an anonymous variable in a test is written `_G3`
 where swipl's is `_1454`, and the block is the clause read's, not an
 expansion's. A clause whose body holds `foo:3` inside a disjunction is
 stored, where swipl refuses it as no callable term (`coco_consult_refused`
-does not look under `:`), so its block is said: found by these probes, not
-fixed here.
+does not look under `:`), so its block is said: found by these probes, and
+refused since 3.19.2 (below).
 
 CHECK: test/files/warnings_branch.pl (new; 225 lines, with swipl 9.0.4)
 -- all 93 test/files cases agree. Thirty arms, one a rule, each red in
@@ -11211,3 +11211,55 @@ one with itself, `\==`'s words, the value it gives and the meeting it
 counts; the guard; the block said at the store and not for an expansion's
 clause. The directive's early return is a guard of cost: a directive's
 block would never be said, as the store says it.
+
+## What a load and an assert refuse of a qualified clause, as swipl's (3.19.2)
+
+A goal under `M:G` is G to the check a body is asked: `p :- foo:3` is
+refused, where through 3.19.1 `M:G` was a callable term and nothing more
+and the clause went in, and `assertz((p :- foo:3))` succeeded. swipl
+9.0.4's rules, probed clause by clause: the qualifiers on top of a body
+are taken off and the rest walked, so `p :- foo:(a, 3)` names `a,3` and
+`p :- a, foo:3` the whole body; a module that is neither an atom nor a
+variable is type_error(module, M), the walk's first fault winning (`3,
+4:foo` names the body, `4:foo, 3` module 4); a variable module on top of
+a body that will not do is an instantiation error, a module's fault
+under it still its own, and inside a body the body's fault (`a, M:3`
+names `a,_:3`). The qualifiers of a whole clause and of a head come off
+too: `foo:3.` is type_error(callable, 3), `3:foo.` type_error(module, 3),
+`M:foo.` an instantiation error, `foo:(p :- 3)` names `3`. A
+single-sided rule's guard, a cut and its body are one body, `x, 3 => true`
+naming `3,!,true` (through 3.19.1 the load asked a `=>` clause nothing),
+and a rule a module qualifies has no guard, swipl's: `foo:(p, g => b)` is
+a clause of `,/2` and refused, where the store peeled the qualifier and
+split the guard after all. The list's end is no goal (`p :- []`, swipl
+7's). At an assert `assertz(foo:7)` is type_error(callable, 7), where it
+failed, and a cycle of qualifiers on a clause or a head
+type_error(acyclic_term, X), on a body representation_error(cyclic_term),
+as swipl's. lib/kb-consult.cicili (`coco_consult_refused`,
+`coco_consult_body_refused`, `coco_consult_unqualify`,
+`coco_consult_goals`) and lib/solve-db.cicili (`coco_clause_check`,
+`coco_clause_unqualify`, `coco_body_check`, `coco_body_callable`), the
+same rules on two walks: the load's recursive over a read clause, the
+assert's on its worklist and budget.
+
+NOT SWIPL'S, and stated: a variable called at its first occurrence (`p
+:- X.`, `p :- M:foo.`, `assertz((p :- foo:X))`) is stored as call/1 of
+it, where swipl's compiler refuses it as an instantiation error -- a rule
+of what the compiler has met, found by these probes and left for its own
+change; `"s"` is codes here, so `p :- foo:"s"` goes in; and a refused
+qualified guard says one line, where swipl adds where its boot file
+defines `,/2`.
+
+CHECK: test/files/qualified_goals.pl (new; 126 lines with swipl 9.0.4,
+the load's and the assert's) and test/errors.pl's qualified guard -- all
+94 test/files cases agree. Twenty-six arms, one a rule, each red: the
+load's `[]`, its walk under `:`, a module inside, the clause's and the
+head's variable and non-atom modules, the clause's qualifiers and the
+head's, the body's top, its variable module and that module's own fault,
+its non-atom module, the `=>` clause, the guard's body and a qualified
+guard; the assert's `[]`, its walk under `:`, a module inside, the
+clause's and the head's qualifiers, a non-atom module, the cycle, the
+body's top, its variable module, its non-atom module and the walk's
+module fault. A test of a variable module in the assert's clause
+qualifiers was green and is gone: `coco_type_error` makes an unbound
+culprit an instantiation error, as swipl's PL_error does.
