@@ -60,7 +60,7 @@ record(D) :-
                    files-exists_file/1-fail, files-append_file_from_codes/2-exit]),
     ( rising(Es1) -> Rise3 = yes ; Rise3 = no ),
     check('each entry at a later inference than the one before', Rise3, yes),
-    ( member(j(_, stream, '$stream_open'/5, _, throw(error(B4, _))), Es1) -> true ; B4 = none ),
+    ( member(j(_, stream, '$stream_open'/7, _, throw(error(B4, _))), Es1) -> true ; B4 = none ),
     check('the raise open/3 made, kept with its ball', B4, existence_error(source_sink, '/nonexistent/j')),
     findall(V5, ( member(j(_, builtins, getenv/2, C5, O5), Es1),
                   atom_codes(A5, C5), sub_atom(A5, _, _, _, 'J_NO_SUCH_VAR'), V5 = O5 ), Vs5),

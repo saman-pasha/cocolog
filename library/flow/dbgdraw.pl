@@ -426,7 +426,7 @@ flow_dbg_summary(run(Goal, Probe, Replay, window(F, T), _, Journal), Names, Call
 %% step, and the replay answered every entry up to where it ended --
 %% or, where it left the journal at step I, every entry before I. A
 %% portal call is often a library's own (open/3 reaches the world through
-%% '$stream_open'/5), so the box it counts for is its nearest caller's
+%% '$stream_open'/7), so the box it counts for is its nearest caller's
 %% that has one: what the program's goal did came from the journal
 flow_dbg_journal(none, _, _, _, none) :- !.
 flow_dbg_journal(journal(Es), end(How, RU, _), Calls, TM, jr(Es, NA, JBoxes, JCalls, TM)) :-

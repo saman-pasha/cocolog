@@ -11349,3 +11349,15 @@ the first cut changed no answer and are gone: whether a branch list is
 open, which swipl's keeps and which answers the same; the restore at a
 disjunction's end, which the union covers; and a walk of an if-then-else
 of its own, which the `->` rule walks.
+
+## test/journal.pl's open/3, as 3.19.0 named its C half (3.19.4)
+
+3.19.0 made open/3,4's C half `'$stream_open'/7`, the encoding and the BOM
+its two new arguments, and moved test/flowdebug.pl's journal to it; but
+test/journal.pl's check `the raise open/3 made, kept with its ball` still
+looked for a `'$stream_open'/5` entry, found none, and answered `none`. CI
+was red on all three platforms from 3.19.0 on (runs 66 to 68, the journal
+case alone each time), and the narrow cases each of 3.19.0 to 3.19.3 ran
+did not include it. The case names `/7` now, and so do two comments that
+said `/5` (test/flowdebug.pl, library/flow/dbgdraw.pl); nothing in the
+engine changed. CHECK: journal and flowdebug green.
