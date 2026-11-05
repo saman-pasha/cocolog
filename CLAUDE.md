@@ -1494,7 +1494,10 @@ cocolint index offers no import of it.
   clause -- `3.`, `foo :- 3.`, `bar :- (a, 1).`, since 3.19.2 `p :- foo:3.`
   and `3:foo.` (the qualifiers taken off, a goal under `M:` walked: one
   set of rules on two walks, `coco_consult_refused` and assert's
-  `coco_clause_check`: a new rule goes into both) -- in swipl's words;
+  `coco_clause_check`: a new rule goes into both), since 3.19.3 `p :-
+  (X ; X).` and `p :- M:foo.` (a variable goal swipl's count takes for a
+  singleton, a variable module no goal set: `coco_fresh_fault`, the one
+  walk both ask once theirs met a variable there) -- in swipl's words;
   `[].` passes in silence, and a variable is reported where swipl's load
   aborts (COMPAT.md). A `use_module`/`ensure_loaded` that
   loads nothing is reported the same way (since 1.8.39: SWI's ERROR

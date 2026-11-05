@@ -11245,8 +11245,8 @@ assert's on its worklist and budget.
 NOT SWIPL'S, and stated: a variable called at its first occurrence (`p
 :- X.`, `p :- M:foo.`, `assertz((p :- foo:X))`) is stored as call/1 of
 it, where swipl's compiler refuses it as an instantiation error -- a rule
-of what the compiler has met, found by these probes and left for its own
-change; `"s"` is codes here, so `p :- foo:"s"` goes in; and a refused
+of what the compiler has met, found by these probes and refused since
+3.19.3 (below); `"s"` is codes here, so `p :- foo:"s"` goes in; and a refused
 qualified guard says one line, where swipl adds where its boot file
 defines `,/2`.
 
@@ -11263,3 +11263,89 @@ body's top, its variable module, its non-atom module and the walk's
 module fault. A test of a variable module in the assert's clause
 qualifiers was green and is gone: `coco_type_error` makes an unbound
 culprit an instantiation error, as swipl's PL_error does.
+
+## A variable where a goal or a module stands, as swipl's compiler takes it (3.19.3)
+
+swipl's clause compiler (pl-comp.c, read at 9.0.4) refuses two things a
+variable of a body may do, and through 3.19.2 cocolog stored both, the
+variable called as call/1 of it:
+
+- A VARIABLE GOAL THE COMPILER'S COUNT TAKES FOR A SINGLETON is no goal
+  (its NOT_CALLABLE), refused as a number goal is: type_error(callable,
+  Body), the body's qualifiers taken off and an unbound culprit an
+  instantiation error -- `p :- X.`, `p :- foo:X.` and `p(M) :- M:X.` are
+  instantiation errors, `p :- true, X.` names `true,_`. The count is the
+  clause's occurrences, head and body (analyseVariables2), but that a
+  disjunction where the body's control stands counts the variables new to
+  it as the larger of its two branches: `(X ; X)` counts X once and is
+  refused, as is `(X = a ; X)`, where `(X | X)` counts twice, a
+  disjunction inside a goal's argument is no branch (`(X ; foo((X ; X)))`
+  counts three), and a \+ inside a branch leaves the branch its own new
+  variables (`(\+ X ; X)` counts two). A variable goal counted more than
+  once is call/1 of it wherever it stands, the first of its occurrences
+  too: `p :- X, X = a.` goes in, as swipl's.
+- A VARIABLE MODULE NO GOAL BEFORE IT SET is an instantiation error (its
+  getTargetModule): `p :- M:foo.`, `p :- M:foo, M = a.`, `p :- foo:M:bar.`,
+  `p(M) :- M:N:foo.` In the compile's order the head sets its variables and
+  a goal those it holds, but ==/2 and \==/2 of two variables, or of one and
+  an atom or an integer of 32 bits (a portable constant), are compiled in
+  place and set nothing: `p :- M == a, M:foo.` and `p :- M == 1, M:foo.`
+  are refused, `p :- M == f(a), M:foo.`, `p :- M == 1.5, M:foo.` and `p :-
+  M == 3000000000, M:foo.` go in, and so does `p :- M == N, N:foo.`, whose
+  M the count takes for a singleton (swipl calls that test). A branch
+  starts from what was set before its disjunction (`(M = a ; M:foo)` is
+  refused), every variable a disjunction names is set after it (`(M == a ;
+  true), M:foo` goes in) and a \+ keeps what it set (`\+ M = a, M:foo`).
+
+The first fault of the compile's order wins: `M:foo, 3:bar` is an
+instantiation error, `3:bar, M:foo` type_error(module, 3), and `X, M:foo`
+names the body. A single-sided rule's guard and body are one body (`p =>
+X.`), a grammar rule is asked as it is translated (`p --> M:foo.`), and a
+retract asks nothing, as swipl's. lib/kb-consult.cicili: the two walks of
+3.19.2 note a variable where a goal or a module stands, and only then ask
+`coco_fresh_fault`, one function for both (the load's
+`coco_consult_body_refused`, assert's `coco_body_check`), which keeps
+those variables and the operands of ==/2 and \==/2 in the machine's
+variable map and walks three times on one explicit stack, the machine's
+pair stack borrowed: the body's control spine for the variables, the
+clause for swipl's count, and the body in the compile's order, a
+disjunction's saved flags on the stack under its frames. A cyclic clause
+(which the store refuses), a DAG past four times the heap's length and a
+refused allocation leave 3.19.2's answer.
+
+COST, counted (callgrind, the two binaries in one directory under names of
+one length): a clause with no variable where a goal or a module stands
+pays the note alone, and none of the tree's loads asks the new walk -- the
+consult of library/reasoning/translate.pl spends 116 K instructions more
+of 324.4 M in `coco_consult_goals` and `coco_consult_body_refused` (+0.036
+%), and the program as a whole 0.82 % fewer, all of that libc's strcmp on
+the same calls (where the two builds' strings stand). A clause with one
+pays the walk: 10,000 consulted cost 3,010 instructions each (+4.1 % of
+their load; the first cut 5,636, its stacks allocated per walk and its two
+names interned per clause), an assert of `p(G) :- G` 1,164 (+12.6 %), and
+10,000 asserts of a clause with none counted 0.33 % fewer.
+
+NOT SWIPL'S, and stated: `$/1` and `G@M`, control to swipl's compiler, are
+goals here. Two warnings the probes found are not said: swipl's `Test is
+always true: var(X)`, of a test of a variable no goal set, and of any test
+whose answer its compiler knows (`atom(X)` of such a variable is always
+false, `var(a)` too), and its `Singleton
+variable in branch: X` of `p :- (X ; foo((X ; X))).`, where the other
+branch names the variable only inside a goal -- 3.19.1's rule is a first
+meeting at the last occurrence, swipl's a count of one in either branch.
+
+CHECK: test/files/fresh_goals.pl (new; 162 lines with swipl 9.0.4, the
+load's instantiation errors and the assert's type errors, whose variables
+a load's message would number) -- all 95 test/files cases agree, as did
+the 156 clauses probed before it. Twenty-five arms, one a rule, each red in
+that case: the void goal; the count's larger branch, the \+'s own, `|` as
+no branch and a goal's argument as no control; the unset module; a goal's
+setting, ==/2 in place, a portable constant's atom and its 32 bits, the
+void operand; the branch's start and the union after; the operands kept;
+the head; at the load the variable module on top and the bare variable
+left by the qualifiers; and each walk's asking and its notes (a goal, a
+module, a module on top, at the load and at the assert). Three pieces of
+the first cut changed no answer and are gone: whether a branch list is
+open, which swipl's keeps and which answers the same; the restore at a
+disjunction's end, which the union covers; and a walk of an if-then-else
+of its own, which the `->` rule walks.

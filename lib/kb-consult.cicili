@@ -1772,6 +1772,406 @@
   (func coco_module_name ((coco_machine * m) (size_t q)) (out int)
         (return (and (coco-tag-is ATOM (nth q (-> m heap))) (not (coco_is_nil m q)))))
 
+  ;;; A VARIABLE WHERE A GOAL OR A MODULE STANDS, as swipl's compiler takes
+  ;;; it (3.19.3, pl-comp.c). A variable goal swipl's analysis counts once
+  ;;; is no goal (NOT_CALLABLE): the clause is refused as a number goal is,
+  ;;; with type_error(callable, Body), its qualifiers taken off, and `p :-
+  ;;; X.' and `p :- foo:X.' are instantiation errors. The count is the
+  ;;; clause's occurrences (analyseVariables2), but that a disjunction of
+  ;;; the body's control counts the variables new to it as the larger of
+  ;;; its branches, and a \+ inside one leaves the branches its own new
+  ;;; ones: `(X ; X)' counts X once, `(X | X)' twice, `(\+ X ; X)' twice.
+  ;;; A variable module no goal before it set is an instantiation error
+  ;;; (getTargetModule), a void one too: the head sets its variables, a
+  ;;; goal those it holds -- but ==/2 and \==/2 of two variables, or of one
+  ;;; and an atom or an integer of 32 bits, which swipl compiles in place
+  ;;; and which set nothing (compileBodyEQ) -- a branch starts from what
+  ;;; was set before its disjunction, every variable a disjunction names is
+  ;;; set after it, and a \+ keeps what it set. Through 3.19.2 each such
+  ;;; clause went in, its variable called. Asked only of a clause with a
+  ;;; variable where a goal or a module stands, by both walks
+  ;;; (`coco_consult_body_refused', assert's `coco_body_check'): the
+  ;;; first fault of the compile's order is the answer. Probed against
+  ;;; swipl 9.0.4 case by case (test/files/fresh_goals.pl).
+  ;;;
+  ;;; The state: the variables kept (where a goal, a module or an operand
+  ;;; of ==/2 or \==/2 stands), each its index in VM, its count in TIMES
+  ;;; and its FLAG (1 set where the compile stands, 2 void), the two in one
+  ;;; block; ST the walks' stack, the machine's pair stack borrowed; BL the
+  ;;; count's branch list, pairs of an index and a saved count, an entry
+  ;;; where a variable's count leaves 0 (swipl's opens with a disjunction,
+  ;;; which answers the same), the machine's clause slots borrowed; BUDGET
+  ;;; the nodes a walk may still visit, past which a DAG is no clause the
+  ;;; question is asked of. IDS are the consult's `cids', ==/2's and
+  ;;; \==/2's names after them.
+  (struct coco_fv
+    (member coco_varmap * vm)
+    (member char *        flag)
+    (member int *         times)
+    (member size_t        n)
+    (member size_t        cap)
+    (member size_t *      st)
+    (member size_t        sn)
+    (member size_t        scap)
+    (member size_t *      bl)
+    (member size_t        bln)
+    (member size_t        blcap)
+    (member size_t        budget))
+
+  ;;; the index of a variable kept, or -1
+  (static)
+  (func coco_fv_at ((coco_fv * fv) (size_t cell)) (out i64)
+        (let ((size_t k . 0))
+          (if (coco_varmap_get (-> fv vm) cell (aof k)) (return (cast i64 k)))
+          (return -1)))
+
+  ;;; a variable to keep: 0 when there was no room
+  (static)
+  (func coco_fv_keep ((coco_fv * fv) (size_t cell)) (out int)
+        (if (>= (coco_fv_at fv cell) 0) (return 1))
+        (if (>= (-> fv n) (-> fv cap))
+            (let ((size_t ncap . #'(? (== (-> fv cap) 0) 16 (* (-> fv cap) 2)))
+                  (int * nt . nil))
+              ;; the counts and, after them, the flags
+              (set nt (cast (int *) (malloc (* ncap (+ (sizeof int) 1)))))
+              (if (== nt nil) (return 0))
+              (if (> (-> fv n) 0)
+                  (block (memcpy nt (-> fv times) (* (-> fv n) (sizeof int)))
+                         (memcpy (+ (cast (char *) nt) (* ncap (sizeof int))) (-> fv flag) (-> fv n))))
+              (free (-> fv times))
+              (set (-> fv times) nt)
+              (set (-> fv flag) (+ (cast (char *) nt) (* ncap (sizeof int))))
+              (set (-> fv cap) ncap)))
+        (if (not (coco_varmap_put (-> fv vm) cell (-> fv n))) (return 0))
+        (set (nth (-> fv n) (-> fv flag)) 0)
+        (set (nth (-> fv n) (-> fv times)) 0)
+        (set (-> fv n) (+ (-> fv n) 1))
+        (return 1))
+
+  ;;; room for K more words on the walks' stack: 0 when there was none
+  (static)
+  (func coco_fv_room ((coco_fv * fv) (size_t k)) (out int)
+        (if (<= (+ (-> fv sn) k) (-> fv scap)) (return 1))
+        (let ((size_t ncap . #'(* 2 (+ (+ (-> fv sn) k) 32))) (void * g . nil))
+          (set g (realloc (cast (void *) (-> fv st)) (* ncap (sizeof size_t))))
+          (if (== g nil) (return 0))
+          (set (-> fv st) (cast (size_t *) g))
+          (set (-> fv scap) ncap)
+          (return 1)))
+
+  ;;; a frame of four words, and a word
+  (static)
+  (func coco_fv_push4 ((coco_fv * fv) (size_t k) (size_t a) (size_t b) (size_t c)) (out int)
+        (if (not (coco_fv_room fv 4)) (return 0))
+        (let ((size_t * p . #'(+ (-> fv st) (-> fv sn))))
+          (set (nth 0 p) k)
+          (set (nth 1 p) a)
+          (set (nth 2 p) b)
+          (set (nth 3 p) c)
+          (set (-> fv sn) (+ (-> fv sn) 4))
+          (return 1)))
+
+  (static)
+  (func coco_fv_push1 ((coco_fv * fv) (size_t a)) (out int)
+        (if (not (coco_fv_room fv 1)) (return 0))
+        (set (nth (-> fv sn) (-> fv st)) a)
+        (set (-> fv sn) (+ (-> fv sn) 1))
+        (return 1))
+
+  ;;; an entry of the branch list, for the variable of index I
+  (static)
+  (func coco_fv_branch ((coco_fv * fv) (size_t i)) (out int)
+        (if (> (+ (-> fv bln) 2) (-> fv blcap))
+            (let ((size_t ncap . #'(* 2 (+ (-> fv bln) 32))) (void * g . nil))
+              (set g (realloc (cast (void *) (-> fv bl)) (* ncap (sizeof size_t))))
+              (if (== g nil) (return 0))
+              (set (-> fv bl) (cast (size_t *) g))
+              (set (-> fv blcap) ncap)))
+        (set (nth (-> fv bln) (-> fv bl)) i)
+        (set (nth (+ (-> fv bln) 1) (-> fv bl)) 0)
+        (set (-> fv bln) (+ (-> fv bln) 2))
+        (return 1))
+
+  ;;; the variables kept, down the body's control spine
+  (static)
+  (func coco_fv_collect ((coco_machine * m) (coco_fv * fv) (size_t b) (const u64 * ids)) (out int)
+        (let ((int ok . 1) (int next . 0))
+          (set (-> fv sn) 0)
+          (while ok
+            (set next 0)
+            (set b (coco_deref m b))
+            (if (coco-tag-is REF (nth b (-> m heap)))
+                (set ok (coco_fv_keep fv b))
+              (if (and (coco_is_callable m b) (not (coco_is_nil m b)))
+                  (let ((u64 nid . #'(coco_name_of m b)) (u32 n . #'(coco_arity m b)))
+                    (if (and (== n 1) (== nid (nth 4 ids)))
+                        (block (set b (coco_arg m b 0)) (set next 1))
+                      (if (== n 2)
+                          (cond
+                            ((== nid (nth 7 ids))
+                             (let ((size_t q . #'(coco_deref m (coco_arg m b 0))))
+                               (if (coco-tag-is REF (nth q (-> m heap))) (set ok (coco_fv_keep fv q)))
+                               (set b (coco_arg m b 1))
+                               (set next 1)))
+                            ((or (or (== nid (nth 0 ids)) (== nid (nth 1 ids)))
+                                 (or (or (== nid (nth 2 ids)) (== nid (nth 3 ids))) (== nid (nth 6 ids))))
+                             (if (not (coco_fv_push1 fv (coco_arg m b 1))) (set ok 0))
+                             (set b (coco_arg m b 0))
+                             (set next 1))
+                            ((or (== nid (nth 9 ids)) (== nid (nth 10 ids)))
+                             (let ((size_t x . #'(coco_deref m (coco_arg m b 0)))
+                                   (size_t y . #'(coco_deref m (coco_arg m b 1))))
+                               (if (coco-tag-is REF (nth x (-> m heap))) (set ok (coco_fv_keep fv x)))
+                               (if (and ok (coco-tag-is REF (nth y (-> m heap))))
+                                   (set ok (coco_fv_keep fv y)))))))))))
+            (if (and ok (not next))
+                (block (if (== (-> fv sn) 0) break)
+                       (set (-> fv sn) (- (-> fv sn) 1))
+                       (set b (nth (-> fv sn) (-> fv st))))))
+          (return ok)))
+
+  ;;; a term whose arguments the count walks as control too
+  (static)
+  (func coco_fv_control ((coco_machine * m) (size_t t) (const u64 * ids)) (out int)
+        (let ((u64 nid . #'(coco_name_of m t)) (u32 n . #'(coco_arity m t)))
+          (if (== n 1) (return (== nid (nth 4 ids))))
+          (if (!= n 2) (return 0))
+          (return (or (or (or (== nid (nth 0 ids)) (== nid (nth 1 ids)))
+                          (or (== nid (nth 2 ids)) (== nid (nth 3 ids))))
+                      (or (== nid (nth 6 ids)) (== nid (nth 7 ids)))))))
+
+  ;;; SWIPL'S COUNT of each variable kept: T walked with CONTROL 1 where
+  ;;; it is the body's control, 0 in the head and inside a goal. Frames:
+  ;;; 0 a term (A, X the control), 1 a disjunction's left branch done (A
+  ;;; its right, X the control, Y where its entries begin), 2 its right
+  ;;; done, 3 a \+'s goal done.
+  (static)
+  (func coco_fv_count ((coco_machine * m) (coco_fv * fv) (size_t t) (size_t control)
+                       (const u64 * ids)) (out int)
+        (let ((int ok . 1))
+          (set (-> fv sn) 0)
+          (set ok (coco_fv_push4 fv 0 t control 0))
+          (while (and ok (> (-> fv sn) 0))
+            (let ((size_t * f . #'(+ (-> fv st) (- (-> fv sn) 4)))
+                  (size_t k . 0) (size_t a . 0) (size_t x . 0) (size_t y . 0))
+              (set k (nth 0 f))
+              (set a (nth 1 f))
+              (set x (nth 2 f))
+              (set y (nth 3 f))
+              (set (-> fv sn) (- (-> fv sn) 4))
+              (cond
+                ((== k 0)
+                 (let ((size_t v . #'(coco_deref m a)) (u64 c . 0))
+                   (if (== (-> fv budget) 0)
+                       (set ok 0)
+                     (block
+                      (set (-> fv budget) (- (-> fv budget) 1))
+                      (set c (nth v (-> m heap)))
+                      (cond
+                        ((coco-tag-is REF c)
+                         (let ((i64 i . #'(coco_fv_at fv v)))
+                           (if (>= i 0)
+                               (block
+                                ;; first met, or met again after a left branch
+                                ;; set its count back
+                                (if (== (nth i (-> fv times)) 0)
+                                    (set ok (coco_fv_branch fv (cast size_t i))))
+                                (set (nth i (-> fv times)) (+ (nth i (-> fv times)) 1))))))
+                        ((coco-tag-is FUN c)
+                         (let ((u64 nid . #'(coco_name_of m v)) (u32 n . #'(coco_arity m v)))
+                           (cond
+                             ((and x (and (== n 2) (== nid (nth 1 ids))))
+                              (set ok (and (coco_fv_push4 fv 1 (coco_arg m v 1) x (-> fv bln))
+                                           (coco_fv_push4 fv 0 (coco_arg m v 0) x 0))))
+                             ((and x (and (== n 1) (== nid (nth 4 ids))))
+                              (set ok (and (coco_fv_push4 fv 3 0 0 (-> fv bln))
+                                           (coco_fv_push4 fv 0 (coco_arg m v 0) x 0))))
+                             (#t
+                              (let ((size_t x2 . #'(? (and x (coco_fv_control m v ids)) 1 0)) (u32 j . n))
+                                (while (and ok (> j 0))
+                                  (set j (- j 1))
+                                  (set ok (coco_fv_push4 fv 0 (coco_arg m v j) x2 0)))))))))))))
+                ((== k 1)
+                 ;; the left branch's counts kept, and the right's from 0
+                 (let ((size_t i . y))
+                   (while (< i (-> fv bln))
+                     (set (nth (+ i 1) (-> fv bl))
+                          (cast size_t (nth (nth i (-> fv bl)) (-> fv times))))
+                     (set (nth (nth i (-> fv bl)) (-> fv times)) 0)
+                     (set i (+ i 2)))
+                   (set ok (and (coco_fv_push4 fv 2 0 0 y) (coco_fv_push4 fv 0 a x 0)))))
+                ((== k 2)
+                 ;; each the larger of its two branches
+                 (let ((size_t i . y))
+                   (while (< i (-> fv bln))
+                     (let ((size_t vi . #'(nth i (-> fv bl)))
+                           (int sv . #'(cast int (nth (+ i 1) (-> fv bl)))))
+                       (if (< (nth vi (-> fv times)) sv) (set (nth vi (-> fv times)) sv)))
+                     (set i (+ i 2)))))
+                (#t
+                 ;; a \+'s new variables are no branch's
+                 (set (-> fv bln) y)))))
+          (return ok)))
+
+  ;;; every variable kept that T holds is set, as a goal's first use sets
+  ;;; it; on the walks' stack above what is there
+  (static)
+  (func coco_fv_mark ((coco_machine * m) (coco_fv * fv) (size_t t)) (out int)
+        (let ((size_t base . #'(-> fv sn)) (int ok . 1))
+          (while ok
+            (set t (coco_deref m t))
+            (if (== (-> fv budget) 0) (block (set ok 0) break))
+            (set (-> fv budget) (- (-> fv budget) 1))
+            (let ((u64 c . #'(nth t (-> m heap))))
+              (cond
+                ((coco-tag-is REF c)
+                 (let ((i64 i . #'(coco_fv_at fv t)))
+                   (if (>= i 0) (set (nth i (-> fv flag)) (bitor (nth i (-> fv flag)) 1)))))
+                ((coco-tag-is FUN c)
+                 (let ((u32 n . #'(coco_arity m t)))
+                   (for ((u32 j . 0)) (< j n) ((++ j))
+                     (if (not (coco_fv_push1 fv (coco_arg m t j))) (set ok 0)))))))
+            (if (not ok) break)
+            (if (== (-> fv sn) base) break)
+            (set (-> fv sn) (- (-> fv sn) 1))
+            (set t (nth (-> fv sn) (-> fv st))))
+          (set (-> fv sn) base)
+          (return ok)))
+
+  ;;; ==/2 AND \==/2 IN PLACE, setting nothing: two variables the compile
+  ;;; keeps a place for, or one and an atom or an integer of 32 bits (a
+  ;;; portable constant); anything else is a call, which sets its
+  ;;; variables
+  (static)
+  (func coco_fv_placed ((coco_machine * m) (coco_fv * fv) (size_t v)) (out int)
+        (if (not (coco-tag-is REF (nth v (-> m heap)))) (return 0))
+        (let ((i64 i . #'(coco_fv_at fv v)))
+          (return (and (>= i 0) (not (bitand (nth i (-> fv flag)) 2))))))
+
+  (static)
+  (func coco_fv_const ((coco_machine * m) (size_t v)) (out int)
+        (let ((u64 c . #'(nth v (-> m heap))))
+          (if (coco-tag-is ATOM c) (return 1))
+          (if (coco-tag-is INT c)
+              (let ((i64 x . #'(coco-signed-payload c)))
+                (return (and (>= x (- 0 2147483648)) (<= x 2147483647)))))
+          (return 0)))
+
+  (static)
+  (func coco_fv_inline ((coco_machine * m) (coco_fv * fv) (size_t g)) (out int)
+        (let ((size_t x . #'(coco_deref m (coco_arg m g 0)))
+              (size_t y . #'(coco_deref m (coco_arg m g 1))))
+          (if (coco_fv_placed m fv x) (return (or (coco_fv_placed m fv y) (coco_fv_const m y))))
+          (return (and (coco_fv_const m x) (coco_fv_placed m fv y)))))
+
+  ;;; THE COMPILE'S ORDER: B's goals as swipl compiles them, and the first
+  ;;; fault -- 1 a goal that is none, 2 a module no goal set (Q), 4 a
+  ;;; module that is no atom (Q) -- or 0; -1 when a walk ran out. Frames:
+  ;;; 0 a goal (A), 1 a disjunction's else (A, X where the flags its start
+  ;;; saved stand on the stack), 2 its end, right above them.
+  (static)
+  (func coco_fv_walk ((coco_machine * m) (coco_fv * fv) (size_t b) (const u64 * ids) (size_t * q))
+        (out int)
+        (let ((int ok . 1) (int r . 0))
+          (set (-> fv sn) 0)
+          (set ok (coco_fv_push4 fv 0 b 0 0))
+          (while (and ok (and (== r 0) (> (-> fv sn) 0)))
+            (let ((size_t * f . #'(+ (-> fv st) (- (-> fv sn) 4)))
+                  (size_t k . 0) (size_t a . 0) (size_t x . 0))
+              (set k (nth 0 f))
+              (set a (nth 1 f))
+              (set x (nth 2 f))
+              (set (-> fv sn) (- (-> fv sn) 4))
+              (cond
+                ((== k 0)
+                 (let ((size_t g . #'(coco_deref m a)))
+                   (cond
+                     ((coco-tag-is REF (nth g (-> m heap)))
+                      (let ((i64 i . #'(coco_fv_at fv g)))
+                        (if (or (< i 0) (bitand (nth i (-> fv flag)) 2))
+                            (set r 1)
+                          (set (nth i (-> fv flag)) (bitor (nth i (-> fv flag)) 1)))))
+                     ((or (not (coco_is_callable m g)) (coco_is_nil m g)) (set r 1))
+                     (#t
+                      (let ((u64 nid . #'(coco_name_of m g)) (u32 n . #'(coco_arity m g)))
+                        (cond
+                          ((and (== n 2) (== nid (nth 0 ids)))
+                           (set ok (and (coco_fv_push4 fv 0 (coco_arg m g 1) 0 0)
+                                        (coco_fv_push4 fv 0 (coco_arg m g 0) 0 0))))
+                          ((and (== n 2) (or (== nid (nth 1 ids)) (== nid (nth 6 ids))))
+                           ;; the flags saved, then its end, its else and its
+                           ;; first branch (an if-then-else's condition and
+                           ;; then, walked by the `->' rule below)
+                           (let ((size_t lv . #'(-> fv sn)) (size_t nw . #'(/ (+ (-> fv n) 7) 8)))
+                             (set ok (coco_fv_room fv nw))
+                             (if ok
+                                 (block
+                                  (memcpy (cast (void *) (+ (-> fv st) lv)) (-> fv flag) (-> fv n))
+                                  (set (-> fv sn) (+ lv nw))
+                                  (set ok (and (and (coco_fv_push4 fv 2 g lv 0) (coco_fv_push4 fv 1 g lv 0))
+                                               (coco_fv_push4 fv 0 (coco_arg m g 0) 0 0)))))))
+                          ((and (== n 2) (or (== nid (nth 2 ids)) (== nid (nth 3 ids))))
+                           (set ok (and (coco_fv_push4 fv 0 (coco_arg m g 1) 0 0)
+                                        (coco_fv_push4 fv 0 (coco_arg m g 0) 0 0))))
+                          ((and (== n 1) (== nid (nth 4 ids)))
+                           (set ok (coco_fv_push4 fv 0 (coco_arg m g 0) 0 0)))
+                          ((and (== n 2) (== nid (nth 7 ids)))
+                           (let ((size_t mq . #'(coco_deref m (coco_arg m g 0))))
+                             (cond
+                               ((coco-tag-is REF (nth mq (-> m heap)))
+                                ;; one the count takes for a singleton is never
+                                ;; set where it stands
+                                (let ((i64 i . #'(coco_fv_at fv mq)))
+                                  (if (or (< i 0) (not (bitand (nth i (-> fv flag)) 1)))
+                                      (block (set (cof q) mq) (set r 2))
+                                    (set ok (coco_fv_push4 fv 0 (coco_arg m g 1) 0 0)))))
+                               ((coco_module_name m mq)
+                                (set ok (coco_fv_push4 fv 0 (coco_arg m g 1) 0 0)))
+                               (#t (set (cof q) mq) (set r 4)))))
+                          (#t
+                           (if (not (and (== n 2) (and (or (== nid (nth 9 ids)) (== nid (nth 10 ids)))
+                                                         (coco_fv_inline m fv g))))
+                               (set ok (coco_fv_mark m fv g))))))))))
+                ((== k 1)
+                 ;; the else starts from what was set before the disjunction
+                 (memcpy (-> fv flag) (cast (void *) (+ (-> fv st) x)) (-> fv n))
+                 (set ok (coco_fv_push4 fv 0 (coco_arg m a 1) 0 0)))
+                (#t
+                 ;; and after it every variable it names is set (what the
+                 ;; else set is among them); the saved flags go
+                 (set (-> fv sn) x)
+                 (set ok (and (coco_fv_mark m fv (coco_arg m a 0)) (coco_fv_mark m fv (coco_arg m a 1))))))))
+          (if (not ok) (return -1))
+          (return r)))
+
+  ;;; The answer for head H and body B, as the walk above gives it (Q the
+  ;;; module of a 2 or a 4); -1 when it could not be asked: a cycle, which
+  ;;; the store refuses, a DAG past four times the heap, no memory.
+  (static)
+  (func coco_fresh_fault ((coco_machine * m) (size_t h) (size_t b) (const u64 * ids) (size_t * q))
+        (out int)
+        (let ((coco_varmap vm . '{ nil nil 0 0 0 }) (coco_fv fv) (int r . -1))
+          (if (or (!= 1 (coco_acyclic m h)) (!= 1 (coco_acyclic m b))) (return -1))
+          (memset (aof fv) 0 (sizeof coco_fv))
+          (coco_varmap_take m (aof vm))
+          (set ($ fv vm) (aof vm))
+          (set ($ fv st) (coco_wpairs_take m (aof ($ fv scap))))
+          (set ($ fv bl) (coco_cslots_take m 64 (aof ($ fv blcap))))
+          (set ($ fv budget) (+ (* 4 (-> m heap_len)) 4096))
+          (if (and (coco_fv_collect m (aof fv) b ids)
+                   (and (coco_fv_count m (aof fv) h 0 ids) (coco_fv_count m (aof fv) b 1 ids)))
+              (block
+               (for ((size_t i . 0)) (< i ($ fv n)) ((++ i))
+                 (if (== (nth i ($ fv times)) 1) (set (nth i ($ fv flag)) 2)))
+               (set ($ fv sn) 0)
+               (if (coco_fv_mark m (aof fv) h)
+                   (set r (coco_fv_walk m (aof fv) b ids q)))))
+          (free ($ fv times))
+          (coco_wpairs_give m ($ fv st) ($ fv scap))
+          (if (!= ($ fv bl) nil) (coco_cslots_give m ($ fv bl) ($ fv blcap)))
+          (coco_varmap_give m (aof vm))
+          (return r)))
+
   ;;; A BODY HOLDS ONLY GOALS (3.1.0, a load's, as assert's
   ;;; `coco_body_callable'): 1 when every goal of B's control spine -- under
   ;;; `,', `;', `->', `*->', `\+' and since 3.2.0 the bar -- is a callable
@@ -1784,18 +2184,22 @@
   ;;; A GOAL QUALIFIED BY A MODULE IS ITS GOAL (3.19.2, swipl's): under
   ;;; `M:G' the walk goes on into G, and an M that is neither an atom nor a
   ;;; variable is the fault -- 2, with M in MOD. Through 3.19.1 `M:G' was a
-  ;;; callable term and nothing more, and `p :- foo:3' went in.
+  ;;; callable term and nothing more, and `p :- foo:3' went in. FV is set
+  ;;; where a variable stands for a goal or a module before the walk ends
+  ;;; (3.19.3): the clause is then asked by `coco_fresh_fault'.
   (static)
-  (func coco_consult_goals ((coco_machine * m) (size_t b) (const u64 * ids) (size_t * mod)) (out int)
+  (func coco_consult_goals ((coco_machine * m) (size_t b) (const u64 * ids) (size_t * mod) (int * fv))
+        (out int)
         (while 1
           (set b (coco_deref m b))
-          (if (coco-tag-is REF (nth b (-> m heap))) (return 1))
+          (if (coco-tag-is REF (nth b (-> m heap))) (block (set (cof fv) 1) (return 1)))
           (if (or (not (coco_is_callable m b)) (coco_is_nil m b)) (return 0))
           (let ((u64 nid . #'(coco_name_of m b)) (u32 n . #'(coco_arity m b)))
             (if (and (== n 1) (== nid (nth 4 ids)))
                 (block (set b (coco_arg m b 0)) continue))
             (if (and (== n 2) (== nid (nth 7 ids)))
                 (let ((size_t q . #'(coco_deref m (coco_arg m b 0))))
+                  (if (coco-tag-is REF (nth q (-> m heap))) (set (cof fv) 1))
                   (if (not (or (coco-tag-is REF (nth q (-> m heap))) (coco_module_name m q)))
                       (block (set (cof mod) q) (return 2)))
                   (set b (coco_arg m b 1))
@@ -1804,7 +2208,7 @@
                                          (or (== nid (nth 2 ids)) (== nid (nth 3 ids)))
                                          (== nid (nth 6 ids)))))
                 (return 1))
-            (let ((int r . #'(coco_consult_goals m (coco_arg m b 0) ids mod)))
+            (let ((int r . #'(coco_consult_goals m (coco_arg m b 0) ids mod fv)))
               (if (!= r 1) (return r)))
             (set b (coco_arg m b 1))))
         (return 1))
@@ -1832,22 +2236,39 @@
   ;;; first fault winning. Under a variable module on top, a body that will
   ;;; not do is an instantiation error, its module's fault still its own.
   ;;; 0, 1 (OUT the body), 2 or 4 (OUT the module), as
-  ;;; `coco_consult_refused' answers.
+  ;;; `coco_consult_refused' answers. A variable where a goal or a module
+  ;;; stands (3.19.3) has the clause asked as swipl's compiler asks it,
+  ;;; head H and all, by `coco_fresh_fault', whose first fault is the
+  ;;; answer: a void goal one as a number is, a module no goal set an
+  ;;; instantiation error.
   (static)
-  (func coco_consult_body_refused ((coco_machine * m) (size_t b) (const u64 * ids) (size_t * out))
+  (func coco_consult_body_refused ((coco_machine * m) (size_t h) (size_t b) (const u64 * ids)
+                                   (size_t * out))
         (out int)
-        (let ((size_t q . 0) (int r . 0))
+        (let ((size_t q . 0) (int r . 0) (int fv . 0) (int vtop . 0) (size_t b0 . b))
           (set b (coco_deref m b))
           (while (and (coco_is_callable m b)
                       (and (== (coco_arity m b) 2) (== (coco_name_of m b) (nth 7 ids))))
             (set q (coco_deref m (coco_arg m b 0)))
             (if (coco-tag-is REF (nth q (-> m heap)))
-                (block
-                 (set r (coco_consult_goals m (coco_arg m b 1) ids out))
-                 (return (? (== r 1) 0 (? (== r 2) 4 2)))))
+                (block (set vtop 1) (set fv 1) (set b (coco_arg m b 1)) break))
             (if (not (coco_module_name m q)) (block (set (cof out) q) (return 4)))
             (set b (coco_deref m (coco_arg m b 1))))
-          (set r (coco_consult_goals m b ids out))
+          (set r (coco_consult_goals m b ids out (aof fv)))
+          (if fv
+              (let ((int f . #'(coco_fresh_fault m h b0 ids (aof q))))
+                (if (== f 0) (return 0))
+                (if (== f 2) (return 2))
+                (if (== f 4) (block (set (cof out) q) (return 4)))
+                ;; a goal that is none: the body its qualifiers left, or under
+                ;; a variable module, or when what they left is a variable,
+                ;; an instantiation error (swipl's PL_error of a type error)
+                (if (== f 1)
+                    (block (set b (coco_deref m b))
+                           (if (or vtop (coco-tag-is REF (nth b (-> m heap)))) (return 2))
+                           (set (cof out) b)
+                           (return 1)))))
+          (if vtop (return (? (== r 1) 0 (? (== r 2) 4 2))))
           (if (== r 1) (return 0))
           (if (== r 0) (block (set (cof out) b) (return 1)))
           (return 4)))
@@ -1901,7 +2322,7 @@
           (if (!= r 0) (return r))
           (if (coco-tag-is REF (nth h (-> m heap))) (return 2))
           (if (not (coco_is_callable m h)) (block (set (cof out) h) (return 1)))
-          (if hasb (return (coco_consult_body_refused m b ids out)))
+          (if hasb (return (coco_consult_body_refused m h b ids out)))
           (return 0)))
 
   ;;; swipl's sentence for a refused clause: `Type error: `callable'
@@ -2422,8 +2843,9 @@
               ;; left open at the end names (3.1.0)
               (int cline [16])
               ;; the control names a body is walked by, `:-', `:' and `=>',
-              ;; interned once (`coco_consult_refused')
-              (u64 cids [9])
+              ;; interned once (`coco_consult_refused'), and ==/2's and
+              ;; \==/2's (`coco_fresh_fault', 3.19.3)
+              (u64 cids [11])
               ;; WHERE THE CLAUSE IN HAND BEGINS, counted forward and never
               ;; back: `scanned' is how far the newline count has read and
               ;; `line' the answer at that point, so the whole file is walked
@@ -2474,6 +2896,8 @@
           (set (nth 6 cids) (coco_intern m "|"))
           (set (nth 7 cids) (coco_intern m ":"))
           (set (nth 8 cids) (coco_intern m "=>"))
+          (set (nth 9 cids) (coco_intern m "=="))
+          (set (nth 10 cids) (coco_intern m "\\=="))
           (set te_id (coco_intern m "term_expansion"))
           (set ge_id (coco_intern m "goal_expansion"))
           (set eof_id (coco_intern m "end_of_file"))
