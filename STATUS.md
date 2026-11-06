@@ -12145,3 +12145,110 @@ up to newspaper_units 308 794 629 inferences on 3.24.0 and 308 475 927 on
 3.25.0 (-0.10 %: a place given is no walk), 3 290 checks green on both;
 with the place checked in the clause, a first cut's if-then-else, they
 were 309 472 937 (+0.22 %).
+
+## A determinism error names a library's frame with its module, and library(lists) is swipl's clauses (3.26.0)
+
+As swipl's pl-wam.c names it: `p :- $, append(_, _, [1, 2]).` raises
+`determinism_error(lists:append/3, det, nondet, guard_in_caller)` with
+`context(lists:append/3, _)`, where through 3.25.0 it said `append/3`;
+`$, append([_, [2]], [1, 2])` names lists:append_/2, `$, reverse(_, _)`
+lists:reverse/4, `$, length(_, _)` `'$length3'/3` (context
+`system:'$length3'/3`), `$, gen_assoc(_, A, _)` assoc:gen_assoc_/3,
+`$, is_of_type(integer, a)` error:is_of_type/2, and an unknown procedure
+max_member/3's body calls `context(lists:max_member_/4, _)`.
+
+THE ROWS. Every library(lists) and library(error) predicate cocolog writes
+has a row of `*frame-contexts*` (lib/solve.cicili) naming swipl's module
+for it, sumlist/2's backward_compatibility, and each helper its row by
+swipl's own name for it -- `'$append2'/2` lists:append_/2, `'$perm'/2`
+lists:perm/2, `'$last_gen'/3` lists:last_/3, and the C halves the
+clauses end in: `'$sum'/3` lists:sum_list/3, `'$maxl'/3` lists:max_list/3,
+`'$numlist'/3` lists:numlist/3. A row's fifth field is another arity:
+reverse/2's own frame is a determinism error's only where its C half
+failed (its clause always hands the guard on), which swipl's names
+lists:reverse/4. `coco_det_pi` names no `system` or `$` module, as swipl's
+GP_HIDESYSTEM, so `'$length3'/3`'s `system` row names its context alone.
+
+THE MODULE OF A READ. A predicate whose first clause a module/2 read added
+carries that module (`pmod`, appended to `coco_pred`: the read's
+`ssu_mod`, `user` and `system` none, `coco_pred_note_mod` in
+`coco_assert_from`), which `coco_frame_mod` hands `coco_det_pi` and
+`coco_owner_ctx`: the vendored libraries' predicates are named as swipl's
+(assoc:gen_assoc_/3, ordsets:union2/4, pairs:pairs_keys/2,
+dcg_high_order:sequence_/4 in an unknown procedure's context), and so is a
+program's module file's (test/library.pl's `module_names`). One namespace:
+a program's predicate that a module's read then joins keeps the program's
+name, the first read that gave it a clause naming it.
+
+THE CLAUSES. The library(lists) predicates whose frames or answers were
+not swipl's are swipl's clauses (lib/lists.cicili): length/2's declined
+case over `'$length3'/3` (a tail that is the length itself stays the C
+half's, which fails it); append/2's must_be(list, L) (a partial list of lists ran for ever);
+prefix/2's own recursion (it was append/3's); select/4 over
+`'$select4_'/4`; selectchk/3 committing to the first match, so
+`selectchk(X, [a, b], [a])` fails where it answered X = b; nth0/4 and nth1/4
+over `'$generate_nth'/5` and `'$find_nth0'/4`, a bound index must_be/2's
+(type_error(nonneg, a), type_error(positive_integer, 0), where they failed)
+and found by a walk that cuts (`nth0(1, [a, b, c], E, R)` left a choice
+point); reverse/2's declined case over `'$reverse4'/4`, the second list
+bounding the walk (`reverse(L, [1, 2])` searched for ever after its
+answer); proper_length/2, permutation/2 (type_error(list, a) where it
+failed), list_to_set/2 over sort/4 and pairs_keys/2 (n log n, where each
+element was asked of every one kept before it), is_set/1 and clumped/2.
+
+THE CASE. test/files/det_names.pl, new: 118 lines, swipl 9.0.4's byte for
+byte, traced and under COCOLOG_GC_CELLS=2000 too -- 20 calls that leave a
+choice point, 49 that fail, 7 that do not, 27 goals' answers and 15
+errors, over library(lists), library(error) and the vendored assoc, pairs,
+ordsets and dcg/high_order. 3.25.0 differs at 112 of them, and at `reverse(L, [1, 2])`'s answers runs
+for ever.
+
+THE ARMS, a build each, the rule taken out, each red: the public
+predicates' rows (27 lines), the helpers' rows (23), a row's own arity
+always (reverse/2's C half named lists:reverse/2, 2), `'$length3'/3` with
+no `system` row (2), a `system` module kept in the formal (2), no predicate
+taking a read's module (9), the module not asked by an unknown procedure's
+context (9) and by a determinism error (8), length/2's clause as through
+3.25.0 (2), append/2 with no must_be/2 (27: `append(_, [1])` runs until the
+kernel kills it for memory), prefix/2 over append/3 (2), select/4 (3),
+selectchk/3 (1), nth0/4 and nth1/4 (11), proper_length/2 (1), reverse/2's
+clause (81: it runs for ever), permutation/2 (3), list_to_set/2 (3),
+is_set/1 (1) and clumped/2 (2) as through 3.25.0; and a module's read
+naming a predicate the program gave clauses first, red in test/library.pl's
+`module_names`, which names mn_mod:mn_j/1 where swipl's and cocolog's say
+mn_j/1.
+
+NOT SWIPL'S (COMPAT.md): a library(lists) predicate cocolog answers in its
+C half -- nth0/3 and nth1/3 with the index given, last/2 of a proper list
+-- is one frame, and its failure names it (lists:nth0/3, lists:last/2),
+where swipl's names the helper its clause reached (lists:nth0_det/3,
+lists:last_/3); a system predicate swipl had not resolved in `user` when
+the clause was read (msort/2, sort/4, memberchk/2, atomic_list_concat/2,
+string_code/3 at 9.0.4's start) gets no last call there (pl-comp.c's
+lookupBodyProcedure, pl-vmi.c's I_DEPART), so its failure names the
+caller, where cocolog's names the predicate; and a program's own clause
+for a library predicate joins the library's (one namespace), so its
+error names lists:member/2 where swipl's user:member/2 is the program's
+alone.
+
+THE COST, inferences a call, 3.25.0 to 3.26.0: is_set/1 of 20 elements
+429 to 8, list_to_set/2 of 20 210 to 119 and of 2 11 to 24, nth0/4 with an
+index 10 to 14 and nth1/4 10 to 15 (must_be/2), nth0/4 without one 10 to
+11, prefix/2 6 to 5, select/4 5 to 6, clumped/2 of 5 20 to 21,
+permutation/2's first answer 18 to 29, append/2 of three lists 14 to 18;
+selectchk/3, reverse/2, length/2 and proper_length/2 the same. The
+translator: test/translate.pl's sections up to newspaper_units 308 475 927
+inferences on 3.25.0 and 308 519 613 on 3.26.0 (+0.014 %), 3 290 checks
+green on both.
+tools/flow/zero.sh, work less padding: nrev 66 232 836 to 66 003 313
+(-0.35 %), queens 40 325 613 to 40 325 380, lookup 48 109 119 to
+48 109 149: nothing the step runs changed, and nrev's fall is where the
+build put things.
+
+Narrow cases green: files, window, trace, engine, flowdebug, flowchart,
+backtrace, journal, gc, errors, directives, static, script, reconsult,
+library, repl, cyclic, meter, string, units, rationals, async, thread,
+cowork, serialize, template, hex, astar, argv, reason, normalise,
+translate, process, text, os, signal, stream and lint (red at first on a
+card cite the kb head's new lines moved and two acknowledgements no
+finding needed, and run again alone), and lesson library/01.

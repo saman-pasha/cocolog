@@ -665,11 +665,44 @@
 ;;; member/2 raises names lists:member_/3 (`coco_det_pi'), as swipl's
 ;;; -- and library(apply)'s helpers (3.23.0): an unknown procedure, or what
 ;;; is no goal, that maplist/2's body calls is apply:maplist_/2's, foldl/4's
-;;; apply:foldl_/4's, apply/2's '$apply':apply/2's
+;;; apply:foldl_/4's, apply/2's '$apply':apply/2's. EVERY PREDICATE OF
+;;; library(lists) AND library(error) cocolog writes (3.26.0) is named with
+;;; the module swipl's is in, lists:append/3, error:is_of_type/2,
+;;; backward_compatibility:sumlist/2, and each helper by swipl's own name
+;;; for it, lists:append_/2, lists:perm/2, lists:sum_list/3 for the C half
+;;; that sums; (NAME ARITY MOD SNAME SARITY) names it with another arity:
+;;; reverse/2's own frame is a determinism error's only where its C half
+;;; failed, which swipl's names lists:reverse/4. A predicate a module/2
+;;; read defines carries its module (`pmod', 3.26.0), which no row names
 (DEFPARAMETER *frame-contexts*
   '(("call_dcg" 3 "$dcg")
     ("$member_" 3 "lists" "member_") ("$select3_" 4 "lists" "select3_")
     ("$nth_gen" 5 "lists" "nth_gen")
+    ("$select4_" 4 "lists" "select4_") ("$generate_nth" 5 "lists" "generate_nth")
+    ("$find_nth0" 4 "lists" "find_nth0") ("$append2" 2 "lists" "append_")
+    ("$reverse4" 4 "lists" "reverse") ("$perm" 2 "lists" "perm")
+    ("$last_gen" 3 "lists" "last_") ("$clump" 2 "lists" "clump")
+    ("$ccount" 5 "lists" "ccount") ("$number_list" 3 "lists" "number_list")
+    ("$remove_dup_keys" 2 "lists" "remove_dup_keys")
+    ("$remove_same_key" 3 "lists" "remove_same_key")
+    ("$sum" 3 "lists" "sum_list") ("$maxl" 3 "lists" "max_list")
+    ("$minl" 3 "lists" "min_list") ("$numlist" 3 "lists" "numlist")
+    ("$max_by" 4 "lists" "max_member_") ("$min_by" 4 "lists" "min_member_")
+    ("$flatten" 3 "lists" "flatten") ("$length3" 3 "system")
+    ("member" 2 "lists") ("append" 2 "lists") ("append" 3 "lists") ("prefix" 2 "lists")
+    ("select" 3 "lists") ("selectchk" 3 "lists") ("select" 4 "lists")
+    ("selectchk" 4 "lists") ("subtract" 3 "lists") ("delete" 3 "lists")
+    ("nextto" 3 "lists") ("nth0" 3 "lists") ("nth1" 3 "lists") ("nth0" 4 "lists")
+    ("nth1" 4 "lists") ("last" 2 "lists") ("proper_length" 2 "lists")
+    ("same_length" 2 "lists") ("reverse" 2 "lists" "reverse" 4)
+    ("permutation" 2 "lists") ("flatten" 2 "lists") ("clumped" 2 "lists")
+    ("max_member" 2 "lists") ("min_member" 2 "lists") ("max_member" 3 "lists")
+    ("min_member" 3 "lists") ("sum_list" 2 "lists") ("max_list" 2 "lists")
+    ("min_list" 2 "lists") ("numlist" 3 "lists") ("is_set" 1 "lists")
+    ("list_to_set" 2 "lists") ("intersection" 3 "lists") ("union" 3 "lists")
+    ("subset" 2 "lists") ("sumlist" 2 "backward_compatibility")
+    ("must_be" 2 "error") ("is_of_type" 2 "error") ("type_error" 2 "error")
+    ("domain_error" 2 "error") ("instantiation_error" 1 "error")
     ("$maplist_" 2 "apply" "maplist_") ("$maplist_" 3 "apply" "maplist_")
     ("$maplist_" 4 "apply" "maplist_") ("$maplist_" 5 "apply" "maplist_")
     ("$include_" 3 "apply" "include_") ("$exclude_" 3 "apply" "exclude_")
@@ -691,7 +724,7 @@
                                                           ,(IF (FOURTH row)
                                                                `(coco_new_atom m ,(FOURTH row))
                                                                `(coco_new_atom_id m nid))
-                                                          n (coco_new_var m)))
+                                                          ,(OR (FIFTH row) 'n) (coco_new_var m)))
                              (return 1))))
        (return 0))))
 

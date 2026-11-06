@@ -1091,17 +1091,34 @@
   ;;; the predicate an owner word names, determinism_error/4's first
   ;;; argument: Name/Arity, `'<meta-call>'/1' for a word with no owner, and
   ;;; a library helper swipl names by its own name and module as swipl
-  ;;; names it (3.22.0, *frame-contexts*: lists:member_/3)
+  ;;; names it (3.22.0, *frame-contexts*: lists:member_/3), every library
+  ;;; predicate with its module and one a module/2 read defined with that
+  ;;; module (3.26.0, `coco_frame_mod': assoc:gen_assoc_/3) -- never a
+  ;;; module of swipl's system, as swipl's GP_HIDESYSTEM names none
   (weak) (cold)
-  (func coco_det_pi ((coco_machine * m) (size_t ow)) (out size_t)
-        (let ((size_t p . #'(cast size_t (coco-bar-pred ow))) (size_t fc . 0))
+  (func coco_det_pi ((coco_engine * e) (size_t ow)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t p . #'(cast size_t (coco-bar-pred ow))) (size_t fc . 0))
           (if (or (== p 0) (> p (-> m functors_len)))
               (set p (+ (cast size_t (coco-fid m "<meta-call>" 1)) 1)))
-          (if (coco_frame_ctx m ($ (nth (- p 1) (-> m functors)) name)
-                              ($ (nth (- p 1) (-> m functors)) arity) (aof fc))
-              (return (coco_deref m (coco_arg m fc 0))))
-          (return (coco_make2 m "/" (coco_new_atom_id m ($ (nth (- p 1) (-> m functors)) name))
-                              (coco_new_int m (cast i64 ($ (nth (- p 1) (-> m functors)) arity)))))))
+          (let ((u64 nid . #'($ (nth (- p 1) (-> m functors)) name))
+                (u32 n . #'($ (nth (- p 1) (-> m functors)) arity)))
+            (if (coco_frame_ctx m nid n (aof fc))
+                (let ((size_t pi . #'(coco_deref m (coco_arg m fc 0))))
+                  (if (coco_is_compound2 m pi ":")
+                      (let ((size_t mm . #'(coco_deref m (coco_arg m pi 0))))
+                        (if (coco-tag-is ATOM (nth mm (-> m heap)))
+                            (let ((const char * s . #'(coco_atom_name m (coco_name_of m mm))))
+                              ;; 36 is `$': '$dcg', '$apply', swipl's system
+                              (if (or (== (cast int (nth 0 s)) 36) (== 0 (strcmp s "system")))
+                                  (return (coco_deref m (coco_arg m pi 1))))))))
+                  (return pi)))
+            (let ((const char * mod . #'(coco_frame_mod e nid n)))
+              (if (!= mod nil)
+                  (return (coco_make2 m ":" (coco_new_atom m mod)
+                                      (coco_make2 m "/" (coco_new_atom_id m nid)
+                                                  (coco_new_int m (cast i64 n)))))))
+            (return (coco_make2 m "/" (coco_new_atom_id m nid) (coco_new_int m (cast i64 n)))))))
 
   ;;; error(determinism_error(PI, det, WHAT, KIND), CTX) raised for a frame
   ;;; of owner word OW: KIND `guard' where its own `$' set its guard (OWN),
@@ -1118,7 +1135,7 @@
                   (let ((coco_choice * c . #'(aof (nth (- h 1) (-> e choices)))))
                     (if (coco-det-set (-> c clause_ix)) (block (set pw (-> c barrier)) break))
                     (set h (coco-det-below (-> c clause_ix)))))))
-          (set (nth 0 args) (coco_det_pi m pw))
+          (set (nth 0 args) (coco_det_pi e pw))
           (set (nth 1 args) (coco_new_atom m "det"))
           (set (nth 2 args) (coco_new_atom m what))
           (set (nth 3 args) (coco_new_atom m (? own "guard" "guard_in_caller")))

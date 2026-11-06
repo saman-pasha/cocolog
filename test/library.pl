@@ -43,9 +43,31 @@ main :-
     scratch(D),
     registered, from_the_path(D), keeps_builtins(D), lends_ops(D), errors(D), includes(D),
     nested_loads(D), shared_object(D), across_processes(D),
-    always_present, still_answers, expansions(D),
+    always_present, still_answers, expansions(D), module_names(D),
     shl(['rm -rf ', D]),
     checks_done.
+
+%% A PREDICATE A module/2 READ GIVES ITS FIRST CLAUSE IS NAMED WITH THAT
+%% MODULE (3.26.0, `pmod'): a determinism error and its context say
+%% mn_mod:mn_q/1, and an unknown procedure's context mn_mod:mn_u/0, as
+%% swipl's. One namespace, so a program's predicate the module's read then
+%% joins keeps the program's name -- the first read that gave it a clause
+%% names it -- which swipl's says too, of the program's own (its two
+%% predicates are one here). swipl 9.0.4 gives these five lines
+module_names(D) :-
+    section('a module''s predicates named with the module'),
+    atom_concat(D, '/mn_mod.pl', M),
+    fixture(M, [':- module(mn_mod, [mn_q/1, mn_u/0]).', 'mn_q(1).', 'mn_q(2).',
+                'mn_j(3).', 'mn_u :- mn_nosuch, true.']),
+    atom_concat(D, '/mn_prog.pl', P),
+    fixture(P, ['mn_j(1).', 'mn_j(2).', ':- use_module(mn_mod).',
+                'a1 :- $, mn_q(_).', 'a2 :- $, mn_j(_).',
+                't(G) :- catch(G, error(E, context(W, _)), (print(E), nl, print(W), nl)).',
+                'u(G) :- catch(G, error(_, context(W, _)), (print(W), nl)).',
+                'main :- t(a1), t(a2), u(mn_u).']),
+    sh_join(['-s ', P, ' 2>&1'], A), cocolog_run(A, T, _),
+    check('a determinism error and a context name the module; the program''s predicate keeps its own',
+          T, 'determinism_error(mn_mod:mn_q/1,det,nondet,guard_in_caller)\nmn_mod:mn_q/1\ndeterminism_error(mn_j/1,det,nondet,guard_in_caller)\nmn_j/1\nmn_mod:mn_u/0').
 
 %% THE PROGRAM'S EXPANSION HOOKS NEVER REACH COCOLOG'S OWN LIBRARIES
 %% (3.14.0): a compiled-in module's Prolog text and the preloaded

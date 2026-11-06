@@ -986,7 +986,15 @@
     ;; `coco_argix''s AVER and ASPD are to the others: asked by the JIT
     ;; index of a predicate under the floor (`coco_pred_jit'). Appended.
     (member u64      j0ver)
-    (member double   j0spd))
+    (member double   j0spd)
+    ;; THE MODULE THE READ THAT GAVE IT ITS FIRST CLAUSE IS (3.26.0): that
+    ;; read's module/2 name, an atom plus one, and 0 for the program's own
+    ;; (user's) and for a clause no read added -- what a determinism error
+    ;; and an unknown procedure's context name it with, as swipl names
+    ;; assoc:gen_assoc_/3 (`coco_pred_note_mod', `coco_frame_pi'). One
+    ;; namespace: a second module's clauses join the first one's predicate
+    ;; and keep its name. Appended.
+    (member u64      pmod))
 
   ;;; Forward-declared, because the two hooks below are members of the store
   ;;; and take a pointer to it -- the typedef has to exist before the struct
@@ -1825,6 +1833,8 @@
                                      (u64 oid) (coco_origin_seen * seen)))
   (decl) (func coco_ssu_body ((coco_machine * m) (size_t b)) (out size_t))
   (decl) (func coco_ssu_rule ((coco_machine * m) (size_t t)) (out size_t))
+  ;;; the module a read under module/2 names a predicate with (3.26.0)
+  (decl) (func coco_pred_note_mod ((coco_store * st) (coco_machine * m) (size_t pi)))
 
   ;;; A clause as a backend stores it: bare, or `'$from'(Path, Clause)'
   ;;; carrying the name of the file that consulted it. Either goes into the

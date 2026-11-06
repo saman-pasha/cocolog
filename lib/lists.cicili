@@ -82,15 +82,21 @@
            ;; The C half answers every mode that answers once -- a proper
            ;; list, and a partial one with N bound (`length(L, 3)') -- and
            ;; declines a partial list with N unbound, which enumerates, to
-           ;; this clause: the only call that reaches it (1.12.2).
-           "length(L, N) :- '$len_gen'(L, 0, N)."
-           "'$len_gen'([], N, N)."
-           "'$len_gen'([_|T], A, N) :- B is A + 1, '$len_gen'(T, B, N)."
+           ;; this clause: the only call that reaches it (1.12.2). swipl's
+           ;; (3.26.0, boot/init.pl): the list skipped to its tail, which
+           ;; '$length3'/3 extends -- its name a determinism error says, as
+           ;; swipl's. A tail that is N itself (`length(L, L)') is the C
+           ;; half's, which fails it, as swipl's clause does
+           "length(L, N) :- '$skip_list'(N0, L, T), '$length3'(T, N, N0)."
+           "'$length3'([], N, N)."
+           "'$length3'([_|L], N, N0) :- N1 is N0 + 1, '$length3'(L, N, N1)."
 
            ;; ---- append, member, and what is built on them ----------------
            "append([], L, L)."
            "append([H|T], L, [H|R]) :- append(T, L, R)."
-           "append(ListOfLists, List) :- '$append2'(ListOfLists, List)."
+           ;; append/2 checks its list of lists as swipl's must_be(list, L)
+           ;; does (3.26.0): through 3.25.0 a partial one ran for ever
+           "append(ListOfLists, List) :- must_be(list, ListOfLists), '$append2'(ListOfLists, List)."
            "'$append2'([], [])."
            "'$append2'([L|Ls], As) :- append(L, Ws, As), '$append2'(Ls, Ws)."
 
@@ -108,9 +114,16 @@
            "select(X, [H|T], R) :- '$select3_'(T, H, X, R)."
            "'$select3_'(T, H, H, T)."
            "'$select3_'([H2|T], H, X, [H|R]) :- '$select3_'(T, H2, X, R)."
-           "select(X, [X|T], Y, [Y|T])."
-           "select(X, [H|T], Y, [H|R]) :- select(X, T, Y, R)."
-           "selectchk(X, L, R) :- select(X, L, R), !."
+           ;; select/4 and selectchk/3 as swipl writes them (3.26.0): the
+           ;; list first in select/4's helper, which a determinism error names
+           ;; as swipl's does, lists:select4_/4; selectchk/3 commits to the
+           ;; FIRST element that matches and only then asks the rest, so
+           ;; `selectchk(X, [a, b], [a])' fails, where through 3.25.0 it went
+           ;; on to X = b
+           "select(X, XList, Y, YList) :- '$select4_'(XList, X, Y, YList)."
+           "'$select4_'([X|List], X, Y, [Y|List])."
+           "'$select4_'([X0|XList], X, Y, [X0|YList]) :- '$select4_'(XList, X, Y, YList)."
+           "selectchk(Elem, List, Rest) :- select(Elem, List, Rest0), !, Rest = Rest0."
            "selectchk(X, L, Y, R) :- select(X, L, Y, R), !."
            "subtract([], _, [])."
            "subtract([H|T], L, R) :- memberchk(H, L), !, subtract(T, L, R)."
@@ -142,12 +155,22 @@
            "nth1(N, L, E) :- L = [H|T], '$nth_gen'(T, E, H, 1, N)."
            "'$nth_gen'(_, E, E, B, B)."
            "'$nth_gen'([H|T], E, _, N, B) :- M is N + 1, '$nth_gen'(T, E, H, M, B)."
-           "nth0(N, L, E, R) :- integer(N), !, N >= 0, '$nth_sel'(L, 0, N, E, R)."
-           "nth0(N, L, E, R) :- '$nth_sel'(L, 0, N, E, R)."
-           "nth1(N, L, E, R) :- integer(N), !, N >= 1, '$nth_sel'(L, 1, N, E, R)."
-           "nth1(N, L, E, R) :- '$nth_sel'(L, 1, N, E, R)."
-           "'$nth_sel'([H|T], B, B, H, T)."
-           "'$nth_sel'([H|T], B, N, E, [H|R]) :- C is B + 1, '$nth_sel'(T, C, N, E, R)."
+           ;; nth0/4 and nth1/4 as swipl writes them (3.26.0): an unbound
+           ;; index generates, a bound one is must_be/2's -- nonneg,
+           ;; positive_integer -- and found by a walk that cuts, so
+           ;; `nth0(1, [a, b, c], E, R)' leaves no choice point and
+           ;; `nth0(a, L, E, R)' raises type_error(nonneg, a); through 3.25.0
+           ;; the first left one and the second failed. The helpers a
+           ;; determinism error names are swipl's, lists:generate_nth/5 and
+           ;; lists:find_nth0/4
+           "nth0(V, In, Element, Rest) :- var(V), !, '$generate_nth'(0, V, In, Element, Rest)."
+           "nth0(V, In, Element, Rest) :- must_be(nonneg, V), '$find_nth0'(V, In, Element, Rest)."
+           "nth1(V, In, Element, Rest) :- var(V), !, '$generate_nth'(1, V, In, Element, Rest)."
+           "nth1(V, In, Element, Rest) :- must_be(positive_integer, V), succ(V0, V), '$find_nth0'(V0, In, Element, Rest)."
+           "'$generate_nth'(I, I, [Head|Rest], Head, Rest)."
+           "'$generate_nth'(I, IN, [H|List], El, [H|Rest]) :- I1 is I + 1, '$generate_nth'(I1, IN, List, El, Rest)."
+           "'$find_nth0'(0, [Head|Rest], Head, Rest) :- !."
+           "'$find_nth0'(N, [Head|Rest0], Elem, [Head|Rest]) :- M is N - 1, '$find_nth0'(M, Rest0, Elem, Rest)."
 
            ;; ---- last/2 ---------------------------------------------------
            ;; swipl's clauses (3.0.1). The C half answers a proper list in
@@ -165,18 +188,33 @@
            "'$last_gen'([X|Xs], _, L) :- '$last_gen'(Xs, X, L)."
            "nextto(X, Y, [X,Y|_])."
            "nextto(X, Y, [_|T]) :- nextto(X, Y, T)."
-           "prefix(P, L) :- append(P, _, L)."
+           ;; prefix/2 is swipl's own recursion (3.26.0), which a determinism
+           ;; error names, lists:prefix/2; through 3.25.0 it was append/3's
+           "prefix([], _)."
+           "prefix([E|T0], [E|T]) :- prefix(T0, T)."
 
            ;; ---- shape ----------------------------------------------------
            ;; a proper list is reversed by the C half in one step; anything
-           ;; it declines -- a partial list, which enumerates -- comes here
-           "reverse(L, R) :- '$rev_gen'(L, [], R)."
-           "'$rev_gen'([], A, A)."
-           "'$rev_gen'([H|T], A, R) :- '$rev_gen'(T, [H|A], R)."
-           "proper_length(L, N) :- is_list(L), '$len'(L, N)."
+           ;; it declines -- a partial list, which enumerates -- comes here,
+           ;; to swipl's clauses (3.26.0): the second list bounds the walk,
+           ;; so `reverse(L, [1, 2])' answers once and ends, where through
+           ;; 3.25.0 it searched for ever after its answer. Its helper is
+           ;; swipl's reverse/4 under a name of cocolog's (*frame-contexts*)
+           "reverse(Xs, Ys) :- '$reverse4'(Xs, Ys, [], Ys)."
+           "'$reverse4'([], [], Ys, Ys)."
+           "'$reverse4'([X|Xs], [_|Bound], Rs, Ys) :- '$reverse4'(Xs, Bound, [X|Rs], Ys)."
+           ;; proper_length/2, permutation/2 as swipl writes them (3.26.0):
+           ;; permutation/2 refuses a term that is no list, as swipl's
+           ;; must_be(list, L), where through 3.25.0 it failed
+           "proper_length(List, Length) :- '$skip_list'(Length0, List, Tail), Tail == [], Length = Length0."
            "same_length([], [])."
            "same_length([_|T], [_|R]) :- same_length(T, R)."
-           "permutation(Xs, Ys) :- same_length(Xs, Ys), '$perm'(Xs, Ys)."
+           "permutation(Xs, Ys) :- '$skip_list'(Xlen, Xs, XTail), '$skip_list'(Ylen, Ys, YTail),"
+           "  ( XTail == [], YTail == [] -> Xlen == Ylen"
+           "  ; var(XTail), YTail == [] -> length(Xs, Ylen)"
+           "  ; XTail == [], var(YTail) -> length(Ys, Xlen)"
+           "  ; var(XTail), var(YTail) -> length(Xs, Len), length(Ys, Len)"
+           "  ; must_be(list, Xs), must_be(list, Ys) ), '$perm'(Xs, Ys)."
            "'$perm'([], [])."
            "'$perm'(L, [H|T]) :- select(H, L, R), '$perm'(R, T)."
 
@@ -188,20 +226,30 @@
 
            ;; ---- sets -----------------------------------------------------
            ;; list_to_set/2 keeps the FIRST of each group and the original
-           ;; order, which is not what sorting would give.
-           "list_to_set(L, S) :- '$l2s'(L, [], S)."
-           "'$l2s'([], _, [])."
-           "'$l2s'([H|T], Seen, R) :- '$mem_eq'(H, Seen), !, '$l2s'(T, Seen, R)."
-           "'$l2s'([H|T], Seen, [H|R]) :- '$l2s'(T, [H|Seen], R)."
-           "'$mem_eq'(X, [Y|_]) :- X == Y, !."
-           "'$mem_eq'(X, [_|T]) :- '$mem_eq'(X, T)."
-           "is_set(L) :- is_list(L), list_to_set(L, S), '$len'(S, N), '$len'(L, N)."
+           ;; order, which is not what sorting would give: swipl's clauses
+           ;; (3.26.0), each element numbered, sorted by itself with its
+           ;; duplicates kept in order, the first of each kept and the rest
+           ;; put back in order -- n log n, where 3.25.0's walk asked every
+           ;; element of the ones kept before it. is_set/1 is swipl's too:
+           ;; a proper list whose sort/2 drops nothing
+           "list_to_set(List, Set) :- must_be(list, List), '$number_list'(List, 1, Numbered),"
+           "  sort(1, @=<, Numbered, ONum), '$remove_dup_keys'(ONum, NumSet),"
+           "  sort(2, @=<, NumSet, ONumSet), pairs_keys(ONumSet, Set)."
+           "'$number_list'([], _, [])."
+           "'$number_list'([H|T0], N, [H-N|T]) :- N1 is N + 1, '$number_list'(T0, N1, T)."
+           "'$remove_dup_keys'([], [])."
+           "'$remove_dup_keys'([H|T0], [H|T]) :- H = V-_, '$remove_same_key'(T0, V, T1), '$remove_dup_keys'(T1, T)."
+           "'$remove_same_key'([V1-_|T0], V, T) :- V1 == V, !, '$remove_same_key'(T0, V, T)."
+           "'$remove_same_key'(L, _, L)."
+           "is_set(Set) :- '$skip_list'(Len, Set, Tail), Tail == [], sort(Set, Sorted), length(Sorted, Len)."
 
-           ;; run-length pairs: [a,a,b] becomes [a-2, b-1]
-           "clumped([], [])."
-           "clumped([H|T], [H-N|R]) :- '$clump'(T, H, 1, N, Rest), clumped(Rest, R)."
-           "'$clump'([H|T], X, A, N, Rest) :- H == X, !, B is A + 1, '$clump'(T, X, B, N, Rest)."
-           "'$clump'(L, _, N, N, L)."
+           ;; run-length pairs: [a,a,b] becomes [a-2, b-1], as swipl writes
+           ;; it (3.26.0), clump/2 and ccount/5 under cocolog's names
+           "clumped(Items, Counts) :- '$clump'(Items, Counts)."
+           "'$clump'([], [])."
+           "'$clump'([H|T0], [H-C|T]) :- '$ccount'(T0, H, T1, 1, C), '$clump'(T1, T)."
+           "'$ccount'([H|T0], E, T, C0, C) :- E == H, !, C1 is C0 + 1, '$ccount'(T0, E, T, C1, C)."
+           "'$ccount'(List, _, List, C, C)."
 
            ;; ---- arithmetic over a list -----------------------------------
            "sum_list(L, S) :- '$sum'(L, 0, S)."

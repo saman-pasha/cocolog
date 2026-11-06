@@ -2818,9 +2818,22 @@
   (func coco_mc_tag ((coco_machine * m)) (out size_t)
         (return (bitor (coco-bar-sysbit) (coco-bar-of (coco-fid m "<meta-call>" 1)))))
 
+  ;;; THE MODULE A module/2 READ GAVE THE PREDICATE NID/N (3.26.0, its
+  ;;; `pmod'), or nil: the program's own, and a library's a row of
+  ;;; *frame-contexts* names
+  (weak) (cold)
+  (func coco_frame_mod ((coco_engine * e) (u64 nid) (u32 n)) (out const char *)
+        (let ((coco_store * st . #'(-> e st)))
+          (if (== st nil) (return nil))
+          (let ((size_t i . #'(coco_pred_find st nid n)))
+            (if (>= i (-> st npreds)) (return nil))
+            (if (== ($ (nth i (-> st preds)) pmod) 0) (return nil))
+            (return (coco_atom_name (-> e m) (- ($ (nth i (-> st preds)) pmod) 1))))))
+
   ;;; context(system:Name/Arity, _) for a frame of swipl's own,
   ;;; context(Name/Arity, _) for a clause's predicate, as swipl names a user
-  ;;; predicate; a fresh variable for a word with no owner
+  ;;; predicate, and context(Module:Name/Arity, _) for one a module/2 read
+  ;;; defined (3.26.0); a fresh variable for a word with no owner
   (weak) (cold)
   (func coco_owner_ctx ((coco_engine * e) (size_t b)) (out size_t)
         (let ((coco_machine * m . #'(-> e m))
@@ -2830,10 +2843,12 @@
             (if (coco_frame_ctx m ($ (nth (- p 1) (-> m functors)) name)
                                 ($ (nth (- p 1) (-> m functors)) arity) (aof fc))
                 (return fc)))
-          (return (coco_ectx_pi m (? (coco-bar-sys b) "system" "")
-                                (coco_new_atom_id m ($ (nth (- p 1) (-> m functors)) name))
-                                ($ (nth (- p 1) (-> m functors)) arity)
-                                (coco_new_var m)))))
+          (let ((const char * mod . #'(coco_frame_mod e ($ (nth (- p 1) (-> m functors)) name)
+                                                      ($ (nth (- p 1) (-> m functors)) arity))))
+            (return (coco_ectx_pi m (? (!= mod nil) mod (? (coco-bar-sys b) "system" ""))
+                                  (coco_new_atom_id m ($ (nth (- p 1) (-> m functors)) name))
+                                  ($ (nth (- p 1) (-> m functors)) arity)
+                                  (coco_new_var m))))))
 
   ;;; the frame a search was asked from: a frame of its goal with no owner
   ;;; (ATEND 0) is forall/2's own clause or the `'<meta-call>'/1' swipl

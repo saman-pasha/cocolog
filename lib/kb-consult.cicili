@@ -1192,6 +1192,14 @@
             (return (and (coco-tag-is ATOM (nth a (-> m heap)))
                          (== 0 (strcmp (coco_atom_name m (coco_name_of m a)) "$ssu")))))))
 
+  ;;; THE MODULE A READ NAMES (3.26.0): its module/2's, `ssu_mod', for a
+  ;;; predicate whose first clause the read adds -- `user' and `system'
+  ;;; name none, as swipl's determinism error names neither
+  (func coco_pred_note_mod ((coco_store * st) (coco_machine * m) (size_t pi))
+        (let ((const char * mn . #'(coco_atom_name m (- (-> m ssu_mod) 1))))
+          (if (and (!= 0 (strcmp mn "user")) (!= 0 (strcmp mn "system")))
+              (set ($ (nth pi (-> st preds)) pmod) (-> m ssu_mod)))))
+
   ;;; A READ NOTES THE PREDICATE, once, from its own base on
   ;;; (`coco_consult_oid'): its end puts the last clause after it
   (func coco_ssu_note ((coco_machine * m) (size_t pi))
@@ -1469,6 +1477,13 @@
           (let ((size_t pi . #'(coco_pred_make st (coco_name_of m head) (coco_arity m head)))
                 (size_t stored) (coco_reload * rl . nil))
             (if (>= pi (-> st npreds)) (return 0))
+            ;; a read under a module/2 (its `ssu_mod', 0 outside every read)
+            ;; names the predicate's module, if its first clause is that
+            ;; read's (3.26.0)
+            (if (and (!= (-> m ssu_mod) 0)
+                     (== ($ (nth pi (-> st preds)) pmod) 0)
+                     (== ($ (nth pi (-> st preds)) nclauses) 0))
+                (coco_pred_note_mod st m pi))
             ;; the two expansion hooks are multifile in swipl, so their
             ;; clauses may stand apart; term_expansion/2,4 is the one the
             ;; system does not otherwise declare here (3.17.0's warning

@@ -14,9 +14,9 @@
 %  once first (`warm'): swipl's first call of one it has not resolved yet
 %  makes no last call. Not here: a guarded last call into a library
 %  predicate swipl writes in Prolog other than member/2, select/3, nth0/3,
-%  nth1/3 and maplist/2, whose errors would name swipl's own helpers; a
-%  $/1 whose goal holds $/0; and `\+ \+ ($, G)', which stops swipl 9.0.4
-%  on an assertion.
+%  nth1/3 and maplist/2, whose errors name swipl's own helpers
+%  (test/files/det_names.pl holds those); a $/1 whose goal holds $/0; and
+%  `\+ \+ ($, G)', which stops swipl 9.0.4 on an assertion.
 
 :- use_module(library(lists)).   % cocolint: T1 -- swipl runs this file too, and the import is its portable form
 :- use_module(library(apply)).   % cocolint: T1 -- swipl runs this file too, and the import is its portable form

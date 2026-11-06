@@ -1419,7 +1419,30 @@ cocolint index offers no import of it.
   sub_atom/5 with its text given walks the places with `'$cp_in'/2`, or
   checks the one given. `'$cp_member'/2`, the goal first, stays where
   swipl's leaves a choice point at every answer, its last too:
-  current_predicate/1 with a part of its spec unbound.
+  current_predicate/1 with a part of its spec unbound. **A determinism
+  error names a library's frame with its module** since 3.26.0, as swipl's
+  pl-wam.c does (test/files/det_names.pl): every library(lists) and
+  library(error) predicate cocolog writes has a row of
+  `*frame-contexts*` (lists:append/3, error:is_of_type/2), each helper its
+  row by swipl's name for it (lists:append_/2 for `'$append2'/2`, a C half
+  too: lists:sum_list/3 for `'$sum'/3`), a fifth field another arity
+  (reverse/2's C half fails as lists:reverse/4), and `'$length3'/3` a
+  `system` row, which the formal drops and the context keeps
+  (`coco_det_pi` names no `system` or `$` module); **a predicate whose
+  first clause a module/2 read added carries that module** (`pmod`, from
+  the read's `ssu_mod`, `coco_pred_note_mod`), which `coco_frame_mod`
+  hands `coco_det_pi` and `coco_owner_ctx` (assoc:gen_assoc_/3, an
+  unknown procedure's context(mn_mod:mn_u/0, _)). **A new library helper
+  gets its row**, or its errors name cocolog's `'$...'` name. The
+  library(lists) predicates whose frames or answers differed are swipl's
+  clauses since 3.26.0: length/2's declined case over `'$length3'/3`,
+  append/2's must_be(list, L) (a partial list ran for ever), prefix/2,
+  select/4 over `'$select4_'/4`, selectchk/3 committing to the first
+  match, nth0/4 and nth1/4 over `'$generate_nth'/5` and `'$find_nth0'/4`
+  (a bound index must_be/2's and deterministic), reverse/2's declined case
+  over `'$reverse4'/4` (a proper second list ends it), proper_length/2,
+  permutation/2 (type_error(list, L)), list_to_set/2 over pairs_keys/2,
+  is_set/1 and clumped/2.
 * **A cut runs the cleanups of the frames it takes** (3.1.0,
   setup_call_cleanup/3): a setup_call_cleanup/3 frame is a goal frame,
   `'$scc_fail'/2`, and each of the four cuts -- the goal `!`, `$cut`, an
