@@ -65,7 +65,19 @@ alice(D, Cert) :-
               'INITIALS: ', 'PSEUDONYM: ', 'GENERATION_QUALIFIER: ', 'DOMAIN_COMPONENT: ',
               'EMAIL_ADDRESS: alice@example.org' ]),
     sh_join(['query "use_module(library(x509)), x509_keygen([], ''', D, '/alice.key'', ''', D, '/alice.pub'', _), x509_csr(''', D, '/subject.conf'', ''', D, '/alice.key'', [], ''', D, '/alice.csr''), x509_issue([serial(9), permission(read), permission(''ledger.write'')], ''', Cert, '/issuer.conf'', ''', Cert, '/dont-use-private.key'', ''', D, '/alice.csr'', ''', D, '/alice.crt'')" >/dev/null 2>&1'], Issue),
-    (   cocolog_run(Issue, _, 0) -> true ; skip('could not issue a test certificate') ).
+    %% A KEY IS A PRIME SEARCH, its time the machine's and the draw's: two
+    %% 1024-bit primes found by trial division and 64 Miller-Rabin rounds,
+    %% and up to eight whole keys where a draw does not invert
+    %% (modules/x509's coco_x509_keygen) -- two to six seconds here. The
+    %% prelude's two minutes killed it once on GitHub's Intel Mac (CI run
+    %% 42109468644: `httpd-tls SKIP 120s', green alone eleven seconds
+    %% later), so it has ten of its own, and a refusal says how the child
+    %% ended (124: the ceiling)
+    cocolog_run(Issue, _, Rc, 600000),
+    (   Rc == 0
+    ->  true
+    ;   sh_join(['could not issue a test certificate (exit ', Rc, ')'], Why3), skip(Why3)
+    ).
 
 %% THE PAGES ARE A MODULE, not a consulted file -- the one thing a worker
 %% pool asks of the program above it. A worker's store is filled from the

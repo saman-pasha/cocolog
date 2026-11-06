@@ -148,6 +148,15 @@ fail_lines(Text) :-
     atom_codes(Text, Cs), re_lines('^FAIL', Cs, Ls), head_lines(5, Ls, Five),
     forall(member(L, Five), ( atom_codes(LA, L), format("~w~n", [LA]) )).
 
+%% A SKIPPED CASE'S REASON, its first SKIP line, under the case's line and
+%% indented (tools/ci/verdict.sh takes a case's line for its verdict and
+%% what follows it for its detail). The line alone said `httpd-tls  SKIP
+%% 120s' on GitHub's Intel Mac (CI run 42109468644), and the case ran green
+%% alone at once after, so the reason was gone
+skip_reason(Text) :-
+    atom_codes(Text, Cs), re_lines('^SKIP', Cs, Ls),
+    ( Ls = [L|_] -> atom_codes(LA, L), format("    ~w~n", [LA]) ; true ).
+
 %% A CASE THAT DID NOT END ON ITS OWN RED -- it raised, or a goal of it
 %% failed -- has no FAIL line for what went wrong: a raise's last line is
 %% the engine's, the foot of the backtrace, and the error is above it. Its
@@ -242,7 +251,7 @@ pl_each([C|Cs], Binary, Red0, Red) :-
     %% and how long it took, because a suite that is slow in one case and
     %% says nothing about which is a suite nobody times twice
     (   Verdict == 'GREEN' -> format("GREEN  ~ws~n", [Secs]), Red1 = Red0
-    ;   sub_atom(Verdict, 0, _, _, 'SKIP') -> format("SKIP   ~ws~n", [Secs]), Red1 = Red0
+    ;   sub_atom(Verdict, 0, _, _, 'SKIP') -> format("SKIP   ~ws~n", [Secs]), skip_reason(Out), Red1 = Red0
     ;   last_line(Out, Last), format("~w  ~ws~n", [Last, Secs]), fail_lines(Out),
         raised_tail(Last, Out), Red1 is Red0 + 1
     ),

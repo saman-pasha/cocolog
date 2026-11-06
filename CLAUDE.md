@@ -624,7 +624,9 @@ line said only `BUILD FAILED`, over a tail ending on clang's command line.
   is killed (exit 124) and hands back only what it printed by then**, which a
   case can read as "nothing found". A step whose work grows with the tree, or
   with the machine's speed, takes `shell/4` with a ceiling of its own
-  (`test/lint.pl`'s corpus lint has five minutes, a test binary's build ten).
+  (`test/lint.pl`'s corpus lint has five minutes, a test binary's build ten,
+  `test/httpd-tls.pl`'s certificate ten: an RSA key is a prime search, and
+  two minutes stopped it once on GitHub's Intel Mac, CI run 42109468644).
 * **A container runs as root**, who writes through a mode of 444: a
   permission check skips by name when `os_uid/1` answers 0
   (`test/stream.pl`).
@@ -676,7 +678,9 @@ line said only `BUILD FAILED`, over a tail ending on clang's command line.
   install goes into `allowed_skips` in the same commit.** Each red case is
   run again alone (its whole output: the runner keeps five FAIL lines, the
   last twenty of a case that did not end on its own RED -- it raised, or a
-  goal failed: `raised_tail/2`, 2.14.1 -- and no SKIP reason), and the logs
+  goal failed: `raised_tail/2`, 2.14.1 -- and a SKIP's first reason line,
+  indented under its case's line, `skip_reason/1`, which verdict.sh names in
+  the annotation of a SKIP the job does not allow), and the logs
   are the run's artifact for 14 days.
 * **A case sizes a green pool from the world, never with a number.** The
   world has a worker a core and the acceptor holds one, so
