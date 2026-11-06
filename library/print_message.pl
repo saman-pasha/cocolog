@@ -93,6 +93,12 @@
 %% The stack of messages in print is a global, set back by hand on every
 %% way out (swipl's setup_call_cleanup/3): a b_setval/2 is an nb_setval/2
 %% here, and undoes nothing on backtracking. print_message/2 never fails.
+%%
+%% swipl's print_message/2 is its system's: the tracer shows a program's
+%% call of it and hides what it calls (3.27.0), but a program's own
+%% message_hook/3 and prolog:message//1.
+:- set_prolog_flag(generate_debug_info, false).
+
 print_message(Kind, Term) :-
     (   '$pm_push'(Term, Stack)
     ->  catch(ignore('$pm_guarded'(Kind, Term)), E,

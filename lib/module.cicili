@@ -828,11 +828,22 @@
                          ;; use_module' reads the libraries after it inside
                          ;; its own read, and a program's module read so
                          ;; is the program's
-                         (let ((int nx . #'(-> st noexp)))
+                         ;; and generate_debug_info is its own too (3.27.0):
+                         ;; a compiled-in module's text, or a preloaded
+                         ;; library's, starts at true whatever the read it is
+                         ;; nested in set -- a `run' file's first directive
+                         ;; reads them inside the file's own read -- and says
+                         ;; false where swipl's library does (lists, error,
+                         ;; aggregate, ordsets) or swipl defines it in system
+                         ;; mode; a library file a program loads takes the
+                         ;; flag the program left, as swipl's load does
+                         (let ((int nx . #'(-> st noexp)) (int nd . #'(-> m nodbg)))
                            (set (-> st noexp) (? (or (== (-> mod file) nil) (-> mod noexp)) 1 0))
+                           (if (or (== (-> mod file) nil) (-> mod noexp)) (set (-> m nodbg) 0))
                            (set cr (coco_consult_owner st m (-> mod prolog)
                                                        (? (== (-> mod file) nil) (-> mod name) (-> mod file))
                                                        (-> mod real) 0 err (sizeof err)))
+                           (set (-> m nodbg) nd)
                            (set (-> st noexp) nx))
                          (set (-> st ownload) ow)
                          (set (-> m dgc) 0)

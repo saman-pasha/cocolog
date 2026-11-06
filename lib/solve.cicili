@@ -927,6 +927,10 @@
   ;;; (`coco_det_exit'). It sits in the padding after EXITED, cleared by the
   ;;; traced call's push alone (PRINTR 1): cleared by every push, it cost
   ;;; queens 27 000 instructions of 43 million.
+  ;;; PRINTR 2 (3.27.0): a traced call whose ports are hidden from the
+  ;;; printer, as swipl hides a call a predicate that hides its children
+  ;;; makes of another (`coco_trace_hidden') -- a call's frame all the same,
+  ;;; to every reader that asks PRINTR whether it is one.
   (struct coco_tchoice
     (member size_t   goal)
     (member int      depth)
@@ -1131,7 +1135,12 @@
     ;; continuation is DGK is a last call of that frame, as swipl's I_DEPART
     ;; is, and takes the guard on (`coco_det_call'). Appended.
     (member size_t      dgh)
-    (member size_t      dgk))
+    (member size_t      dgk)
+    ;; THE PRINTER'S CONTEXT AT THE ENGINE'S BASE HIDES ITS CHILDREN (3.27.0):
+    ;; 1 for the search a builtin started (findall/3, forall/2,
+    ;; call_limited/3, with_output_to/2) under `trace' 1, whose goals the
+    ;; builtin calls, 0 for a query's. Appended.
+    (member int         trace_bhc))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
   ;;; their first goal. A per-engine affair after that -- `trace/0' and

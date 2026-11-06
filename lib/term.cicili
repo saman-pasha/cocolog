@@ -806,7 +806,12 @@
     ;; THE PRIORITY A WRITE STARTS AT (3.19.0, write_term/2's priority(P)), P
     ;; plus one, 0 for 1200: set around one write by `coco_wt_put' and read by
     ;; `coco_write_top' alone. Appended.
-    (member int        wprec))
+    (member int        wprec)
+    ;; GENERATE_DEBUG_INFO FALSE FOR THE REST OF A READ (3.27.0), as swipl's
+    ;; file-scoped flag: a predicate whose first clause the read adds hides
+    ;; its children from the tracer (`pattrs' 32). Saved and put back around
+    ;; each read (`coco_consult_oid'), 0 at a module's own. Appended.
+    (member int        nodbg))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends

@@ -40,6 +40,10 @@
 (DEFPARAMETER *dcg-prolog*
   (FORMAT NIL "~{~A ~}"
           (LIST
+           ;; phrase/2,3 and call_dcg/3 are swipl's system predicates: the
+           ;; tracer hides what they call but the grammar's own rules
+           ;; (3.27.0, the read's `nodbg')
+           ":- set_prolog_flag(generate_debug_info, false)."
            "phrase(G, L) :- phrase(G, L, [])."
            ;; THE LIST IS CHECKED AND THE BODY IS NOT, in that order, because
            ;; that is what SWI does: `phrase(1, foo)' raises about `foo' and not

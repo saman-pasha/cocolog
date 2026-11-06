@@ -174,6 +174,10 @@
 (DEFPARAMETER *builtins-prolog*
   (FORMAT NIL "~{~A ~}"
           (LIST
+           ;; swipl defines these in its system (or library(error), a
+           ;; nodebug library), which hides their children from the
+           ;; tracer as this flag does (3.27.0, the read's `nodbg')
+           ":- set_prolog_flag(generate_debug_info, false)."
            ;; ---- with_local_clauses/1 -----------------------------------
            ;;
            ;; What a module's clauses already get, asked for by a program:

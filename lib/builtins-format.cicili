@@ -898,6 +898,7 @@
           (set ($ sub trace) (-> e trace))
           (set ($ sub trace_depth) (-> e trace_depth))
           (set ($ sub trace_goal) (-> e trace_goal))
+          (coco_trace_inner e (aof sub) 1)
           ;; THE GOAL MAY COLLECT THE HEAP (1.9.4; `coco_engine_findall'):
           ;; the sink, which is read after it, is told to the collector, and
           ;; the machine's marks at the start go with the inner engine

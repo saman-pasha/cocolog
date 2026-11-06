@@ -322,6 +322,16 @@
                     *files-predicates* *dcg-predicates* *library-predicates*
                     *zigurat-predicates*)
   (coco-emit-claims coco_b_construct_claims *callable-constructs*)
+  (coco-emit-claims coco_b_green_claims *green-predicates*)
+
+  ;;; WHAT THE TRACER TAKES FOR THE SYSTEM'S C (3.27.0, installed as
+  ;;; `coco_sysclaims_hook'): the rows above and green's, library(async)'s C
+  ;;; half -- what swipl's system defines in C, whose call the printer hides
+  ;;; where a library's clause makes it. Not the load's claims: a program
+  ;;; file's clause for a green name is no take-over
+  (func coco_b_system_claims ((const char * name) (u32 arity)) (out int)
+        (return (or (coco_b_tier1_claims name arity)
+                    (coco_b_green_claims name arity))))
 
   ;;; WHAT A LOAD ASKS OF A PROGRAM FILE'S CLAUSE (3.1.0, installed as
   ;;; `coco_claims_hook'): whether a compiled-in module or a construct

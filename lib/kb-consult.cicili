@@ -1511,6 +1511,21 @@
                      (== ($ (nth pi (-> st preds)) pmod) 0)
                      (== ($ (nth pi (-> st preds)) nclauses) 0))
                 (coco_pred_note_mod st m pi))
+            ;; A PREDICATE A READ DEFINES UNDER generate_debug_info FALSE
+            ;; HIDES ITS CHILDREN FROM THE TRACER (3.27.0, `pattrs' 32,
+            ;; swipl's HIDE_CHILDS): its first clause decides, as swipl's
+            ;; assert_term decides it -- set under false, cleared under true
+            ;; -- and no clause after it does. A library's predicate (64: its
+            ;; first clause a compiled-in module's text or a preloaded
+            ;; library's, `noexp') is decided again by each clause a read
+            ;; gives it: a program's clause for it would be a predicate of its
+            ;; own in swipl, user's, and here there is one namespace
+            (if (and (> (-> m lreads) 0)
+                     (or (== ($ (nth pi (-> st preds)) nclauses) 0)
+                         (bitand ($ (nth pi (-> st preds)) pattrs) 64)))
+                (set ($ (nth pi (-> st preds)) pattrs)
+                     (bitor (bitand ($ (nth pi (-> st preds)) pattrs) -97)
+                            (bitor (? (-> st noexp) 64 0) (? (-> m nodbg) 32 0)))))
             ;; the two expansion hooks are multifile in swipl, so their
             ;; clauses may stand apart; term_expansion/2,4 is the one the
             ;; system does not otherwise declare here (3.17.0's warning
@@ -1809,7 +1824,11 @@
                 ;; THE SINGLE-SIDED PREDICATES THIS READ GIVES RULES (3.19.0),
                 ;; noted after an outer read's, and its module, user until a
                 ;; module/2 says otherwise
-                (size_t sbase . #'(-> m nssu)) (u64 smod . #'(-> m ssu_mod)))
+                (size_t sbase . #'(-> m nssu)) (u64 smod . #'(-> m ssu_mod))
+                ;; and generate_debug_info, scoped to the read as swipl's
+                ;; file-scoped flags are: what it sets, its end puts back
+                ;; (3.27.0)
+                (int snodbg . #'(-> m nodbg)))
             (set (-> m ssu_mod) 0)
             ;; THE READS UNDER WAY (3.7.0): the outermost runs the main goal
             ;; a nested one hands it (`ltop', which every outermost read
@@ -1823,6 +1842,7 @@
                 (coco_consult_ssu_close st m sbase oid (? reread (aof seen) nil))
                 (set (-> m nssu) sbase))
             (set (-> m ssu_mod) smod)
+            (set (-> m nodbg) snodbg)
             (set (-> m lreads) (- (-> m lreads) 1))
             (set (-> st nroots) depth)
             (set (-> m nhroots) hdepth)

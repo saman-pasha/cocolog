@@ -1018,10 +1018,19 @@
                    (coco_reader_flag m (coco_arg m g 0)))
               (let ((size_t f . #'(coco_deref m (coco_arg m g 0)))
                     (size_t v . #'(coco_deref m (coco_arg m g 1))))
-                ;; `generate_debug_info' asks for debugging metadata cocolog
-                ;; never generates, so any value is already honoured
+                ;; `generate_debug_info' false: the predicates this read
+                ;; defines from here on hide their children from the
+                ;; tracer, as swipl's nodebug libraries (3.27.0, `nodbg');
+                ;; true puts it back, and any other value is honoured as
+                ;; through 3.26
                 (if (== 0 (strcmp (coco_atom_name m (coco_name_of m f)) "generate_debug_info"))
-                    (return 1))
+                    (let ((const char * vn . #'(? (coco-tag-is ATOM (nth v (-> m heap)))
+                                                   (coco_atom_name m (coco_name_of m v)) "")))
+                      (if (or (== 0 (strcmp vn "false")) (== 0 (strcmp vn "off")))
+                          (set (-> m nodbg) 1))
+                      (if (or (== 0 (strcmp vn "true")) (== 0 (strcmp vn "on")))
+                          (set (-> m nodbg) 0))
+                      (return 1)))
                 ;; `text_units' (1.13.0): what the text builtins count in,
                 ;; bytes or characters, for this machine and every machine
                 ;; made after it (lib/term.cicili, `coco_text_default')

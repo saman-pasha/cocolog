@@ -12307,3 +12307,149 @@ window, engine, static and lint (red at first on the card's I1 cite, which
 the kb head's new declaration moved, and on the case's own
 `error(F, context(C, _))` pattern, cocolint's S1; run again alone), and
 lesson library/51.
+
+## The tracer shows a library's call and hides what it calls, as swipl's (3.27.0)
+
+As swipl 9.0.4's debugger prints it (pl-trace.c's isDebugFrame and
+dbgRedoFrame): a library predicate, or a builtin, that a program's clause
+calls is a port, and what it calls is not -- its helpers and the builtins
+they call -- but a predicate of the program's that it calls back is
+(max_member/3's order, forall/2's action); a retry inside one is printed as
+the Redo of the library call the program made, once that call has exited.
+Through 3.26 every helper's ports were printed: `Call: (2)
+'$member_'([2],_G1,1)' under member/2, `'$nth_gen'/5', `'$between_n'/3',
+append/3's own recursion, and their Redos where swipl's says
+`Redo: lists:member(...)'.
+
+WHICH PREDICATES HIDE WHAT THEY CALL (lib/solve-control.cicili,
+`coco_trace_hc', asked in the step's dispatch order): a builtin's row, the C
+of a compiled-in module (`coco_sysclaims_hook': the tier-1 rows and green's,
+library(async)'s C half -- not the load's claims, so nothing a program can
+take over moves), and a predicate of the store by its `pattrs' 32. Without
+green's rows async_workers/1's `'$async_workers'/1' was shown (the first
+cut's claims had the tier-1 tables alone); and the store comes after the
+modules because a fact a program asserts under a module's C name -- a
+`'$path_base'/2' -- is no predicate the call reaches, files' C answers it,
+and asked first its predicate would show what file_base_name/2 calls.
+
+THE MARK IS swipl's HIDE_CHILDS, decided by a predicate's first clause in a
+read (`coco_assert_from', as swipl's assert_term decides it): set where the
+machine's `nodbg' is 1, cleared where it is 0, and no later clause moves
+it. `nodbg' is swipl's generate_debug_info false, set by the directive
+(`coco_directive') and by set_prolog_flag/2 as a goal (`lb_set_flag'),
+saved and put back around each read (`coco_consult_oid'), so the file
+read after one that ends with it false is the program's again; and a
+compiled-in module's text, or a preloaded library's, starts at true
+whatever the read it is nested in said (lib/module.cicili) -- a `run'
+file's first directive reads them inside its own read. cocolog's system
+libraries say it at their head as swipl's do: the halves of lists,
+builtins, dcg, files and library, library/print_message.pl and
+library/async.pl; the vendored aggregate.pl and ordsets.pl say it
+themselves. apply, pairs, assoc and yall are debuggable in swipl, and here.
+A library's predicate is marked 64 too (its first clause a `noexp' read's),
+and each later clause a read gives it decides again: a program's clause for
+member/2 joins lists' (one namespace, card row N1), where swipl's program
+has a member/2 of its own, debuggable.
+
+THE PORTS: a hidden call's frame has PRINTR 2 (`coco_tchoice', no new
+member), and it has no Exit or Fail port (the `'$trace_exit'' marker, the
+builtin's two sites, `coco_trace_fail', `_nomatch', `_spent'). A retry
+inside one is the Redo of the outermost call of its region whose caller does
+not hide (`coco_trace_region', `coco_trace_redo_at'), printed as the retry
+begins, before the selection, whether or not a head then matches
+(`coco_trace_paint') -- swipl reports a retry before it tries a clause --
+and nothing while that call has not exited. A builtin that starts an engine
+hands the tracer on (`coco_trace_inner'): findall/3, forall/2 and
+call_limited/3 in the builtin's context (swipl's clauses for them, and
+call_with_inference_limit/3's), with_output_to/2 in none (swipl's C runs a
+query of its own, and member/2 in it is shown), one deeper, and a boundary
+no Redo crosses (`trace_bhc', appended to the engine; `nodbg' to the
+machine). The recorder (`trace' 2, library(flow/debug)) and the quiet trace
+(3) keep every call.
+
+THE CASE. test/trace.pl, 88 checks: test/trace-library.pl's 32 queries held
+to swipl 9.0.4 port for port (library calls and a goal failing into them,
+max_member/3's callback, forall/2, findall/3, msort/2, sum_list/2,
+list_to_set/2 over library(pairs), permutation/2, phrase/2, a files and a
+library predicate cocolog writes as clauses, member/2, append/3, between/3,
+nth0/3 and select/3 failed past every answer, a program predicate between a
+library call and its retry, max_member/2's rule whose body is `fail'; and
+the flag: false by the directive and by a goal, true by both, a predicate's
+first clause deciding, a directive's goal under false reading the libraries
+with their own flag, and a `true', a `fail', a qualified builtin and a
+builtin of no arguments in a clause under false), a second file after one
+that ends under false, and eight lines swipl has none of held to cocolog's
+own (a program's clause for member/2 joining lists', before and after the
+library's read; with_output_to/2's query; call_limited/3's search, a
+library call in it hidden and a program's predicate shown;
+print_message/2; async_workers/1; and a fact the program asserted under a
+module's C name, files' `'$path_base'/2', which leaves what
+file_base_name/2 calls hidden: the store is asked after the modules, as
+the step dispatches). The trace is switched on inside the goal
+for the library file, as test/trace-library.pl has a directive's goal that
+`--trace' would print as the file is read. test/window.pl: a window's
+recorder keeps a helper's calls and the printer does not.
+Not swipl's (COMPAT.md): once/1, ignore/1, not/1 and catch/3 are no frames,
+so the library call in them is the program's and shown, where swipl shows
+`^  Call: once(G)'; with_output_to/2's goal has no frame of its own;
+findall/3's goals are one level below it, where swipl's are five; apply's
+helper is `'$maplist_'/3', swipl's `maplist_/3'; a file read again keeps
+the mark its first read gave; a clause whose body is `true' alone prints
+that `true''s ports, where swipl's compiler makes it a fact; and a retry of
+a program's predicate whose remaining heads all fail prints nothing, where
+swipl's prints its Redo and its Fail (as through 3.26).
+
+THE ARMS, a build each, the rule taken out, each red (the lines of
+test/trace.pl as it stood when the arm ran). The mark: the directive's
+false not set (28 lines), its true (1), the goal's true (1) and false (2),
+the read's flag not put back (1: the second file), a compiled-in module's
+text not started at true (1: f(S), pairs_keys/2's helper hidden), every
+clause deciding (2), a library's predicate not decided again by a later
+clause (1: the clause read after the library's), the library's mark from
+any read (2) and the mark itself never set (28). The libraries' heads:
+lists (21), builtins (3), dcg (1), files (1), library (1), and
+library/print_message.pl and library/async.pl (1 each, the files alone, no
+build). Which predicates hide: a builtin's row by its functor (12) and by
+an atom's name (1: `nl'), the compiled-in modules' C (11), green's among
+them (1: async_workers/1), the store asked before the modules (1: the fact
+under `'$path_base'/2'), the store's mark (31), and the caller's context
+(81: every call hidden). The ports: the Call port's question (31), its
+Exit (31), its Fail at a builtin's sites (7) and from its frame's
+`coco_trace_fail', `_nomatch' and `_spent' (1), PRINTR 2 (25), and a
+`true' and a `fail' (2: max_member/2's rule, nt) and a builtin a library's
+taken name reaches (1: is_list/1 under must_be/2) in a clause that hides.
+A builtin's search: findall/3's goals handed the tracer (2),
+call_limited/3's (1: the program's predicate in it), with_output_to/2's a
+query of its own (1), one deeper (3), in the builtin's context (3), and the
+boundary no Redo crosses (1).
+The Redo: on the region's call (17), the walk stopping at a caller that
+does not hide (9), a written `;' in a library's clause its call's (3) and
+found by its goal and depth (3), a call that hides nothing its own Redo
+(15), printed before the selection (9) and only where it is another call's
+(8), and nothing while that call has not exited (8). Green, and so gone:
+a qualified goal's own branch in `coco_trace_hc' (the `:' construct takes
+the qualifier off before any port or context sees the goal). Six arms
+were green on the case as it first stood and are red on a line added for
+them: the program's predicate in call_limited/3's goal, a `true' and a
+`fail' in a hiding clause, the library's re-decided predicate, `nl', the
+fact under a module's name and the taken name.
+
+THE COST, tools/flow/zero.sh, work less padding, 3.26.1 to 3.27.0: nrev
+66 003 389 to 65 997 374, queens 40 325 446 to 40 280 918, lookup
+48 109 694 to 48 090 363 -- no more than before. The first cut kept a flag
+of its own beside `tport' in the step's call path and cost queens' search
+127 919 instructions over its 21 322 calls (callgrind's
+coco_engine_run'2), six a call: `tport' left its register for the stack.
+Folded into `tport' (0, 1, 2) with the question and the Call port two
+calls in the loop it was four a call, as two weak wrappers in the places
+of `coco_trace_port' five, and as one call out of line and cold
+(`coco_trace_call', answering `tport') none: the loop's calls of a cold
+function are blocks clang lays out of its way.
+
+Narrow cases green: files, trace, engine, backtrace, journal, gc, errors,
+directives, static, script, reconsult, library, repl, cyclic, meter,
+string, units, rationals, serialize, template, hex, astar, argv, reason,
+normalise, translate, process, text, os, signal, stream, flowchart, lint,
+and on the final build window, flowdebug, async, thread, cowork and the
+loop's cases again (trace, engine, backtrace, journal, gc, errors);
+lessons library/50, 51, 54 and 56.

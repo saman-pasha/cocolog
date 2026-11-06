@@ -980,7 +980,10 @@
     ;; predicate_property/2 and listing/1 say of it. None of them defines
     ;; the predicate but thread_local/1, as swipl's -- a call of a public
     ;; one with no clauses raises existence_error. Kept by the process only.
-    ;; Appended.
+    ;; Appended. 16 a non-terminal (3.14.0); and (3.27.0) 32 its children
+    ;; hidden from the tracer (swipl's HIDE_CHILDS), 64 a library's: its
+    ;; first clause was a compiled-in module's text or a preloaded library's
+    ;; (`coco_assert_from')
     (member int      pattrs)
     ;; THE FIRST ARGUMENT'S SPEEDUP AS SWIPL ASSESSES IT (3.24.0), what
     ;; `coco_argix''s AVER and ASPD are to the others: asked by the JIT
@@ -2185,6 +2188,14 @@
   (decl) (func coco_claims_install
                ((func h ((const char * name) (u32 arity)) (out int))))
 
+  ;;; WHAT THE TRACER TAKES FOR THE SYSTEM'S C (3.27.0), installed by the
+  ;;; builtins module (its `coco_b_system_claims'): the compiled-in modules'
+  ;;; rows, green's among them, which the printer hides where a library's
+  ;;; clause calls them (`coco_trace_hc'). Null in a test binary: there the
+  ;;; engine's own rows are all the system's C
+  (decl) (func coco_sysclaims_install
+               ((func h ((const char * name) (u32 arity)) (out int))))
+
   ;;; WHAT AN UNKNOWN PROCEDURE'S NAME IS NEAR (3.3.0), installed by the
   ;;; builtins module (its `coco_b_dwim_text'): the lines swipl's message
   ;;; ends on, `However, there are definitions for:' and a line each, which
@@ -2258,6 +2269,12 @@
 
   (func coco_claims_install ((func h ((const char * name) (u32 arity)) (out int)))
         (set coco_claims_hook h))
+
+  ;; and the tracer's, the same rows and green's (3.27.0)
+  (static) (var func coco_sysclaims_hook ((const char * name) (u32 arity)) (out int))
+
+  (func coco_sysclaims_install ((func h ((const char * name) (u32 arity)) (out int)))
+        (set coco_sysclaims_hook h))
 
   ;; and what an unknown procedure is near, by the same module
   (static) (var func coco_dwim_hook ((coco_machine * m) (coco_store * st) (u64 nid)

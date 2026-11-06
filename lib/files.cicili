@@ -105,6 +105,9 @@
 (DEFPARAMETER *files-prolog*
   (FORMAT NIL "~{~A ~}"
           (LIST
+           ;; swipl's system predicates: the tracer hides what they call
+           ;; (3.27.0, the read's `nodbg')
+           ":- set_prolog_flag(generate_debug_info, false)."
            ;; the two halves of one split (`coco_f_split'), so they cannot
            ;; disagree, each its own C half so that an error names the
            ;; predicate it was raised in (3.0.0)

@@ -41,8 +41,6 @@ $ cocolog --trace query "member(X, [a,b]), X == b"
    Call: (1) a==b
    Fail: (1) a==b
    Redo: (1) member(_G0,[a,b])
-   Call: (2) member(_G0,[b])
-   Exit: (2) member(b,[b])
    Exit: (1) member(b,[a,b])
    Call: (1) b==b
    Exit: (1) b==b
@@ -111,22 +109,73 @@ deliberately, because SWI has them:
   desugars to, the `true`/`fail` arms of `\+` — the program never wrote
   them, so the trace never shows them.
 
+## A library's calls
+
+Since 3.27.0 the tracer shows what SWI's shows of a library (its
+`isDebugFrame`): a library predicate, or a builtin, that a program's
+clause calls is a port, and what it calls is not — its helpers and the
+builtins they call — but a predicate of the program's that it calls back
+is (max_member/3's order, forall/2's action). Through 3.26 every helper's
+ports were printed (`'$member_'/3`, `'$nth_gen'/5`, `'$between_n'/3`).
+
+* **Which predicates hide what they call.** The builtins and the C
+  predicates of the compiled-in modules (green's too, library(async)'s C
+  half), and every predicate a read defines while `generate_debug_info` is
+  `false` — swipl's flag, which cocolog's own system libraries set at
+  their head as swipl's set it: lists, builtins, dcg, files, library,
+  print_message, async and the vendored aggregate and ordsets. apply,
+  pairs, assoc and yall are debuggable in swipl, and here too.
+* **A program can do the same.** `:- set_prolog_flag(generate_debug_info,
+  false).` in a file hides what the predicates after it call, until the
+  flag is true again; the file's end puts the flag back, so the next file
+  read is the program's again. A predicate's first clause decides, as
+  swipl's `assert_term` decides it, and a later clause of it with the
+  flag true does not undo it. A program's clause for a library's
+  predicate (one namespace: `member(z, [z]).` joins lists' member/2) makes
+  it the program's, and what it calls is shown.
+* **A Redo inside a library call is the call's.** A retry of a helper's
+  choice point is printed as the `Redo` of the library call the program
+  made, once that call has exited — `Redo: member(_G0,[a,b])` above —
+  and nothing while it has not, as SWI's `dbgRedoFrame` reports it.
+* **A builtin's search is its own.** findall/3, forall/2 and
+  call_limited/3 run their goals in the builtin's context, as swipl's
+  clauses for them (and for call_with_inference_limit/3) do, so a library
+  call in them is hidden; with_output_to/2, which swipl runs as a query
+  of its own in C, shows a library call in it. A retry inside the search
+  reaches no `Redo` of the program's past it.
+* **The recorder keeps every call.** The printer (`trace` 1) hides; a
+  window's recorder (`library(flow/debug)`) records every call, a
+  helper's too, where its chart and its profile need them, and the quiet
+  trace (`--backtrace`) prints nothing either way. The depths count every
+  call, a hidden one too, as SWI's levels do.
+
 ## How it is held to SWI
 
 `test/trace.pl` — the `trace` case of `make test` — asks both tracers
-the same thirty-three queries over `test/trace-program.pl` and compares the port
-lines one for one: same ports, same order, same relative depths, same
-goals. Three things are normalised first, because the two writers are
-entitled to them: the depth base (SWI's toplevel starts about ten
+the same thirty-three queries over `test/trace-program.pl`, and since 3.27.0
+thirty-two over `test/trace-library.pl` (library calls, a callback, a
+search, `generate_debug_info` false and back, a second file after it), and
+compares the port lines one for one: same ports, same order, same relative
+depths, same goals. Three things are normalised first, because the two
+writers are entitled to them: the depth base (SWI's toplevel starts about ten
 frames deep, cocolog at one), the names of unbound variables (`_438`
 there, `_G34` here), and spacing inside terms. The case SKIPs without
-`swipl` on PATH.
+`swipl` on PATH. What swipl has no line for -- a program's clause joining a
+library predicate, with_output_to/2's query, call_limited/3,
+print_message/2, async_workers/1, a fact under a module's name -- is held
+to cocolog's own lines.
 
-Two knowing divergences, both outside the ports themselves: SWI jumps
-several frame depths entering a `findall` (its inner machinery) where
-cocolog's inner engine continues at the natural depth, and SWI prefixes
-meta-predicates with `^` and library goals with their module
-(`lists:member`) — cocolog has neither modules nor the prefix.
+Knowing divergences, all outside the ports themselves (COMPAT.md): SWI
+jumps several frame depths entering a `findall` (its inner machinery,
+hidden) where cocolog's inner engine is one deeper than the call; SWI
+shows once/1, ignore/1, not/1 and catch/3 as frames of their own,
+`^  Call: once(G)`, and hides a library call in them, where here they are
+control constructs and the call is the program's; SWI shows
+with_output_to/2's goal as a frame, two levels below it; apply's helper
+is `maplist_/3` there and `'$maplist_'/3` here; a clause whose body is
+`true` alone is a fact to SWI's compiler and prints that `true`'s ports
+here; and SWI prefixes meta-predicates with `^` and library goals with
+their module (`lists:member`) — cocolog has neither modules nor the prefix.
 
 There is no interactive mode — no creep, skip or leap at a leashed
 port. The tracer is a printer, and the machine itself is the stepper:

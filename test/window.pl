@@ -57,9 +57,15 @@ w_churn(N) :-
     N1 is N - 1,
     w_churn(N1).
 
-%% a call that exits and is backtracked past with no clause left to try
-w_look(K, V) :- w_pairs(Ps), member(K-V, Ps).
+%% a call that exits and is backtracked past with no clause left to try,
+%% a program's own member/2 and its helper, as library(lists) writes them
+%% -- and the library's, whose helper the printer hides (3.27.0)
+w_look(K, V) :- w_pairs(Ps), w_mem(K-V, Ps).
 w_pairs([a-1, b-2]).
+w_mem(X, [H|T]) :- w_mem_(T, X, H).
+w_mem_(_, X, X).
+w_mem_([H|T], X, _) :- w_mem_(T, X, H).
+w_lib(K, V) :- w_pairs(Ps), member(K-V, Ps).
 
 %% heads the selection tries and heads the index passes over (1.11.2): a
 %% call keyed on its first argument tries only the clauses whose first
@@ -163,7 +169,10 @@ clock_counted_file(N, Switches) :-
 %% ---- the recorder and the printer --------------------------------------
 %%
 %% THE RECORDER RECORDS THE PORTS THE PRINTER PRINTS, and the printer is
-%% held to SWI's by the trace case. A retry prints its Redo only once it
+%% held to SWI's by the trace case -- but the calls the printer hides
+%% (3.27.0: a library predicate's helpers and the builtins a library
+%% calls, as swipl's tracer hides them), which a window records for
+%% library(flow/debug)'s charts and profiles. A retry prints its Redo only once it
 %% enters a clause: through 1.10.12 a window recorded one as every retry
 %% began, so a call that had exited and was backtracked past with no clause
 %% left -- which goes quietly -- showed a Redo the printer never printed,
@@ -180,12 +189,28 @@ printed :-
     check('the trace case''s 33 queries: the same ports, at the same depths, of the same goals', Off1, []),
     scratch(D),
     atom_concat(D, '/look.pl', F),
-    fixture(F, [ 'w_look(K, V) :- w_pairs(Ps), member(K-V, Ps).', 'w_pairs([a-1, b-2]).' ]),
+    %% the program's own member/2 and its helper, as library(lists) writes
+    %% them: the printer hides a library's helpers (3.27.0, below)
+    fixture(F, [ 'w_look(K, V) :- w_pairs(Ps), w_mem(K-V, Ps).', 'w_pairs([a-1, b-2]).',
+                 'w_mem(X, [H|T]) :- w_mem_(T, X, H).', 'w_mem_(_, X, X).',
+                 'w_mem_([H|T], X, _) :- w_mem_(T, X, H).',
+                 'w_lib(K, V) :- w_pairs(Ps), member(K-V, Ps).' ]),
     recorded_ports(w_look(z, _), R2),
     printed_ports(F, w_look(z, _), P2),
     check('a call that exited and is backtracked past with no clause left goes quietly in both',
-          R2-P2, P2-[ call-0-w_look, call-1-w_pairs, exit-1-w_pairs, call-1-member, call-2-'$member_',
-                      call-3-'$member_', fail-3-'$member_', fail-2-'$member_', fail-1-member, fail-0-w_look ]),
+          R2-P2, P2-[ call-0-w_look, call-1-w_pairs, exit-1-w_pairs, call-1-w_mem, call-2-w_mem_,
+                      call-3-w_mem_, fail-3-w_mem_, fail-2-w_mem_, fail-1-w_mem, fail-0-w_look ]),
+    %% A LIBRARY'S HELPERS ARE THE RECORDER'S, NOT THE PRINTER'S (3.27.0):
+    %% `--trace' prints member/2's call and none of the calls it makes, as
+    %% swipl's tracer hides them, where a window records every call --
+    %% library(flow/debug) charts and profiles them
+    recorded_ports(w_lib(z, _), R3),
+    printed_ports(F, w_lib(z, _), P3),
+    check('a library''s helpers are recorded in a window and not printed',
+          R3-P3, [ call-0-w_lib, call-1-w_pairs, exit-1-w_pairs, call-1-member, call-2-'$member_',
+                   call-3-'$member_', fail-3-'$member_', fail-2-'$member_', fail-1-member, fail-0-w_lib ]-
+                 [ call-0-w_lib, call-1-w_pairs, exit-1-w_pairs, call-1-member, fail-1-member,
+                   fail-0-w_lib ]),
     shl(['rm -rf ', D]).
 
 %% Port-Depth-Name, each depth from the first port's

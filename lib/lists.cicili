@@ -76,6 +76,10 @@
 (DEFPARAMETER *lists-prolog*
   (FORMAT NIL "~{~A ~}"
           (LIST
+           ;; swipl's library(lists) is a nodebug library: the tracer shows
+           ;; a call a program's clause makes of one of these, and nothing
+           ;; they call (3.27.0, the read's `nodbg')
+           ":- set_prolog_flag(generate_debug_info, false)."
 
            ;; ---- length/2 -------------------------------------------------
            ;; A SWI BUILTIN, not library(lists), and cocolog had none.

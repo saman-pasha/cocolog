@@ -137,6 +137,7 @@
         (set (-> e query) goal)
         (set (-> e trace_depth) 0)
         (set (-> e trace_goal) 0)
+        (set (-> e trace_bhc) 0)
         ;; and no goal handed over by a query that is gone
         (set (-> e nset) 0)
         ;; NOR ANY ENVIRONMENT (Stage 5): with nothing running on the
@@ -275,6 +276,7 @@
           (set ($ sub trace) (-> e trace))
           (set ($ sub trace_depth) (-> e trace_depth))
           (set ($ sub trace_goal) (-> e trace_goal))
+          (coco_trace_inner e (aof sub) 0)
           ;; THE SEARCH MAY COLLECT (1.9.4) when this engine may -- under
           ;; trace too (1.9.6): what the tracer holds is on the engines on
           ;; the chain (each one's goal, its choices' goals, the indices in
@@ -433,6 +435,7 @@
           (set ($ sub trace) (-> e trace))
           (set ($ sub trace_depth) (-> e trace_depth))
           (set ($ sub trace_goal) (-> e trace_goal))
+          (coco_trace_inner e (aof sub) 0)
           (set ($ sub ptrail) tmark)
           (set ($ sub pheap) hmark)
           (set ($ sub gc) (? (and held (-> e gc)) 1 0))
@@ -699,7 +702,8 @@
               (int rc . 0) (int found . 0) (int td . 0))
           (if (>= row 0)
               (block
-                (if (-> e trace)
+                ;; (none in a library's clause, 3.27.0: TD stays 0)
+                (if (and (-> e trace) (not (coco_trace_hidden e gl 1)))
                     (block (set td (+ (-> e trace_depth) 1)) (coco_trace_port e "Call" td gl)))
                 (set rc (coco_builtin_call e row gl))
                 (set found 1))
@@ -1543,13 +1547,14 @@
                   ;; and counted in `frees' (`coco_bi_unify')
                   ((and (== n 0) (== nid (coco-id m "true")))
                    (set (-> e frees) (+ (-> e frees) 1))
-                   (if (-> e trace)
+                   ;; (none in a library's clause: 3.27.0)
+                   (if (and (-> e trace) (not (coco_trace_hidden e g 1)))
                        (block (coco_trace_port e "Call" (+ (-> e trace_depth) 1) g)
                               (coco_trace_port e "Exit" (+ (-> e trace_depth) 1) g)))
                    (set (-> e goals) k))
 
                   ((and (== n 0) (or (== nid (coco-id m "fail")) (== nid (coco-id m "false"))))
-                   (if (-> e trace)
+                   (if (and (-> e trace) (not (coco_trace_hidden e g 1)))
                        (block (coco_trace_port e "Call" (+ (-> e trace_depth) 1) g)
                               (coco_trace_port e "Fail" (+ (-> e trace_depth) 1) g)))
                    (set (cof ok) 0))
@@ -1577,22 +1582,25 @@
                                                     (nth (coco_deref m (coco_arg m g 1)) (-> m heap)))))
                              (size_t pg . #'(cast size_t (coco-signed-payload
                                                           (nth (coco_deref m (coco_arg m g 2)) (-> m heap))))))
-                         (coco_trace_port e "Exit" xd xg)
                          ;; the newest live frame of this call remembers the
                          ;; exit, so failing back past untried heads that
                          ;; cannot match stays silent -- the quiet SWI's
                          ;; clause indexing buys by never keeping the frame
                          ;; -- and so does the SPENT frame a cut kept, which a
-                         ;; deterministic exit leaves with nothing to fail
-                         (let ((i64 fi . #'(- (cast i64 (-> e nchoices)) 1)))
+                         ;; deterministic exit leaves with nothing to fail;
+                         ;; and it says whether the call is hidden from the
+                         ;; printer (3.27.0, PRINTR 2), whose Exit is none
+                         (let ((i64 fi . #'(- (cast i64 (-> e nchoices)) 1)) (int xh . 0))
                            (while (>= fi 0)
                              (let ((int fk . #'($ (nth (cast size_t fi) (-> e choices)) kind)))
                                (if (and (or (== fk COCO_CH_CLAUSE) (== fk COCO_CH_SPENT))
                                         (== ($ (nth (cast size_t fi) (-> e choices)) call) xg)
                                         (== ($ (nth (cast size_t fi) (-> e tchoices)) depth) xd))
                                    (block (set ($ (nth (cast size_t fi) (-> e tchoices)) exited) 1)
+                                          (set xh (== ($ (nth (cast size_t fi) (-> e tchoices)) printr) 2))
                                           break)))
-                             (set fi (- fi 1))))
+                             (set fi (- fi 1)))
+                           (if (not xh) (coco_trace_port e "Exit" xd xg)))
                          (set (-> e trace_depth) (- xd 1))
                          (set (-> e trace_goal) pg)))
                    (set (-> e goals) k))
@@ -2589,13 +2597,16 @@
                    (let ((int found . 0) (int rc . 0) (int tport . 0) (int tD . 0))
                      ;; the Call port, before anything runs -- SWI prints it
                      ;; before so much as a head is looked at. trace/0 and
-                     ;; notrace/0 stay out of their own trace.
+                     ;; notrace/0 stay out of their own trace. A call the
+                     ;; printer hides (3.27.0: a library predicate or a builtin
+                     ;; called by one) has no port, and its frame says so
+                     ;; (PRINTR 2, the `tport' `coco_trace_call' answers, out of
+                     ;; line and cold so the loop keeps its registers)
                      (if (and (-> e trace)
                               (not (and (== n 0) (or (== nid (coco-id m "trace"))
                                                      (== nid (coco-id m "notrace"))))))
-                         (block (set tport 1)
-                                (set tD (+ (-> e trace_depth) 1))
-                                (coco_trace_port e "Call" tD g)))
+                         (block (set tD (+ (-> e trace_depth) 1))
+                                (set tport (coco_trace_call e tD g))))
                      ;; A CORE BUILTIN, BY THE ROW THE FUNCTOR REMEMBERS -- asked
                      ;; once (`coco_builtin_index'), then one jump; an atom
                      ;; goal has no functor and walks the chain as before
@@ -2676,10 +2687,10 @@
                           ;; nothing had been raised.
                           (cond ((== rc 2) (block))
                                 ((== rc 1)
-                                 (if tport (coco_trace_port e "Exit" tD g))
+                                 (if (== tport 1) (coco_trace_port e "Exit" tD g))
                                  (set (-> e goals) k))
                                 (#t
-                                 (if tport (coco_trace_port e "Fail" tD g))
+                                 (if (== tport 1) (coco_trace_port e "Fail" tD g))
                                  (set ok 0)
                                  ;; a guarded frame's last call that failed
                                  ;; (3.21.0, $/0, `coco_det_bfail'): 2 the
@@ -2825,7 +2836,7 @@
                                       (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
                                         (set (-> tc goal) g)
                                         (set (-> tc depth) tD)
-                                        (set (-> tc printr) 1)
+                                        (set (-> tc printr) tport)
                                         (set (-> tc exited) 0)
                                         ;; its selection says when it enters
                                         ;; its last candidate (`coco_det_exit')
@@ -2862,7 +2873,7 @@
                             ;; expecting it to raise.
                             ((or ($ (nth pi ($ (cof st) preds)) dynamic)
                                  ($ (nth pi ($ (cof st) preds)) declared))
-                             (if tport (coco_trace_port e "Fail" tD g))
+                             (if (== tport 1) (coco_trace_port e "Fail" tD g))
                              (set ok 0))
                             ;; ABOUT TO THROW -- SO ASK THE BACKEND FIRST.
                             ;; Resolution loads a predicate's clauses lazily,
@@ -2897,7 +2908,7 @@
                                   (set ($ (nth pi ($ (cof st) preds)) warmed) 1)
                                   (coco_store_warm st)))
                              (if ($ (nth pi ($ (cof st) preds)) dynamic)
-                                 (block (if tport (coco_trace_port e "Fail" tD g))
+                                 (block (if (== tport 1) (coco_trace_port e "Fail" tD g))
                                         (set ok 0))
                                (block
                                 ;; the goal in flight: the module seam's walk

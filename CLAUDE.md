@@ -525,8 +525,10 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   2.2.2 swipl's four float flags and `float_min`, `float_max` and
   `float_max_integer`, since 2.16.0 `verbose` (`normal`), and since 3.15.0
   `optimise_unify` (`true`), are the only flags answered; set_prolog_flag/2
-  sets `double_quotes`, `text_units`, `generate_debug_info` (taken and
-  unused), the float flags, `verbose` (any atom, the process's: `silent`,
+  sets `double_quotes`, `text_units`, `generate_debug_info` (swipl's
+  booleans, the read's own since 3.27.0: what it defines after the flag is
+  false hides its children from the tracer; taken and unused through
+  3.26), the float flags, `verbose` (any atom, the process's: `silent`,
   swipl -q's, quiets print_message/2's informational and banner kinds) and
   `optimise_unify` (swipl's booleans, the process's: whether a store moves
   the unifications that begin a body into its head), as a goal since 2.2.2, and refuses
@@ -2369,13 +2371,55 @@ cocolint index offers no import of it.
   frame's kind is asked in eight places -- `coco_backtrack`'s drop test,
   the `$trace_exit` marker's search, the `;` Redo's search,
   `coco_trace_reopen`, `$catch_exit`'s scan, `coco_frames_on`'s walk
-  (the update view's), since 3.20.0 `$det_exit`'s scan (`coco_det_exit`)
-  and since 3.21.0 a guard's (`coco_det_live`) -- and a new kind goes to
-  all eight. **A frame is a
+  (the update view's), since 3.20.0 `$det_exit`'s scan (`coco_det_exit`),
+  since 3.21.0 a guard's (`coco_det_live`) and since 3.27.0 the printer's
+  region walk and its search for a `;`'s call (`coco_trace_region`,
+  `coco_trace_redo_at`) -- and a new kind goes to all ten. **A frame is a
   call's by its depth (> 0), never by its goal**:
   a goal can be heap cell 0, and `--trace run F t` printed no Fail for an
   atom goal written first. A Redo reopens only the calls it is inside
   (the nearest shallower frame, then the next), not every shallower one.
+* **The printer hides what swipl's hides** (3.27.0, swipl's isDebugFrame
+  and dbgRedoFrame; TRACING.md's "A library's calls", the functions under
+  "what the printer hides" in lib/solve-control.cicili): a call is no port
+  where its predicate hides its children and so does the call whose body
+  it is in (`trace_goal`; a builtin's search, its `kcall`). Hiding is
+  asked in the step's dispatch order (`coco_trace_hc`): a builtin's row, a
+  compiled-in module's C (`coco_sysclaims_hook`: the tier-1 rows and
+  green's, NOT the load's claims, so no take-over moves), then the store's
+  `pattrs` 32 -- after the modules, because a fact a program asserts under
+  a module's C name is no predicate the call reaches. A predicate's 32
+  is decided by its FIRST clause in a read (`coco_assert_from`, swipl's
+  assert_term): set where the machine's `nodbg` is 1 -- generate_debug_info
+  false, by the directive (`coco_directive`) or the goal (`lb_set_flag`),
+  saved and put back by each read (`coco_consult_oid`), and 0 at the start
+  of a compiled-in module's text or a preloaded library's (lib/module.cicili)
+  -- and cleared where it is 0; 64 marks a library's (its first clause a
+  `noexp` read's), which each later clause decides again: one namespace for
+  swipl's separate user predicate (card row N1). A hidden call's frame has
+  PRINTR 2, and it has no Exit or Fail port (the `'$trace_exit'` marker,
+  the builtin's sites, `coco_trace_fail`, `_nomatch`, `_spent`). **The
+  step's `tport` is that PRINTR** (0 untraced, 1 shown, 2 hidden), which
+  `coco_trace_call` answers, out of line and `(weak) (cold)`: a flag of its
+  own beside `tport` took `tport` out of its register and cost queens'
+  every call six instructions, the flag folded into `tport` with the
+  question and the port as two calls in the loop four, and the one cold
+  call none (`tools/flow/zero.sh`, all three under 3.26.1's); a retry
+  inside one is the Redo of the outermost call of its region whose caller
+  does not hide (`coco_trace_region`), printed as the retry begins, before
+  the selection (`coco_trace_paint`), once that call has exited. **A new
+  engine starter hands the tracer on through `coco_trace_inner`**, its
+  QUERY 0 where swipl's builtin is a clause (findall/3, forall/2,
+  call_limited/3: the builtin's context) and 1 where it is C running a
+  query (with_output_to/2: no context), one deeper and a boundary no Redo
+  crosses (`trace_bhc`); **a new system library says
+  `:- set_prolog_flag(generate_debug_info, false).` at its head**, as the
+  compiled-in halves, library/print_message.pl and library/async.pl do;
+  **a new reader of `pattrs` masks the bits it means** (listing/1's guard
+  reads 31). The recorder (2) and the quiet trace (3) keep 3.26's every
+  call. test/trace.pl holds 32 queries of test/trace-library.pl to swipl,
+  a second file after one that ends under false, and eight lines swipl has
+  none of to cocolog's own; COMPAT.md has what is not swipl's.
 * **The journal** (1.10.15; TRACING.md, DESIGN-flow.md 9.2):
   `'$trace_window'/4` with `journal(record(F))` writes a line for each
   PORTAL call -- a module call that reaches the world -- and with

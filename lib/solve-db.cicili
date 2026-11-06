@@ -1149,7 +1149,8 @@
                 (int dcl . #'($ (nth pi (-> st preds)) declared))
                 (int pat . #'($ (nth pi (-> st preds)) pattrs)))
 
-            (if (and (not dyn) (not dcl) (== pat 0) (== (coco_pred_live p) 0))
+            ;; (bit 32, the tracer's, is no declaration: 3.27.0)
+            (if (and (not dyn) (not dcl) (== (bitand pat 31) 0) (== (coco_pred_live p) 0))
                 (return 0))
 
             ;; THE DECLARATIONS FIRST, one line each and a blank line after

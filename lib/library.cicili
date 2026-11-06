@@ -74,6 +74,9 @@
 (DEFPARAMETER *library-prolog*
   (FORMAT NIL "~{~A ~}"
           (LIST
+           ;; swipl's system predicates: the tracer hides what they call
+           ;; (3.27.0, the read's `nodbg')
+           ":- set_prolog_flag(generate_debug_info, false)."
            ;; the flags current_prolog_flag/2 answers, for a flag it was not
            ;; given (3.0.0): its C half declines that goal to this clause
            "current_prolog_flag(F, V) :- var(F), member(F, [bounded, max_integer, min_integer, max_tagged_integer, min_tagged_integer, float_overflow, float_zero_div, float_undefined, float_underflow, float_min, float_max, float_max_integer, double_quotes, text_units, verbose, optimise_unify, argv, os_argv, executable]), current_prolog_flag(F, V)."
@@ -527,13 +530,18 @@
                      (if (or (== 0 (strcmp val "false")) (== 0 (strcmp val "off")))
                          (block (coco_optimise_unify_set 0) (return 1)))))
                (return (coco_m_type_error e "bool" v))))
+          ;; generate_debug_info false: what a read defines from here on
+          ;; hides its children from the tracer (3.27.0, the machine's
+          ;; `nodbg', which each read puts back at its end)
           (if (== 0 (strcmp flag "generate_debug_info"))
               (block
                (if (coco_m_is_var e v) (return (coco_m_instantiation_error e)))
                (if (and (coco_m_is_atom e v) (coco_m_text e v val 64)
-                        (or (== 0 (strcmp val "true")) (== 0 (strcmp val "false"))
-                            (== 0 (strcmp val "on")) (== 0 (strcmp val "off"))))
-                   (return 1))
+                        (or (== 0 (strcmp val "true")) (== 0 (strcmp val "on"))))
+                   (block (set (-> mm nodbg) 0) (return 1)))
+               (if (and (coco_m_is_atom e v) (coco_m_text e v val 64)
+                        (or (== 0 (strcmp val "false")) (== 0 (strcmp val "off"))))
+                   (block (set (-> mm nodbg) 1) (return 1)))
                (return (coco_m_type_error e "bool" v))))
           (return (coco_m_existence_error e "prolog_flag" f))))
 

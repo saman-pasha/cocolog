@@ -1057,6 +1057,178 @@
                 ))))
           (return 0)))
 
+  ;;; ---- what the printer hides (3.27.0, swipl's HIDE_CHILDS) --------------
+  ;;;
+  ;;; swipl's isDebugFrame: a predicate that HIDES ITS CHILDREN -- a builtin,
+  ;;; one its system defines and one a nodebug library defines (lists,
+  ;;; error, aggregate, ordsets: generate_debug_info false) -- is shown where
+  ;;; a program's predicate calls it, and of what it calls only a program's
+  ;;; predicate is shown again; a Redo inside it is reported on the
+  ;;; outermost such call, once it has exited (`dbgRedoFrame'). The printer
+  ;;; does the same, `trace' 1 alone: a window's recorder (2) keeps every
+  ;;; call, which library(flow/debug) charts and profiles, and the quiet
+  ;;; trace (3) prints nothing. The depths count every call, a hidden one
+  ;;; too, as swipl's levels do.
+
+  ;;; whether goal G's predicate hides its children: 0 for no goal (the
+  ;;; toplevel's context); 1 for a builtin and a name a module claims, and a
+  ;;; predicate of the store by its `pattrs' 32 (decided by its first
+  ;;; clause, `coco_assert_from'), asked in the order the step dispatches
+  ;;; them -- a fact under a builtin's name is the builtin's call, and the
+  ;;; store may hold an entry for a module's name -- but a name the program
+  ;;; took over is its predicate's; 0 for anything else
+  (weak)
+  (func coco_trace_hc ((coco_engine * e) (size_t g)) (out int)
+        (if (== g 0) (return 0))
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st))
+              (u64 c . 0) (u64 nid . 0) (u32 n . 0) (size_t pi . 0))
+          (set g (coco_deref m g))
+          (set c (nth g (-> m heap)))
+          (if (not (or (coco-tag-is ATOM c) (coco-tag-is FUN c))) (return 0))
+          (set nid (coco_name_of m g))
+          (set n (coco_arity m g))
+          (if (> n 0)
+              (let ((coco_functor * f . #'(aof (nth (cast size_t (coco-payload c)) (-> m functors)))))
+                (if (== (-> f bix) 0) (set (-> f bix) (coco_bix_fill m st nid n)))
+                (if (>= (-> f bix) 2) (return 1)))
+              (if (and (>= (coco_builtin_index m nid 0) 0)
+                       (not (and (!= (-> st ntaken) 0) (coco_pred_taken st nid 0))))
+                  (return 1)))
+          (if (and (!= coco_sysclaims_hook nil) (coco_sysclaims_hook (coco_atom_name m nid) n)
+                   (not (and (!= (-> st ntaken) 0) (coco_pred_taken st nid n))))
+              (return 1))
+          (set pi (coco_pred_find st nid n))
+          (if (< pi (-> st npreds))
+              (return (!= (bitand ($ (nth pi (-> st preds)) pattrs) 32) 0)))
+          (return 0)))
+
+  ;;; whether the printer hides a call of G: its predicate hides its
+  ;;; children (CHC, or asked of G where CHC is -1) and so does the context
+  ;;; it is called in, the call whose body it is in or the builtin whose
+  ;;; search it is (`trace_goal')
+  (weak)
+  (func coco_trace_hidden ((coco_engine * e) (size_t g) (int chc)) (out int)
+        (if (!= (-> e trace) 1) (return 0))
+        (if (< chc 0) (set chc (coco_trace_hc e g)))
+        (if (not chc) (return 0))
+        (return (coco_trace_hc e (-> e trace_goal))))
+
+  ;;; THE CALL PORT OF A CALL THE STEP MAKES: 2 where the printer hides the
+  ;;; call, which then has no port, else 1 and its Call printed -- the
+  ;;; step's `tport' and its frame's PRINTR. Out of line and cold: in the
+  ;;; loop, the question and the port as two calls moved queens' every call
+  ;;; four instructions, and a flag beside `tport' six (tools/flow/zero.sh)
+  (weak) (cold)
+  (func coco_trace_call ((coco_engine * e) (int depth) (size_t g)) (out int)
+        (if (coco_trace_hidden e g -1) (return 2))
+        (coco_trace_port e "Call" depth g)
+        (return 1))
+
+  ;;; whether the call at frame CI hides its children: its predicate's
+  ;;; `pattrs' 32
+  (static)
+  (func coco_trace_frame_hc ((coco_engine * e) (size_t ci)) (out int)
+        (let ((coco_store * st . #'(-> e st))
+              (size_t pi . #'($ (nth ci (-> e choices)) pred)))
+          (return (and (< pi (-> st npreds))
+                       (!= (bitand ($ (nth pi (-> st preds)) pattrs) 32) 0)))))
+
+  ;;; THE FRAME A RETRY IS REPORTED ON (swipl's dbgRedoFrame), for the call
+  ;;; at frame CI, which hides its children or was hidden: the outermost of
+  ;;; it and the callers out from it whose callers hide their children --
+  ;;; the library call a program's clause made, so that a choice point left
+  ;;; inside lists:member/2 is member's Redo. A caller is the nearest traced
+  ;;; call's frame below at one depth less, and the walk never passes one
+  ;;; that was no traced call's. -1 where it leaves the engine for the
+  ;;; builtin whose search this is (`trace_bhc': a retry inside findall/3's
+  ;;; search is no port of the program's).
+  (weak)
+  (func coco_trace_region ((coco_engine * e) (size_t ci)) (out i64)
+        (let ((i64 f . #'(cast i64 ci)) (int d . #'($ (nth ci (-> e tchoices)) depth)))
+          (while 1
+            (let ((i64 p . #'(- f 1)) (int found . 0))
+              (while (>= p 0)
+                (let ((int k . #'($ (nth (cast size_t p) (-> e choices)) kind))
+                      (coco_tchoice * tc . #'(aof (nth (cast size_t p) (-> e tchoices)))))
+                  (if (and (or (== k COCO_CH_CLAUSE) (== k COCO_CH_SPENT))
+                           (!= (-> tc printr) 0) (== (-> tc depth) (- d 1)))
+                      (block (set found 1) break)))
+                (set p (- p 1)))
+              (if (not found) (return (? (-> e trace_bhc) -1 f)))
+              (if (not (coco_trace_frame_hc e (cast size_t p))) (return f))
+              (set f p)
+              (set d (- d 1))))
+          (return f)))
+
+  ;;; THE CALL A RETRY AT CI IS INSIDE, for the printer (`trace' 1): the
+  ;;; frame whose Redo is printed, or -1 for none -- the region's outermost
+  ;;; call (`coco_trace_region') when the retried call hides its children or
+  ;;; was hidden and that call has exited, its Redo then; CI itself for any
+  ;;; other call, as through 3.26. GOAL is the call's goal and DEPTH its
+  ;;; depth: a GOAL frame's call is the frame below it that is that call's
+  ;;; (a `;' in a library predicate's clause)
+  (weak)
+  (func coco_trace_redo_at ((coco_engine * e) (size_t ci) (size_t goal) (int depth)) (out i64)
+        (let ((i64 f . #'(cast i64 ci)) (i64 t . 0))
+          (if (!= (-> e trace) 1) (return f))
+          ;; a written `;': the call it sits in, by its goal and depth
+          (if (== ($ (nth ci (-> e choices)) kind) COCO_CH_GOAL)
+              (block
+               (set f (- f 1))
+               (while (>= f 0)
+                 (let ((int k . #'($ (nth (cast size_t f) (-> e choices)) kind))
+                       (coco_tchoice * tc . #'(aof (nth (cast size_t f) (-> e tchoices)))))
+                   (if (and (or (== k COCO_CH_CLAUSE) (== k COCO_CH_SPENT)) (!= (-> tc printr) 0)
+                            (== (-> tc depth) depth) (== ($ (nth (cast size_t f) (-> e choices)) call) goal))
+                       break))
+                 (set f (- f 1)))
+               ;; a call no traced frame is kept for: as through 3.26
+               (if (< f 0) (return (cast i64 ci)))))
+          (if (and (!= ($ (nth (cast size_t f) (-> e tchoices)) printr) 2)
+                   (not (coco_trace_frame_hc e (cast size_t f))))
+              (return (cast i64 ci)))
+          (set t (coco_trace_region e (cast size_t f)))
+          (if (< t 0) (return -1))
+          (if (== ($ (nth (cast size_t t) (-> e tchoices)) exited) 0) (return -1))
+          (return t)))
+
+  ;;; THE SEARCH A BUILTIN STARTS, for the printer (`trace' 1): its goals
+  ;;; are one deeper than its Call, and a retry inside reaches no Redo of the
+  ;;; program's past them (`trace_bhc'). Where swipl's builtin is a clause of
+  ;;; its system -- findall/3's, forall/2's, call_with_inference_limit/3's
+  ;;; for call_limited/3 -- they are in its context (`kcall', the builtin's
+  ;;; goal), so a library predicate in them is hidden; where it is C that
+  ;;; runs the goal as a query of its own (QUERY: with_output_to/2's), they
+  ;;; have no context, as the toplevel's goals have none, and a library
+  ;;; predicate's own call is shown. A window's recorder keeps 3.26's: the
+  ;;; goals in the caller's context and depth, where library(flow/debug)
+  ;;; charts them
+  (weak)
+  (func coco_trace_inner ((coco_engine * e) (coco_engine * sub) (int query))
+        (if (!= (-> e trace) 1) (return))
+        (set (-> sub trace_depth) (+ (-> e trace_depth) 1))
+        (set (-> sub trace_goal) (? query 0 (-> e kcall)))
+        (set (-> sub trace_bhc) 1))
+
+  ;;; A WRITTEN `;' RETRIED: whether its Redo is its own call's -- 1, as
+  ;;; through 3.26 -- or, in a clause of a predicate that hides its children
+  ;;; or of a hidden call, the region's (`coco_trace_redo_at'): that call's
+  ;;; Redo printed here, once it has exited, and 0
+  (weak)
+  (func coco_trace_goal_own ((coco_engine * e) (size_t ci)) (out int)
+        (if (!= (-> e trace) 1) (return 1))
+        (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices))))
+              (i64 rt . 0))
+          (set rt (coco_trace_redo_at e ci (-> tc goal) (-> tc depth)))
+          (if (== rt (cast i64 ci)) (return 1))
+          (if (>= rt 0)
+              (let ((coco_tchoice * tt . #'(aof (nth (cast size_t rt) (-> e tchoices)))))
+                (coco_trace_port e "Redo" (-> tt depth) (-> tt goal))
+                (set (-> tt exited) 0)
+                (coco_trace_reopen e (cast size_t rt) (-> tt depth))))
+          (return 0)))
+
   ;;; ---- the traced selection, out of line (1.10.12) ----------------------
   ;;;
   ;;; What a traced call or retry does around `coco_select_clause', each a
@@ -1158,6 +1330,23 @@
                    (set (-> r hstart) ($ (nth ci (-> e choices)) clause_ix))
                    (coco_rec_hkey e ci)))
               (return nil)))
+        ;; the printer's Redo of a retry inside a library call is that
+        ;; call's (3.27.0, `coco_trace_redo_at'), printed here, as the retry
+        ;; begins, where the frame retried is a choice point swipl's run
+        ;; keeps too (its LAST 0: a candidate is left), whether or not a
+        ;; head matches -- swipl reports the retry before it tries one --
+        ;; and the call is then open again, so its Fail is said; a frame
+        ;; at its last candidate is none of swipl's, and says nothing
+        (if (== (-> e trace) 1)
+            (let ((i64 rt . #'(coco_trace_redo_at e ci g depth)))
+              (if (and (>= rt 0) (!= rt (cast i64 ci)))
+                  (block
+                   (if (== ($ (nth ci (-> e tchoices)) last) 0)
+                       (let ((coco_tchoice * tt . #'(aof (nth (cast size_t rt) (-> e tchoices)))))
+                         (coco_trace_port e "Redo" (-> tt depth) (-> tt goal))
+                         (set (-> tt exited) 0)
+                         (coco_trace_reopen e (cast size_t rt) (-> tt depth))))
+                   (return nil)))))
         (let ((coco_strbuf tb))
           (coco_sb_init (aof tb))
           (coco_write_term (-> e m) (aof tb) g 1 0)
@@ -1174,6 +1363,11 @@
                          (coco_rec_heads e ci (-> r hstart) 1)))
               (return)))
         (if (== (-> e trace) 3) (return))
+        ;; a retry inside a library call (3.27.0): its call's Redo was said
+        ;; as the retry began (`coco_trace_paint'), or is none
+        (if (or (== text nil)
+                (!= (coco_trace_redo_at e ci ($ (nth ci (-> e tchoices)) goal) depth) (cast i64 ci)))
+            (return))
         (coco_trace_line "Redo" depth text))
 
   ;;; the retry found no clause: its Fail, printed -- or the heads and the
@@ -1186,13 +1380,17 @@
               (coco_rec_port e COCO_REV_FAIL depth ($ (nth ci (-> e tchoices)) goal) 0)
               (return)))
         (if (== (-> e trace) 3) (return))
+        ;; a hidden call's (3.27.0, PRINTR 2) is no port
+        (if (== ($ (nth ci (-> e tchoices)) printr) 2) (return))
         (coco_trace_line "Fail" depth text))
 
-  ;;; a traced call matched no clause at all: the heads, then its Fail
+  ;;; a traced call matched no clause at all: the heads, then its Fail --
+  ;;; none for a hidden call (3.27.0, PRINTR 2)
   (weak)
   (func coco_trace_nomatch ((coco_engine * e) (size_t ci) (int depth) (size_t g))
         (coco_rec_heads e ci 0 0)
-        (coco_trace_port e "Fail" depth g))
+        (if (!= ($ (nth ci (-> e tchoices)) printr) 2)
+            (coco_trace_port e "Fail" depth g)))
 
   ;;; A CUT UNDER TRACE KEEPS ITS OWN CALL'S FRAME (1.10.24). The cut has
   ;;; taken the stack to B; the frame at B is the call whose body the cut
@@ -1227,7 +1425,7 @@
   (func coco_trace_spent ((coco_engine * e) (size_t ci))
         (if (== (-> e trace) 0) (return))
         (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
-          (if (and (!= (-> tc printr) 0) (== (-> tc exited) 0))
+          (if (and (!= (-> tc printr) 0) (!= (-> tc printr) 2) (== (-> tc exited) 0))
               (coco_trace_port e "Fail" (-> tc depth) (-> tc goal)))))
 
   ;;; A CLOCKED FRAME BACKTRACKED INTO (1.13.7): a retry begins, read from
@@ -1706,7 +1904,11 @@
                    ;; --trace run F t' never printed the Fail of `t'.
                    (if (-> e trace)
                        (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
-                         (if (and (!= (-> tc printr) 0) (> (-> tc depth) 0))
+                         ;; a `;' in a clause of a predicate that hides its
+                         ;; children is the Redo of the library call it is
+                         ;; inside, once that has exited, or none (3.27.0,
+                         ;; `coco_trace_goal_own', out of line)
+                         (if (and (!= (-> tc printr) 0) (> (-> tc depth) 0) (coco_trace_goal_own e ci))
                              (block
                               (coco_trace_port e "Redo" (-> tc depth) (-> tc goal))
                               ;; the redone call's own frame -- the SPENT one its
