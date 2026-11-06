@@ -663,10 +663,23 @@
 ;;; (NAME ARITY MOD SNAME) names a helper of cocolog's by swipl's own name
 ;;; for it (3.22.0): a determinism error the guard of a last call into
 ;;; member/2 raises names lists:member_/3 (`coco_det_pi'), as swipl's
+;;; -- and library(apply)'s helpers (3.23.0): an unknown procedure, or what
+;;; is no goal, that maplist/2's body calls is apply:maplist_/2's, foldl/4's
+;;; apply:foldl_/4's, apply/2's '$apply':apply/2's
 (DEFPARAMETER *frame-contexts*
   '(("call_dcg" 3 "$dcg")
     ("$member_" 3 "lists" "member_") ("$select3_" 4 "lists" "select3_")
-    ("$nth_gen" 5 "lists" "nth_gen")))
+    ("$nth_gen" 5 "lists" "nth_gen")
+    ("$maplist_" 2 "apply" "maplist_") ("$maplist_" 3 "apply" "maplist_")
+    ("$maplist_" 4 "apply" "maplist_") ("$maplist_" 5 "apply" "maplist_")
+    ("$include_" 3 "apply" "include_") ("$exclude_" 3 "apply" "exclude_")
+    ("$partition_" 4 "apply" "partition_") ("$partition_" 5 "apply" "partition_")
+    ("$partition_" 7 "apply" "partition_") ("$convlist_" 3 "apply" "convlist_")
+    ("$foldl" 4 "apply" "foldl_") ("$foldl2" 5 "apply" "foldl_")
+    ("$foldl3" 6 "apply" "foldl_") ("$foldl4" 7 "apply" "foldl_")
+    ("$scanl" 4 "apply" "scanl_") ("$scanl2" 5 "apply" "scanl_")
+    ("$scanl3" 6 "apply" "scanl_") ("$scanl4" 7 "apply" "scanl_")
+    ("apply" 2 "$apply")))
 
 (DEFMACRO coco-emit-frame-ctx ()
   `(func coco_frame_ctx ((coco_machine * m) (u64 nid) (u32 n) (size_t * out)) (out int)

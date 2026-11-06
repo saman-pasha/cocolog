@@ -1395,11 +1395,20 @@ cocolint index offers no import of it.
   (`lists:member_/3`), which `coco_det_pi` asks. sub_atom/5,
   atom_concat/3, clause/2 and string_code/3 are deterministic on their
   last answers with them. **A library predicate that would leave a choice
-  point on its last element wants its list first in a helper** --
-  maplist/2..5, include/3, exclude/3 and partition/4,6 still write the
-  goal first and leave one on every element (COMPAT.md). member/2 and
-  select/3 are a call deeper for it: one inference more at their entry, as
-  swipl's.
+  point on its last element wants its list first in a helper**, and since
+  3.23.0 library(apply)'s are swipl's too: maplist/2..5, include/3,
+  exclude/3, partition/4,5 and convlist/3 over `'$maplist_'/2..5`,
+  `'$include_'/3`, `'$exclude_'/3`, `'$partition_'/4,5,7`,
+  `'$convlist_'/3` (lib/apply.cicili), where through 3.22.0 they wrote the
+  goal first and every element left a choice point; partition/5 raises
+  must_be/2's type_error(oneof([<,=,>]), O) for an order that is none and
+  takes an unbound one as `<`, once. An error in a helper's body names it
+  as swipl's (`*frame-contexts*`: apply:maplist_/2, apply:foldl_/4 for
+  `'$foldl'/4`, '$apply':apply/2), and apply/2 is swipl's boot/apply.pl
+  over strip_module/3. Each is a call deeper: one inference more at entry,
+  as swipl's. With the first list unbound and another given, swipl's JIT
+  index on that list leaves no choice point and cocolog's, under eight
+  clauses, leaves one on the last element (COMPAT.md).
 * **A cut runs the cleanups of the frames it takes** (3.1.0,
   setup_call_cleanup/3): a setup_call_cleanup/3 frame is a goal frame,
   `'$scc_fail'/2`, and each of the four cuts -- the goal `!`, `$cut`, an

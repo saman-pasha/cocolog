@@ -596,7 +596,9 @@ Not one line of C. Every one of them is a goal applied to the elements of a
 list — `call(Goal, X)` — so every one is two or three clauses. **They are as
 nondeterministic as what they are given:** `maplist(member, Xs, Yss)`
 backtracks because `member/2` does, and that falls out of their being clauses
-rather than being arranged for.
+rather than being arranged for. **And no more** (3.23.0): each is swipl's own
+clauses, the list first in a helper (`'$maplist_'/2`, swipl's `maplist_/2`),
+so a call with its list given leaves no choice point on any element.
 
 ## Grammars, and a library that is borrowed rather than written
 

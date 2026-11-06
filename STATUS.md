@@ -11865,3 +11865,101 @@ process, text, os, signal, stream and lint, the test binaries term,
 syntax, solve, module and state, and lesson 51; and repl, once CI's suite
 on the commit had found it red (CI's whole suite is the gate this ring of
 cases is not).
+
+## library(apply) as swipl writes it: no element leaves a choice point (3.23.0)
+
+As swipl's: `$, maplist(atom, [a, b])` is deterministic, and so is every
+call of maplist/2..5, include/3, exclude/3, partition/4,5 and convlist/3
+with its list given, where through 3.22.0 each element left a choice point
+-- which `$/1` (3.20.0) and `$/0` (3.21.0) showed as a determinism error
+swipl does not raise.
+
+THEY ARE SWIPL'S CLAUSES (lib/apply.cicili): `maplist(G, L) :-
+'$maplist_'(L, G).` and its helper's two clauses, and likewise
+`'$maplist_'/3..5`, `'$include_'/3`, `'$exclude_'/3`, `'$partition_'/4`
+(the recursion in each branch, as swipl's), `'$partition_'/5` over
+`'$partition_'/7` and `'$convlist_'/3` -- the list the helper's FIRST
+argument, so its call is keyed on `[]` or `[_|_]` and has one candidate.
+Through 3.22.0 they wrote the goal first, which every clause shares, and
+the index could not pass the clause for `[]` over. partition/5 is
+swipl's partition_/7: an order the goal leaves unbound is taken as `<`,
+once (the order clause's cut), where 3.22.0 answered three times, and one
+that is none raises must_be/2's `type_error(oneof([<,=,>]), O)`, where it
+failed. apply/2 is swipl's boot/apply.pl over strip_module/3: what is no
+goal is `type_error(callable, G)` (through 3.22.0 univ's
+`type_error(atom, G)`, and its own for an unbound one), a qualified goal
+is called in its module (univ made `m:foo` the goal `:(m, foo, X)`), and
+an argument list that is none is compound_name_arguments/3's
+`type_error(list, L)`. foldl/4..7 and scanl/4..7 were list first already.
+
+THE FRAMES ARE NAMED AS SWIPL NAMES THEM: an unknown procedure, or what
+is no goal, called in a helper's body is `context(apply:maplist_/2, _)`,
+`apply:include_/3`, `apply:partition_/5`, ..., and foldl's and scanl's
+helpers, `'$foldl'/4` to `'$scanl4'/7`, are `apply:foldl_/4` to
+`apply:scanl_/7`; apply/2's is `'$apply':apply/2`. Through 3.22.0
+`maplist/2`, `'$foldl'/4`, `apply/2`. Nineteen rows of `*frame-contexts*`
+(lib/solve.cicili), the fourth field swipl's own name (3.22.0's).
+
+WHAT IS NOT SWIPL'S YET (COMPAT.md): a call whose FIRST list is unbound
+and another one given -- `maplist(succ, L, [2, 3])`,
+`maplist(=, [a|_], [a, b])` -- is deterministic in swipl, whose index on
+that other list tells the helper's two clauses apart (its JIT index, of
+any predicate called with its first argument unbound: `q(_, [1, 2])` over
+`q(_, []). q(_, [_|T]) :- q(_, T).` too), and leaves a choice point here
+on the last element: cocolog builds another argument's index from eight
+clauses up (`coco_pred_first_enough`), and below that keys the call on
+its first argument alone. And current_op/3, which leaves one on its last
+answer.
+
+THE CASE. test/files/apply_det.pl, new: 108 lines, swipl 9.0.4's byte for
+byte -- the answers of all seventeen and of apply/2, the frame each error
+names (an unknown procedure in each helper, an integer and an unbound goal
+for call/N), partition/5's order that is none and unbound, apply/2's
+errors, which calls leave no choice point, and that a guarded clause's
+last call of each drops its guard, swipl marking them transparent
+(`lc1` to `lc11`). test/files/apply.pl (25 lines) stays as it was.
+
+THE ARMS, a build each, the rule taken out, each red in apply_det.pl:
+maplist/2..5's old clauses (13 lines: the helpers' frames and seven
+calls that left a choice point), include/3's (4), exclude/3's (3),
+partition/4's (3), partition/5's (8), partition/5's three cuts (6: an
+unbound order answers four times, the clause for an order that is none
+taking every order too), its clause for an order that is none (2: the
+order fails), convlist/3's (3), apply/2's old univ clause (9: a qualified
+goal is `:'/3, `foo()` a domain error, what is no goal univ's error), the
+rows for the new helpers (16), for foldl's and scanl's (10) and for
+apply/2 (1).
+
+THE COST, callgrind over `cocolog -s`, a run over a list of 20 000
+integers less the same run over none, 3.22.0 to 3.23.0, instructions an
+element (numlist/3's share in both):
+- maplist/2 2 468.7 to 1 908.0 (-22.7 %), maplist/3 3 014.0 to 2 488.8
+  (-17.4 %), maplist/4 3 310.1 to 2 741.8 (-17.2 %);
+- include/3 3 331.9 to 2 637.3 (-20.8 %), exclude/3 3 217.9 to 2 523.3
+  (-21.6 %), partition/4 3 798.5 to 2 829.6 (-25.5 %), convlist/3 3 775.2
+  to 3 215.5 (-14.8 %);
+- partition/5 5 013.6 to 5 073.9 (+1.2 %): swipl's partition_/7 is keyed
+  on the order, and its clause for `<` and the one for an order that is
+  none are both candidates, so each element pushes a choice point the cut
+  takes, where 3.22.0's pushed one for the list and kept it;
+- foldl/4, whose clauses did not change, 2 705.1 to 2 687.1 (-0.7 %:
+  where the code fell).
+- Each is a call deeper, as swipl's: one inference more at entry. The
+  start-up reads the extra clauses: 33 844 918 to 34 042 473 instructions
+  for an empty run (+0.58 %).
+- tools/flow/zero.sh, work less padding: nrev 66 333 940 to 66 333 984,
+  queens 40 342 911 to 40 342 898, lookup 48 129 152 to 48 130 551.
+
+THE COUNTS of a program that calls them are an inference more a call;
+the translator's barely move: test/translate.pl's sections up to
+newspaper_units, 308 794 409 inferences on 3.22.0 and 308 794 625 now
+(+216), 3 290 checks green on both; newspaper_bank, newspaper_corsica,
+question_roles and newspaper_rognoni, 3.22.0's four, the same to the unit.
+
+Narrow cases green: files, window, trace, engine, flowdebug, flowchart,
+backtrace, journal, gc, errors, directives, static, script, reconsult,
+library, repl, cyclic, meter, string, units, rationals, async, thread,
+cowork, serialize, template, hex, astar, argv, reason, normalise,
+translate, process, text, os, signal, stream and lint, the test binaries
+term, syntax, solve, module and state, and lesson 51 (its output the
+same as 3.22.0's but for its clock's readings).
