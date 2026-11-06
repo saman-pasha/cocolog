@@ -2488,6 +2488,12 @@
                                             e p ix0 0
                                             (aof (nth (* (cast size_t (-> e acur)) 8) (-> e areg)))
                                             (-> e goals) (-> e nchoices))))
+                                   ;; 3, where swipl's JIT index would ask
+                                   ;; another argument (3.24.0), goes the
+                                   ;; long way below, where the term's probe
+                                   ;; asks it: a fourth answer here made the
+                                   ;; test a jump table, five instructions a
+                                   ;; call more
                                    ((== det 2)
                                     (set r (coco_regs_choice e pi ix0))
                                     (if (== r -1) (return (coco_fail_err e "out of memory"))))))))
@@ -2739,14 +2745,28 @@
                                ;; The answer goes into the frame below, if
                                ;; there is one, so a retry reads it rather than
                                ;; asking again (`coco_select_clause').
+                               ;; A PROBE THAT ANSWERS 3 would have swipl's JIT
+                               ;; index ask another argument (3.24.0): the call
+                               ;; is made out of line (`coco_term_jit'), and a
+                               ;; TRACED call is keyed on the argument the
+                               ;; untraced one would be (`coco_trace_kpos', in the
+                               ;; trace's own arm, so the untraced path pays no
+                               ;; test more), and a trace leaves the choice
+                               ;; points a run leaves
                                (if (== (-> e trace) 0)
                                    (let ((coco_pred * pp . #'(aof (nth pi ($ (cof st) preds))))
                                          (u64 key . #'(coco_arg_key m g)))
                                      (if (coco_pred_first_enough pp key)
-                                         (set det (coco_pred_probe st pp key (aof ix0) m))
+                                         (block
+                                          (set det (coco_pred_probe st pp key (aof ix0) m))
+                                          (if (== det 3)
+                                              (let ((int jr . #'(coco_term_jit st m pp g (aof ix0))))
+                                                (set det (bitand jr 255))
+                                                (set kpos (cast u32 (>> jr 8))))))
                                          (let ((coco_ixsel sel . #'(coco_pred_select st m pp g)))
                                            (set kpos ($ sel pos))
-                                           (set det (coco_pred_probe_at st m pp kpos ($ sel key) (aof ix0)))))))
+                                           (set det (coco_pred_probe_at st m pp kpos ($ sel key) (aof ix0))))))
+                                   (set kpos (coco_trace_kpos e (aof (nth pi ($ (cof st) preds))) g)))
                                (cond
                                  ((== det 0) (set ok 0))
                                  ((== det 1)
@@ -2773,7 +2793,9 @@
                                   ;; the first candidate, when it was found above;
                                   ;; 0 under trace, where nothing was asked yet
                                   (set ($ (nth ci (-> e choices)) clause_ix) (? (== det 2) ix0 0))
-                                  ;; and the argument it was found on
+                                  ;; and the argument it was found on -- under
+                                  ;; trace the one an untraced call would be
+                                  ;; keyed on (3.24.0)
                                   (set ($ (nth ci (-> e choices)) ixpos) kpos)
                                   ;; and what the call may try: the clauses
                                   ;; there are now (the logical update view)

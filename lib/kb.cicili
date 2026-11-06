@@ -761,7 +761,12 @@
     (member size_t       varhead)
     (member size_t       vartail)
     (member size_t       nvar)
-    (member int          indexed))
+    (member int          indexed)
+    ;; SWIPL'S ASSESSMENT OF THE ARGUMENT (3.24.0, `coco_jit_speedup'): its
+    ;; expected speedup as an index, for the clauses as they stood at
+    ;; `tver' AVER names (bit 32 set, 0 for none). Appended.
+    (member u64          aver)
+    (member double       aspd))
 
   ;;; One predicate: a name, an arity, and the clauses under it in the order
   ;;; they were asserted. `loaded' says the fetch hook has already been asked
@@ -976,7 +981,12 @@
     ;; the predicate but thread_local/1, as swipl's -- a call of a public
     ;; one with no clauses raises existence_error. Kept by the process only.
     ;; Appended.
-    (member int      pattrs))
+    (member int      pattrs)
+    ;; THE FIRST ARGUMENT'S SPEEDUP AS SWIPL ASSESSES IT (3.24.0), what
+    ;; `coco_argix''s AVER and ASPD are to the others: asked by the JIT
+    ;; index of a predicate under the floor (`coco_pred_jit'). Appended.
+    (member u64      j0ver)
+    (member double   j0spd))
 
   ;;; Forward-declared, because the two hooks below are members of the store
   ;;; and take a pointer to it -- the typedef has to exist before the struct
@@ -1845,7 +1855,8 @@
   (decl) (func coco_pred_next_clause ((coco_store * st) (coco_pred * p)
                                     (u64 key) (size_t from)) (out size_t))
   ;; the first candidate and whether a second exists: 0 none, 1 one, 2 more
-  ;; -- of the LIVE clauses, a new call's (`coco_pred_dead')
+  ;; -- of the LIVE clauses, a new call's (`coco_pred_dead') -- and 3 a 2
+  ;; where swipl's JIT index would ask another argument (`coco_pred_jit')
   (decl) (func coco_pred_probe ((coco_store * st) (coco_pred * p)
                               (u64 key) (size_t * ix) (coco_machine * m)) (out int))
 
@@ -1911,6 +1922,12 @@
                                   (u32 pos) (u64 key) (size_t from)) (out size_t))
   (decl) (func coco_pred_probe_at ((coco_store * st) (coco_machine * m) (coco_pred * p)
                                    (u32 pos) (u64 key) (size_t * ix)) (out int))
+  ;;; SWIPL'S JIT INDEX for a predicate under the floor (3.24.0): asked when
+  ;;; `coco_pred_probe' answers 3, and answering as it does, on the argument
+  ;;; swipl's assessment chooses (KPOS) -- the call's term at CALL, or its
+  ;;; arguments in the registers REGS
+  (decl) (func coco_pred_jit ((coco_store * st) (coco_machine * m) (coco_pred * p) (size_t call)
+                              (size_t * regs) (size_t * ix) (u32 * kpos)) (out int))
 
   ;;; What `coco_pred_next_clause' answers when the clauses have run out. Not
   ;;; a position anything can hold, because the clause array would have to

@@ -1406,9 +1406,9 @@ cocolint index offers no import of it.
   as swipl's (`*frame-contexts*`: apply:maplist_/2, apply:foldl_/4 for
   `'$foldl'/4`, '$apply':apply/2), and apply/2 is swipl's boot/apply.pl
   over strip_module/3. Each is a call deeper: one inference more at entry,
-  as swipl's. With the first list unbound and another given, swipl's JIT
-  index on that list leaves no choice point and cocolog's, under eight
-  clauses, leaves one on the last element (COMPAT.md).
+  as swipl's. With the first list unbound and another given, the index on
+  that list leaves no choice point either, since 3.24.0 (swipl's JIT index,
+  below).
 * **A cut runs the cleanups of the frames it takes** (3.1.0,
   setup_call_cleanup/3): a setup_call_cleanup/3 frame is a goal frame,
   `'$scc_fail'/2`, and each of the four cuts -- the goal `!`, `$cut`, an
@@ -1803,6 +1803,29 @@ cocolint index offers no import of it.
   argument still walks the whole predicate**; a hit hides it, a miss or a
   `findall` pays it. To read a predicate's heads, `clause/2` enumerates
   them; calling the goal proves it.
+* **Under the floor, swipl's JIT index chooses** (3.24.0, `coco_pred_jit`
+  in lib/kb-pred.cicili): `coco_pred_probe` answers 3, a 2, where swipl's
+  first_clause_guarded would ask another argument -- the call's first
+  argument unbound, or its first two candidates both of its key -- and the
+  step's term path asks `coco_pred_jit` out of line (`coco_term_jit`): of
+  the call's bound arguments 1 to 8 the one swipl's assessment over the
+  clauses promises most of (`coco_jit_assess`, bestHash's N*D/(N-V+V*D)
+  over 1 + stdev*D/N, nothing where the clauses with no key there pass a
+  tenth of D), the first on a tie, the first argument's own walk where that
+  one wins. The assessment is kept until `tver` moves (`j0ver`/`j0spd` on
+  the predicate, `aver`/`aspd` on the argument's table). A call from the
+  registers whose probe answers 3 goes the long way below (a fourth arm in
+  its test made a jump table, five instructions a call), and a traced call
+  is keyed on the argument an untraced one would be (`coco_trace_kpos`, in
+  the trace's own arm of the test: a test at the frame's push cost queens
+  0.2 %), so a `$` answers under trace as without. **A new caller of
+  `coco_pred_probe` reads its 3 as 2, or asks `coco_pred_jit`.** Not
+  swipl's (COMPAT.md): no deep index, no index of two arguments, a float's
+  or a string's key is none, each call chooses afresh where swipl walks an
+  index it built, and swipl 9.0.4's misreading of a key after two
+  anonymous variables in a row is not copied. test/files/jit_index.pl
+  holds 78 lines to swipl, test/engine.pl's `jit_runs` the trace, the
+  collector and the choice made again.
 * **A call sees the clauses that stood when it began** (ISO's logical update
   view, swipl's; through 2.2.5 a retry read the live list). A clause frame
   carries `cend`, the clause count at its push (both push sites), so what is

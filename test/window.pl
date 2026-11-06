@@ -63,11 +63,18 @@ w_pairs([a-1, b-2]).
 
 %% heads the selection tries and heads the index passes over (1.11.2): a
 %% call keyed on its first argument tries only the clauses whose first
-%% argument could match it, and one unbound there tries them all
+%% argument could match it, and one unbound there is keyed on its second,
+%% as swipl's JIT index keys it (3.24.0) -- of w_kx/2 it cannot be, a clause
+%% leaving it unbound, and the call tries every clause
 w_kv(a, 3).
 w_kv(b, 2).
 w_kv(d, 3).
 w_kvs(K) :- w_kv(K, 3), K \== a.
+w_kx(a, 3).
+w_kx(b, 2).
+w_kx(d, 3).
+w_kx(c, _).
+w_kxs(K) :- w_kx(K, 3), K \== a.
 
 %% a list filled one element at a time; a loop; and a term made before
 %% collections, for a question asked after them (1.10.16)
@@ -414,21 +421,30 @@ window :-
 
 tried :-
     section('the heads a window records are the ones the selection tried'),
-    win_keys(w_kv(_, 2), K1),
-    check('w_kv(K, 2): K unbound, so every clause is tried -- w_kv(a, 3) did not match, w_kv(b, 2) entered and bound K',
-          K1, [call(1, w_kv, ['_', '2']), nohead(1, 1), clause(1, 2), exit(1, w_kv, [b, '2'])]),
+    win_keys(w_kx(_, 2), K1),
+    check('w_kx(K, 2): K unbound and no argument chooses, so every clause is tried -- w_kx(a, 3) did not match, w_kx(b, 2) entered and bound K',
+          K1, [call(1, w_kx, ['_', '2']), nohead(1, 1), clause(1, 2), exit(1, w_kx, [b, '2'])]),
+    win_keys(w_kv(_, 2), K1b),
+    check('w_kv(K, 2): K unbound, so the call is keyed on its second argument -- w_kv(a, 3) passed over, not recorded (3.24.0)',
+          K1b, [call(1, w_kv, ['_', '2']), clause(1, 2), exit(1, w_kv, [b, '2'])]),
     win_keys(w_kv(d, _), K2),
     check('w_kv(d, V): the index passes over the clauses for a and b, and they are not recorded',
           K2, [call(1, w_kv, [d, '_']), clause(1, 3), exit(1, w_kv, [d, '3'])]),
     win_keys(w_kv(e, _), K3),
     check('w_kv(e, V): no clause is for e -- none tried, none recorded, and the call fails',
           K3, [call(1, w_kv, [e, '_']), fail(1, w_kv, [e, '_'])]),
-    win_keys(w_kvs(_), K4),
+    win_keys(w_kxs(_), K4),
     win_kinds(K4, redo, R4),
-    append(_, [redo(I4, w_kv, ['_', '3'])|After4], K4),
+    append(_, [redo(I4, w_kx, ['_', '3'])|After4], K4),
     win_first(3, After4, Next4),
-    check('a retry: w_kv(K, 3) again with K unbound -- w_kv(b, 2) tried and not matched, w_kv(d, 3) entered',
-          R4-Next4, [redo(I4, w_kv, ['_', '3'])]-[nohead(I4, 2), clause(I4, 3), exit(I4, w_kv, [d, '3'])]),
+    check('a retry: w_kx(K, 3) again with K unbound -- w_kx(b, 2) tried and not matched, w_kx(d, 3) entered',
+          R4-Next4, [redo(I4, w_kx, ['_', '3'])]-[nohead(I4, 2), clause(I4, 3), exit(I4, w_kx, [d, '3'])]),
+    win_keys(w_kvs(_), K4b),
+    win_kinds(K4b, redo, R4b),
+    append(_, [redo(I4b, w_kv, ['_', '3'])|After4b], K4b),
+    win_first(2, After4b, Next4b),
+    check('a retry keyed on the second argument: w_kv(b, 2) passed over, w_kv(d, 3) entered (3.24.0)',
+          R4b-Next4b, [redo(I4b, w_kv, ['_', '3'])]-[clause(I4b, 3), exit(I4b, w_kv, [d, '3'])]),
     forall(between(1, 10000, I5), ( atom_concat(k, I5, A5), assertz(w_many(A5, I5)) )),
     '$trace_window'(w_many(k9999, _), [from(1)], Es5, _),
     length(Es5, N5),
@@ -623,11 +639,15 @@ w_pk(a). w_pk(b). w_pk(c).
 w_rt :- w_pk(X), X == c.
 w_rs :- w_pk(X), numlist(1, 20000, _), X == c.
 w_rtf(L) :- findall(X, ( w_pk(X), X \== a ), L).
-w_pm(X, n) :- between(1, 20000, X).
-w_pm(none, m).
-w_rtb(L) :- findall(X, w_pm(X, n), L).
-w_pq(a, n). w_pq(b, m).
-w_rte :- w_pq(X, n), X == z.
+%% w_pm/2's and w_pq/2's heads differ inside a compound both share, which
+%% no index looks into (COMPAT.md): keyed on n and m, as through 3.23.0,
+%% their calls are keyed on the second argument since 3.24.0 and their
+%% second clause is never tried
+w_pm(X, s(n)) :- between(1, 20000, X).
+w_pm(none, s(m)).
+w_rtb(L) :- findall(X, w_pm(X, s(n)), L).
+w_pq(a, s(n)). w_pq(b, s(m)).
+w_rte :- w_pq(X, s(n)), X == z.
 w_rtn(0) :- !.
 w_rtn(N) :- w_rt, N1 is N - 1, w_rtn(N1).
 

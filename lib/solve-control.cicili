@@ -1074,6 +1074,24 @@
   ;;; b, and walked again with b's key the heads before it that were tried
   ;;; with none would not be. Asked of a fresh traced call before its
   ;;; selection, and of a retry by `coco_trace_paint'.
+  ;;; THE ARGUMENT A TRACED CALL IS KEYED ON (3.24.0): the one the untraced
+  ;;; call would be -- `coco_pred_select''s where the first argument will
+  ;;; not do, and swipl's JIT index's where the probe would ask for it
+  ;;; (`coco_pred_jit') -- so a trace leaves the choice points a run leaves.
+  ;;; Through 3.23.0 a traced call was keyed on its first argument.
+  (weak)
+  (func coco_trace_kpos ((coco_engine * e) (coco_pred * p) (size_t g)) (out u32)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st))
+              (u64 key . #'(coco_arg_key m g))
+              (size_t ix0 . 0) (u32 kpos . 0))
+          (if (not (coco_pred_first_enough p key))
+              (let ((coco_ixsel sel . #'(coco_pred_select st m p g)))
+                (return ($ sel pos))))
+          (if (== (coco_pred_probe st p key (aof ix0) m) 3)
+              (coco_pred_jit st m p g nil (aof ix0) (aof kpos)))
+          (return kpos)))
+
   (weak)
   (func coco_rec_hkey ((coco_engine * e) (size_t ci))
         (if (!= (-> e trace) 2) (return))
@@ -1435,6 +1453,19 @@
               (set ($ (nth ci (-> e choices)) cend) (cast u32 (-> p nclauses)))
               (set (-> p framed) 1))
             (return (? (coco_select_clause e ci) 1 0)))))
+
+  ;;; THE CALL WHOSE PROBE ANSWERED 3 (3.24.0), untraced: swipl's JIT index
+  ;;; asked (`coco_pred_jit') over the term at G, IX the probe's first
+  ;;; candidate and then the chosen argument's. Answers the probe's answer
+  ;;; and, above its low eight bits, the argument chosen, so the step loop
+  ;;; takes the address of no local of its own for it. Weak, so the loop
+  ;;; keeps its registers.
+  (weak)
+  (func coco_term_jit ((coco_store * st) (coco_machine * m) (coco_pred * p) (size_t g)
+                       (size_t * ix)) (out int)
+        (let ((u32 kpos . 0) (int det . 0))
+          (set det (coco_pred_jit st m p g nil ix (aof kpos)))
+          (return (bitor det (<< (cast int kpos) 8)))))
 
   ;;; THE BUILTINS IN PLACE (Stage 7): unit U of the environment at ENV
   ;;; (whose code is CD), NK the continuation after it and BAR its barrier

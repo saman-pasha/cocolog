@@ -1554,11 +1554,19 @@
   ;;; test of `ntomb' beside it was a load and a branch more a call, nrev
   ;;; +0.64 % of 2.2.5's work where this is +0.32 % (STATUS.md, the logical
   ;;; update view).
+  ;;;
+  ;;; 3 IS 2 WHERE SWIPL WOULD ASK ANOTHER ARGUMENT (3.24.0, `coco_pred_jit'),
+  ;;; of a predicate under the floor with more than one argument: its first
+  ;;; argument unbound, or the first two candidates both of its key -- swipl's
+  ;;; "duplicate" (pl-index.c, first_clause_guarded). Asked only where a
+  ;;; second candidate is found, so a call that has one pays nothing.
   (func coco_pred_probe ((coco_store * st) (coco_pred * p) (u64 key) (size_t * ix) (coco_machine * m)) (out int)
         (let ((size_t n . #'(cast size_t (-> p nprobe))))
           (if (== n 0) (return (coco_pred_probe_cold st p key ix m 0)))
           (if (== key 0)
-              (block (set (cof ix) 0) (return (? (== n 1) 1 2))))
+              (block (set (cof ix) 0)
+                     (return (? (== n 1) 1
+                                (? (and (< n (coco_index_floor)) (>= (-> p arity) 2)) 3 2)))))
           (if (or (< n (coco_index_floor))
                   (and (== (-> p indexed) 0) (not (coco_pred_reindex st p))))
               (let ((size_t first . #'(coco_no_clause)))
@@ -1567,7 +1575,10 @@
                     (if (or (== k 0) (== k key))
                         (block
                          (if (!= first (coco_no_clause))
-                             (block (set (cof ix) first) (return 2)))
+                             (block (set (cof ix) first)
+                                    (return (? (and (== k key) (== (nth first (-> p keys)) key)
+                                                    (< n (coco_index_floor)) (>= (-> p arity) 2))
+                                               3 2))))
                          (set first i)))))
                 (if (== first (coco_no_clause)) (return 0))
                 (set (cof ix) first)
@@ -1791,6 +1802,107 @@
           (if (== a (coco_no_clause)) (return 0))
           (set (cof ix) a)
           (return (? (== (coco_pred_next_at st m p pos key (+ a 1)) (coco_no_clause)) 1 2))))
+
+  ;;; ---- swipl's JIT index, for a predicate under the floor (3.24.0) --------
+  ;;;
+  ;;; A CALL WHOSE FIRST ARGUMENT CANNOT CHOOSE IS KEYED ON ANOTHER, as
+  ;;; swipl's first_clause_guarded keys it (pl-index.c, read at 9.0.4): its
+  ;;; first argument unbound, or the first two clauses it leaves both of its
+  ;;; key. Below the floor through 3.23.0 every such call was keyed on its
+  ;;; first argument alone, and `q(_, [1, 2])' over `q(_, []). q(_, [_|T]) :-
+  ;;; q(_, T).' left a choice point at its last step where swipl leaves none.
+  ;;; The argument is chosen as swipl's bestHash chooses it: of the call's
+  ;;; bound arguments the one whose assessment over the clauses promises the
+  ;;; most (`coco_jit_assess'), the first on a tie, and none that promises
+  ;;; nothing -- an argument some clause leaves unbound past a tenth of its
+  ;;; values. Swipl's own index on the first argument winning keeps the call
+  ;;; where it was. Not swipl's (COMPAT.md): its deep index inside a compound
+  ;;; every clause shares (`p([a|_])'), an index of two arguments together,
+  ;;; keys of floats and strings, an argument past the eighth, an index kept
+  ;;; from the calls before, and 9.0.4's reading of a key after two anonymous
+  ;;; variables in a row as none (`v(_, _, x)', pl-comp.c's skipArgs).
+
+  ;;; SWIPL'S ASSESSMENT OF ONE ARGUMENT, the clauses' N KEYS at it
+  ;;; (assess_remove_duplicates): its distinct keys D and the clauses with
+  ;;; none V, the speedup N*D / (N - V + V*D) punished by the spread of the
+  ;;; keys' counts (1 + stdev*D/N), and nothing for clauses with no key past
+  ;;; a tenth of D. Swipl's nothing for one value that is no compound is not
+  ;;; kept: such an argument promises 1, less than any of two values or more,
+  ;;; and keyed on it a call has the candidates of no index, all or none.
+  ;;; Quadratic in N, which is under the floor of eight.
+  (static)
+  (func coco_jit_assess ((u64 * keys) (size_t n)) (out double)
+        (let ((size_t v . 0) (size_t d . 0)
+              (double a . 0.0) (double q . 0.0) (double s . 0.0))
+          (for ((size_t i . 0)) (< i n) ((++ i))
+            (let ((u64 k . #'(nth i keys)) (int seen . 0))
+              (if (== k 0)
+                  (set v (+ v 1))
+                  (block
+                   (for ((size_t j . 0)) (< j i) ((++ j))
+                     (if (== (nth j keys) k) (set seen 1)))
+                   (if (not seen)
+                       (let ((size_t c . 0) (double a0 . a))
+                         (for ((size_t j . i)) (< j n) ((++ j))
+                           (if (== (nth j keys) k) (set c (+ c 1))))
+                         (set d (+ d 1))
+                         ;; the mean and squares of the counts, Welford's, as
+                         ;; swipl's
+                         (set a (+ a (/ (- (cast double c) a) (cast double d))))
+                         (set q (+ q (* (- (cast double c) a0) (- (cast double c) a))))))))))
+          (if (== d 0) (return 0.0))
+          (set s (/ (cast double (* n d)) (cast double (+ (- n v) (* v d)))))
+          (set s (/ s (+ 1.0 (/ (* (sqrt (/ q (cast double d))) (cast double d)) (cast double n)))))
+          (if (> (/ (cast double v) (cast double d)) 0.1) (return 0.0))
+          (return s)))
+
+  ;;; ARGUMENT POS'S SPEEDUP for P as its clauses stand, assessed again only
+  ;;; after they change (`tver'): the first argument's from P's own keys, any
+  ;;; other's from its index, built here if it is not. Written under the
+  ;;; green barrier, as the index is.
+  (static)
+  (func coco_jit_speedup ((coco_store * st) (coco_machine * m) (coco_pred * p) (u32 pos)) (out double)
+        (let ((u64 ver . #'(bitor (cast u64 (-> p tver)) (<< (cast u64 1) 32))))
+          (if (== pos 0)
+              (block
+               (if (!= (-> p j0ver) ver)
+                   (let ((double s . #'(coco_jit_assess (-> p keys) (-> p nclauses))))
+                     (with-green-write nil
+                       (set (-> p j0spd) s)
+                       (set (-> p j0ver) ver))))
+               (return (-> p j0spd))))
+          (let ((coco_argix * x . #'(coco_aix_get st m p pos)))
+            (if (== x nil) (return 0.0))
+            (if (!= (-> x aver) ver)
+                (let ((double s . #'(coco_jit_assess (-> x keys) (-> p nclauses))))
+                  (with-green-write nil
+                    (set (-> x aspd) s)
+                    (set (-> x aver) ver))))
+            (return (-> x aspd)))))
+
+  ;;; THE CALL'S KEY AT POS: from its term at CALL, or from REGS, the
+  ;;; registers it was written into
+  (static)
+  (func coco_jit_key ((coco_machine * m) (size_t call) (size_t * regs) (u32 pos)) (out u64)
+        (if (!= regs nil) (return (coco_cell_key m (nth pos regs))))
+        (return (coco_call_arg_key m call pos)))
+
+  ;;; THE PROBE ON THE ARGUMENT SWIPL WOULD INDEX -- see the declaration and
+  ;;; above. 2 with KPOS untouched where it would index the first argument,
+  ;;; or none.
+  (weak)
+  (func coco_pred_jit ((coco_store * st) (coco_machine * m) (coco_pred * p) (size_t call)
+                       (size_t * regs) (size_t * ix) (u32 * kpos)) (out int)
+        (let ((u32 na . #'(-> p arity)) (int best . -1) (double bs . 0.0))
+          (if (> na (+ (coco_aix_count) 1)) (set na (+ (coco_aix_count) 1)))
+          (for ((u32 pos . 0)) (< pos na) ((++ pos))
+            (if (!= (coco_jit_key m call regs pos) 0)
+                (let ((double s . #'(coco_jit_speedup st m p pos)))
+                  (if (> s bs) (block (set bs s) (set best (cast int pos)))))))
+          (if (<= best 0) (return 2))
+          (set (cof kpos) (cast u32 best))
+          (return (coco_pred_probe_at st m p (cast u32 best)
+                                      (coco_jit_key m call regs (cast u32 best)) ix))))
 
   ;;; ROOM FOR MORE CLAUSES in every array parallel to P's clause list: 0
   ;;; when one would not grow, and nothing is added

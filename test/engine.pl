@@ -36,7 +36,7 @@ main :-
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
-    update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D),
+    update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), jit_runs(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -2006,6 +2006,44 @@ det_guard_runs(D) :-
     proc_run(Cmd8, 30000, Out8, _), atom_codes(A8, Out8),
     ( sub_atom(A8, _, _, _, 'Redo') -> R8 = redo ; R8 = none ),
     check('failing into a guard frame prints no Redo', R8, none).
+
+%% SWIPL'S JIT INDEX ANSWERS AS IT DOES UNDER TRACE, UNDER A COLLECTOR THAT
+%% RUNS EVERY 2000 CELLS, AND AFTER THE CLAUSES CHANGE (3.24.0).
+%% test/files/jit_index.pl holds swipl's answers untraced; here the same
+%% file's under trace, where a traced call is keyed on the argument the
+%% untraced one would be (`coco_trace_kpos'), and under the collector. And
+%% the argument is chosen again once the clauses have changed
+%% (`coco_jit_speedup', by `tver'): of `ja/2' the first argument promises
+%% least at the first call and as much as the second after the assertz, so
+%% the call goes back to it; of `jb/3' the second promises as much as the
+%% third at the first call and less after. Each call leaves no choice point
+%% here. Not swipl's (COMPAT.md): its index, once built at the first call,
+%% is walked by every later call that can key it whatever the clauses come
+%% to promise, and swipl leaves a choice point at the second of each pair.
+jit_runs(D) :-
+    section('the JIT index under trace, a collector, and after an assertz'),
+    cocolog(C),
+    sh_join([C, ' --local run test/files/jit_index.pl main 2>/dev/null'], Cmd0),
+    proc_run(Cmd0, 60000, Out0, _), atom_codes(U, Out0),
+    ( sub_atom(U, _, _, _, 'det(cw([''_''|''_'']))') -> H = yes ; H = no ),
+    check('untraced: the case answers', H, yes),
+    sh_join([C, ' --trace --local run test/files/jit_index.pl main 2>/dev/null'], Cmd1),
+    proc_run(Cmd1, 120000, Out1, _), atom_codes(T, Out1),
+    check('traced: the same answers', T, U),
+    sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' --local run test/files/jit_index.pl main 2>/dev/null'], Cmd2),
+    proc_run(Cmd2, 60000, Out2, _), atom_codes(G, Out2),
+    check('a collection every 2000 cells: the same answers', G, U),
+    atom_concat(D, '/jit_again.pl', F),
+    fixture(F, [ ':- dynamic ja/2, jb/3.',
+                 'ja(a, x). ja(a, y).',
+                 'jb(_, a, x). jb(_, b, y).',
+                 'dd(G) :- $, G, true.',
+                 'd(G) :- catch((dd(G) -> R = det ; R = fail), error(E, _), R = E), print(R), nl.',
+                 'main :- d(ja(a, y)), assertz(ja(b, y)), d(ja(a, y)),',
+                 '        d(jb(_, a, x)), assertz(jb(_, a, z)), d(jb(_, a, x)).' ]),
+    sh_join([C, ' --local run ', F, ' main 2>&1'], Cmd3),
+    proc_run(Cmd3, 30000, Out3, _), atom_codes(A3, Out3),
+    check('the argument chosen again after an assertz', A3, 'det\ndet\ndet\ndet\n').
 
 %% GOAL run as machine NAME of store KB, 25 inferences a turn: what it
 %% printed, its variables `_'

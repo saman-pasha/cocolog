@@ -11963,3 +11963,122 @@ cowork, serialize, template, hex, astar, argv, reason, normalise,
 translate, process, text, os, signal, stream and lint, the test binaries
 term, syntax, solve, module and state, and lesson 51 (its output the
 same as 3.22.0's but for its clock's readings).
+
+## A call whose first argument cannot choose is keyed on another, as swipl's JIT index keys it (3.24.0)
+
+As swipl's: `$, maplist(succ, L, [2, 3]), true` is deterministic, and so is
+`q(_, [1, 2])` over `q(_, []). q(_, [_|T]) :- q(_, T).` -- where through
+3.23.0 a predicate of fewer than eight clauses keyed every call on its
+first argument alone, and the last clause tried left a choice point that
+`$/1` (3.20.0) and `$/0` (3.21.0) showed as a determinism error swipl does
+not raise.
+
+WHEN, as swipl's first_clause_guarded asks (pl-index.c, read at 9.0.4):
+the call's first argument unbound, or its first two candidates both of its
+key (swipl's "duplicate"). `coco_pred_probe` answers 3 there, for a
+predicate under the floor with more than one argument -- a 2 to every
+caller that does not ask further -- and only where it has found a second
+candidate, so a call with one pays nothing.
+
+WHICH, as bestHash chooses (`coco_pred_jit`, lib/kb-pred.cicili): of the
+call's bound arguments 1 to 8, the one whose assessment over the clauses
+promises the most (`coco_jit_assess`: N clauses, D distinct keys, V
+clauses with none, N*D / (N - V + V*D), divided by 1 + stdev*D/N of the
+keys' counts, and nothing where V passes a tenth of D), the first on a
+tie; where that one is the first argument, the call keeps its first
+argument's walk. Swipl's rule that one value that is no compound promises
+nothing is not kept: such an argument promises 1, less than any argument
+of two values or more, and keyed on it a call has the candidates no index
+gives it, all or none -- its arm changed no answer, and it was taken out.
+The assessment is kept until the clauses change (`tver`: `j0ver`/`j0spd`
+on the predicate for the first argument, `aver`/`aspd` on another's
+`coco_argix`), written under the green barrier as the index is.
+
+WHERE: the step's term path asks out of line (`coco_term_jit`, weak, its
+answer and the argument in one int, so the loop takes no local's address
+for it). A call from the registers whose probe answers 3 goes the long way,
+building its term: a fourth answer in the registers' test made it a jump
+table, five instructions a call. A TRACED call is keyed on the argument an
+untraced one would be (`coco_trace_kpos`, which asks `coco_pred_select` for
+a big predicate too): through 3.23.0 every traced call was keyed on its
+first argument, so a `$` under `--trace` could raise where the run did
+not. It is asked in the trace's own arm of the test, so an untraced push
+asks nothing: a test at the push cost queens 0.2 % of its work, and
+marking `coco_trace_kpos` cold moved the loop's layout, nrev +0.65 % and
+lookup +1.95 %.
+
+WHAT IS NOT SWIPL'S (COMPAT.md, each row probed against 9.0.4): a
+predicate of eight clauses or more keeps cocolog's fewest candidates for
+the call's own keys (`coco_pred_select`), and swipl's assessment can key
+such a call elsewhere (`b8(_, b, x)`: swipl's bucket on the third argument
+holds three clauses, cocolog's on the second one); swipl walks an index it
+built at an earlier call whatever the clauses come to promise, and keeps
+an argument it judged unfit while a dynamic predicate had one clause until
+the count reaches a power of two, where cocolog chooses again at each
+call; no deep index inside a compound every clause shares (`dp([a|T],
+X)`); no index of two arguments together (`m2(b, y, _)`, swipl's
+`multi([1,2])`); a float's, a string's, a big integer's and a rational's
+key is none; no argument past the eighth; and while a retracted clause is
+still visible to an open call, a new call is keyed on its first argument
+alone (`coco_pred_probe_dead`). And SWIPL 9.0.4 MISREADS A KEY: in a head
+with two anonymous variables in a row right before the argument asked
+(`v(_, _, x)`), pl-comp.c's skipArgs returns the H_VOID_N they compile to
+when the skip ends exactly at its end, not the instruction after it, so
+that clause's key there reads as none, the clause is a candidate for every
+value, and the argument is judged unfit: `$, v(_, _, x), true` over `v(_,
+_, x). v(_, a, y). v(_, b, y). v(_, c, y).` raises in swipl and is
+deterministic here, which reads the key. Not copied, as 9.0.4's assertion
+in `\+ ($, G)` is not (3.21.0).
+
+THE CASE. test/files/jit_index.pl, new: 78 lines, swipl 9.0.4's byte for
+byte -- which argument the calls of twenty-three predicates are keyed on (the
+first argument unbound and another bound, of two clauses and of seven; the
+first two candidates of one key; the variables some clause leaves; a
+functor and an atom; dynamic predicates changed by assertz, asserta and
+retract in an order whose answers swipl's history does not decide;
+maplist/3 with its first list unbound or partial; and each rule: the
+variables past a tenth, the first of a tie and the first argument against
+another, the spread, and calls from the registers under `$/1`), told by
+`$/0`, `$/1` and the answers. 3.23.0 gets 27 of its lines wrong.
+test/engine.pl's new section `jit_runs`: the case's answers under
+`--trace` and under a collection every 2000 cells, and the argument chosen
+again after an assertz (`ja/2`, `jb/3`, where swipl's history leaves a
+choice point).
+
+THE ARMS, a build each, the rule taken out, each red: the first argument
+unbound asks no other (24 of the case's lines), the first two candidates
+of one key ask none (3), the variables' tenth (2), the spread (2), the
+last of a tie (3, and the choice made again), a call from the registers
+pushing its frame keyed on its first argument (2), a traced call keyed on
+its first argument (27 lines under `--trace`, none untraced), and the
+assessment never made again (the choice made again, alone).
+
+THE COST, tools/flow/zero.sh, work less padding: nrev 66 333 984 to
+66 232 949 (-0.15 %), queens 40 342 898 to 40 325 605 (-0.04 %), lookup
+48 130 551 to 48 110 527 (-0.04 %) -- none of the three asks the new path.
+A call that asks it, callgrind over a run of 20 000 less the same over
+none, instructions an element: maplist(succ, L, Ns) with L unbound 3 118.9
+to 2 965.1 (-4.9 %), `q(_, Ns)` 1 207.2 to 1 088.2 (-9.9 %), and `w(_, b)`
+from the registers 1 897.5 to 1 893.5 (-0.2 %: the long way builds the
+term the frame it no longer pushes cost). Inferences do not move:
+test/translate.pl's sections up to newspaper_units, 308 794 629 on 3.23.0
+and on 3.24.0, 3 290 checks green on both.
+
+test/window.pl's heads a window records (1.11.2) had `w_kv(K, 2)` try
+every clause, its first argument unbound: it is keyed on its second now,
+and the heads it passes over are not recorded, as the case says of the
+first argument's (two checks, red on 3.23.0); every clause is tried of
+`w_kx/2`, a clause of which leaves the second argument unbound (the old
+two checks, as they were). Its clock's retry checks (1.13.7) need a retry
+whose head does not unify: `w_pm/2`'s and `w_pq/2`'s heads differ inside a
+compound both share, which no index looks into, where through 3.23.0 they
+differed in the second argument, which keys them now.
+
+Narrow cases green: files, window (red at first, as above, and run again
+alone), trace, engine, flowdebug, flowchart, backtrace, journal, gc,
+errors, directives, static, script, reconsult, library, repl, cyclic,
+meter, string, units, rationals, async, thread, cowork, serialize,
+template, hex, astar, argv, reason, normalise, translate, process, text,
+os, signal, stream and lint, the test binaries term, syntax, solve, module
+and state, and the lessons that speak of choice points (basics 05, 07 and
+08, library 01 and 37) and lesson 51.
