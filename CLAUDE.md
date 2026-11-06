@@ -523,16 +523,19 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   `text_units` (1.13.0), since 2.0.0 `bounded`, `max_integer`,
   `min_integer`, `max_tagged_integer` and `min_tagged_integer`, and since
   2.2.2 swipl's four float flags and `float_min`, `float_max` and
-  `float_max_integer`, since 2.16.0 `verbose` (`normal`), and since 3.15.0
-  `optimise_unify` (`true`), are the only flags answered; set_prolog_flag/2
+  `float_max_integer`, since 2.16.0 `verbose` (`normal`), since 3.15.0
+  `optimise_unify` (`true`), and since 3.32.0 `stack_limit` (1073741824),
+  are the only flags answered; set_prolog_flag/2
   sets `double_quotes`, `text_units`, `generate_debug_info` (swipl's
   booleans, the read's own since 3.27.0: what it defines after the flag is
   false hides its children from the tracer; taken and unused through
   3.26), the float flags, `verbose` (any atom, the process's: `silent`,
   swipl -q's, quiets print_message/2's informational and banner kinds) and
   `optimise_unify` (swipl's booleans, the process's: whether a store moves
-  the unifications that begin a body into its head), as a goal since 2.2.2, and refuses
-  every other flag in swipl's words. `library(main)` parses the tail.
+  the unifications that begin a body into its head) and `stack_limit` (the
+  machine's and the process's default; the bullet on the stack limit,
+  below), as a goal since 2.2.2, and refuses every other flag in swipl's
+  words. `library(main)` parses the tail.
 * **Exit status is SWI's**: 0 proved, 1 failed silently, 2 threw; `halt(N)`
   is N from `-s`, `run` and `query` alike.
 * **An error nothing caught is followed on stderr by its backtrace**
@@ -2839,6 +2842,48 @@ cocolint index offers no import of it.
   `syntax_error(illegal_number)`. `test/rationals.pl` and
   `test/files/rationals.pl` hold the new surface (the second runs under
   both systems).
+* **A search past the stack limit raises resource_error(stack)** (3.32.0,
+  swipl's `stack_limit` flag): the bytes a machine's heap, trail and choice
+  frames -- with their shadow frames, of every engine on the chain -- may
+  hold (`coco_stack_used`), 1 GB by default, COCOLOG_STACK_LIMIT for the
+  process's default, 0 or less none; the flag's errors are swipl's, a value
+  below what the stacks hold permission_error(limit, stacks, N). Through
+  3.31.0 a search that never ended grew the heap until memory was refused,
+  or the kernel killed the process. **It is asked only where memory grows,
+  never in the step loop** (`tools/flow/zero.sh` moves nothing), and **every
+  array of the stacks grows by the room the limit leaves it** and a
+  sixteenth (`coco-room-cap`, one DEFMACRO for the three): the heap and the
+  trail the limit's cells (`coco_stack_cap`, from `coco_grow_slow`), the
+  choice stack the frames the limit leaves beside the heap, the trail and
+  the other engines' (`coco_eng_grow_slow`, `coco-room-left`) -- through a
+  doubling at 65 536 frames a search leaving a choice point a level ran on
+  to half again the limit before anything asked. What passes the room, and
+  a collection that leaves more than the limit (the end of
+  `coco_heap_collect`, SOVER), stop the running engine at its next step,
+  `halted` 3 -- **a growth's stop is made only once the growth is given**,
+  or a refusal would not be memory's -- and `coco_halted_step` collects
+  where the engine may and SOVER does not say a collection just did, then
+  asks again: past the limit it raises error(resource_error(stack), _), the
+  context unbound where swipl's is a dict (COMPAT.md); under it the run goes
+  on and the step is given back, so the inferences are what they were.
+  After each collection the collector waits for no more heap than the limit
+  leaves beside the trail and the choices (`gc_next`, `coco-room-left`), and
+  from the flag's set on for no more than the limit's cells, so a heap of
+  garbage is collected before the stacks pass the limit -- **and for no less
+  than a sixteenth of the limit's cells**: that room shrinks with every
+  collection by the share of the garbage the search keeps, and choice
+  points beside a heap of garbage took 553 collections and 344 s to be
+  stopped at 1 GB (277 and 112 s with the least; swipl 9.0.4 223 and 86 s).
+  A search stopped at 1 GB peaks at about 1.5 GB of memory, where the
+  first build's doubling took 3.2. A nested engine's collection, a green
+  task's machine (`coco_machine_init_alias`) and a thread's take the limit
+  as the host's do. The uncaught error and print_message/2 say swipl's
+  first line, `Stack limit (1.0Gb) exceeded`, from the flag
+  (`coco_error_text`, library(print_message)'s `'$pm_stack_size'/2`). **A
+  new array that grows with a search takes its growth from the room the
+  limit leaves**, as the three do. test/files/stack_limit.pl holds the flag
+  and the stops to swipl; test/errors.pl's `stack_limit_said` and
+  test/solve.cicili (an engine that never collects) the rest.
 * **A refused allocation raises resource_error(memory)** (1.10.28). A
   doubling refused is tried again with what is needed and a sixteenth
   (`coco_grow_short` for the machine's arrays, `coco_eng_grow` for the

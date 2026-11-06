@@ -169,6 +169,30 @@
 (DEFMACRO coco-trail-cell (w) `(bitand ,w (- (<< (cast u64 1) 40) 1)))
 (DEFMACRO coco-trail-tag (w) `(bitand (>> ,w 40) (- (<< (cast u64 1) 23) 1)))
 
+;;; THE STACK LIMIT AT A GROWTH (3.32.0): what an array of the stacks grows
+;;; to under the machine's `slimit' (swipl's stack_limit flag). NCAP is the
+;;; doubling and ROOM the entries the limit leaves the array. A doubling
+;;; within ROOM and a sixteenth is taken; one past it stops at that while
+;;; NEED is within ROOM, so a doubling past the limit is never made (a heap
+;;; of 1 GB would take 2), and the growth after it comes as the array
+;;; reaches the limit and asks again; NEED past ROOM is grown by a
+;;; sixteenth, as a refused doubling is, and OVER is set: the running
+;;; engine stops at its next step, halted 3, where the step collects where
+;;; its engine may and asks what the stacks hold (`coco_halted_step'). The
+;;; stop is made once the growth is given: a growth refused is memory's, as
+;;; it always was (`coco_grow_short'). One rule for the heap and the trail
+;;; (`coco_stack_cap', ROOM the limit's cells) and the choice stack
+;;; (`coco_eng_grow_slow', ROOM the frames the limit leaves beside the heap,
+;;; the trail and the other engines'). NCAP and OVER are assigned; ROOM and
+;;; NEED are read more than once: variables, never calls.
+(DEFMACRO coco-room-cap (room need ncap over)
+  `(if (> ,ncap (+ ,room (+ (/ ,room 16) 64)))
+       (if (<= ,need ,room)
+           (set ,ncap (+ ,room (+ (/ ,room 16) 64)))
+           (block
+             (set ,over 1)
+             (set ,ncap (+ ,need (+ (/ ,need 16) 64)))))))
+
 ;;;; ------------------------------------------------------------------
 ;;;; The term DSL -- Prolog terms as s-expressions, built at compile time
 ;;;; ------------------------------------------------------------------
@@ -910,7 +934,19 @@
     ;; file-scoped flag: a predicate whose first clause the read adds hides
     ;; its children from the tracer (`pattrs' 32). Saved and put back around
     ;; each read (`coco_consult_oid'), 0 at a module's own. Appended.
-    (member int        nodbg))
+    (member int        nodbg)
+    ;; THE STACK LIMIT (3.32.0), swipl's `stack_limit' flag: how many bytes
+    ;; the heap, the trail and the choice frames of the engines on the chain
+    ;; may hold (`coco_stack_used'), 0 or less none -- a machine made by
+    ;; `memset' alone has none. Taken from the process's default when the
+    ;; machine is made (`coco_slimit_default': COCOLOG_STACK_LIMIT, or the
+    ;; last set_prolog_flag/2 of it). A growth of the heap, the trail or a
+    ;; choice stack past it stops the running engine at its next step
+    ;; (halted 3, through `haltp'), which collects and asks again; so does a
+    ;; collection that leaves more than it, with SOVER set, so the step asks
+    ;; without collecting a second time (`coco_halted_step'). Appended.
+    (member i64        slimit)
+    (member int        sover))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -947,6 +983,9 @@
   ;; ---- the float flags (2.2.2) ----
   (decl) (func coco_fflags_default () (out int))
   (decl) (func coco_fflags_default_set ((int fl)))
+  ;; ---- the stack limit (3.32.0) ----
+  (decl) (func coco_slimit_default () (out i64))
+  (decl) (func coco_slimit_default_set ((i64 v)))
   ;; ---- the console's column (2.16.0): `~N' and print_message/2 ----
   (decl) (func coco_out_note ((FILE * f) (const char * s) (size_t n)))
   (decl) (func coco_out_where ((i64 * nc) (i64 * nl) (i64 * lp) (i64 * nb)))
@@ -1309,17 +1348,36 @@
   ;;; block is unlikely: `coco_clause_run_r' ran 2.0 % fewer instructions
   ;;; on naive reverse, the cost 1.10.28 recorded (+0.63 % of nrev, all of
   ;;; it there) taken back and more (STATUS.md).
+  ;;; THE STACK LIMIT AT A GROWTH (3.32.0): the heap and the trail are each
+  ;;; capped by the limit's cells (`coco-room-cap', the rule the choice
+  ;;; stack's growth shares); the collector waits for no more than the cells
+  ;;; the trail and the choices leave the heap (`coco_heap_collect'), so a
+  ;;; heap the limit holds is collected before it grows past it, and the
+  ;;; collection asks what all of them hold. Only a doubling comes here.
+  (weak) (cold)
+  (func coco_stack_cap ((coco_machine * m) (void ** buf) (size_t need) (size_t ncap) (int * over))
+        (out size_t)
+        (if (and (!= buf (cast (void **) (aof (-> m heap))))
+                 (!= buf (cast (void **) (aof (-> m trail)))))
+            (return ncap))
+        (let ((size_t lc . #'(cast size_t (/ (cast u64 (-> m slimit)) 8))))
+          (coco-room-cap lc need ncap (cof over))
+          (return ncap)))
+
   (weak) (cold)
   (func coco_grow_slow ((coco_machine * m) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
         (out int)
         (let ((size_t ncap . #'(? (== (cof cap) 0) 64 (cof cap)))
-              (void * nbuf))
+              (void * nbuf) (int over . 0))
           (while (< ncap need) (set ncap (* ncap 2)))
+          (if (> (-> m slimit) 0) (set ncap (coco_stack_cap m buf need ncap (aof over))))
           (set nbuf (realloc (cof buf) (* ncap esize)))
           (if (== nbuf nil)
               (return (coco_grow_short m buf cap need esize)))
           (set (cof buf) nbuf)
           (set (cof cap) ncap)
+          (if (and over (!= (-> m haltp) nil))
+              (if (== (cof (-> m haltp)) 0) (set (cof (-> m haltp)) 3)))
           (return 1)))
 
   ;;; GROWING. Every array in the machine grows the same way and every one of
@@ -1374,6 +1432,7 @@
         (set (-> m ubudget) 1048576)
         (set (-> m text_chars) (coco_text_default))
         (set (-> m fflags) (coco_fflags_default))
+        (set (-> m slimit) (coco_slimit_default))
         (return 1))
 
   (func coco_troot ((coco_machine * m)) (out coco_machine *)
@@ -1510,6 +1569,7 @@
         (set (-> m ubudget) 1048576)
         (set (-> m text_chars) (coco_text_default))
         (set (-> m fflags) (coco_fflags_default))
+        (set (-> m slimit) (coco_slimit_default))
         (set (-> m tshared) 1)
         (let ((coco_machine * root . #'(coco_troot base)))
           ;; THE ALIAS LIST IS SHARED BY EVERY WORKER'S TASKS when the
@@ -1688,6 +1748,30 @@
 
   (func coco_fflags_default_set ((int fl))
         (set coco_fflags_dflt fl))
+
+  ;;; THE STACK LIMIT'S DEFAULT (3.32.0): swipl's, 1 GB, or COCOLOG_STACK_LIMIT
+  ;;; read once (bytes, as the flag takes them), until a set_prolog_flag/2 of
+  ;;; it, and then what it left, so a machine made after it -- a thread's,
+  ;;; run_isolated/2's, a green task's -- is held to what the program asked
+  ;;; for, as `coco_text_default' keeps the units. A value of 0 or less is
+  ;;; no limit; one the variable does not spell as a number is the default.
+  (static) (var i64 coco_slimit_dflt . 0)
+  (static) (var int coco_slimit_read . 0)
+
+  (func coco_slimit_default () (out i64)
+        (if (not coco_slimit_read)
+            (let ((const char * v . #'(getenv "COCOLOG_STACK_LIMIT")) (char * end . nil))
+              (set coco_slimit_read 1)
+              (set coco_slimit_dflt 1073741824)
+              (if (and (!= v nil) (!= (nth 0 v) (cast char 0)))
+                  (let ((i64 n . #'(cast i64 (strtol v (aof end) 10))))
+                    (if (and (!= end nil) (== (nth 0 end) (cast char 0)))
+                        (set coco_slimit_dflt n))))))
+        (return coco_slimit_dflt))
+
+  (func coco_slimit_default_set ((i64 v))
+        (set coco_slimit_read 1)
+        (set coco_slimit_dflt v))
 
   ;;; THE CONSOLE'S COLUMN (2.16.0): whether a line is open on stdout and on
   ;;; stderr -- the last character the engine wrote there was no newline --

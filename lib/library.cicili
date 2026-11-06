@@ -79,7 +79,7 @@
            ":- set_prolog_flag(generate_debug_info, false)."
            ;; the flags current_prolog_flag/2 answers, for a flag it was not
            ;; given (3.0.0): its C half declines that goal to this clause
-           "current_prolog_flag(F, V) :- var(F), member(F, [bounded, max_integer, min_integer, max_tagged_integer, min_tagged_integer, float_overflow, float_zero_div, float_undefined, float_underflow, float_min, float_max, float_max_integer, double_quotes, text_units, verbose, optimise_unify, argv, os_argv, executable]), current_prolog_flag(F, V)."
+           "current_prolog_flag(F, V) :- var(F), member(F, [bounded, max_integer, min_integer, max_tagged_integer, min_tagged_integer, float_overflow, float_zero_div, float_undefined, float_underflow, float_min, float_max, float_max_integer, double_quotes, text_units, verbose, optimise_unify, stack_limit, argv, os_argv, executable]), current_prolog_flag(F, V)."
            "consult(Files) :- '$lf_load'(Files, true)."
            ;; ONE FILE IN BRACKETS IS consult/1 OF THE FILE (2.14.0), swipl's
            ;; `[X] :- !, consult(X).': a missing one raises, as consult(F)
@@ -418,6 +418,11 @@
           ;; the unifications that begin a clause's body into its head
           (if (== 0 (strcmp flag "optimise_unify"))
               (return (coco_m_unify_atom e (coco_m_arg e g 1) (? (coco_optimise_unify) "true" "false"))))
+          ;; `stack_limit' (3.32.0): swipl's, the bytes this machine's stacks
+          ;; may hold (`slimit'), as set_prolog_flag/2 or COCOLOG_STACK_LIMIT
+          ;; left it -- 1073741824, swipl's, by default
+          (if (== 0 (strcmp flag "stack_limit"))
+              (return (coco_m_unify_int e (coco_m_arg e g 1) (-> (coco_m_machine e) slimit))))
           (if (!= 0 (strcmp flag "executable")) (return 0))
           (lb_exe_resolve)
           (if (== (nth 0 lb_exe_path) (cast char 0)) (return 0))
@@ -530,6 +535,39 @@
                      (if (or (== 0 (strcmp val "false")) (== 0 (strcmp val "off")))
                          (block (coco_optimise_unify_set 0) (return 1)))))
                (return (coco_m_type_error e "bool" v))))
+          ;; `stack_limit' (3.32.0), swipl's: the bytes this machine's stacks
+          ;; may hold (`slimit', `coco_stack_over'), and the process's default
+          ;; for a machine made after it, as text_units is. An integer, or a
+          ;; float that is one within 64 bits (swipl reads 2.0e7 as 20000000),
+          ;; else type_error(integer, V); below what the stacks hold now
+          ;; permission_error(limit, stacks, N), N the integer read, as
+          ;; swipl's; a negative one is taken as it is, and is no limit
+          (if (== 0 (strcmp flag "stack_limit"))
+              (let ((i64 n . 0) (double d . 0.0))
+                (if (coco_m_is_var e v) (return (coco_m_instantiation_error e)))
+                (if (not (coco_m_int e v (aof n)))
+                    (block
+                      (if (not (coco_m_float e v (aof d))) (return (coco_m_type_error e "integer" v)))
+                      ;; a NaN fails both tests, an infinity the second
+                      (if (not (and (>= d -9223372036854775808.0) (< d 9223372036854775808.0)))
+                          (return (coco_m_type_error e "integer" v)))
+                      (set n (cast i64 d))
+                      (if (!= (cast double n) d) (return (coco_m_type_error e "integer" v)))))
+                (if (and (>= n 0) (< (cast u64 n) (coco_stack_used e)))
+                    (return (coco_m_permission_error e "limit" "stacks" (coco_m_new_int e n))))
+                (set (-> mm slimit) n)
+                (coco_slimit_default_set n)
+                ;; and the next collection no later than the cells it holds:
+                ;; a heap grown under a larger limit asks for no growth, and
+                ;; only a collection would see a search pass this one, whose
+                ;; end then waits for the heap the limit leaves beside the
+                ;; trail and the choices (`coco_heap_collect'). Asking that
+                ;; here too moved no search that was measured: the heap's
+                ;; growth or the collection after asked first
+                (if (> n 0)
+                    (let ((size_t lc . #'(cast size_t (/ (cast u64 n) 8))))
+                      (if (> (-> mm gc_next) lc) (set (-> mm gc_next) lc))))
+                (return 1)))
           ;; generate_debug_info false: what a read defines from here on
           ;; hides its children from the tracer (3.27.0, the machine's
           ;; `nodbg', which each read puts back at its end)

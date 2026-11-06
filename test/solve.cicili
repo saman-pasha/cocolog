@@ -881,6 +881,55 @@
         (coco_undo_to (aof m) mark)
         (check "...and a stored NaN is the NaN" (cast llong rc) 1))
 
+      ;; THE STACK LIMIT WITH NO COLLECTOR (3.32.0): this engine never
+      ;; collects (no host said it may), so a growth past the machine's
+      ;; limit -- 40 MB here, 5 000 000 cells -- is the run's end where
+      ;; nothing frees what the heap holds: a recursion that never ends, and
+      ;; a heap of garbage, which holds what a search holds when nothing
+      ;; collects it. Each is error(resource_error(stack), _). The heap's
+      ;; capacity is a power of two, and at 4 194 304 cells a doubling would
+      ;; take it to 8 388 608, 1.68 times the limit, and on past it: the
+      ;; growth gives the limit and a sixteenth (`coco_stack_cap''s top), and
+      ;; the growth that passes the limit its own sixteenth, no more. (A
+      ;; limit whose cells are a power of two, 1 GB's among them, reaches
+      ;; its own capacity by doubling, and never asks the top.) A machine of
+      ;; its own, whose heap no earlier check grew; and an uncaught ball
+      ;; winds nothing back here, so the heap is put back to where each run
+      ;; began: nothing names what the run made.
+      (let ((coco_machine m2) (coco_store st2) (coco_engine e2)
+            (int got . 0) (size_t lc . #'(/ 40000000 8)) (size_t h0 . 0)
+            (size_t top . #'(+ (/ 40000000 8) (+ (/ (/ 40000000 8) 16) 64)))
+            (const char * ball . "uncaught exception: error(resource_error(stack),"))
+        (coco_machine_init (aof m2))
+        (coco_store_init (aof st2))
+        (coco_engine_init (aof e2) (aof m2) (aof st2))
+        (set ($ e2 max_steps) 20000000)
+        (set clauses (coco_consult (aof st2) (aof m2)
+          "deep(N) :- M is N + 1, deep(M), true. len([],0). len([_|T],N) :- len(T,M), N is M + 1. junk(0) :- !. junk(N) :- len([a,b,c,d], _), M is N - 1, junk(M)."
+          nil err (sizeof err)))
+        (check "consulted deep/1, len/2 and junk/1"  (cast llong clauses) 5)
+        (set ($ m2 slimit) 40000000)
+        (check "the heap is under the limit to begin with" (cast llong (< ($ m2 heap_cap) lc)) 1)
+        (set h0 ($ m2 heap_len))
+        (check "a recursion past the limit is an error" (cast llong (count (aof e2) "deep(0)" 1)) -1)
+        (check "resource_error(stack)"              (cast llong (== 0 (strncmp ($ e2 err) ball (strlen ball)))) 1)
+        ;; the top, and the growth past the limit by its own sixteenth:
+        ;; 5 644 664 cells, where the doubling's would have been 8 912 961
+        (check "the heap grew past the limit by a sixteenth and a sixteenth again"
+               (cast llong (<= ($ m2 heap_cap) (+ (+ top 1) (+ (/ (+ top 1) 16) 64)))) 1)
+        (check "and past the limit"                 (cast llong (> ($ m2 heap_cap) lc)) 1)
+        (check "no halt for the host"               (cast llong ($ e2 halted)) 0)
+        (set ($ m2 heap_len) h0)
+        (set got (count (aof e2) "junk(10000000)" 1))
+        (check "garbage nothing collects is an error too" (cast llong got) -1)
+        (check "the same error"                     (cast llong (== 0 (strncmp ($ e2 err) ball (strlen ball)))) 1)
+        (set ($ m2 heap_len) h0)
+        (check "and a run under the limit goes on"  (cast llong (count (aof e2) "junk(100)" 1)) 1)
+        (check "that machine never ran out of memory" (cast llong ($ m2 oom)) 0)
+        (coco_engine_free (aof e2))
+        (coco_store_free (aof st2))
+        (coco_machine_free (aof m2)))
+
       (check "machine never ran out of memory" (cast llong ($ m oom)) 0)
       (check "store never ran out of memory"   (cast llong ($ st oom)) 0)
 

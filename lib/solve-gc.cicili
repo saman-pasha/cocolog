@@ -738,8 +738,30 @@
           (let ((size_t floor . #'(coco_gc_floor)))
             (set (-> m gc_next) (+ (-> m heap_len)
                                    (? (> (-> m heap_len) floor) (-> m heap_len) floor))))
+          ;; and under a stack limit (3.32.0) no longer than the cells the
+          ;; limit leaves the heap beside the trail and the choice frames,
+          ;; so a heap of garbage is collected before the stacks pass the
+          ;; limit (`coco_stack_cap' grows it no further) -- nor for less
+          ;; than a sixteenth of the limit's cells: as what a search holds
+          ;; nears the limit that room shrinks with every collection, by the
+          ;; share of the garbage the search keeps, and choice points held
+          ;; beside a heap of garbage took 553 collections and 344 s to be
+          ;; stopped at 1 GB; the stacks pass the limit by a sixteenth before
+          ;; a collection asks, as a heap's own growth does
+          (if (> (-> m slimit) 0)
+              (let ((size_t lc . 0)
+                    (size_t least . #'(+ (-> m heap_len) (cast size_t (/ (cast u64 (-> m slimit)) 128)))))
+                (coco-room-left lc e (-> m slimit) (* (cast u64 (-> m heap_len)) 8) 8)
+                (if (< lc least) (set lc least))
+                (if (> (-> m gc_next) lc) (set (-> m gc_next) lc))))
           (set (-> m gc_count) (+ (-> m gc_count) 1))
           (free bits) (free pre) (free stk) (free fixed)
+          ;; THE STACK LIMIT (3.32.0): what survived is what the search holds,
+          ;; and past the machine's limit the next step raises
+          ;; error(resource_error(stack), _) without collecting a second time
+          ;; (SOVER, `coco_halted_step')
+          (if (and (== (-> e halted) 0) (coco_stack_over e))
+              (block (set (-> e halted) 3) (set (-> m sover) 1)))
           (if (-> e tclock) (coco_clock_gc e gt0))))
 
   ;;; THE FREEZE, TORTURED (`COCOLOG_KMAT'). A freeze is right or wrong only

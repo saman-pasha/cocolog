@@ -828,6 +828,20 @@
             arities)
          (#t (return 0))))))
 
+;;; THE ROOM THE STACK LIMIT LEAVES AN ARRAY (3.32.0): ROOM is set to the
+;;; entries of ESIZE bytes that LIM leaves beside what the stacks hold but
+;;; the array's own OWN bytes (`coco_stack_used' of engine E), 0 where the
+;;; rest passes the limit already. The choice stack grows by it
+;;; (`coco_eng_grow_slow', with `coco-room-cap'), and the collector waits
+;;; for no more heap than it (`coco_heap_collect'), so what one array holds
+;;; is room the others have not got.
+(DEFMACRO coco-room-left (room e lim own esize)
+  `(let ((u64 rrest . #'(coco_stack_used ,e)) (u64 rown . #'(cast u64 ,own))
+         (u64 rlim . #'(cast u64 ,lim)))
+     (if (>= rrest rown) (set rrest (- rrest rown)))
+     (set ,room 0)
+     (if (< rrest rlim) (set ,room (cast size_t (/ (- rlim rrest) ,esize))))))
+
 
 ;;;; ------------------------------------------------------------------
 ;;;; Declarations
@@ -996,9 +1010,11 @@
     (member u64         max_inf)
     (member u64         tcap)
     (member int         resume)    ; a solution has been reported; go back first
-    ;; 0 none, 1 halt, 2 memory; 4 + SIGNO a POSIX signal (2.6.0), which a
-    ;; signal handler writes through the machine's `haltp'. Volatile
-    ;; sig_atomic_t: the only object an asynchronous handler may assign.
+    ;; 0 none, 1 halt, 2 memory, 3 the stack limit passed (3.32.0, a
+    ;; growth's or a collection's: `coco_halted_step' asks again); 4 + SIGNO
+    ;; a POSIX signal (2.6.0), which a signal handler writes through the
+    ;; machine's `haltp'. Volatile sig_atomic_t: the only object an
+    ;; asynchronous handler may assign.
     (member coco_sig_halt halted)
     (member int         halt_code)
 
@@ -1767,6 +1783,13 @@
   (decl) (func coco_walk ((coco_engine * e) (size_t k) (int tport)) (out int))
   (decl) (func coco_walk_retry ((coco_engine * e) (size_t ci)) (out int))
 
+  ;;; THE STACK LIMIT (3.32.0, swipl's `stack_limit' flag, the machine's
+  ;;; `slimit'): what the machine's stacks hold in bytes -- the heap's cells,
+  ;;; the trail's entries and the choice frames of every engine on its chain
+  ;;; -- and whether that is more than the limit, 0 or less none
+  (decl) (func coco_stack_used ((coco_engine * e)) (out u64))
+  (decl) (func coco_stack_over ((coco_engine * e)) (out int))
+
   ) ; decl-solve
 
 
@@ -1777,15 +1800,54 @@
 (generic impl-solve
   ()
 
+  ;;; WHAT THE STACKS HOLD (3.32.0), as swipl's `stack_limit' reckons its
+  ;;; local, global and trail stacks together: the heap's cells -- the terms,
+  ;;; and the continuation and the environments, which swipl keeps on its
+  ;;; local stack -- the trail's entries, and the choice frames, with their
+  ;;; shadow frames, of every engine on the machine's chain, from the
+  ;;; innermost running out (`eng', `outer'), or E's alone where none runs
+  (func coco_stack_used ((coco_engine * e)) (out u64)
+        (let ((coco_machine * m . #'(-> e m))
+              (u64 n . #'(* (cast u64 (+ (-> m heap_len) (-> m trail_len))) 8))
+              (coco_engine * x . #'(cast (coco_engine *) (-> m eng))))
+          (if (== x nil) (set x e))
+          ;; a choice frame and the tracer's shadow frame beside it
+          (while (!= x nil)
+            (set n (+ n (* (cast u64 (-> x nchoices))
+                           (+ (sizeof coco_choice) (sizeof coco_tchoice)))))
+            (set x (cast (coco_engine *) (-> x outer))))
+          (return n)))
+
+  (func coco_stack_over ((coco_engine * e)) (out int)
+        (let ((i64 lim . #'(-> (-> e m) slimit)))
+          (if (<= lim 0) (return 0))
+          (return (> (coco_stack_used e) (cast u64 lim)))))
+
   ;;; The choice stack's growth, out of line (weak), as `coco_grow_slow' is:
   ;;; inlined into `coco_push_choice', its refused doubling's second try
-  ;;; would have cost every push (1.10.28) -- and cold as it is (2.11.2)
+  ;;; would have cost every push (1.10.28) -- and cold as it is (2.11.2).
+  ;;; Under the machine's stack limit (3.32.0) it grows by the room the
+  ;;; limit leaves, and past it stops the run at its next step, halted 3,
+  ;;; as the heap's growth does (`coco-room-cap', `coco_stack_cap')
   (weak) (cold)
   (func coco_eng_grow_slow ((coco_engine * e) (size_t need)) (out int)
         (let ((size_t ncap . #'(? (== (-> e choice_cap) 0) 64 (-> e choice_cap)))
               (coco_choice * nb)
-              (coco_tchoice * tb))
+              (coco_tchoice * tb)
+              (int over . 0))
           (while (< ncap need) (set ncap (* ncap 2)))
+          ;; under a stack limit (3.32.0) the stack grows by the frames the
+          ;; limit leaves beside the heap, the trail and the other engines'
+          ;; frames, and a sixteenth (`coco-room-cap'): a doubling near the
+          ;; limit would add frames nothing asks about until the next
+          ;; doubling, and a search that leaves a choice point a level ran on
+          ;; to half again the limit before its heap's collection asked
+          (if (> (-> (-> e m) slimit) 0)
+              (let ((size_t room . 0))
+                (coco-room-left room e (-> (-> e m) slimit)
+                                (* (cast u64 (-> e nchoices)) (+ (sizeof coco_choice) (sizeof coco_tchoice)))
+                                (+ (sizeof coco_choice) (sizeof coco_tchoice)))
+                (coco-room-cap room need ncap over)))
           (set nb (cast (coco_choice *) (realloc (-> e choices) (* ncap (sizeof coco_choice)))))
           ;; a doubling refused: less, and the run raises resource_error
           ;; at its next step, as the machine's arrays do (`coco_grow_short')
@@ -1802,6 +1864,10 @@
           (if (== tb nil) (return 0))
           (set (-> e tchoices) tb)
           (set (-> e choice_cap) ncap)
+          ;; the frames to come pass the limit (OVER, which is what the
+          ;; stacks hold past it as well: the room is the limit less them),
+          ;; and the run stops at its next step
+          (if (and (== (-> e halted) 0) over) (set (-> e halted) 3))
           (return 1)))
 
   (static)

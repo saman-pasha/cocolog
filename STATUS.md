@@ -13027,3 +13027,153 @@ repl, static, stream, cyclic, and the solve, module, state, term and
 syntax binaries. Lessons library/00, 04, 06, 20 and 36 and basics/13. The
 card's cites hold (27 rows, 39 cites; ten cites in nine rows renumbered,
 and T2's why says what current_predicate/1 answers named whole).
+
+## A search past the stack limit is stopped, as swipl's stack_limit (3.32.0)
+
+swipl stops a search whose stacks pass its `stack_limit' flag -- 1 GB by
+default, the local, global and trail stacks together -- with
+error(resource_error(stack), Context): a recursion that never ends, choice
+points that pile up, a term that grows while something still names it.
+cocolog had no such flag. Its heap grew until memory was refused,
+error(resource_error(memory), _), or until the kernel killed the process
+first, as it killed four probes beside three builds while 3.29.0 was
+checked; test/files/library_calls.pl left the library calls that search
+for ever out by name (COMPAT.md).
+
+THE FLAG (lib/library.cicili): current_prolog_flag(stack_limit, L) answers
+the machine's limit (`slimit', appended to the machine), 1073741824 by
+default, and an unbound flag enumerates it. set_prolog_flag/2 sets it as
+swipl's does: unbound an instantiation error; an atom, a string, a
+fraction, a rational, an infinity, a NaN or a float past 64 bits
+type_error(integer, V); a float that is an integer that integer (2.0e7 is
+20000000); a value below what the stacks hold now permission_error(limit,
+stacks, N), N the integer read (0 and 1000 in both systems); a negative
+one taken as it is, and no limit. It is the process's default for a
+machine made after it, as text_units is (`coco_slimit_default'), so a
+green task's machine (`coco_machine_init_alias') and a thread's take it,
+and COCOLOG_STACK_LIMIT, read once, is that default before any set.
+
+WHAT IS COUNTED (`coco_stack_used', lib/solve.cicili): the heap's cells
+and the trail's entries, 8 bytes each, and the choice frames of every
+engine on the machine's chain, 72 bytes each and the tracer's shadow
+frame's 24 beside it. swipl's local stack holds what cocolog keeps on its
+heap -- the continuation and the environments -- so the two count one
+search otherwise, and stop it at other depths.
+
+WHERE IT IS ASKED: never in the step loop, and at every growth of an array
+of the stacks, which grows by the room the limit leaves it (`coco-room-cap',
+one DEFMACRO for the three): a doubling within that room and a sixteenth is
+taken, one past it stops there while what is needed is within the room --
+a heap of 1 GB is not doubled to 2 -- and what passes the room grows by a
+sixteenth only and stops the running engine at its next step, halted 3
+through `haltp', once the growth is given (a growth refused is memory's, as
+it was). The heap and the trail take the limit's cells as their room
+(`coco_stack_cap', from `coco_grow_slow'); the choice stack takes the
+frames the limit leaves beside the heap, the trail and the other engines'
+frames (`coco_eng_grow_slow', `coco-room-left'), so the growth after a
+near one comes as the stacks reach the limit: through a doubling at 65 536
+frames, a search that left a choice point a level ran on to half again a
+limit of 20 MB before its heap's collection asked. A collection that leaves
+more than the limit stops the run too (the end of `coco_heap_collect'),
+with SOVER set. At halted 3 the step (`coco_halted_step') collects where
+its engine may and SOVER does not say a collection just did -- the
+collector itself, `coco_heap_collect': calling the step's static
+`coco_heap_gc' from a second place took it out of the step loop, whose
+instructions on queens rose 3.9 % -- and asks again: past the limit it
+raises error(resource_error(stack), _), its context unbound; under it the
+run goes on and the step is given back, so the inferences are what they
+were. After each collection the collector waits for no more heap than the
+limit leaves beside the trail and the choice frames (`gc_next',
+`coco-room-left'), so a heap of garbage is collected before the stacks pass
+the limit, and choice points held leave a recursion the rest; and from the
+flag's set on for no more than the limit's cells, so a heap grown under a
+larger limit holds a search to a lowered one (asking the room there too
+moved nothing measured: the heap's growth or the collection after asked
+first). It waits for no less than a sixteenth of the limit's cells: as what
+a search holds nears the limit, the room left shrinks with every collection
+by the share of the garbage the search keeps, and choice points beside a
+heap of garbage took 553 collections and 344 s to be stopped at 1 GB, 277
+and 112 s with the least, where swipl 9.0.4 takes 223 and 86 s.
+
+THE MESSAGES: an uncaught one says swipl's first line, `Stack limit
+(1.0Gb) exceeded' (`coco_error_text'), the limit in swipl's own sizes
+(messages.pl's human_stack_size, of kilobytes: 48Kb, 19.1Mb, 0.3Gb), and
+the backtrace after it says where the search was; print_message/2 says the
+same line (library(print_message)'s `'$pm_stack_size'/2'). swipl writes the
+rest -- the stacks' sizes, the depth, the frames of the recursion -- from
+the dict it makes the context, which cocolog has not got (COMPAT.md).
+
+THE CASES. test/files/stack_limit.pl, 25 lines held to swipl 9.0.4's
+(3.31.0 differs at 2): the flag, its enumeration, its ten values and their
+errors, and eight searches under 20 MB -- a recursion twice, choice points,
+a held list, ord_memberchk/2 over a held list, and a recursion inside
+findall/3, forall/2 and aggregate_all/3 -- each stopped with
+resource_error(stack), one caught inside its own catch/3, and a run after
+them. test/errors.pl's `stack_limit_said': the uncaught line (19.1Mb, and
+48Kb, 0.3Gb and 1.0Gb from a thrown ball), print_message/2's line,
+COCOLOG_STACK_LIMIT (and a value that is no number), a green task's
+machine, a heap of garbage past the limit run with the inferences of the
+same run under none, and how far a search gets under 20 MB in a fresh
+machine -- a heap of garbage held under 25 MB, a recursion at about 40
+bytes a level, choice points at about 240, within a tenth -- after a heap
+grown under 400 MB, of a recursion after 60 000 choice points held, beside
+a collection and beside a lowered limit, and of choice points beside a heap
+of garbage, stopped in some 100 collections. test/solve.cicili: an
+engine that never collects, stopped under 40 MB by a recursion and by a
+heap of garbage, its heap grown past the limit by a sixteenth and a
+sixteenth again, where a doubling would have taken it to 1.68 times the
+limit, and going on under it after.
+
+THE ARMS, a build each, the rule taken out, each red, the case it went
+red in named, the arms of the collector and the choice stack run again
+on the final source: the flag not read, not set, an integral float
+refused, no permission error, not enumerated (each in stack_limit.pl);
+the tracer's 24 bytes not counted (the held checks: 141 723 and 142 042
+levels), a collection's end asking nothing (the lowered limit's search
+ran on past the case's two minutes, and beside choice points to 269 485
+levels), no collection before the raise (a heap of garbage raised;
+choice points stopped at 65 535), the step not given back (the garbage
+run's inferences 164 where a run under no limit counts 163), the growth's
+OVER unset (the solve binary: no error at all), the growth's top gone
+(the solve binary's heap past it; a heap of garbage with a capacity of
+33 554 432), no cap on `gc_next' after a collection (34 519 592, and the
+lowered held check 135 993), none at the flag's set (the 400 MB heap's
+search 1 242 752 levels), the uncaught message, print_message/2's, the
+environment unread, a green task's machine unset (resource_error(memory)),
+the sizes in C and in Prolog, the machine's start unset (0, no limit);
+the choice frames not counted (choice points 120 239 levels, beside
+a collection 250 858), the choice stack's room gone and its stop gone
+(98 376 each), the collector's room gone (the held checks 119 341 and
+119 335), its least gone (270 collections; the check holds 150). Green,
+and so kept or taken out as they cost: SOVER, which saves a collection
+at each stop a collection makes (a held list at a limit of 1 000 000 000
+bytes: 6 collections and 4.7 s against 7 and 5.9; at 20 MB 2 against 3)
+-- kept; the choice stack's stop on the stacks' total beside OVER, each
+green without the other, the same test -- OVER kept, the total taken out;
+the room at the flag's set, which moved no search measured (the heap's
+growth or the collection after asked first) -- taken out.
+
+THE COST, tools/flow/zero.sh, work less padding, 3.31.0 to 3.32.0:
+nrev 65 996 390 to 65 997 047, queens 40 281 027 to 40 281 173, lookup
+48 092 685 to 48 083 829 -- the step loop is not touched. A start (`cocolog
+query true', the two binaries run from one path) 35 047 785 instructions
+to 35 091 091 (+0.12 %: strcmp +44 602, the placement of the reader's
+strings, and the environment's read +1 477). Under the default limit of
+1 GB a recursion that never ends is stopped in 8.9 s, its peak of memory
+1.58 GB; choice points that pile up in 3.0 s at 1.25 GB (1.60 GB before
+the choice stack took the room the limit leaves); a held list in 6.4 s at
+1.47 GB; choice points beside a heap of garbage in 112 s at 1.26 GB, 277
+collections (swipl 9.0.4: 86 s, 223). The first build, whose heap doubled
+past the limit, peaked at 3.2 GB. A teach of the Spanish lessons into a
+fresh store (254 977 terms, 22 s, 1.02 GB resident with the store's pages)
+runs under the default limit, and the Italian one under a limit of 200 MB.
+
+Narrow cases green on the final build (43): lint, files, engine, units,
+errors, gc, flowchart, library, directives, argv, reconsult, repl, static,
+stream, cyclic, translate, reason, string, serialize, script, text, trace,
+window, flowdebug, async, thread, cowork, meter, backtrace, journal,
+normalise, rationals, template, hex, astar, process, os, signal, and the
+solve, module, state, term and syntax binaries; lesson library/37, whose
+paragraph on rule P1 named seventeen flags and names twenty. The card's
+row P1 names stack_limit among the flags that answer, and its cites hold
+(27 rows, 39 cites; X1, N1 and D3 renumbered).

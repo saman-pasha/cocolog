@@ -2307,6 +2307,35 @@
                       (set (-> e kcall) 0)
                       (return (coco_signal_raise e signo)))
                   (block (set (-> e halted) 2) (return 0)))))
+          ;; THE STACK LIMIT (3.32.0): a growth went past the machine's
+          ;; `slimit' (`coco_stack_cap', `coco_eng_grow_slow'), or a
+          ;; collection left more than it (SOVER). The step collects first
+          ;; where its engine may and no collection has just said so, then
+          ;; asks what the stacks hold: past the limit it raises
+          ;; error(resource_error(stack), _), as swipl's stack_limit stops a
+          ;; search; under it the run goes on, and the step this took is
+          ;; given back (the loop counts it again as it goes round), so the
+          ;; inferences are what they were. A machine out of memory raises
+          ;; nothing here, and the stop is memory's (2) below
+          (if (== (-> e halted) 3)
+              (block
+                (set (-> e halted) 0)
+                ;; the collector itself, not the step's `coco_heap_gc': a
+                ;; second caller of that static function took it out of the
+                ;; step loop, which ran queens 3.9 % more instructions (the
+                ;; freeze's torture, COCOLOG_KMAT, is the step's alone)
+                (if (and (-> e gc) (not (-> m sover)))
+                    (if (coco_k_flush e) (coco_heap_collect e)))
+                (if (== (-> e halted) 3) (set (-> e halted) 0))
+                (set (-> m sover) 0)
+                (if (not (coco_stack_over e))
+                    (block (set (-> e steps) (- (-> e steps) 1)) (return 2)))
+                (if (coco_k_flush e)
+                    (let ((size_t f . #'(coco_make1 m "resource_error" (coco_new_atom m "stack"))))
+                      (if (not (-> m oom))
+                          (block (set (-> e kcall) 0)
+                                 (return (coco_raise e f))))))
+                (if (== (-> e halted) 0) (set (-> e halted) 2))))
           (if (and (== (-> e halted) 2) (not (-> m oom)))
               (block
                 (set (-> e halted) 0)

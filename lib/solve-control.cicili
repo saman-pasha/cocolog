@@ -2831,6 +2831,24 @@
             ;; now, `coco_error_text')
             (if (and (== fa 1) (== 0 (strcmp fn "resource_error")))
                 (block (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
+                       ;; THE STACK LIMIT (3.32.0): swipl's first line, the
+                       ;; machine's limit in swipl's own sizes (messages.pl's
+                       ;; human_stack_size, of kilobytes). swipl writes the
+                       ;; rest from the dict it makes the error's context,
+                       ;; which cocolog has not got; the backtrace after it
+                       ;; says where the search was
+                       (if (== 0 (strcmp a1 "stack"))
+                           (let ((i64 k . #'(/ (-> m slimit) 1024)))
+                             (cond
+                               ((< k 100)
+                                (snprintf out len "Stack limit (%ldKb) exceeded" (cast long k)))
+                               ((< k 100000)
+                                (snprintf out len "Stack limit (%.1fMb) exceeded"
+                                          (/ (cast double k) 1024.0)))
+                               (#t
+                                (snprintf out len "Stack limit (%.1fGb) exceeded"
+                                          (/ (cast double k) 1048576.0))))
+                             (return)))
                        (snprintf out len "Not enough resources: %s" a1)
                        (return)))
 

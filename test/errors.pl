@@ -72,6 +72,7 @@ main :-
     no_rule_said,
     qualified_guard_said,
     det_said,
+    stack_limit_said,
     checks_done.
 
 %% ---- where a text would not read, uncaught (3.10.0) -------------------------
@@ -994,6 +995,166 @@ det_said :-
     sh_join([C, ' --no-backtrace --local -s ', F5, ' 2>&1'], Cmd5),
     shell(Cmd5, Out5, _),
     has('a determinism error that is no det one', 'Unknown error term: determinism_error(foo/0,semidet,fail,property)', Out5),
+    shl(['rm -rf ', D]).
+
+%% ---- a search the stack limit stops (3.32.0) -------------------------------
+%%
+%% swipl's `stack_limit' flag: how many bytes a search may hold before it
+%% is stopped with error(resource_error(stack), _) (test/files/stack_limit.pl
+%% holds the flag and the stops to swipl). What swipl cannot be held to
+%% here: the uncaught error's first line and print_message/2's, swipl's own,
+%% which it writes from the dict it makes the context and cocolog from the
+%% flag (COMPAT.md); COCOLOG_STACK_LIMIT, the process's default; a green
+%% task's machine, which takes the program's limit; and a heap of garbage
+%% that passes the limit, which the step collects and goes on from with
+%% the inferences it had.
+stack_limit_said :-
+    section('a search the stack limit stops is said with swipl''s line'),
+    scratch(D),
+    cocolog(C),
+    atom_concat(D, '/deep.pl', F1),
+    fixture(F1, [ 'foo(N) :- N1 is N + 1, foo(N1), true.',
+                  'main :- set_prolog_flag(stack_limit, 20000000), foo(0).' ]),
+    sh_join([C, ' --no-backtrace --local -s ', F1, ' 2>&1'], Cmd1),
+    shell(Cmd1, Out1, Rc1),
+    check('the program ends with the uncaught error', Rc1, 2),
+    has('uncaught, swipl''s first line', 'ERROR: -s main: Stack limit (19.1Mb) exceeded', Out1),
+    forall(member(Lim-Size, [50000-'48Kb', 300000000-'0.3Gb', 1073741824-'1.0Gb']),
+           ( atomic_list_concat([D, '/thrown', Lim, '.pl'], Ft),
+             format(atom(Lt), 'main :- set_prolog_flag(stack_limit, ~w), throw(error(resource_error(stack), _)).', [Lim]),
+             fixture(Ft, [Lt]),
+             sh_join([C, ' --no-backtrace --local -s ', Ft, ' 2>&1'], Cmdt),
+             shell(Cmdt, Outt, _),
+             atomic_list_concat(['ERROR: -s main: Stack limit (', Size, ') exceeded'], Want),
+             atomic_list_concat(['uncaught, the limit in swipl''s sizes: ', Size], Labelt),
+             has(Labelt, Want, Outt) )),
+    atom_concat(D, '/said.pl', F2),
+    fixture(F2, [ 'foo(N) :- N1 is N + 1, foo(N1), true.',
+                  'say(L) :- set_prolog_flag(stack_limit, L), print_message(error, error(resource_error(stack), _)).',
+                  'main :- set_prolog_flag(stack_limit, 20000000), catch(foo(0), E, true), print_message(error, E),',
+                  '        say(1073741824), say(50000), say(300000000).' ]),
+    sh_join([C, ' --no-backtrace --local -s ', F2, ' 2>&1'], Cmd2),
+    shell(Cmd2, Out2, _),
+    check('print_message/2, the limit as it stands in swipl''s sizes', Out2,
+          'ERROR: Stack limit (19.1Mb) exceeded\nERROR: Stack limit (1.0Gb) exceeded\nERROR: Stack limit (48Kb) exceeded\nERROR: Stack limit (0.3Gb) exceeded'),
+    atom_concat(D, '/env.pl', F3),
+    fixture(F3, [ 'foo(N) :- N1 is N + 1, foo(N1), true.',
+                  'main :- current_prolog_flag(stack_limit, L), writeln(L), catch(foo(0), error(E, _), true), writeln(E).' ]),
+    sh_join(['COCOLOG_STACK_LIMIT=30000000 ', C, ' --no-backtrace --local -s ', F3, ' 2>&1'], Cmd3),
+    shell(Cmd3, Out3, _),
+    check('COCOLOG_STACK_LIMIT is the process''s default', Out3, '30000000\nresource_error(stack)'),
+    atom_concat(D, '/envflag.pl', F4),
+    fixture(F4, [ 'main :- current_prolog_flag(stack_limit, L), writeln(L).' ]),
+    sh_join(['COCOLOG_STACK_LIMIT=lots ', C, ' --no-backtrace --local -s ', F4, ' 2>&1'], Cmd4),
+    shell(Cmd4, Out4, _),
+    check('one that is no number is swipl''s 1 GB', Out4, '1073741824'),
+    atom_concat(D, '/green.pl', F5),
+    fixture(F5, [ 'foo(N) :- N1 is N + 1, foo(N1), true.',
+                  'main :- set_prolog_flag(stack_limit, 30000000),',
+                  '        async_run(( go(current_prolog_flag(stack_limit, _), F1), await(F1, R1), writeln(R1),',
+                  '                    go(foo(0), F2), catch(await(F2, _), error(E, _), true), writeln(E) )).' ]),
+    sh_join([C, ' --no-backtrace --local -s ', F5, ' 2>&1'], Cmd5),
+    shell(Cmd5, Out5, _),
+    check('a green task''s machine takes the program''s limit, and is stopped by it', Out5,
+          'current_prolog_flag(stack_limit,30000000)\nresource_error(stack)'),
+    %% a heap of garbage past the limit, in a fresh machine whose heap is
+    %% small: a step's growth past the limit stops the run, the step
+    %% collects, and the run goes on with the inferences it had, as a run
+    %% under no limit counts them
+    Garbage = [ 'g(0) :- !.',
+                'g(N) :- numlist(1, 300000, _), N1 is N - 1, g(N1).',
+                'count :- statistics(inferences, I0), g(40), statistics(inferences, I1), D is I1 - I0, writeln(D).' ],
+    atom_concat(D, '/garbage.pl', F6),
+    append(Garbage, [ 'main :- set_prolog_flag(stack_limit, 20000000), count.' ], L6),
+    fixture(F6, L6),
+    atom_concat(D, '/garbage_free.pl', F6f),
+    append(Garbage, [ 'main :- count.' ], L6f),
+    fixture(F6f, L6f),
+    sh_join([C, ' --no-backtrace --local -s ', F6, ' 2>&1'], Cmd6),
+    shell(Cmd6, Out6, _),
+    sh_join([C, ' --no-backtrace --local -s ', F6f, ' 2>&1'], Cmd6f),
+    shell(Cmd6f, Out6f, _),
+    check('a heap of garbage past the limit is collected, its inferences the same', Out6, Out6f),
+    %% HOW FAR A SEARCH GETS under 20 MB, each in a fresh machine: a heap of
+    %% garbage stays near the limit (the collector waits for no more, the
+    %% heap grows no further: a doubling would take it to 32 MB, where the
+    %% collector's floor is); a recursion stops at about 40 bytes a level and
+    %% one leaving a choice point a level, 72 bytes and the tracer's 24 of it
+    %% counted, at about 240 (82 098 levels on 3.32.0), within a tenth: the
+    %% choice stack's growth at 65 536 frames takes the room the limit
+    %% leaves, and the growth after it, the stacks some 23 MB, stops the
+    %% search -- a doubling would have let it run on to 31 MB and 108 659
+    %% levels, where the heap's own collection asked; and a heap grown under
+    %% a larger limit holds a search to the lowered one, the collector due
+    %% at it from the set on. A level's cells are the engine's to change,
+    %% and a change that moves them moves these bounds with it.
+    Depth = [ 'deep(N) :- nb_setval(d, N), N1 is N + 1, deep(N1), true.',
+              'cps(N) :- nb_setval(c, N), h, N1 is N + 1, cps(N1).',
+              'h. h.',
+              'junk(0) :- !.',
+              'junk(N) :- numlist(1, 3000, _), N1 is N - 1, junk(N1).',
+              'within(Name, X, Lo, Hi) :- ( X >= Lo, X =< Hi -> R = ok ; R = X ), writeln(Name-R).' ],
+    atom_concat(D, '/depth.pl', F7),
+    append(Depth, [ 'main :- set_prolog_flag(stack_limit, 20000000),',
+                    '        junk(5000), statistics(globalcap, C3), within(junk_cap, C3, 0, 25000000),',
+                    '        catch(deep(0), error(resource_error(stack), _), true), nb_getval(d, D1), within(deep, D1, 250000, 750000),',
+                    '        catch(cps(0), error(resource_error(stack), _), true), nb_getval(c, D2), within(cps, D2, 74000, 90000).' ], L7),
+    fixture(F7, L7),
+    sh_join([C, ' --no-backtrace --local -s ', F7, ' 2>&1'], Cmd7),
+    shell(Cmd7, Out7, _),
+    check('a heap of garbage, a recursion and choice points, each held near the limit', Out7,
+          'junk_cap-ok\ndeep-ok\ncps-ok'),
+    atom_concat(D, '/lowered.pl', F8),
+    append(Depth, [ 'main :- set_prolog_flag(stack_limit, 400000000), \\+ \\+ ( numlist(1, 8000000, L), length(L, _) ),',
+                    '        statistics(globalcap, C0), set_prolog_flag(stack_limit, 20000000),',
+                    '        catch(deep(0), error(resource_error(stack), _), true), nb_getval(d, D1), within(deep_lowered, D1, 250000, 750000),',
+                    '        junk(5000), statistics(globalcap, C1), ( C1 =:= C0 -> writeln(cap_kept) ; writeln(C0-C1) ).' ], L8),
+    fixture(F8, L8),
+    sh_join([C, ' --no-backtrace --local -s ', F8, ' 2>&1'], Cmd8),
+    shell(Cmd8, Out8, _),
+    check('a heap grown under a larger limit holds a search to the lowered one', Out8,
+          'deep_lowered-ok\ncap_kept'),
+    %% CHOICE POINTS HELD, then a recursion: 60 000 of them and the heap
+    %% they keep are some 16 MB of the 20, and the recursion after them
+    %% gets the rest, some 104 000 levels -- where each collection waits for
+    %% the heap that the trail and the choice frames leave it
+    %% (`coco-room-left'), not for 20 MB of heap, which would let it run on
+    %% to some 260 000 and the stacks to 26 MB; beside an explicit
+    %% collection, and beside a limit lowered with them held
+    atom_concat(D, '/held.pl', F9),
+    append(Depth, [ 'mk(0, G) :- !, call(G).',
+                    'mk(N, G) :- h, N1 is N - 1, mk(N1, G).',
+                    'collected :- set_prolog_flag(stack_limit, 20000000),',
+                    '        catch(mk(60000, (garbage_collect, deep(0))), error(resource_error(stack), _), true),',
+                    '        nb_getval(d, D), within(collected, D, 94000, 115000).',
+                    'lowered :- catch(mk(60000, (set_prolog_flag(stack_limit, 20000000), deep(0))), error(resource_error(stack), _), true),',
+                    '        nb_getval(d, D), within(lowered, D, 94000, 115000).' ], L9),
+    fixture(F9, L9),
+    sh_join([C, ' --no-backtrace --local run ', F9, ' collected 2>&1'], Cmd9),
+    shell(Cmd9, Out9, _),
+    check('a collection beside choice points held waits for the heap they leave', Out9,
+          'collected-ok'),
+    sh_join([C, ' --no-backtrace --local run ', F9, ' lowered 2>&1'], Cmd9b),
+    shell(Cmd9b, Out9b, _),
+    check('a limit lowered beside choice points held leaves the heap what they leave', Out9b,
+          'lowered-ok'),
+    %% CHOICE POINTS AND A HEAP OF GARBAGE: what the search holds nears the
+    %% limit, and the room a collection waits for shrinks with every one by
+    %% the share of the garbage the search keeps; it waits for a sixteenth
+    %% of the limit at the least, and the search is stopped after some 100
+    %% collections, where with no least it took some 220 (swipl 9.0.4 takes
+    %% 223 for this search under 1 GB, cocolog 277)
+    atom_concat(D, '/churn.pl', F10),
+    append(Depth, [ 'g :- numlist(1, 300, _).',
+                    'cpsj(N) :- h, g, N1 is N + 1, cpsj(N1).',
+                    'main :- set_prolog_flag(stack_limit, 20000000), statistics(heap_collections, G0),',
+                    '        catch(cpsj(0), error(resource_error(stack), _), true),',
+                    '        statistics(heap_collections, G1), G is G1 - G0, within(churn, G, 0, 150).' ], L10),
+    fixture(F10, L10),
+    sh_join([C, ' --no-backtrace --local -s ', F10, ' 2>&1'], Cmd10),
+    shell(Cmd10, Out10, _),
+    check('choice points beside a heap of garbage are stopped in some 100 collections', Out10,
+          'churn-ok'),
     shl(['rm -rf ', D]).
 
 %% A RULE A MODULE QUALIFIES HAS NO GUARD (3.19.2, swipl's): `foo:(p, g =>

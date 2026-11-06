@@ -367,6 +367,13 @@ message_to_string(Term, Str) :-
 
 '$pm_translate2'(Term) -->
     '$pm_prolog_message'(Term).
+%% A search the stack_limit flag stopped (3.32.0): swipl's first line, the
+%% limit in its own sizes. swipl writes the rest from the dict it makes the
+%% error's context, which cocolog has not got.
+'$pm_translate2'(error(resource_error(stack), _)) -->
+    !,
+    { current_prolog_flag(stack_limit, B), '$pm_stack_size'(B, S) },
+    [ 'Stack limit (~w) exceeded'-[S] ].
 '$pm_translate2'(error(ISO, SWI)) -->
     '$pm_location'(SWI),
     '$pm_term_message'(ISO),
@@ -377,6 +384,16 @@ message_to_string(Term, Str) :-
     '$pm_make_lines'(Lines, L, T).
 '$pm_translate2'(format(Fmt, Args)) -->
     [ Fmt-Args ].
+
+%% swipl's human_stack_size/2 (boot/messages.pl), of the limit in kilobytes
+'$pm_stack_size'(B, S) :-
+    K is B // 1024,
+    (   K < 100
+    ->  format(atom(S), '~dKb', [K])
+    ;   K < 100000
+    ->  V is K / 1024, format(atom(S), '~1fMb', [V])
+    ;   V is K / (1024 * 1024), format(atom(S), '~1fGb', [V])
+    ).
 
 '$pm_make_lines'([], T, T) :- !.
 '$pm_make_lines'([Last0], ['~w'-[Last]|T], T) :-
