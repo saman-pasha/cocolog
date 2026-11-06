@@ -94,8 +94,10 @@ flow_mode(read, 1, ['-'], det).
 flow_mode(assertz, 1, ['+'], det).
 flow_mode(asserta, 1, ['+'], det).
 flow_mode(assert, 1, ['+'], det).
-flow_mode(retract, 1, ['?'], semidet).
+%% re-executable, each answer a clause that stood when the walk began (3.28.0)
+flow_mode(retract, 1, ['?'], nondet).
 flow_mode(retractall, 1, ['?'], det).
+flow_mode(clause, 2, ['+', '?'], nondet).
 flow_mode(nb_setval, 2, ['+', '+'], det).
 flow_mode(nb_getval, 2, ['+', '-'], det).
 flow_mode(b_setval, 2, ['+', '+'], det).
@@ -456,6 +458,7 @@ flow_raises_unbound(assertz, 1, [1], assertz(_)).
 flow_raises_unbound(asserta, 1, [1], asserta(_)).
 flow_raises_unbound(assert, 1, [1], assert(_)).
 flow_raises_unbound(retract, 1, [1], retract(_)).
+flow_raises_unbound(clause, 2, [1], clause(_, _)).
 
 %% ARITHMETIC evaluates every variable in an expression: is/2's second
 %% argument, and both sides of a comparison

@@ -349,6 +349,241 @@
             (return (coco_retractall_none e g)))
         (return 0))
 
+  ;;; ---- retract/1 and clause/2 (3.28.0, swipl's) --------------------------
+  ;;;
+  ;;; A WALK OF THE CLAUSES THAT STOOD WHEN THE CALL BEGAN, as swipl's
+  ;;; pl_retract and clause/2 walk them: the predicate's candidates keyed as
+  ;;; a call of it is (`coco_trace_kpos': its first argument, or the one
+  ;;; swipl's JIT index would take), each copied from the store and its head
+  ;;; and body unified with the goal's, and retract/1 takes the one that
+  ;;; matched out (`coco_retract_at'). A second candidate keeps a DB frame
+  ;;; to come back to -- a clause frame's view of the predicate, `cend' and
+  ;;; `fera' kept by `coco_frames_on' as any open call's -- so an answer
+  ;;; asserted since is none of the walk's, one retracted since is still an
+  ;;; answer (retract/1's then takes nothing: swipl's retry succeeds on a
+  ;;; clause erased since), and the last candidate leaves no frame. Through
+  ;;; 3.27.0 retract/1 was a builtin that took its first match and left no
+  ;;; choice point, and clause/2 read the clauses by their place among the
+  ;;; live ones (`'$clause'/3' over between/3), so a change made while it
+  ;;; walked moved the walk.
+
+  ;;; T with its module qualifiers taken off (one namespace: `user:q(X)' is
+  ;;; q(X), as is any other)
+  (static)
+  (func coco_db_unq ((coco_machine * m) (size_t t)) (out size_t)
+        (set t (coco_deref m t))
+        (while (and (coco-tag-is FUN (nth t (-> m heap))) (== (coco_arity m t) 2)
+                    (== (coco_name_of m t) (coco-id m ":")))
+          (set t (coco_deref m (coco_arg m t 1))))
+        (return t))
+
+  ;;; G's head and body, MODE 1 retract(C)'s and 0 clause(H, B)'s: C's `H :-
+  ;;; B', or C and 0 for `true' (a fact), and a `H => B' says SSU; clause/2's
+  ;;; `f()' is the atom f, whose clauses the store keeps (3.12.0)
+  (static)
+  (func coco_db_parts ((coco_machine * m) (size_t g) (int mode) (size_t * hp) (size_t * bp)
+                       (int * ssu))
+        (let ((size_t h . 0) (size_t bd . 0))
+          (set (cof ssu) 0)
+          (if (== mode 1)
+              (let ((size_t c . #'(coco_db_unq m (coco_arg m g 0))))
+                (set h c)
+                (if (and (coco-tag-is FUN (nth c (-> m heap))) (== (coco_arity m c) 2))
+                    (if (== (coco_name_of m c) (coco-id m ":-"))
+                        (block (set h (coco_arg m c 0)) (set bd (coco_arg m c 1)))
+                        (if (== 0 (strcmp (coco_atom_name m (coco_name_of m c)) "=>"))
+                            (block (set h (coco_arg m c 0)) (set bd (coco_arg m c 1))
+                                   (set (cof ssu) 1))))))
+              (block (set h (coco_arg m g 0)) (set bd (coco_arg m g 1))))
+          (set h (coco_db_unq m h))
+          (if (and (== mode 0) (coco-tag-is FUN (nth h (-> m heap))) (== (coco_arity m h) 0))
+              (set h (coco_new_atom m (coco_atom_name m (coco_name_of m h)))))
+          (set (cof hp) h)
+          (set (cof bp) bd)))
+
+  ;;; CLAUSE IX OF P TRIED: copied from the store, its head unified with H
+  ;;; and its body with B (0, a fact's `true'). A single-sided rule and the
+  ;;; predicate's last clause are no candidate of retract/1's -- swipl
+  ;;; 9.0.4's matches none, with any pattern -- and clause/2 shows a rule as
+  ;;; swipl's does (`coco_ssu_body'). 1 matched, SPAN its cells in the
+  ;;; store; 0 with the machine back at the marks it came in with.
+  (static)
+  (func coco_db_try ((coco_engine * e) (coco_pred * p) (size_t ix) (int mode)
+                     (size_t h) (size_t b) (size_t * span)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st))
+              (size_t mark . #'(-> (-> e m) heap_len))
+              (size_t tmark . #'(-> (-> e m) trail_len))
+              (size_t cand . 0) (size_t ch . 0) (size_t cb . 0))
+          (set cand (coco_store_get_span m st (nth ix (-> p clauses)) span))
+          (coco_clause_parts m cand (aof ch) (aof cb))
+          (if (!= cb 0)
+              (if (== mode 1)
+                  (block
+                   (if (or (coco_ssu_clause m cand)
+                           (coco_is_compound2 m (coco_deref m cb) "$ssu_none"))
+                       (block (set (-> m heap_len) mark) (return 0))))
+                  (let ((size_t sb . #'(coco_ssu_body m cb)))
+                    (if (== sb (cast size_t -1))
+                        (block (set (-> m heap_len) mark) (return 0)))
+                    (set cb sb))))
+          (if (== cb 0) (set cb (coco_new_atom m "true")))
+          (if (== b 0) (set b (coco_new_atom m "true")))
+          (if (and (coco_unify m h ch) (coco_unify m b cb)) (return 1))
+          (coco_undo_to m tmark)
+          (set (-> m heap_len) mark)
+          (return 0)))
+
+  ;;; THE NEXT CANDIDATE FROM FROM ON, short of CEND: a dead clause tried
+  ;;; only where the walk lived through its death (`coco_frame_next', which
+  ;;; reads the dead, and a predicate with none has no array of them)
+  (static)
+  (func coco_db_next ((coco_store * st) (coco_machine * m) (coco_pred * p) (u32 kpos)
+                      (u64 key) (size_t from) (u32 cend) (u32 fera)) (out size_t)
+        (if (!= (-> p ntomb) 0) (return (coco_frame_next st m p kpos key from cend fera)))
+        (return (? (== kpos 0) (coco_pred_next_clause st p key from)
+                   (coco_pred_next_at st m p kpos key from))))
+
+  ;;; THE CANDIDATES OF PI FROM IX ON, short of CEND and keyed on argument
+  ;;; KPOS (KEY), the walk's DB frame at CI where FR says it has one: the
+  ;;; first that matches is the answer -- the frame on to the next, or gone
+  ;;; at the last, so no choice point is left -- and retract/1's takes it out
+  ;;; where it still stands, after the frame is gone. 1 an answer; 0 none,
+  ;;; the frame gone.
+  (static)
+  (func coco_db_from ((coco_engine * e) (size_t pi) (u32 kpos) (u64 key) (size_t ix) (u32 cend)
+                      (int mode) (size_t h) (size_t bd) (int fr) (size_t ci)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st))
+              (size_t span . 0) (size_t nx . 0) (u32 fera . 0))
+          (if fr (set fera ($ (nth ci (-> e choices)) fera)))
+          (while (< ix (cast size_t cend))
+            (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+              (set nx (coco_db_next st m p kpos key (+ ix 1) cend fera))
+              (if fr (set ($ (nth ci (-> e choices)) clause_ix) (+ ix 1)))
+              (if (coco_db_try e p ix mode h bd (aof span))
+                  (block
+                   (if (and fr (>= nx (cast size_t cend))) (set (-> e nchoices) ci))
+                   ;; one retracted since the walk began is an answer, and
+                   ;; taken already
+                   (if (and (== mode 1) (not (coco_pred_dead p ix)))
+                       (with-green-write e
+                         (coco_retract_at st m pi ix span)
+                         (coco_store_maybe_compact st m)))
+                   (return 1)))
+              (set ix nx)))
+          (if fr (set (-> e nchoices) ci))
+          (return 0)))
+
+  ;;; A RAISE'S ANSWER RC as a construct answers it: 1 where a catch took
+  ;;; the ball and the continuation is its recovery
+  (static)
+  (func coco_db_raised ((int rc) (int * ret)) (out int)
+        (if (== rc 2) (return 1))
+        (set (cof ret) rc)
+        (return 2))
+
+  ;;; THE CALL, `retract(C)' (MODE 1) or `clause(H, B)' (0), its ports a
+  ;;; traced builtin's (none where the printer hides the call, PRINTR 2 on
+  ;;; its frame, 3.27.0) and its errors named by its own row (`kcall', the
+  ;;; goal in flight): retract/1's as through 3.27.0 (`coco_clause_check'),
+  ;;; clause/2's an unbound head's instantiation_error and type_error(callable,
+  ;;; H). One step and one inference, as the builtin was. Answers as
+  ;;; `coco_construct' does.
+  (weak) (cold)
+  (func coco_db_walk ((coco_engine * e) (size_t g) (int mode) (size_t k) (size_t b)
+                      (int * ok) (int * ret)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st))
+              (size_t h . 0) (size_t bd . 0) (int ssu . 0) (int rc . 0) (int r . 0)
+              (int tport . 0) (int td . 0))
+          (set (-> e kcall) g)
+          (if (-> e trace)
+              (block (set td (+ (-> e trace_depth) 1))
+                     (set tport (? (coco_trace_hidden e g 1) 2 1))
+                     (if (== tport 1) (coco_trace_port e "Call" td g))))
+          (if (== mode 1)
+              (set rc (coco_clause_check e (coco_arg m g 0) 0))
+              (let ((size_t h0 . #'(coco_db_unq m (coco_arg m g 0))))
+                (if (not (coco_is_callable m h0)) (set rc (coco_type_error e "callable" h0)))))
+          (if (!= rc 0) (return (coco_db_raised rc ret)))
+          (coco_db_parts m g mode (aof h) (aof bd) (aof ssu))
+          (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m h) (coco_arity m h))))
+            (if (and (not ssu) (< pi (-> st npreds)))
+                (block
+                 ;; a predicate the knowledge base could not hand over raises,
+                 ;; as its call does (2.11.1)
+                 (if (not (coco_pred_ensure st pi)) (return (coco_db_raised (coco_fetch_error e) ret)))
+                 ;; THE DEAD GO FIRST where no frame is open on them, as
+                 ;; clause/2's '$pred_count'/3 took them through 3.27.0: a
+                 ;; retract under a walk's own frame leaves its clause
+                 ;; dead in place, and a drain by once(retract(q(_))) left
+                 ;; with none swept counted nothing dead and never
+                 ;; compacted the store (test/gc.pl), though it was 38 %
+                 ;; faster
+                 (if (!= ($ (nth pi (-> st preds)) ntomb) 0) (coco_tomb_try_sweep st m pi))
+                 (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
+                       (u32 cend . #'(cast u32 ($ (nth pi (-> st preds)) nclauses)))
+                       (u32 kpos . 0) (u64 key . 0) (size_t ix . 0) (int fr . 0) (size_t ci . 0))
+                   (if (> cend 0)
+                       (block
+                        (set kpos (coco_trace_kpos e p h))
+                        (set key (? (== kpos 0) (coco_arg_key m h) (coco_call_arg_key m h kpos)))
+                        (set ix (coco_db_next st m p kpos key 0 cend 0))
+                        ;; a second candidate: a frame to come back to, at the
+                        ;; machine's marks before anything is tried
+                        (if (and (< ix (cast size_t cend))
+                                 (< (coco_db_next st m p kpos key (+ ix 1) cend 0) (cast size_t cend)))
+                            (block
+                             (if (not (coco_push_choice e COCO_CH_DB g k b))
+                                 (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
+                             (set ci (- (-> e nchoices) 1))
+                             (set fr 1)
+                             (set ($ (nth ci (-> e choices)) pred) pi)
+                             (set ($ (nth ci (-> e choices)) cend) cend)
+                             (set ($ (nth ci (-> e choices)) ixpos) kpos)
+                             (set ($ (nth ci (-> e choices)) clause_ix) ix)
+                             (set ($ (nth ci (-> e tchoices)) printr) tport)
+                             (set ($ (nth pi (-> st preds)) framed) 1)))
+                        (set r (coco_db_from e pi kpos key ix cend mode h bd fr ci))))))))
+          (if (== tport 1) (coco_trace_port e (? r "Exit" "Fail") td g))
+          (if r (set (-> e goals) k) (set (cof ok) 0))
+          (return 1)))
+
+  ;;; THE WALK'S DB FRAME AT CI RETRIED, the machine at its marks: on from
+  ;;; the next candidate, its Redo first, where the printer would show it --
+  ;;; the call's own, or the region's it is hidden in (`coco_trace_goal_own',
+  ;;; as a `;' of a library's clause is), and the call's context again. 1
+  ;;; with the continuation set, 0 with the frame gone.
+  (weak) (cold)
+  (func coco_db_retry ((coco_engine * e) (size_t ci)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t g . #'($ (nth ci (-> e choices)) call))
+              (size_t k . #'($ (nth ci (-> e choices)) goals))
+              (size_t pi . #'($ (nth ci (-> e choices)) pred))
+              (u32 kpos . #'($ (nth ci (-> e choices)) ixpos))
+              (u32 cend . #'($ (nth ci (-> e choices)) cend))
+              (size_t ix . #'($ (nth ci (-> e choices)) clause_ix))
+              (int mode . #'(? (== (coco_name_of (-> e m) g) (coco-id (-> e m) "retract")) 1 0))
+              (size_t h . 0) (size_t bd . 0) (int ssu . 0) (int r . 0)
+              (int tport . 0) (int td . 0) (u64 key . 0))
+          (if (-> e trace)
+              (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
+                (set tport (-> tc printr))
+                (set td (+ (-> tc depth) 1))
+                (set (-> e trace_goal) (-> tc goal))
+                (set (-> e trace_depth) (-> tc depth))
+                (if (== tport 1)
+                    (block (coco_trace_port e "Redo" td g)
+                           (coco_trace_reopen e ci td)))
+                (if (== tport 2) (coco_trace_goal_own e ci))))
+          (coco_db_parts m g mode (aof h) (aof bd) (aof ssu))
+          (set key (? (== kpos 0) (coco_arg_key m h) (coco_call_arg_key m h kpos)))
+          (set r (coco_db_from e pi kpos key ix cend mode h bd 1 ci))
+          (if (== tport 1) (coco_trace_port e (? r "Exit" "Fail") td g))
+          (if r (set (-> e goals) k))
+          (return r)))
+
   ;;; A PART OF A DECLARATION'S SPEC THAT IS NONE (3.1.0): FORMAL raised as
   ;;; swipl 9.0.4 raises it, NAME/ARITY the frame its raise names
   ;;; (compound_name_arity/3 for an indicator's parts,
@@ -1315,7 +1550,9 @@
           (set (-> c call) call)
           (set (-> c clause_ix) clause_ix)
           (set (-> c barrier) barrier)
-          (if (== kind COCO_CH_CLAUSE)
+          ;; a clause frame, and retract/1's or clause/2's walk (3.28.0), names
+          ;; the predicate it walks
+          (if (or (== kind COCO_CH_CLAUSE) (== kind COCO_CH_DB))
               (let ((size_t pi . #'(coco_pred_intern (-> e st)
                                                    (coco_intern (-> e m) pred_name)
                                                    pred_arity)))
@@ -1348,8 +1585,9 @@
 
   ;;; THE FRAMES OPEN ON PREDICATE PI of ST -- see the declaration in
   ;;; lib/kb.cicili. A clause frame or a clocked one (a clause frame a
-  ;;; window's clock marked); a spent one tries nothing more, and a frame of
-  ;;; any other kind keeps something else in `pred' and `clause_ix'. The
+  ;;; window's clock marked), or retract/1's or clause/2's walk of the
+  ;;; predicate (a DB frame, 3.28.0); a spent one tries nothing more, and a
+  ;;; frame of any other kind keeps something else in `pred' and `clause_ix'. The
   ;;; engines of the chain are every one a program can still fail back
   ;;; into: no builtin leaves a choice point behind, so a nested engine is
   ;;; on the chain for as long as it has frames anybody may try, and a
@@ -1376,7 +1614,8 @@
                       (while (> i 0)
                         (set i (- i 1))
                         (let ((coco_choice * c . #'(aof (nth i (-> e choices)))))
-                          (if (and (or (== (-> c kind) COCO_CH_CLAUSE) (== (-> c kind) COCO_CH_CLOCKED))
+                          (if (and (or (== (-> c kind) COCO_CH_CLAUSE) (== (-> c kind) COCO_CH_CLOCKED)
+                                       (== (-> c kind) COCO_CH_DB))
                                    (== (-> c pred) pi))
                               (block
                                (set open (+ open 1))

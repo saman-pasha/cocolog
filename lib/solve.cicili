@@ -179,8 +179,8 @@
     ("assert"       1 coco_bi_assertz)
     ("asserta"      1 coco_bi_asserta)
     ("assertz"      1 coco_bi_assertz)
-    ("retract"      1 coco_bi_retract)
-    ;; retractall/1's own retract, its errors retractall/1's (3.0.0)
+    ;; retractall/1's own retract, its errors retractall/1's (3.0.0); retract/1
+    ;; is a construct since 3.28.0 (`coco_db_walk')
     ("$retractall"  1 coco_bi_retract)
 
     ("dynamic"      1 coco_bi_dynamic)
@@ -259,7 +259,10 @@
     ;; alternative its guard frame offers, which says it failed
     ;; (`coco_det_fail0'), and the step that hides a guarded frame's exit
     ;; from a goal no last call of it reaches (`'$det_hide'')
-    "$det_end" "$det_fail0" "$det_hide"))
+    "$det_end" "$det_fail0" "$det_hide"
+    ;; retract/1 and clause/2 (3.28.0, swipl's): a walk of the clauses that
+    ;; stood when the call began, retried from its DB frame (`coco_db_walk')
+    "retract" "clause"))
 
 ;;; THE FUNCTORS THE ENGINE BUILDS, interned once beside the names. Every
 ;;; one of these was `coco_make' with a C string -- `strlen', the atom
@@ -498,6 +501,8 @@
     ("copy_term" 2) ("compare" 3) ("term_variables" 2) ("subsumes_term" 2)
     ("unify_with_occurs_check" 2)
     ("abolish" 1) ("assert" 1) ("asserta" 1) ("assertz" 1) ("retract" 1)
+    ;; a construct since 3.28.0, as retract/1 is, named as the goal in flight
+    ("clause" 2)
     ("redefine_system_predicate" 1)
     ("atom_chars" 2) ("atom_codes" 2) ("atom_length" 2) ("atom_number" 2)
     ("atom_string" 2) ("atom_to_term" 3) ("atomic_concat" 3)
@@ -561,8 +566,6 @@
     ("$path_dir" 2 :MAP "system" "file_directory_name" 2)
     ("$ext_split" 3 :MAP "system" "file_name_extension" 3)
     ("$ext_join" 3 :MAP "system" "file_name_extension" 3)
-    ("$clause" 3 :MAP "system" "clause" 2)
-    ("$pred_count" 3 :MAP "system" "clause" 2)
     ("$keysort" 2 :MAP "system" "keysort" 2)
     ("$op_spec" 3 :MAP "system" "current_op" 3)
     ("$cp_spec" 2 :MAP "system" "current_predicate" 1)
@@ -874,9 +877,13 @@
   ;;; freeze meets one: a machine is frozen at a turn's end, its top
   ;;; engine's frames (lib/state.cicili), and a clock runs only on the
   ;;; engines a builtin starts, inside the builtin.
+  ;;; A DB frame (3.28.0) is retract/1's or clause/2's walk of a predicate's
+  ;;; clauses: `pred', `clause_ix', `cend', `fera' and `ixpos' as a clause
+  ;;; frame's -- the logical update view's, which `coco_frames_on' keeps --
+  ;;; `call' the goal, `goals' what runs after an answer (`coco_db_retry').
   (enum coco_choice_kind (COCO_CH_CLAUSE . 0) (COCO_CH_GOAL . 1) (COCO_CH_CATCH . 2)
                          (COCO_CH_DEAD . 3) (COCO_CH_CATCH_RETRY . 4) (COCO_CH_SPENT . 5)
-                         (COCO_CH_CLOCKED . 6))
+                         (COCO_CH_CLOCKED . 6) (COCO_CH_DB . 7))
 
   (struct coco_choice
     (member int      kind)
@@ -1715,6 +1722,14 @@
                                   (size_t trail_mark) (size_t heap_mark) (size_t call)
                                   (size_t clause_ix) (size_t barrier)
                                   (const char * pred_name) (u32 pred_arity)) (out int))
+
+  ;;; retract/1 and clause/2 (3.28.0, lib/solve-db.cicili): the construct's
+  ;;; call, answered as `coco_construct' answers, and its DB frame at CI
+  ;;; retried by `coco_backtrack' -- 1 with the continuation set, 0 with the
+  ;;; frame gone and nothing tried
+  (decl) (func coco_db_walk ((coco_engine * e) (size_t g) (int mode) (size_t k) (size_t b)
+                             (int * ok) (int * ret)) (out int))
+  (decl) (func coco_db_retry ((coco_engine * e) (size_t ci)) (out int))
 
   ) ; decl-solve
 

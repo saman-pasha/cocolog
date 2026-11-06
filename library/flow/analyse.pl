@@ -22,6 +22,9 @@ flow_kind(G, Ctx, Kind) :-
     (   flow_test(N, A)                 -> Kind = test
     ;   N == (=), A =:= 2               -> Kind = unify
     ;   flow_t_c(N, A, _)               -> Kind = builtin
+    %% a construct the step answers itself and no program clause reaches:
+    %% retract/1 and clause/2 (3.28.0) as they were in the C table
+    ;   flow_t_construct(N, A, _)       -> Kind = builtin
     ;   flow_portal_row(Mod, N, A, _)    -> Kind = portal(Mod)
     ;   get_assoc(N/A, Prog, V)         -> ( V = dyn(_) -> Kind = dynamic ; Kind = user )
     ;   flow_t_lib(N, A, L, _)          -> Kind = library(L)

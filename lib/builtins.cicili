@@ -88,10 +88,8 @@
     ("write_term"              2 coco_b_write_term)
     ("tab"                     1 coco_b_tab)
 
-    ("$clause"                 3 coco_b_clause_at)
     ("$unbind_template"       1 coco_b_unbind_template)
     ("$skip_list"             3 coco_b_skip_list)
-    ("$pred_count"             3 coco_b_pred_count)
     ("$predicates"             1 coco_b_predicates)
     ("$cp_spec"                2 coco_b_cp_spec)
     ("$pred_props"             2 coco_b_pred_props)
@@ -169,7 +167,9 @@
     ("call" 1) ("call" 2) ("call" 3) ("call" 4) ("call" 5) ("call" 6) ("call" 7) ("call" 8)
     ("catch" 3) ("throw" 1)
     ;; 3.20.0's, and $/0 (3.21.0)
-    ("$" 1) ("@" 2) ("$" 0)))
+    ("$" 1) ("@" 2) ("$" 0)
+    ;; the walks of the database (3.28.0)
+    ("retract" 1) ("clause" 2)))
 
 (DEFPARAMETER *builtins-prolog*
   (FORMAT NIL "~{~A ~}"
@@ -422,15 +422,8 @@
            "'$between_inf'(L, L)."
            "'$between_inf'(L, X) :- M is L + 1, '$between_inf'(M, X)."
 
-           ;; ---- clause/2, over the primitive that answers by position -----
-           ;; The count is taken once and the position enumerated, so a clause
-           ;; asserted while this is backtracking does not shift the ones after
-           ;; it under the cursor -- which is the hazard `retract' has always
-           ;; had against a running query, and is written down in STATUS.md.
-           ;; A HEAD OF NO ARGUMENTS, `f()', asks f/0's clauses (3.12.0, swipl
-           ;; 7's), which the store keeps under the atom
-           "clause(H, B) :- compound(H), compound_name_arity(H, N, 0), !, clause(N, B)."
-           "clause(H, B) :- '$pred_count'(H, N, _), N > 0, between(1, N, I), '$clause'(H, B, I)."
+           ;; clause/2 and retract/1 are constructs since 3.28.0, a walk of
+           ;; the clauses that stood when the call began (`coco_db_walk')
 
            ;; ---- a single-sided rule, `Head => Body' (3.19.0) ------------
            ;; stored `Head :- '$ssu', !, Body' (`coco_assert_from'): the

@@ -444,7 +444,19 @@ findings_near(D) :-
     flow_findings(G22, [finding(_, unknown_procedure, _, _, _, _, T22, _)]),
     yes_no(sub_atom(T21, _, _, _, 'did you mean fooo_baz/1?'), Y21),
     yes_no(sub_atom(T22, _, _, _, 'did you mean'), Y22),
-    check('a near name is the chart''s own: fooo_baz/1 for the first program, nothing for the second', Y21-Y22, yes-no).
+    check('a near name is the chart''s own: fooo_baz/1 for the first program, nothing for the second', Y21-Y22, yes-no),
+    %% a construct a program calls by name is a near name too: retract/1
+    %% and clause/2 are constructs since 3.28.0, where they were a C row and
+    %% a library clause, and a slip of either is still told what it meant
+    atomic_list_concat([D, '/near23.pl'], NF23),
+    fixture(NF23, ['go23 :- retrakt(x), clausee(y, _).']),
+    flow_graph(go23, G23, [source(NF23)]),
+    flow_findings(G23, Fs23),
+    findall(W23, ( member(finding(_, unknown_procedure, _, _, _, _, T23, _), Fs23),
+                   (   sub_atom(T23, _, _, _, 'did you mean retract/1?') -> W23 = retract
+                   ;   sub_atom(T23, _, _, _, 'did you mean clause/2?') -> W23 = clause
+                   ;   W23 = none ) ), Ws23),
+    check('a slip of retract/1 or clause/2 is told the construct it meant', Ws23, [retract, clause]).
 
 %% a body's bar is its disjunction (cocolog 3.2.0): the reader reads
 %% '|'(A, B), and the chart reads a body's and a findall/3 goal's as `;',

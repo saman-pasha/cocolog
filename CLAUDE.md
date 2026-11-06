@@ -1197,7 +1197,8 @@ cocolint index offers no import of it.
   tools/flow/chart.pl), and `progress(S)` (stderr, every S seconds, 10 from
   the command).
 * **Every builtin is deterministic**, so a failure-driven loop written from
-  habit (`retract(H), fail`) runs ONCE -- wrong, not slow. `once/1`,
+  habit over one runs it ONCE -- wrong, not slow (`retract(H), fail` was the
+  classic one until 3.28.0 made retract/1 a walk that answers again). `once/1`,
   `ignore/1` and `\+` are control constructs. So `arg(N, f(a, b), A)` with
   `N` unbound and `char_type(C, alpha)` with `C` unbound RAISE where SWI
   enumerates. A module row that must enumerate for some arguments ends in
@@ -1892,13 +1893,20 @@ cocolint index offers no import of it.
   with every function on a 64-byte line, queens +0.1 % and +5.3 %.
   The dead are taken out (`coco_pred_sweep`) when no frame is open on the
   predicate: a retract, assert or reconsult then, every 256th out-of-line
-  probe, `'$pred_count'`, and every query's start (`coco_tomb_sweep_all`
-  over the store's `tpreds`). `coco_frames_on` walks `m->eng` and each
+  probe, a walk of retract/1's or clause/2's as it begins (through 3.27.0
+  clause/2's `'$pred_count'`), and every query's start (`coco_tomb_sweep_all`
+  over the store's `tpreds`) -- on a store no other machine shares (3.28.0,
+  `machines` nil: through 3.27.0 a green task's start swept the dead under
+  another task's open call, which went on from a place that had moved).
+  **A reclamation of the whole store asks `machines` first**: a green
+  world's tasks share the store, and a task's own heap and its query's
+  start say nothing of another task's frames and environments. `coco_frames_on` walks `m->eng` and each
   engine's `outer` over the same store, the predicate's `framed` saying
   whether a frame may be open (set at every push and restore, cleared by a
   walk that finds none). **A new reader of the clause list skips
-  `coco_pred_dead`** (listing, the backends' sync, clause/2 by live ordinal
-  through `coco_pred_live_at`, predicate_property/2's counts), **a new writer
+  `coco_pred_dead`** (listing, the backends' sync, predicate_property/2's
+  counts; retract/1's and clause/2's walk through `coco_frame_next`, which
+  tries a dead clause only where the walk lived through its death), **a new writer
   of `nclauses` or `ntomb` calls `coco_pred_nprobe`**, and **a new push of a
   clause frame sets `cend` and `framed`**. A freeze writes a frame's next
   clause and its end as counts of LIVE clauses (`C`, `L`), the knowledge base
@@ -1908,6 +1916,38 @@ cocolint index offers no import of it.
   bound at the restore, member/2's frames saw an empty store).
   `test/files/update_view.pl` holds 34 cases to swipl, `test/engine.pl`'s
   last section the freeze and a second process.
+* **retract/1 and clause/2 are constructs that walk the clauses that stood
+  when they began** (3.28.0, swipl's pl_retract and clause/2;
+  `coco_db_walk` and `coco_db_retry` in lib/solve-db.cicili; `'$retractall'/1`
+  keeps the C half, `coco_bi_retract`): keyed as a call of the predicate is
+  (`coco_trace_kpos`, the JIT index's argument), each candidate copied from
+  the store and its head and body unified. A second candidate pushes a DB
+  frame (`COCO_CH_DB`) whose `pred`, `clause_ix`, `cend`, `fera` and
+  `ixpos` are a clause frame's, so `coco_frames_on` keeps its view and a
+  retract under it kills the clause in place; the last candidate pops it
+  (no choice point, as swipl's). An answer on a clause retracted since is an
+  answer and takes nothing (swipl's retry succeeds on a clause erased
+  since); retract/1 takes no single-sided rule nor the `'$ssu_none'` clause,
+  as swipl 9.0.4's takes no rule, and clause/2 shows a rule as
+  `coco_ssu_body` does. One step and one inference each, as the builtin
+  was; the errors are the goal's own row's (`kcall`, `*error-contexts*`'s
+  `("clause" 2)`), the ports a traced builtin's (PRINTR 2 hidden). **A new
+  reader of a choice frame reads a DB frame as a clause frame where the
+  view or the place is asked** (`coco_backtrack`, which retries it through
+  `coco_db_retry`; `coco_frames_on`; the freeze's `C` and `L` and the
+  restore) **and as a `;`'s GOAL frame where the printer's Redo is**
+  (`coco_trace_redo_at`): its shadow frame holds its context, never a
+  call's depth. **A walk sweeps its predicate's dead as it begins**, where
+  no frame is open on them (`coco_tomb_try_sweep`, as clause/2's
+  `'$pred_count'/3` did): a retract under the walk's own frame leaves the
+  clause dead in place, and a drain by `once(retract(q(_)))` that swept
+  none counted nothing dead and never compacted the store (test/gc.pl's
+  thousand of 1 500 wide clauses), though it ran 38 % faster. `'$clause'/3`
+  and `'$pred_count'/3`, clause/2's halves through 3.27.0, are gone, and
+  cocolint's card row R1 with them (27 rows):
+  library/flow reads both as builtins (`flow_kind`'s construct row) and
+  offers them as near names (`flow_lib_pred`). test/files/retract_view.pl
+  holds 110 lines to swipl, test/engine.pl's update-view section the freeze.
 * **A global is found by a hash of its name (1.9.4), copied AS ITS BLOCK,
   and a GROUND one's copy handed out shared while it lives (1.12.1)**
   (`nb_getval/2`, `b_getval/2`, `nb_current/2`; `coco_b_global_term`).
@@ -2211,7 +2251,12 @@ cocolint index offers no import of it.
     term (and `test/trace.pl`'s `env_late`, from inside a traced body).
   - **The collector keeps an environment whole from any position** (the
     POS rule in `coco_gc_mark`) and every retired code a live environment
-    names (`coco_gc_codes`). A clause that dies while an environment is
+    names (`coco_gc_codes`) -- and on a store another machine shares, every
+    retired code (3.28.0): a green task's mark sees its own heap's
+    environments alone, and through 3.27.0 its collection, or any task's
+    query start (`coco_code_retired_free`), freed a code another task's
+    environment was part way through (memcheck: twelve invalid reads and
+    writes; test/async.pl runs it under valgrind where there is one). A clause that dies while an environment is
     part way through its body goes on running that code -- the logical
     update view -- so the code is retired, not freed (`coco_code_retire`),
     and a compaction keys kept codes again.
@@ -2372,13 +2417,15 @@ cocolint index offers no import of it.
   `coco_trace_cut`): the Fail port is printed from the call's frame, and
   through 1.10.22 the cut took it, so a clause that cut and then failed
   printed no Fail (and a window's call never ended, `fate="open"`). A
-  frame's kind is asked in eight places -- `coco_backtrack`'s drop test,
+  frame's kind is asked in ten places -- `coco_backtrack`'s drop test,
   the `$trace_exit` marker's search, the `;` Redo's search,
   `coco_trace_reopen`, `$catch_exit`'s scan, `coco_frames_on`'s walk
   (the update view's), since 3.20.0 `$det_exit`'s scan (`coco_det_exit`),
   since 3.21.0 a guard's (`coco_det_live`) and since 3.27.0 the printer's
   region walk and its search for a `;`'s call (`coco_trace_region`,
-  `coco_trace_redo_at`) -- and a new kind goes to all ten. **A frame is a
+  `coco_trace_redo_at`) -- and a new kind goes to all ten (3.28.0's DB
+  frame, retract/1's and clause/2's walk, is a choice point to each, a
+  clause frame's view and place, and no call's). **A frame is a
   call's by its depth (> 0), never by its goal**:
   a goal can be heap cell 0, and `--trace run F t` printed no Fail for an
   atom goal written first. A Redo reopens only the calls it is inside

@@ -201,9 +201,16 @@
   ;;; of a code on the store's retired list. Those are kept, the rest freed
   ;;; (`coco_code_sweep'). An address is looked up among the retired ones,
   ;;; so a program's own `'$e'' term, whatever it holds, keeps nothing that
-  ;;; is not one, and touches nothing.
+  ;;; is not one, and touches nothing. NOTHING IS FREED ON A STORE ANOTHER
+  ;;; MACHINE SHARES (3.28.0): a green task's mark finds its own heap's
+  ;;; environments, and another task's may be part way through a retired
+  ;;; code -- through 3.27.0 it went on in freed memory (valgrind's
+  ;;; memcheck: twelve invalid reads and writes from one task's
+  ;;; garbage_collect/0). The world's end gives the store back to the
+  ;;; host, whose collections and next query take them.
   (static)
   (func coco_gc_codes ((coco_engine * e) (u64 * bits) (size_t n))
+        (if (!= (-> (-> e st) machines) nil) (return))
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st))
               (coco_kmemo set . '{ nil nil 0 0 })

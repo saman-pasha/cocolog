@@ -1771,6 +1771,11 @@ update_view(D) :-
         'grow :- ( q(X), write(X), nl, ( X < 5 -> Y is X + 5, assertz(q(Y)) ; true ), uv_spin(300), fail ; true ),',
         '        findall(Z, q(Z), L), write(L), nl.',
         'cut :- q(X), retract(q(2)), X == 1, !.',
+        'rwalk :- ( retract(q(X)), write(X), nl, ( X == 1 -> assertz(q(9)) ; true ), uv_spin(300), fail ; true ),',
+        '         findall(Y, q(Y), L), write(L), nl.',
+        'cwalk :- ( clause(q(X), true), write(X), nl, ( X == 2 -> retract(q(1)), assertz(q(9)) ; true ),',
+        '           uv_spin(300), fail ; true ),',
+        '         findall(Y, q(Y), L), write(L), nl.',
         'uv_spin(0) :- !.',
         'uv_spin(N) :- M is N - 1, uv_spin(M).'
     ]),
@@ -1787,7 +1792,15 @@ update_view(D) :-
     sh_join([C, ' --embed ', K3, ' run ', F1, ' cut >/dev/null 2>&1; ',
              C, ' --embed ', K3, ' query ''findall(X, q(X), L), write(L), nl'' 2>&1 | head -n 1'], Cmd3),
     proc_run(Cmd3, 60000, Out3, _), atom_codes(O3, Out3),
-    check('a clause retracted under a call the run cuts away is gone for the next process', O3, '[1,3,4]\n').
+    check('a clause retracted under a call the run cuts away is gone for the next process', O3, '[1,3,4]\n'),
+    %% A WALK OF retract/1's OR clause/2's IS SUCH A CALL (3.28.0): its DB
+    %% frame keeps the predicate, its place and its horizon through a freeze
+    %% as a clause frame does (lib/state.cicili's `C' and `L')
+    findall(G4-O4, ( member(G4, [rwalk, cwalk]), uv_whole(C, D, F1, G4, O4) ), L4),
+    check('retract/1 and clause/2 walk the clauses that stood when they began', L4,
+          [rwalk-'1\n2\n3\n4\n[9]\n', cwalk-'1\n2\n3\n4\n[2,3,4,9]\n']),
+    findall(G5-O5, ( member(G5, [rwalk, cwalk]), uv_stepped(C, D, F1, G5, O5) ), L5),
+    check('...and thawed at every 50 inferences, the walk goes on where it stood', L5, L4).
 
 %% the goal run whole, on an embedded store of its own
 uv_whole(C, D, F, G, O) :-

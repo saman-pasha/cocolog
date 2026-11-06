@@ -16,7 +16,7 @@ cocolog binary on its own runs every one of them:
 | 04-arithmetic | `is` vs `=`, integer division, the evaluable functors |
 | 05-backtracking-and-cut | choice points, `!`, and the four shapes it appears in |
 | 06-findall-and-friends | `findall`, `bagof`, `setof`, `aggregate_all` and the free-variable rule |
-| 07-assert-and-retract | a program that edits itself, and `retract/1`'s determinism |
+| 07-assert-and-retract | a program that edits itself, and a call -- `retract/1`'s too -- seeing the clauses that stood when it began |
 | 08-atoms-text-and-codes | atoms, codes, and the string you have to ask for |
 | 09-exceptions | failure is not an error; `catch/3`, `throw/1`, ISO error terms — and the four that are cocolog's: `cocolog_error/1`, a builtin's context and the loader's unbound one that matches anyway, cleanup by hand, a ball whose text is codes |
 | 10-grammars | `-->`, `phrase/2,3`, pushback, and a parser that also generates |
@@ -37,10 +37,12 @@ these ever stops being true the tutorial fails and names both answers.
   There IS a string type, and a file gets one out of `"..."` only by
   setting the flag; 08 is the whole lesson, and the default is why
   `library(json)` needs `str/1`.
-* **EVERY BUILTIN IS DETERMINISTIC.** Not one leaves a choice point,
-  which retires the classic `retract(X), fail` failure-driven loop (07)
-  and makes `atom_concat(A, B, abc)` with both unbound an
-  `instantiation_error` rather than three solutions (08).
+* **EVERY BUILTIN IS DETERMINISTIC.** Not one leaves a choice point:
+  the predicates that enumerate are clauses over a C helper --
+  `atom_concat(A, B, abc)` with both unbound gives its four splits as
+  SWI's does (08). `retract/1` was a builtin, and the classic
+  `retract(X), fail` loop took ONE clause, until 3.28.0 made it SWI's,
+  a walk that answers again (07).
 * **An integer stops at 64 bits**: `1000000000000000000 * 997` raises
   `evaluation_error(int_overflow)`, where SWI goes on in a bignum (04).
 * **`setarg/3` writes the ARGUMENT, not a variable it names.** `T = f(X),

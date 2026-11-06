@@ -47,8 +47,10 @@ selftest_main :-
     %% ---- G1: b_setval IS nb_setval ------------------------------------
     b_setval(k, 1),   % cocolint: G1 -- walked into on purpose
 
-    %% ---- R1: the failure-driven loop removes exactly ONE clause -------
-    ( retract(selftest_item(_)), fail ; true ),   % cocolint: R1 -- walked into on purpose
+    %% ---- R1 IS GONE, and this is where it was -------------------------
+    %% retract/1 answered once, so `retract(X), fail' removed one clause.
+    %% Since 3.28.0 it is swipl's, re-executable over the clauses that
+    %% stood when it began, and the row is retired.
 
     %% ---- C1 IS GONE, and this is where it was -------------------------
     %% A nested engine dropped the ball and an outer catch never fired.

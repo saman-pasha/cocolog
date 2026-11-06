@@ -317,6 +317,7 @@ flow_near_name_(N, A, Prog, Near) :-
 
 %% a predicate the engine or a library answers
 flow_lib_pred(N, A) :- flow_t_c(N, A, _).
+flow_lib_pred(N, A) :- flow_t_construct(N, A, _), atom_codes(N, [C|_]), code_type(C, csymf).
 flow_lib_pred(N, A) :- flow_t_lib(N, A, _, _).
 flow_lib_pred(N, A) :- flow_t_portal(_, N, A, _, _, _, _, _).
 

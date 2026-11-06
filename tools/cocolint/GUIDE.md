@@ -92,9 +92,9 @@ runs only when `DIR` is this checkout.
 ### A finding
 
 ```
-tutorials/basics/07-assert-and-retract.pl:75:7 HARD S1 [R1] retract/1 is a C builtin: deterministic, leaving no choice point to fail back into. ...
-    fix: recurse instead of failing back
-    see: lib/solve.cicili:140-144
+prog.pl:2:5 HARD S1 [G1] b_setval IS nb_setval -- the same C function -- and the table is a file-scope static outside the machine, so nothing about it is backtrackable.
+    fix: pass the value as an argument
+    see: lib/builtins.cicili:108
 ```
 
 `path:line:col`, the severity, the rule, the card row in brackets when the
@@ -116,18 +116,18 @@ it left alone (`8 vendored and not read`).
 
 ### Acknowledging a finding
 
-Some code trips a rule on purpose — a lesson that shows `retract(X), fail`
-removing one clause, a case pinning what `write_canonical/2` writes. Say so
-where it stands, with a line comment that opens on the marker:
+Some code trips a rule on purpose — a lesson that shows `format/2` refusing
+`~t~20|`, a case pinning what `write_canonical/2` writes. Say so where it
+stands, with a line comment that opens on the marker:
 
 ```prolog
-    ( retract(seen(_)), fail ; true ),   % cocolint: R1 -- the lesson: this loop removes ONE clause
+    catch(format(atom(_), "~t~20|x", []), _, true),   % cocolint: F1 -- the refusal is the lesson
 % cocolint: T1 -- swipl runs this file too, and the import is its portable form
 :- use_module(library(aggregate)).
 ```
 
 After code, the comment covers its own line; alone on its line, the next
-one. The IDs are what the finding renders — the card row for S1 (`R1`,
+one. The IDs are what the finding renders — the card row for S1 (`F1`,
 `X2`), the rule for the rest (`T1`, `N1`, `Z1`) — and several go in one
 comment, apart by blanks or commas. The reason after `--` is required. An
 acknowledged finding is not printed and the count line says how many there
@@ -152,12 +152,11 @@ and so is one with no reason.
 | **C2** | HARD | one name defined in two of the files named, when they are declared one program; off by default, see below | one definition |
 | **U1** | WARN | an acknowledgement that excuses nothing: its finding has gone from the line it covers, or it gives no reason | delete it, or say why after `--` |
 
-S1's nine forms are rows of the dialect card, `traps.jsonl`, each with
+S1's eight forms are rows of the dialect card, `traps.jsonl`, each with
 a `pattern`. `tool.sh card --patterns` prints the terms.
 
 | row | the SWI reflex | cocolog | why |
 |---|---|---|---|
-| R1 | `clear :- retract(x(_)), fail.` | `( retract(x(_)) -> clear ; true )` | `retract/1` is a C builtin, deterministic: the failure-driven loop removes ONE clause |
 | D2 | `:- table p/2.` | delete it, and write `p/2` to end untabled | there is no tabling: the directive parses, as swipl's, and `table/1` is an unknown procedure, reported as the load goes on |
 | C2 | `error(T, context(_,_))` | `error(T, _)` | a refusal (a library found and refused, a module's own failure) is `error(cocolog_error(Text), _)`, a missing file swipl's `existence_error(source_sink, Spec)` since 3.4.0, both with the context unbound, and the house style puts a bare `Name/Arity` second |
 | G1 | `b_setval/2` | thread an accumulator | `b_setval` IS `nb_setval`; nothing about it backtracks |

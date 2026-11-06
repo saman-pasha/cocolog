@@ -5,9 +5,10 @@
 %  asserta made while it is open is not among them, and a clause retracted
 %  while it is open still is. A NEW call sees the clauses as they are.
 %
-%  Every builtin here answers once (cocolog's are deterministic), so no case
-%  backtracks INTO retract/1: each retract names its clause or is driven by
-%  a recursion, never by a failure-driven loop over retract itself.
+%  No case here backtracks INTO retract/1: each retract names its clause or
+%  is driven by a recursion, the open call the view is about the one failed
+%  back into. retract/1's own walk, re-executable since cocolog 3.28.0, is
+%  test/files/retract_view.pl's.
 
 :- dynamic q/1, r/1, s/1, t/1, w/1, done/1, k/2, c/1, p/2, cnt/1, g/1.
 
@@ -22,7 +23,6 @@ u01 :- q3, findall(X, ( q(X), ( X == 1 -> retract(q(2)) ; true ) ), L),
 u02 :- q3, findall(X, ( q(X), retract(q(X)) ), L),
        s(u02_seen, L), all_q(A), s(u02_left, A).
 u03 :- q3, forall(q(X), retract(q(X))), all_q(A), s(u03_left, A).
-% cocolint: R1 -- the loop backtracks into q/1, the open call the view is about, never into retract
 u04 :- q3, ( q(X), retract(q(X)), fail ; true ), all_q(A), s(u04_left, A).
 u05 :- q3, findall(X, ( q(X), ( X == 1 -> retract(q(3)), retract(q(2)) ; true ) ), L),
        s(u05_seen, L), all_q(A), s(u05_left, A).
@@ -65,7 +65,7 @@ u18 :- retractall(r(_)),
 %  ---- a worklist: the recursion takes what is added, the loop does not ----
 u19 :- retractall(w(_)), retractall(done(_)),
        assertz(w(1)), assertz(w(2)),
-       ( w(X), retract(w(X)), assertz(done(X)), ( X < 3 -> Y is X + 10, assertz(w(Y)) ; true ), fail   % cocolint: R1 -- backtracks into w/1
+       ( w(X), retract(w(X)), assertz(done(X)), ( X < 3 -> Y is X + 10, assertz(w(Y)) ; true ), fail
        ; true ),
        findall(D, done(D), Ds), s(u19_done, Ds), findall(W, w(W), Ws), s(u19_left, Ws).
 drain :- ( retract(w(X)) -> assertz(done(X)), ( X < 3 -> Y is X + 10, assertz(w(Y)) ; true ), drain ; true ).
@@ -92,13 +92,12 @@ u25 :- k20, findall(I, ( k(I, 0), I < 20, retract(k(I, 0)) ), L),
 %  ---- many deaths, sweeps between them, and the predicate filled again ----
 u26 :- retractall(c(_)),
        forall(between(1, 300, I), assertz(c(I))),
-       ( c(X), retract(c(X)), fail ; true ),   % cocolint: R1 -- the loop backtracks into c/1, never into retract
+       ( c(X), retract(c(X)), fail ; true ),
        findall(Y, c(Y), A0), length(A0, N0), s(u26_after_loop, N0),
        forall(between(1, 5, I), assertz(c(I))),
        findall(X2, ( c(X2), retract(c(X2)), assertz(c(X2)) ), L),
        s(u26_seen, L), findall(Y2, c(Y2), A1), s(u26_left, A1).
 u27 :- retractall(c(_)),
-       % cocolint: R1 -- the loop backtracks into c/1, the open call the view is about, never into retract
        forall(between(1, 10, R), ( assertz(c(R)), ( c(X), retract(c(X)), fail ; true ) )),
        findall(Y, c(Y), A), s(u27_left, A).
 

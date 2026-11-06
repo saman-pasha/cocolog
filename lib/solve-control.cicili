@@ -1172,8 +1172,11 @@
   (func coco_trace_redo_at ((coco_engine * e) (size_t ci) (size_t goal) (int depth)) (out i64)
         (let ((i64 f . #'(cast i64 ci)) (i64 t . 0))
           (if (!= (-> e trace) 1) (return f))
-          ;; a written `;': the call it sits in, by its goal and depth
-          (if (== ($ (nth ci (-> e choices)) kind) COCO_CH_GOAL)
+          ;; a written `;': the call it sits in, by its goal and depth -- and
+          ;; so a walk of retract/1's or clause/2's (3.28.0), whose call is
+          ;; hidden in that one
+          (if (or (== ($ (nth ci (-> e choices)) kind) COCO_CH_GOAL)
+                  (== ($ (nth ci (-> e choices)) kind) COCO_CH_DB))
               (block
                (set f (- f 1))
                (while (>= f 0)
@@ -1958,6 +1961,11 @@
               (if (or (== kind COCO_CH_CATCH) (== kind COCO_CH_DEAD) (== kind COCO_CH_SPENT))
                   (block (if (== kind COCO_CH_SPENT) (coco_trace_spent e ci))
                          (set (-> e nchoices) ci) continue))
+              ;; retract/1's or clause/2's walk (3.28.0): on from its next
+              ;; candidate, out of line, or gone with none left
+              (if (== kind COCO_CH_DB)
+                  (block (if (coco_db_retry e ci) (return 1))
+                         continue))
               ;; a clause frame. The goal is painted BEFORE selection, which
               ;; binds it to whichever head matches -- SWI's Redo shows the
               ;; call as it stood, not the head it is about to try.

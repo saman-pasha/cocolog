@@ -143,12 +143,21 @@
         ;; NOR ANY ENVIRONMENT (Stage 5): with nothing running on the
         ;; machine and a host that lets the collector run -- one that keeps
         ;; no second engine's continuation on this heap -- every code a dead
-        ;; clause retired is named by nothing that can run again
-        (if (and (-> e gc) (== (-> (-> e m) running) 0) (!= (-> (-> e st) retired) nil))
+        ;; clause retired is named by nothing that can run again. ONLY
+        ;; WHERE NO OTHER MACHINE SHARES THE STORE (3.28.0): a green world's
+        ;; tasks share one (`machines', 2.9.0), and one task's query start
+        ;; is another's call half done -- its environment on a retired
+        ;; code, its frame on a dead clause. The world's end gives the store
+        ;; back to the host, whose next query takes them
+        (if (and (-> e gc) (== (-> (-> e m) running) 0) (!= (-> (-> e st) retired) nil)
+                 (== (-> (-> e st) machines) nil))
             (coco_code_retired_free (-> e st)))
         ;; NOR ANY DEAD CLAUSE (the logical update view): with nothing
-        ;; running there is no frame open on any predicate to want one
-        (if (and (-> e gc) (== (-> (-> e m) running) 0) (!= (-> (-> e st) ntpreds) 0))
+        ;; running there is no frame open on any predicate to want one --
+        ;; through 3.27.0 a green task's start swept the dead under another
+        ;; task's open call, which then went on from a place that had moved
+        (if (and (-> e gc) (== (-> (-> e m) running) 0) (!= (-> (-> e st) ntpreds) 0)
+                 (== (-> (-> e st) machines) nil))
             (coco_tomb_sweep_all (-> e st) (-> e m)))
         ;; NO GUARD ON (3.21.0), and a goal that holds $/0 run in a frame
         ;; its exit marker closes: the `'<meta-call>'/1' swipl compiles a
@@ -1957,6 +1966,13 @@
                    (return (coco_det_fail e g ret)))
                   ((and (== n 2) (== nid (coco-id m "@")))
                    (return (coco_at e g k b ret)))
+
+                  ;; retract/1 and clause/2, a walk of the clauses that
+                  ;; stood when the call began (3.28.0, `coco_db_walk')
+                  ((and (== n 1) (== nid (coco-id m "retract")))
+                   (return (coco_db_walk e g 1 k b ok ret)))
+                  ((and (== n 2) (== nid (coco-id m "clause")))
+                   (return (coco_db_walk e g 0 k b ok ret)))
 
                   (#t (return 0)))
           (return 1)))

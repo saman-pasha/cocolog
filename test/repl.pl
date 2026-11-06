@@ -97,8 +97,11 @@ local(D) :-
     %% retract respects the body (the shorthand IS (H :- true), so a
     %% same-headed rule survives a fact's retract -- kb.cicili, a CivV
     %% capture's finding) while retractall keeps SWI's wider head-only
-    %% contract and takes the rule too. The transcript is a live SWI's.
-    piped('assertz(f(a)), assertz((f(X) :- X == b)), assertz(f(c)).\\nretract(f(a)).\\nf(b), !.\\nf(a).\\nretractall(f(_)).\\nf(b).\\n', G15),
+    %% contract and takes the rule too. The transcript is a live SWI's. The
+    %% rule stands before the fact, so the fact is retract's last candidate
+    %% and the answer closes with `.' (3.28.0: a retract with a candidate
+    %% after its answer leaves a choice point, as swipl's does)
+    piped('assertz((f(X) :- X == b)), assertz(f(a)), assertz(f(c)).\\nretract(f(a)).\\nf(b), !.\\nf(a).\\nretractall(f(_)).\\nf(b).\\n', G15),
     check('retract minds the body; retractall removes rules too', G15, 'true.\ntrue.\ntrue.\nfalse.\ntrue.\nfalse.'),
     %% THE COUNT STARTS AGAIN AT EACH GOAL (1.12.2): `true' and `=/2' are
     %% no inference, counted apart from the steps, and the second goal here

@@ -37,7 +37,7 @@ cocolog -s test/lint.pl                            # the suite case
 | `tool.sh` | one driver for `build`, `card`, `index` and `assemble` |
 | `selftest/reader.pl` `.expected` | every shape that has ever fooled a clause reader |
 | `build.pl` | the reserved-name blocklist, from five registration shapes |
-| `traps.jsonl` | the dialect card as data: 28 rows, 40 checked citations |
+| `traps.jsonl` | the dialect card as data: 27 rows, 39 checked citations |
 | `card.pl` | the anchor checker, and the generator of `traps.pl` |
 | `lint.sh` | the human wrapper; rebuilds the index first, always |
 | `oracle.pl` / `.sh` | G2+G3: which predicates the store calls the program's own |
@@ -305,10 +305,10 @@ the same list.
 
 ## The dialect card is data, and its citations are checked
 
-`traps.jsonl` is section 4 of the design doc as 28 rows of
+`traps.jsonl` is section 4 of the design doc as 27 rows of
 `{id, swi, cocolog, why, cite, anchor, rule, severity}`. Each cite is a
 `path:A-B` line range and each anchor a literal substring that must appear
-inside it. `card --check` verifies all 40, and when one has moved it says
+inside it. `card --check` verifies all 39, and when one has moved it says
 where it is now, so the repair is a single number:
 
 ```
@@ -409,8 +409,8 @@ had 122, and they went four ways:
   (`expr(_, _, _, _) :- fail.`), as library(httpd) declares `httpd_page/3`;
   `test/torch-graph.pl` calls the `file_base_name/2` it had defined again.
 * **Acknowledged where the code means it.** A comment that names the finding
-  and says why — `% cocolint: R1 -- the lesson: this loop removes ONE
-  clause` — covers its own line, or the next when it stands alone, and **U1**
+  and says why — `% cocolint: F1 -- the refusal is the lesson` — covers its
+  own line, or the next when it stands alone, and **U1**
   reports one whose finding has gone or that gives no reason, so an
   acknowledgement cannot outlive what it excused. The four lessons, the case
   that pins what `write_canonical/2` writes, the six `test/files` cases swipl

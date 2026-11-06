@@ -12453,3 +12453,158 @@ normalise, translate, process, text, os, signal, stream, flowchart, lint,
 and on the final build window, flowdebug, async, thread, cowork and the
 loop's cases again (trace, engine, backtrace, journal, gc, errors);
 lessons library/50, 51, 54 and 56.
+
+## retract/1 answers again, and clause/2 sees the clauses that stood when it began, as swipl's (3.28.0)
+
+As swipl 9.0.4's pl_retract and clause/2: each walks the clauses its
+predicate had when the call began, keyed as a call of the predicate is,
+and an answer with a candidate after it leaves a choice point to come back
+to; the last candidate leaves none. retract/1 takes the clause each answer
+matched, so `findall(X, retract(q(X)), L)' over `q(1). q(2). q(3).' is
+`[1,2,3]', and the failure-driven loop takes every clause. A clause
+asserted while the walk is open is none of its candidates, and one
+retracted since is still an answer, retracted already -- swipl's retry
+succeeds on a clause erased since, so `findall(X, ( retract(q(X)), ( X ==
+1 -> retract(q(2)) ; true ) ), L)' is `[1,2,3]'. clause/2 walks the same
+view whatever its own goals do to the predicate. Through 3.27.0 retract/1
+was a C builtin that took its first match and left no choice point
+(COMPAT.md's old row 18, cocolint's card row R1), and clause/2 a library
+clause that counted the clauses once and read each by its place among the
+live ones (`'$pred_count'/3', `'$clause'/3'), so a retract under it skipped
+the next clause and an asserta answered the first one again (the old row
+19: `[1,3]' and `[1,1,1]' where swipl's are `[1,2,3]').
+
+THE WALK (lib/solve-db.cicili, `coco_db_walk', `coco_db_retry'): two
+constructs, since a walk keeps a frame on the engine's choice stack and a
+builtin answers once. The candidates are a call's (`coco_trace_kpos': the
+first argument, or the one swipl's JIT index takes, 3.24.0), each copied
+from the store and its head and body unified with the goal's. A second
+candidate pushes a DB frame (`COCO_CH_DB') whose predicate, place, end,
+first death (`fera') and keyed argument are a clause frame's, so the
+logical update view keeps it (`coco_frames_on': a retract under it kills
+the clause in place, an asserta moves it on) and `coco_backtrack' retries
+it. retract/1 takes no single-sided rule, nor the `'$ssu_none'' clause
+after a predicate's rules, as swipl 9.0.4's matches none; clause/2 shows a
+rule as `coco_ssu_body' does; a qualifier is taken off, and `clause(f(),
+B)' asks f/0's clauses, as before. One step and one inference each, as the
+builtin was; the errors are the goal's own (`kcall', and clause/2's row of
+`*error-contexts*'); the ports a traced builtin's, a retry the call's Redo,
+or the Redo of the call a hidden walk is in (`coco_trace_redo_at', as a `;'
+in a library's clause is since 3.27.0). A freeze writes a DB frame as it
+writes a clause frame -- its predicate's name, and its place and its end
+among the live clauses (`C', `L') -- and a thaw makes it again. As it
+begins, a walk sweeps its predicate's dead where no frame is open on them
+(`coco_tomb_try_sweep'), as clause/2's `'$pred_count'/3' did: a retract
+under the walk's own frame leaves its clause dead in place.
+`'$retractall'/1' keeps the C half (`coco_bi_retract'), whose retract of
+one clause is `coco_retract_at', the walk's too.
+
+A GREEN WORLD'S STORE IS SHARED, AND THREE RECLAMATIONS DID NOT ASK, all
+through 3.27.0, found by the async section below. A task's query start
+took the whole store's dead clauses (`coco_tomb_sweep_all') and its retired
+codes (`coco_code_retired_free'), on the ground that nothing ran on its own
+machine, and a task's heap collection freed every retired code its own heap
+named none of (`coco_gc_codes'). Another task's open call then went on from
+a place that had moved -- with one worker, a plain call of rd/1 that
+retracted as it went answered [0,3] for [0,1,3] -- and another task's
+environment went on in a freed code: valgrind's memcheck reported twelve
+invalid reads and writes after the other task's garbage_collect/0, and
+twelve after its go/2. Each now runs only where the store's `machines' is
+nil, outside a world; the world's end hands the store back to the host,
+whose next query and collections take what was kept.
+
+THE TOOLS. library/flow reads both as builtins (`flow_kind''s construct
+row; retract/1 nondet in library/flow/modes.pl, a row for clause/2) and
+offers both as near names (`flow_lib_pred': a construct a program calls by
+name, so `retrakt(x)' is told it meant retract/1). cocolint's card loses R1
+and its S1 pattern (27 rows, 39 cites, eight patterns), and its list of the
+names that exist marks a construct `ctl'. Lesson 07 teaches the loop that
+takes every clause and a walk that does not see what it adds; lesson 37
+counts the card again.
+
+THE CASES. test/files/retract_view.pl, 42 cases, 110 lines held to swipl
+9.0.4's: every answer of facts, rules and a predicate of 2000 clauses; the
+`:-' forms; the last candidate's determinism keyed on the first argument
+and on another; a walk whose own goals retract, retractall, assert,
+asserta, retract again, call clause/2 or count; a cut, a throw and once/1;
+single-sided rules; the errors; a call of the predicate open around the
+walk; `user:'; the count after a walk that met a clause retracted since;
+`f()'. test/trace.pl: three queries more held to swipl's ports (a retract
+retried, a clause/2 walk, a walk hidden in a nodebug predicate, its retry
+its caller's Redo). test/engine.pl: both walks thawed at every 50
+inferences go on where they stood. test/async.pl: a retract walk and
+another task's call share the view in a world of one worker and of two (the
+walk answers [0,1,2,3], the call [1,3], no clause that was dead when it
+began, and a plain call of the walker [0,1,3]), and memcheck reads no freed
+code after the other task's collection or start, where valgrind is.
+test/flowchart.pl: `retrakt' and `clausee' are told what they meant.
+test/files/update_view.pl loses its three R1 acknowledgements; test/repl.pl's
+transcript puts the fact last, so its retract answers once, with `.'. Not
+swipl's (COMPAT.md, four rows): a retract of a predicate nobody declared
+dynamic -- a file's, a library's -- takes the clause where swipl raises
+permission_error(modify, static_procedure, PI), as through 3.27.0;
+clause/2 of a predicate swipl writes in C fails where swipl raises
+permission_error(access, private_procedure, PI); clause/2 of a library
+predicate shows cocolog's names for its helpers (`'$member_'/3'); and a
+predicate given both `:-' clauses and `=>' rules keeps both where swipl
+refuses the second kind.
+
+THE ARMS, a build each, the rule taken out, each red (a second round:
+the first round's four workers shared test/files.pl's sandbox under
+/tmp, and its files results were void). The walk: no frame for a second
+candidate (the case, three trace lines, the engine's freeze check, both
+async worlds), no retry (the same), the last candidate keeping its frame
+(the case: the determinism lines), the DB frame off `coco_frames_on''s
+walk (the case, two trace lines, the freeze, both worlds), `framed' not
+set (the case, two trace lines, two engine checks, both worlds), `fera'
+not read (the case: a clause retracted since is met no more), a dead
+clause retracted again (both async worlds: the other task's call saw rd(2)
+come back -- in one process no frame can begin between the two deaths and
+still be open at the second, so the case cannot see it), a single-sided
+rule taken, the `'$ssu_none'' clause taken, clause/2 showing a rule as
+stored, a qualifier kept, `f()' kept a compound, clause/2's context row
+and `kcall' not set (each the case), the walk keyed on the first argument
+alone (the case: the JIT index's determinism), the retry's Redo port (two
+trace lines), the hidden walk's Redo not found by its goal and depth
+(one), the printer's hiding not asked (one). The freeze: the frame's
+predicate and place not written (`C'), its end not written (`L'), its end
+not read, and the thaw not making it (each the engine's check). The
+tools: `flow_kind''s construct row (six flowchart checks), the near name
+(one). The green world: the query start's sweep of the dead on a shared
+store (the one worker's check), its freeing of retired codes (memcheck,
+after the other task's start), the collector's (memcheck, after its
+garbage_collect/0). And the sweep as a walk begins: green in the five
+cases of the round, and 38 % of a drain's time -- `once(retract(q(_)))'
+over 20 000 clauses 0.429 s with it against 0.267 s without, over 40 000
+1.830 s against 1.139 s, medians of five alternating runs. Taken out of a
+build, it was red in test/gc.pl: a drain that sweeps nothing counts
+nothing dead, and the case's thousand of 1 500 wide clauses retracted no
+longer compacted the store. It stays.
+The async case's check that a child's write lands within a 100 ms foreign
+sleep was red in three arms of the 28 with four builds beside it, an arm
+whose rule it does not touch each time, and green on a quiet box.
+
+THE COST, tools/flow/zero.sh, work less padding, 3.27.0 to 3.28.0: nrev
+65 997 276 to 65 997 217, queens 40 280 929 to 40 280 703, lookup
+48 090 634 to 48 090 998 -- the untraced engine runs what it ran: the walks
+are two arms at the end of `coco_construct''s chain, and the DB frame's
+retry a branch of `coco_backtrack''s only its kind takes, out of line and
+cold (`coco_db_retry'). The counts move where the walks are: clause/2 is
+one inference a call where its clause, its count, between/3 and
+`'$clause'/3' were 29 (`clause(q(5), true)' over ten clauses), a findall/3
+over ten clauses 12 where it was 61; retract/1 is one, as it was, and a
+findall/3 over every answer 12. A queue drained one retract a turn by
+once/1, 3.27.0's direct removal against 3.28.0's walk, its frame and the
+next walk's sweep: 0.434 s and 0.429 s for 20 000 clauses, 1.523 s and
+1.830 s for 40 000 (medians of five alternating runs) -- both a pass over
+the clauses after the one taken, the sweep's a fifth dearer at 40 000.
+
+Narrow cases green on the final build: files, engine, trace, window,
+errors, gc, flowchart, flowdebug, async, thread, cowork, library, reason,
+translate, normalise, repl, static, directives, reconsult, meter,
+backtrace, journal, cyclic, units, string, script, rationals, serialize,
+template, hex, astar, argv, process, text, os, signal, stream, lint, and
+the solve, state and module binaries; lessons basics/07, 09 and 11 and
+library/04, 05, 37, 43, 46 and 54; test/files/retract_view.pl and
+update_view.pl under COCOLOG_GC_CELLS=2000 and the freeze's torture
+(KMAT 1 and 2), swipl's text each time.

@@ -58,7 +58,8 @@ main :-
     forall(member(Q, [ 'p(X)', 'q(L)', 'r(N)', 's(L)', 't(L)', 'u(X)', 'v(S)',
                        'a(X)', 'b(M)', 'c', 'e(L)', 'f(S)', 'g(P)', 'h(X)', 'w(B)', ld,
                        m5, a5, b5, n5, s5, u5, 'xm(X)', 'nd(X)', 'ud(X)', 'kd(X)', 'gd(X)',
-                       'vd(X)', nt, 'nq(X)', nn, 'member(X, [1, 2]), X > 1' ]),
+                       'vd(X)', nt, 'nq(X)', nn, 'member(X, [1, 2]), X > 1',
+                       'rt(X)', 'ct(X)', 'ur(X)' ]),
            traced_in(Swipl, [Library], Q, Q)),
     %% THE FLAG IS THE FILE'S: test/trace-library.pl ends with it false, and
     %% the file read after it is the program's again (swipl's load puts the

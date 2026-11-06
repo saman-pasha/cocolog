@@ -29,10 +29,10 @@
 %%     U1  an acknowledgement that acknowledges nothing, or gives no reason
 %%
 %% A FINDING THE CODE MEANS IS ACKNOWLEDGED WHERE IT STANDS, by a comment
-%% that names it and says why -- a lesson that shows `retract(X), fail'
-%% removing one clause commits the trap on purpose:
+%% that names it and says why -- a lesson that shows format/2 refusing a
+%% column stop commits the trap on purpose:
 %%
-%%     ( retract(seen(_)), fail ; true ),   % cocolint: R1 -- the lesson
+%%     catch(format(atom(_), "~t~20|x", []), _, true),   % cocolint: F1 -- the lesson
 %%
 %% See cl_acks/3 below for the whole of the rule.
 %% WHY THIS IS CLAUSES AND NOT PYTHON. A lint rule IS a clause -- a head that

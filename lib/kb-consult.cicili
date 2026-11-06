@@ -3985,6 +3985,67 @@
                 (coco_halt_load st halt_code (? (== halt_code 2) 0 1))))
           (return n)))
 
+  ;;; CLAUSE I OF PI TAKEN OUT, its cells SPAN long in the store: retract/1's
+  ;;; answer (3.28.0, `coco_db_walk', and '$retractall'/1's through
+  ;;; `coco_retract'). 1.
+  (func coco_retract_at ((coco_store * st) (coco_machine * m) (size_t pi) (size_t i)
+                         (size_t span)) (out int)
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+          ;; THE LOGICAL UPDATE VIEW: with a call open on the predicate the
+          ;; clause dies where it stands, for the calls open now to try still
+          ;; and no later call to see (`coco_tomb_set'); the database loses
+          ;; it now
+          (let ((u32 era . #'(coco_tomb_open st m pi)))
+            (if (!= era 0)
+                (block
+                  (coco_tomb_set p i era)
+                  (set (-> p dynamic) 1)
+                  (if (and (not (coco_store_is_muted st))
+                           (!= (-> st on_retract) nil))
+                      ((-> st on_retract) st (-> st ctx) pi))
+                  (return 1))))
+          ;; none open, and the dead of an earlier change go with it
+          (if (!= (-> p ntomb) 0)
+              (block
+               (coco_tomb_set p i 1)
+               (coco_pred_sweep st m pi)
+               (set (-> p dynamic) 1)
+               (if (and (not (coco_store_is_muted st))
+                        (!= (-> st on_retract) nil))
+                   ((-> st on_retract) st (-> st ctx) pi))
+               (return 1)))
+          ;; drop it from the predicate; the cells are orphaned until the
+          ;; next compaction (`coco_store_compact'), and its compiled
+          ;; program goes now
+          (set (-> st dead) (+ (-> st dead) span))
+          (coco_code_drop st (nth i (-> p clauses)))
+          (set (nth i (-> p codes)) nil)
+          ;; The index keys shift with them, and the chains -- which hold
+          ;; POSITIONS -- are dropped: everything after this clause has just
+          ;; been renumbered.
+          (for ((size_t j . i)) (< (+ j 1) (-> p nclauses)) ((++ j))
+            (set (nth j (-> p clauses)) (nth (+ j 1) (-> p clauses)))
+            (set (nth j (-> p keys)) (nth (+ j 1) (-> p keys)))
+            (set (nth j (-> p origins)) (nth (+ j 1) (-> p origins)))
+            (set (nth j (-> p muted)) (nth (+ j 1) (-> p muted)))
+            (set (nth j (-> p codes)) (nth (+ j 1) (-> p codes))))
+          (set (-> p nclauses) (- (-> p nclauses) 1))
+          (coco_pred_nprobe p)
+          (set (-> p tver) (+ (-> p tver) 1))
+          (coco_pred_unindex p)
+          ;; anything retractable is dynamic by definition, whether or not
+          ;; anybody said so
+          (set (-> p dynamic) 1)
+          ;; and the database is told. NOTHING IS WOUND BACK HERE: the whole
+          ;; point of `retract(counter(X))' is that X is left bound to what
+          ;; was retracted, and the term it is bound into is the copy the
+          ;; caller made on the heap. The hook keeps its own heap use to
+          ;; itself.
+          (if (and (not (coco_store_is_muted st))
+                   (!= (-> st on_retract) nil))
+              ((-> st on_retract) st (-> st ctx) pi))
+          (return 1)))
+
   (func coco_retract ((coco_store * st) (coco_machine * m) (size_t clause)) (out int)
         (set clause (coco_deref m clause))
         (let ((size_t head . clause) (size_t body . 0) (int has_body . 0))
@@ -4055,61 +4116,7 @@
                        (if (== has_body 0) (set body (coco_new_atom m "true")))
                        (set ok (coco_unify m body cbody))))
                   (if ok
-                      (block
-                       ;; THE LOGICAL UPDATE VIEW: with a call open on the
-                       ;; predicate the clause dies where it stands, for the
-                       ;; calls open now to try still and no later call to
-                       ;; see (`coco_tomb_set'); the database loses it now
-                       (let ((u32 era . #'(coco_tomb_open st m pi)))
-                         (if (!= era 0)
-                             (block
-                               (coco_tomb_set p i era)
-                               (set (-> p dynamic) 1)
-                               (if (and (not (coco_store_is_muted st))
-                                        (!= (-> st on_retract) nil))
-                                   ((-> st on_retract) st (-> st ctx) pi))
-                               (return 1))))
-                       ;; none open, and the dead of an earlier change go with it
-                       (if (!= (-> p ntomb) 0)
-                           (block
-                            (coco_tomb_set p i 1)
-                            (coco_pred_sweep st m pi)
-                            (set (-> p dynamic) 1)
-                            (if (and (not (coco_store_is_muted st))
-                                     (!= (-> st on_retract) nil))
-                                ((-> st on_retract) st (-> st ctx) pi))
-                            (return 1)))
-                       ;; drop it from the predicate; the cells are orphaned
-                       ;; until the next compaction (`coco_store_compact'),
-                       ;; and its compiled program goes now
-                       (set (-> st dead) (+ (-> st dead) span))
-                       (coco_code_drop st (nth i (-> p clauses)))
-                       (set (nth i (-> p codes)) nil)
-                       ;; The index keys shift with them, and the chains --
-                       ;; which hold POSITIONS -- are dropped: everything
-                       ;; after this clause has just been renumbered.
-                       (for ((size_t j . i)) (< (+ j 1) (-> p nclauses)) ((++ j))
-                         (set (nth j (-> p clauses)) (nth (+ j 1) (-> p clauses)))
-                         (set (nth j (-> p keys)) (nth (+ j 1) (-> p keys)))
-                         (set (nth j (-> p origins)) (nth (+ j 1) (-> p origins)))
-                         (set (nth j (-> p muted)) (nth (+ j 1) (-> p muted)))
-                         (set (nth j (-> p codes)) (nth (+ j 1) (-> p codes))))
-                       (set (-> p nclauses) (- (-> p nclauses) 1))
-                       (coco_pred_nprobe p)
-                       (set (-> p tver) (+ (-> p tver) 1))
-                       (coco_pred_unindex p)
-                       ;; anything retractable is dynamic by definition, whether
-                       ;; or not anybody said so
-                       (set (-> p dynamic) 1)
-                       ;; and the database is told. NOTHING IS WOUND BACK HERE:
-                       ;; the whole point of `retract(counter(X))' is that X is
-                       ;; left bound to what was retracted, and the term it is
-                       ;; bound into is the copy this loop made on the heap. The
-                       ;; hook keeps its own heap use to itself.
-                       (if (and (not (coco_store_is_muted st))
-                                (!= (-> st on_retract) nil))
-                           ((-> st on_retract) st (-> st ctx) pi))
-                       (return 1)))
+                      (return (coco_retract_at st m pi i span)))
                   (coco_undo_to m tmark)
                   (set (-> m heap_len) mark))))
             (return 0))))

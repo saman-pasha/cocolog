@@ -109,6 +109,9 @@ ft_construct_arities(notrace, [0]).
 ft_construct_arities(:, [2]).
 ft_construct_arities($, [0, 1]).
 ft_construct_arities(@, [2]).
+%% retract/1 and clause/2, the walks of the database (3.28.0)
+ft_construct_arities(retract, [1]).
+ft_construct_arities(clause, [2]).
 
 ft_constructs(Root, Ks) :-
     atomic_list_concat([Root, '/lib/solve.cicili'], P),
