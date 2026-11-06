@@ -12252,3 +12252,58 @@ cowork, serialize, template, hex, astar, argv, reason, normalise,
 translate, process, text, os, signal, stream and lint (red at first on a
 card cite the kb head's new lines moved and two acknowledgements no
 finding needed, and run again alone), and lesson library/01.
+
+## max_member/2,3 and min_member/2,3 are swipl's single-sided rules (3.26.1)
+
+As swipl 9.0.4's library(lists) writes them: `max_member(Max, [H|T]) =>
+max_member_(T, H, Max)`, the /3 forms asking the order as `call(Pred, H,
+Max0)` and `call(Pred, Min0, H)` and keeping Max0 and Min0 when it holds.
+Through 3.26.0 the /3 forms asked `call(P, Max0, H)` and took H, so of two
+elements the order ties the other one was kept --
+`max_member([A,B]>>(A=<B), M, [1, 1.0])` answered 1.0 where swipl's
+answers 1 -- and the /2 forms sorted the list (msort/2), so an unbound,
+partial or improper list failed or raised msort/2's instantiation error
+where swipl's matches no rule.
+
+THE RULES (lib/lists.cicili): the four over `'$max_member_'/3,4` and
+`'$min_member_'/3,4`, each `=>` as swipl's, so a list no rule matches raises
+existence_error(matching_rule, Goal). THE NAME IT RAISES WITH: a
+single-sided rule's last clause, `H :- '$ssu_none'(Mod, G)`, takes its
+predicate's row of `*frame-contexts*` where it has one (`coco_ssu_last`,
+lib/kb-consult.cicili, `coco_frame_ctx` declared in the kb head): the row's
+module, and for a helper H under swipl's name, its arguments H's -- so
+`max_member(_, [a|_])` raises existence_error(matching_rule,
+lists:max_member_(_, a, _)) with context(lists:max_member_/3, _), as
+swipl's, and `max_member(_, _)` lists:max_member(_, _); a predicate with no
+row names the read's module as before. The rows: `'$max_member_'/3,4` and
+`'$min_member_'/3,4` (lists:max_member_/3,4, lists:min_member_/3,4), where
+`'$max_by'/4` and `'$min_by'/4` stood.
+
+THE CASE. test/files/max_member.pl, new: 48 lines, swipl 9.0.4's byte for
+byte -- ties under `=<`, `<`, `>=`, `@=<` and a length order, the standard
+order's answers, the empty list, the unbound, partial and improper lists'
+rules, the order's own errors, and that each call leaves no choice point;
+3.26.0 differs at 21 of them. Not swipl's (COMPAT.md): the culprit's
+meta-argument is as the call wrote it, `lists:max_member(le, _, _)`, where
+swipl's qualifies it, `lists:max_member(user:le, _, _)`: the case shows a
+culprit by its module and functor.
+
+THE ARMS, a build each, the rule taken out, each red: max_member/3's order
+as through 3.26.0 (3 lines), min_member/3's (4), the /2 forms sorted (7),
+the /3 forms' public clauses plain clauses (2: an unbound list is the
+helper's error), the last clause under cocolog's name for a helper (7) and
+under the read's module rather than the row's (14).
+
+THE COST, inferences a call, 3.26.0 to 3.26.1: max_member/2 of 3 elements
+9 to 16 and of 20 9 to 84, min_member/2 of 20 6 to 103 (the list walked in
+Prolog, where msort/2 sorted it in C), max_member/3 of 20 120 to 122 and
+min_member/3 of 20 101 to 141. tools/flow/zero.sh, work less padding: nrev
+66 003 219 to 66 003 270, queens 40 325 380 to 40 325 457, lookup
+48 108 852 to 48 109 392: the start-up reads the longer clauses, and
+nothing the step runs changed.
+
+Narrow cases green: files, flowchart, flowdebug, library, errors, trace,
+window, engine, static and lint (red at first on the card's I1 cite, which
+the kb head's new declaration moved, and on the case's own
+`error(F, context(C, _))` pattern, cocolint's S1; run again alone), and
+lesson library/51.

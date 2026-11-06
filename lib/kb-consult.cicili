@@ -1216,14 +1216,19 @@
         (set (nth (-> m nssu) (-> m ssu_pis)) pi)
         (set (-> m nssu) (+ (-> m nssu) 1)))
 
-  ;;; THE LAST CLAUSE, `H :- '$ssu_none'(Mod, H)', H the predicate's head of
+  ;;; THE LAST CLAUSE, `H :- '$ssu_none'(Mod, G)', H the predicate's head of
   ;;; fresh variables, MOD the module's atom id plus one, 0 for user, and
-  ;;; for a pattern any module (-1)
+  ;;; for a pattern any module (-1). G is H, or for a predicate swipl names
+  ;;; otherwise (3.26.1, a row of *frame-contexts*) H under swipl's name,
+  ;;; its arguments H's, and the row's module stands for MOD:
+  ;;; '$max_member_'(T, a, M) raises existence_error(matching_rule,
+  ;;; lists:max_member_(T, a, M)), as swipl's lists:max_member_/3 does
   (static)
   (func coco_ssu_last ((coco_store * st) (coco_machine * m) (size_t pi) (u64 mod)) (out size_t)
         (let ((u64 nid . #'($ (nth pi (-> st preds)) name))
               (u32 n . #'($ (nth pi (-> st preds)) arity))
-              (size_t h . 0) (size_t md . 0))
+              (size_t h . 0) (size_t g . 0) (size_t md . 0) (size_t fc . 0)
+              (size_t rmod . 0) (int hasmod . 0))
           (if (== n 0)
               (set h (coco_new_atom_id m nid))
               (block
@@ -1231,10 +1236,32 @@
                (for ((u32 i . 0)) (< i n) ((++ i))
                  (set (nth (+ h (+ (cast size_t i) 1)) (-> m heap))
                       (coco-cell REF (+ h (+ (cast size_t i) 1)))))))
+          (set g h)
+          (if (coco_frame_ctx m nid n (aof fc))
+              (let ((size_t ind . #'(coco_deref m (coco_arg m fc 0))))
+                (if (coco_is_compound2 m ind ":")
+                    (block
+                     (set rmod (coco_deref m (coco_arg m ind 0)))
+                     (set hasmod 1)
+                     (set ind (coco_deref m (coco_arg m ind 1)))))
+                (if (and (> n 0) (coco_is_compound2 m ind "/"))
+                    (let ((size_t sn . #'(coco_deref m (coco_arg m ind 0)))
+                          (size_t sa . #'(coco_deref m (coco_arg m ind 1))))
+                      (if (and (coco-tag-is ATOM (nth sn (-> m heap)))
+                               (coco-is-int (nth sa (-> m heap)))
+                               (== (coco_int_val m (nth sa (-> m heap))) (cast i64 n))
+                               (!= (coco_name_of m sn) nid))
+                          (block
+                           (set g (coco_push_struct_raw
+                                   m (coco-cell FUN (coco_functor_id m (coco_name_of m sn) n)) n))
+                           (for ((u32 i . 0)) (< i n) ((++ i))
+                             (set (nth (+ g (+ (cast size_t i) 1)) (-> m heap))
+                                  (coco-cell REF (+ h (+ (cast size_t i) 1)))))))))))
           (cond ((== mod (cast u64 -1)) (set md (coco_new_var m)))
+                (hasmod (set md rmod))
                 ((== mod 0) (set md (coco_new_atom m "user")))
                 (#t (set md (coco_new_atom_id m (- mod 1)))))
-          (return (coco_make2 m ":-" h (coco_make2 m "$ssu_none" md h)))))
+          (return (coco_make2 m ":-" h (coco_make2 m "$ssu_none" md g)))))
 
   ;;; AN ASSERT KEEPS THE LAST CLAUSE LAST: the one there goes and a new one
   ;;; is put after the rule just added, wherever that went

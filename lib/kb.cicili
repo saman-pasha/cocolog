@@ -1702,6 +1702,9 @@
   (decl) (func coco_iso_predicate ((const char * name) (u32 arity)) (out int))
   (decl) (func coco_bix_fill ((coco_machine * m) (coco_store * st) (u64 nid) (u32 n)) (out u32))
   (decl) (func coco_pred_take_over ((coco_store * st) (coco_machine * m) (size_t pi) (size_t head)))
+  ;;; The frame swipl names for NID/N (lib/solve.cicili's *frame-contexts*),
+  ;;; which a single-sided rule's last clause names too (3.26.1)
+  (decl) (func coco_frame_ctx ((coco_machine * m) (u64 nid) (u32 n) (size_t * out)) (out int))
   ;;; The engine's names interned (lib/solve.cicili), which the question
   ;;; above wants before a fresh machine's first step.
   (decl) (func coco_ids_fill ((coco_machine * m)))

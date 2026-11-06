@@ -267,17 +267,31 @@
 
            ;; ---- the standard order over a list ---------------------------
            ;; max_member/2 and min_member/2 use the STANDARD ORDER of terms and
-           ;; not arithmetic, so `max_member(M, [1, a])' is `a'.
-           "max_member(M, L) :- '$len'(L, N), N > 0, msort(L, S), last(S, M)."
-           "min_member(M, [H|T]) :- msort([H|T], [M|_])."
-           ;; the /3 forms take a comparison predicate, which is what call/N in
-           ;; the engine exists for
-           "max_member(P, M, [H|T]) :- '$max_by'(T, P, H, M)."
-           "'$max_by'([], _, A, A)."
-           "'$max_by'([H|T], P, A, M) :- (call(P, A, H) -> B = H ; B = A), '$max_by'(T, P, B, M)."
-           "min_member(P, M, [H|T]) :- '$min_by'(T, P, H, M)."
-           "'$min_by'([], _, A, A)."
-           "'$min_by'([H|T], P, A, M) :- (call(P, H, A) -> B = H ; B = A), '$min_by'(T, P, B, M)."
+           ;; not arithmetic, so `max_member(M, [1, a])' is `a'. The four are
+           ;; swipl 9.0.4's single-sided rules (3.26.1): a list no rule
+           ;; matches -- unbound, partial or no list -- is
+           ;; existence_error(matching_rule, lists:max_member(_, _)), and the
+           ;; /3 forms ask the order as swipl's do, call(P, H, Max0) keeping
+           ;; Max0 and call(P, Min0, H) keeping Min0, so of two elements the
+           ;; order ties the one kept is swipl's. Through 3.26.0 the /3
+           ;; forms asked call(P, Max0, H) and took H, and the /2 forms
+           ;; sorted the list
+           "max_member(Max, [H|T]) => '$max_member_'(T, H, Max)."
+           "max_member(_, []) => fail."
+           "'$max_member_'([], Max0, Max) => Max = Max0."
+           "'$max_member_'([H|T], Max0, Max) => ( H @=< Max0 -> '$max_member_'(T, Max0, Max) ; '$max_member_'(T, H, Max) )."
+           "min_member(Min, [H|T]) => '$min_member_'(T, H, Min)."
+           "min_member(_, []) => fail."
+           "'$min_member_'([], Min0, Min) => Min = Min0."
+           "'$min_member_'([H|T], Min0, Min) => ( H @>= Min0 -> '$min_member_'(T, Min0, Min) ; '$min_member_'(T, H, Min) )."
+           "max_member(Pred, Max, [H|T]) => '$max_member_'(T, Pred, H, Max)."
+           "max_member(_, _, []) => fail."
+           "'$max_member_'([], _, Max0, Max) => Max = Max0."
+           "'$max_member_'([H|T], Pred, Max0, Max) => ( call(Pred, H, Max0) -> '$max_member_'(T, Pred, Max0, Max) ; '$max_member_'(T, Pred, H, Max) )."
+           "min_member(Pred, Min, [H|T]) => '$min_member_'(T, Pred, H, Min)."
+           "min_member(_, _, []) => fail."
+           "'$min_member_'([], _, Min0, Min) => Min = Min0."
+           "'$min_member_'([H|T], Pred, Min0, Min) => ( call(Pred, Min0, H) -> '$min_member_'(T, Pred, Min0, Min) ; '$min_member_'(T, Pred, H, Min) )."
 
            ;; ---- memory management ---------------------------------------
            ;;

@@ -1442,7 +1442,13 @@ cocolint index offers no import of it.
   (a bound index must_be/2's and deterministic), reverse/2's declined case
   over `'$reverse4'/4` (a proper second list ends it), proper_length/2,
   permutation/2 (type_error(list, L)), list_to_set/2 over pairs_keys/2,
-  is_set/1 and clumped/2.
+  is_set/1 and clumped/2; and since 3.26.1 max_member/2,3 and
+  min_member/2,3, swipl's single-sided rules over `'$max_member_'/3,4`
+  and `'$min_member_'/3,4` (test/files/max_member.pl): a tie keeps the
+  element swipl's keeps, and a list no rule matches raises
+  existence_error(matching_rule, lists:max_member_(...)) -- **a
+  single-sided rule's last clause takes its row's module and swipl's
+  name** (`coco_ssu_last`), so a library helper's rules need their row.
 * **A cut runs the cleanups of the frames it takes** (3.1.0,
   setup_call_cleanup/3): a setup_call_cleanup/3 frame is a goal frame,
   `'$scc_fail'/2`, and each of the four cuts -- the goal `!`, `$cut`, an
