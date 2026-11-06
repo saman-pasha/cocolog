@@ -1394,7 +1394,8 @@ cocolint index offers no import of it.
   row of `*frame-contexts*` takes a fourth field, swipl's name
   (`lists:member_/3`), which `coco_det_pi` asks. sub_atom/5,
   atom_concat/3, clause/2 and string_code/3 are deterministic on their
-  last answers with them. **A library predicate that would leave a choice
+  last answers with them (sub_atom/5 with its text given since 3.25.0,
+  below). **A library predicate that would leave a choice
   point on its last element wants its list first in a helper**, and since
   3.23.0 library(apply)'s are swipl's too: maplist/2..5, include/3,
   exclude/3, partition/4,5 and convlist/3 over `'$maplist_'/2..5`,
@@ -1408,7 +1409,17 @@ cocolint index offers no import of it.
   over strip_module/3. Each is a call deeper: one inference more at entry,
   as swipl's. With the first list unbound and another given, the index on
   that list leaves no choice point either, since 3.24.0 (swipl's JIT index,
-  below).
+  below). **The enumerators swipl writes in C leave none at their last
+  answer** since 3.25.0: current_op/3 walks what `'$ops'/4` hands back --
+  only the operators the call's bound arguments name, a given name's the
+  program's first and the system's after, each prefix before infix, swipl's
+  order -- with `'$cp_in'/2`, member/2's clauses under a private name (a
+  program's member/2 joins the library's); current_predicate/1 named whole
+  and predicate_property/2 with its property named are a memberchk/2, and
+  sub_atom/5 with its text given walks the places with `'$cp_in'/2`, or
+  checks the one given. `'$cp_member'/2`, the goal first, stays where
+  swipl's leaves a choice point at every answer, its last too:
+  current_predicate/1 with a part of its spec unbound.
 * **A cut runs the cleanups of the frames it takes** (3.1.0,
   setup_call_cleanup/3): a setup_call_cleanup/3 frame is a goal frame,
   `'$scc_fail'/2`, and each of the four cuts -- the goal `!`, `$cut`, an

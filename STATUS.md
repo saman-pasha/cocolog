@@ -12082,3 +12082,66 @@ template, hex, astar, argv, reason, normalise, translate, process, text,
 os, signal, stream and lint, the test binaries term, syntax, solve, module
 and state, and the lessons that speak of choice points (basics 05, 07 and
 08, library 01 and 37) and lesson 51.
+
+## current_op/3, current_predicate/1, predicate_property/2 and sub_atom/5 leave no choice point at their last answer (3.25.0)
+
+As swipl's C predicates: `$, current_op(_, _, is), true` is deterministic,
+and so are `current_op(_, _, -)` at its second answer,
+`current_predicate(foo/1)`, `predicate_property(foo(_), dynamic)` and
+`sub_atom(abc, B, 1, A, c)` -- where through 3.24.0 each walked a list with
+`'$cp_member'/2`, the goal first and the list after it, and the last
+element left a choice point.
+
+CURRENT_OP/3 walks what `'$ops'/4` hands back (lib/builtins-db.cicili,
+through 3.24.0 `'$ops'/1`, the whole table): only the operators the call's
+bound arguments name, so its last match is its list's last element, and a
+NAME GIVEN in swipl's order -- the program's definitions before the
+system's, each prefix before infix: `-` is 200 fy and then 500 yfx (through
+3.24.0 500 yfx first), a program's `===>` declared 700 xfx and then 200 fy
+answers 200 fy first, and its infix `volatile` comes before the system's
+prefix one. The walk is `'$cp_in_'/3`, member/2's helper under a private
+name (a program's member/2 joins the library's), the list split where the C
+half answers, so no step is added. With its name unbound current_op/3
+answers in its tables' order and the last answer leaves none: swipl's
+answers in its hash tables' order, and its last answer leaves a choice
+point or none by where they put it (`current_op(1200, T, N)` none,
+`current_op(P, fx, N)` one; COMPAT.md).
+
+CURRENT_PREDICATE/1 named whole is a check, memberchk/2 over the list
+`'$predicates'/1` builds; with a part unbound swipl's leaves a choice
+point at every answer, its last too, and so does cocolog's, which keeps
+`'$cp_member'/2` there. PREDICATE_PROPERTY/2 of a head given is a check
+for a property given and walks the properties with `'$cp_in'/2` for none,
+the last leaving no choice point. SUB_ATOM/5 with the text it looks for
+given walks the places with `'$cp_in_'/3`, and `'$sub_atom_positions'/5`
+(through 3.24.0 `/4`) keeps the place given alone, so a place given is a
+check. Postfix operators, which cocolog has none of, are not here.
+
+THE CASE. test/files/current_det.pl, new: 55 lines, swipl 9.0.4's byte
+for byte, traced too -- the four predicates' calls that leave a choice point
+and those that do not, at a first answer and at a last, and current_op/3's
+order of a name's definitions, the system's and a program's. 3.24.0 gets
+41 of them wrong.
+
+THE ARMS, a build each, the rule taken out, each red: current_op/3's walk
+as through 3.24.0 (18 lines), `'$ops'/4` handing back the whole table
+(18), of a name given the tables' own order (9), the system's table first
+(2), current_predicate/1 named whole walked (3), predicate_property/2 with
+its property given walked (3) and its walk as through 3.24.0 (2), the
+place given not kept alone (2), and sub_atom/5's walk as through 3.24.0
+(9).
+
+THE COST, callgrind over 2 000 calls less none, instructions a call:
+`current_op(_, _, is)` 87 523 to 13 195 (-84.9 %), all of `-`'s answers
+174 722 to 28 100 (-83.9 %), `predicate_property(foo(_), dynamic)` 11 346
+to 9 209 (-18.8 %), `sub_atom(abcdefabc, _, _, _, c)` 10 675 to 10 390
+(-2.7 %) and with its place given 11 309 to 9 938 (-12.1 %), and
+`current_predicate(foo/1)` 9 576 to 10 203 (+6.5 %: the if-then-else; the
+list of every predicate it builds is the rest). tools/flow/zero.sh, work
+less padding: nrev 66 232 935 to 66 232 851, queens 40 325 605 to
+40 325 643, lookup 48 110 851 to 48 108 195. The translator, whose
+sub_atom/5 is the one of the four it calls: test/translate.pl's sections
+up to newspaper_units 308 794 629 inferences on 3.24.0 and 308 475 927 on
+3.25.0 (-0.10 %: a place given is no walk), 3 290 checks green on both;
+with the place checked in the clause, a first cut's if-then-else, they
+were 309 472 937 (+0.22 %).

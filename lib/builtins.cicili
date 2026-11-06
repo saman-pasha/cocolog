@@ -77,7 +77,7 @@
     ("downcase_atom"           2 coco_b_downcase)
     ("term_to_atom"            2 coco_b_term_to_atom)
     ("$sub_atom"               6 coco_b_sub_atom_at)
-    ("$sub_atom_positions"     4 coco_b_sub_atom_positions)
+    ("$sub_atom_positions"     5 coco_b_sub_atom_positions)
     ("$atom_byte_length"       2 coco_b_atom_byte_length)
     ("atomic_list_concat"      2 coco_b_alc2)
     ("atomic_list_concat"      3 coco_b_alc3)
@@ -128,7 +128,7 @@
     ("char_type"               2 coco_b_char_type)
 
     ("op"                      3 coco_b_op)
-    ("$ops"                    1 coco_b_ops)
+    ("$ops"                    4 coco_b_ops)
     ("$op_spec"                3 coco_b_op_spec)
     ("$cn_check"               4 coco_b_cn_check)
     ("$compound"               4 coco_b_compound)
@@ -438,10 +438,21 @@
            "'$ssu_none'(M, H) :- functor(H, N, A), ( M == user -> G = H, C = N/A ; G = M:H, C = M:N/A ), throw(error(existence_error(matching_rule, G), context(C, _)))."
 
            ;; ---- current_predicate/1 ---------------------------------------
-           ;; the spec checked first, swipl's (3.0.0, '$cp_spec'/2)
-           "current_predicate(S) :- '$cp_spec'(S, PI), '$predicates'(L), '$cp_member'(PI, L)."
+           ;; the spec checked first, swipl's (3.0.0, '$cp_spec'/2). Named
+           ;; whole, it is a check that leaves no choice point, as swipl's
+           ;; (3.25.0); with a part unbound swipl's leaves one at every
+           ;; answer, its last too, and so does `'$cp_member'/2', the goal
+           ;; first and the list after it
+           "current_predicate(S) :- '$cp_spec'(S, PI), '$predicates'(L), ( ground(PI) -> memberchk(PI, L) ; '$cp_member'(PI, L) )."
            "'$cp_member'(X, [X|_])."
            "'$cp_member'(X, [_|T]) :- '$cp_member'(X, T)."
+           ;; A MEMBER THAT LEAVES NO CHOICE POINT AT ITS LAST ELEMENT
+           ;; (3.25.0), member/2's own clauses under a name no program
+           ;; shares: the rest of the list its helper's first argument, so the
+           ;; last element's call, keyed on `[]', has one candidate
+           "'$cp_in'(X, [H|T]) :- '$cp_in_'(T, X, H)."
+           "'$cp_in_'(_, X, X)."
+           "'$cp_in_'([H|T], X, _) :- '$cp_in_'(T, X, H)."
 
            ;; ---- nb_current/2 with its key unbound (1.12.0) ---------------
            ;; The C half answers a bound key in one step and declines an
@@ -453,7 +464,9 @@
            ;; an unbound head walks current_predicate/1's, the program's.
            ;; M:H is H (one namespace), so user:H walks them too.
            "predicate_property(H, P) :- nonvar(H), H = _:G, !, predicate_property(G, P)."
-           "predicate_property(H, P) :- nonvar(H), !, '$pred_props'(H, Ps), '$cp_member'(P, Ps)."
+           ;; a property named is a check, and of none the last one leaves
+           ;; no choice point, as swipl's (3.25.0)
+           "predicate_property(H, P) :- nonvar(H), !, '$pred_props'(H, Ps), ( nonvar(P) -> memberchk(P, Ps) ; '$cp_in'(P, Ps) )."
            "predicate_property(H, P) :- current_predicate(N/A), functor(H, N, A), '$pred_props'(H, Ps), '$cp_member'(P, Ps)."
 
            ;; ---- retractall/1 ----------------------------------------------
@@ -508,7 +521,11 @@
            ;; After each unbound or a size, and Sub unbound or atomic -- so a
            ;; list of codes or characters is type_error(atom, L) as swipl's,
            ;; where through 2.16.1 it was read as the text it spells.
-           "sub_atom(A, B, L, Aft, Sub) :- nonvar(Sub), !, '$sub_text_length'(A, B, L, Aft, Sub, N, atom), atom_length(Sub, L), Max is N - L, Max >= 0, '$atom_byte_length'(A, NB), '$sub_atom_positions'(A, Sub, NB, Bs), '$cp_member'(B, Bs), Aft is N - B - L."
+           ;; The places walked by a member that leaves no choice point at
+           ;; the last, the place given the one place there is, as swipl's
+           ;; (3.25.0); no step more than '$cp_member'/2's walk was, the list
+           ;; split where the C half answers
+           "sub_atom(A, B, L, Aft, Sub) :- nonvar(Sub), !, '$sub_text_length'(A, B, L, Aft, Sub, N, atom), atom_length(Sub, L), Max is N - L, Max >= 0, '$atom_byte_length'(A, NB), '$sub_atom_positions'(A, Sub, NB, B, [B0|Bs]), '$cp_in_'(Bs, B, B0), Aft is N - B - L."
            "sub_atom(A, B, L, Aft, Sub) :- '$sub_text_length'(A, B, L, Aft, Sub, N, atom), '$atom_byte_length'(A, NB), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_atom'(A, B, L, Aft, Sub, NB)."
 
            ;; ---- sub_string/5 ------------------------------------------------
@@ -545,10 +562,11 @@
            ;; (1.12.2), choosing between the two as the clauses did.
 
            ;; ---- current_op/3 -----------------------------------------------
-           ;; Enumerating is backtracking, so the C half hands over the whole
-           ;; table at once and `member/2' does the rest -- the same shape
-           ;; `current_predicate/1' has, and for the same reason.
-           "current_op(P, T, N) :- '$op_spec'(P, T, N), '$ops'(L), '$cp_member'(op(P, T, N), L)."
+           ;; Enumerating is backtracking, so the C half hands over at once
+           ;; the operators the call's bound arguments name ('$ops'/4) and a
+           ;; member does the rest, leaving no choice point at the last, as
+           ;; swipl's (3.25.0)
+           "current_op(P, T, N) :- '$op_spec'(P, T, N), '$ops'(P, T, N, [O|Os]), '$cp_in_'(Os, op(P, T, N), O)."
 
            ;; ---- keysort/2 --------------------------------------------------
            ;; Sorting by the key and keeping duplicates, stably, is exactly
@@ -692,7 +710,8 @@
   (static) (decl) (func coco_b_case ((coco_engine * e) (size_t g) (int up)) (out int))
   (static) (decl) (func coco_b_typename ((int type)) (out const char *))
   (static) (decl) (func coco_b_ops_push ((coco_engine * e) (size_t ** v) (size_t * n)
-                                       (size_t * cap) (int dyn)))
+                                       (size_t * cap) (int dyn) (int kf) (const char * nf)
+                                       (i64 pf) (const char * tf)))
 
   ;;; ---- all solutions ---------------------------------------------------
 

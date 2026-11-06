@@ -1333,25 +1333,45 @@
                            (return (coco_m_domain_error e "not_less_than_zero" ar))))))
           (return (coco_m_unify e (coco_m_arg e g 1) s))))
 
-  ;;; Every operator there is, as `op(Priority, Type, Name)'. The DECLARED ones
-  ;;; first and the built-in ones after, with a built-in left out when a
-  ;;; declaration of the same name and kind has hidden it -- so what comes back
-  ;;; is what the reader would actually do, not two tables stuck together.
+  ;;; '$ops'(P, T, N, L): THE OPERATORS current_op(P, T, N) CAN ANSWER, as
+  ;;; `op(Priority, Type, Name)': those its bound arguments name and no
+  ;;; other (3.25.0), so that the clause's member of them leaves no choice
+  ;;; point at the last, as swipl's current_op/3 leaves none (through 3.24.0
+  ;;; the whole table, walked by a member that left one at every answer).
+  ;;; The DECLARED ones first and the built-in ones after, a built-in left out
+  ;;; where a declaration of the same name and kind has hidden it -- what the
+  ;;; reader would do, not two tables stuck together -- and of a NAME given,
+  ;;; each table's prefix definition before its infix one, swipl's order
+  ;;; (`-' is 200 fy, then 500 yfx); of none, the tables' own order.
   (func coco_b_ops ((coco_engine * e) (size_t g)) (out int)
-        (let ((size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out))
-
-          (coco_b_ops_push e (aof v) (aof n) (aof cap) 1)
-          (coco_b_ops_push e (aof v) (aof n) (aof cap) 0)
-
+        (let ((size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out)
+              (size_t pa . #'(coco_m_arg e g 0)) (size_t ta . #'(coco_m_arg e g 1))
+              (size_t na . #'(coco_m_arg e g 2))
+              (i64 pf . -1) (const char * tf . nil) (const char * nf . nil))
+          (if (not (coco_m_is_var e pa))
+              (if (not (coco_m_int e pa (aof pf))) (set pf -2)))
+          (if (not (coco_m_is_var e ta)) (set tf (coco_m_atom e ta)))
+          (if (not (coco_m_is_var e na)) (set nf (coco_m_atom e na)))
+          (if (!= nf nil)
+              (block
+               (coco_b_ops_push e (aof v) (aof n) (aof cap) 1 1 nf pf tf)
+               (coco_b_ops_push e (aof v) (aof n) (aof cap) 1 0 nf pf tf)
+               (coco_b_ops_push e (aof v) (aof n) (aof cap) 0 1 nf pf tf)
+               (coco_b_ops_push e (aof v) (aof n) (aof cap) 0 0 nf pf tf))
+              (block
+               (coco_b_ops_push e (aof v) (aof n) (aof cap) 1 -1 nf pf tf)
+               (coco_b_ops_push e (aof v) (aof n) (aof cap) 0 -1 nf pf tf)))
           (set out (coco_m_list e v n))
           (free v)
-          (return (coco_m_unify e (coco_m_arg e g 0) out))))
+          (return (coco_m_unify e (coco_m_arg e g 3) out))))
 
-  ;;; DECLARED when `dyn', built-in otherwise. Pulled out because the two loops
-  ;;; are the same but for which table they read and whether they skip.
+  ;;; DECLARED when `dyn', built-in otherwise, of the kind KF (1 prefix, 0
+  ;;; infix, -1 either), named NF, of the priority PF and the type TF where
+  ;;; those are given (nil, or -1, for none). Pulled out because the loops are
+  ;;; the same but for which table they read and whether they skip.
   (static)
   (func coco_b_ops_push ((coco_engine * e) (size_t ** v) (size_t * n) (size_t * cap)
-                       (int dyn))
+                       (int dyn) (int kf) (const char * nf) (i64 pf) (const char * tf))
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t total . #'(? dyn (coco_op_dyn_count) (coco_op_static_count))))
           (for ((size_t i . 0)) (< i total) ((++ i))
@@ -1363,6 +1383,10 @@
               ;; a declaration with priority 0 is not an operator, and a
               ;; built-in that one has hidden is not one either
               (if (== prec 0) continue)
+              (if (and (>= kf 0) (!= kind kf)) continue)
+              (if (and (!= nf nil) (!= 0 (strcmp name nf))) continue)
+              (if (and (!= pf -1) (!= (cast i64 prec) pf)) continue)
+              (if (and (!= tf nil) (!= 0 (strcmp (coco_b_typename type) tf))) continue)
               (if (not dyn)
                   (let ((int dp . 0) (int dt . 0))
                     (if (>= (coco_op_dyn_lookup_pub name kind (aof dp) (aof dt)) 0)

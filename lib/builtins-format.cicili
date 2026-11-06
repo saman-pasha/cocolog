@@ -1423,11 +1423,21 @@
                 (set bchar (+ bchar 1)))
             (set p (+ p 1)))
           (coco_sb_free (aof sb)) (coco_sb_free (aof ub))
+          ;; A PLACE GIVEN (3.25.0) keeps that one alone, so the clause's
+          ;; walk of what comes back is a check that leaves no choice point,
+          ;; as swipl's sub_atom/5 leaves none
+          (let ((i64 bv . 0))
+            (if (coco_m_int e (coco_m_arg e g 3) (aof bv))
+                (let ((size_t k . 0))
+                  (for ((size_t i . 0)) (< i np) ((++ i))
+                    (if (== (cast i64 (nth i pos)) bv)
+                        (block (set (nth k pos) (nth i pos)) (set k (+ k 1)))))
+                  (set np k))))
           (let ((size_t lst . #'(coco_m_nil e)))
             (for ((size_t i . np)) (> i 0) ((-- i))
               (set lst (coco_m_cons e (coco_m_new_int e (cast i64 (nth (- i 1) pos))) lst)))
             (free pos)
-            (return (coco_m_unify e (coco_m_arg e g 3) lst)))))
+            (return (coco_m_unify e (coco_m_arg e g 4) lst)))))
 
   ;;; One substring, at a known place and length. The enumeration is in the
   ;;; Coco half, where the engine can make the choice points.
