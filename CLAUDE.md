@@ -1137,9 +1137,20 @@ cocolint index offers no import of it.
   by its path (`-s FILE`, `ensure_loaded/1`, `use_module/1` of a file: a
   module whose predicates are `own`, beside the `library` flag the pre-warm
   needs; 1.10.28, until which they were left out with the library's, and
-  `listing/0` too). SWI answers for a library's and a builtin's as well;
-  this does not. Through 1.10.2 it also answered for any name a call or
-  `clause/2` had merely looked up (each makes a table entry).
+  `listing/0` too). **Named whole it answers for the system's too** (3.31.0,
+  `'$cp_defined'/1` over `coco_pred_current` in lib/kb.cicili): a construct,
+  a row of the engine or of a compiled-in module, what predicate_property/2
+  calls built_in, as swipl's answers for module system's -- and a read's
+  `:- if(current_predicate(N/A))` asks the same function
+  (`coco_cond_eval`), so library(assoc) keeps the get_assoc/3 swipl's keeps,
+  over the engine's `'$btree_find_node'/5` (through 3.30.0 the condition
+  asked the store alone, and the library's single-sided rules answered a
+  term that was no assoc with existence_error(matching_rule, ...)). A spec
+  with a part unbound walks the program's alone, where swipl's walks its
+  system's 1 278 too, and a library's predicate is never answered (SWI
+  answers for one the program imported). Through 1.10.2 it also answered
+  for any name a call or `clause/2` had merely looked up (each makes a
+  table entry).
   `predicate_property/2` (1.10.28) answers for a construct (by name AND
   arity, `*callable-constructs*`: the construct table also holds the
   engine's markers, `'$k'`, `[]`, `:-`, which are no predicates), a C
@@ -1670,7 +1681,11 @@ cocolint index offers no import of it.
   `coco_decl_kind`; `thread_local/1`, kind 6, is always the goal's, which
   refuses a predicate with clauses), `module/2`, `use_module/1,2`,
   `autoload/1,2`, `ensure_loaded/1`, `meta_predicate/1`,
-  `if/elif/else/endif`) and calls everything else in file order. The four
+  `if/elif/else/endif` -- an `if` decided below the engine,
+  `coco_cond_eval`: `true`, `fail`, `false`, `\+` and
+  `current_predicate(Name/Arity)`, which answers as the goal does since
+  3.31.0, anything else refused by name) and calls everything else in file
+  order. The four
   record an attribute, `pattrs` on the predicate (1 public, 2 volatile, 4
   transparent, 8 thread_local), that predicate_property/2 tells; only
   thread_local/1 defines the predicate (dynamic), so a call of what public/1

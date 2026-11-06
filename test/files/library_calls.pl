@@ -13,16 +13,19 @@
 %  power set, a lambda's parameters), and must_be(assoc, A) asked no
 %  has_type/2 (test/files/error_types.pl holds must_be/2 whole).
 %
+%  get_assoc/3 of a term that is no assoc is compared since 3.31.0, as
+%  swipl's C '$btree_find_node'/5 refuses it: through 3.30.0 cocolog read
+%  the library's single-sided rules, and answered existence_error(
+%  matching_rule, ...) (test/files/btree_system.pl holds the walk whole).
+%  A dcg/basics rule generating from an unbound code is held by
+%  test/files/char_enum.pl (3.30.0).
+%
 %  NOT COMPARED, each in COMPAT.md: a call that enumerates without end
 %  (vertices_edges_to_ugraph(_, ...), ord_memberchk(a, _), ...), where
 %  swipl's stack stops at a gigabyte and cocolog's heap grows until memory
-%  is refused; get_assoc/3 of a term that is no assoc, which swipl's C
-%  '$btree_find_node'/5 refuses and cocolog's copy of the library's own
-%  clauses answers existence_error(matching_rule, ...); a meta-argument
-%  in an error's culprit, which swipl writes user:G and cocolog G; a code
-%  past ASCII, which swipl classes by the process's locale; an integer past
-%  64 bits; and a dcg/basics rule generating from an unbound code, whose
-%  code_type/2 enumerates in swipl and raises in cocolog.
+%  is refused; a meta-argument in an error's culprit, which swipl writes
+%  user:G and cocolog G; a code past ASCII, which swipl classes by the
+%  process's locale; and an integer past 64 bits.
 
 :- use_module(library(aggregate)).   % cocolint: T1 -- swipl runs this file too, and the import is its portable form
 :- use_module(library(assoc)).   % cocolint: T1 -- swipl runs this file too, and the import is its portable form
@@ -99,6 +102,8 @@ assoc :-
     t(ord_list_to_assoc([a-1, b-2], _)), t(ord_list_to_assoc([b-1, a-2], _)),
     t(ord_list_to_assoc([a-1, a-2], _)), t(ord_list_to_assoc(foo, _)),
     t(get_assoc(b, A0, _)), t(get_assoc(z, A0, _)), t(get_assoc(_, A0, _)), t(get_assoc(a, t, _)),
+    t(get_assoc(a, foo, _)), t(get_assoc(a, _, _)), t(get_assoc(a, t(a, 1), _)),
+    t(get_assoc(a, x(a, 1, <, t, t), _)),
     t(get_assoc(b, A0, _, _, x)), t(get_assoc(z, A0, _, _, x)),
     t(put_assoc(d, A0, 4, _)), t(put_assoc(a, A0, 9, _)), t(put_assoc(a, foo, 9, _)),
     t(put_assoc(_, A0, 9, _)),

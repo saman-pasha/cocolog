@@ -1247,37 +1247,61 @@
 
   ;;; '$cp_spec'(Spec, PI), current_predicate/1's checks, swipl's (3.0.0):
   ;;; Spec unbound, or Name/Arity with Name unbound or an atom and Arity
-  ;;; unbound or an integer of 0 or more, PI that; M:Spec with M unbound
-  ;;; (bound to `user', the one module there is) or an atom, PI Spec's;
-  ;;; anything else type_error(predicate_indicator, Spec), a negative arity
-  ;;; domain_error(not_less_than_zero, A), a module type_error(atom, M).
-  ;;; Through 2.16 none was asked: any other term failed.
+  ;;; unbound or an integer of 0 to 2^31 - 1, PI that; M:Spec with M
+  ;;; unbound (bound to `user', the one module there is) or an atom, PI
+  ;;; Spec's; anything else type_error(predicate_indicator, Spec), a
+  ;;; negative arity domain_error(not_less_than_zero, A), a module
+  ;;; type_error(atom, M). Through 2.16 none was asked: any other term
+  ;;; failed. THE TYPE ERROR NAMES THE SPEC AS IT CAME (3.31.0, swipl's),
+  ;;; its qualifiers and an unbound module unbound: the modules are bound
+  ;;; only once the spec is known good, where through 3.30.0 they were
+  ;;; bound first and the error named what was under them, and an arity
+  ;;; past 2^31 - 1 was a spec.
   (func coco_b_cp_spec ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t s . #'(coco_deref m (coco_m_arg e g 0))) (i64 a . 0))
-          (while (and (coco-tag-is FUN (nth s (-> m heap)))
-                      (and (== (coco_arity m s) 2)
-                           (== 0 (strcmp (coco_atom_name m (coco_name_of m s)) ":"))))
+              (size_t s0 . #'(coco_deref m (coco_m_arg e g 0)))
+              (size_t s . s0) (i64 a . 0))
+          (while (coco_is_compound2 m s ":")
+            (let ((size_t md . #'(coco_deref m (coco_arg m s 0))))
+              (if (and (not (coco_m_is_var e md)) (not (coco_m_is_atom e md)))
+                  (return (coco_m_type_error e "atom" md)))
+              (set s (coco_deref m (coco_arg m s 1)))))
+          (if (not (coco_m_is_var e s))
+              (block
+                (if (not (coco_is_compound2 m s "/"))
+                    (return (coco_m_type_error e "predicate_indicator" s0)))
+                (let ((size_t n . #'(coco_deref m (coco_arg m s 0)))
+                      (size_t ar . #'(coco_deref m (coco_arg m s 1))))
+                  (if (and (not (coco_m_is_var e n)) (not (coco_m_is_atom e n)))
+                      (return (coco_m_type_error e "predicate_indicator" s0)))
+                  (if (not (coco_m_is_var e ar))
+                      (block (if (not (coco_m_int e ar (aof a)))
+                                 (return (coco_m_type_error e "predicate_indicator" s0)))
+                             (if (< a 0)
+                                 (return (coco_m_domain_error e "not_less_than_zero" ar)))
+                             (if (> a 2147483647)
+                                 (return (coco_m_type_error e "predicate_indicator" s0))))))))
+          (set s s0)
+          (while (coco_is_compound2 m s ":")
             (let ((size_t md . #'(coco_deref m (coco_arg m s 0))))
               (if (coco_m_is_var e md)
-                  (block (if (not (coco_m_unify e md (coco_new_atom m "user"))) (return 0)))
-                  (if (not (coco_m_is_atom e md)) (return (coco_m_type_error e "atom" md))))
+                  (if (not (coco_m_unify e md (coco_new_atom m "user"))) (return 0)))
               (set s (coco_deref m (coco_arg m s 1)))))
-          (if (coco_m_is_var e s) (return (coco_m_unify e (coco_m_arg e g 1) s)))
-          (if (or (not (coco-tag-is FUN (nth s (-> m heap))))
-                  (or (!= (coco_arity m s) 2)
-                      (!= 0 (strcmp (coco_atom_name m (coco_name_of m s)) "/"))))
-              (return (coco_m_type_error e "predicate_indicator" s)))
-          (let ((size_t n . #'(coco_deref m (coco_arg m s 0)))
-                (size_t ar . #'(coco_deref m (coco_arg m s 1))))
-            (if (and (not (coco_m_is_var e n)) (not (coco_m_is_atom e n)))
-                (return (coco_m_type_error e "predicate_indicator" s)))
-            (if (not (coco_m_is_var e ar))
-                (block (if (not (coco_m_int e ar (aof a)))
-                           (return (coco_m_type_error e "predicate_indicator" s)))
-                       (if (< a 0)
-                           (return (coco_m_domain_error e "not_less_than_zero" ar))))))
           (return (coco_m_unify e (coco_m_arg e g 1) s))))
+
+  ;;; '$cp_defined'(Name/Arity), current_predicate/1 named whole (3.31.0),
+  ;;; after '$cp_spec'/2 made it an atom and an integer: a predicate of the
+  ;;; system's, or one the program defines (`coco_pred_current'), as
+  ;;; swipl's answers for module system's through user's import of it --
+  ;;; atom_length/2, call/1, format/2 -- where through 3.30.0 the clause
+  ;;; looked the name up in the list of the program's alone, which it made
+  ;;; at every call.
+  (func coco_b_cp_defined ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t s . #'(coco_deref m (coco_m_arg e g 0))) (i64 a . 0))
+          (if (not (coco_m_int e (coco_arg m s 1) (aof a))) (return 0))
+          (return (coco_pred_current (-> e st) m (coco_name_of m (coco_deref m (coco_arg m s 0)))
+                                     (cast u32 a)))))
 
   ;;; '$ops'(P, T, N, L): THE OPERATORS current_op(P, T, N) CAN ANSWER, as
   ;;; `op(Priority, Type, Name)': those its bound arguments name and no

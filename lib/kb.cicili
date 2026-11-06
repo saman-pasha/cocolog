@@ -2217,6 +2217,16 @@
   ;;; (`taken', 3.1.0): 0 at once while none is.
   (decl) (func coco_pred_taken ((coco_store * st) (u64 name) (u32 arity)) (out int))
 
+  ;;; WHAT current_predicate/1 ANSWERS OF NID/N NAMED WHOLE (3.31.0), and so
+  ;;; a read's `:- if(current_predicate(Name/Arity))': 1 for a predicate the
+  ;;; system defines -- a row of the engine, or what the claims hook names,
+  ;;; a construct or a compiled-in module's row: what predicate_property/2
+  ;;; calls built_in -- as swipl's answers for its system's through user's
+  ;;; import of it; else 1 for one the program defines, a clause or a
+  ;;; declaration and not a library's, as '$predicates'/1 lists it.
+  (decl) (func coco_pred_current ((coco_store * st) (coco_machine * m) (u64 nid) (u32 n))
+               (out int))
+
   ;;; Ends the process from inside a load with CODE -- SWI's halt, which
   ;;; stops the load where it stands -- after the store's `on_halt', when it
   ;;; has one, has finished the run: KEEP commits what it wrote, as a halt
@@ -2323,6 +2333,21 @@
           ;; a construct a program cannot take over: 0, as before
           (if (and (< row 0) (coco_is_construct m nid)) (return 0))
           (return 1)))
+
+  (func coco_pred_current ((coco_store * st) (coco_machine * m) (u64 nid) (u32 n)) (out int)
+        ;; a fresh machine's first consult comes before its first step,
+        ;; which is where the engine's names are interned otherwise: the
+        ;; libraries read at start-up ask before any
+        (if (not (-> m ids_ready)) (coco_ids_fill m))
+        (if (or (>= (coco_builtin_index m nid n) 0)
+                (and (!= coco_claims_hook nil) (coco_claims_hook (coco_atom_name m nid) n)))
+            (return 1))
+        (coco_store_warm st)
+        (let ((size_t pi . #'(coco_pred_find st nid n)) (coco_pred * p . nil))
+          (if (>= pi (-> st npreds)) (return 0))
+          (set p (aof (nth pi (-> st preds))))
+          (return (and (or (not (-> p library)) (-> p own))
+                       (or (> (coco_pred_live p) 0) (or (-> p dynamic) (-> p declared)))))))
 
   (func coco_halt_load ((coco_store * st) (int code) (int keep))
         ;; the program's output first: a failed commit says so on stderr

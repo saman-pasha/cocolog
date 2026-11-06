@@ -37,8 +37,28 @@ main :-
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
     update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), jit_runs(D),
+    btree_places,
     shl(['rm -rf ', D]),
     checks_done.
+
+%% ---- '$btree_find_node'/5 where swipl reads past the term (3.31.0) ------
+%% A place equal to a node's arity passes swipl's check, and its walk then
+%% reads the cell past the term (a segmentation fault, or whatever lies
+%% there), so test/files/btree_system.pl cannot ask it. Here the key's place
+%% is a type error, and a subtree's no subtree -- of a node functor/3 made
+%% right before another of its name, whose header is that cell.
+btree_places :-
+    section('\'$btree_find_node\'/5 reads no place past a node'),
+    catch(( '$btree_find_node'(m, t(m, 1, <, t, t), 0x060101, _, _), F1 = answered ),
+          error(F1, _), true),
+    check('the key\'s place equal to the arity is type_error(btree, T)', F1,
+          type_error(btree, t(m, 1, <, t, t))),
+    '$btree_find_node'(z, t(a, 1, 2, 3), 0x010405, N2, A2),
+    check('a subtree\'s place equal to the arity is no subtree', N2-A2, t(a, 1, 2, 3)-(>)),
+    functor(T3, t, 4), functor(U3, t, 4), arg(1, T3, a), arg(1, U3, b),
+    '$btree_find_node'(z, T3, 0x010405, N3, A3),
+    ( N3 == T3 -> R3 = the_node-A3 ; N3 == U3 -> R3 = the_next-A3 ; R3 = other-A3 ),
+    check('...though the cell past it is a node of its name', R3, the_node-(>)).
 
 %% a child `cocolog run FILE main' under a timeout, its last line
 last_line_of(File, Goal, TimeoutMs, Last) :-
@@ -1880,7 +1900,9 @@ compiled(D) :-
     %% implements: swipl raises for the other two, cocolog keeps facts
     %% under a builtin's name (`number(dos)') and leaves a static one so
     catch(retractall(atom(_)), _, true),
-    ( current_predicate(atom/1) -> R3 = declared ; R3 = not_declared ),
+    %% named whole, current_predicate/1 answers for the system's atom/1 too
+    %% (3.31.0); with its arity unbound it walks the program's alone
+    ( current_predicate(atom/A3), A3 == 1 -> R3 = declared ; R3 = not_declared ),
     check('retractall/1 of a builtin\'s name declares nothing', R3, not_declared),
     retractall(cc_static(2)),
     ( predicate_property(cc_static(_), dynamic) -> R4 = dynamic ; R4 = static ),

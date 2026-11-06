@@ -266,6 +266,64 @@
           (if fr (set (-> e nchoices) ci))
           (return 0)))
 
+  ;;; ---- '$btree_find_node'/5 (3.31.0, swipl's pl-btree.c) ----------------
+  ;;;
+  ;;; '$btree_find_node'(+Key, +Tree, +Pos, -Node, -Arg): THE NODE OF A
+  ;;; BALANCED TREE where Key is, or would go -- what swipl's
+  ;;; library(assoc) asks for get_assoc/3, the branch its `:- if' keeps
+  ;;; where current_predicate/1 answers for this. Pos is 65536 * K +
+  ;;; 256 * L + R, the places of a node's key and of its two subtrees,
+  ;;; each a byte counted from 1, the bits above them not read. From Tree
+  ;;; the key is compared in the standard order: equal, Node is the node and
+  ;;; Arg `='; smaller, the left subtree taken, larger the right, while it
+  ;;; is a node of Tree's own name and arity -- else Node is the node the
+  ;;; walk stands on and Arg `<' or `>', the side a new node would go.
+  ;;; swipl's errors in swipl's order: Pos first, as PL_cvt_i_uint reads
+  ;;; it (unbound an instantiation error, no integer type_error(integer,
+  ;;; P), past 32 bits or below 0 representation_error(uint)), then Tree
+  ;;; (unbound an instantiation error, no compound, or one whose arity is
+  ;;; short of a place, type_error(btree, T)). NOT SWIPL'S: a place equal
+  ;;; to the arity, which swipl's check passes and its walk then reads past
+  ;;; the term (0x060101 of a node of five arguments ends swipl with a
+  ;;; segmentation fault): the key's place is a type error here, and a
+  ;;; subtree's no subtree.
+  (static)
+  (func coco_btree_found ((coco_engine * e) (size_t g) (size_t t) (const char * side)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (if (not (coco_unify m (coco_arg m g 3) t)) (return 0))
+          (return (? (coco_unify m (coco_arg m g 4) (coco_new_atom m side)) 1 0))))
+
+  (func coco_bi_btree_find_node ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t pc . #'(coco_a e g 2))
+              (size_t t . #'(coco_a e g 1))
+              (i64 p . 0) (u32 kp . 0) (u32 lp . 0) (u32 rp . 0) (u32 n . 0) (u64 fd . 0))
+          ;; unbound, the type error is an instantiation error
+          (if (not (coco-is-int (nth pc (-> m heap)))) (return (coco_type_error e "integer" pc)))
+          (set p (coco_int_val m (nth pc (-> m heap))))
+          (if (or (< p 0) (> p 4294967295)) (return (coco_representation_error e "uint")))
+          ;; a byte of 0 is place 0 - 1, past every arity, as swipl's
+          (set rp (- (cast u32 (bitand p 255)) 1))
+          (set lp (- (cast u32 (bitand (>> p 8) 255)) 1))
+          (set kp (- (cast u32 (bitand (>> p 16) 255)) 1))
+          ;; no compound has arity 0 here, short of every place, so it is
+          ;; type_error(btree, T) -- and unbound an instantiation error
+          (set n (coco_arity m t))
+          (if (or (>= kp n) (or (< n lp) (< n rp))) (return (coco_type_error e "btree" t)))
+          (set fd (nth t (-> m heap)))
+          ;; the side is named by the place taken, as swipl's `arg == lp':
+          ;; where the two subtrees' places are one, `<' either way
+          (while 1
+            (let ((int d . #'(coco_compare m (coco_arg m g 0) (coco_arg m t kp)))
+                  (u32 a . 0) (size_t c . 0))
+              (if (== d 0) (return (coco_btree_found e g t "=")))
+              (set a (? (< d 0) lp rp))
+              (if (>= a n) (return (coco_btree_found e g t (? (== a lp) "<" ">"))))
+              (set c (coco_deref m (coco_arg m t a)))
+              (if (!= (nth c (-> m heap)) fd)
+                  (return (coco_btree_found e g t (? (== a lp) "<" ">"))))
+              (set t c)))))
+
   ;;; ---- setarg/3 and nb_setarg/3 (1.12.0) --------------------------------
   ;;;
   ;;; THE ARGUMENT CELL ITSELF IS WRITTEN, as SWI writes it: a variable the

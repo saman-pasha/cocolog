@@ -182,7 +182,9 @@ ends are still read from what it is underneath, a portal or a library call.
 the engine: a call to a predicate with no clause fails when it is declared
 dynamic and raises `existence_error` when it is not, and
 `current_predicate/1` answers yes only for a predicate with a clause or a
-declaration (section 11 has why that needed 1.10.3).
+declaration (section 11 has why that needed 1.10.3) -- or, named whole, for
+one of the system's since 3.31.0, which the chart has taken for a builtin
+from its own tables before it asks.
 
 **The tables.** `tools/flow/tables.pl` reads the builtin tables in
 `lib/*.cicili` and each module's dispatch rows in `modules/*/*.cicili` with

@@ -12911,3 +12911,119 @@ units, trace, engine, argv, flowchart, errors, gc, translate, library,
 reason and window. Lessons basics/08 and 13 and library/04, 05, 43, 44,
 46 and 50. The card's cites hold (27 rows, 39 cites; X1's and X3's
 ranges renumbered).
+
+## get_assoc/3 walks the tree in C, and current_predicate/1 answers for the system's, as swipl's (3.31.0)
+
+The vendored library(assoc) has two get_assoc/3s. A `:- if(current_predicate(
+'$btree_find_node'/5))' keeps the one that walks the tree in swipl's C
+(pl-btree.c), and single-sided rules stand in its `:- else' for a system
+without that predicate. swipl takes the first: a term that is no assoc is
+type_error(btree, T) and an unbound one an instantiation error, each with
+context(system:'$btree_find_node'/5, _), a node of any name with five
+arguments is walked, and a subtree of another name ends the walk. cocolog
+took the rules -- its read answered `current_predicate(Name/Arity)' from the
+program's store alone, which held no system predicate -- and a term that was
+no assoc was existence_error(matching_rule, assoc:get_assoc(a, foo, _)), an
+x/5 node too. test/files/library_calls.pl left it out by name.
+
+THE ROW (lib/solve-text.cicili, `coco_bi_btree_find_node'):
+'$btree_find_node'(+Key, +Tree, +Pos, -Node, -Arg), swipl's. Pos is 65536 * K
++ 256 * L + R, the places of a node's key and of its two subtrees counted
+from 1, a byte each, the bits above them not read, and a byte of 0 a place
+past every arity. Pos is read as PL_cvt_i_uint reads it: unbound an
+instantiation error, no integer type_error(integer, P), below 0 or past 32
+bits representation_error(uint); then Tree: unbound an instantiation error,
+no compound, or one whose arity is short of a place, type_error(btree, T).
+From Tree the key is compared in the standard order: equal, Node is the
+node and Arg `='; smaller the left subtree, larger the right, while it is a
+node of Tree's own name and arity -- else Node is where the walk stands and
+Arg the side a new node would go, named by the place taken, as swipl's `arg
+== lp' (where the two places are one, `<' either way). One step and one
+inference, deterministic, its errors the row's own (`*error-contexts*').
+NOT SWIPL'S: a place equal to the node's arity, which swipl's check passes
+and its walk then reads past the term (0x060101 of a node of five arguments
+ends swipl with a segmentation fault): the key's place is type_error(btree,
+T) here, and a subtree's no subtree. COMPAT.md has the row; the one row of
+get_assoc/3 it had is gone.
+
+CURRENT_PREDICATE/1 NAMED WHOLE ANSWERS FOR THE SYSTEM'S (`coco_pred_current',
+lib/kb.cicili): a row of the engine, or what the builtins module's claims
+hook names, a construct or a compiled-in module's row -- what
+predicate_property/2 calls built_in -- as swipl's answers for module
+system's through user's import of it (atom_length/2, call/1, (',')/2,
+format/2, msort/2). Else the program's, a clause or a declaration and no
+library's, as '$predicates'/1 lists them. Its two callers: the clause, whose
+ground branch is `'$cp_defined'/1' now, and the read's `:- if' evaluator
+(`coco_cond_eval', lib/kb-consult.cicili), which through 3.30.0 answered for
+any entry of the store -- a library's predicate, or a name a call had only
+looked up -- so `:- if(current_predicate(ord_union/3))' was true in cocolog
+and false in swipl. Named whole, the clause no longer makes the list of
+every predicate of the program at each call: '$cp_defined'/1 looks the one
+up. A spec with a part unbound walks the program's alone, where swipl's
+walks its system's 1 278 too, and a library's predicate is never answered
+(swipl answers for one the program imported): COMPAT.md, a row of its own.
+test/engine.pl's check that retractall/1 of a builtin's name declares
+nothing asks `current_predicate(atom/A)' now, which walks the program's.
+
+'$CP_SPEC'/2's ERRORS NAME THE SPEC AS IT CAME, as swipl's: its qualifiers
+kept and an unbound module unbound (`current_predicate(_:1/2)' is
+type_error(predicate_indicator, _:1/2), and `user:foo' itself), the modules
+bound to `user' only once the spec is known good; through 3.30.0 they were
+bound first and the error named what was under them. An arity past 2^31 - 1
+is type_error(predicate_indicator, Spec), as swipl's.
+
+THE CASES. test/files/btree_system.pl, 127 lines held to swipl 9.0.4's (3.30.0
+differs at 85): the `:- if' conditions a read decides (the system's
+predicate, a construct, none, the program's own above it, a library's the
+program did not load, a name a call only looked up); get_assoc/3 over an
+assoc of five keys found, missing and with the key unbound, of `t', of
+every kind of term that is no assoc, of x/5 nodes, of a node of four and of
+six arguments, of keys 1 and 1.0; '$btree_find_node'/5 itself, its places
+(0x010405, 0x020103, a list's 0x010202), Node and Arg bound, the bits above
+24, each byte 0, and its errors; current_predicate/1 of the system's,
+constructs, the program's, the qualified, and its errors; and print_message/2
+of three of the errors. test/files/library_calls.pl: get_assoc/3 of a term
+that is no assoc, an unbound one, t/2 and an x/5 node, out of its list of
+what is not compared (407 lines, and the list's dcg/basics line, which
+char_enum.pl holds since 3.30.0, gone). test/engine.pl (`btree_places'): a
+key's place equal to the arity raises, and a subtree's ends the walk, of a
+node functor/3 made right before another of its name.
+
+THE ARMS, a build each, the rule taken out, each red, the case it went red
+in named: the row gone (btree_system and library_calls: the `:- if' kept
+the rules); Pos no integer, Pos past 32 bits, an arity short of a subtree's
+place, a subtree of another name walked, the side named by the direction
+(btree_system); swipl's own check of the key's place, `arity < K', and no
+guard on a subtree's place (the engine's `btree_places': the key's place
+read past the node, and the walk gone on into the node functor/3 made
+beside it); no answer for the system's, no names filled before a read's
+first step (the start-up read of assoc.pl asks before any), no filter of
+the program's (a library's predicate and a name only looked up), the
+read's evaluator as it was, the clause's list as it was, the error's spec
+stripped, the modules bound first, no cap on the arity (btree_system).
+The compound check before the arity's was green -- no compound has arity
+0 to coco_arity, short of every place -- and is gone.
+
+THE COST, tools/flow/zero.sh, work less padding, 3.30.0 to 3.31.0: nrev
+65 996 629 to 65 996 416, queens 40 281 239 to 40 281 066, lookup
+48 097 024 to 48 095 872 -- the step loop is not touched. A start
+(`cocolog query true', the two binaries run from one path: a path of
+another length costs realpath and the loader otherwise) 34 991 023
+instructions to 34 948 954 (-0.12 %): assoc.pl stores one get_assoc/3
+clause where its rules' branch stored six. get_assoc/3 over an assoc of
+10 000 keys, 200 000 lookups, half of them found: 11 345 284 inferences to
+1 600 004 (a compare/3 and a clause a level, against one step for the
+walk), 0.552 s to 0.133 s. current_predicate/1 named whole, 200 000 calls
+in a program of 300 predicates: 1 900 004 inferences to 1 700 004, 2.298 s
+to 0.087 s (the list of every predicate of the program made at each call,
+against one lookup). The times are medians of five alternating pairs.
+
+Narrow cases green (19) on the build before the bump: lint, files,
+engine, units, trace, errors, flowchart, library, gc, directives, string,
+serialize, reason, window, flowdebug, translate, static, script and text;
+and (23) on the final build: lint, files, engine, units, trace, errors,
+flowchart, library, gc, translate, window, argv, directives, reconsult,
+repl, static, stream, cyclic, and the solve, module, state, term and
+syntax binaries. Lessons library/00, 04, 06, 20 and 36 and basics/13. The
+card's cites hold (27 rows, 39 cites; ten cites in nine rows renumbered,
+and T2's why says what current_predicate/1 answers named whole).

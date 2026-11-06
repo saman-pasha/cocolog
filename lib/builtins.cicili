@@ -92,6 +92,7 @@
     ("$skip_list"             3 coco_b_skip_list)
     ("$predicates"             1 coco_b_predicates)
     ("$cp_spec"                2 coco_b_cp_spec)
+    ("$cp_defined"             1 coco_b_cp_defined)
     ("$pred_props"             2 coco_b_pred_props)
     ("$dwim_predicates"        2 coco_b_dwim_predicates)
     ("abolish"                 1 coco_b_abolish)
@@ -512,10 +513,12 @@
            ;; ---- current_predicate/1 ---------------------------------------
            ;; the spec checked first, swipl's (3.0.0, '$cp_spec'/2). Named
            ;; whole, it is a check that leaves no choice point, as swipl's
-           ;; (3.25.0); with a part unbound swipl's leaves one at every
-           ;; answer, its last too, and so does `'$cp_member'/2', the goal
-           ;; first and the list after it
-           "current_predicate(S) :- '$cp_spec'(S, PI), '$predicates'(L), ( ground(PI) -> memberchk(PI, L) ; '$cp_member'(PI, L) )."
+           ;; (3.25.0), and answers for the system's predicates too, as
+           ;; swipl's (3.31.0, '$cp_defined'/1); with a part unbound swipl's
+           ;; leaves one at every answer, its last too, and so does
+           ;; `'$cp_member'/2', the goal first and the list after it, over
+           ;; the program's
+           "current_predicate(S) :- '$cp_spec'(S, PI), ( ground(PI) -> '$cp_defined'(PI) ; '$predicates'(L), '$cp_member'(PI, L) )."
            "'$cp_member'(X, [X|_])."
            "'$cp_member'(X, [_|T]) :- '$cp_member'(X, T)."
            ;; A MEMBER THAT LEAVES NO CHOICE POINT AT ITS LAST ELEMENT
