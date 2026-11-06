@@ -451,8 +451,8 @@ flow_raises_unbound(between, 3, [1], between(_, 3, _)).
 flow_raises_unbound(between, 3, [2], between(1, _, _)).
 flow_raises_unbound(numlist, 3, [1], numlist(_, 3, _)).
 flow_raises_unbound(numlist, 3, [2], numlist(1, _, _)).
-flow_raises_unbound(char_type, 2, [1], char_type(_, alpha)).
-flow_raises_unbound(code_type, 2, [1], code_type(_, alpha)).
+flow_raises_unbound(char_type, 2, [1, 2], char_type(_, _)).
+flow_raises_unbound(code_type, 2, [1, 2], code_type(_, _)).
 flow_raises_unbound(throw, 1, [1], throw(_)).
 flow_raises_unbound(assertz, 1, [1], assertz(_)).
 flow_raises_unbound(asserta, 1, [1], asserta(_)).

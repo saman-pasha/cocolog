@@ -154,9 +154,9 @@ continuation alone* — and −1 when nothing caught it. A predicate writes
 
 The second argument of `error/2` is the **engine's**: SWI puts a
 `context(Module:Name/Arity, Message)` there, and since 3.0.0 so does cocolog
-for a predicate a row of `*error-contexts*` names -- the core builtins and
-the compiled-in modules (`char_type/2`, `length/2`), each as swipl 9.0.4
-names it. **A loadable module's own predicate names its module** (3.0.2),
+for a predicate a row of `*error-contexts*` names -- the core builtins
+(`char_type/2`) and the compiled-in modules (`length/2`), each as swipl
+9.0.4 names it. **A loadable module's own predicate names its module** (3.0.2),
 as swipl names a foreign predicate's errors by the module that defines it:
 a `.so` registered as `md5` whose `md5_hash/3` raises through these helpers
 raises `error(type_error(text, f(x)), context(md5:md5_hash/3, _))`, and an
@@ -1228,8 +1228,10 @@ needed them first.)
 
 ### What was added alongside the ISO core
 
-`format/1,2,3`, `with_output_to/2`, `code_type/2`, `char_type/2`, `must_be/2`
-and `is_of_type/2`.
+`format/1,2,3`, `with_output_to/2`, `must_be/2` and `is_of_type/2`, and
+`code_type/2` and `char_type/2` until 3.30.0 moved them into the engine's
+table, where their walks of the codes and the classes keep a choice point,
+as a C half here cannot.
 
 None of these is ISO. They are here because SWI's `library(dcg/basics)` calls
 them and cocolog is meant to run that file unmodified — and because `format/2`
@@ -1294,7 +1296,10 @@ implementation says letters only. `to_upper(L)` reads as though `L` were the
 uppercase and it is the lowercase — `dcg/basics` depends on that, in
 `alpha_to_lower//1`. `test/files/ctype.pl` walks every code from 0 to 127
 through every category in both systems, which is the only way either of those
-would have been got right.
+would have been got right; and since 3.30.0 `test/files/char_enum.pl` holds
+every class of every code point, the walks of an unbound character or class
+and their errors to swipl 9.0.4 under C.UTF-8, the classes written out from
+it by `tools/ctype/tables.pl`.
 
 **`string/1` answers about a real type now, and the library code it was
 written for still works.** It used to fail always, deliberately, because

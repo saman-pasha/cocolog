@@ -127,6 +127,11 @@
 
     ("functor"      3 coco_bi_functor)
     ("arg"          3 coco_bi_arg)
+    ;; the engine's own since 3.30.0, as arg/3 is: a row that hands its
+    ;; goal to the walk (`coco_walk') where the character or type is
+    ;; unbound -- the builtins module's through 3.29.0
+    ("code_type"    2 coco_bi_code_type)
+    ("char_type"    2 coco_bi_char_type)
     ("setarg"       3 coco_bi_setarg)
     ("nb_setarg"    3 coco_bi_nb_setarg)
     ("=.."          2 coco_bi_univ)
@@ -891,14 +896,16 @@
   ;;; clauses: `pred', `clause_ix', `cend', `fera' and `ixpos' as a clause
   ;;; frame's -- the logical update view's, which `coco_frames_on' keeps --
   ;;; `call' the goal, `goals' what runs after an answer (`coco_db_retry').
-  ;;; An ARG frame (3.29.0) is arg/3's walk of its term's places, its index
-  ;;; unbound: `call' the goal, `goals' what runs after an answer,
-  ;;; `clause_ix' the next place to try (`coco_arg_retry'), `barrier' 0:
-  ;;; what runs after an answer carries its own -- no predicate's, so no
-  ;;; view, no call's and nothing a freeze names.
+  ;;; A WALK frame (3.29.0, arg/3's ARG frame until 3.30.0) is a row's walk
+  ;;; of its answers: arg/3's of its term's places, its index unbound, and
+  ;;; char_type/2's and code_type/2's of the codes or the classes (3.30.0):
+  ;;; `call' the goal, `goals' what runs after an answer, `clause_ix' the
+  ;;; next position to try (`coco_walk_retry'), `barrier' 0: what runs
+  ;;; after an answer carries its own -- no predicate's, so no view, no
+  ;;; call's and nothing a freeze names.
   (enum coco_choice_kind (COCO_CH_CLAUSE . 0) (COCO_CH_GOAL . 1) (COCO_CH_CATCH . 2)
                          (COCO_CH_DEAD . 3) (COCO_CH_CATCH_RETRY . 4) (COCO_CH_SPENT . 5)
-                         (COCO_CH_CLOCKED . 6) (COCO_CH_DB . 7) (COCO_CH_ARG . 8))
+                         (COCO_CH_CLOCKED . 6) (COCO_CH_DB . 7) (COCO_CH_WALK . 8))
 
   (struct coco_choice
     (member int      kind)
@@ -1746,13 +1753,15 @@
                              (int * ok) (int * ret)) (out int))
   (decl) (func coco_db_retry ((coco_engine * e) (size_t ci)) (out int))
 
-  ;;; arg/3 with its index unbound (3.29.0, lib/solve-text.cicili): the
-  ;;; walk its row hands over (`coco_bi_arg' answers -2), of the goal in
-  ;;; flight (`kcall'), K the continuation after it, TPORT its printer (0,
-  ;;; 1 shown, 2 hidden) -- 1 an answer, 0 none, -1 no memory -- and its
-  ;;; ARG frame at CI retried by `coco_backtrack', as a DB frame is
-  (decl) (func coco_arg_walk ((coco_engine * e) (size_t k) (int tport)) (out int))
-  (decl) (func coco_arg_retry ((coco_engine * e) (size_t ci)) (out int))
+  ;;; THE WALK a row hands over by answering -2 (lib/solve-text.cicili):
+  ;;; arg/3's with its index unbound (3.29.0, `coco_bi_arg'), char_type/2's
+  ;;; and code_type/2's with the character or the type unbound (3.30.0,
+  ;;; `coco_bi_ctype'), of the goal in flight (`kcall'), K the
+  ;;; continuation after it, TPORT its printer (0, 1 shown, 2 hidden) -- 1
+  ;;; an answer, 0 none, -1 no memory -- and its WALK frame at CI retried by
+  ;;; `coco_backtrack', as a DB frame is
+  (decl) (func coco_walk ((coco_engine * e) (size_t k) (int tport)) (out int))
+  (decl) (func coco_walk_retry ((coco_engine * e) (size_t ci)) (out int))
 
   ) ; decl-solve
 

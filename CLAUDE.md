@@ -1196,24 +1196,43 @@ cocolint index offers no import of it.
   files, whose predicates then count as defined (`load=` on
   tools/flow/chart.pl), and `progress(S)` (stderr, every S seconds, 10 from
   the command).
-* **Every builtin is deterministic** (arg/3 with its index unbound aside,
-  below), so a failure-driven loop written from habit over one runs it ONCE
-  -- wrong, not slow (`retract(H), fail` was the classic one until 3.28.0
-  made retract/1 a walk that answers again). `once/1`,
-  `ignore/1` and `\+` are control constructs. So `char_type(C, alpha)` with
-  `C` unbound RAISES where SWI enumerates. **arg/3 with its index unbound
-  enumerates** (3.29.0, swipl's foreign arg/3; through 3.28.0 it raised, and
-  library(aggregate)'s free_variables/4 with it): its row answers -2
+* **Every builtin is deterministic** (arg/3, char_type/2 and code_type/2
+  with an argument unbound aside, below), so a failure-driven loop written
+  from habit over one runs it ONCE -- wrong, not slow (`retract(H), fail`
+  was the classic one until 3.28.0 made retract/1 a walk that answers
+  again). `once/1`, `ignore/1` and `\+` are control constructs. **arg/3
+  with its index unbound enumerates** (3.29.0, swipl's foreign arg/3;
+  through 3.28.0 it raised, and library(aggregate)'s free_variables/4 with
+  it): its row answers -2
   (`coco_bi_arg`), and each of the row's three callers -- the step
   (`coco_builtin_call` by the functor's row), an environment's BUILTIN unit
   (`coco_env_place`) and the `:` construct's own call of a row
   (`coco_colon_run`: `system:G` of a name a program file took over,
   test/files/arg_taken.pl) -- hands it to
-  `coco_arg_walk` with the continuation it holds, the goal being `kcall`:
-  the places tried in order, the third argument unified first, an ARG frame
-  (`COCO_CH_ARG`, its barrier 0) kept for the next place while one remains,
-  so an answer short of the last place leaves a choice point whatever the
-  places after it hold, and the last none (test/files/arg_enum.pl). **A new
+  `coco_walk` with the continuation it holds, the goal being `kcall`:
+  the places tried in order, the third argument unified first, a WALK
+  frame (`COCO_CH_WALK`, ARG through 3.29.0, its barrier 0) kept for the
+  next place while one remains, so an answer short of the last place
+  leaves a choice point whatever the places after it hold, and the last
+  none (test/files/arg_enum.pl). **char_type/2 and code_type/2 with the
+  character or the type unbound walk the same way** (3.30.0, swipl 9.0.4's
+  do_char_type; through 3.29.0 they raised): the codes -1 to U+10FFFF
+  (255 for char_type/2 under bytes, whose walk passes the surrogates by)
+  or the 33 classes of swipl's table in its order, csymf twice
+  (`*coco-ct-classes*` in lib/solve-text.cicili), the frame's position
+  packed in its `clause_ix` (`coco-ctw-pos`, bit 48 telling it from
+  arg/3's place). Each class's test and reverse is an expression of
+  `*coco-ct-exprs*`, which DEFMACROs turn into one switch each
+  (`coco_ct_test`, `coco_ct_reverse`), so **a new class is a row and an
+  expression, never a function** -- and its test a keyword (`:alnum`): a
+  row `("name" N word)` is a builtin's to tools/cocolint/build.pl. The
+  classes are swipl's on Linux under C.UTF-8, written out at transpile
+  time from the runs of lib/swipl-ctype.cicili into two-level tables, a
+  page of 128 or 256 codes each (`coco_ct_flags`, `coco_uc_case`, the
+  macros of lib/term.cicili), which tools/ctype/tables.pl generates under
+  the REFERENCE swipl (run it again, never edit the file);
+  test/files/char_enum.pl holds every class of every code point, the walks
+  and the errors to swipl. **A new
   row that hands its goal over answers -2 to those three, asked right beside
   the row's call**: asked after the loop's module seam, beside its -1, the
   walk's call cost the step loop two reloads of the engine a step, and a
@@ -1783,8 +1802,8 @@ cocolint index offers no import of it.
   bytes were through 1.x). A code is a code point, a char one character of
   however many bytes, in the text builtins, the reader (`"..."`, `0'c`),
   format's `~c`, `~s` and codes/chars sinks, char_type/2 (past ASCII as
-  glibc's C.UTF-8 classes them, swipl on Linux: `coco_uc_case`,
-  `coco_uc_letter`, `coco_uc_space` in lib/term.cicili, written out),
+  glibc's C.UTF-8 classes them, swipl on Linux: lib/swipl-ctype.cicili's
+  tables since 3.30.0, every code point's classes and case),
   read/write_file_from_codes, library(stream)'s text streams,
   library(process)'s output, library(text) and the document libraries'
   character references. A byte that is no UTF-8 decodes to U+DC00 plus the
@@ -2079,7 +2098,14 @@ cocolint index offers no import of it.
   root it must be taught. The atom table is never reclaimed.
 * **The atom, functor and predicate tables are hashed** (open addressing, an
   entry its id plus one, kept under half full -- checked BEFORE the probe, so
-  a failed rehash still leaves an empty slot). Ids stay in order of first
+  a failed rehash still leaves an empty slot). **A name's hash is spread
+  before its mask** (3.30.0, `coco_hash`: djb2 times the FNV prime, the
+  high bits folded down, as `coco_name_arity_hash` spreads its word): djb2
+  alone kept short names apart in its high bits only, so the one-character
+  atoms past ASCII fell into runs of neighbouring slots that the linear
+  probe walked at each new one -- 131 072 of them by char_code/2 took 18 s
+  where they take 0.05, and char_type/2's walk did not end in ten
+  minutes (test/engine.pl's `atom_table`). Ids stay in order of first
   use, which a frozen machine relies on; `coco_name_arity_hash` serves the
   functors (`lib/term.cicili`) and the predicates (`lib/kb-pred.cicili`). Each
   table has exactly one writer (`coco_functor_id`, `coco_pred_make`); keep
@@ -2459,9 +2485,9 @@ cocolint index offers no import of it.
   region walk and its search for a `;`'s call (`coco_trace_region`,
   `coco_trace_redo_at`) -- and a new kind goes to all ten (3.28.0's DB
   frame, retract/1's and clause/2's walk, is a choice point to each, a
-  clause frame's view and place, and no call's; 3.29.0's ARG frame, arg/3's
-  walk, a choice point to each and no call's, and a `;`'s GOAL frame where
-  the printer's Redo is). **A frame is a
+  clause frame's view and place, and no call's; 3.29.0's WALK frame, arg/3's
+  walk and since 3.30.0 char_type/2's and code_type/2's, a choice point to
+  each and no call's, and a `;`'s GOAL frame where the printer's Redo is). **A frame is a
   call's by its depth (> 0), never by its goal**:
   a goal can be heap cell 0, and `--trace run F t` printed no Fail for an
   atom goal written first. A Redo reopens only the calls it is inside

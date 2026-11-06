@@ -716,9 +716,10 @@
                     (block (set td (+ (-> e trace_depth) 1)) (coco_trace_port e "Call" td gl)))
                 (set rc (coco_builtin_call e row gl))
                 ;; a row that hands its goal over (3.29.0, arg/3's index
-                ;; unbound): walked with this call's continuation
+                ;; unbound; 3.30.0, char_type/2's and code_type/2's character
+                ;; or type): walked with this call's continuation
                 (if (== rc -2)
-                    (set rc (coco_arg_walk e k (? (> td 0) 1 (? (-> e trace) 2 0)))))
+                    (set rc (coco_walk e k (? (> td 0) 1 (? (-> e trace) 2 0)))))
                 (set found 1))
               (if (!= coco_extern_call nil)
                   (block
@@ -2641,9 +2642,12 @@
                                           (set rc (coco_builtin_call e (cast int (- (-> f0 bix) 2)) g))
                                           ;; -2: a row that hands its goal
                                           ;; over, arg/3's with its index
-                                          ;; unbound (3.29.0), walked here
+                                          ;; unbound (3.29.0), char_type/2's
+                                          ;; and code_type/2's with the
+                                          ;; character or type (3.30.0),
+                                          ;; walked here
                                           ;; where the continuation is known
-                                          ;; (`coco_arg_walk', out of line):
+                                          ;; (`coco_walk', out of line):
                                           ;; its answer is the row's, its
                                           ;; ports the row's. Asked beside
                                           ;; the row's call, the only path
@@ -2652,7 +2656,7 @@
                                           ;; there, the walk's call moved the
                                           ;; loop's registers (two reloads a
                                           ;; step, `tools/flow/zero.sh')
-                                          (if (== rc -2) (set rc (coco_arg_walk e k tport))))
+                                          (if (== rc -2) (set rc (coco_walk e k tport))))
                                    (set found 0)))
                              ;; passed by where a program file took the name
                              ;; over (3.1.0), as a functor keeps no row then

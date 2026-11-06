@@ -187,6 +187,9 @@
   (import "./lib/zeytun.cicili" :zt)
   ;; sig_atomic_t, for the engine's halted cell and the signal library
   (include <signal.h>)
+  ;; every code point's classes and other case, the tables term.cicili's
+  ;; macros make (3.30.0)
+  (import "./lib/swipl-ctype.cicili")
   (import "./lib/term.cicili")
   (import "./lib/term-walk.cicili")
   (import "./lib/syntax.cicili")
@@ -413,7 +416,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.29.0"))
+  (func coco_version_text () (out const char *) (return "3.30.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"

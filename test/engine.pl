@@ -33,7 +33,7 @@
 
 main :-
     scratch(D),
-    linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
+    linear_backtracking(D), deep_recursion(D), atom_table(D), sorting(D), any_argument(D), still_the_answers,
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
     update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), jit_runs(D),
@@ -87,6 +87,24 @@ deep_recursion(D) :-
                  'main :- count(500000), write(done), nl.' ]),
     last_line_of(F, main, 30000, G),
     check('500000 deep deterministic recursion still finishes', G, done).
+
+%% THE ATOM TABLE STAYS A HASH (3.30.0). Its probe is linear, and the name's
+%% djb2 alone put the names of one character past ASCII -- two to four
+%% bytes that differ in the last -- into runs of neighbouring slots, so each
+%% new one walked its run: 131 072 of them took 18 s, and char_type(C,
+%% to_lower(_)) over every code point did not end in ten minutes. The hash
+%% is spread (`coco_hash'), and the two take 0.05 s and 0.6 s.
+atom_table(D) :-
+    section('one-character atoms past ASCII are interned in linear time'),
+    atom_concat(D, '/atoms.pl', F1),
+    fixture(F1, ['main :- findall(A, ( between(0x10000, 0x2FFFF, C), char_code(A, C) ), L),',
+                 '        length(L, N), write(N), nl.']),
+    last_line_of(F1, main, 10000, G1),
+    check('131072 atoms of one character each', G1, '131072'),
+    atom_concat(D, '/walk.pl', F2),
+    fixture(F2, ['main :- aggregate_all(count, char_type(_, to_lower(_)), N), write(N), nl.']),
+    last_line_of(F2, main, 60000, G2),
+    check('and char_type/2 walks every code point but the surrogates, an atom each', G2, '1112064').
 
 %% sort/4 was an insertion sort -- "n is small in every use this has" --
 %% and keysort/2 is sort/4 at key 1, so a keysort was quadratic: 20 000
@@ -1777,6 +1795,8 @@ update_view(D) :-
         '           uv_spin(300), fail ; true ),',
         '         findall(Y, q(Y), L), write(L), nl.',
         'awalk :- ( arg(N, f(a, b, c, d), X), write(N-X), nl, uv_spin(300), fail ; true ), write(done), nl.',
+        'twalk :- ( char_type(C, digit(W)), format("~w~n", [C-W]), uv_spin(300), fail ; true ), write(done), nl.',
+        'kwalk :- ( code_type(0''a, T), format("~w~n", [T]), uv_spin(300), fail ; true ), write(done), nl.',
         'uv_spin(0) :- !.',
         'uv_spin(N) :- M is N - 1, uv_spin(M).'
     ]),
@@ -1796,13 +1816,18 @@ update_view(D) :-
     check('a clause retracted under a call the run cuts away is gone for the next process', O3, '[1,3,4]\n'),
     %% A WALK OF retract/1's OR clause/2's IS SUCH A CALL (3.28.0): its DB
     %% frame keeps the predicate, its place and its horizon through a freeze
-    %% as a clause frame does (lib/state.cicili's `C' and `L'); and arg/3's
-    %% walk of its term's places (3.29.0), its ARG frame its next place
-    findall(G4-O4, ( member(G4, [rwalk, cwalk, awalk]), uv_whole(C, D, F1, G4, O4) ), L4),
-    check('retract/1 and clause/2 walk the clauses that stood when they began, arg/3 its places', L4,
+    %% as a clause frame does (lib/state.cicili's `C' and `L'); arg/3's
+    %% walk of its term's places (3.29.0) its WALK frame its next place, and
+    %% char_type/2's of the codes and code_type/2's of the classes (3.30.0)
+    %% the code or the class (an answer's line written in one step: a turn
+    %% stopped between write/1 and nl/0 puts its report on the open line)
+    findall(G4-O4, ( member(G4, [rwalk, cwalk, awalk, twalk, kwalk]), uv_whole(C, D, F1, G4, O4) ), L4),
+    check('retract/1 and clause/2 walk the clauses that stood when they began, arg/3 its places, char_type/2 the codes, code_type/2 the classes', L4,
           [rwalk-'1\n2\n3\n4\n[9]\n', cwalk-'1\n2\n3\n4\n[2,3,4,9]\n',
-           awalk-'1-a\n2-b\n3-c\n4-d\ndone\n']),
-    findall(G5-O5, ( member(G5, [rwalk, cwalk, awalk]), uv_stepped(C, D, F1, G5, O5) ), L5),
+           awalk-'1-a\n2-b\n3-c\n4-d\ndone\n',
+           twalk-'0-0\n1-1\n2-2\n3-3\n4-4\n5-5\n6-6\n7-7\n8-8\n9-9\ndone\n',
+           kwalk-'alnum\nalpha\ncsym\ncsymf\nprolog_atom_start\nprolog_identifier_continue\ncsymf\nascii\nprint\ngraph\nlower\nlower(65)\nto_lower(65)\nto_upper(97)\nxdigit(10)\ndone\n']),
+    findall(G5-O5, ( member(G5, [rwalk, cwalk, awalk, twalk, kwalk]), uv_stepped(C, D, F1, G5, O5) ), L5),
     check('...and thawed at every 50 inferences, the walk goes on where it stood', L5, L4).
 
 %% the goal run whole, on an embedded store of its own

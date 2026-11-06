@@ -42,6 +42,7 @@
 
   ;; sig_atomic_t, for the engine's halted cell (2.6.0)
   (include <signal.h>)
+  (import "../lib/swipl-ctype.cicili")
   (import "../lib/term.cicili")
   (import "../lib/term-walk.cicili")
   (import "../lib/syntax.cicili")

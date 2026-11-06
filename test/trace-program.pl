@@ -74,3 +74,13 @@ ag1(N) :- arg(N, f(a, b, a), a).
 ag2(X) :- arg(N, f(a, b), X), N > 1.
 ag3 :- arg(_, f(a, b), c).
 ag4(N) :- arg(N, f(a, b), b).
+
+%% CHAR_TYPE/2 AND CODE_TYPE/2 WITH AN ARGUMENT UNBOUND walk the codes or
+%% the classes (3.30.0), as swipl's do_char_type: an answer before the last
+%% code or class is a choice point, its retry the call's Redo, and the last
+%% class leaves none (xdigit/1 is the table's last row); a class whose test
+%% fails for a bound character is a plain Fail, no walk.
+ct1(T) :- char_type('(', T), T = paren(_).
+ct2(C) :- code_type(C, digit(W)), W > 8.
+ct3 :- code_type(0'a, upper(_)).
+ct4(T) :- code_type(0'7, T), T = xdigit(_).

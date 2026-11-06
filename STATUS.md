@@ -12761,3 +12761,153 @@ binaries; lessons basics/09 and 12 and library/04 and 05, which call arg/3
 or must_be/2; test/files/det_names.pl's library(error) frames swipl's. The
 card's cites hold (27 rows, 39 cites; X3's range and three cites
 renumbered for the new lines).
+
+## char_type/2 and code_type/2 walk the codes and the classes, as swipl's (3.30.0)
+
+3.29.0's check of the vendored libraries left one thing under them that
+was not swipl's: char_type/2 and code_type/2 with the character or the
+type unbound, which swipl enumerates and cocolog refused, and with them
+the grammars over them on an unbound list (dcg/basics' digit//1 under
+dcg/high_order's sequence//2). Both are swipl 9.0.4's do_char_type()
+(pl-ctype.c) now, read from its source and held to its answers.
+
+THE ROW (lib/solve-text.cicili, `coco_bi_ctype'): the two predicates are
+rows of the engine's table (lib/solve.cicili), out of the Builtins module,
+whose C half could answer only once. Both arguments unbound is
+instantiation_error and a type none of the table's names
+type_error(char_type, T), each with `context(char_type/2, _)', the one C
+function's own name, for code_type/2 too. The character is read as
+PL_get_char() reads one (`coco_ct_getc'): an integer from 0 to U+10FFFF,
+-1 or `end_of_file' -- which answers `end_of_file' before any type is
+asked, so code_type(-1, foo) fails -- or a text of one character (one byte
+under bytes); an integer past U+10FFFF that a C int holds is
+domain_error(character, N), anything else type_error(character, T), named
+system:code_type/2 or system:char_type/2. Both bound, the test; a class
+with an argument has its value unified, and where that fails "the other
+way around", as swipl tries it: the argument's reverse, so
+code_type(0'a, to_lower(0'a)) is true though to_lower(U) of `a' is `A'.
+The character unbound and the argument bound, the reverse alone, and no
+walk: code_type(C, upper(0'a)) is C = 0'A. Anything else unbound answers
+-2, and the row's caller hands the goal on, as arg/3's does.
+
+THE WALK (`coco_walk', `coco_walk_retry', `coco_ct_from'; arg/3's
+`coco_arg_walk' and `coco_arg_retry' of 3.29.0 made one, and its ARG frame
+the WALK frame, `COCO_CH_WALK'): the codes -1 to U+10FFFF, or the 33 rows
+of swipl's char_types[] in its order, csymf twice; an answer short of the
+last code or the last class leaves the frame, whatever comes after it, and
+the last none (xdigit/1 is the table's last row). char_type/2 under
+characters passes the 2048 surrogates by, as char_code/2 refuses to make
+one in both systems (swipl's walk answers '\uD800'), and under bytes its
+characters are the bytes 0 to 255. The position is packed in the frame's
+`clause_ix' (`coco-ctw-pos': bit 48 says it is char_type/2's or
+code_type/2's, where arg/3's holds a place, bit 41 char_type/2's, bit 40 a
+walk of the classes, bits 32 to 39 the class, the low 32 bits the code
+plus one), so a freeze writes it as it stands and a thaw makes it again.
+One step and one inference, as the row's call is; the ports a traced
+builtin's, a retry the call's Redo.
+
+THE CLASSES ARE SWIPL'S, EVERY CODE POINT'S. Through 3.29.0 they were the
+scripts a program here meets, written out by hand (`coco_uc_letter',
+`coco_uc_space', `coco_uc_case', 250 lines), and over the 1 114 112 code
+points they answered otherwise than swipl's under C.UTF-8 for 925 551: an
+unassigned code point was punct, graph, print and prolog_symbol (824 718,
+U+0378 the first), 98 112 letters were no alpha (U+02B0's modifier letters
+the first), 1 344 capitals and 1 903 small letters no case (U+0180,
+U+0181), 810 lower-to-upper and 795 upper-to-lower maps another code, and
+paren(C) knew no character of a bracket. tools/ctype/tables.pl, run by the
+REFERENCE swipl under C.UTF-8 (`swipl -q -g main -t halt
+tools/ctype/tables.pl > lib/swipl-ctype.cicili': run it again, never edit
+the file), asks swipl every class of every code point -- eleven bits:
+alpha, upper, lower, print, space, cntrl, prolog_var_start,
+prolog_atom_start, prolog_identifier_continue, prolog_symbol, decimal, and
+a decimal's weight -- and checks that the classes swipl derives are what
+it derives (alnum alpha or 0-9, csym alnum or `_', csymf alpha or `_',
+graph print and not space, punct graph and not alnum), and towupper/
+towlower, as runs: 1 708 runs of the bits, 174 and 157 of the two case
+maps, 66 of the decimals, 549 lines. At transpile time DEFMACROs of
+lib/term.cicili turn the runs into two-level tables with their pages
+shared (`coco-ct-emit-flags': u16 bits in pages of 128 codes;
+`coco-ct-emit-case': u8 indices into 173 distinct deltas, in pages of 256),
+`coco_ct_flags' and `coco_uc_case', and the classes are expressions over
+those bits (`*coco-ct-exprs*') that two more DEFMACROs turn into one switch
+each, `coco_ct_test' and `coco_ct_reverse' -- 33 classes, no function a
+class. upcase_atom/2, downcase_atom/2, string_upper/2, string_lower/2
+and sub_atom_icasechk/3's fold ask `coco_uc_case' too, and are exact past
+the scripts the hand had: swipl's own upcase_atom/2 of `µ' or `ÿ' under
+C.UTF-8 aborts on an assertion (`c <= 0xff' in modify_case_atom()), which
+is not copied. The binary grew 1 796 440 bytes to 1 895 064. Not swipl's
+(COMPAT.md, its row rewritten): period and quote past ASCII, which
+swipl's strchr() over a truncated code also calls U+0100, U+3000 and
+17 402 more each; the walk's surrogates; the NUL as a character, '' here
+as char_code/2 makes it.
+
+THE ATOM TABLE'S HASH IS SPREAD (`coco_hash', lib/term.cicili): djb2, then
+times the FNV prime and its high bits folded down into the low ones the
+table's mask keeps, as `coco_name_arity_hash' spreads its word. djb2 alone
+kept short names apart in its high bits only, so the one-character atoms
+past ASCII -- two to four bytes that differ in the last -- fell into runs
+of neighbouring slots that the linear probe walked at each new atom:
+131 072 of them by char_code/2 took 18 s where they take 0.05, and
+char_type(C, to_lower(_)), an atom an answer, did not end in ten minutes
+(it takes 0.6 s).
+
+THE CASES. test/files/char_enum.pl, 243 lines held to swipl 9.0.4's under
+C.UTF-8 (3.29.0 differs at 5, and on 183): every bound pair the edges ask
+-- the integers at and past U+10FFFF and 2^31, -1 and -2, texts of one
+character and of two, end_of_file, each class with its argument bound and
+unbound, the other way around -- each answer with its determinism; walks
+of the codes and of the classes, inside a disjunction, a negation,
+findall/3, call/N and a module's qualifier; dcg/basics' generators on an
+unbound list (digit//1, xdigit//1, nonblank//1, xdigits//1); and the
+digests -- count, sum and a weighted hash -- of every class over every
+code point, period and quote below 128, the characters of three classes,
+the determinism of three walks' last answers, and upcase_atom/2 and
+downcase_atom/2 of every character but the NUL, the surrogates and the
+two swipl aborts on.
+test/units.pl: char_type/2's walk passes the surrogates, code_type/2's does
+not, and under bytes the walk is the 256 bytes and the letters ASCII's 52.
+test/engine.pl: 131 072 one-character atoms within ten seconds and the
+whole walk within a minute (`atom_table'), and a walk of the codes and one
+of the classes thawed at every 50 inferences go on where they stood.
+test/trace.pl: six queries more held to swipl's ports (a walk of the codes
+and of the classes, their Redos, the last class's Exit with no choice
+point, a class that fails with no walk, and a walk inside a predicate that
+hides its children). library/flow/modes.pl: the refusal rows are the two
+unbound arguments' alone. Lesson basics/13 walks the classes of `a', the
+ten digits and the capitals of every script (1 982, swipl's count).
+
+THE ARMS, a build each, the rule taken out, each red, the case it went red
+in named: the row raising as through 3.29.0 (char_enum), every answer the
+last (char_enum, five trace queries), the last code or class keeping the
+frame (char_enum's determinism: swipl's ports do not show it), no retry
+(char_enum, five trace queries), csymf once (char_enum), no "other way
+around" (char_enum), the end of the input asked after the type
+(char_enum), no domain error past U+10FFFF (char_enum), an unknown type
+passed on as class -1 (char_enum), both unbound no instantiation error
+(char_enum), 3.29.0's hand-written case maps (char_enum's digests), the
+surrogates walked (units), the walk past 255 under bytes (units), the hash
+unspread (engine: both atom_table checks), and 3.29.0's refusal rows put
+back in library/flow/modes.pl (flowchart).
+
+THE COST, tools/flow/zero.sh, work less padding, 3.29.0 to 3.30.0: nrev
+65 996 348 to 65 996 634, queens 40 280 709 to 40 281 239, lookup
+48 088 677 to 48 096 806 -- four instructions a hash in `coco_intern_len',
+where `coco_hash' is inlined, for the atoms lookup's facts name. A start
+(`cocolog query true') 34 908 931 instructions to 35 106 635 (+0.57 %):
+the hash +57 456, and __strcmp_avx2 +144 050 at the reader's operator
+lookups, whose calls are as many (the strings' places, not settled
+further). The translator: test/translate.pl's sections up to
+newspaper_units 308 310 484 inferences on 3.29.0 and 308 310 478 on
+3.30.0, every check green on both.
+
+Narrow cases green (44) on the build before the bump: lint, files,
+engine, trace, units, errors, gc, flowchart, library, string, serialize,
+script, text, cyclic, reason, translate, normalise, window, flowdebug,
+directives, argv, static, stream, repl, reconsult, meter, backtrace,
+journal, rationals, template, hex, astar, process, os, signal, async,
+cowork, thread, and the term, syntax, solve, state, module and shared
+binaries (shared with a server up); and on the final build lint, files,
+units, trace, engine, argv, flowchart, errors, gc, translate, library,
+reason and window. Lessons basics/08 and 13 and library/04, 05, 43, 44,
+46 and 50. The card's cites hold (27 rows, 39 cites; X1's and X3's
+ranges renumbered).

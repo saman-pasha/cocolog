@@ -87,10 +87,12 @@ gd(X) :- nd2(X).
 %% call's Redo, once it has exited
 nr(X) :- retract(rq(X)).
 na(X) :- arg(_, f(1, 2, 3), X).
+nk(C) :- code_type(C, digit(_)).
 :- set_prolog_flag(generate_debug_info, true).
 vd(X) :- gd(X).
 ur(X) :- nr(X), X > 1.
 ua(X) :- na(X), X > 1.
+uk(C) :- nk(C), C > 0'8.
 %% and false again to the end: the file's end puts the flag back, so a file
 %% read after this one is the program's (test/trace.pl, the second file)
 :- set_prolog_flag(generate_debug_info, false).

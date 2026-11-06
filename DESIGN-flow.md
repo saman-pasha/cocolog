@@ -710,9 +710,11 @@ says which builtins raise when given which arguments unbound, 58 rows, each
 with an example the case calls and requires to raise. It is not the mode
 table: that one's `+` says INPUT, and `write(X)` and `format(F, X)` take an
 unbound `X` happily. It was checked against the engine rather than written
-from SWI's manual: cocolog's `char_type(_, _)` raises where SWI enumerates
-(every builtin here is deterministic; `arg(_, f(a), _)` did too, until
-3.29.0 gave arg/3 swipl's walk of its places), and through
+from SWI's manual: cocolog's `char_type(_, _)` raises, as SWI's does, and
+`char_type(_, alpha)` raised too where SWI enumerates until 3.30.0 gave
+char_type/2 and code_type/2 swipl's walks (every builtin here is
+deterministic; `arg(_, f(a), _)` raised as well, until 3.29.0 gave arg/3
+swipl's walk of its places), and through
 1.10.5 its `assertz(_)`, `retract(_)` and `arg(1, _, _)` failed and `_ =..
 _` ended the program where SWI raises -- fixed in 1.10.6 (section 11), when
 those took their rows.
@@ -1485,11 +1487,12 @@ from a session that used the library on `library/reasoning/translate.pl`:
   a goal and send it on to the store, so `assertz(findall(a, b, c))`
   succeeds where SWI refuses it. `arg/3` raises for an unbound or atomic term
   and an index that is not an integer, and domain_error for one below 0.
-  `test/files/catch.pl` holds all of it to SWI's answers. One mode stays
-  apart: `char_type(C, alpha)` with `C` unbound raises where SWI
-  enumerates, since every builtin here is deterministic; `arg(N, f(a, b),
-  A)` with `N` unbound raised too, until 3.29.0 made it swipl's walk of
-  the places (test/files/arg_enum.pl).
+  `test/files/catch.pl` holds all of it to SWI's answers. No mode stays
+  apart now: `arg(N, f(a, b), A)` with `N` unbound raised, every builtin
+  here being deterministic, until 3.29.0 made it swipl's walk of the
+  places (test/files/arg_enum.pl), and `char_type(C, alpha)` with `C`
+  unbound until 3.30.0 made char_type/2 and code_type/2 swipl's walks of
+  the codes and the classes (test/files/char_enum.pl).
 * **Fixed in 1.10.3: `current_predicate/1` answered for any name a call or
   `clause/2` had looked up.** Both make an entry in the store's predicate
   table, and `'$predicates'/1` listed every entry, so a name that raises

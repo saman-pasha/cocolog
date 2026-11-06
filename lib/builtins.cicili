@@ -122,9 +122,6 @@
     ("format"                  3 coco_b_format3)
     ("flush_output"            0 coco_b_flush)
 
-    ("code_type"               2 coco_b_code_type)
-    ("char_type"               2 coco_b_char_type)
-
     ("op"                      3 coco_b_op)
     ("$ops"                    4 coco_b_ops)
     ("$op_spec"                3 coco_b_op_spec)
