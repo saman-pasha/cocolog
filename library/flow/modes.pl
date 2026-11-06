@@ -51,6 +51,7 @@ flow_mode(plus, 3, ['?', '?', '?'], semidet).
 flow_mode(functor, 3, ['+', '-', '-'], det).
 flow_mode(functor, 3, ['-', '+', '+'], det).
 flow_mode(arg, 3, ['+', '+', '?'], semidet).
+flow_mode(arg, 3, ['-', '+', '?'], nondet).
 flow_mode(setarg, 3, ['+', '+', '?'], semidet).
 flow_mode(nb_setarg, 3, ['+', '+', '?'], semidet).
 flow_mode('=..', 2, ['+', '-'], det).
@@ -422,7 +423,6 @@ flow_raises_unbound(name, 2, [1, 2], name(_, _)).
 flow_raises_unbound(split_string, 4, [1], split_string(_, "", "", _)).
 flow_raises_unbound(functor, 3, [1, 3], functor(_, f, _)).
 flow_raises_unbound(functor, 3, [1, 2], functor(_, _, 2)).
-flow_raises_unbound(arg, 3, [1], arg(_, f(a), _)).
 flow_raises_unbound(arg, 3, [2], arg(1, _, _)).
 flow_raises_unbound(setarg, 3, [1], setarg(_, f(a), b)).
 flow_raises_unbound(setarg, 3, [2], setarg(1, _, b)).

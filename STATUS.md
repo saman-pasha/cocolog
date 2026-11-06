@@ -12608,3 +12608,156 @@ the solve, state and module binaries; lessons basics/07, 09 and 11 and
 library/04, 05, 37, 43, 46 and 54; test/files/retract_view.pl and
 update_view.pl under COCOLOG_GC_CELLS=2000 and the freeze's torture
 (KMAT 1 and 2), swipl's text each time.
+
+## arg/3 walks its places, and library(error) is swipl's: the vendored libraries answer as swipl's (3.29.0)
+
+The vendored libraries (lib/swipl: aggregate, assoc, ordsets, pairs,
+ugraphs, yall, dcg/basics, dcg/high_order) are swipl's own files, so where
+they answer otherwise than swipl's the cause is the engine under them.
+Each was called through its exports by swipl 9.0.4 and by cocolog -- the
+modes a caller uses and the ones it should not, every answer with whether
+it left a choice point, or the error -- and two things under them were not
+swipl's. Nothing was imported that was not there.
+
+ARG/3 WITH ITS INDEX UNBOUND ENUMERATES, as swipl's foreign arg/3: the
+term's places are tried in order, the third argument unified first and
+then the index, and an answer short of the last place leaves a choice point
+whatever the places after it hold; the last place leaves none. Through
+3.28.0 it raised instantiation_error, and library(aggregate)'s
+free_variables/4, whose var_in_term/2 walks a term with `arg(_, T, A)',
+raised with it.
+
+THE WALK (lib/solve-text.cicili, `coco_arg_walk', `coco_arg_retry'): a C
+builtin answers once, so the row hands its goal over (`coco_bi_arg'
+answers -2) and its caller -- the step's call by the functor's row, an
+environment's BUILTIN unit (`coco_env_place'), the `:' construct's own call
+of a row (`coco_colon_run': `system:G' of a name a program file took over)
+-- walks it with the continuation it holds, the goal
+being `kcall', which the row's call set. A term of two places or more
+pushes an ARG frame (`COCO_CH_ARG'): the goal, the continuation, the next
+place in `clause_ix', its barrier 0 -- an answer goes on to the
+continuation, whose goals carry their own. `coco_backtrack' retries it, and
+the last place pops it before it is tried. One step and one inference, as
+the row's call was; the ports a traced builtin's, a retry the call's Redo
+with the goal as it was called, or the Redo of the call a hidden walk is in
+(`coco_trace_redo_at', as a DB frame's). A freeze writes it as any frame,
+its next place as it stands, and a thaw makes it again.
+
+LIBRARY(ERROR) IS SWIPL 9.0.4'S (the Prolog half of lib/builtins.cicili):
+must_be/2 asks has_type/2 -- a clause a type, in swipl's order, a table a
+library extends (library(assoc)'s `error:has_type(assoc, X)' joins it, one
+namespace) -- and then says why not as swipl's is_not/2 does: an unbound
+value or a partial list an instantiation error, a list of the wrong things
+its first wrong element's error, an improper list a type error naming
+list(Of), `var' an uninstantiation error, `cyclic' and `acyclic' domain
+errors, a value a ground type holds unbound an instantiation error, a type
+no clause names existence_error(type, T). is_of_type/2 asks has_type/2
+alone. `stream' asks library(stream)'s is_stream/1 where it is loaded, and
+`dict', which cocolog has none of, holds of nothing. Through 3.28.0 a table
+of cocolog's own: must_be(assoc, A) raised type_error(assoc, A) of an
+assoc and is_of_type(assoc, A) failed (no has_type/2 was asked, which
+assoc.pl extends), a partial list was type_error(list, L) where swipl's is
+an instantiation error -- which ord_intersection/2 of a partial list of
+lists and a lambda's partial parameters met -- an unknown type
+type_error(T, X), and an unbound type was read as `any'. Each helper names
+its frame by swipl's name (`*frame-contexts*': error:is_not/2,
+error:not_a_list/2, error:element_types/2, ...).
+
+WHAT IS LEFT (COMPAT.md: three rows, and one extended). get_assoc/3 of a
+term that is no assoc, which swipl's C '$btree_find_node'/5 refuses with
+type_error(btree, T) and cocolog's copy of the library's own rules with
+existence_error(matching_rule, assoc:get_assoc(K, T, V)). char_type/2 and
+code_type/2 with the character or the type unbound, which swipl enumerates
+and cocolog refuses, and the grammars over them on an unbound list
+(dcg/basics' digit//1 under dcg/high_order's sequence//2). A search that
+never ends (ord_memberchk(a, L) with L unbound, pairs_keys_values/3 in
+findall/3), which swipl stops at its stack limit and cocolog when memory is
+refused -- four such probes run with no limit were killed by the kernel
+beside three builds while this was checked. A meta-argument in an error's
+culprit, `user:G' in swipl's (map_assoc/2's, a lambda's). Two the probes
+met were rows already: `"..."''s default, and integers past 64 bits --
+where COMPAT.md and CLAUDE.md said number_codes/2 fails for such a numeral,
+which it raises syntax_error(illegal_number) for, as number_chars/2 does;
+atom_number/2 fails. A code past ASCII is classed by swipl as the
+process's locale says (the probes' swipl ran in C), by cocolog as glibc's
+C.UTF-8 does, swipl's in a UTF-8 locale: no row.
+
+THE CASES. test/files/arg_enum.pl, 42 lines held to swipl 9.0.4's (3.28.0
+differs at 36): every answer with its determinism, a third argument the
+places share, places that take nothing, an atom, two numbers, two lists, an
+unbound term, a term of one place and of none, `user:', `system:' and
+`lists:' (each the step's way), call/N, and walks inside a clause's body
+-- a disjunction, a negation, findall/3, an environment's builtin in place
+-- undone by backtracking and cut. test/files/arg_taken.pl, 6 lines (3.28.0
+raises at 3): arg/3 a program file took over, and the system's called as
+`system:arg/3' (`coco_colon_run').
+test/files/error_types.pl, 129 lines (3.28.0 differs at 46): must_be/2 and
+is_of_type/2 over every type swipl's has_type/2 names, and library(assoc)'s.
+test/files/must_be.pl, a line more: `must_be(stream, foo)' with no
+library(stream) loaded, where cocolog's is_stream/1 is not there.
+test/files/library_calls.pl, 403 lines (3.28.0 differs at 7:
+free_variables/4 three times, must_be/2 and is_of_type/2 of an assoc, and
+the two partial lists): the eight libraries through their exports.
+test/trace.pl: seven queries more held to swipl's ports (a walk's answers
+and Redos, one no place takes, the last place's Exit, a walk in a clause
+the printer shows and one in a predicate that hides its children).
+test/engine.pl: a walk thawed at every 50 inferences goes on where it
+stood. library/flow/modes.pl: arg/3 with its index unbound is nondet, and
+its refusal row is gone.
+
+THE ARMS, a build each, the rule taken out, each red, the case it went red
+in named. The walk: the row raising as through 3.28.0 (arg_enum,
+library_calls, seven trace lines), no ARG frame (arg_enum, library_calls,
+four trace lines, the engine's freeze), the last place keeping its frame
+(arg_enum's determinism, two trace lines), no retry (arg_enum,
+library_calls, four trace lines, the freeze), the environment's hand-over
+(arg_enum), the step's (arg_enum, library_calls, six trace lines), the `:'
+construct's (arg_taken: green until that case was written, since `user:',
+`system:' and `lists:' of a name nobody took over go the step's way), the
+retry's Redo (three trace lines), a hidden walk's Redo not found by the
+frame's kind (one), the frame's PRINTR (four), and arg/3's refusal row put
+back in library/flow/modes.pl (flowchart). library(error): has_type/2 under
+a name of cocolog's, so assoc.pl's clause joins no table (error_types,
+library_calls), a partial list a type error as through 3.28.0 (error_types,
+library_calls, must_be), an unknown type's type error (error_types), an
+unbound type read as `any' (error_types), list(Of) no type (error_types),
+the ground types not asked (error_types, must_be), oneof/1 binding its list
+with no double negation (error_types), the list's error for its first
+wrong element's (error_types, must_be), is_of_type/2 of an unbound type
+failing (error_types), the encodings no type (error_types), a code past
+0x10FFFF (error_types), cyclic's domain error (error_types), var's
+uninstantiation error (error_types, must_be), an improper list naming
+`list' for list(Of) (error_types), '$current_type'/1 holding of any type
+(error_types), the stream type (error_types), and its guard where no
+library(stream) is loaded (must_be: the line written for it). The order of
+the walk's two unifications has no arm: with no coroutining, no answer
+tells it.
+
+THE COST, tools/flow/zero.sh, work less padding, 3.28.0 to 3.29.0: nrev
+65 997 137 to 65 996 479, queens 40 280 758 to 40 280 709, lookup
+48 090 739 to 48 088 887. The first cut asked the hand-over beside the
+loop's test of -1, after the module seam: nrev +211 547 instructions, two
+reloads of the engine a step in `coco_engine_run', whose registers the
+walk's call had moved. Asked beside the row's call, nrev and queens were
+3.28.0's and lookup +37 831, one instruction a builtin in place: the walk
+took the goal and the unit's barrier after the row's call, and
+`coco_env_place' copied the barrier to a callee-saved register at its
+entry, for every unit. The goal from `kcall' and no barrier: none. must_be/2
+asks has_type/2, three inferences a call more (must_be(list, L) 4 to 7,
+must_be(oneof(L), X) 5 to 13, must_be(list(integer), L) of three 4 to 23,
+as swipl's walks the elements), and append/2, nth0/4 and nth1/4 with it +3;
+is_of_type/2 2 to 6. The translator, which calls append/2, nth0/4 or nth1/4
+in 98 goals of library/reasoning: test/translate.pl's sections up to
+newspaper_units 308 262 465 inferences on 3.28.0 and 308 288 787 on 3.29.0
+(+0.0085 %), 3 189 checks green on both.
+
+Narrow cases green on the final build (41): lint (twice, the last after
+the last case file), files, engine, trace, errors, gc, flowchart, library,
+reason, translate, normalise, repl, static, directives, reconsult, meter,
+backtrace, journal, cyclic, units, string, script, rationals, serialize,
+template, hex, astar, argv, process, text, os, signal, stream, async,
+window, flowdebug, cowork, thread, and the solve, state and module
+binaries; lessons basics/09 and 12 and library/04 and 05, which call arg/3
+or must_be/2; test/files/det_names.pl's library(error) frames swipl's. The
+card's cites hold (27 rows, 39 cites; X3's range and three cites
+renumbered for the new lines).

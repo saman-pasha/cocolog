@@ -707,6 +707,16 @@
     ("subset" 2 "lists") ("sumlist" 2 "backward_compatibility")
     ("must_be" 2 "error") ("is_of_type" 2 "error") ("type_error" 2 "error")
     ("domain_error" 2 "error") ("instantiation_error" 1 "error")
+    ;; must_be/2's table and its helpers (3.29.0), by swipl's names
+    ("has_type" 2 "error") ("$is_not" 2 "error" "is_not")
+    ("$not_a_list" 2 "error" "not_a_list") ("$element_is_not" 2 "error" "element_is_not")
+    ("$element_types" 2 "error" "element_types") ("$element_types_" 2 "error" "element_types_")
+    ("$ground_type" 1 "error" "ground_type") ("$current_type" 1 "error" "current_type" 3)
+    ("$text" 1 "error" "text") ("$list_or_partial" 1 "error" "is_list_or_partial_list")
+    ("$encoding" 1 "error" "current_encoding") ("$is_char" 1 "system")
+    ("$is_char_code" 1 "system") ("$is_stream" 1 "system" "is_stream")
+    ("$char_list" 1 "system" "$is_char_list" 2)
+    ("$code_list" 1 "system" "$is_code_list" 2)
     ("$maplist_" 2 "apply" "maplist_") ("$maplist_" 3 "apply" "maplist_")
     ("$maplist_" 4 "apply" "maplist_") ("$maplist_" 5 "apply" "maplist_")
     ("$include_" 3 "apply" "include_") ("$exclude_" 3 "apply" "exclude_")
@@ -881,9 +891,14 @@
   ;;; clauses: `pred', `clause_ix', `cend', `fera' and `ixpos' as a clause
   ;;; frame's -- the logical update view's, which `coco_frames_on' keeps --
   ;;; `call' the goal, `goals' what runs after an answer (`coco_db_retry').
+  ;;; An ARG frame (3.29.0) is arg/3's walk of its term's places, its index
+  ;;; unbound: `call' the goal, `goals' what runs after an answer,
+  ;;; `clause_ix' the next place to try (`coco_arg_retry'), `barrier' 0:
+  ;;; what runs after an answer carries its own -- no predicate's, so no
+  ;;; view, no call's and nothing a freeze names.
   (enum coco_choice_kind (COCO_CH_CLAUSE . 0) (COCO_CH_GOAL . 1) (COCO_CH_CATCH . 2)
                          (COCO_CH_DEAD . 3) (COCO_CH_CATCH_RETRY . 4) (COCO_CH_SPENT . 5)
-                         (COCO_CH_CLOCKED . 6) (COCO_CH_DB . 7))
+                         (COCO_CH_CLOCKED . 6) (COCO_CH_DB . 7) (COCO_CH_ARG . 8))
 
   (struct coco_choice
     (member int      kind)
@@ -1730,6 +1745,14 @@
   (decl) (func coco_db_walk ((coco_engine * e) (size_t g) (int mode) (size_t k) (size_t b)
                              (int * ok) (int * ret)) (out int))
   (decl) (func coco_db_retry ((coco_engine * e) (size_t ci)) (out int))
+
+  ;;; arg/3 with its index unbound (3.29.0, lib/solve-text.cicili): the
+  ;;; walk its row hands over (`coco_bi_arg' answers -2), of the goal in
+  ;;; flight (`kcall'), K the continuation after it, TPORT its printer (0,
+  ;;; 1 shown, 2 hidden) -- 1 an answer, 0 none, -1 no memory -- and its
+  ;;; ARG frame at CI retried by `coco_backtrack', as a DB frame is
+  (decl) (func coco_arg_walk ((coco_engine * e) (size_t k) (int tport)) (out int))
+  (decl) (func coco_arg_retry ((coco_engine * e) (size_t ci)) (out int))
 
   ) ; decl-solve
 

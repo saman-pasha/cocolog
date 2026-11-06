@@ -1776,6 +1776,7 @@ update_view(D) :-
         'cwalk :- ( clause(q(X), true), write(X), nl, ( X == 2 -> retract(q(1)), assertz(q(9)) ; true ),',
         '           uv_spin(300), fail ; true ),',
         '         findall(Y, q(Y), L), write(L), nl.',
+        'awalk :- ( arg(N, f(a, b, c, d), X), write(N-X), nl, uv_spin(300), fail ; true ), write(done), nl.',
         'uv_spin(0) :- !.',
         'uv_spin(N) :- M is N - 1, uv_spin(M).'
     ]),
@@ -1795,11 +1796,13 @@ update_view(D) :-
     check('a clause retracted under a call the run cuts away is gone for the next process', O3, '[1,3,4]\n'),
     %% A WALK OF retract/1's OR clause/2's IS SUCH A CALL (3.28.0): its DB
     %% frame keeps the predicate, its place and its horizon through a freeze
-    %% as a clause frame does (lib/state.cicili's `C' and `L')
-    findall(G4-O4, ( member(G4, [rwalk, cwalk]), uv_whole(C, D, F1, G4, O4) ), L4),
-    check('retract/1 and clause/2 walk the clauses that stood when they began', L4,
-          [rwalk-'1\n2\n3\n4\n[9]\n', cwalk-'1\n2\n3\n4\n[2,3,4,9]\n']),
-    findall(G5-O5, ( member(G5, [rwalk, cwalk]), uv_stepped(C, D, F1, G5, O5) ), L5),
+    %% as a clause frame does (lib/state.cicili's `C' and `L'); and arg/3's
+    %% walk of its term's places (3.29.0), its ARG frame its next place
+    findall(G4-O4, ( member(G4, [rwalk, cwalk, awalk]), uv_whole(C, D, F1, G4, O4) ), L4),
+    check('retract/1 and clause/2 walk the clauses that stood when they began, arg/3 its places', L4,
+          [rwalk-'1\n2\n3\n4\n[9]\n', cwalk-'1\n2\n3\n4\n[2,3,4,9]\n',
+           awalk-'1-a\n2-b\n3-c\n4-d\ndone\n']),
+    findall(G5-O5, ( member(G5, [rwalk, cwalk, awalk]), uv_stepped(C, D, F1, G5, O5) ), L5),
     check('...and thawed at every 50 inferences, the walk goes on where it stood', L5, L4).
 
 %% the goal run whole, on an embedded store of its own

@@ -68,12 +68,15 @@
                 (return (? (coco_unify m (coco_arg m g 0) h) 1 0)))))))
 
   ;;; SWI'S ERRORS, IN SWI'S ORDER: the term first -- unbound an
-  ;;; instantiation error, atomic a type error -- then the index: unbound an
-  ;;; instantiation error (SWI enumerates there; every builtin here is
-  ;;; deterministic), bound and not an integer a type error, below 0 a
-  ;;; domain error; 0 and past the arity fail. Through 1.10.5 an unbound or
-  ;;; atomic term FAILED, and an index of any kind but an integer was an
-  ;;; instantiation error.
+  ;;; instantiation error, atomic a type error -- then the index: bound and
+  ;;; not an integer a type error, below 0 a domain error; 0 and past the
+  ;;; arity fail. Through 1.10.5 an unbound or atomic term FAILED, and an
+  ;;; index of any kind but an integer was an instantiation error. AN
+  ;;; UNBOUND INDEX ENUMERATES (3.29.0, swipl's): the row answers -2 and
+  ;;; its caller hands the goal to `coco_arg_walk', which has the
+  ;;; continuation the row is never given; through 3.28.0 it raised
+  ;;; instantiation_error, and library(aggregate)'s free_variables/4, whose
+  ;;; var_in_term/2 walks a term with arg(_, T, A), raised with it.
   (func coco_bi_arg ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (size_t it . #'(coco_a e g 0))
@@ -83,8 +86,7 @@
               (return (coco_instantiation_error_bare e)))
           (if (not (coco-tag-is FUN (nth t (-> m heap))))
               (return (coco_type_error_bare e "compound" t)))
-          (if (coco-tag-is REF (nth it (-> m heap)))
-              (return (coco_instantiation_error e)))
+          (if (coco-tag-is REF (nth it (-> m heap))) (return -2))
           (if (not (coco-is-int (nth it (-> m heap))))
               (return (coco_type_error e "integer" it)))
           (let ((i64 i . #'(coco_int_val m (nth it (-> m heap))))
@@ -92,6 +94,93 @@
             (if (< i 0) (return (coco_domain_error e "not_less_than_zero" it)))
             (if (or (< i 1) (> i (cast i64 n))) (return 0))
             (return (? (coco_unify m (coco_arg m g 2) (coco_arg m t (cast u32 (- i 1)))) 1 0)))))
+
+  ;;; ---- arg/3 with its index unbound (3.29.0) ---------------------------
+  ;;;
+  ;;; SWIPL'S FOREIGN arg/3: G's places tried in order from I, the third
+  ;;; argument unified with each and then the index with its number, the
+  ;;; first place both take the answer; short of the term's last place the
+  ;;; ARG frame at CI (FR) is left to go on from the next, and at the last
+  ;;; it is gone, so the last answer leaves no choice point -- an answer
+  ;;; before it leaves one whatever the places after it hold, as swipl's
+  ;;; ForeignRedoInt does. The machine is at the frame's marks on the way
+  ;;; in, and back at them after a place that does not take. 1 an answer,
+  ;;; 0 none, the frame gone.
+  (static)
+  (func coco_arg_from ((coco_engine * e) (size_t g) (u32 i) (u32 n) (int fr) (size_t ci))
+        (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t t . #'(coco_deref (-> e m) (coco_arg (-> e m) g 1)))
+              (size_t tmark . #'($ (cof (-> e m)) trail_len))
+              (size_t hmark . #'($ (cof (-> e m)) heap_len)))
+          (while (<= i n)
+            (if fr
+                (if (== i n)
+                    (set (-> e nchoices) ci)
+                    (set ($ (nth ci (-> e choices)) clause_ix) (cast size_t (+ i 1)))))
+            (if (and (coco_unify m (coco_arg m g 2) (coco_arg m t (- i 1)))
+                     (coco_unify m (coco_arg m g 0) (coco_new_int m (cast i64 i))))
+                (return 1))
+            (coco_undo_to m tmark)
+            (set (-> m heap_len) hmark)
+            (set i (+ i 1)))
+          (if fr (set (-> e nchoices) ci))
+          (return 0)))
+
+  ;;; THE WALK, from the row's caller: the goal in flight (`kcall', which
+  ;;; the row's call set), its term compound and its index unbound
+  ;;; (`coco_bi_arg'). A term of two places or more pushes the ARG frame
+  ;;; first, at the machine's marks, its continuation K, and its shadow
+  ;;; says how the call was printed (TPORT, for the retry's Redo); the
+  ;;; caller prints the Call, Exit and Fail ports and sets the
+  ;;; continuation, as for the row's own answer. One step and one
+  ;;; inference, as the row's call was. 1, 0, or -1 for no room for the
+  ;;; frame, `err' said (`coco_fail_err'), so each caller's own test of -1
+  ;;; serves it. THE FRAME KEEPS NO BARRIER (0): a retry goes on to K,
+  ;;; whose goals carry their own, and nothing reads an ARG frame's. So the
+  ;;; callers keep nothing live across the row's call that they did not
+  ;;; keep through 3.28.0: with the goal and the barrier for this call
+  ;;; after it, the step loop reloaded the engine twice a step, and every
+  ;;; builtin in place ran an instruction more (`tools/flow/zero.sh')
+  (weak) (cold)
+  (func coco_arg_walk ((coco_engine * e) (size_t k) (int tport)) (out int)
+        (let ((size_t g . #'(-> e kcall))
+              (u32 n . #'(coco_arity (-> e m) (coco_deref (-> e m) (coco_arg (-> e m) (-> e kcall) 1))))
+              (size_t ci . 0))
+          (if (> n 1)
+              (block
+               (if (not (coco_push_choice e COCO_CH_ARG g k 0))
+                   (return (coco_fail_err e "out of memory")))
+               (set ci (- (-> e nchoices) 1))
+               (set ($ (nth ci (-> e tchoices)) printr) tport)))
+          (return (coco_arg_from e g 1 n (> n 1) ci))))
+
+  ;;; THE WALK'S ARG FRAME AT CI RETRIED, the machine at its marks: on from
+  ;;; the place after the last answer's, its Redo first where the printer
+  ;;; shows the call -- or the region's it is hidden in, as a DB frame's
+  ;;; (`coco_trace_goal_own') -- and its Exit or its Fail. 1 with the
+  ;;; continuation set, 0 with the frame gone.
+  (weak) (cold)
+  (func coco_arg_retry ((coco_engine * e) (size_t ci)) (out int)
+        (let ((size_t g . #'($ (nth ci (-> e choices)) call))
+              (size_t k . #'($ (nth ci (-> e choices)) goals))
+              (u32 i . #'(cast u32 ($ (nth ci (-> e choices)) clause_ix)))
+              (u32 n . #'(coco_arity (-> e m) (coco_deref (-> e m) (coco_arg (-> e m) g 1))))
+              (int tport . 0) (int td . 0) (int r . 0))
+          (if (-> e trace)
+              (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
+                (set tport (-> tc printr))
+                (set td (+ (-> tc depth) 1))
+                (set (-> e trace_goal) (-> tc goal))
+                (set (-> e trace_depth) (-> tc depth))
+                (if (== tport 1)
+                    (block (coco_trace_port e "Redo" td g)
+                           (coco_trace_reopen e ci td)))
+                (if (== tport 2) (coco_trace_goal_own e ci))))
+          (set r (coco_arg_from e g i n 1 ci))
+          (if (== tport 1) (coco_trace_port e (? r "Exit" "Fail") td g))
+          (if r (set (-> e goals) k))
+          (return r)))
 
   ;;; ---- setarg/3 and nb_setarg/3 (1.12.0) --------------------------------
   ;;;

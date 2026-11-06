@@ -64,3 +64,13 @@ det0.
 cut0 :- !.
 sib :- det0, memb(X, [1,2]), X > 5.
 csib :- cut0, memb(X, [1,2]), X > 5.
+
+%% ARG/3 WITH ITS INDEX UNBOUND walks its term's places (3.29.0), as
+%% swipl's foreign arg/3: an answer before the last place is a choice
+%% point, its retry the call's Redo with the goal as it was called, and the
+%% last place leaves none -- an answer after a place that did not take,
+%% and a call that no place takes, its Fail.
+ag1(N) :- arg(N, f(a, b, a), a).
+ag2(X) :- arg(N, f(a, b), X), N > 1.
+ag3 :- arg(_, f(a, b), c).
+ag4(N) :- arg(N, f(a, b), b).

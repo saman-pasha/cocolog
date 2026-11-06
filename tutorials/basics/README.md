@@ -37,12 +37,14 @@ these ever stops being true the tutorial fails and names both answers.
   There IS a string type, and a file gets one out of `"..."` only by
   setting the flag; 08 is the whole lesson, and the default is why
   `library(json)` needs `str/1`.
-* **EVERY BUILTIN IS DETERMINISTIC.** Not one leaves a choice point:
-  the predicates that enumerate are clauses over a C helper --
-  `atom_concat(A, B, abc)` with both unbound gives its four splits as
-  SWI's does (08). `retract/1` was a builtin, and the classic
+* **EVERY BUILTIN IS DETERMINISTIC**, arg/3 aside. Not one other leaves
+  a choice point: the predicates that enumerate are clauses over a C
+  helper -- `atom_concat(A, B, abc)` with both unbound gives its four
+  splits as SWI's does (08). `retract/1` was a builtin, and the classic
   `retract(X), fail` loop took ONE clause, until 3.28.0 made it SWI's,
-  a walk that answers again (07).
+  a walk that answers again (07). `arg(N, T, A)` with `N` unbound walks
+  T's places as SWI's does since 3.29.0, leaving a choice point before
+  the last; through 3.28.0 it raised.
 * **An integer stops at 64 bits**: `1000000000000000000 * 997` raises
   `evaluation_error(int_overflow)`, where SWI goes on in a bignum (04).
 * **`setarg/3` writes the ARGUMENT, not a variable it names.** `T = f(X),

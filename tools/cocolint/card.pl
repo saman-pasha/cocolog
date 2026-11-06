@@ -184,9 +184,11 @@ cd_walk(Term, Complaint) :-
         %% unknown functor until it was split this way.
         %%
         %% `=..' AND NOT arg/3: arg(N, T, A) with N unbound enumerates in
-        %% SWI and raises instantiation_error here, from inside a findall,
-        %% where C1 says an outer catch will never see it. The symptom was
-        %% an uncaught error with no indication of which row produced it.
+        %% SWI and raised instantiation_error here through 3.28.0, from
+        %% inside a findall, where C1 says an outer catch will never see it.
+        %% The symptom was an uncaught error with no indication of which row
+        %% produced it. It enumerates here too since 3.29.0; the walk stays
+        %% the one every version runs.
         \+ cd_ctor_data(F),
         Term =.. [_|Args],
         member(A, Args),

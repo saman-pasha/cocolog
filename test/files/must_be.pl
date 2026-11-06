@@ -42,6 +42,9 @@ main :-
     t(var, a),
     t(nonvar, a),
     t(any, a),
+    %  a stream with no library(stream) loaded: cocolog's is_stream/1 is
+    %  that library's, and the type is no stream's where it is not there
+    t(stream, foo),
     unbound,
     %  is_of_type/2 answers rather than raising, which is the whole difference
     ( is_of_type(integer, 1) -> write(iot_yes) ; write(iot_no) ), nl,

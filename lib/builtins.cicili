@@ -314,8 +314,27 @@
            ;; has no type to be wrong, so it is an instantiation error; `var'
            ;; is the one type a BOUND value fails, so it is an uninstantiation
            ;; error. test/files/must_be.pl holds all three against SWI.
-           "must_be(Type, X) :- is_of_type(Type, X), !."
-           "must_be(Type, X) :- '$must_be_failed'(Type, X)."
+           ;;
+           ;; SWIPL 9.0.4'S DESIGN SINCE 3.29.0 (test/files/error_types.pl): a
+           ;; type is a clause of has_type/2, which a library extends --
+           ;; assoc.pl's error:has_type(assoc, _) -- and must_be/2 asks it,
+           ;; then says why not ('$is_not'/2): an unbound value an
+           ;; instantiation error, and a partial list one too; a list of the
+           ;; wrong things the first wrong element's error; `var' an
+           ;; uninstantiation error; `cyclic' and `acyclic' domain errors; a
+           ;; value a type that must be ground holds unbound an instantiation
+           ;; error; a type no clause names existence_error(type, T), and an
+           ;; unbound type an instantiation error. Through 3.28.0 a table of
+           ;; cocolog's own: no has_type/2, so must_be(assoc, A) of an assoc
+           ;; raised type_error(assoc, A); a partial list was
+           ;; type_error(list, L), which ordsets.pl's ord_intersection/2 and
+           ;; yall.pl's parameters met; an unknown type type_error(T, X); an
+           ;; unbound type was read as `any'; and list(Type), cyclic, acyclic,
+           ;; rational, pair, symbol, constant, encoding, type and string
+           ;; were no types.
+           "must_be(Type, X) :- ( nonvar(Type), has_type(Type, X) -> true"
+           "    ; nonvar(Type) -> '$is_not'(Type, X)"
+           "    ; throw(error(instantiation_error, _)) )."
 
            ;; the two throwers library(error) exports that the vendored
            ;; libraries call by name -- ordsets.pl reaches type_error/2 and
@@ -344,54 +363,113 @@
            "strip_module(T, M, G) :- '$strip_module'(T, user, M, G)."
            "'$strip_module'(T, _, M, G) :- nonvar(T), T = W:T1, !, '$strip_module'(T1, W, M, G)."
            "'$strip_module'(G, W, W, G)."
-           "'$must_be_failed'(var, X) :- !, throw(error(uninstantiation_error(X), _))."
-           "'$must_be_failed'(ground, _) :- !, throw(error(instantiation_error, _))."
-           "'$must_be_failed'(_, X) :- var(X), !, throw(error(instantiation_error, _))."
-           ;; A LIST OF THE WRONG THING NAMES THE ELEMENT, not the list. SWI
-           ;; answers `type_error(char, 97)' for `must_be(chars, [97])' -- which
-           ;; is the useful half of the message, and the half a caller cannot
-           ;; work out from `type_error(chars, [97])'.
-           "'$must_be_failed'(chars, X) :- is_list(X), '$bad_elem'(X, char, B), !,"
-           "    throw(error(type_error(char, B), _))."
-           "'$must_be_failed'(codes, X) :- is_list(X), '$bad_elem'(X, code, B), !,"
-           "    throw(error(type_error(code, B), _))."
-           "'$must_be_failed'(Type, X) :- throw(error(type_error(Type, X), _))."
-           "'$bad_elem'([X|_], T, X) :- \\+ is_of_type(T, X), !."
-           "'$bad_elem'([_|Xs], T, B) :- '$bad_elem'(Xs, T, B)."
+           ;; WHY A VALUE IS NOT OF ITS TYPE, swipl 9.0.4's is_not/2: lists
+           ;; first -- a partial one an instantiation error, an improper one
+           ;; a type error naming list(Of) where the elements had a type
+           ;; (chars is list(char)), a proper one its first wrong element's
+           ;; own -- then var, cyclic and acyclic, then any type a clause
+           ;; names, and last a type none does
+           "'$is_not'(list, X) :- !, '$not_a_list'(list, X)."
+           "'$is_not'(list(Of), X) :- !, '$not_a_list'(list(Of), X)."
+           "'$is_not'(list_or_partial_list, X) :- !, throw(error(type_error(list, X), _))."
+           "'$is_not'(chars, X) :- !, '$not_a_list'(list(char), X)."
+           "'$is_not'(codes, X) :- !, '$not_a_list'(list(code), X)."
+           "'$is_not'(var, X) :- !, throw(error(uninstantiation_error(X), _))."
+           "'$is_not'(cyclic, X) :- throw(error(domain_error(cyclic_term, X), _))."
+           "'$is_not'(acyclic, X) :- throw(error(domain_error(acyclic_term, X), _))."
+           "'$is_not'(Type, X) :- '$current_type'(Type), !,"
+           "    ( var(X) -> throw(error(instantiation_error, _))"
+           "    ; '$ground_type'(Type), \\+ ground(X) -> throw(error(instantiation_error, _))"
+           "    ; throw(error(type_error(Type, X), _)) )."
+           "'$is_not'(Type, _) :- throw(error(existence_error(type, Type), _))."
+           "'$not_a_list'(Type, X) :- '$skip_list'(_, X, Rest),"
+           "    ( var(Rest) -> throw(error(instantiation_error, _))"
+           "    ; Rest == [] -> Type = list(Of),"
+           "      ( nonvar(Of) -> '$element_is_not'(X, Of) ; throw(error(instantiation_error, _)) )"
+           "    ; throw(error(type_error(Type, X), _)) )."
+           "'$element_is_not'([H|T], Of) :- has_type(Of, H), !, '$element_is_not'(T, Of)."
+           "'$element_is_not'([H|_], Of) :- '$is_not'(Of, H)."
 
-           "is_of_type(any, _)."
-           "is_of_type(var, X) :- var(X)."
-           "is_of_type(nonvar, X) :- nonvar(X)."
-           "is_of_type(ground, X) :- ground(X)."
-           "is_of_type(atom, X) :- atom(X)."
-           "is_of_type(atomic, X) :- atomic(X)."
-           "is_of_type(callable, X) :- callable(X)."
-           "is_of_type(compound, X) :- compound(X)."
-           "is_of_type(integer, X) :- integer(X)."
-           "is_of_type(float, X) :- float(X)."
-           "is_of_type(number, X) :- number(X)."
-           "is_of_type(boolean, X) :- (X == true ; X == false), !."
-           "is_of_type(nonneg, X) :- integer(X), X >= 0."
-           "is_of_type(positive_integer, X) :- integer(X), X > 0."
-           "is_of_type(negative_integer, X) :- integer(X), X < 0."
-           "is_of_type(oneof(L), X) :- ground(X), memberchk(X, L)."
-           "is_of_type(between(L, H), X) :- number(X), X >= L, X =< H."
-           "is_of_type(list, X) :- is_list(X)."
-           "is_of_type(proper_list, X) :- is_list(X)."
-           "is_of_type(list_or_partial_list, X) :- '$partial_list'(X)."
-           ;; a char is a ONE-character atom and a code a non-negative
-           ;; integer -- `[ab]' is not a list of chars and `[-1]' not one of
-           ;; codes, which is what makes the element-naming above worth having
-           "is_of_type(char, X) :- atom(X), atom_length(X, 1)."
-           "is_of_type(code, X) :- integer(X), X >= 0."
-           "is_of_type(chars, X) :- is_list(X), '$all_of'(X, char)."
-           "is_of_type(codes, X) :- is_list(X), '$all_of'(X, code)."
-           "is_of_type(text, X) :- (atom(X) ; is_list(X)), !."
-           "'$all_of'([], _)."
-           "'$all_of'([X|Xs], T) :- is_of_type(T, X), '$all_of'(Xs, T)."
-           "'$partial_list'(X) :- var(X), !."
-           "'$partial_list'([])."
-           "'$partial_list'([_|T]) :- '$partial_list'(T)."
+           ;; is_of_type/2 answers where must_be/2 raises, which is the whole
+           ;; difference -- but for an unbound type, which both refuse
+           "is_of_type(Type, X) :- nonvar(Type), !, has_type(Type, X), !."
+           "is_of_type(_, _) :- throw(error(instantiation_error, _))."
+           "'$ground_type'(ground)."
+           "'$ground_type'(oneof(_))."
+           "'$ground_type'(stream)."
+           "'$ground_type'(text)."
+           "'$ground_type'(string)."
+           "'$ground_type'(rational)."
+           ;; a type is one a clause names, a library's own among them
+           "'$current_type'(Type) :- \\+ \\+ clause(has_type(Type, _), _)."
+
+           ;; THE TYPES, swipl 9.0.4's, in its order. A stream is what
+           ;; library(stream)'s is_stream/1 says is one, where it is loaded,
+           ;; and nothing where it is not (no stream is open then). Not
+           ;; swipl's: no dict is one, there being none
+           "has_type(any, _)."
+           "has_type(atom, X) :- atom(X)."
+           "has_type(atomic, X) :- atomic(X)."
+           "has_type(between(L, U), X) :- ( integer(L) -> integer(X), between(L, U, X)"
+           "    ; number(X), X >= L, X =< U )."
+           "has_type(boolean, X) :- ( X == true ; X == false ), !."
+           "has_type(callable, X) :- callable(X)."
+           "has_type(char, X) :- '$is_char'(X)."
+           "has_type(code, X) :- '$is_char_code'(X)."
+           "has_type(chars, X) :- is_list(X), '$char_list'(X)."
+           "has_type(codes, X) :- is_list(X), '$code_list'(X)."
+           "has_type(text, X) :- '$text'(X)."
+           "has_type(compound, X) :- compound(X)."
+           "has_type(constant, X) :- atomic(X)."
+           "has_type(float, X) :- float(X)."
+           "has_type(ground, X) :- ground(X)."
+           "has_type(cyclic, X) :- cyclic_term(X)."
+           "has_type(acyclic, X) :- acyclic_term(X)."
+           "has_type(integer, X) :- integer(X)."
+           "has_type(nonneg, X) :- integer(X), X >= 0."
+           "has_type(positive_integer, X) :- integer(X), X > 0."
+           "has_type(negative_integer, X) :- integer(X), X < 0."
+           "has_type(nonvar, X) :- nonvar(X)."
+           "has_type(number, X) :- number(X)."
+           "has_type(oneof(L), X) :- ground(X), \\+ \\+ memberchk(X, L)."
+           "has_type(pair, X) :- nonvar(X), X = _-_."
+           "has_type(proper_list, X) :- is_list(X)."
+           "has_type(list, X) :- is_list(X)."
+           "has_type(list_or_partial_list, X) :- '$list_or_partial'(X)."
+           "has_type(symbol, X) :- atom(X)."
+           "has_type(var, X) :- var(X)."
+           "has_type(rational, X) :- rational(X)."
+           "has_type(string, X) :- string(X)."
+           "has_type(stream, X) :- '$is_stream'(X)."
+           "has_type(encoding, X) :- '$encoding'(X)."
+           "has_type(dict, _) :- fail."
+           "has_type(list(Type), X) :- is_list(X), '$element_types'(X, Type)."
+           "has_type(type, Type) :- ground(Type), '$current_type'(Type)."
+           ;; a char is a ONE-character atom and a code a code point --
+           ;; `[ab]' is not a list of chars and `[-1]' not one of codes,
+           ;; which is what makes the element-naming above worth having
+           "'$is_stream'(X) :- catch(is_stream(X), error(existence_error(procedure, is_stream/1), _), fail)."
+           "'$is_char'(X) :- atom(X), atom_length(X, 1)."
+           "'$is_char_code'(X) :- integer(X), X >= 0, X =< 1114111."
+           "'$char_list'([])."
+           "'$char_list'([C|T]) :- '$is_char'(C), '$char_list'(T)."
+           "'$code_list'([])."
+           "'$code_list'([C|T]) :- '$is_char_code'(C), '$code_list'(T)."
+           "'$text'(X) :- ( atom(X) ; string(X) ; is_list(X), '$char_list'(X)"
+           "    ; is_list(X), '$code_list'(X) ), !."
+           "'$list_or_partial'(L0) :- '$skip_list'(_, L0, L), ( var(L) -> true ; L == [] )."
+           "'$element_types'(List, Type) :- nonvar(Type), !, '$element_types_'(List, Type)."
+           "'$element_types'(_, _) :- throw(error(instantiation_error, _))."
+           "'$element_types_'([], _)."
+           "'$element_types_'([H|T], Type) :- has_type(Type, H), !, '$element_types_'(T, Type)."
+           "'$encoding'(octet)."
+           "'$encoding'(ascii)."
+           "'$encoding'(iso_latin_1)."
+           "'$encoding'(text)."
+           "'$encoding'(utf8)."
+           "'$encoding'(unicode_be)."
+           "'$encoding'(unicode_le)."
+           "'$encoding'(wchar_t)."
 
            ;; ---- between/3, which enumerates and so must be clauses --------
            ;; '$between'/4 checks the three as swipl's between/3 does, ONCE A

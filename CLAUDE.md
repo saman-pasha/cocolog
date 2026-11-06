@@ -1196,12 +1196,30 @@ cocolint index offers no import of it.
   files, whose predicates then count as defined (`load=` on
   tools/flow/chart.pl), and `progress(S)` (stderr, every S seconds, 10 from
   the command).
-* **Every builtin is deterministic**, so a failure-driven loop written from
-  habit over one runs it ONCE -- wrong, not slow (`retract(H), fail` was the
-  classic one until 3.28.0 made retract/1 a walk that answers again). `once/1`,
-  `ignore/1` and `\+` are control constructs. So `arg(N, f(a, b), A)` with
-  `N` unbound and `char_type(C, alpha)` with `C` unbound RAISE where SWI
-  enumerates. A module row that must enumerate for some arguments ends in
+* **Every builtin is deterministic** (arg/3 with its index unbound aside,
+  below), so a failure-driven loop written from habit over one runs it ONCE
+  -- wrong, not slow (`retract(H), fail` was the classic one until 3.28.0
+  made retract/1 a walk that answers again). `once/1`,
+  `ignore/1` and `\+` are control constructs. So `char_type(C, alpha)` with
+  `C` unbound RAISES where SWI enumerates. **arg/3 with its index unbound
+  enumerates** (3.29.0, swipl's foreign arg/3; through 3.28.0 it raised, and
+  library(aggregate)'s free_variables/4 with it): its row answers -2
+  (`coco_bi_arg`), and each of the row's three callers -- the step
+  (`coco_builtin_call` by the functor's row), an environment's BUILTIN unit
+  (`coco_env_place`) and the `:` construct's own call of a row
+  (`coco_colon_run`: `system:G` of a name a program file took over,
+  test/files/arg_taken.pl) -- hands it to
+  `coco_arg_walk` with the continuation it holds, the goal being `kcall`:
+  the places tried in order, the third argument unified first, an ARG frame
+  (`COCO_CH_ARG`, its barrier 0) kept for the next place while one remains,
+  so an answer short of the last place leaves a choice point whatever the
+  places after it hold, and the last none (test/files/arg_enum.pl). **A new
+  row that hands its goal over answers -2 to those three, asked right beside
+  the row's call**: asked after the loop's module seam, beside its -1, the
+  walk's call cost the step loop two reloads of the engine a step, and a
+  goal and a barrier kept live across the row's call cost every builtin in
+  place an instruction (`tools/flow/zero.sh`, all three under 3.28.0's now).
+  A module row that must enumerate for some arguments ends in
   `:declines` (1.12.0, `coco-emit-module-dispatch`): its function takes
   `found` and turns those goals down (`coco_m_decline`) to a clause of its
   Prolog half -- nb_current/2 with its key unbound.
@@ -1456,6 +1474,22 @@ cocolint index offers no import of it.
   existence_error(matching_rule, lists:max_member_(...)) -- **a
   single-sided rule's last clause takes its row's module and swipl's
   name** (`coco_ssu_last`), so a library helper's rules need their row.
+* **library(error) is swipl 9.0.4's** (3.29.0, the Prolog half of
+  lib/builtins.cicili; test/files/error_types.pl): must_be/2 asks
+  has_type/2 -- one clause a type, in swipl's order, a table a library
+  extends (library(assoc)'s `error:has_type(assoc, X)` joins it, one
+  namespace) -- and then says why not as swipl's is_not/2 does: an unbound
+  value or a partial list an instantiation error, a list of the wrong things
+  its first wrong element's error, an improper list `type_error(list(Of),
+  L)`, `var` an uninstantiation error, `cyclic`/`acyclic` domain errors, a
+  value a ground type holds unbound an instantiation error, and a type no
+  clause names `existence_error(type, T)`; is_of_type/2 asks has_type/2
+  alone. Through 3.28.0 a table of cocolog's own: `must_be(assoc, A)` raised
+  `type_error(assoc, A)` of an assoc, a partial list `type_error(list, L)`
+  (ord_intersection/2 and yall's parameters met it), an unknown type
+  `type_error(T, X)`, an unbound type read as `any`. **A new type is a
+  has_type/2 clause**, never a case in must_be/2, and its helpers have their
+  `*frame-contexts*` rows by swipl's names (`error:is_not/2`).
 * **A cut runs the cleanups of the frames it takes** (3.1.0,
   setup_call_cleanup/3): a setup_call_cleanup/3 frame is a goal frame,
   `'$scc_fail'/2`, and each of the four cuts -- the goal `!`, `$cut`, an
@@ -2425,7 +2459,9 @@ cocolint index offers no import of it.
   region walk and its search for a `;`'s call (`coco_trace_region`,
   `coco_trace_redo_at`) -- and a new kind goes to all ten (3.28.0's DB
   frame, retract/1's and clause/2's walk, is a choice point to each, a
-  clause frame's view and place, and no call's). **A frame is a
+  clause frame's view and place, and no call's; 3.29.0's ARG frame, arg/3's
+  walk, a choice point to each and no call's, and a `;`'s GOAL frame where
+  the printer's Redo is). **A frame is a
   call's by its depth (> 0), never by its goal**:
   a goal can be heap cell 0, and `--trace run F t` printed no Fail for an
   atom goal written first. A Redo reopens only the calls it is inside
@@ -2684,8 +2720,9 @@ cocolint index offers no import of it.
   made an integer outside them raises it too (a NaN or an infinity is
   handed back, as swipl's is, since 2.2.0). The reader counts a literal in u64
   (`coco_mag_digit`, `iwide`): past 2^63-1, or 2^63 for a negative one, is
-  `integer out of range`, and atom_number/2 and number_codes/2 fail for
-  such a numeral. **The guards stop where they cannot decide** -- a result
+  `integer out of range`; atom_number/2 fails for such a numeral, and
+  number_codes/2 and number_chars/2 raise `syntax_error(illegal_number)`
+  (`coco_read_number_text`, below). **The guards stop where they cannot decide** -- a result
   past 64 bits, the least integer // -1, its negation, a shift that loses
   a bit, a BIG operand -- and AG_ISF/AG_ISV hand a result past the cell's
   60 bits to the step, which boxes it; GUARDX (`coco_env_guardx`) works on

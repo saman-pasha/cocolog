@@ -58,6 +58,9 @@ rq(2).
 rq(3).
 rt(X) :- retract(rq(X)), X > 1.
 ct(X) :- clause(rq(X), true), X > 2.
+%% arg/3 with its index unbound (3.29.0): a walk of its term's places, its
+%% retry the call's own Redo
+at(X) :- arg(_, f(1, 2, 3), X), X > 2.
 
 %% generate_debug_info false: what this file defines from here on hides its
 %% children as a library's predicates do, until the flag is true again --
@@ -83,9 +86,11 @@ gd(X) :- nd2(X).
 %% a walk hidden in a call that hides its children: its retry is that
 %% call's Redo, once it has exited
 nr(X) :- retract(rq(X)).
+na(X) :- arg(_, f(1, 2, 3), X).
 :- set_prolog_flag(generate_debug_info, true).
 vd(X) :- gd(X).
 ur(X) :- nr(X), X > 1.
+ua(X) :- na(X), X > 1.
 %% and false again to the end: the file's end puts the flag back, so a file
 %% read after this one is the program's (test/trace.pl, the second file)
 :- set_prolog_flag(generate_debug_info, false).
