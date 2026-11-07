@@ -13315,3 +13315,88 @@ rationals, hex, astar, static, reconsult, reason, normalise, translate,
 tokens, and the solve, module, state, term and syntax binaries; lessons
 basics/09, library/04, 37 and 38. The card's cites hold (26 rows, 38 cites;
 X2 renumbered).
+
+## format/2's `~@`, and the text before an error on every stream, as swipl's (3.34.0)
+
+swipl's `~@` calls its argument once and puts what it writes where the
+directive stands. cocolog refused it by name, error(cocolog_error('format/2:
+cocolog has no ~@ directive'), _), the last of swipl's directives it did not
+have. And swipl formats straight to its stream, so a format that goes wrong
+part way leaves the text before the directive on the stream -- the console,
+user_output, user_error, a file -- where cocolog builds a buffer first and
+put it out only for format/1,2's console: `format(user_error, "a ~w ~w",
+[one])' printed nothing before its error.
+
+THE GOAL (lib/builtins-format.cicili): called once in a nested engine with
+fd 1 captured, by the function with_output_to/2 now shares
+(`coco_out_capture_run', with_output_to/2's own body through 3.33.0): its
+limits, trace and clock the caller's, its root '$c_call_prolog'/0, which an
+unknown procedure there names, as swipl's; a goal that is no goal the
+format's own error, named by the arity called, format/2 or format/3, as
+swipl's; its bindings undone (swipl's PL_rewind_foreign_frame()), where
+with_output_to/2 keeps them; a choice point it leaves cut while the output
+is still captured, so a cleanup's text goes in. Its text is a writer's: the
+column after it as end_sub_format() reckons it, the column asked before it.
+A goal that fails fails the format, and its ball is raised again
+(`coco_fmt_ball', `coco_fmt_rethrow', kinds 9 to 12 of the format's
+failures), each once the text before it is out. What the goal wrote before
+it failed or threw stays where it went to the stream -- no fill point held
+and the column the stream's -- and is dropped where it went to a string, as
+swipl's.
+
+THE TEXT BEFORE AN ERROR goes to every stream sink (`coco_fmt_term_sink'):
+the console, user_output, user_error, a library(stream) stream or file;
+never to a term, which is left as it was.
+
+THE REFUSAL THE LESSON SHOWED: basics/09 shows cocolog_error with op/3 of an
+operator name past 63 bytes, which the table of operators has no room for
+(swipl takes any), and card row C2 names it where it named a format
+directive; lesson 04 calls `~@'; MODULES.md says format/2 is swipl's, every
+directive; COMPAT.md's `~@' row is gone, and a silent row takes its place:
+a write to user_output by name inside with_output_to/2's goal or `~@''s is
+captured with the current output (the capture is fd 1's), where swipl's goes
+to the console -- with_output_to/2's since it was written.
+
+test/files/format_at.pl, new: 91 lines, swipl 9.0.4's byte for byte
+(3.33.0 differs at 2): goals, a cleanup, columns, failures and balls with
+the text kept or dropped, errors and their contexts, the sinks, and the
+text before an error on each sink.
+
+Arms, a build each, the rule taken out, each red in format_at.pl (15): the
+goal not run; its bindings kept; its column reckoned by format's own rule
+and not a writer's; a failed goal's text kept where it went to a string,
+and dropped where it went to the stream; a failure raised, and a ball made
+a failure; the text before an error put out on the console alone, and on a
+term sink too; a goal that is no goal named format/3 at either arity, and
+not checked at all; the root no '$c_call_prolog'/0; no cut while the
+output is still captured; with_output_to/2's bindings undone; the text read
+back lost. Two went red only once the case was made to see them (a term
+sink given the text before an error, with_output_to/2's bindings undone).
+The arm of no edit is green on format_at.pl and format_columns.pl.
+
+Cost (callgrind, instructions a call): with_output_to(string(_),
+write(abc)) 15 801 to 15 864 (+63), and of a text of 5 000 characters
+95 714 to 95 777 (+63) -- the call into the function `~@' shares, and its
+setup. format(atom(_), F, A) moves by a few: `~w ~a ~d~n' 6 479 to 6 475,
+a line of 44 characters and `~w~n' 11 244 to 11 194, `~w~t~10|~t~d~6+~n'
+7 593 to 7 581. A `~@' of write(abc) into an atom is 16 407. Built and
+counted first, not kept: the output read back a chunk at a time (+108 and
++440: the read that finds the end is another read(2)); read whole into a
+buffer realloc(3) made from nothing (+99 and +7: realloc of nothing is
+malloc and 26 more); and into one made at the size the buffer doubles to
+(+76 and -16: which of glibc's bins the block falls in, not the code).
+zero.sh, work less padding, 3.33.0 (a clean build of a605949 beside this
+one) to 3.34.0: nrev 65 997 020 to 65 997 045, queens 40 281 281 to
+40 281 281, lookup 48 093 043 to 48 083 502. A start 35 061 193
+instructions to 35 065 931.
+
+Narrow cases green on the final build (45): lint, files, errors, stream,
+engine, units, string, serialize, library, directives, trace, backtrace,
+repl, script, argv, flowchart, window, flowdebug, gc, text, template,
+process, os, signal, thread, async, cowork, meter, journal, cyclic,
+rationals, hex, astar, static, reconsult, reason, normalise, translate,
+tokens, httpd, and the solve, module, state, term and syntax binaries.
+cowork was red once, run beside two builds and callgrind on three of the
+four cores (four workers no faster than one), and green alone, twice.
+Lessons basics/09, library/03, 04, 05, 37, 38, 48, 51 and 56. The card's
+cites hold (26 rows, 38 cites; X2 renumbered).

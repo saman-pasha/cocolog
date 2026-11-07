@@ -314,9 +314,10 @@
   ;;; `~N+' one N past the last stop. Through 3.32.0 each was refused with
   ;;; cocolog_error(`format/2: cocolog has no column directives').
   ;;;
-  ;;; WHAT IS NOT IMPLEMENTED, and says so rather than guessing: `~@', which
-  ;;; calls a goal for its output. Silently ignoring it would drop the
-  ;;; goal's text and blame the program; the error (cocolog_error) names it.
+  ;;; `~@' IS SWIPL'S (3.34.0): its argument called once, its output put
+  ;;; in where the directive stands (`coco_out_capture_run'). Through 3.33.0
+  ;;; it was refused with cocolog_error(`format/2: cocolog has no ~@
+  ;;; directive'), the last directive of swipl's that was.
 
   ;;; One argument at a time. Answers 0 when there are none left, which every
   ;;; caller turns into format('not enough arguments').
@@ -390,8 +391,15 @@
   ;;;   4 domain_error(radix, N), N's cell in *FBAD
   ;;;   5 an error the evaluation of an argument raised, its answer in *FDIR
   ;;;   6 a refused buffer: resource_error(memory)
-  ;;;   7 a directive cocolog does not lay out: cocolog_error(ERR)
   ;;;   8 representation_error(code_point): `~c' of a code past U+10FFFF
+  ;;;   9 the goal of `~@' failed: the format fails (3.34.0)
+  ;;;  10 the goal of `~@' threw: its ball, in the `coco_fmt_ball', raised
+  ;;;     again (3.34.0)
+  ;;;  11 the goal of `~@' ended the run with no ball (3.34.0)
+  ;;;  12 its output could not be captured: cocolog_error(ERR), as
+  ;;;     with_output_to/2's (3.34.0)
+  ;;; Through 3.33.0, 7 was a directive cocolog did not lay out: `~t', `~|',
+  ;;; `~+' and at last `~@'.
   (static)
   (func coco_fmt_fail ((char * err) (size_t errlen) (int * fkind) (int kind) (const char * msg))
         (out int)
@@ -564,17 +572,174 @@
           (set (cof op) b)
           (return 1)))
 
+  ;;; A BALL A CAPTURED GOAL THREW (3.34.0), kept for the caller to raise
+  ;;; again once its own work is done: its cell and size, the store it was
+  ;;; put in (nil for the machine's), and that store's length before it.
+  (struct coco_fmt_ball
+    (member size_t cell)
+    (member size_t size)
+    (member void * st)
+    (member size_t mark))
+
+  ;;; ... RAISED AGAIN, in the caller's engine, where the catch frames are:
+  ;;; 2 a catch took it (the continuation is the recovery goal), -1 none.
+  ;;; The inner throw's backtrace, written from inside the goal out, is the
+  ;;; one kept (`btkeep').
+  (static)
+  (func coco_fmt_rethrow ((coco_engine * e) (coco_fmt_ball * bl)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (coco_store * st . #'(-> e st))
+              (coco_store * bst . #'(? (== (-> bl st) nil) st (cast (coco_store *) (-> bl st)))))
+          (if (== bst st) (set (-> st dead) (+ (-> st dead) (-> bl size))))
+          (set (-> m btkeep) 1)
+          (let ((int caught . #'(? (coco_m_thrown e (coco_store_read m bst (-> bl cell))) 2 -1)))
+            (if (!= bst st)
+                (block (set (-> bst len) (-> bl mark))
+                       (coco_store_shrink_empty bst)))
+            (return caught))))
+
+  ;;; A GOAL RUN ONCE WITH ITS OUTPUT CAPTURED (3.34.0, with_output_to/2's
+  ;;; and `~@''s, which through 3.33.0 was with_output_to/2's alone).
+  ;;;
+  ;;; THE REDIRECTION IS AT THE FILE DESCRIPTOR, not at a `FILE *' this code
+  ;;; passes around: cocolog writes with `printf', `fputs' and `fputc' to the
+  ;;; literal `stdout' in some seventy places, and threading a stream through
+  ;;; all of them is the tidier design and a much larger change. So fd 1 is
+  ;;; pointed at a `tmpfile' for the duration and put back afterwards -- a
+  ;;; temporary file and not a pipe: a pipe holds 64K, and a goal that
+  ;;; printed more would block for ever with nobody reading. The capture's
+  ;;; column is its own, from 0, and the console's comes back with fd 1.
+  ;;;
+  ;;; THE GOAL RUNS IN A NESTED ENGINE and so cannot be suspended, the limit
+  ;;; findall/3 has for the same reason: a builtin cannot hand a
+  ;;; continuation back to the engine that called it. Its limits, its trace
+  ;;; and its clock are the caller's, as findall/3's are; its root is
+  ;;; '$c_call_prolog'/0, the frame swipl's C runs it from, which an unknown
+  ;;; procedure there names. HOLD names NHOLD cells the caller reads after
+  ;;; it, told to the collector, which may then run; with none it does not.
+  ;;; KEEP keeps the goal's bindings (with_output_to/2's once/1); else the
+  ;;; machine is put back where it stood (`~@''s, swipl's
+  ;;; PL_rewind_foreign_frame()).
+  ;;;
+  ;;; Answers 1, the goal succeeded; 0, it failed; 2, it threw, the ball in
+  ;;; BL for the caller to raise again; -1, the run ended with no ball; 3,
+  ;;; the capture went wrong, *WHY saying how; 4, memory was refused.
+  ;;; Whatever the goal wrote -- before it failed or threw too -- is put in
+  ;;; OUT, and fd 1 is the console's again whatever the answer.
+  (static)
+  (func coco_out_capture_run ((coco_engine * e) (size_t goal) (size_t * hold) (size_t nhold)
+                              (int keep) (coco_strbuf * out) (coco_fmt_ball * bl)
+                              (const char ** why)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (coco_store * st . #'(-> e st))
+              (coco_engine sub)
+              (FILE * tmp . nil) (int saved . -1) (int rc . 0) (int ans . 0) (i64 colsaved . 0)
+              (size_t tmark . #'($ (cof m) trail_len))
+              (size_t hmark . #'($ (cof m) heap_len)))
+          (set tmp (tmpfile))
+          (if (== tmp nil) (block (set (cof why) "cannot open a temporary file") (return 3)))
+          (fflush stdout)
+          (set saved (dup 1))
+          (if (< saved 0)
+              (block (fclose tmp) (set (cof why) "cannot save stdout") (return 3)))
+          (if (< (dup2 (fileno tmp) 1) 0)
+              (block (close saved) (fclose tmp) (set (cof why) "cannot redirect stdout") (return 3)))
+          (set colsaved (coco_out_capture_begin))
+
+          (coco_engine_init (aof sub) m st)
+          ;; narrowed after the ask, which leaves the limits alone, so that a
+          ;; clock by predicate can name the first goal (1.15.0)
+          (coco_engine_ask (aof sub) goal)
+          (set ($ sub rootn) 4)
+          (coco_limit_narrow e (aof sub))
+          ;; the trace follows the proof inside, depth and all (1.10.17)
+          (set ($ sub trace) (-> e trace))
+          (set ($ sub trace_depth) (-> e trace_depth))
+          (set ($ sub trace_goal) (-> e trace_goal))
+          (coco_trace_inner e (aof sub) 1)
+          ;; the marks the machine is wound back to go with the inner
+          ;; engine, where the collector keeps them true (1.9.4)
+          (let ((size_t * holdp . hold) (size_t nh . nhold) (int held . 0))
+            (if (> nhold 0) (set held (coco_heap_root_push m (aof holdp) (aof nh))))
+            (set ($ sub ptrail) tmark)
+            (set ($ sub pheap) hmark)
+            (set ($ sub gc) (? (and held (-> e gc)) 1 0))
+            (let ((size_t gsaved . #'(coco_gc_nested_begin m hmark)))
+              (set rc (coco_engine_next (aof sub)))
+              (coco_gc_nested_end m gsaved))
+            (if held (coco_heap_root_pop m)))
+          ;; a window's clock: the time from here is the caller's (1.13.3)
+          (if (-> e tclock) (coco_clock_back e))
+          (set (-> e steps) (+ (-> e steps) ($ sub steps)))
+          (set (-> e frees) (+ (-> e frees) ($ sub frees)))
+          (set ans (? (== rc 1) 1 (? (== rc 0) 0 -1)))
+          ;; THE BALL, read before `coco_engine_free' memsets the engine: a
+          ;; sub-engine has a choice stack of its own, so a throw inside finds
+          ;; no catch there, and is raised again by the caller (1.2.12)
+          (if (== rc -1)
+              (block (snprintf (-> e err) 512 "%s" ($ sub err))
+                     (if ($ sub has_ball)
+                         (block (set ans 2)
+                                (set (-> bl cell) ($ sub ball_cell))
+                                (set (-> bl size) ($ sub ball_size))
+                                (set (-> bl st) ($ sub ball_st))
+                                (set (-> bl mark) ($ sub ball_mark))))))
+          ;; one solution, and what the goal left is cut while the output is
+          ;; still captured: a cleanup's output goes in the text (3.1.0)
+          (if (== rc 1) (coco_engine_cut (aof sub)))
+          (set tmark ($ sub ptrail))
+          (set hmark ($ sub pheap))
+          (coco_engine_free (aof sub))
+
+          ;; PUT STDOUT BACK BEFORE ANYTHING ELSE, whatever happened: an early
+          ;; return from here on would leave the process writing into a file
+          ;; nobody will ever read
+          (fflush stdout)
+          (dup2 saved 1)
+          (close saved)
+          (coco_out_capture_end colsaved)
+
+          (if (not keep)
+              (block (coco_undo_to m tmark)
+                     (set ($ (cof m) heap_len) hmark)))
+
+          ;; read back whole, its length asked first: read a chunk at a time,
+          ;; the read that finds the end cost with_output_to/2 a call of
+          ;; read(2) and 108 instructions more. An empty buffer is made to
+          ;; the text's measure, the spare byte `coco_sb_room' keeps with it,
+          ;; as 3.33.0's was: realloc(3) of nothing is malloc(3) and 26
+          ;; instructions more
+          (fflush tmp)
+          (fseek tmp 0 SEEK_END)
+          (let ((long len . #'(ftell tmp)))
+            (if (> len 0)
+                (block (if (== (-> out cap) 0)
+                           (block (set (-> out s) (cast (char *) (malloc (+ (cast size_t len) 2))))
+                                  (if (!= (-> out s) nil) (set (-> out cap) (+ (cast size_t len) 2)))))
+                       (if (not (coco_sb_room out (cast size_t len)))
+                           (block (fclose tmp) (return 4)))
+                       (rewind tmp)
+                       (if (!= (fread (+ (-> out s) (-> out len)) 1 (cast size_t len) tmp)
+                               (cast size_t len))
+                           (block (fclose tmp) (set (cof why) "cannot read back the output")
+                                  (return 3)))
+                       (set (-> out len) (+ (-> out len) (cast size_t len)))
+                       (set (nth (-> out len) (-> out s)) (cast char 0)))))
+          (fclose tmp)
+          (return ans)))
+
   ;;; Builds the whole of one format into B. Answers 1, or 0 with what went
   ;;; wrong in *FKIND (above) -- so that every way of going wrong is reported
   ;;; the same way whichever of the three arities was called. START is the
   ;;; column the sink stands at before anything is built (3.33.0; through
   ;;; 3.32.0 whether a line was open there, 2.16.0): `~N' writes a newline
   ;;; only where the column is not 0, and the column stops reckon from it.
-  ;;; The text goes to O: B, or the segment held since a fill point.
+  ;;; The text goes to O: B, or the segment held since a fill point. BALL
+  ;;; keeps what a `~@' goal threw (kind 10).
   (static)
   (func coco_fmt_build ((coco_engine * e) (const char * f) (const size_t * items)
                         (size_t n) (coco_strbuf * b) (char * err) (size_t errlen) (i64 start)
-                        (int * fkind) (int * fdir) (size_t * fbad))
+                        (int * fkind) (int * fdir) (size_t * fbad) (coco_fmt_ball * ball))
         (out int)
         (let ((coco_machine * m . #'(coco_m_machine e)) (size_t ai . 0) (size_t i . 0)
               (size_t flen . #'(strlen f))
@@ -686,9 +851,40 @@
                     (if (not (coco_fmt_stop cs b (aof o) (== d 43) have num colon))
                         (return (coco_fmt_fail err errlen fkind 6 "")))
                     continue))
-              ;; 64 `~@' -- see the head of this section
+              ;; 64 `~@' (3.34.0): the next argument called once, as swipl's
+              ;; -- its output put in where the directive stands, a writer's
+              ;; (prepare_sub_format() and end_sub_format()), its bindings
+              ;; undone (PL_rewind_foreign_frame()); its failure fails the
+              ;; format and its ball is raised again, each once the text
+              ;; before it is out (`coco_fmt_do'). What it wrote before it
+              ;; failed or threw stays where it went to the stream, and is
+              ;; dropped where it went to a string: where a fill point was
+              ;; held, or the column was not the stream's
               (if (== d 64)
-                  (return (coco_fmt_fail err errlen fkind 7 "format/2: cocolog has no ~@ directive")))
+                  (let ((size_t a . 0) (int grc . 0) (i64 wc0 . 0) (size_t wfrom . 0)
+                        (int wdirect . 0) (const char * why . ""))
+                    (if (not (coco_fmt_arg items n (aof ai) (aof a)))
+                        (return (coco_fmt_fail err errlen fkind 1 "not enough arguments")))
+                    ;; a goal that is no goal is the format's own error,
+                    ;; named by the arity called as swipl's names it
+                    (if (not (coco_goal_ok m (coco_deref m a)))
+                        (block (set (cof fdir) (coco_m_raise e (coco_goal_formal m a)))
+                               (return (coco_fmt_fail err errlen fkind 5 ""))))
+                    (coco-fmt-now cs o)
+                    (set wc0 (-> cs col))
+                    (set wfrom (-> o len))
+                    (if (== (-> cs rn) 0) (coco-fmt-direct cs (-> b s) (-> b len) wc0 wdirect))
+                    (set grc (coco_out_capture_run e a nil 0 0 o ball (aof why)))
+                    (if (== grc 1)
+                        (block (set (-> cs col) (coco-fmt-wcol (-> o s) wfrom (-> o len) wc0 wdirect))
+                               (set (-> cs cdone) (-> o len))
+                               continue))
+                    (if (== grc 3) (return (coco_fmt_fail err errlen fkind 12 why)))
+                    (if (== grc 4) (return (coco_fmt_fail err errlen fkind 6 "")))
+                    (if (not wdirect)
+                        (block (set (-> o len) wfrom)
+                               (if (!= (-> o s) nil) (set (nth wfrom (-> o s)) (cast char 0)))))
+                    (return (coco_fmt_fail err errlen fkind (? (== grc 0) 9 (? (== grc 2) 10 11)) ""))))
               ;; 87 `~W': write_term/2 of two arguments
               (if (== d 87)
                   (let ((size_t a . 0) (size_t opts . 0))
@@ -855,6 +1051,7 @@
           (if (== kind 8)
               (return (coco_m_raise e (coco_make1 m "representation_error"
                                                   (coco_new_atom m "code_point")))))
+          (if (== kind 12) (return (coco_m_error e "format/2" err)))
           (return (coco_m_error e err nil))))
 
   ;;; The arguments, as an array. `format("~w", foo)' is legal and means one
@@ -903,6 +1100,19 @@
                          (or (== 0 (strcmp nm "codes")) (== 0 (strcmp nm "chars"))))
                     (return 1))))
           (return (coco_m_type_error e "output" d))))
+
+  ;;; WHETHER SINK IS A TERM TO UNIFY (3.34.0): atom(A), string(S), and codes
+  ;;; and chars of one or two arguments, as `coco_sink_check' took them --
+  ;;; where everything else is a stream, the console's among them.
+  (static)
+  (func coco_fmt_term_sink ((coco_engine * e) (size_t sink)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t d . 0))
+          (if (== sink (cast size_t -1)) (return 0))
+          (set d (coco_deref m sink))
+          (if (not (coco-tag-is FUN (nth d (-> m heap)))) (return 0))
+          (let ((const char * nm . #'(coco_atom_name m (coco_name_of m d))))
+            (return (or (or (== 0 (strcmp nm "atom")) (== 0 (strcmp nm "string")))
+                        (or (== 0 (strcmp nm "codes")) (== 0 (strcmp nm "chars"))))))))
 
   ;;; Puts TEXT where SINK says. SINK is `(cast size_t -1)' for stdout -- what
   ;;; format/1,2 pass -- and otherwise one of the
@@ -1011,7 +1221,7 @@
         (let ((coco_strbuf fb) (char err [192])
               (coco_strbuf b) (size_t * items . nil) (size_t n . 0)
               (size_t one [1]) (int owned . 0) (int ok . 0)
-              (int fkind . 0) (int fdir . 0) (size_t fbad . 0)
+              (int fkind . 0) (int fdir . 0) (size_t fbad . 0) (coco_fmt_ball ball)
               (int sk . #'(coco_sink_check e sink)))
 
           (if (!= sk 1) (return sk))
@@ -1033,7 +1243,8 @@
           (coco_sb_init (aof b))
           (set (nth 0 err) (cast char 0))
           (set ok (coco_fmt_build e (coco_tx_s (aof fb)) items n (aof b) err (sizeof err)
-                                  (coco_fmt_start e sink) (aof fkind) (aof fdir) (aof fbad)))
+                                  (coco_fmt_start e sink) (aof fkind) (aof fdir) (aof fbad)
+                                  (aof ball)))
           (coco_sb_free (aof fb))
           (if owned (free items))
 
@@ -1041,13 +1252,20 @@
           ;; sink is a stream. SWI formats straight to the stream and so emits
           ;; everything up to the directive that failed; this builds a buffer
           ;; first, so it has to put the buffer out by hand to behave the same.
-          ;; `format("~w ~w", [one])' prints `one ' and then raises, in both.
-          ;; A term sink gets nothing: there is no half-built atom to unify.
+          ;; `format("~w ~w", [one])' prints `one ' and then raises, in both,
+          ;; to any stream -- user_output, user_error, a library(stream) one
+          ;; -- and before a `~@' goal's failure as before its ball (3.34.0;
+          ;; through 3.33.0 to format/1,2's console alone). A term sink gets
+          ;; nothing: there is no half-built atom to unify.
           (if (not ok)
               (block
-               (if (== sink (cast size_t -1))
-                   (if (!= ($ b s) nil) (coco_out_puts stdout ($ b s))))
+               (if (not (coco_fmt_term_sink e sink))
+                   (let ((int drc . #'(coco_sink_deliver e sink (? (== ($ b s) nil) "" ($ b s)))))
+                     (if (!= drc 1) (block (coco_sb_free (aof b)) (return drc)))))
                (coco_sb_free (aof b))
+               (if (== fkind 9) (return 0))
+               (if (== fkind 10) (return (coco_fmt_rethrow e (aof ball))))
+               (if (== fkind 11) (return -1))
                (return (coco_fmt_raise e fkind fdir fbad err))))
 
           (let ((int rc . #'(coco_sink_deliver e sink (? (== ($ b s) nil) "" ($ b s)))))
@@ -1058,188 +1276,40 @@
   ;;;
   ;;; `with_output_to(codes(H, T), write(F))' -- SWI's dcg/basics uses exactly
   ;;; that, once, to render a float. It is also the general answer to "what did
-  ;;; this goal print", which nothing else here can ask.
-  ;;;
-  ;;; TWO AWKWARD THINGS, both worth knowing about before touching this.
-  ;;;
-  ;;; FIRST, THE REDIRECTION IS AT THE FILE DESCRIPTOR, not at a `FILE *' this
-  ;;; code passes around. cocolog writes with `printf', `fputs' and `fputc' to
-  ;;; the literal `stdout' in some seventy places; threading a stream argument
-  ;;; through all of them is the tidier design and a much larger change. So fd 1
-  ;;; is pointed at a `tmpfile' for the duration and put back afterwards. A
-  ;;; temporary file and not a pipe: a pipe holds 64K and a goal that printed
-  ;;; more than that would block for ever with nobody reading.
-  ;;;
-  ;;; SECOND, THE GOAL RUNS IN A NESTED ENGINE and so cannot be suspended. That
-  ;;; is the same limit `findall/3' has and for the same reason -- a builtin
-  ;;; cannot hand a continuation back to the engine that called it. A machine
-  ;;; frozen in the middle of one of these would have to freeze a redirected
-  ;;; file descriptor with it, which is not a thing a database row can hold.
+  ;;; this goal print", which nothing else here can ask. The goal runs with
+  ;;; its output captured (`coco_out_capture_run', which `~@' shares since
+  ;;; 3.34.0), the sink told to the collector, and its text delivered.
   ;;;
   ;;; It is `once/1' and not a generator: the FIRST solution is kept, with its
   ;;; bindings, and the goal is not re-entered. SWI's is semi-deterministic too.
+  ;;; A goal that fails fails it, and a ball is raised again here, in the
+  ;;; outer engine, once stdout is the console's again -- through 1.2.12 a
+  ;;; throw inside ended the query, and the two arms of the test were once
+  ;;; the wrong way round, so that `with_output_to(codes(C), fail)' threw the
+  ;;; store's cell 0, the first clause of library(files)'s Prolog half.
   (func coco_b_with_output_to ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (coco_store * st . #'(-> e st))
-              (size_t sink . #'(coco_m_arg e g 0))
-              (size_t goal . #'(coco_m_arg e g 1))
-              (coco_engine sub)
-              (FILE * tmp . nil) (int saved . -1) (int rc . 0) (i64 colsaved . 0)
-              (int threw . 0) (size_t ball_cell . 0) (size_t ball_size . 0)
-              (void * bstor . nil) (size_t bmark . 0)
-              (char * text . nil) (long len . 0))
-
+        (let ((size_t goal . #'(coco_m_arg e g 1))
+              (size_t hold [1]) (coco_strbuf tb) (coco_fmt_ball ball)
+              (const char * why . "") (int rc . 0))
+          (set (nth 0 hold) (coco_m_arg e g 0))
           ;; the sink, then the goal, as swipl's (3.0.0): a goal that is no
           ;; goal is this predicate's error, not the inner engine's
           ;; '<meta-call>'/1
-          (let ((int sk . #'(coco_sink_check e sink)))
+          (let ((int sk . #'(coco_sink_check e (nth 0 hold))))
             (if (!= sk 1) (return sk)))
           (let ((int bad . #'(coco_m_goal_bad e goal "system" "with_output_to" 2)))
             (if bad (return bad)))
-
-          (set tmp (tmpfile))
-          (if (== tmp nil) (return (coco_m_error e "with_output_to/2" "cannot open a temporary file")))
-          (fflush stdout)
-          (set saved (dup 1))
-          (if (< saved 0)
-              (block (fclose tmp)
-                     (return (coco_m_error e "with_output_to/2" "cannot save stdout"))))
-          (if (< (dup2 (fileno tmp) 1) 0)
-              (block (close saved) (fclose tmp)
-                     (return (coco_m_error e "with_output_to/2" "cannot redirect stdout"))))
-          ;; the capture's column is its own, from 0, as swipl's sink's
-          ;; (2.16.0, `~N' and print_message/2), and the console's comes
-          ;; back with fd 1
-          (set colsaved (coco_out_capture_begin))
-
-          (coco_engine_init (aof sub) m st)
-          ;; the inner goal spends the outer one's remaining budget, so a step
-          ;; limit cannot be overrun from in here -- narrowed after the ask,
-          ;; as findall/3's is (1.15.0)
-          (coco_engine_ask (aof sub) goal)
-          ;; an unknown procedure at its root is '$c_call_prolog'/0's, the
-          ;; frame swipl's C runs it from (3.0.0)
-          (set ($ sub rootn) 4)
-          (coco_limit_narrow e (aof sub))
-          ;; the trace follows the proof inside, depth and all, as it does
-          ;; into a findall's -- through 1.10.16 this engine traced as
-          ;; `--trace' had started it whatever trace/0 and notrace/0 had said
-          ;; since, and counted its depths from 1 (1.10.17, the backtrace)
-          (set ($ sub trace) (-> e trace))
-          (set ($ sub trace_depth) (-> e trace_depth))
-          (set ($ sub trace_goal) (-> e trace_goal))
-          (coco_trace_inner e (aof sub) 1)
-          ;; THE GOAL MAY COLLECT THE HEAP (1.9.4; `coco_engine_findall'):
-          ;; the sink, which is read after it, is told to the collector, and
-          ;; the machine's marks at the start go with the inner engine
-          (let ((size_t hold [1]) (size_t * holdp . nil) (size_t nhold . 1) (int held . 0))
-            (set (nth 0 hold) sink)
-            (set holdp hold)
-            (set held (coco_heap_root_push m (aof holdp) (aof nhold)))
-            (set ($ sub ptrail) ($ (cof m) trail_len))
-            (set ($ sub pheap) ($ (cof m) heap_len))
-            (set ($ sub gc) (? (and held (-> e gc)) 1 0))
-            (let ((size_t gsaved . #'(coco_gc_nested_begin m ($ sub pheap))))
-              (set rc (coco_engine_next (aof sub)))
-              (coco_gc_nested_end m gsaved))
-            (if held (coco_heap_root_pop m))
-            (set sink (nth 0 hold)))
-          ;; a window's clock: the time from here is this builtin's (1.13.3)
-          (if (-> e tclock) (coco_clock_back e))
-          (set (-> e steps) (+ (-> e steps) ($ sub steps)))
-          (set (-> e frees) (+ (-> e frees) ($ sub frees)))
-          ;; AND THE BALL WITH IT, which this did not do until 1.2.12 and the
-          ;; other six nested-engine builtins have done since 1.1.0. A
-          ;; sub-engine has a choice stack of its own, so a `throw' inside the
-          ;; goal finds no catch frame THERE and comes back as an error --
-          ;; and copying the message out while dropping the term made
-          ;;
-          ;;     catch(with_output_to(atom(A), G), E, true)
-          ;;
-          ;; catch nothing: the query simply ended. findall/3,4, forall/2,
-          ;; aggregate_all/3, bagof/3 and setof/3 are `coco_engine_findall'
-          ;; and were all fixed together; this one is its own sub-engine in
-          ;; this file and was missed. The cell is read HERE, before
-          ;; `coco_engine_free' memsets the sub-engine, and thrown again below
-          ;; once stdout is back where it belongs.
-          (if (== rc -1)
-              (block (snprintf (-> e err) 512 "%s" ($ sub err))
-                     (if ($ sub has_ball)
-                         (block (set threw 1) (set ball_cell ($ sub ball_cell))
-                                (set ball_size ($ sub ball_size))
-                                (set bstor ($ sub ball_st))
-                                (set bmark ($ sub ball_mark))))))
-          ;; one solution, and what the goal left is cut while the output is
-          ;; still captured: a cleanup's output goes in the text (3.1.0), as
-          ;; swipl's
-          (if (== rc 1) (coco_engine_cut (aof sub)))
-          (coco_engine_free (aof sub))
-
-          ;; PUT STDOUT BACK BEFORE ANYTHING ELSE, whatever happened. An early
-          ;; return from here on would leave the process writing into a file
-          ;; nobody will ever read.
-          (fflush stdout)
-          (dup2 saved 1)
-          (close saved)
-          (coco_out_capture_end colsaved)
-
+          (coco_sb_init (aof tb))
+          (set rc (coco_out_capture_run e goal hold 1 1 (aof tb) (aof ball) (aof why)))
           (if (!= rc 1)
-              (block (fclose tmp)
-                     ;; THROWN AGAIN, IN THE OUTER ENGINE, where the catch
-                     ;; frames are -- and stdout is already restored above, so
-                     ;; a recovery goal that prints prints to the terminal
-                     ;; rather than into a temporary file nobody will read. 2
-                     ;; is the builtin protocol's "the continuation is already
-                     ;; set"; -1 when nothing caught it, which is the uncaught
-                     ;; path this had always taken.
-                     ;;
-                     ;; AND THE TWO ARMS WERE THE WRONG WAY ROUND, which made
-                     ;; a goal that merely FAILED throw. `(if C A B)' runs A
-                     ;; when C holds, so a ball was counted dead and never
-                     ;; rethrown, while a plain failure fell into the else and
-                     ;; threw `coco_store_get(st, 0)' -- cell zero, whatever
-                     ;; the store happened to put there first. Measured:
-                     ;; `with_output_to(codes(C), fail)' threw
-                     ;; `file_base_name(A,B):-'$path_split'(A,C,B)', the first
-                     ;; clause of library(files)'s Prolog half, on every sink
-                     ;; and whether or not the program loaded that library.
-                     ;; SWI's with_output_to/2 fails when its goal fails.
-                     (if threw
-                         (let ((coco_store * bst . #'(? (== bstor nil)
-                                                        st
-                                                        (cast (coco_store *) bstor))))
-                           (if (== bst st)
-                               (set (-> st dead) (+ (-> st dead) ball_size)))
-                           ;; the inner throw's backtrace is the one kept
-                           (set (-> m btkeep) 1)
-                           (let ((int caught . #'(? (coco_m_thrown
-                                                     e (coco_store_read m bst ball_cell))
-                                                    2 -1)))
-                             (if (!= bst st)
-                                 (block (set (-> bst len) bmark)
-                                        (coco_store_shrink_empty bst)))
-                             (return caught))))
+              (block (coco_sb_free (aof tb))
+                     (if (== rc 2) (return (coco_fmt_rethrow e (aof ball))))
+                     (if (== rc 3) (return (coco_m_error e "with_output_to/2" why)))
+                     (if (== rc 4) (return (coco_m_resource_error e "memory")))
                      (if (== rc -1) (return -1))
                      (return 0)))
-
-          (fflush tmp)
-          (fseek tmp 0 SEEK_END)
-          (set len (ftell tmp))
-          (if (< len 0) (set len 0))
-          (set text (cast (char *) (malloc (cast size_t (+ len 1)))))
-          (if (== text nil)
-              (block (fclose tmp)
-                     (return (coco_m_resource_error e "memory"))))
-          (rewind tmp)
-          (if (> len 0)
-              (if (!= (cast long (fread text 1 (cast size_t len) tmp)) len)
-                  (block (free text) (fclose tmp)
-                         (return (coco_m_error e "with_output_to/2" "cannot read back the output")))))
-          (set (nth (cast size_t len) text) (cast char 0))
-          (fclose tmp)
-
-          (let ((int out . #'(coco_sink_deliver e sink text)))
-            (free text)
+          (let ((int out . #'(coco_sink_deliver e (nth 0 hold) (? (== ($ tb s) nil) "" ($ tb s)))))
+            (coco_sb_free (aof tb))
             (return out))))
 
   ;;; `flush_output/0' -- SWI'S, AND IT WAS MISSING. cocolog writes to the

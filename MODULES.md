@@ -1279,10 +1279,9 @@ CLAUDE.md carry the argument and what fixing it would cost.
 
 ### Back to this module
 
-**`format/2` has no `~@`.** It calls a goal for its output, and it raises an
-error naming itself rather than being ignored — silently dropping it would
-lose the goal's text and blame the program. Everything else is there: `~w ~q
-~p ~k ~W ~a ~d ~D ~I ~s ~c ~e ~f ~g ~r ~R ~n ~N ~i ~~`, the numeric, `~*` and
+**`format/2` is swipl's, every directive of it** (since 3.34.0, when `~@` came,
+the last: its goal called once, its output put in where it stands, its
+bindings undone): `~w ~q ~p ~k ~W ~a ~d ~D ~I ~s ~c ~e ~f ~g ~r ~R ~n ~N ~i ~~ ~@`, the numeric, `~*` and
 backquote argument prefixes, the column directives `~t`, `~|` and `~+` (since
 3.33.0, swipl's: the segment since the last stop held, its fill points sharing
 the room from the middle out, the column reckoned from where the sink stands),

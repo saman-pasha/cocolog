@@ -3046,11 +3046,23 @@ cocolint index offers no import of it.
   sink stands, else the column before it plus the linepos its text reaches
   from 0 (`coco-fmt-writer`, prepare_sub_format()) -- **a new directive
   that writes a term goes through `coco-fmt-writer`**, any other writes
-  into `o` and is walked by the first rule. **The column is walked only
-  in a format that asks it**, a fill point, a stop or `~N` among its
-  directives (`coco_fmt_asks_column`, `on`): a format that asks none
-  pays no walk -- so **a new directive that reads the column goes into
-  that function's test too**, or it reads a column nothing walked.
+  into `o` and is walked by the first rule. **The column is walked at
+  its first ask** -- a fill point, a stop, `~N`, `~@` -- which walks what
+  the format put out before it (`coco_fmt_catchup`, `on`), each writer
+  before it having noted where its text stands (eight at most; the ninth
+  asks): a format that asks none pays no walk -- so **a new directive
+  that reads the column asks through `coco-fmt-now`**, and a new writer
+  goes through `coco-fmt-writer`, or the first ask walks its text by the
+  wrong rule.
+  **`~@` and with_output_to/2 run their goal through ONE function**
+  (3.34.0, `coco_out_capture_run`): fd 1 captured, a nested engine started
+  as findall/3's is, and a ball handed back (`coco_fmt_ball`) for the
+  caller to raise once its own work is done -- `~@` puts out the text
+  before it first, as swipl's -- with_output_to/2 keeping the goal's
+  bindings and `~@` undoing them. A new builtin that captures a goal's
+  output goes through it. **The text a format built before it went wrong
+  reaches every stream sink** (`coco_fmt_term_sink`: the console,
+  user_output, user_error, a library(stream) stream), never a term.
 * **The reader is written ONCE and emitted TWICE** (1.10.7): the bodies of
   `coco_parse_term`, `_primary`, `_named`, `_args` and `_list` are macros at
   the top of `lib/syntax.cicili`, emitted as the family every consult uses

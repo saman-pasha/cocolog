@@ -122,19 +122,20 @@ main :-
     must('a file that is not there', E4,
          existence_error(source_sink, '/no/such/library.pl')),
     %% A REFUSAL is `error(cocolog_error(Text), _)': cocolog declining
-    %% something no ISO formal fits -- here format's `~@', which calls a
-    %% goal for its output and which cocolog does not have (its column
-    %% directives were refused so too, through 3.32.0). The first argument
-    %% is a SENTENCE and not one of ISO's formals. It is row C2 of the
-    %% dialect card, and cocolint has a rule for it, because a handler
-    %% written for SWI names a formal and walks past: `format(Message)' is
-    %% the one swipl raises for a format string it cannot use, and cocolog
-    %% raises it too, for `~a' with no argument left.
-    catch(format(atom(_), "~@", [true]), error(E7, _), true),
+    %% something no ISO formal fits -- here op/3 of an operator name past
+    %% 63 bytes, which cocolog's table of operators has no room for and
+    %% swipl takes. (Through 3.33.0 the example was format's `~@', and
+    %% through 3.32.0 its column directives: swipl's since.) The first
+    %% argument is a SENTENCE and not one of ISO's formals. It is row C2 of
+    %% the dialect card, and cocolint has a rule for it, because a handler
+    %% written for SWI names a formal and walks past: `type_error(T, C)' is
+    %% the one op/3 raises for a name that is no atom, in both.
+    length(Long, 64), maplist(=(0'a), Long), atom_codes(LongName, Long),
+    catch(op(700, xfx, LongName), error(E7, _), true),
     ( E7 = cocolog_error(_) -> Shape = cocolog_error ; Shape = E7 ),
     must('a refusal is cocolog_error/1', Shape, cocolog_error),
-    catch( catch(format(atom(_), "~@", [true]),
-                 error(format(_), _), Inner2 = caught),
+    catch( catch(op(700, xfx, LongName),
+                 error(type_error(_, _), _), Inner2 = caught),
            error(cocolog_error(_), _), Outer2 = caught),
     ( var(Inner2) -> Miss = missed ; Miss = caught ),
     must('a handler naming a FORMAL misses it', Miss, missed),

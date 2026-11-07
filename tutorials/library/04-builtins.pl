@@ -55,12 +55,17 @@ main :-
     format(atom(A9), "~w~`.t~10|~w~t~6+", [name, x]),
     must('a backquote gives ~~t its character, ~~6+ a stop six on', A9, 'name......x     '),
 
-    format("~n-- and the one that is NOT, loudly~n"),
-    catch(format(atom(_), "~@", [true]), error(cocolog_error(Fmt), _), true),
-    ( sub_atom(Fmt, _, _, _, 'no ~@ directive') -> F = refused ; F = Fmt ),
-    must('~~@, a goal''s output', F, refused),
-    format("   ...and the message NAMES it, so the fix is in the error~n"),
-    format("   rather than in the manual.~n"),
+    %% `~@' CALLS A GOAL FOR ITS OUTPUT (3.34.0; through 3.33.0 refused by
+    %% name, the last of swipl's directives that was): the goal runs once,
+    %% what it writes is put in where the directive stands, and its
+    %% bindings are undone -- a goal that fails fails the format
+    format(atom(A10), "<~@>", [write(hi)]),
+    must('~~@ puts a goal''s output in place', A10, '<hi>'),
+    format(atom(A11), "~@~t~6|~w", [write(ab), x]),
+    must('...and its text is a column like any other', A11, 'ab    x'),
+    ( format(atom(_), "~@", [fail]) -> F = formatted ; F = failed ),
+    must('a goal that fails fails the format', F, failed),
+    format("   Every directive of swipl's format/2 is there.~n"),
 
     format("~n-- between/3 is the loop, and it GENERATES~n"),
     findall(N, between(1, 5, N), Ns),
