@@ -129,17 +129,20 @@
            "'$select4_'([X0|XList], X, Y, [X0|YList]) :- '$select4_'(XList, X, Y, YList)."
            "selectchk(Elem, List, Rest) :- select(Elem, List, Rest0), !, Rest = Rest0."
            "selectchk(X, L, Y, R) :- select(X, L, Y, R), !."
-           "subtract([], _, [])."
-           "subtract([H|T], L, R) :- memberchk(H, L), !, subtract(T, L, R)."
-           "subtract([H|T], L, [H|R]) :- subtract(T, L, R)."
-           "intersection([], _, [])."
-           "intersection([H|T], L, [H|R]) :- memberchk(H, L), !, intersection(T, L, R)."
-           "intersection([_|T], L, R) :- intersection(T, L, R)."
-           "union([], L, L)."
-           "union([H|T], L, R) :- memberchk(H, L), !, union(T, L, R)."
-           "union([H|T], L, [H|R]) :- union(T, L, R)."
-           "subset([], _)."
-           "subset([H|T], L) :- memberchk(H, L), subset(T, L)."
+           ;; THE SET PREDICATES ARE SWIPL'S SINGLE-SIDED RULES (3.42.1): a
+           ;; first list no rule matches -- no list, an unbound one, the end
+           ;; of a partial one -- raises existence_error(matching_rule,
+           ;; lists:subtract(Tail, D, R)) at the tail it reached, where
+           ;; through 3.42.0 it failed, and an unbound list was enumerated
+           ;; (`subtract(L, [a], R)' gave L = [] and more)
+           "subtract([], _, R) => R = []."
+           "subtract([E|T], D, R) => ( memberchk(E, D) -> subtract(T, D, R) ; R = [E|R1], subtract(T, D, R1) )."
+           "intersection([], _, Set) => Set = []."
+           "intersection([X|T], L, Intersect) => ( memberchk(X, L) -> Intersect = [X|R], intersection(T, L, R) ; intersection(T, L, Intersect) )."
+           "union([], L0, L) => L = L0."
+           "union([H|T], L, Union) => ( memberchk(H, L) -> union(T, L, Union) ; Union = [H|R], union(T, L, R) )."
+           "subset([], _) => true."
+           "subset([E|R], Set) => memberchk(E, Set), subset(R, Set)."
 
            ;; SWI deletes every element that COULD unify without binding
            ;; anything: `\\+ Elem \\= X'. Plain unification would bind a
@@ -260,8 +263,14 @@
            ;; sumlist/2 (2.16.0), the old name swipl still autoloads from
            ;; library(backcomp), whose one clause this is
            "sumlist(L, S) :- sum_list(L, S)."
-           "max_list([H|T], M) :- '$maxl'(T, H, M)."
-           "min_list([H|T], M) :- '$minl'(T, H, M)."
+           ;; swipl's single-sided rules (3.42.1): a list that is none raises
+           ;; existence_error(matching_rule, lists:max_list(L, M)), and the
+           ;; walks raise it at a tail that is none, lists:max_list(T, M0,
+           ;; M); through 3.42.0 each failed
+           "max_list([H|T], M) => '$maxl'(T, H, M)."
+           "max_list([], _) => fail."
+           "min_list([H|T], M) => '$minl'(T, H, M)."
+           "min_list([], _) => fail."
            ;; ONE CLAUSE (3.0.0): '$numlist'/3 checks L and H as swipl's
            ;; must_be(integer, X) does and fails for L > H. A first clause
            ;; `numlist(L, H, []) :- L > H, !, fail' stood here through 2.16,
@@ -672,10 +681,29 @@
   ;;;
   ;;; THEY WALK THE CONS CELLS, as `memberchk' above does, rather than
   ;;; materialising the list into an array the way `$rev' must: a sum has no
-  ;;; reason to allocate a second copy of what it is adding up. The length
-  ;;; call in front of each is the PROPER-LIST CHECK -- `sum_list(foo, X)'
-  ;;; fails rather than answering 0, which is what the `'$sum'([], A, A)'
-  ;;; clause used to enforce by needing a real nil at the end.
+  ;;; reason to allocate a second copy of what it is adding up. THE TAIL IS
+  ;;; ASKED WHERE THE WALK ENDS (3.42.1), as swipl's single-sided rules ask
+  ;;; it: [] ends it, and anything else -- no list, unbound, the end of a
+  ;;; partial list -- raises existence_error(matching_rule, lists:NAME(Tail,
+  ;;; Acc, Out)) after the elements before it were folded (`coco_l_no_rule').
+  ;;; Through 3.42.0 a length call in front of each failed for any list but
+  ;;; a proper one, before it read an element. A list that is its own tail
+  ;;; still fails, past as many steps as the heap has cells, where swipl's
+  ;;; rules walk it for ever.
+
+  ;;; existence_error(matching_rule, lists:NAME(TAIL, ACC, OUT)), named
+  ;;; lists:NAME/3 as swipl's rule names it; answers the raise's answer
+  (static)
+  (func coco_l_no_rule ((coco_engine * e) (const char * name) (size_t tail) (size_t acc)
+                        (size_t out)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t args [3]))
+          (set (nth 0 args) tail)
+          (set (nth 1 args) acc)
+          (set (nth 2 args) out)
+          (return (coco_m_raise_pi e (coco_make2 m "existence_error" (coco_new_atom m "matching_rule")
+                                                 (coco_make2 m ":" (coco_new_atom m "lists")
+                                                             (coco_make m name 3 args)))
+                                   "lists" name 3))))
 
   ;;; A number as EITHER an integer or a float, which is what `is' would have
   ;;; made of it. Answers 0 for anything else, and every caller raises.
@@ -740,12 +768,15 @@
   (func coco_l_sum ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t p . #'(coco_m_arg e g 0)) (size_t n . 0)
+              (size_t lim . #'(-> m heap_len))
               (i64 ai . 0) (double ad . 0.0) (int af . 0)
               (int tm . 0) (size_t acc . 0)
               (size_t h . 0) (size_t t . 0))
-          (if (not (coco_m_list_length e (coco_m_arg e g 0) (aof n))) (return 0))
           (if (not (coco_l_num e (coco_m_arg e g 1) (aof ai) (aof ad) (aof af))) (return 0))
           (while (coco_l_step m p (aof h) (aof t))
+            ;; a list that is its own tail: past the heap's cells, no tree
+            (set n (+ n 1))
+            (if (> n lim) (return 0))
             (let ((i64 ei . 0) (double ed . 0.0) (int ef . 0))
               (if (or tm (not (coco_l_num e h (aof ei) (aof ed) (aof ef))))
                   (let ((int rc . 0))
@@ -764,6 +795,11 @@
                          (return (coco_m_evaluation_error e "int_overflow")))))
                  (if af (let ((int rc . #'(coco_l_float_ok e (aof ad)))) (if (!= rc 1) (return rc)))))))
             (set p t))
+          ;; a tail that is no [] is no rule's (3.42.1), the sum so far named
+          (if (not (coco_is_nil m (coco_deref m p)))
+              (return (coco_l_no_rule e "sum_list" (coco_deref m p)
+                                      (? tm acc (? af (coco_m_new_float e ad) (coco_m_new_int e ai)))
+                                      (coco_m_arg e g 2))))
           (if tm (return (coco_m_unify e (coco_m_arg e g 2) acc)))
           (if af (return (coco_m_unify e (coco_m_arg e g 2) (coco_m_new_float e ad))))
           (return (coco_m_unify e (coco_m_arg e g 2) (coco_m_new_int e ai)))))
@@ -790,12 +826,15 @@
   (func coco_l_extreme ((coco_engine * e) (size_t g) (int want)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t p . #'(coco_m_arg e g 0)) (size_t n . 0)
+              (size_t lim . #'(-> m heap_len))
               (size_t best . #'(coco_m_arg e g 1))
               (size_t h . 0) (size_t t . 0)
               (i64 bi . 0) (double bd . 0.0) (int bf . 0) (int bn . 0))
-          (if (not (coco_m_list_length e (coco_m_arg e g 0) (aof n))) (return 0))
           (set bn (coco_l_num e best (aof bi) (aof bd) (aof bf)))
           (while (coco_l_step m p (aof h) (aof t))
+            ;; a list that is its own tail: past the heap's cells, no tree
+            (set n (+ n 1))
+            (if (> n lim) (return 0))
             (let ((i64 hi . 0) (double hd . 0.0) (int hf . 0))
               (if (and bn (coco_l_num e h (aof hi) (aof hd) (aof hf)))
                   (let ((int b . #'(coco_num_pick want hf hi hd bf bi bd)))
@@ -808,6 +847,10 @@
                   (if (!= rc 1) (return rc))
                   (set bn (coco_l_num e best (aof bi) (aof bd) (aof bf))))))
             (set p t))
+          ;; a tail that is no [] is no rule's (3.42.1), the best so far named
+          (if (not (coco_is_nil m (coco_deref m p)))
+              (return (coco_l_no_rule e (? (> want 0) "max_list" "min_list") (coco_deref m p)
+                                      best (coco_m_arg e g 2))))
           (return (coco_m_unify e (coco_m_arg e g 2) best))))
 
   (func coco_l_maxl ((coco_engine * e) (size_t g)) (out int)

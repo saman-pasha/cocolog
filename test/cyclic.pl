@@ -431,6 +431,7 @@ walks_fixture(F) :-
       '  r(format(atom(_), L, [])), r(term_to_atom(_, L)),',
       '  catch(format(atom(_), "~s", [L]), error(S1, _), true), functor(S1, N1, A1),',
       '  catch(format(atom(_), "~s", [f(x)]), error(S2, _), true), functor(S2, N2, A2), r(N1/A1 == N2/A2),',
+      '  N3 = [1, 2|N3], r(sum_list(N3, _)), r(max_list(N3, _)), r(min_list(N3, _)),',
       '  write(done), nl.']).
 
 walks_parts(F) :-
@@ -535,6 +536,12 @@ walks_parts(F) :-
       'format/3''s format' - 'type_error-text',
       'term_to_atom/2 reading it' - 'type_error-text',
       'format/3''s ~s raises what it raises over any term that is not text' - yes,
+      %% the folds' C walks (3.42.1): past as many steps as the heap has
+      %% cells, a list is its own tail, and they fail as through 3.42.0,
+      %% where swipl's single-sided rules walk it for ever
+      'sum_list/2 of numbers that are their own tail' - no,
+      '...max_list/2' - no,
+      '...min_list/2' - no,
       '...done' - done]).
 
 %% one part of the walks fixture, a child of its own: a part that loops

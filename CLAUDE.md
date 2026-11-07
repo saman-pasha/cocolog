@@ -1557,6 +1557,16 @@ cocolint index offers no import of it.
   existence_error(matching_rule, lists:max_member_(...)) -- **a
   single-sided rule's last clause takes its row's module and swipl's
   name** (`coco_ssu_last`), so a library helper's rules need their row.
+  Since 3.42.1 sum_list/2, max_list/2, min_list/2, subtract/3,
+  intersection/3, union/3 and subset/2 are swipl's rules too
+  (test/files/lists_ssu.pl): a list no rule matches -- no list, an
+  unbound one, the end of a partial one -- raises at the tail it reached,
+  and the folds' C walks raise it themselves (`coco_l_no_rule`:
+  lists:sum_list(Tail, Acc, Sum), named lists:sum_list/3, the accumulator
+  what the elements before made). **A rule set's catch-all clause is a
+  second candidate**: each call of a rule pushes a choice point its cut
+  takes, and loses the register call -- subset/2's rules cost 41 % more
+  than its plain clauses (STATUS.md), where swipl raises from the machine.
 * **library(error) is swipl 9.0.4's** (3.29.0, the Prolog half of
   lib/builtins.cicili; test/files/error_types.pl): must_be/2 asks
   has_type/2 -- one clause a type, in swipl's order, a table a library
@@ -1673,6 +1683,8 @@ cocolint index offers no import of it.
   memberchk/2 kept the machine on the stack, +12 % of its cost. Not SWI's
   yet: list_to_set/2 and the library's other clauses walk a cyclic list for
   ever where SWI's must_be/2 raises (append/3 and maplist/N loop in both);
+  sum_list/2, max_list/2 and min_list/2 fail of one, past as many steps as
+  the heap has cells, where swipl's rules walk it for ever;
   call/1 of `G = (true, G)` runs for ever where SWI refuses to compile it; a
   channel and thread_create/2's goal carry one as the text of its factors,
   which reads back as `@(T, [V=B, ...])`; a format's `~s` and `~a` raise

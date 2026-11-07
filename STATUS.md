@@ -14494,3 +14494,107 @@ stream, backtrace, window, reason, flowchart, and the solve, module and
 state binaries. Lessons library/04, 20 and 36, which ask
 current_predicate/1. The card's cites hold (26 rows, 38 cites: six the
 lib/ edits moved, corrected, T1's anchor rewritten).
+
+## sum_list/2, max_list/2, min_list/2 and the set predicates as swipl's rules (3.42.1)
+
+swipl 9.0.4's library(lists) writes sum_list/3 (under sum_list/2),
+max_list/2,3, min_list/2,3, subtract/3, intersection/3, union/3 and
+subset/2 as single-sided rules, `([], ...)` and `([X|Xs], ...)`, so a list
+no rule matches -- no list, an unbound one, the end of a partial one --
+raises existence_error(matching_rule, lists:Name(...)) at the tail the walk
+reached, with context(lists:Name/Arity, _), after the elements before it
+were taken. Through 3.42.0 cocolog's folds failed for any list but a proper
+one, before they read an element, and the four set predicates, plain
+clauses, failed for a list that was none and enumerated an unbound one
+(`subtract(L, [a], R)` gave L = [], then [a], then [a, a], R = [] each
+time, without end). A patch, as 3.26.1's max_member/2 was.
+
+- THE SET PREDICATES are swipl's text (lib/lists.cicili's Prolog half):
+  `subtract([E|T], D, R) => ( memberchk(E, D) -> subtract(T, D, R) ; R =
+  [E|R1], subtract(T, D, R1) )`, and so on. Each commits at its head, as
+  the old clauses committed at their cut.
+- max_list/2 AND min_list/2 are swipl's two rules each, the second
+  `max_list([], _) => fail`, so `max_list(foo, M)` raises
+  lists:max_list(foo, _), named lists:max_list/2.
+- THE FOLDS' C WALKS ASK THE TAIL WHERE THEY END (`coco_l_sum`,
+  `coco_l_extreme`): [] ends the walk, anything else raises
+  existence_error(matching_rule, lists:sum_list(Tail, Acc, Sum)), named
+  lists:sum_list/3 (`coco_l_no_rule`, through `coco_m_raise_pi`: the walk's
+  own errors name system:(is)/2, as swipl's arithmetic does). Acc is what
+  the elements before the tail made -- `sum_list([1, 2|foo], S)` names 3,
+  `max_list([1, 3|_], M)` names 3 -- and an element before the tail is
+  evaluated first, so `sum_list([a|foo], S)` raises type_error(evaluable,
+  a/0). Through 3.42.0 a length call in front of each refused any list but
+  a proper one; a list that is its own tail still fails, past as many steps
+  as the heap has cells, where swipl's rules walk it for ever (COMPAT.md).
+
+test/files/lists_ssu.pl, new: 75 lines, swipl 9.0.4's byte for byte (3.42.0
+differs at line 8). It holds each predicate's answers on proper lists (an
+expression and a rational summed, a float picked over an equal integer, an
+atom taken as the first element, bound outputs that hold and that do not),
+each kind of list no rule matches with the accumulator named, the errors of
+an element before the tail, memberchk/2's error over a second argument that
+is no list, sumlist/2 naming sum_list/3, and each leaving no choice point
+on a proper list. test/cyclic.pl's lists part: the three folds fail of a
+list of numbers that is its own tail.
+
+Arms, a build each, the rule taken out (13). Each is red in lists_ssu.pl or
+test/cyclic.pl, and the arm of no edit is green in both and in
+max_member.pl:
+
+- the sum's walk asking its tail, and max_list/2's and min_list/2's;
+- the accumulator the raise names: the sum so far, the best so far (red
+  where the input's was named);
+- the raise's context, lists:sum_list/3 (red as the walk's own
+  system:(is)/2), and its goal's qualifier, lists: (red bare);
+- max_list/2's second rule, and min_list/2's (red as a plain clause:
+  `max_list(foo, M)` failed);
+- subtract/3, intersection/3, union/3 and subset/2 as rules, each (red as
+  its 3.42.0 clauses);
+- the walks' count of the heap's cells (red in cyclic: a list of numbers
+  that is its own tail walked for ever, and the case's child was killed at
+  its minute).
+
+The cost, callgrind. The step loop is not touched: tools/flow/zero.sh,
+work less padding, 3.42.0 to 3.42.1, nrev 65 894 633 to 65 903 896, queens
+40 277 153 to 40 275 102, lookup 48 045 965 to 48 052 721. Each
+function's own cost, the program less its run of no rep, says where: the
+arrays and tables a run starts with are larger by the start's reading, and
+grow at other points. On nrev every function of the engine does the same
+work to the instruction, and one realloc more copies the heap (libc's
+memcpy +8 488, malloc and free +775); on queens the heap grows once less
+(coco_grow_slow, coco_stack_cap and their callers -87, libc -1 966); on
+lookup the
+table of compiled codes grows once less (coco_clause_code -1 748,
+coco_code_put -940) and, larger, is cleared at a compaction (libc's memset
++8 876).
+A start (`cocolog query true`) is 35 086 097 instructions and 35 190 695
+(+104 598, 0.3 %): the longer rule texts read, put and compiled
+(coco_cbody_n +13 557, coco_store_put_node +10 943, coco_intern_len
++10 307, coco_functor_id +7 695). A call, 2 000 of each less the same loop
+with none: sum_list/2 of a list of 100 numbers 12 998 instructions and
+8 447 (-35 %: the list is walked once, where 3.42.0 measured its length
+first), max_list/2 13 599 and 10 548 (-22 %); of a list of ten atoms and
+[b, d, f], subtract/3 28 658 and 27 880 (-2.7 %), intersection/3 28 993
+and 26 172 (-9.7 %), union/3 28 668 and 27 880 (-2.7 %); and subset/2 of
+[b, d, f] in the ten 5 180 and 7 329 (+41 %). A rule set's catch-all
+clause, `H :- '$ssu_none'(M, H)`, is a second candidate: each call of a
+rule pushes a choice point its cut takes, and leaves the register call
+(coco_select_clause, coco_pred_next_clause, cc_head_ssu and the construct
+of the cut), where swipl raises from the machine. A lead, not done: the
+raise made by the clause selection when an SSU predicate's last candidate
+fails, the catch-all left out.
+
+Narrow cases green: lint, files (124 files, each agreeing with swipl),
+engine, errors, trace, static, gc, cyclic, library, window, reason,
+translate, flowchart, astar and cowork; lessons library/01, 08, 11, 51 and
+56, which call these predicates. No test binary compiles lib/lists.cicili.
+library/reasoning/ calls sum_list/2 of findall/3's lists and subtract/3 of
+append/3's, proper lists both: its answers are the same.
+
+A scan of every export of swipl's library(lists) over each shape a list
+argument takes (scratch, 141 calls) differs from swipl after this change
+in nth0/3 and nth1/3 alone: with the index given, a walk that meets an
+unbound tail fails, where swipl's binds it to `[_, ..., Elem|_]` (the next
+change); and in max_member/3's ball, whose meta-argument swipl qualifies
+(`user:(@<)`), COMPAT.md's row.
