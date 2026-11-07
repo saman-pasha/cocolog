@@ -799,12 +799,17 @@
   (func coco_zg_on_dynamic ((coco_store * st) (void * ctx) (size_t pi)) (out int)
         (let ((coco_zg * z . #'(cast (coco_zg *) ctx))
               (i64 wrote . 0)
-              (const char * proc . "cocolog::declare_dynamic"))
+              (const char * proc . "cocolog::declare_dynamic")
+              (const char * what . "declare_dynamic"))
           (if (not (-> z write_through)) (return 1))
           (if (>= pi ($ (cof st) npreds)) (return 0))
-          (if (not ($ (nth pi (-> st preds)) dynamic)) (set proc "cocolog::forget"))
+          ;; A FAILURE NAMES THE PROCEDURE AS THE HOOK'S OTHER CALLS DO,
+          ;; without its package (3.36.1: 3.36.0 said
+          ;; `cocolog::declare_dynamic', and test/store-lock.pl went red)
+          (if (not ($ (nth pi (-> st preds)) dynamic))
+              (block (set proc "cocolog::forget") (set what "forget")))
           (if (not (zg_call (-> z db) proc))
-              (return (coco_zg_dynamic_fail st z proc)))
+              (return (coco_zg_dynamic_fail st z what)))
           (if (not (zg_write_string (-> z db) (-> z kb)))
               (return (coco_zg_dynamic_fail st z "kb")))
           (if (not (zg_write_string (-> z db)
@@ -815,7 +820,7 @@
                                  (cast i32 ($ (nth pi (-> st preds)) arity))))
               (return (coco_zg_dynamic_fail st z "arity")))
           (if (not (coco_zg_finish z (aof wrote)))
-              (return (coco_zg_dynamic_fail st z proc)))
+              (return (coco_zg_dynamic_fail st z what)))
           ;; A THREAD THAT IS NOT THE STORE'S COMMITS ITS OWN WRITE: its
           ;; session has a transaction of its own (a green worker's), and
           ;; the load's commit runs on the owner's.

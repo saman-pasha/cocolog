@@ -13686,3 +13686,19 @@ Narrow cases green: lint, files, errors, engine, directives, library,
 reconsult, flowchart, static, trace, repl, script, async, thread, cowork, and
 the solve, module and state binaries. Lessons basics/07, 09 and 11,
 library/04, 37, 50 and 54. The card's cites hold (26 rows, 38 cites).
+
+
+## A damaged store's message names declare_dynamic again (3.36.1)
+
+3.36.0 taught the Zigurat hook's `on_dynamic` to forget a declaration
+abolish/1 withdraws (`cocolog::forget`), and the procedure's name it
+chose also went to the failure's message. So a declaration a damaged
+store refused said `dynamic: cocolog::declare_dynamic: the store in DIR is
+damaged: ...`. Through 3.35.0, as the hook's other failures still say, it
+was `dynamic: declare_dynamic: ...`, and test/store-lock.pl's torn-hexmap
+section holds that text. CI went red on all three jobs (run 42340567701,
+store-lock alone); the 3.36.0 narrow cases had not run store-lock.
+
+`coco_zg_on_dynamic` (lib/zigurat-kb.cicili) keeps the package-qualified
+name for the call and gives the failure the short one, `declare_dynamic` or
+`forget`. store-lock is red on 3.36.0 and green on 3.36.1.
