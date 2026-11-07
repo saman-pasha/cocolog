@@ -2040,6 +2040,39 @@ cocolint index offers no import of it.
   `on_dynamic` reads DYNAMIC** to tell a declaration from a withdrawal.
   test/files/abolish.pl holds 88 lines to swipl, test/reconsult.pl's
   `abolished` the second process and the fresh store.
+* **listing/1's argument is swipl's** (3.37.0, `coco_listing_spec` and
+  `coco_listing_one` in lib/solve-db.cicili, swipl's listing_/2 and
+  '$find_predicate'/2): the meta-argument's qualifiers are taken off (one
+  namespace; a variable one is every module and ENDS the strip, so
+  `_:user:yy/2` asks for (:)/2), an unbound spec is its module's own
+  predicates (`coco_listing_module`, swipl's list_module/2: listing/0 and
+  `listing(_)` user's, where a module/2 read's file is its module's,
+  `listing(lsm:_)` lsm's, `listing(_:_)` the program's of every module, no
+  name of `$`, a blank line before each), a proper list each element in
+  order (their own qualifiers off for the search alone, `[lsm:_]` lsm's as
+  `_/_` finds them: an unbound name keeps to its qualifier's module, a
+  name given never), `Name//Arity` evaluated (`'$dwim':name_arity/3`,
+  the `:MAP` row), a compound a head the clauses are picked by (unified and
+  undone, so it binds nothing), and anything else
+  type_error(predicate_indicator, S); a negative arity of an atom name,
+  known or not, is domain_error(not_less_than_zero, A) as functor/3's, and
+  a name found nowhere error(existence_error(procedure, S),
+  context(toplevel, 'DWIM could not correct goal')) -- swipl's toplevel
+  offers a near name on its terminal, cocolog none. **The candidates are
+  read FIRST** (`coco_pred_ensure`): a backend predicate keeps its clauses
+  until called, and the first cut called a second process's consulted
+  predicate unknown. What is found is sorted as Module:Name/Arity: the
+  store's, the system's as `%   Foreign: system:N/A` -- a C row, or a
+  library's clauses where swipl's is C (`coco_listing_sysdef` over
+  lib/swipl-det.cicili's `*swipl-foreign*`) -- and a program's own clauses
+  for a system name beside it under swipl's `%   NOTE: system definition
+  has been overruled for`. A predicate's module is written unless it is
+  the listing's -- `lsm:mp(1).`, and `user:yy(a, b).` where the listing is
+  lsm's -- and none under a variable context, the system's `%   Foreign:`
+  line's too; a module/2 read's declaration names the module (`coco_decl_pi`
+  notes `pmod` where a first clause would). test/files/listing_spec.pl holds
+  478 lines to swipl, test/repl.pl listing/0's blank line and tty_size/2,
+  test/reconsult.pl's `listed` the second process.
 * **A global is found by a hash of its name (1.9.4), copied AS ITS BLOCK,
   and a GROUND one's copy handed out shared while it lives (1.12.1)**
   (`nb_getval/2`, `b_getval/2`, `nb_current/2`; `coco_b_global_term`).
@@ -2655,8 +2688,9 @@ cocolint index offers no import of it.
   goes through `coco_write_mode` with the 16, one the engine reads back
   does not. Not swipl's yet: print/1 calls no portray/1 hook; a control
   character with no letter is written as it is (swipl's `\x1\`; this
-  reader has no `\x..\`); listing/1 and the REPL write `'don''t'` and
-  `'$VAR'(1)` (swipl's `'don\'t'`, `B`); and a quoted infix operator after
+  reader has no `\x..\`); the REPL writes `'don''t'` and `'$VAR'(1)`
+  (swipl's `'don\'t'`, `B`), where listing/1 writes swipl's since its
+  layout became portray_clause/1's; and a quoted infix operator after
   an integer takes no space (`1'x\'y'2`, swipl's `1 'x\'y' 2`), which
   after a 0 reads back as a character code. `test/files/print.pl` holds 85
   lines to swipl's text, and `test/files/write.pl` 79.

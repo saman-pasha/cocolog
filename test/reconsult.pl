@@ -39,7 +39,7 @@ main :-
     scratch(D),
     atom_concat(D, '/prog.pl', F),
     twice(D, F), survives(D, F), edited(D, F), two_spellings(D, F),
-    a_librarys_clauses(D), abolished(D), as_a_goal(D), loaded_once(D), when_changed(D), reports(D),
+    a_librarys_clauses(D), abolished(D), listed(D), as_a_goal(D), loaded_once(D), when_changed(D), reports(D),
     module_reread(D), over_the_wire(F),
     shl(['rm -rf ', D]),
     checks_done.
@@ -181,6 +181,32 @@ abolished(D) :-
              ' query "( member(foo, [a]) -> R = yes ; R = no ), write(answer(R)), nl"'], A5),
     cocolog_answer(A5, G5),
     check('and the clause is out of the knowledge base', G5, answer(no)).
+
+%% LISTING/1 READS WHAT IT LISTS FROM THE KNOWLEDGE BASE (3.37.0): a second
+%% process that consulted nothing names a consulted predicate, by
+%% Name/Arity or by name, and is shown its clauses -- the search reads each
+%% predicate of the name first, where 3.37.0's first cut judged one by what
+%% the process had read, found a consulted predicate with none and said it
+%% was unknown -- and one the base does not hold is unknown.
+listed(D) :-
+    section('listing/1 reads the clauses it lists from the knowledge base'),
+    atom_concat(D, '/lsstore', S),
+    atom_concat(D, '/lsfile.pl', F),
+    fixture(F, ['lsp(1).', 'lsp(2) :- lsp(1).']),
+    sh_join(['--kb listed --embed ', S, ' run ', F, ' true'], W1),
+    cocolog_out(W1, _),
+    %% each listing caught and the answer writeq'd, so a raise or a text
+    %% that differs is a FAIL of its own (and a newline in it no break)
+    sh_join(['--kb listed --embed ', S,
+             ' query "catch(with_output_to(string(T1), listing(lsp/1)), E1, T1 = E1), ',
+             'catch(with_output_to(string(T2), listing(lsp)), E2, T2 = E2), ',
+             'string_codes(W, [0''l,0''s,0''p,0''(,0''1,0''),0''.,10,0''l,0''s,0''p,0''(,0''2,0''),',
+             '32,0'':,0''-,10,32,32,32,32,0''l,0''s,0''p,0''(,0''1,0''),0''.,10,10]), ',
+             '( T1 == W -> R1 = ok ; R1 = T1 ), ( T2 == W -> R2 = ok ; R2 = T2 ), ',
+             'catch(listing(lsq/1), error(E, _), true), writeq(answer(R1-R2-E)), nl"'], A1),
+    cocolog_answer(A1, G1),
+    check('a second process lists a consulted predicate by Name/Arity and by name', G1,
+          answer(ok-ok-existence_error(procedure, lsq/1))).
 
 %% CONSULT/1 AS A GOAL IS A CONSULT (2.13.0). A running program reads the
 %% file into the knowledge base as `run' reads it: written through, so a

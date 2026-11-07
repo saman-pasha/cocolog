@@ -13702,3 +13702,161 @@ store-lock alone); the 3.36.0 narrow cases had not run store-lock.
 `coco_zg_on_dynamic` (lib/zigurat-kb.cicili) keeps the package-qualified
 name for the call and gives the failure the short one, `declare_dynamic` or
 `forget`. store-lock is red on 3.36.0 and green on 3.36.1.
+
+
+## listing/1's argument as swipl's (3.37.0)
+
+swipl's listing/1 reads its argument by library(listing)'s listing_/2 and
+boot/dwim.pl's '$find_predicate'/2. cocolog's took a name or Name/Arity
+alone: it failed when the spec named nothing, and anything else -- a head,
+a list, Name//Arity, a qualified spec, an unbound one -- stopped the query
+with an error no catch/3 saw (`listing/1 needs a name or Name/Arity`). A
+minor: every one of those is new.
+
+- The argument (lib/solve-db.cicili, `coco_listing_spec`,
+  `coco_listing_strip`, `coco_listing_one`). The qualifiers come off as
+  strip_module/3 takes them, the innermost atom the listing's own module.
+  A variable one is every module and ends the strip, so `_:user:yy/2` asks
+  for (:)/2. An unbound spec is the module's own predicates. A proper list
+  is each element in order, under the list's qualifier, the element's own
+  off for its search (and named by its error). `Name//Arity` is
+  Name/(Arity+2), evaluated, its errors as name_arity/3's (the `:MAP` row
+  `'$dwim':name_arity/3`). A compound is a head: only the clauses whose
+  head unifies with it are written, unified and undone (`\+ \+`), a
+  single-sided rule's head the one before its guard. Anything else is
+  type_error(predicate_indicator, S). A negative arity of an atom name is
+  domain_error(not_less_than_zero, A), with context(system:functor/3, _),
+  as swipl's search and its library index meet it; of an unbound name
+  nothing is found (`_/(-1)`). A spec that finds nothing is
+  error(existence_error(procedure, S), context(toplevel, 'DWIM could not
+  correct goal')), S with `user:` taken off. swipl's toplevel offers a near
+  name on its terminal; cocolog offers none.
+- What a spec finds, sorted as Module:Name/Arity (`coco_listing_found`,
+  `coco_listing_before`):
+  - The store's predicates that a live clause or a dynamic, discontiguous
+    or multifile declaration defines, a library's too.
+  - The system's, as `%   Foreign: system:atom_length/2`: a C row, or the
+    library's clauses where swipl's predicate is C (`coco_listing_sysdef`,
+    over lib/swipl-det.cicili's `*swipl-foreign*`: between/3,
+    atom_concat/3, nb_current/2).
+  - A program's own definition of a system name beside it, under swipl's
+    `%   NOTE: system definition has been overruled for msort/2`.
+
+  An unbound name keeps to the qualifier's module, where the spec names one
+  (`listing(lsm:_/1)`, `[lsm:_]`). Otherwise it finds the program's
+  predicates, as current_predicate/1 walks them; a name given is searched in
+  the one namespace.
+- THE CANDIDATES ARE READ FIRST (`coco_pred_ensure`): a predicate of the
+  knowledge base keeps its clauses in the backend until something calls
+  it. The first cut judged by what the process had read, and a second
+  process over an embedded store called a consulted predicate unknown.
+- A module's own predicates (`coco_listing_module`, swipl's list_module/2):
+  - listing/0, `listing(_)` and `listing(user:_)`: user's, which is the
+    program's. A module/2 read's file is its module's, which swipl's user
+    imports, so through 3.36.0 listing/0 also wrote them.
+  - `listing(lsm:_)`: lsm's, a library's too.
+  - `listing(_:_)`: the program's predicates of every module. swipl's also
+    writes every library it loaded.
+
+  A name that begins with `$` is left out, as swipl's leaves it out without
+  access_level system. A blank line goes before each predicate, as
+  list_module/2 writes it, where through 3.36.0 listing/0 wrote it after.
+  The order is the store's, where swipl's walks its procedure table.
+- The writing (`coco_listing_pred`):
+  - A predicate's module is written unless it is the listing's:
+    `lsm:mp(1).`, and `user:yy(a, b).` where the listing is lsm's, as
+    swipl's hide_module/3.
+  - None is written under a variable context; the system's Foreign line
+    follows the same rule.
+  - A declaration is written as write_declarations/2 writes it, `:- ~q.`:
+    `:- dynamic 'z q'/1.` and `:- dynamic lsm:md/1.`, where through 3.36.0
+    the name went out unquoted, `:- dynamic z q/1.`.
+  - A module/2 read's declaration names its predicate's module, as its first
+    clause does (`coco_decl_pi` notes `pmod`, lib/kb-pred.cicili).
+
+test/files/listing_spec.pl, new: 478 lines, swipl 9.0.4's byte for byte
+(3.36.0 differs at line 3 and stops at line 9). It covers:
+
+- the errors, lists, heads, names and arities;
+- the system's predicates, the declarations, a module's predicates;
+- the qualifiers, a variable one among them;
+- a module's own predicates (lsn, a module of one predicate: the order
+  within a module is swipl's table's);
+- user's and every module's, held to pieces of their text built at run
+  time, so no clause of the case holds them. One piece is cocolog's
+  async_workers/1, which swipl has nowhere.
+
+test/files.pl writes the two fixture modules. test/repl.pl holds listing/0's
+blank line, and tty_size/2 unknown. test/reconsult.pl's `listed` holds a
+second process listing a consulted predicate by name and by Name/Arity, and
+the existence error. test/solve.cicili: listing/1 of an unknown predicate
+raises. library/flow/modes.pl: listing/1's argument is `?`.
+
+Not swipl's (COMPAT.md, the listing row):
+
+- A module qualifier is no module to a name in the one namespace:
+  `listing(lists:zz)` writes user's `user:zz(1).`, where swipl's has none.
+- A system predicate swipl defines in Prolog (format/1, dynamic/1, call/1,
+  ','/2) is a foreign one.
+- A library's clauses are cocolog's own, with no module where its text
+  names none.
+- tty_size/2, which cocolog does not define, is unknown.
+- A near spec is unknown, with no offer and no search: `zz/a` raises
+  swipl's type_error(evaluable, a/0).
+- An arity past any term is unknown, where swipl's library index runs out
+  of stack building the term.
+- A partial list is '.'/2's.
+- `_/_` and `[user:_]` find the program's alone, where swipl's walks every
+  module, the system's too.
+- A module's own predicates come in the store's order.
+
+Arms, a build each, the rule taken out (43). Each is red in
+listing_spec.pl, test/repl.pl or test/reconsult.pl's `listed`, and the arm
+of no edit is green in all three. By area:
+
+- The argument: the existence error, the type error, a list each element,
+  the head filter, Name//Arity evaluated and its :MAP row, an arity unbound
+  (of `/` and of `//`), an atom of every arity, a negative arity's domain
+  error and of an atom name alone, an unbound spec as `_/_`.
+- The qualifiers: the top's and an element's taken off, a variable one
+  every module, a variable one the end of the strip, an element's variable
+  one keeping the context, and the error's qualifier.
+- What is found: the system's entries and swipl's foreign table, the
+  library's clauses only where they are, a library's system definition
+  listed as the system's, both entries for a program's system name, the
+  NOTE line, the sort, an unbound name keeping to its qualifier's module,
+  and the candidates read first.
+- A module's own: an unbound spec its module's, user's leaving a module/2
+  read's out, a module's by its `pmod`, every module's the program's, no
+  `$` name, and listing/0's blank line before.
+- The writing: a module written, not the listing's own, user's written,
+  none under a variable context, the system's context and a variable one on
+  the Foreign line, a module/2 read's declaration, a declaration quoted, a
+  head that binds nothing, and a single-sided rule's head before its guard.
+
+After the first round two things changed, and the arms they touch (the
+arm of no edit, A07, A24, A30, A31) were run again on the final code:
+
+- An unbound name's negative arity: a probe found swipl's existence_error.
+- The reconsult check now catches each listing. Two arms made the child
+  raise, and the case raised with it, its answer cut out of the error
+  report rather than failing a check.
+
+The cost, callgrind. zero.sh, work less padding, 3.36.1 to 3.37.0:
+
+| program | 3.36.1 | 3.37.0 |
+|---|---|---|
+| nrev | 65 997 139 | 65 997 161 |
+| queens | 40 281 327 | 40 281 294 |
+| lookup | 48 092 643 | 48 092 654 |
+
+The step loop is not touched. A start (`cocolog query true`, the two
+binaries side by side) is 34 801 710 instructions and 34 799 816.
+
+Narrow cases green: lint, files, errors, engine, directives, library,
+reconsult, store-lock, flowchart, static, trace, repl, script, async,
+thread, cowork, and the solve, module and state binaries. Lessons
+basics/07, 09 and 11, library/04, 37, 50 and 54. The batch found the solve
+binary's check that listing/1 of an unknown predicate fails; it now checks
+that it raises existence_error, as swipl's. The card's cites hold (26
+rows, 38 cites).

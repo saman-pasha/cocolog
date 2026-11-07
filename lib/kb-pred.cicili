@@ -786,6 +786,16 @@
              (set ($ (nth pi (-> st preds)) pattrs)
                   (bitor ($ (nth pi (-> st preds)) pattrs) (? (== kind 3) 1 (? (== kind 4) 2 4))))
              (return 1)))
+          ;; A MODULE/2 READ'S DECLARATION NAMES THE PREDICATE'S MODULE, as
+          ;; its first clause does (3.37.0, `coco_pred_note_mod'): listing/1
+          ;; writes `:- dynamic mm:md/1.' of a predicate declared alone
+          (if (!= (-> m ssu_mod) 0)
+              (block
+                (set pi (coco_pred_intern st nid n))
+                (if (>= pi (-> st npreds)) (return 0))
+                (if (and (== ($ (nth pi (-> st preds)) pmod) 0)
+                         (== ($ (nth pi (-> st preds)) nclauses) 0))
+                    (coco_pred_note_mod st m pi))))
           (if (and (or (not (coco_store_is_muted st)) (-> st ownload))
                    (== (coco_claim_kind m nid n) 1))
               (block

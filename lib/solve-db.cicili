@@ -1359,8 +1359,68 @@
 
   ;;; ---- listing ------------------------------------------------------------
 
-  ;;; One predicate, written so that it reads back. A `:- dynamic' line first if
-  ;;; it is one, then a clause per line, then a blank line.
+  ;;; A DECLARATION'S LINE, as swipl's write_declarations/2 writes it,
+  ;;; `format(':- ~q.~n', [Decl])' (3.37.0): the indicator quoted as
+  ;;; writeq/1 quotes it, so `:- dynamic'z q'/1.' and `:- dynamic
+  ;;; 'don\'t'/2.' read back -- through 3.36.0 the name went out as it is,
+  ;;; `:- dynamic z q/1.' -- and with its module where the listing names one
+  (static)
+  (func coco_listing_decl ((coco_machine * m) (const char * kind) (size_t pit))
+        (let ((coco_strbuf b))
+          (coco_sb_init (aof b))
+          (coco_sb_put (aof b) ":- ")
+          (coco_write_mode m (aof b) (coco_make1 m kind pit) 25 0)
+          (coco_sb_put (aof b) ".\n")
+          (coco_out_puts stdout ($ b s))
+          (coco_sb_free (aof b))))
+
+  ;;; A PREDICATE OF THE SYSTEM'S: a construct, a row of the engine or of a
+  ;;; compiled-in module, as current_predicate/1 named whole answers
+  ;;; (`coco_pred_current''s first question)
+  (static)
+  (func coco_listing_sys ((coco_machine * m) (u64 nid) (u32 n)) (out int)
+        (return (or (>= (coco_builtin_index m nid n) 0)
+                    (and (!= coco_claims_hook nil)
+                         (coco_claims_hook (coco_atom_name m nid) n)))))
+
+  ;;; A SYSTEM PREDICATE AS SWIPL LISTS ONE, `%   Foreign: system:N/A': what
+  ;;; cocolog writes in C, and what its library writes as clauses where
+  ;;; swipl defines it in C (lib/swipl-det.cicili's *swipl-foreign*:
+  ;;; between/3, atom_concat/3, sub_atom/5), where the store holds them
+  (static)
+  (func coco_listing_sysdef ((coco_machine * m) (coco_store * st) (u64 nid) (u32 n)) (out int)
+        (if (coco_listing_sys m nid n) (return 1))
+        (if (not (coco_det_foreign_name (coco_atom_name m nid) n)) (return 0))
+        (let ((size_t pi . #'(coco_pred_find st nid n)))
+          (return (and (< pi (-> st npreds)) ($ (nth pi (-> st preds)) library)
+                       (> (coco_pred_live (aof (nth pi (-> st preds)))) 0)))))
+
+  ;;; WHETHER A CLAUSE'S HEAD UNIFIES WITH HEAD, undone after: swipl's
+  ;;; `\+ \+ rule_head(Rule, Head)' in list_clauses/3, a single-sided rule's
+  ;;; head the one before its guard
+  (static)
+  (func coco_listing_fits ((coco_machine * m) (size_t t) (size_t head)) (out int)
+        (let ((size_t h . #'(coco_deref m t)) (size_t tmark . #'(-> m trail_len)) (int ok . 0))
+          (cond
+            ((coco_is_compound2 m h ":-") (set h (coco_deref m (coco_arg m h 0))))
+            ((coco_is_compound2 m h "=>")
+             (set h (coco_deref m (coco_arg m h 0)))
+             (if (coco_is_compound2 m h ",") (set h (coco_deref m (coco_arg m h 0))))))
+          (set ok (coco_unify m h head))
+          (coco_undo_to m tmark)
+          (return ok)))
+
+  ;;; One predicate, written so that it reads back. Its declarations first,
+  ;;; a line each and a blank line after them, then a clause a line -- only
+  ;;; those whose head unifies with HEAD where the listing asked for a head
+  ;;; (3.37.0, swipl's list_clauses/3: `listing(f(a))' lists f/1's clauses
+  ;;; for `a'; (size_t) -1 is none) -- and a blank line: before it all for
+  ;;; listing/0 (LEAD), after it for listing/1, where swipl's list_module/2
+  ;;; and list_predicates/3 put it. A predicate a module/2 read gave a module
+  ;;; (`pmod') is written with it, before each declaration's indicator and
+  ;;; each clause, unless it is the listing's own module CTX (0 for user, -1
+  ;;; for a variable, which swipl's hide_module/3 unifies with any): swipl's
+  ;;; decl_term/3 and write_module/3, `mm:mp(1).'.
   ;;;
   ;;; IT ASKS THE BACKEND FIRST. A predicate whose clauses are still in the
   ;;; database has an empty list here until somebody calls it, and a `listing'
@@ -1373,51 +1433,59 @@
   ;;; A predicate that could not be read answers -1, with the reason on the
   ;;; store for the caller to raise (2.11.1).
   (static)
-  (func coco_listing_pred ((coco_engine * e) (size_t pi)) (out int)
+  (func coco_listing_pred ((coco_engine * e) (size_t pi) (size_t head) (u64 ctx) (int lead))
+        (out int)
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st))
               (coco_strbuf b))
           (if (not (coco_pred_ensure st pi)) (return -1))
           (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
-                (const char * nm . #'(coco_atom_name m ($ (nth pi (-> st preds)) name)))
                 (int dyn . #'($ (nth pi (-> st preds)) dynamic))
                 (int dcl . #'($ (nth pi (-> st preds)) declared))
-                (int pat . #'($ (nth pi (-> st preds)) pattrs)))
+                (int pat . #'($ (nth pi (-> st preds)) pattrs))
+                (u64 mod . #'($ (nth pi (-> st preds)) pmod))
+                (u64 uid . #'(cast u64 (+ (coco_intern m "user") 1)))
+                (size_t hmark . #'(-> m heap_len))
+                (size_t pit . 0))
 
             ;; (bit 32, the tracer's, is no declaration: 3.27.0)
             (if (and (not dyn) (not dcl) (== (bitand pat 31) 0) (== (coco_pred_live p) 0))
                 (return 0))
+            ;; THE PREDICATE'S MODULE, user's where no module/2 read gave it
+            ;; one, written unless it is the listing's -- `user:yy(a, b).' in
+            ;; lsm's listing, as swipl's hide_module/3 -- or the listing's is
+            ;; a variable, which that unifies with any
+            (if (== mod 0) (set mod uid))
+            (if (or (== ctx (cast u64 -1)) (== mod (? (== ctx 0) uid ctx))) (set mod 0))
+            (if lead (coco_out_puts stdout "\n"))
 
             ;; THE DECLARATIONS FIRST, one line each and a blank line after
             ;; them, in swipl's order: thread_local, dynamic, volatile,
             ;; multifile, public, then module_transparent. A discontiguous
             ;; declaration it never writes.
-            (if (bitand pat 8)
-                (block (printf ":- thread_local %s/%u.\n" nm
-                               (cast unsigned ($ (nth pi (-> st preds)) arity)))
-                       (coco_out_note stdout "\n" 1)))
-            (if dyn
-                (block (printf ":- dynamic %s/%u.\n" nm
-                               (cast unsigned ($ (nth pi (-> st preds)) arity)))
-                       (coco_out_note stdout "\n" 1)))
-            (if (bitand pat 2)
-                (block (printf ":- volatile %s/%u.\n" nm
-                               (cast unsigned ($ (nth pi (-> st preds)) arity)))
-                       (coco_out_note stdout "\n" 1)))
-            (if (bitand dcl 2)
-                (block (printf ":- multifile %s/%u.\n" nm
-                               (cast unsigned ($ (nth pi (-> st preds)) arity)))
-                       (coco_out_note stdout "\n" 1)))
-            (if (bitand pat 1)
-                (block (printf ":- public %s/%u.\n" nm
-                               (cast unsigned ($ (nth pi (-> st preds)) arity)))
-                       (coco_out_note stdout "\n" 1)))
-            (if (bitand pat 4)
-                (block (printf ":- module_transparent %s/%u.\n" nm
-                               (cast unsigned ($ (nth pi (-> st preds)) arity)))
-                       (coco_out_note stdout "\n" 1)))
-            (if (or dyn (or (bitand dcl 2) (or (bitand pat 7) (bitand pat 8))))
+            (set pit (coco_make2 m "/" (coco_new_atom_id m (-> p name))
+                                 (coco_new_int m (cast i64 (-> p arity)))))
+            (if mod (set pit (coco_make2 m ":" (coco_new_atom_id m (- mod 1)) pit)))
+            ;; A SYSTEM NAME THE PROGRAM DEFINES says so first, swipl's
+            ;; notify_changed/2, after the system's own `%   Foreign:' line
+            (if (and (or (not (-> p library)) (-> p own))
+                     (coco_listing_sysdef m st (-> p name) (-> p arity)))
+                (let ((coco_strbuf nb))
+                  (coco_sb_init (aof nb))
+                  (coco_sb_put (aof nb) "%   NOTE: system definition has been overruled for ")
+                  (coco_write_mode m (aof nb) pit 25 0)
+                  (coco_sb_put (aof nb) "\n")
+                  (coco_out_puts stdout ($ nb s))
+                  (coco_sb_free (aof nb))))
+            (if (bitand pat 8) (coco_listing_decl m "thread_local" pit))
+            (if dyn (coco_listing_decl m "dynamic" pit))
+            (if (bitand pat 2) (coco_listing_decl m "volatile" pit))
+            (if (bitand dcl 2) (coco_listing_decl m "multifile" pit))
+            (if (bitand pat 1) (coco_listing_decl m "public" pit))
+            (if (bitand pat 4) (coco_listing_decl m "module_transparent" pit))
+            (if (or dyn (or (bitand dcl 2) (bitand pat 15)))
                 (coco_out_puts stdout "\n"))
+            (set (-> m heap_len) hmark)
 
             (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
               ;; a clause retracted under a call still open is gone
@@ -1427,84 +1495,358 @@
                 ;; a single-sided rule as swipl writes it, and the
                 ;; predicate's last clause not at all (3.19.0, `coco_ssu_rule')
                 (set t (coco_ssu_rule m t))
-                (coco_sb_init (aof b))
-                ;; the clause laid out as swipl's portray_clause/1 lays it
-                ;; out, so what listing/1 shows is what a program reads back
-                (if (!= t (cast size_t -1)) (coco_layout_clause m (aof b) t))
-                (if (!= ($ b s) nil) (fputs ($ b s) stdout))
-                (coco_sb_free (aof b))
+                (if (and (!= t (cast size_t -1)) (!= head (cast size_t -1)))
+                    (if (not (coco_listing_fits m t head)) (set t (cast size_t -1))))
+                (if (!= t (cast size_t -1))
+                    (block
+                      (coco_sb_init (aof b))
+                      (if mod
+                          (block (coco_write_mode m (aof b) (coco_new_atom_id m (- mod 1)) 25 0)
+                                 (coco_sb_put (aof b) ":")))
+                      ;; the clause laid out as swipl's portray_clause/1 lays
+                      ;; it out, so what listing/1 shows is what a program
+                      ;; reads back
+                      (coco_layout_clause m (aof b) t)
+                      (if (!= ($ b s) nil) (coco_out_puts stdout ($ b s)))
+                      (coco_sb_free (aof b))))
                 ;; the clause was copied on to the heap only to be written
                 (set (-> m heap_len) mark)))
             ;; the blank line separates predicates: after the clauses, and
             ;; after a declared predicate's blank line when it has none, as
             ;; swipl writes it (through 3.0.4 one blank line in all there)
-            (coco_out_puts stdout "\n")
+            (if (not lead) (coco_out_puts stdout "\n"))
             (return 1))))
 
-  ;;; `listing' with no argument is the PROGRAM, not everything reachable. A
-  ;;; module's clauses are in the same store -- that is what makes them
-  ;;; callable -- but a person asking what they have written does not want the
-  ;;; Files library back, any more than SWI's `listing' hands back library(lists).
-  ;;; `listing(Name)' still shows them: asking for one by name is asking about
-  ;;; that one specifically. A file the program loaded by its path is the
-  ;;; program's (`own', 1.10.28): `-s FILE' listed nothing of FILE.
-  (func coco_bi_listing_all ((coco_engine * e) (size_t g)) (out int)
-        (coco_store_warm (-> e st))
+  ;;; A MODULE'S OWN PREDICATES, swipl's list_module/2 (3.37.0): user's for
+  ;;; listing/0, `listing(_)' and `listing(user:_)' (CTX 0), M's for
+  ;;; `listing(M:_)' -- a module/2 read's, a library's too (`pmod') -- and
+  ;;; every module's for `listing(_:_)' (CTX -1), with none written before
+  ;;; them; a blank line before each, in the store's order (swipl's walks its
+  ;;; procedure table), and a name that begins with `$' none, as swipl's
+  ;;; without its access_level system.
+  ;;;
+  ;;; User's is the PROGRAM, not everything reachable. A library's clauses
+  ;;; are in the same store -- that is what makes them callable -- but a
+  ;;; person asking what they have written does not want the Files library
+  ;;; back, any more than SWI's `listing' hands back library(lists), and
+  ;;; every module's is the program's of any module, where swipl's lists
+  ;;; every library it loaded too. `listing(Name)' still shows them: asking
+  ;;; for one by name is asking about that one specifically. A file the
+  ;;; program loaded by its path is the program's (`own', 1.10.28: `-s FILE'
+  ;;; listed nothing of FILE), and a module/2 read's file its module's,
+  ;;; which swipl's user imports (through 3.36.0 listing/0 wrote them too).
+  (func coco_listing_module ((coco_engine * e) (u64 ctx)) (out int)
         ;; `npreds' is read each time round rather than once: `coco_pred_ensure'
         ;; inside the listing can intern predicates the clauses it fetches
         ;; mention, and the loop should reach those too.
         (for ((size_t i . 0)) (< i ($ (cof (-> e st)) npreds)) ((++ i))
-          (if (or (not ($ (nth i ($ (cof (-> e st)) preds)) library))
-                  ($ (nth i ($ (cof (-> e st)) preds)) own))
-              (if (< (coco_listing_pred e i) 0) (return (coco_fetch_error e)))))
+          (let ((coco_pred * p . #'(aof (nth i ($ (cof (-> e st)) preds))))
+                (int prog . #'(or (not (-> p library)) (-> p own))))
+            ;; (36, `$')
+            (if (and (!= (nth 0 (coco_atom_name (-> e m) (-> p name))) 36)
+                     (? (== ctx 0) (and prog (== (-> p pmod) 0))
+                        (? (== ctx (cast u64 -1)) prog (== (-> p pmod) ctx))))
+                (if (< (coco_listing_pred e i (cast size_t -1) ctx 1) 0)
+                    (return (coco_fetch_error e))))))
         (return 1))
 
-  ;;; `listing(Name)' lists every arity of that name; `listing(Name/Arity)' the
-  ;;; one. Both are what other Prologs do, and a program that knows only the
-  ;;; name of what it asserted should not have to count its arguments.
-  (func coco_bi_listing ((coco_engine * e) (size_t g)) (out int)
+  ;;; listing/0, user's
+  (func coco_bi_listing_all ((coco_engine * e) (size_t g)) (out int)
+        (coco_store_warm (-> e st))
+        (return (coco_listing_module e 0)))
+
+  ;;; ---- listing/1's argument (3.37.0, swipl 9.0.4's) ------------------------
+  ;;;
+  ;;; swipl's listing_/2 (library(listing)) over '$find_predicate'/2
+  ;;; (boot/dwim.pl), which through 3.36.0 took a name or Name/Arity alone,
+  ;;; failed when it named nothing, and stopped the query for anything else:
+  ;;;
+  ;;;   - the meta-argument's qualifiers, `M:Spec' with M an atom, are taken
+  ;;;     off (one namespace: M is no module a name's search keeps to), the
+  ;;;     innermost M the listing's own module, which a predicate's module
+  ;;;     is not written before; a variable M is every module, and ends the
+  ;;;     strip (`coco_listing_strip');
+  ;;;   - an unbound spec is the module's own predicates
+  ;;;     (`coco_listing_module', swipl's list_module/2), and a proper list
+  ;;;     each of its elements, in order, under the list's qualifier: `[_]'
+  ;;;     the module's, `[lsm:_]' lsm's as `_/_' finds them, `[user:yy/2]'
+  ;;;     yy/2;
+  ;;;   - Name//Arity is Name/(Arity+2), evaluated, its errors named as
+  ;;;     swipl's name_arity/3 names them (the :MAP row of listing/1);
+  ;;;   - a compound is its name and arity, and only the clauses whose head
+  ;;;     unifies with it are written (`coco_listing_fits');
+  ;;;   - anything else is error(type_error(predicate_indicator, S), _);
+  ;;;   - the predicates found, in the standard order of Module:Name/Arity:
+  ;;;     the store's that a clause or a declaration defines, a library's
+  ;;;     too, and the system's, `%   Foreign: system:atom_length/2' --
+  ;;;     where the program defines a system name, its own clauses; with the
+  ;;;     name unbound, the qualifier's module's, or the program's alone, as
+  ;;;     current_predicate/1's;
+  ;;;   - a negative arity of a name that is an atom or unbound is
+  ;;;     domain_error(not_less_than_zero, A) from functor/3, as swipl's
+  ;;;     search and its library index meet it;
+  ;;;   - none is error(existence_error(procedure, Spec), context(toplevel,
+  ;;;     'DWIM could not correct goal')), Spec as given with `user:' taken
+  ;;;     off. No near name is offered: swipl's asks whether to correct it.
+
+  ;;; WHETHER THE STORE'S PREDICATE PI IS ONE A LISTING FINDS: a live clause,
+  ;;; or a dynamic, discontiguous or multifile declaration, as swipl's
+  ;;; current_predicate/2 has it -- 1, or 2 for a library's that is the
+  ;;; system's (`coco_listing_sysdef': nb_current/2's clause beside its C,
+  ;;; between/3's), which is listed as the system's alone
+  (static)
+  (func coco_listing_found ((coco_machine * m) (coco_store * st) (size_t pi)) (out int)
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+          (if (not (or (> (coco_pred_live p) 0) (or (-> p dynamic) (-> p declared))))
+              (return 0))
+          (if (and (-> p library) (not (-> p own)))
+              (return (? (coco_listing_sysdef m st (-> p name) (-> p arity)) 2 1)))
+          (return 1)))
+
+  ;;; THE MODULE A FOUND PREDICATE IS LISTED UNDER, for the standard order:
+  ;;; `system', a module/2 read's (`pmod'), or `user'
+  (static)
+  (func coco_listing_mod ((coco_machine * m) (coco_store * st) (size_t pi)) (out const char *)
+        (if (== pi (cast size_t -1)) (return "system"))
+        (if (!= ($ (nth pi (-> st preds)) pmod) 0)
+            (return (coco_atom_name m (- ($ (nth pi (-> st preds)) pmod) 1))))
+        (return "user"))
+
+  ;;; ENTRY A BEFORE ENTRY B: Module, then Name, then Arity. An entry is two
+  ;;; words, the store's index (-1 the system's) and the arity; the
+  ;;; system's name is NID.
+  (static)
+  (func coco_listing_before ((coco_machine * m) (coco_store * st) (u64 nid)
+                             (size_t * a) (size_t * b)) (out int)
+        (let ((int c . #'(strcmp (coco_listing_mod m st (nth 0 a))
+                                 (coco_listing_mod m st (nth 0 b)))))
+          (if (!= c 0) (return (< c 0)))
+          (set c (strcmp (coco_atom_name m (? (== (nth 0 a) (cast size_t -1)) nid
+                                              ($ (nth (nth 0 a) (-> st preds)) name)))
+                         (coco_atom_name m (? (== (nth 0 b) (cast size_t -1)) nid
+                                              ($ (nth (nth 0 b) (-> st preds)) name)))))
+          (if (!= c 0) (return (< c 0)))
+          (return (< (nth 1 a) (nth 1 b)))))
+
+  ;;; WHETHER THE STORE'S PREDICATE PI IS ONE A SPEC'S NAME NM AND ARITY A
+  ;;; ASK FOR (ANYAR any): of the name, or with the name unbound module
+  ;;; SMOD's (its `pmod', a library's too) where the spec named a module,
+  ;;; else the program's, as current_predicate/1 walks them
+  (static)
+  (func coco_listing_cand ((coco_machine * m) (coco_store * st) (size_t nm) (i64 a) (int anyar)
+                           (u64 smod) (size_t pi)) (out int)
+        (if (not (or anyar (== (cast i64 ($ (nth pi (-> st preds)) arity)) a))) (return 0))
+        (if (coco-tag-is REF (nth nm (-> m heap)))
+            (return (? smod (== ($ (nth pi (-> st preds)) pmod) smod)
+                       (or (not ($ (nth pi (-> st preds)) library)) ($ (nth pi (-> st preds)) own)))))
+        (return (and (coco-tag-is ATOM (nth nm (-> m heap))) (not (coco_is_nil m nm))
+                     (== ($ (nth pi (-> st preds)) name) (coco_name_of m nm)))))
+
+  ;;; ONE SPEC S, listing_/2's last clause, searched under the qualifier
+  ;;; MQ (-1 user's, as for none): its name and arity, the predicates they
+  ;;; find, each written; an existence error names `MQ:S' (S where MQ is
+  ;;; user's) and CTX is the listing's module (0 user, -1 a variable)
+  (static)
+  (func coco_listing_one ((coco_engine * e) (size_t s) (size_t mq) (u64 ctx)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st))
-              (size_t spec . #'(coco_a e g 0))
-              (int shown . 0))
+              (size_t espec . #'(? (== mq (cast size_t -1)) s (coco_make2 m ":" mq s)))
+              (size_t nm . s) (size_t ar . 0) (size_t head . #'(cast size_t -1))
+              (int anyar . 0) (i64 a . 0) (size_t * es . nil) (size_t n . 0)
+              (u64 smod . 0) (int rc . 1))
+          (set s (coco_deref m s))
+          ;; AN UNBOUND NAME KEEPS TO ITS QUALIFIER'S MODULE (SMOD), as
+          ;; swipl's find_predicate/4 walks a module given: `[lsm:_/1]'
+          ;; is lsm's predicates of one argument. A name given is searched
+          ;; in the one namespace, whatever its qualifier.
+          (if (and (!= mq (cast size_t -1)) (coco-tag-is ATOM (nth (coco_deref m mq) (-> m heap))))
+              (set smod (cast u64 (+ (coco_name_of m mq) 1))))
+          ;; NAME AND ARITY, swipl's name_arity/3: an unbound spec is
+          ;; `_/_', which its Name/Arity clause makes of it
+          (cond
+            ((and (coco-tag-is ATOM (nth s (-> m heap))) (not (coco_is_nil m s)))
+             (set nm s) (set anyar 1))
+            ((coco-tag-is REF (nth s (-> m heap)))
+             (set nm s) (set anyar 1))
+            ((coco_is_compound2 m s "/")
+             (set nm (coco_deref m (coco_arg m s 0)))
+             (set ar (coco_deref m (coco_arg m s 1))))
+            ((coco_is_compound2 m s "//")
+             (set nm (coco_deref m (coco_arg m s 0)))
+             (set ar (coco_deref m (coco_arg m s 1)))
+             (if (coco-tag-is REF (nth ar (-> m heap)))
+                 (set anyar 1)
+               ;; `Arity is DCGArity+2'
+               (let ((int isf . 0) (i64 iv . 0) (double fv . 0.0)
+                     (size_t x . #'(coco_make2 m "+" ar (coco_new_int m 2)))
+                     (int r . #'(coco_arith e x (aof isf) (aof iv) (aof fv) 0)))
+                 (if (!= r 1) (return (? (== r 3) (coco_type_error e "expression" x) r)))
+                 (set ar (? (== isf 0) (coco_new_int m iv) (coco_new_atom m "[]"))))))
+            ((coco_is_callable m s)
+             (set nm (coco_new_atom_id m (coco_name_of m s)))
+             (set ar (coco_new_int m (cast i64 (coco_arity m s))))
+             (if (> (coco_arity m s) 0) (set head s)))
+            (#t (return (coco_raise_ctx e (coco_make2 m "type_error"
+                                                     (coco_new_atom m "predicate_indicator") s)
+                                        (coco_new_var m)))))
+          (set nm (coco_deref m nm))
+          (if (not anyar)
+              (block
+                (set ar (coco_deref m ar))
+                (if (coco-tag-is REF (nth ar (-> m heap)))
+                    (set anyar 1)
+                  (if (not (coco-is-int (nth ar (-> m heap))))
+                      (set a -1)
+                    (block
+                      (set a (coco_int_val m (nth ar (-> m heap))))
+                      ;; swipl's functor/3 of the name: its search's of a
+                      ;; predicate of it, or its library index's of the
+                      ;; name itself -- of a name that is an atom; of an
+                      ;; unbound one nothing is found (`_/(-1)')
+                      (if (< a 0)
+                          (block
+                            (if (and (coco-tag-is ATOM (nth nm (-> m heap)))
+                                     (not (coco_is_nil m nm)))
+                                (return (coco_raise_named
+                                         e (coco_make2 m "domain_error"
+                                                       (coco_new_atom m "not_less_than_zero") ar)
+                                         "system" "functor" 3)))
+                            (set a -1)))
+                      (if (> a 4294967295) (set a -1)))))))
+          ;; THE STORE'S CANDIDATES ARE READ FIRST: a predicate of the
+          ;; knowledge base keeps its clauses in the backend until something
+          ;; calls it, and one judged by what this process had read was
+          ;; empty to a second process (3.37.0's first cut). One this process
+          ;; has not reached at all is asked for by name, as before 3.37.0.
+          (if (!= a -1)
+              (block
+                (if (and (coco-tag-is ATOM (nth nm (-> m heap))) (not anyar))
+                    (coco_pred_intern st (coco_name_of m nm) (cast u32 a)))
+                (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
+                  (if (and (coco_listing_cand m st nm a anyar smod i) (not (coco_pred_ensure st i)))
+                      (return (coco_fetch_error e))))))
+          ;; THE PREDICATES FOUND, two words an entry, at most every
+          ;; predicate of the store and 64 of the system's
+          (set es (cast (size_t *) (malloc (* (+ (-> st npreds) 65) 2 (sizeof size_t)))))
+          (if (== es nil) (return (coco_mem_error e)))
+          (if (!= a -1)
+              (block
+                (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
+                  (if (and (coco_listing_cand m st nm a anyar smod i) (== (coco_listing_found m st i) 1))
+                      (block (set (nth (* 2 n) es) i)
+                             (set (nth (+ (* 2 n) 1) es) ($ (nth i (-> st preds)) arity))
+                             (set n (+ n 1)))))
+                ;; the system's, a program's own definition of the name
+                ;; beside it, as swipl finds user:msort/2 and system:msort/2
+                (if (coco-tag-is ATOM (nth nm (-> m heap)))
+                    (for ((u32 k . 0)) (< k 64) ((++ k))
+                      (if (and (or anyar (== (cast i64 k) a))
+                               (coco_listing_sysdef m st (coco_name_of m nm) k))
+                          (block (set (nth (* 2 n) es) (cast size_t -1))
+                                 (set (nth (+ (* 2 n) 1) es) k)
+                                 (set n (+ n 1))))))))
+          (if (== n 0)
+              (block
+                (free es)
+                (return (coco_raise_ctx e (coco_make2 m "existence_error"
+                                                     (coco_new_atom m "procedure") espec)
+                                        (coco_make2 m "context" (coco_new_atom m "toplevel")
+                                                    (coco_new_atom m "DWIM could not correct goal"))))))
+          ;; swipl's sort/2 of them, an insertion sort: a name has a few
+          (for ((size_t i . 1)) (< i n) ((++ i))
+            (let ((size_t j . i))
+              (while (and (> j 0)
+                          (coco_listing_before m st (coco_name_of m nm) (aof (nth (* 2 j) es))
+                                               (aof (nth (* 2 (- j 1)) es))))
+                (let ((size_t t0 . #'(nth (* 2 j) es)) (size_t t1 . #'(nth (+ (* 2 j) 1) es)))
+                  (set (nth (* 2 j) es) (nth (* 2 (- j 1)) es))
+                  (set (nth (+ (* 2 j) 1) es) (nth (+ (* 2 (- j 1)) 1) es))
+                  (set (nth (* 2 (- j 1)) es) t0)
+                  (set (nth (+ (* 2 (- j 1)) 1) es) t1))
+                (set j (- j 1)))))
+          (for ((size_t i . 0)) (and (== rc 1) (< i n)) ((++ i))
+            (if (== (nth (* 2 i) es) (cast size_t -1))
+                ;; swipl's list_predicate/3 of a foreign one
+                (let ((coco_strbuf b) (size_t mark . #'(-> m heap_len))
+                      (size_t pit . #'(coco_make2 m "/" nm (coco_new_int m (cast i64 (nth (+ (* 2 i) 1) es))))))
+                  (if (and (!= ctx (cast u64 -1)) (!= ctx (cast u64 (+ (coco_intern m "system") 1))))
+                      (set pit (coco_make2 m ":" (coco_new_atom m "system") pit)))
+                  (coco_sb_init (aof b))
+                  (coco_sb_put (aof b) "%   Foreign: ")
+                  (coco_write_mode m (aof b) pit 25 0)
+                  (coco_sb_put (aof b) "\n\n")
+                  (coco_out_puts stdout ($ b s))
+                  (coco_sb_free (aof b))
+                  (set (-> m heap_len) mark))
+              (if (< (coco_listing_pred e (nth (* 2 i) es) head ctx 0) 0)
+                  (set rc (coco_fetch_error e)))))
+          (free es)
+          (return rc)))
 
-          ;; ASKED BEFORE ANYTHING IS DECIDED, for either shape of argument.
-          ;; What the backend holds is not only which predicates there are but
-          ;; which of them were DECLARED, and a `listing(counter/1)' that found
-          ;; the clauses and missed the `:- dynamic' line would be quietly
-          ;; wrong in a way that reads back as a different program.
-          (coco_store_warm st)
+  ;;; THE QUALIFIERS TAKEN OFF as each meta-call of swipl's takes them off,
+  ;;; strip_module/3's: every `M:' with M an atom, the innermost M the
+  ;;; module (MQ, -1 user's), and at the TOP, the listing's own
+  ;;; meta-argument, CTX that module too, the one a predicate's is not
+  ;;; written before (0 user, -1 a variable). A VARIABLE M ENDS IT, as a
+  ;;; module that is no atom ends swipl's: M is every module (`_:p/1' is
+  ;;; p/1 of any) and what it qualifies the spec as it stands, so
+  ;;; `_:user:yy/2' asks for (:)/2
+  (static)
+  (func coco_listing_strip ((coco_machine * m) (size_t x) (size_t * mq) (u64 * ctx) (int top))
+        (out size_t)
+        (set x (coco_deref m x))
+        (while (coco_is_compound2 m x ":")
+          (let ((size_t q . #'(coco_deref m (coco_arg m x 0))))
+            (cond
+              ((and (coco-tag-is ATOM (nth q (-> m heap))) (not (coco_is_nil m q)))
+               (let ((int u . #'(== (coco_name_of m q) (coco_intern m "user"))))
+                 (set (cof mq) (? u (cast size_t -1) q))
+                 (if top (set (cof ctx) (? u 0 (cast u64 (+ (coco_name_of m q) 1)))))))
+              ((coco-tag-is REF (nth q (-> m heap)))
+               (set (cof mq) q)
+               (if top (set (cof ctx) (cast u64 -1)))
+               (return (coco_deref m (coco_arg m x 1))))
+              (#t (return x)))
+            (set x (coco_deref m (coco_arg m x 1)))))
+        (return x))
 
-          (if (coco_is_compound2 m spec "/")
-              (let ((size_t nm . #'(coco_deref m (coco_arg m spec 0)))
-                    (size_t ar . #'(coco_deref m (coco_arg m spec 1))))
-                (if (not (coco-tag-is ATOM (nth nm (-> m heap))))
-                    (return (coco_fail_err e "listing/1 needs a name")))
-                (if (not (coco-tag-is INT (nth ar (-> m heap))))
-                    (return (coco_fail_err e "listing/1 needs an arity")))
-                ;; interned rather than merely looked up: a predicate this
-                ;; interpreter has not called yet is not in the store, and
-                ;; `listing' of it should say what the knowledge base holds
-                ;; rather than what this process happens to have reached.
-                (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m nm)
-                                                     (cast u32 (coco-signed-payload
-                                                                (nth ar (-> m heap)))))))
-                  (if (>= pi (-> st npreds)) (return 0))
-                  (let ((int shown1 . #'(coco_listing_pred e pi)))
-                    (if (< shown1 0) (return (coco_fetch_error e)))
-                    (return shown1)))))
+  ;;; THE SPEC X, listing_/2 asked of `M:X' (MQ M itself or -1 for user's,
+  ;;; CTX its module): an unbound X is CTX's own predicates (swipl's
+  ;;; list_module/2: listing/0 is `listing(user:_)'), a proper list each of
+  ;;; its elements -- each taken as given, its own qualifiers off only for
+  ;;; the search, as swipl's '$find_predicate'/2 takes them -- anything else
+  ;;; `coco_listing_one'
+  (static)
+  (func coco_listing_spec ((coco_engine * e) (size_t x) (size_t mq) (u64 ctx) (int top))
+        (out int)
+        (let ((coco_machine * m . #'(-> e m)) (size_t t . 0) (size_t guard . 0))
+          (set x (coco_deref m x))
+          (if top (set x (coco_listing_strip m x (aof mq) (aof ctx) 1)))
+          (if (coco-tag-is REF (nth x (-> m heap))) (return (coco_listing_module e ctx)))
+          ;; a proper list: a list that is its own tail is none (1.10.19)
+          (set t x)
+          (while (and (coco_is_cons m t) (<= guard (-> m heap_len)))
+            (set t (coco_deref m (coco_arg m t 1)))
+            (set guard (+ guard 1)))
+          (if (coco_is_nil m t)
+              (block
+                (set t x)
+                (while (coco_is_cons m t)
+                  (let ((int r . #'(coco_listing_spec e (coco_arg m t 0) mq ctx 0)))
+                    (if (!= r 1) (return r)))
+                  (set t (coco_deref m (coco_arg m t 1))))
+                (return 1)))
+          (if (not top) (set x (coco_listing_strip m x (aof mq) (aof ctx) 0)))
+          (return (coco_listing_one e x mq ctx))))
 
-          (if (not (coco-tag-is ATOM (nth spec (-> m heap))))
-              (return (coco_fail_err e "listing/1 needs a name or Name/Arity")))
-
-          ;; By name: every arity of it. The store has no index from a name to
-          ;; its arities, so this is a walk -- over what warming put there.
-          (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
-            (if (== ($ (nth i (-> st preds)) name) (coco_name_of m spec))
-                (let ((int one . #'(coco_listing_pred e i)))
-                  (if (< one 0) (return (coco_fetch_error e)))
-                  (if one (set shown 1)))))
-          (return shown)))
+  ;;; listing/1. What the backend holds is ASKED BEFORE ANYTHING IS DECIDED:
+  ;;; not only which predicates there are but which of them were DECLARED,
+  ;;; and a `listing(counter/1)' that found the clauses and missed the `:-
+  ;;; dynamic' line would be quietly wrong in a way that reads back as a
+  ;;; different program.
+  (func coco_bi_listing ((coco_engine * e) (size_t g)) (out int)
+        (coco_store_warm (-> e st))
+        (return (coco_listing_spec e (coco_a e g 0) (cast size_t -1) 0 1)))
 
   (func coco_bi_halt ((coco_engine * e) (size_t g)) (out int)
         (set (-> e halted) 1)

@@ -556,6 +556,9 @@
     ("findall" 4 :MAP "$bags" "findall_loop" 4)
     ("forall" 2 :MAP "$apply" "forall" 2)
     ("string_to_atom" 2 :MAP "system" "atom_string" 2)
+    ;; Name//Arity's `Arity is DCGArity+2' (3.37.0), which swipl's
+    ;; optimised boot/dwim.pl names by its clause's predicate
+    ("listing" 1 :MAP "$dwim" "name_arity" 3)
     ("$absolute_file_name" 2)
     ("working_directory" 2 :MAP "system" "$chdir" 1)
     ;; the C halves of predicates written as clauses here

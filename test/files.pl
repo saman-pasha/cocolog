@@ -189,6 +189,14 @@ fixtures(syntax_load, Sandbox) :- !,
            ( atomic_list_concat([Sandbox, '/', F], P), write_file_from_codes(P, Text) )).
 %% a file whose single-sided rules stand on both sides of a load directive,
 %% the file it loads, and one whose directive says what no rule matched
+%% the modules whose predicates listing/1 writes with their names, lsn of
+%% one predicate for the listing of a module's own
+fixtures(listing_spec, Sandbox) :- !,
+    atom_concat(Sandbox, '/lsm.pl', M),
+    fixture(M, [':- module(lsm, [mp/1, md/1]).', ':- dynamic md/1.',
+                'mp(1).', 'mp(2) :- md(2).']),
+    atom_concat(Sandbox, '/lsn.pl', N),
+    fixture(N, [':- module(lsn, [np/1]).', 'np(1).']).
 fixtures(vendored, Sandbox) :- !,
     forall(member(F-Lines, [ 'vs.pl'-['vs(a) => true.', ':- ensure_loaded(vsub).', 'vs(b) => true.'],
                              'vsub.pl'-['vsub(x) => true.'],

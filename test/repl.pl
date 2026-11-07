@@ -94,6 +94,19 @@ local(D) :-
     %% body, and it waited a third time and closed with false)
     piped('assertz(fact(one)).\\nassertz(fact(two)).\\nfact(X).\\n;\\n', G14),
     check('what one goal asserts the next goal sees', G14, 'true.\ntrue.\nX = one ;\nX = two.'),
+    %% `listing.' WRITES A BLANK LINE BEFORE EACH PREDICATE (3.37.0), as
+    %% swipl's list_module/2 does, where through 3.36.0 it wrote one after;
+    %% the program's first is cocolog's own library_directory/1, declared
+    %% as swipl's is
+    piped('assertz(lq(1)).\\nlisting.\\n', G20),
+    check('listing. writes a blank line before each predicate, as swipl''s', G20,
+          'true.\n\n:- dynamic library_directory/1.\n\n\n:- dynamic lq/1.\n\nlq(1).\ntrue.'),
+    %% a predicate swipl defines in C and cocolog does not define at all is
+    %% no system predicate of cocolog's: listing/1 names it unknown where
+    %% swipl's writes `%   Foreign: system:tty_size/2' (COMPAT.md)
+    piped('catch(listing(tty_size/2), error(E, _), true).\\n', G21),
+    check('listing/1 claims no foreign predicate cocolog lacks', G21,
+          'E = existence_error(procedure,tty_size/2).'),
     %% retract respects the body (the shorthand IS (H :- true), so a
     %% same-headed rule survives a fact's retract -- kb.cicili, a CivV
     %% capture's finding) while retractall keeps SWI's wider head-only

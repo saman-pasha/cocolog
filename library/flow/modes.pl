@@ -228,7 +228,7 @@ flow_mode(write_term, 2, ['+', '+'], det).
 flow_mode(writeq, 1, ['+'], det).
 flow_mode(flush_output, 0, [], det).
 flow_mode(listing, 0, [], det).
-flow_mode(listing, 1, ['+'], det).
+flow_mode(listing, 1, ['?'], det).
 flow_mode(portray_clause, 1, ['+'], det).
 flow_mode(op, 3, ['+', '+', '+'], det).
 flow_mode(current_prolog_flag, 2, ['+', '-'], semidet).

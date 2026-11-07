@@ -490,8 +490,10 @@
                (cast llong (count (aof e) "listing(d1/1)" 10)) 1)
         (check "listing/1 by bare name answers too"
                (cast llong (count (aof e) "listing(d1)" 10)) 1)
-        (check "and fails for one nothing knows about"
-               (cast llong (count (aof e) "listing(d9/7)" 10)) 0)
+        ;; one nothing knows about raises, as swipl's (3.37.0; through
+        ;; 3.36.0 it failed), and a catch takes the error by its name
+        (check "and raises existence_error for one nothing knows about"
+               (cast llong (count (aof e) "catch(listing(d9/7), error(existence_error(procedure, d9/7), _), true)" 10)) 1)
         (check "listing/0 answers" (cast llong (count (aof e) "listing" 10)) 1))
 
       ;; ---- grammar rules become ordinary clauses -------------------------
