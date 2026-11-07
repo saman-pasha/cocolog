@@ -84,3 +84,9 @@ ct1(T) :- char_type('(', T), T = paren(_).
 ct2(C) :- code_type(C, digit(W)), W > 8.
 ct3 :- code_type(0'a, upper(_)).
 ct4(T) :- code_type(0'7, T), T = xdigit(_).
+
+%% REPEAT/0 answers at every retry (3.39.0), as swipl's foreign repeat/0:
+%% each retry the call's Redo and an Exit, its frame kept until a cut takes
+%% it, and a failure after the cut that passes it by.
+rp(K) :- nb_setval(rpk, 0), repeat, nb_getval(rpk, K0), K is K0 + 1, nb_setval(rpk, K), K >= 2, !.
+rq :- repeat, !, fail.

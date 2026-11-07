@@ -1210,8 +1210,8 @@ cocolint index offers no import of it.
   files, whose predicates then count as defined (`load=` on
   tools/flow/chart.pl), and `progress(S)` (stderr, every S seconds, 10 from
   the command).
-* **Every builtin is deterministic** (arg/3, char_type/2 and code_type/2
-  with an argument unbound aside, below), so a failure-driven loop written
+* **Every builtin is deterministic** (repeat/0, and arg/3, char_type/2 and
+  code_type/2 with an argument unbound, aside, below), so a failure-driven loop written
   from habit over one runs it ONCE -- wrong, not slow (`retract(H), fail`
   was the classic one until 3.28.0 made retract/1 a walk that answers
   again). `once/1`, `ignore/1` and `\+` are control constructs. **arg/3
@@ -1246,8 +1246,22 @@ cocolint index offers no import of it.
   macros of lib/term.cicili), which tools/ctype/tables.pl generates under
   the REFERENCE swipl (run it again, never edit the file);
   test/files/char_enum.pl holds every class of every code point, the walks
-  and the errors to swipl. **A new
-  row that hands its goal over answers -2 to those three, asked right beside
+  and the errors to swipl. **repeat/0 is a walk too** (3.39.0, swipl's ISO
+  builtin; through 3.38.0 cocolog had none, and a call raised
+  existence_error): its row answers -2 (`coco_bi_repeat`), and the step
+  hands an ATOM goal's row to `coco_walk` as it hands a compound's (the
+  `coco_builtin` path of the loop, a fourth caller), whose frame's place is
+  bit 49 of `clause_ix` (`coco_walk_retry`), never moved: every retry
+  answers again, until a cut takes the frame. **A walk that answers with
+  its frame kept, as the innermost guarded frame's last call, raises
+  determinism_error(PI, det, nondet, guard_in_caller)** named by the
+  builtin, swipl's foreign rule (`coco_det_bfail`, its WHAT `nondet`, the
+  walk's frame dropped first so the guard asks what stood before the
+  call): repeat/0's, arg/3's before its last place; through 3.38.0 arg/3's
+  was the guard's own `guard`, naming the clause (test/files/repeat.pl;
+  test/engine.pl's `repeat_runs` the trace, the collector, KMAT and a
+  thaw). **A new
+  row that hands its goal over answers -2 to those four, asked right beside
   the row's call**: asked after the loop's module seam, beside its -1, the
   walk's call cost the step loop two reloads of the engine a step, and a
   goal and a barrier kept live across the row's call cost every builtin in

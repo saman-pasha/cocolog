@@ -36,7 +36,7 @@ main :-
     linear_backtracking(D), deep_recursion(D), atom_table(D), sorting(D), any_argument(D), still_the_answers,
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
-    update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), jit_runs(D),
+    update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), repeat_runs(D), jit_runs(D),
     btree_places, op_names_frozen(D),
     shl(['rm -rf ', D]),
     checks_done.
@@ -2093,6 +2093,45 @@ det_guard_runs(D) :-
     proc_run(Cmd8, 30000, Out8, _), atom_codes(A8, Out8),
     ( sub_atom(A8, _, _, _, 'Redo') -> R8 = redo ; R8 = none ),
     check('failing into a guard frame prints no Redo', R8, none).
+
+%% REPEAT/0 ANSWERS AS IT DOES UNDER TRACE, UNDER A COLLECTOR THAT RUNS
+%% EVERY 2000 CELLS, AND IN A MACHINE FROZEN AND THAWED EACH 25 INFERENCES
+%% (3.39.0). test/files/repeat.pl holds swipl's answers untraced; here the
+%% same file's. Under trace a walk is still a guarded frame's last call,
+%% though the trace puts its Exit marker after it (`coco_det_kk'). A
+%% collection and a freeze's materialisation keep the WALK frame, whose
+%% place is bit 49. A machine frozen and thawed each 25 inferences answers
+%% again at each retry of the frame it thawed, its count kept by
+%% nb_setarg/3.
+repeat_runs(D) :-
+    section('repeat/0 under trace, a collector, and a freeze and a thaw'),
+    cocolog(C),
+    sh_join([C, ' --local run test/files/repeat.pl main 2>/dev/null'], Cmd0),
+    proc_run(Cmd0, 60000, Out0, _), atom_codes(U, Out0),
+    (   sub_atom(U, _, _, _, 'clause_last-caught(error(determinism_error(repeat/0,det,nondet,guard_in_caller)')
+    ->  H = yes
+    ;   H = no
+    ),
+    check('untraced: the case answers', H, yes),
+    sh_join([C, ' --trace --local run test/files/repeat.pl main 2>/dev/null'], Cmd1),
+    proc_run(Cmd1, 120000, Out1, _), atom_codes(T, Out1),
+    check('traced: the same answers', T, U),
+    sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' --local run test/files/repeat.pl main 2>/dev/null'], Cmd2),
+    proc_run(Cmd2, 60000, Out2, _), atom_codes(G, Out2),
+    check('a collection every 2000 cells: the same answers', G, U),
+    sh_join(['COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 ', C,
+             ' --local run test/files/repeat.pl main 2>/dev/null'], Cmd3),
+    proc_run(Cmd3, 60000, Out3, _), atom_codes(K, Out3),
+    check('each collection a freeze''s materialisation: the same answers', K, U),
+    atom_concat(D, '/repeat_turns.pl', F),
+    fixture(F, [ 'cnt(0) :- !.', 'cnt(N) :- N1 is N - 1, cnt(N1).',
+                 'rg :- T = c(0), repeat, arg(1, T, N), N1 is N + 1, nb_setarg(1, T, N1),',
+                 '      cnt(5), N1 >= 8, !, write(N1), nl.' ]),
+    atom_concat(D, '/repeat_turns_kb', Kb),
+    sh_join([C, ' --embed ', Kb, ' consult ', F, ' >/dev/null 2>&1'], CCons),
+    shl([CCons]),
+    det_turns(C, Kb, rg, E1),
+    check('frozen and thawed each 25 inferences: an answer at each retry', E1, '8_').
 
 %% SWIPL'S JIT INDEX ANSWERS AS IT DOES UNDER TRACE, UNDER A COLLECTOR THAT
 %% RUNS EVERY 2000 CELLS, AND AFTER THE CLAUSES CHANGE (3.24.0).

@@ -177,6 +177,9 @@ flow_mode(with_output_to, 2, ['+', ':'], semidet).
 flow_mode(setup_call_cleanup, 3, [':', ':', ':'], nondet).
 flow_mode(setup_call_catcher_cleanup, 4, [':', ':', '?', ':'], nondet).
 flow_mode(call_cleanup, 2, [':', ':'], nondet).
+%% swipl's ISO repeat/0 (3.39.0): an answer at every retry, its choice
+%% point kept for ever
+flow_mode(repeat, 0, [], nondet).
 flow_mode(char_type, 2, ['+', '+'], semidet).
 flow_mode(char_type, 2, ['?', '?'], nondet).
 flow_mode(code_type, 2, ['+', '+'], semidet).

@@ -234,6 +234,14 @@
             (if (or (< i 1) (> i (cast i64 n))) (return 0))
             (return (? (coco_unify m (coco_arg m g 2) (coco_arg m t (cast u32 (- i 1)))) 1 0)))))
 
+  ;;; REPEAT/0, swipl's ISO builtin in C (3.39.0): the row answers -2 and
+  ;;; its caller hands the goal to `coco_walk', which keeps a WALK frame
+  ;;; that answers again at every retry and is never spent -- a cut takes
+  ;;; it. Through 3.38.0 cocolog had none, and a call of repeat/0 raised
+  ;;; existence_error.
+  (func coco_bi_repeat ((coco_engine * e) (size_t g)) (out int)
+        (return -2))
+
   ;;; ---- arg/3 with its index unbound (3.29.0) ---------------------------
   ;;;
   ;;; SWIPL'S FOREIGN arg/3: G's places tried in order from I, the third
@@ -2357,34 +2365,66 @@
   (func coco_walk ((coco_engine * e) (size_t k) (int tport)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (size_t g . #'(-> e kcall))
-              (size_t a . #'(coco_deref (-> e m) (coco_arg (-> e m) (-> e kcall) 1)))
-              (int ct . #'(== (coco_arity (-> e m) (coco_deref (-> e m) (-> e kcall))) 2))
+              (u32 ga . #'(coco_arity (-> e m) (coco_deref (-> e m) (-> e kcall))))
+              (size_t a . 0)
+              (int ct . #'(== ga 2))
+              ;; the innermost guarded frame's last call, asked before a
+              ;; frame of the walk's own is above it
+              (int gl . #'(and (!= (-> e dgk) (coco-det-none)) (== (coco_det_kk e k) (-> e dgk))))
               (u32 n . 0) (int how . 0) (int mode . 0) (int cls . 0) (i64 c . -1)
-              (size_t ci . 0))
-          (if ct
-              (block
-               (set how (== 0 (strcmp (coco_atom_name m (coco_name_of m (coco_deref m g))) "char_type")))
-               (set mode (coco-tag-is REF (nth a (-> m heap))))
-               ;; the row read both: neither raises here
-               (if mode
-                   (coco_ct_getc e (coco_arg m g 0) 1 (aof c))
-                   (set cls (coco_ct_find (coco_atom_name m (coco_name_of m a)) (coco_arity m a)))))
-              (set n (coco_arity m a)))
-          (if (or ct (> n 1))
+              (size_t ci . 0) (int pushed . 0) (int r . 0))
+          (if (== ga 0)
+              ;; REPEAT/0'S (3.39.0): its frame, and an answer; its place
+              ;; is bit 49, which no other walk sets, and it never moves
               (block
                (if (not (coco_push_choice e COCO_CH_WALK g k 0))
                    (return (coco_fail_err e "out of memory")))
                (set ci (- (-> e nchoices) 1))
-               (set ($ (nth ci (-> e tchoices)) printr) tport)))
-          (if ct (return (coco_ct_from e g how mode cls c ci)))
-          (return (coco_arg_from e g 1 n (> n 1) ci))))
+               (set pushed 1)
+               (set ($ (nth ci (-> e choices)) clause_ix) (cast size_t (<< (cast u64 1) 49)))
+               (set ($ (nth ci (-> e tchoices)) printr) tport)
+               (set r 1))
+              (block
+               (set a (coco_deref m (coco_arg m g 1)))
+               (if ct
+                   (block
+                    (set how (== 0 (strcmp (coco_atom_name m (coco_name_of m (coco_deref m g))) "char_type")))
+                    (set mode (coco-tag-is REF (nth a (-> m heap))))
+                    ;; the row read both: neither raises here
+                    (if mode
+                        (coco_ct_getc e (coco_arg m g 0) 1 (aof c))
+                        (set cls (coco_ct_find (coco_atom_name m (coco_name_of m a)) (coco_arity m a)))))
+                   (set n (coco_arity m a)))
+               (if (or ct (> n 1))
+                   (block
+                    (if (not (coco_push_choice e COCO_CH_WALK g k 0))
+                        (return (coco_fail_err e "out of memory")))
+                    (set ci (- (-> e nchoices) 1))
+                    (set pushed 1)
+                    (set ($ (nth ci (-> e tchoices)) printr) tport)))
+               (set r (? ct (coco_ct_from e g how mode cls c ci) (coco_arg_from e g 1 n (> n 1) ci)))))
+          ;; AN ANSWER WITH THE FRAME KEPT, AS A GUARDED FRAME'S LAST CALL
+          ;; (3.39.0): the builtin's frame took the guard on, as swipl's
+          ;; foreign predicate's does, and exits with a choice point --
+          ;; determinism_error(PI, det, nondet, guard_in_caller) named by
+          ;; the builtin (`coco_det_bfail''s rule), the walk's frame gone
+          ;; first so that the guard is asked of what stood before the call.
+          ;; Through 3.38.0 the guard's own exit named the frame, `guard'
+          (if (and gl pushed (> (-> e nchoices) ci))
+              (let ((int dr . 0))
+                (set (-> e nchoices) ci)
+                (set dr (coco_det_bfail e g (coco_det_kk e k) (coco_name_of m (coco_deref m g)) ga "nondet"))
+                (if (!= dr 1) (return dr))
+                (set (-> e nchoices) (+ ci 1))))
+          (return r)))
 
   ;;; THE WALK FRAME AT CI RETRIED, the machine at its marks: on from the
   ;;; position after the last answer's -- arg/3's place, or char_type/2's
-  ;;; and code_type/2's code or class (`coco-ctw-pos', bit 48) -- its Redo
-  ;;; first where the printer shows the call, or the region's it is hidden
-  ;;; in, as a DB frame's (`coco_trace_goal_own'), and its Exit or its Fail.
-  ;;; 1 with the continuation set, 0 with the frame gone.
+  ;;; and code_type/2's code or class (`coco-ctw-pos', bit 48), or repeat/0's
+  ;;; answer again with its frame kept (bit 49) -- its Redo first where the
+  ;;; printer shows the call, or the region's it is hidden in, as a DB
+  ;;; frame's (`coco_trace_goal_own'), and its Exit or its Fail. 1 with the
+  ;;; continuation set, 0 with the frame gone.
   (weak) (cold)
   (func coco_walk_retry ((coco_engine * e) (size_t ci)) (out int)
         (let ((size_t g . #'($ (nth ci (-> e choices)) call))
@@ -2401,13 +2441,16 @@
                     (block (coco_trace_port e "Redo" td g)
                            (coco_trace_reopen e ci td)))
                 (if (== tport 2) (coco_trace_goal_own e ci))))
-          (if (bitand (>> w 48) 1)
-              (set r (coco_ct_from e g (cast int (bitand (>> w 41) 1)) (cast int (bitand (>> w 40) 1))
-                                   (cast int (bitand (>> w 32) 255))
-                                   (- (cast i64 (bitand w 4294967295)) 1) ci))
-              (set r (coco_arg_from e g (cast u32 w)
-                                    (coco_arity (-> e m) (coco_deref (-> e m) (coco_arg (-> e m) g 1)))
-                                    1 ci)))
+          (cond
+            ((bitand (>> w 49) 1) (set r 1))
+            ((bitand (>> w 48) 1)
+             (set r (coco_ct_from e g (cast int (bitand (>> w 41) 1)) (cast int (bitand (>> w 40) 1))
+                                  (cast int (bitand (>> w 32) 255))
+                                  (- (cast i64 (bitand w 4294967295)) 1) ci)))
+            (#t
+             (set r (coco_arg_from e g (cast u32 w)
+                                   (coco_arity (-> e m) (coco_deref (-> e m) (coco_arg (-> e m) g 1)))
+                                   1 ci))))
           (if (== tport 1) (coco_trace_port e (? r "Exit" "Fail") td g))
           (if r (set (-> e goals) k))
           (return r)))

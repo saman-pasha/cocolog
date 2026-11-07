@@ -13956,3 +13956,109 @@ repl, reason, gc, translate, and the solve, module and state binaries.
 Lessons basics/07, library/04, 37, 43 and 50. Every clause/2 call in
 library/ and the lessons either catches its errors or reads the program's
 own predicates. The card's cites hold (26 rows, 38 cites).
+
+## repeat/0 as swipl's (3.39.0)
+
+repeat/0 is swipl's ISO builtin, written in C: it answers at every retry and
+keeps its choice point for ever, so a cut is what ends it. Through 3.38.0
+cocolog had no repeat/0: a call raised existence_error, and a program that
+wrote its own got a predicate of its own. A minor: the builtin is new.
+
+- The row (lib/solve.cicili's `*builtins*`, `coco_bi_repeat` in
+  lib/solve-text.cicili) answers -2, as arg/3's does with its index
+  unbound, and the step hands the goal to `coco_walk`. An atom goal's row
+  is called through `coco_builtin`, not `coco_builtin_call`, so the loop's
+  atom path asks the -2 as well: a fourth caller beside the step's compound
+  path, an environment's BUILTIN unit and the `:` construct's.
+- The walk (`coco_walk`): repeat/0's goal has no arguments, and its WALK
+  frame's place is bit 49 of `clause_ix`, which no other walk sets and
+  which never moves. Its retry (`coco_walk_retry`) answers again, with the
+  Redo and the Exit where the printer shows the call, swipl's ports.
+- A program file's own clause for repeat/0 is refused at its load, as any
+  ISO predicate's is (`repeat :- true.` reads `No permission to modify
+  static procedure `repeat/0'`, in both systems).
+- clause/2 raises permission_error(access, private_procedure, repeat/0);
+  predicate_property/2 answers `built_in`, `foreign`, `static` and
+  `defined`; current_predicate/1 answers; listing/1 writes `%   Foreign:
+  system:repeat/0`; abolish/1 refuses it -- each as swipl's.
+
+A GUARDED FRAME'S LAST CALL THAT ANSWERS WITH ITS WALK'S FRAME KEPT raises
+swipl's foreign error. swipl's I_DEPART hands the guard to the builtin, and
+the builtin's exit with a choice point raises
+determinism_error(PI, det, nondet, guard_in_caller), context(system:N/A, _).
+PI is the builtin's own unless a choice point younger than the call stood
+(then the guarded frame's): `p :- $, repeat.` is
+determinism_error(repeat/0, ...), and `p :- $, member(_, [1, 2]), repeat.`
+is determinism_error(p/0, ..., guard_in_caller) with context
+system:repeat/0. `coco_walk` asks `coco_det_bfail`, whose WHAT says
+`nondet` (or `fail`, as before, for a builtin that failed). The walk's frame
+is dropped first, so that the guard asks of what stood before the call, and
+put back if nothing is raised. This holds for arg/3's walk too: through
+3.38.0 `p :- $, arg(_, f(a, b), _).` raised the guard's own
+determinism_error(p/0, det, nondet, guard), naming the clause.
+
+test/files/repeat.pl, new: 66 lines, swipl 9.0.4's byte for byte (3.38.0
+differs at line 1). It holds:
+- its answers, counted with nb_setval/2, and the ISO idiom that drains
+  the database;
+- the control constructs around it: call/1, once/1, \+, if-then-else,
+  *->, catch/3, findall/3 and forall/2;
+- what a determinism guard makes of it -- `$(repeat)`, a clause's last
+  call, one with a younger choice point, one that took the guard through a
+  call -- and of arg/3's and char_type/2's walks;
+- clause/2, predicate_property/2, current_predicate/1 and listing/1;
+- abolish/1, repeat/1 and call/2's errors;
+- the program's own clause, refused at the load.
+
+test/trace.pl: three queries over test/trace-program.pl's `rp/1` and `rq/0`,
+held to swipl's ports (108 checks). test/engine.pl's `repeat_runs` holds the
+case's answers under trace, under a collector every 2000 cells and under a
+freeze's materialisation (COCOLOG_KMAT=2), and a machine frozen and thawed
+each 25 inferences that answers again at each retry of the frame it thawed,
+its count kept by nb_setarg/3. library/flow/modes.pl: repeat/0 is nondet,
+and the tables are rebuilt.
+
+Not swipl's (COMPAT.md): predicate_property/2 gives no builtin swipl's
+`imported_from(system)`, `nodebug`, `iso` or `size(N)`.
+
+Arms, a build each, the rule taken out (13). Each is red in repeat.pl,
+test/trace.pl, test/engine.pl's `repeat_runs` or test/flowchart.pl, and
+the arm of no edit is green in all four:
+
+- the row, the atom path's walk, the walk's frame, its place at bit 49,
+  and its retry answering again;
+- the retry's Redo and Exit, red in the trace alone;
+- the guarded last call: the raise, the last call read past the trace's
+  Exit marker (`coco_det_kk`, red untraced too), the walk's frame dropped
+  before the guard is asked, and `nondet`;
+- a frame the walk pushed, and no other, dropped. This arm was green in
+  the first round: it dropped the stack to nothing and put one frame
+  back, and the case read the stale frames by luck. It is red in
+  repeat.pl's `arg_one_below`, written for it: a choice point below the
+  guard must outlive arg/3 over one place;
+- repeat/0's line in library/flow/modes.pl, red in flowchart alone.
+
+The retry's arm was written wrong in the first round: it answered 0 and
+left the frame, so the retry spun, and a run grew until the memory limit
+killed it. It was run again with the frame dropped, as a walk with no
+place left drops it. Written and taken out: a test that the walk
+answered, `r == 1`. The frame being there says it, since a walk that
+fails drops its frame.
+
+The cost, callgrind. zero.sh, work less padding, 3.38.0 to 3.39.0:
+
+| program | 3.38.0 | 3.39.0 |
+|---|---|---|
+| nrev | 65 995 499 | 65 891 294 |
+| queens | 40 281 283 | 40 277 011 |
+| lookup | 48 092 586 | 48 052 801 |
+
+The step loop asks one test more, where an atom goal's row answered; the
+counts move with the layout around it. A start (`cocolog query true`, the
+two binaries side by side) is 34 799 880 instructions and 34 778 026.
+
+Narrow cases green: lint, files (120 cases, each agreeing with swipl),
+errors, engine, directives, library, reconsult, trace (108 checks),
+flowchart, static, repl, reason, gc, translate, and the solve, module and
+state binaries. Lessons basics/05 and 07, library/04, 37 and 50. The
+card's cites hold (26 rows, 38 cites, three renumbered).

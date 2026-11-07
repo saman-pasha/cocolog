@@ -127,6 +127,9 @@
 
     ("functor"      3 coco_bi_functor)
     ("arg"          3 coco_bi_arg)
+    ;; swipl's ISO repeat/0, C there (3.39.0): a row that hands its goal to
+    ;; the walk (`coco_walk'), whose frame answers again at every retry
+    ("repeat"       0 coco_bi_repeat)
     ;; swipl's C walk of a balanced tree (3.31.0), which library(assoc)'s
     ;; get_assoc/3 asks where `current_predicate/1' answers for it
     ("$btree_find_node" 5 coco_bi_btree_find_node)

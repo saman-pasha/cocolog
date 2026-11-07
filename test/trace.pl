@@ -49,7 +49,10 @@ main :-
                        'ag1(N), fail', 'ag2(X)', 'ag3', 'ag4(N), fail', 'ag1(N)',
                        %% char_type/2's and code_type/2's walks of the codes and the
                        %% classes (3.30.0)
-                       'ct1(T)', 'ct2(C)', 'ct2(C), fail', ct3, 'ct4(T)' ]),
+                       'ct1(T)', 'ct2(C)', 'ct2(C), fail', ct3, 'ct4(T)',
+                       %% repeat/0's answers at every retry, and a cut that
+                       %% takes its frame (3.39.0)
+                       'rp(K)', rq, 'repeat, !' ]),
            traced(Swipl, Program, Q)),
     %% LIBRARY CALLS (3.27.0, test/trace-library.pl): a library predicate a
     %% program's clause calls is a port, and what it calls is none -- its

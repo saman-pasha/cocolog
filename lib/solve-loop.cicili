@@ -1359,16 +1359,19 @@
 
   ;;; A BUILTIN THAT FAILED AS THE INNERMOST GUARDED FRAME'S LAST CALL (K
   ;;; the frame's marker) failed in a frame the guard came to, as swipl's
-  ;;; foreign predicate's does: determinism_error(PI, det, fail,
+  ;;; foreign predicate's does: determinism_error(PI, det, WHAT,
   ;;; guard_in_caller) named by the builtin, system:Name/Arity, PI the
   ;;; first frame down the guards whose `$' set its guard -- under the
   ;;; frame its call took over, or from it where a choice point was younger
-  ;;; -- else the builtin's own. Not a transparent one over the frame,
-  ;;; whose guard it took off; one swipl compiles in place is no last call
+  ;;; -- else the builtin's own. WHAT is `fail', or `nondet' for a walk that
+  ;;; answered with its frame kept (3.39.0, `coco_walk': repeat/0, arg/3's
+  ;;; index unbound). Not a transparent one over the frame, whose guard it
+  ;;; took off; one swipl compiles in place is no last call
   ;;; (`coco_det_enter'). 1 the failure goes on, else as `coco_raise_ctx'
   ;;; answers.
   (weak) (cold)
-  (func coco_det_bfail ((coco_engine * e) (size_t g) (size_t k) (u64 nid) (u32 n)) (out int)
+  (func coco_det_bfail ((coco_engine * e) (size_t g) (size_t k) (u64 nid) (u32 n)
+                        (const char * what)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (size_t d . #'(- (-> e dgh) 1)) (int lco . 0) (size_t ow . 0) (size_t cx . 0))
           (if (or (== (-> e dgh) 0) (not (coco_det_is e d))
@@ -1383,7 +1386,7 @@
                      (return 1)))
           (set ow (bitor (coco-bar-of (coco_functor_id m nid n)) (coco-bar-sysbit)))
           (set (-> e kcall) g)
-          (return (coco_det_raise e ow 0 (? lco (coco-det-below cx) (-> e dgh)) "fail"
+          (return (coco_det_raise e ow 0 (? lco (coco-det-below cx) (-> e dgh)) what
                                   (coco_owner_ctx e ow)))))
 
   ;;; WHETHER G HOLDS `$/0' WHERE ITS FRAME RUNS IT: the atom, at a leaf of
@@ -2691,7 +2694,11 @@
                              ;; over (3.1.0), as a functor keeps no row then
                              (if (and (!= (-> st ntaken) 0) (coco_pred_taken st nid 0))
                                  (set found 0)
-                                 (set rc (coco_builtin e nid n g (aof found))))))
+                                 (block
+                                  (set rc (coco_builtin e nid n g (aof found)))
+                                  ;; and an atom's row walked the same way
+                                  ;; (3.39.0, repeat/0's)
+                                  (if (== rc -2) (set rc (coco_walk e k tport)))))))
                      ;; not a core builtin: a module may still own it, and
                      ;; the module interface speaks names -- so the text is
                      ;; fetched HERE, on the path that needs it, rather than
@@ -2763,7 +2770,7 @@
                                  ;; (3.21.0, $/0, `coco_det_bfail'): 2 the
                                  ;; raise was caught, -1 nothing caught it
                                  (if (!= (-> e dgk) (coco-det-none))
-                                     (let ((int dr . #'(coco_det_bfail e g (coco_det_kk e k) nid n)))
+                                     (let ((int dr . #'(coco_det_bfail e g (coco_det_kk e k) nid n "fail")))
                                        (if (== dr -1) (return -1))
                                        (if (== dr 2) (set ok 1)))))))
                        ;; nobody's builtin: the knowledge base decides -- the
