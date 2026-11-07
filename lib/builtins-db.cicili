@@ -1490,6 +1490,176 @@
           (return (coco_pred_current (-> e st) m (coco_name_of m (coco_deref m (coco_arg m s 0)))
                                      (cast u32 a)))))
 
+  ;;; ---- what the program imported (3.42.0) --------------------------------
+  ;;;
+  ;;; current_predicate/1 NAMED WHOLE asks of user's module, as swipl's: a
+  ;;; predicate of swipl's system is user's through its import of system,
+  ;;; and a library module's export is user's once the program imported
+  ;;; it -- append/3 is none until a load names library(lists), whose
+  ;;; module swipl has not even read before that. cocolog's libraries are
+  ;;; always there, so what the program imported is kept apart: each load
+  ;;; of library(Name) its read or its goal makes -- use_module/1,2,
+  ;;; ensure_loaded/1, autoload/2's list -- and each head predicate_property/2
+  ;;; names, which swipl's define_or_generate/1 autoloads. A row: the
+  ;;; module, by swipl's name for it (lists, dcg_basics, prolog_listing), and
+  ;;; what was imported of it: all (0), one name (1), all but the names its
+  ;;; group lists (2), a name so listed (3). Noted before the load, as the
+  ;;; goal is read nowhere after it. Process-wide, as swipl's module user
+  ;;; is, and as the module registry is.
+  (struct coco_imp
+    (member char * mod)
+    (member char * name)
+    (member u32 arity)
+    (member int kind)
+    (member size_t grp))
+
+  (static) (var coco_imp * cp_imps)
+  (static) (var size_t cp_nimps)
+  (static) (var size_t cp_capimps)
+  (static) (var size_t cp_grps)
+
+  ;; a row added; a growth refused adds none -- one import fewer, never a
+  ;; wrong one
+  (static)
+  (func coco_imp_add ((const char * mod) (const char * name) (u32 arity) (int kind) (size_t grp))
+        (if (>= cp_nimps cp_capimps)
+            (let ((size_t cap . #'(? (== cp_capimps 0) 16 (* cp_capimps 2)))
+                  (coco_imp * grown . #'(cast (coco_imp *) (realloc cp_imps (* cap (sizeof coco_imp))))))
+              (if (== grown nil) (return))
+              (set cp_imps grown)
+              (set cp_capimps cap)))
+        (let ((char * md . #'(strdup mod)) (char * nm . nil))
+          (if (!= name nil) (set nm (strdup name)))
+          (if (or (== md nil) (and (!= name nil) (== nm nil)))
+              (block (free md) (free nm) (return)))
+          (set ($ (nth cp_nimps cp_imps) mod) md)
+          (set ($ (nth cp_nimps cp_imps) name) nm)
+          (set ($ (nth cp_nimps cp_imps) arity) arity)
+          (set ($ (nth cp_nimps cp_imps) kind) kind)
+          (set ($ (nth cp_nimps cp_imps) grp) grp)
+          (set cp_nimps (+ cp_nimps 1))))
+
+  ;; the module of library(Name), by swipl's name for it: dcg/basics is
+  ;; dcg_basics, listing prolog_listing, any other its name; 0 for a spec
+  ;; that names no library
+  (static)
+  (func coco_imp_module ((coco_machine * m) (size_t spec) (char * out) (size_t cap)) (out int)
+        (set spec (coco_deref m spec))
+        (if (not (and (coco_is_callable m spec) (== (coco_arity m spec) 1)
+                      (== 0 (strcmp (coco_atom_name m (coco_name_of m spec)) "library"))))
+            (return 0))
+        (let ((coco_strbuf b) (int ok . 0))
+          (coco_sb_init (aof b))
+          (coco_write_term m (aof b) (coco_deref m (coco_arg m spec 0)) 0 0)
+          (if (!= ($ b s) nil)
+              (block
+                (cond ((== 0 (strcmp ($ b s) "dcg/basics")) (snprintf out cap "dcg_basics"))
+                      ((== 0 (strcmp ($ b s) "dcg/high_order")) (snprintf out cap "dcg_high_order"))
+                      ((== 0 (strcmp ($ b s) "listing")) (snprintf out cap "prolog_listing"))
+                      (#t (snprintf out cap "%s" ($ b s))))
+                (set ok 1)))
+          (coco_sb_free (aof b))
+          (return ok)))
+
+  ;; each Name/Arity and Name//Arity of the list L, a row of KIND; what is
+  ;; no indicator -- `PI as Name', which cocolog cannot rename -- none
+  (static)
+  (func coco_imp_pis ((coco_machine * m) (const char * mod) (size_t l) (int kind) (size_t grp))
+        (set l (coco_deref m l))
+        (while (coco_is_cons m l)
+          (let ((size_t x . #'(coco_deref m (coco_arg m l 0))))
+            (if (or (coco_is_compound2 m x "/") (coco_is_compound2 m x "//"))
+                (let ((size_t nm . #'(coco_deref m (coco_arg m x 0)))
+                      (size_t ar . #'(coco_deref m (coco_arg m x 1))))
+                  (if (and (coco-tag-is ATOM (nth nm (-> m heap))) (coco-is-int (nth ar (-> m heap))))
+                      (let ((i64 a . #'(coco_int_val m (nth ar (-> m heap)))))
+                        (if (coco_is_compound2 m x "//") (set a (+ a 2)))
+                        (if (and (>= a 0) (<= a 2147483647))
+                            (coco_imp_add mod (coco_atom_name m (coco_name_of m nm)) (cast u32 a) kind grp))))))
+            (set l (coco_deref m (coco_arg m l 1))))))
+
+  (func coco_imp_note ((coco_machine * m) (size_t spec) (size_t imports) (int kind))
+        (let ((char mod [256]) (size_t grp . 0))
+          (if (coco_imp_module m spec mod (sizeof mod))
+              (block
+                (set cp_grps (+ cp_grps 1))
+                (set grp cp_grps)
+                (set imports (coco_deref m imports))
+                (cond
+                  ((== kind 0) (coco_imp_add mod nil 0 0 grp))
+                  ;; except(List): all of it but those
+                  ((and (== kind 1) (coco_is_callable m imports) (== (coco_arity m imports) 1)
+                        (== 0 (strcmp (coco_atom_name m (coco_name_of m imports)) "except")))
+                   (block (coco_imp_add mod nil 0 2 grp)
+                          (coco_imp_pis m mod (coco_arg m imports 0) 3 grp)))
+                  (#t (coco_imp_pis m mod imports 1 grp)))))))
+
+  ;; whether NAME/ARITY is in the list group GRP excepted
+  (static)
+  (func coco_imp_excepted ((size_t grp) (const char * name) (u32 arity)) (out int)
+        (for ((size_t i . 0)) (< i cp_nimps) ((++ i))
+          (if (and (== ($ (nth i cp_imps) grp) grp) (== ($ (nth i cp_imps) kind) 3)
+                   (== ($ (nth i cp_imps) arity) arity) (== 0 (strcmp ($ (nth i cp_imps) name) name)))
+              (return 1)))
+        (return 0))
+
+  ;; whether the program imported NAME/ARITY of library module MOD
+  (static)
+  (func coco_imp_has ((const char * mod) (const char * name) (u32 arity)) (out int)
+        (for ((size_t i . 0)) (< i cp_nimps) ((++ i))
+          (let ((coco_imp * r . #'(aof (nth i cp_imps))))
+            (if (== 0 (strcmp (-> r mod) mod))
+                (cond
+                  ((== (-> r kind) 0) (return 1))
+                  ((== (-> r kind) 1)
+                   (if (and (== (-> r arity) arity) (== 0 (strcmp (-> r name) name))) (return 1)))
+                  ((== (-> r kind) 2)
+                   (if (not (coco_imp_excepted (-> r grp) name arity)) (return 1)))
+                  (#t (block))))))
+        (return 0))
+
+  ;;; current_predicate/1's answer of NAME/ARITY the system or a library
+  ;;; defines (3.42.0, installed as `coco_cp_hook'): a predicate of swipl's
+  ;;; system -- module system's or a `$' module's, whether cocolog writes it
+  ;;; in C or as a library's clauses (between/3, sub_atom/5, bagof/3) -- is
+  ;;; user's; any other module's (a library's, or user's own hooks,
+  ;;; term_expansion/2) once the program imported it; one the table has no
+  ;;; row for -- cocolog's own -- what a construct or a C row of it says
+  ;;; (CROW), as through 3.41.0.
+  (func coco_b_cp_current ((const char * name) (u32 n) (int crow)) (out int)
+        (let ((const char * imp . "") (const char * impl . "") (const char * spec . "")
+              (int sw . #'(coco_swipl_props name n (aof imp) (aof impl) (aof spec))))
+          (if (not sw) (return crow))
+          (if (or (== 0 (strcmp impl "system")) (== (nth 0 impl) (cast char 36))) (return 1))
+          (return (coco_imp_has impl name n))))
+
+  ;;; '$pp_autoload'(Head), predicate_property/2's of a head it names
+  ;;; (3.42.0): a library module's export is the program's from now on, as
+  ;;; swipl's define_or_generate/1 autoloads it into the module asked --
+  ;;; user's, the head unqualified or qualified user: or system: last, and no
+  ;;; other module's (lists:nth0(_, _, _) leaves nth0/3 none of user's).
+  ;;; Always true.
+  (func coco_b_pp_autoload ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t h . #'(coco_deref m (coco_m_arg e g 0))) (int ours . 1))
+          (while (coco_is_compound2 m h ":")
+            (let ((size_t md . #'(coco_deref m (coco_arg m h 0))))
+              (set ours (and (coco-tag-is ATOM (nth md (-> m heap)))
+                             (or (== 0 (strcmp (coco_atom_name m (coco_name_of m md)) "user"))
+                                 (== 0 (strcmp (coco_atom_name m (coco_name_of m md)) "system")))))
+              (set h (coco_deref m (coco_arg m h 1)))))
+          (if (and ours (coco_is_callable m h))
+              (let ((const char * imp . "") (const char * impl . "") (const char * spec . "")
+                    (const char * name . #'(coco_atom_name m (coco_name_of m h)))
+                    (u32 ar . #'(coco_arity m h)))
+                ;; once: a loop of predicate_property/2 adds no row
+                (if (and (coco_swipl_props name ar (aof imp) (aof impl) (aof spec))
+                         (!= 0 (strcmp impl "system")) (!= (nth 0 impl) (cast char 36))
+                         (not (coco_imp_has impl name ar)))
+                    (block (set cp_grps (+ cp_grps 1))
+                           (coco_imp_add impl name ar 1 cp_grps)))))
+          (return 1)))
+
   ;;; '$ops'(P, T, N, L): THE OPERATORS current_op(P, T, N) CAN ANSWER, as
   ;;; `op(Priority, Type, Name)': those its bound arguments name and no
   ;;; other (3.25.0), so that the clause's member of them leaves no choice

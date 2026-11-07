@@ -1090,6 +1090,8 @@
                (let ((int r . 0) (coco_strbuf b))
                  (coco_sb_init (aof b))
                  (coco_write_term m (aof b) (coco_deref m (coco_arg m g 0)) 1 0)
+                 ;; WHAT IT IMPORTS (3.42.0), noted before the load too
+                 (if (!= coco_import_hook nil) (coco_import_hook st m g))
                  (set (-> m dgc) vouch)
                  (set r (coco_use_module_hook st m (coco_arg m g 0) err errlen))
                  (set (-> m dgc) 0)
@@ -1103,8 +1105,12 @@
                  (if (== r 1) (return 1))
                  (if (== r -5) (return 4))
                  (return 3))))
-          ;; `autoload/1,2' is use_module that loads lazily; same answer here
-          (if (and (<= n 2) (== 0 (strcmp name "autoload"))) (return 1))
+          ;; `autoload/1,2' is use_module that loads lazily; same answer
+          ;; here, and autoload/2's list is imported (3.42.0), as swipl's
+          ;; current_predicate/1 names it before any load
+          (if (and (<= n 2) (== 0 (strcmp name "autoload")))
+              (block (if (!= coco_import_hook nil) (coco_import_hook st m g))
+                     (return 1)))
           ;; its specs noted for predicate_property/2 (3.41.0)
           (if (and (== n 1) (== 0 (strcmp name "meta_predicate")))
               (block (coco_pred_meta_note st m (coco_arg m g 0))

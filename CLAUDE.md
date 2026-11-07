@@ -1148,12 +1148,33 @@ cocolint index offers no import of it.
   (`coco_cond_eval`), so library(assoc) keeps the get_assoc/3 swipl's keeps,
   over the engine's `'$btree_find_node'/5` (through 3.30.0 the condition
   asked the store alone, and the library's single-sided rules answered a
-  term that was no assoc with existence_error(matching_rule, ...)). A spec
-  with a part unbound walks the program's alone, where swipl's walks its
-  system's 1 278 too, and a library's predicate is never answered (SWI
-  answers for one the program imported). Through 1.10.2 it also answered
-  for any name a call or `clause/2` had merely looked up (each makes a
-  table entry).
+  term that was no assoc with existence_error(matching_rule, ...)). **Named
+  whole it asks user's view as swipl's since 3.42.0**
+  (`coco_pred_current`'s hook, `coco_b_cp_current` in
+  lib/builtins-db.cicili; test/files/current_library.pl): the program's
+  own first, then by lib/swipl-props.cicili's module -- swipl's system
+  predicates (module system or a `$` one) wherever cocolog defines them,
+  between/3 and sub_atom/5 among the library's clauses, and a library
+  module's export once the program IMPORTED it (`coco_imp_note`, a
+  process-wide list): a load of library(Name) its read or goal made
+  (use_module/1,2 with the import list or except/1, ensure_loaded/1,
+  autoload/2's list, a list of files, consult/1, `[File]`, load_files/2's
+  imports(I); `lb_import_note` and `lb_import_lf`, before the load, as
+  the goal is read nowhere after it; a library's own read imports
+  nothing: `lb-load-is-ours`, muted and not `ownload`), or
+  predicate_property/2 of a head it names (`'$pp_autoload'/1`, swipl's
+  define_or_generate/1, but for six properties and a module other than
+  user or system). A call imports nothing, where swipl's autoload does
+  (COMPAT.md); what the table has no row for answers as a C row says.
+  **library(listing) is carried**, and a carried name loads as a goal
+  too, and through consult/1, `[File]` and load_files/2 (`lb_is_carried`;
+  through 3.41.0 each raised existence_error, where the directive loaded).
+  The table is looked up by arity and then the name's first byte
+  (`coco-emit-swipl-props`; a strcmp a row of the arity's through 3.41.0,
+  some 1 300 instructions for a name of two arguments). A spec with a part
+  unbound walks the program's alone, where swipl's walks its system's
+  1 278 too. Through 1.10.2 it also answered for any name a call or
+  `clause/2` had merely looked up (each makes a table entry).
   `predicate_property/2` (1.10.28) answers for a construct (by name AND
   arity, `*callable-constructs*`: the construct table also holds the
   engine's markers, `'$k'`, `[]`, `:-`, which are no predicates), a C

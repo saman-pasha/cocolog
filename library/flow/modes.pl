@@ -285,6 +285,10 @@ flow_mode('$load_context', 2, ['+', '-'], semidet).
 %% predicate_property/2's implementation_module(M) of a head named (3.41.0,
 %% swipl's property_predicate/2): fails for a head that is no callable term
 flow_mode('$pred_impl', 2, ['+', '-'], semidet).
+%% predicate_property/2's autoload of a head named (3.42.0, swipl's
+%% define_or_generate/1): a library module's export the program's from
+%% then on, for current_predicate/1; always true
+flow_mode('$pp_autoload', 1, ['+'], det).
 flow_mode(print_message, 2, ['+', '+'], det).
 flow_mode(print_message_lines, 3, ['+', '+', '+'], det).
 flow_mode(message_to_string, 2, ['+', '-'], det).

@@ -2236,6 +2236,21 @@
                ((func h ((coco_machine * m) (coco_store * st) (u64 nid) (u32 zar)
                          (coco_strbuf * b)))))
 
+  ;;; WHAT current_predicate/1 ANSWERS OF A PREDICATE THE SYSTEM OR A
+  ;;; LIBRARY DEFINES (3.42.0), installed by the builtins module (its
+  ;;; `coco_b_cp_current'): swipl's system predicates, the library
+  ;;; modules' exports the program imported. CROW is whether a construct or
+  ;;; a C row defines NAME/ARITY. While it is null CROW is the answer, as in
+  ;;; the test binaries.
+  (decl) (func coco_cp_install
+               ((func h ((const char * name) (u32 arity) (int crow)) (out int))))
+
+  ;;; AND WHAT A LOAD DIRECTIVE IMPORTS (3.42.0), installed by the library
+  ;;; loader: asked before the load of `use_module/1,2', `ensure_loaded/1'
+  ;;; and of autoload/2's list, with the directive's goal.
+  (decl) (func coco_import_install
+               ((func h ((coco_store * st) (coco_machine * m) (size_t goal)))))
+
   ;;; Whether the store's NAME/ARITY is one a program file took over
   ;;; (`taken', 3.1.0): 0 at once while none is.
   (decl) (func coco_pred_taken ((coco_store * st) (u64 name) (u32 arity)) (out int))
@@ -2323,6 +2338,19 @@
         ((func h ((coco_machine * m) (coco_store * st) (u64 nid) (u32 zar) (coco_strbuf * b))))
         (set coco_dwim_hook h))
 
+  ;; and current_predicate/1's answer of the system's and a library's
+  ;; (3.42.0), by the same module
+  (static) (var func coco_cp_hook ((const char * name) (u32 arity) (int crow)) (out int))
+
+  (func coco_cp_install ((func h ((const char * name) (u32 arity) (int crow)) (out int)))
+        (set coco_cp_hook h))
+
+  ;; and what a load directive imports (3.42.0), by the library loader
+  (static) (var func coco_import_hook ((coco_store * st) (coco_machine * m) (size_t goal)))
+
+  (func coco_import_install ((func h ((coco_store * st) (coco_machine * m) (size_t goal))))
+        (set coco_import_hook h))
+
   (func coco_pred_taken ((coco_store * st) (u64 name) (u32 arity)) (out int)
         (if (== (-> st ntaken) 0) (return 0))
         (let ((size_t pi . #'(coco_pred_find st name arity)))
@@ -2357,20 +2385,31 @@
           (if (and (< row 0) (coco_is_construct m nid)) (return 0))
           (return 1)))
 
+  ;; THE PROGRAM'S OWN FIRST (a clause or a declaration of its, a library's
+  ;; name among them), then one the system or a library defines -- a
+  ;; construct, a C row, a library's clauses -- as the hook says of it
+  ;; (3.42.0): through 3.41.0 a C row was the system's and a library's
+  ;; clauses none, so between/3 was no predicate and aggregate_all/3 one
+  ;; the program had not imported
   (func coco_pred_current ((coco_store * st) (coco_machine * m) (u64 nid) (u32 n)) (out int)
         ;; a fresh machine's first consult comes before its first step,
         ;; which is where the engine's names are interned otherwise: the
         ;; libraries read at start-up ask before any
         (if (not (-> m ids_ready)) (coco_ids_fill m))
-        (if (or (>= (coco_builtin_index m nid n) 0)
-                (and (!= coco_claims_hook nil) (coco_claims_hook (coco_atom_name m nid) n)))
-            (return 1))
-        (coco_store_warm st)
-        (let ((size_t pi . #'(coco_pred_find st nid n)) (coco_pred * p . nil))
-          (if (>= pi (-> st npreds)) (return 0))
-          (set p (aof (nth pi (-> st preds))))
-          (return (and (or (not (-> p library)) (-> p own))
-                       (or (> (coco_pred_live p) 0) (or (-> p dynamic) (-> p declared)))))))
+        (let ((int crow . #'(or (>= (coco_builtin_index m nid n) 0)
+                                (and (!= coco_claims_hook nil) (coco_claims_hook (coco_atom_name m nid) n))))
+              (int lib . 0))
+          (coco_store_warm st)
+          (let ((size_t pi . #'(coco_pred_find st nid n)))
+            (if (< pi (-> st npreds))
+                (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+                  (if (or (> (coco_pred_live p) 0) (or (-> p dynamic) (-> p declared)))
+                      (block
+                        (if (or (not (-> p library)) (-> p own)) (return 1))
+                        (set lib 1))))))
+          (if (and (not crow) (not lib)) (return 0))
+          (if (== coco_cp_hook nil) (return crow))
+          (return (coco_cp_hook (coco_atom_name m nid) n crow))))
 
   (func coco_halt_load ((coco_store * st) (int code) (int keep))
         ;; the program's output first: a failed commit says so on stderr

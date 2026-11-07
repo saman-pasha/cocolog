@@ -96,6 +96,7 @@
     ("$cp_defined"             1 coco_b_cp_defined)
     ("$pred_props"             2 coco_b_pred_props)
     ("$pred_impl"              2 coco_b_pred_impl)
+    ("$pp_autoload"            1 coco_b_pp_autoload)
     ("$dwim_predicates"        2 coco_b_dwim_predicates)
     ("abolish"                 1 coco_b_abolish)
     ("abolish"                 2 coco_b_abolish2)
@@ -162,26 +163,41 @@
 ;;; lib/swipl-props.cicili's table: its flags plus one, 0 where swipl has
 ;;; no such predicate, and the module it is imported from, its
 ;;; implementation module and its meta arguments in IMP, IMPL and SPEC.
-;;; A function of a cond an arity and a strcmp a row, as the ISO table's.
+;;; A function of a cond an arity, a cond the name's first byte and a
+;;; strcmp a row (3.42.0): through 3.41.0 a strcmp a row of the arity's,
+;;; 158 of them on average for a name of two arguments, some 1 300
+;;; instructions a lookup -- which current_predicate/1 named whole makes
+;;; of every predicate the system or a library defines. The largest group
+;;; is 36 rows (arity 2, `t').
 (DEFMACRO coco-emit-swipl-props (fname)
-  (LET ((arities (SORT (REMOVE-DUPLICATES (MAPCAR #'SECOND *swipl-props*)) #'<)))
+  (LET* ((arities (SORT (REMOVE-DUPLICATES (MAPCAR #'SECOND *swipl-props*)) #'<))
+         (lead (LAMBDA (s) (IF (PLUSP (LENGTH s)) (CHAR-CODE (CHAR s 0)) 0))))
     `(func ,fname ((const char * name) (u32 arity) (const char ** imp)
                    (const char ** impl) (const char ** spec)) (out int)
-       (cond
-         ,@(MAPCAR
-            (LAMBDA (n)
-              `((== arity ,n)
-                (cond
-                  ,@(LOOP FOR row IN *swipl-props*
-                          WHEN (= (SECOND row) n)
-                          COLLECT `((== 0 (strcmp name ,(FIRST row)))
-                                    (block (set (cof imp) ,(THIRD row))
-                                           (set (cof impl) ,(FOURTH row))
-                                           (set (cof spec) ,(SIXTH row))
-                                           (return ,(+ (FIFTH row) 1)))))
-                  (#t (return 0)))))
-            arities)
-         (#t (return 0))))))
+       (let ((int lead0 . #'(bitand (cast int (nth 0 name)) 255)))
+         (cond
+           ,@(MAPCAR
+              (LAMBDA (n)
+                (LET ((rows (REMOVE-IF-NOT (LAMBDA (row) (= (SECOND row) n)) *swipl-props*)))
+                  `((== arity ,n)
+                    (cond
+                      ,@(MAPCAR
+                         (LAMBDA (k)
+                           `((== lead0 ,k)
+                             (cond
+                               ,@(LOOP FOR row IN rows
+                                       WHEN (= (FUNCALL lead (FIRST row)) k)
+                                       COLLECT `((== 0 (strcmp name ,(FIRST row)))
+                                                 (block (set (cof imp) ,(THIRD row))
+                                                        (set (cof impl) ,(FOURTH row))
+                                                        (set (cof spec) ,(SIXTH row))
+                                                        (return ,(+ (FIFTH row) 1)))))
+                               (#t (return 0)))))
+                         (SORT (REMOVE-DUPLICATES (MAPCAR (LAMBDA (row) (FUNCALL lead (FIRST row))) rows))
+                               #'<))
+                      (#t (return 0))))))
+              arities)
+           (#t (return 0)))))))
 
 ;;; THE CONTROL CONSTRUCTS A PROGRAM CALLS, by name AND arity, as SWI
 ;;; lists them: `*construct-names*' holds the engine's own markers too
@@ -566,14 +582,20 @@
            ;; A head names one predicate, whose properties the C half lists;
            ;; an unbound head walks current_predicate/1's, the program's.
            ;; M:H is H (one namespace), so user:H walks them too.
-           "predicate_property(H, P) :- nonvar(H), H = _:G, !, predicate_property(G, P)."
+           ;; A HEAD NAMED IS DEFINED FIRST (3.42.0), as swipl's
+           ;; define_or_generate/1 autoloads a library's export into user
+           ;; (current_predicate/1 names it after), for any property but the
+           ;; six swipl's property_predicate/2 answers without
+           "predicate_property(H, P) :- nonvar(H), ( var(P) -> true ; \\+ memberchk(P, [visible, undefined, iso, built_in, autoload(_), implementation_module(_)]) ), '$pp_autoload'(H), fail."
+           "predicate_property(H, P) :- '$pp_walk'(H, P)."
+           "'$pp_walk'(H, P) :- nonvar(H), H = _:G, !, '$pp_walk'(G, P)."
            ;; implementation_module(M) is no property the walk lists: swipl's
            ;; property_predicate/2 answers it of a head named (3.41.0)
-           "predicate_property(H, P) :- nonvar(P), P = implementation_module(M), !, nonvar(H), '$pred_impl'(H, M)."
+           "'$pp_walk'(H, P) :- nonvar(P), P = implementation_module(M), !, nonvar(H), '$pred_impl'(H, M)."
            ;; a property named is a check, and of none the last one leaves
            ;; no choice point, as swipl's (3.25.0)
-           "predicate_property(H, P) :- nonvar(H), !, '$pred_props'(H, Ps), ( nonvar(P) -> memberchk(P, Ps) ; '$cp_in'(P, Ps) )."
-           "predicate_property(H, P) :- current_predicate(N/A), functor(H, N, A), '$pred_props'(H, Ps), '$cp_member'(P, Ps)."
+           "'$pp_walk'(H, P) :- nonvar(H), !, '$pred_props'(H, Ps), ( nonvar(P) -> memberchk(P, Ps) ; '$cp_in'(P, Ps) )."
+           "'$pp_walk'(H, P) :- current_predicate(N/A), functor(H, N, A), '$pred_props'(H, Ps), '$cp_member'(P, Ps)."
 
            ;; ---- retractall/1 ----------------------------------------------
            ;;
@@ -803,6 +825,18 @@
 
   ;; whether a compiled-in module or a construct claims NAME/ARITY (3.1.0)
   (decl) (func coco_b_claims ((const char * name) (u32 arity)) (out int))
+
+  ;; WHAT THE PROGRAM IMPORTED (3.42.0), for current_predicate/1 named
+  ;; whole: a load of library(Name) the program's read or goal makes,
+  ;; noted by the loader (lib/library.cicili) before the load, as the goal is
+  ;; read nowhere after it. KIND 0 imports all of the library, 1 what
+  ;; IMPORTS lists (use_module/2's, or its except(L)), 2 what autoload/2's
+  ;; list names; a spec that names no library, nothing.
+  (decl) (func coco_imp_note ((coco_machine * m) (size_t spec) (size_t imports) (int kind)))
+
+  ;; and current_predicate/1's answer of NAME/ARITY the system or a library
+  ;; defines, CROW what a construct or a C row of it says (`coco_cp_hook')
+  (decl) (func coco_b_cp_current ((const char * name) (u32 arity) (int crow)) (out int))
 
   ) ; decl-builtins
 

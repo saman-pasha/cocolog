@@ -14346,3 +14346,151 @@ solve, module and state binaries. Lessons basics/07, library/04, 37, 50,
 51 and 56. The card's cites hold (26 rows, 38 cites: five the lib/ edits
 moved past their anchors' other sites, corrected), and the generator gives
 lib/swipl-props.cicili again byte for byte.
+
+## current_predicate/1 named whole as swipl's (3.42.0)
+
+swipl's current_predicate/1 asks of the module it is called in, user's for
+a program: a predicate of swipl's system is user's through its import of
+system, and a library module's export is user's once the program imported
+it -- append/3 is none until a load names library(lists), whose module
+swipl has not even read before that. Through 3.41.0 cocolog answered from
+what defines the name: a construct or a C row yes from the start,
+aggregate_all/3, nth0/3 and listing/1 among them, and a library's clauses
+never, between/3, sub_atom/5, bagof/3 and numbervars/3 among them, and
+member/2 after use_module(library(lists)). A minor: the answers are new.
+
+- THE PROGRAM'S OWN FIRST (`coco_pred_current`, lib/kb.cicili): a clause
+  or a declaration of its own answers yes, whatever its name; what a
+  construct, a C row or a library's clauses define is then asked of the
+  builtins module's hook (`coco_b_cp_current`, lib/builtins-db.cicili,
+  installed by cocolog.cicili beside the dwim hook; null in a test binary,
+  where a construct or a C row answers as through 3.41.0). By
+  lib/swipl-props.cicili's table (3.41.0's): a predicate whose module is
+  system or a `$` one is user's, wherever cocolog defines it; one of a
+  library module's (lists, apply, assoc, ...) once the program imported
+  it; one the table has no row for -- cocolog's own -- what a construct or
+  a C row of it says: call_metered/4 is current, library(async)'s go/1 and
+  library(llm)'s llm_chat/3 are not. A read's `:- if(current_predicate(N/A))`
+  asks the same function (`coco_cond_eval`).
+- WHAT THE PROGRAM IMPORTED (`coco_imp_note`; a process-wide list, as
+  swipl's module user is, of rows: the module, and all of it, one name, all
+  but a group's names, or a name so excepted): each load of library(Name)
+  the program's read or goal makes -- use_module/1, use_module/2 with its
+  import list or its except/1, ensure_loaded/1, autoload/2's list
+  (autoload/1 imports nothing, as swipl's), a list of files, consult/1,
+  `[File]`, load_files/2 with its imports(I) -- noted BEFORE the load, as
+  the goal is read nowhere after it (a load may collect the heap). The load
+  directives through `coco_import_hook` in `coco_directive`, the goals in
+  `lb_use` and `lb_load_file` (lib/library.cicili: `lb_import_note`,
+  `lb_import_lf`). A library's own read imports nothing: a load is the
+  program's where the store is not muted or the load is its own
+  (`lb-load-is-ours`, `ownload`). The module by swipl's name for it:
+  dcg/basics is dcg_basics, dcg/high_order dcg_high_order, listing
+  prolog_listing. A load of a library no table names notes a module none of
+  whose predicates the table has, so it imports nothing; a library the
+  table names is always there.
+- predicate_property/2 OF A HEAD IT NAMES IMPORTS IT (`'$pp_autoload'/1`),
+  as swipl's define_or_generate/1 autoloads a library's export into user,
+  for any property but the six swipl's property_predicate/2 answers
+  without (visible, undefined, iso, built_in, autoload(_),
+  implementation_module(_)), and into user's module alone: of
+  `lists:nth0(_, _, _)` nothing, of `user:` and `system:` the head. The
+  walk is `'$pp_walk'/2` under it, the qualifiers stripped there.
+- library(listing) IS CARRIED (`lb_carried`), as library(error) and the two
+  DCG libraries are: listing/0,1 and portray_clause/1 are builtins here.
+  A carried name loads as a goal too (`lb_is_carried`): through 3.41.0
+  use_module(library(error)) loaded at a directive and raised
+  existence_error(source_sink, library(error)) as a goal, and consult/1,
+  `[File]` and load_files/2 raised it for all four.
+- THE TABLE IS LOOKED UP BY THE NAME'S FIRST BYTE (`coco-emit-swipl-props`
+  in lib/builtins.cicili): a cond an arity, a cond the first byte and a
+  strcmp a row, where 3.41.0's was a strcmp a row of the arity's -- 316
+  rows of two arguments, some 1 300 instructions a lookup, which
+  current_predicate/1 now makes of every predicate the system or a library
+  defines. The largest group is 36 rows (arity 2, `t').
+
+test/files/current_library.pl, new: 187 lines, swipl 9.0.4's byte for byte
+(3.41.0 differs at line 3). It holds:
+- a read's `:- if(current_predicate(N/A))` of a system predicate cocolog
+  writes as clauses, of a library's export imported and not;
+- 56 of swipl's system predicates, by every definition cocolog has -- a
+  construct, a C row, a library's clauses -- and a name no one defines;
+- 21 library exports before any import, C rows among them;
+- what the directives imported: a list of files, an import list, except/1,
+  autoload/2 and ensure_loaded/1 of a carried library;
+- what goals import: use_module/1,2 with a list and except/1,
+  ensure_loaded/1, library(listing) and library(error) carried, a list of
+  files, a load that fails;
+- predicate_property/2's autoload: each of the six properties that import
+  nothing, a qualifier other than user or system, user: and system:, a
+  property of none, an unbound one;
+- consult/1, `[File]` and load_files/2 of a library, its imports(List) and
+  if(not_loaded), a carried library among them;
+- the program's own, whatever its name.
+
+test/engine.pl's `own_current`: call_metered/4, a C row swipl has none of,
+is current, and library(async)'s go/1, its clauses, is not.
+library/flow/modes.pl: '$pp_autoload'/1 is det, the tables rebuilt.
+
+Not swipl's (COMPAT.md): a call imports nothing, where swipl's autoload
+imports at the call; an import is not renamed (`PI as Name`); a qualified
+spec is asked as user's; user's hooks (term_expansion/2,
+file_search_path/2) are current once the program gives one a clause; a C
+row swipl's library(backcomp) defines (string_to_atom/2) is current from
+the start; a spec with a part unbound walks the program's alone, as
+before.
+
+Arms, a build each, the rule taken out (35: thirty on the code before the
+loads by consult/1, `[File]` and load_files/2 and the first-byte lookup
+were written, five on the final code). Each is red in current_library.pl,
+btree_system.pl, current_det.pl, predicate_property.pl or test/engine.pl,
+and the arm of no edit is green in all five on both codes:
+
+- the system's rows answering yes, and a `$` module's among them;
+- the program's own first (red in btree_system and current_det too); a
+  library's clauses asked of the hook; what the table has no row for
+  answering as a C row of it says (red in btree_system and engine alone);
+- a library's export answering by the imports: all of a library, an import
+  list, except/1 and the names it lists, autoload/2's list at its
+  directive, use_module/1,2 and ensure_loaded/1 at a directive and a list
+  of files there, the same as goals, consult/1, `[File]` and load_files/2
+  of a library, load_files/2's imports(I); a library's own read importing
+  nothing (red in btree_system too, on both codes); swipl's names for the
+  modules of dcg/basics and listing; the import hook installed, and the
+  current_predicate/1 hook;
+- library(listing) carried; a carried name loading as a goal, at a
+  directive (red in all five: lib/swipl/'s ordsets.pl and dcg_basics.pl
+  load library(error) at a directive, and every start said it did not
+  exist), and through consult/1, `[File]` and load_files/2;
+- predicate_property/2's import at all; the six properties that import
+  nothing; user and system the only qualifiers that import, system: among
+  them; the walk under its own name, where the qualified head's recursion
+  imported the head into user.
+
+Two are guards of cost, and green in all five: an import already noted is
+not noted again (a loop of predicate_property/2 adds no row), and a system
+predicate is no import (the hook answers yes of it before the list).
+
+The cost, callgrind. The step loop is not touched (tools/flow/zero.sh,
+work less padding, 3.41.0 to 3.42.0: nrev 65 894 126 to 65 894 088, queens
+40 277 131 to 40 277 228, lookup 48 042 588 to 48 042 341; the counts move
+with the layout). A start (`cocolog query true`, the two binaries side by
+side) is 35 077 398 instructions and 35 083 294 (+5 896): the
+predicate_property/2 clause that imports, parsed at every start (about
++50 000: coco_next_token +8 067, coco_functor_id +6 845,
+coco_store_put_node +4 433, coco_parse_term +2 980), all but 6 000 of it
+paid back by the table's lookup by the first byte (strcmp(3) -46 641).
+current_predicate/1 named whole, 20 000 calls each, less the same loop
+with none: of a C row (atom_length/2) 2 790 instructions a call and 3 380;
+of a system predicate cocolog writes as clauses (between/3) 3 623 and
+3 891; of a library export not imported (append/3) 3 596 and 4 047; of the
+program's own 4 142 and 4 138; of a name nothing defines 2 906 and 2 858.
+With 3.41.0's lookup, a strcmp a row, the first three were +1 311, +821
+and +544.
+
+Narrow cases green: lint, files (each agreeing with swipl), engine,
+directives, library, reconsult, errors, repl, trace, static, gc, cyclic,
+stream, backtrace, window, reason, flowchart, and the solve, module and
+state binaries. Lessons library/04, 20 and 36, which ask
+current_predicate/1. The card's cites hold (26 rows, 38 cites: six the
+lib/ edits moved, corrected, T1's anchor rewritten).

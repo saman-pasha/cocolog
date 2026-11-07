@@ -86,10 +86,11 @@
            ;; does, where a longer list reports it and goes on
            "[File] :- !, '$lf_load'(File, true)."
            "[File|Files] :- '$lf_load'([File|Files], true)."
-           ;; load_files/2's IF rides as lf(If), so that its C half refuses a
-           ;; number as swipl's load_files/2 does (3.4.0), where consult/1 and
-           ;; `[N]' look for the file its text names
-           "load_files(Files, Options) :- '$lf_list'(Options), '$lf_if'(Options, If), '$lf_load'(Files, lf(If))."
+           ;; load_files/2's IF rides as lf(If, Options), so that its C half
+           ;; refuses a number as swipl's load_files/2 does (3.4.0), where
+           ;; consult/1 and `[N]' look for the file its text names, and finds
+           ;; a library's imports(I) in the options (3.42.0)
+           "load_files(Files, Options) :- '$lf_list'(Options), '$lf_if'(Options, If), '$lf_load'(Files, lf(If, Options))."
 
            "'$lf_list'(L) :- var(L), !, throw(error(instantiation_error, _))."
            "'$lf_list'([]) :- !."
@@ -135,6 +136,13 @@
 ;;; The Coco half's text where the registration wants it: a macro that
 ;;; expands to the string, as `coco-defmodule' splices one.
 (DEFMACRO lb-prolog-text () *library-prolog*)
+
+;;; WHETHER A LOAD THE STORE ST SEES NOW IS THE PROGRAM'S (3.42.0): its read
+;;; or its goal, whose loads import what they name, and never a library's
+;;; own read -- muted, and not the program's own load (`ownload') -- which
+;;; loads for the library. Asked by the two that note an import.
+(DEFMACRO lb-load-is-ours (st)
+  `(or (not (coco_store_is_muted ,st)) (-> ,st ownload)))
 
 (generic decl-library
   ()
@@ -1439,6 +1447,9 @@
           (set (-> m heap_len) mark)
           (return 0)))
 
+  (static) (decl) (func lb_is_carried ((coco_machine * m) (size_t spec)) (out int))
+  (static) (decl) (func lb_import_note ((coco_store * st) (coco_machine * m) (size_t g)))
+
   (static)
   (func lb_use ((coco_engine * e) (size_t g) (int * found)) (out int)
         (coco-mod-args e g ((spec 0))
@@ -1450,9 +1461,16 @@
             ;; file atom'.
             (if (lb_files_list m spec)
                 (block (coco_m_decline e) (set (cof found) 0) (return 0)))
+            ;; what it imports, noted before the load (3.42.0)
+            (lb_import_note (-> e st) m g)
             (set (-> m dgc) (? (-> e gc) 1 0))
             (set r (coco_library_load (-> e st) m e spec err (sizeof err)))
             (set (-> m dgc) was)
+            ;; SWI'S NAMES FOR WHAT THIS BUILD CARRIES ELSEWHERE load as a
+            ;; goal too (3.42.0), as at a directive: through 3.41.0
+            ;; `use_module(library(error))' was existence_error as a goal
+            ;; alone. Nothing was loaded, so nothing of SPEC moved.
+            (if (and (== r -1) (lb_is_carried m spec)) (set r (lb_defined m)))
             (if (== 1 r) (return 1))
             ;; SWIPL'S ERRORS (3.4.0), where through 3.3.0 each was
             ;; cocolog_error('use_module: nope: no such file'): a file or a
@@ -1509,7 +1527,10 @@
   ;;; under if(If); the Coco half walks a list and reads the options.
   ;;;
   ;;; library(Name) is the library loader's, as SWI loads a library: a
-  ;;; module, loaded once, whatever IF says. Any other spec names a file by
+  ;;; module, loaded once, whatever IF says, and imported (3.42.0): all of
+  ;;; it, or what load_files/2's imports(I) says (`lb_import_lf'); a name
+  ;;; swipl gives what this build carries elsewhere loads, as use_module/1's
+  ;;; (through 3.41.0 existence_error). Any other spec names a file by
   ;;; its text -- an atom, a string, a number, whose text SWI's error gives
   ;;; as an atom -- tried as written and then with `.pl', as use_module/1
   ;;; tries it. One that is not there is existence_error(source_sink, Spec),
@@ -1566,6 +1587,26 @@
                 (lb_say_text err)))
           (return 1)))
 
+  ;;; WHAT consult/1, `[File]' AND load_files/2 IMPORT OF library(Name)
+  ;;; (3.42.0), as swipl's: all of it, or what the first imports(I) of
+  ;;; load_files/2's options OPTS says -- `all', a list, except(List). Noted
+  ;;; before the load where the load is the program's, as a load
+  ;;; directive's is (`lb_import_note').
+  (static)
+  (func lb_import_lf ((coco_store * st) (coco_machine * m) (size_t spec) (int lf) (size_t opts))
+        (if (not (lb-load-is-ours st)) (return))
+        (if lf
+            (while (coco_is_cons m opts)
+              (let ((size_t o . #'(coco_deref m (coco_arg m opts 0))))
+                (if (and (coco_is_callable m o) (== (coco_arity m o) 1)
+                         (== 0 (strcmp (coco_atom_name m (coco_name_of m o)) "imports")))
+                    (let ((size_t i . #'(coco_deref m (coco_arg m o 0))))
+                      (if (not (coco-tag-is ATOM (nth i (-> m heap))))
+                          (block (coco_imp_note m spec i 1) (return)))
+                      break)))
+              (set opts (coco_deref m (coco_arg m opts 1)))))
+        (coco_imp_note m spec 0 0))
+
   (static)
   (func lb_load_file ((coco_engine * e) (size_t g)) (out int)
         (coco-mod-args e g ((spec 0) (how 1))
@@ -1575,22 +1616,32 @@
                 (const char * fn . #'(coco_m_functor e spec (aof ar)))
                 (const char * hfn . #'(coco_m_functor e how (aof har)))
                 (int exists . 0) (int lf . 0) (int r . 0) (int was . 0)
-                (size_t culprit . spec) (u64 c . 0)
+                (size_t culprit . spec) (size_t opts . 0) (u64 c . 0)
                 (double then . 0.0) (double now . 0.0))
-            ;; load_files/2's own IF comes as lf(If), so a number is its
-            ;; error and not consult/1's (3.4.0)
-            (if (and (!= hfn nil) (and (== har 1) (== 0 (strcmp hfn "lf"))))
-                (block (set lf 1) (set how (coco_deref m (coco_arg m (coco_deref m how) 0)))))
+            ;; load_files/2's own IF comes as lf(If, Options), so a number is
+            ;; its error and not consult/1's (3.4.0), and its options are
+            ;; read for what a library imports (3.42.0)
+            (if (and (!= hfn nil) (and (== har 2) (== 0 (strcmp hfn "lf"))))
+                (block (set lf 1)
+                       (set opts (coco_deref m (coco_arg m (coco_deref m how) 1)))
+                       (set how (coco_deref m (coco_arg m (coco_deref m how) 0)))))
             (set mode (coco_m_atom e how))
             (if (== mode nil) (set mode "true"))
             (set exists (== 0 (strcmp mode "exists")))
             ;; library(Name): the library loader's
             (if (and (!= fn nil) (== ar 1) (== 0 (strcmp fn "library")))
                 (block
+                 ;; what it imports, noted before the load (3.42.0)
+                 (lb_import_lf st m spec lf opts)
                  (set was (-> m dgc))
                  (set (-> m dgc) (? (-> e gc) 1 0))
                  (set r (coco_library_load st m e spec err (sizeof err)))
                  (set (-> m dgc) was)
+                 ;; SWI'S NAMES FOR WHAT THIS BUILD CARRIES ELSEWHERE load
+                 ;; (3.42.0), as use_module/1's do: through 3.41.0
+                 ;; consult(library(error)) was existence_error. Nothing was
+                 ;; loaded, so nothing of SPEC moved.
+                 (if (== r -1) (if (lb_is_carried m spec) (set r (lb_defined m))))
                  (if (== r 1) (return 1))
                  (let ((int t . #'(lb_ball_again e)))
                    (if (!= t 0) (return t)))
@@ -1711,8 +1762,49 @@
   ;;; existence_error/2, permission_error/3, representation_error/1 and
   ;;; resource_error/1 are not built in, and a call to one says so by name.
   ;;; Written as the writer writes the spec, which is what is compared.
+  ;;; LIBRARY(LISTING) TOO (3.42.0): listing/0,1 and portray_clause/1 are
+  ;;; builtins here, and swipl's file loads it for them.
   (static) (var const char * lb_carried []
-                . '{"library(error)" "library(dcg/basics)" "library(dcg/high_order)"})
+                . '{"library(error)" "library(dcg/basics)" "library(dcg/high_order)"
+                    "library(listing)"})
+
+  ;;; Whether SPEC is one of those, by the writer's text of it
+  (static)
+  (func lb_is_carried ((coco_machine * m) (size_t spec)) (out int)
+        (let ((coco_strbuf b) (int carried . 0))
+          (coco_sb_init (aof b))
+          (coco_write_term m (aof b) (coco_deref m spec) 1 0)
+          (if (!= ($ b s) nil)
+              (for ((size_t i . 0)) (< i 4) ((++ i))
+                   (if (== 0 (strcmp ($ b s) (nth i lb_carried))) (set carried 1))))
+          (coco_sb_free (aof b))
+          (return carried)))
+
+  ;;; WHAT A LOAD IMPORTS (3.42.0), for current_predicate/1: noted before the
+  ;;; load of GOAL -- use_module/1,2, ensure_loaded/1, autoload/2 --, as the
+  ;;; goal is read nowhere after it, where the load is the program's (its
+  ;;; read, or a goal of its: a library's read loads for the library). A list
+  ;;; of files imports each.
+  (static)
+  (func lb_import_note ((coco_store * st) (coco_machine * m) (size_t g))
+        (if (not (lb-load-is-ours st)) (return))
+        (set g (coco_deref m g))
+        (if (not (coco_is_callable m g)) (return))
+        (let ((const char * nm . #'(coco_atom_name m (coco_name_of m g)))
+              (u32 n . #'(coco_arity m g)) (int kind . -1)
+              (size_t spec . 0))
+          (cond ((and (== n 1) (or (== 0 (strcmp nm "use_module")) (== 0 (strcmp nm "ensure_loaded"))))
+                 (set kind 0))
+                ((and (== n 2) (== 0 (strcmp nm "use_module"))) (set kind 1))
+                ((and (== n 2) (== 0 (strcmp nm "autoload"))) (set kind 2))
+                (#t (block)))
+          (if (< kind 0) (return))
+          (set spec (coco_deref m (coco_arg m g 0)))
+          (if (lb_files_list m spec)
+              (while (coco_is_cons m spec)
+                (coco_imp_note m (coco_arg m spec 0) 0 0)
+                (set spec (coco_deref m (coco_arg m spec 1))))
+            (coco_imp_note m spec (? (> n 1) (coco_arg m g 1) 0) kind))))
 
   ;;; A DIRECTIVE GETS THE LOADER'S THREE ANSWERS -- 1 loaded, 0 found and
   ;;; would not load, -1 not there -- and kb.cicili reports the last two in
@@ -1775,14 +1867,7 @@
                 (set (-> m heap_len) mark)
                 (return 0)))
           (if (!= r -1) (return r))
-          (let ((coco_strbuf b) (int carried . 0))
-            (coco_sb_init (aof b))
-            (coco_write_term m (aof b) (coco_deref m spec) 1 0)
-            (if (!= ($ b s) nil)
-                (for ((size_t i . 0)) (< i 3) ((++ i))
-                     (if (== 0 (strcmp ($ b s) (nth i lb_carried))) (set carried 1))))
-            (coco_sb_free (aof b))
-            (return (? carried (lb_defined m) -1)))))
+          (return (? (lb_is_carried m spec) (lb_defined m) -1))))
 
   ;;; A LIST OF FILES (3.4.0), swipl's `:- use_module([a, b]).': each
   ;;; loaded, each that loads nothing said at the directive's place, and the
@@ -1945,6 +2030,8 @@
 
   (func coco_library_module () (out int)
         (coco_use_module_install lb_directive_hook)
+        ;; what a load directive imports, for current_predicate/1 (3.42.0)
+        (coco_import_install lb_import_note)
         (coco_goal_install lb_goal_hook)
         (coco_include_install lb_include)
         (return (coco_module_register "library" lb_dispatch (lb-prolog-text) nil)))

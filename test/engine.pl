@@ -37,7 +37,7 @@ main :-
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
     update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), repeat_runs(D), jit_runs(D),
-    btree_places, op_names_frozen(D), own_properties,
+    btree_places, op_names_frozen(D), own_properties, own_current,
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -64,6 +64,17 @@ own_properties :-
     ( re_first_atom('answer\\([^\n]*\\)', Out, A) -> term_to_atom(G, A) ; G = none ),
     check('library(async), found through a relative library path, names its absolute file', G,
           answer(absolute)).
+
+%% ---- current_predicate/1 of what swipl has no row for (3.42.0) -----------
+%% test/files/current_library.pl holds the system's and the libraries'
+%% predicates to swipl; what swipl has none of answers as through 3.41.0: a
+%% C row of cocolog's own is the system's, a library's clauses are not.
+own_current :-
+    section('current_predicate/1 of what swipl has none of'),
+    ( current_predicate(call_metered/4) -> C1 = yes ; C1 = no ),
+    ( current_predicate(go/1) -> C2 = yes ; C2 = no ),
+    check('call_metered/4, a C row, is current, and go/1, library(async)''s clause, not', C1-C2,
+          yes-no).
 
 %% ---- an operator name of any length, frozen and thawed (3.34.1) ----------
 %% A FROZEN MACHINE CARRIES THE OPERATORS ITS PROGRAM DECLARED (lib/state.cicili,
