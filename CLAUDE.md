@@ -2022,6 +2022,19 @@ cocolint index offers no import of it.
   library/flow reads both as builtins (`flow_kind`'s construct row) and
   offers them as near names (`flow_lib_pred`). test/files/retract_view.pl
   holds 110 lines to swipl, test/engine.pl's update-view section the freeze.
+  **clause/2 of a predicate written in C raises**
+  error(permission_error(access, private_procedure, N/A),
+  context(system:clause/2, _)) (3.38.0, swipl's pl-proc.c;
+  `coco_db_private`): what listing/1 writes as `%   Foreign:` -- a
+  construct, a C row, and a library's clauses where swipl writes it in C
+  (between/3, sub_atom/5) -- unless the program defines the name itself
+  (msort/2 a file took over, and the facts library(reasoning) asserts
+  under number/1's name, which it reads with clause/2 and must go on
+  reading). Its head's qualifiers come off as PL_strip_module() takes them
+  (`coco_db_unq_atoms`): an atom's alone, so `M:p` with M unbound, or
+  `[]:p`, is a head of (:)/2, and the innermost `system` asks the system's
+  definition alone (`system:msort(_, _)`). test/files/clause_private.pl
+  holds 219 lines to swipl.
 * **abolish/1,2 are swipl's** (3.36.0, `coco_abolish_pi` in
   lib/builtins-db.cicili): the clauses go by the forget walk a reconsult
   takes (`coco_pred_forget_where`: mute 4 every one, and for a library's

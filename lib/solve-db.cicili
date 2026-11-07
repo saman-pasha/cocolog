@@ -349,6 +349,47 @@
             (return (coco_retractall_none e g)))
         (return 0))
 
+  ;;; ---- the system's predicates (3.37.0, 3.38.0) ---------------------------
+  ;;;
+  ;;; What listing/1 writes as the system's, `%   Foreign: system:N/A', and
+  ;;; clause/2 refuses to show, permission_error(access, private_procedure,
+  ;;; N/A) (`coco_db_private').
+
+  ;;; A PREDICATE OF THE SYSTEM'S: a construct, a row of the engine or of a
+  ;;; compiled-in module, as current_predicate/1 named whole answers
+  ;;; (`coco_pred_current''s first question)
+  (static)
+  (func coco_listing_sys ((coco_machine * m) (u64 nid) (u32 n)) (out int)
+        (return (or (>= (coco_builtin_index m nid n) 0)
+                    (and (!= coco_claims_hook nil)
+                         (coco_claims_hook (coco_atom_name m nid) n)))))
+
+  ;;; A SYSTEM PREDICATE AS SWIPL LISTS ONE, `%   Foreign: system:N/A': what
+  ;;; cocolog writes in C, and what its library writes as clauses where
+  ;;; swipl defines it in C (lib/swipl-det.cicili's *swipl-foreign*:
+  ;;; between/3, atom_concat/3, sub_atom/5), where the store holds them
+  (static)
+  (func coco_listing_sysdef ((coco_machine * m) (coco_store * st) (u64 nid) (u32 n)) (out int)
+        (if (coco_listing_sys m nid n) (return 1))
+        (if (not (coco_det_foreign_name (coco_atom_name m nid) n)) (return 0))
+        (let ((size_t pi . #'(coco_pred_find st nid n)))
+          (return (and (< pi (-> st npreds)) ($ (nth pi (-> st preds)) library)
+                       (> (coco_pred_live (aof (nth pi (-> st preds)))) 0)))))
+
+  ;;; WHETHER THE STORE'S PREDICATE PI IS ONE A LISTING FINDS: a live clause,
+  ;;; or a dynamic, discontiguous or multifile declaration, as swipl's
+  ;;; current_predicate/2 has it -- 1, or 2 for a library's that is the
+  ;;; system's (`coco_listing_sysdef': nb_current/2's clause beside its C,
+  ;;; between/3's), which is listed as the system's alone
+  (static)
+  (func coco_listing_found ((coco_machine * m) (coco_store * st) (size_t pi)) (out int)
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+          (if (not (or (> (coco_pred_live p) 0) (or (-> p dynamic) (-> p declared))))
+              (return 0))
+          (if (and (-> p library) (not (-> p own)))
+              (return (? (coco_listing_sysdef m st (-> p name) (-> p arity)) 2 1)))
+          (return 1)))
+
   ;;; ---- retract/1 and clause/2 (3.28.0, swipl's) --------------------------
   ;;;
   ;;; A WALK OF THE CLAUSES THAT STOOD WHEN THE CALL BEGAN, as swipl's
@@ -377,14 +418,49 @@
           (set t (coco_deref m (coco_arg m t 1))))
         (return t))
 
+  ;;; CLAUSE/2'S HEAD with its qualifiers taken off as swipl's
+  ;;; PL_strip_module() takes them (3.38.0): an atom's alone, so `M:p(X)'
+  ;;; with M unbound -- or `f(x):p', or `[]:p', the list's end being no
+  ;;; atom -- stays a head of (:)/2, which has no clause, where through
+  ;;; 3.37.0 any qualifier came off and p/1's clauses answered. SYSQ says
+  ;;; whether the innermost was `system': the system's definition alone
+  ;;; (`system:msort(_, _)').
+  (static)
+  (func coco_db_unq_atoms ((coco_machine * m) (size_t t) (int * sysq)) (out size_t)
+        (set t (coco_deref m t))
+        (while (coco_is_compound2 m t ":")
+          (let ((size_t q . #'(coco_deref m (coco_arg m t 0))))
+            (if (or (not (coco-tag-is ATOM (nth q (-> m heap)))) (coco_is_nil m q)) break)
+            (set (cof sysq) (== (coco_name_of m q) (coco_intern m "system")))
+            (set t (coco_deref m (coco_arg m t 1)))))
+        (return t))
+
+  ;;; WHAT clause/2 OF NAME NID AND ARITY N, the store's predicate PI, MAY
+  ;;; SHOW (3.38.0, swipl's pl-proc.c: a predicate written in C is
+  ;;; permission_error(access, private_procedure, N/A)): 1 none, a predicate
+  ;;; of the system's as listing/1 writes one, `%   Foreign:' -- what
+  ;;; cocolog writes in C, and a library's clauses where swipl writes it in
+  ;;; C (between/3, sub_atom/5) -- unless the program defines the name
+  ;;; itself (msort/2 a file took over, the facts library(reasoning) asserts
+  ;;; under number/1's); 2 nothing at all, a name of no system predicate
+  ;;; under `system:' (SYSQ); 0 the store's clauses
+  (static)
+  (func coco_db_private ((coco_machine * m) (coco_store * st) (u64 nid) (u32 n) (size_t pi)
+                         (int sysq)) (out int)
+        (if sysq (return (? (coco_listing_sysdef m st nid n) 1 2)))
+        (let ((int found . #'(? (< pi (-> st npreds)) (coco_listing_found m st pi) 0)))
+          (return (or (== found 2) (and (== found 0) (coco_listing_sys m nid n))))))
+
   ;;; G's head and body, MODE 1 retract(C)'s and 0 clause(H, B)'s: C's `H :-
   ;;; B', or C and 0 for `true' (a fact), and a `H => B' says SSU; clause/2's
-  ;;; `f()' is the atom f, whose clauses the store keeps (3.12.0)
+  ;;; `f()' is the atom f, whose clauses the store keeps (3.12.0), and its
+  ;;; head's qualifiers swipl's (`coco_db_unq_atoms', SYSQ)
   (static)
   (func coco_db_parts ((coco_machine * m) (size_t g) (int mode) (size_t * hp) (size_t * bp)
-                       (int * ssu))
+                       (int * ssu) (int * sysq))
         (let ((size_t h . 0) (size_t bd . 0))
           (set (cof ssu) 0)
+          (set (cof sysq) 0)
           (if (== mode 1)
               (let ((size_t c . #'(coco_db_unq m (coco_arg m g 0))))
                 (set h c)
@@ -395,7 +471,7 @@
                             (block (set h (coco_arg m c 0)) (set bd (coco_arg m c 1))
                                    (set (cof ssu) 1))))))
               (block (set h (coco_arg m g 0)) (set bd (coco_arg m g 1))))
-          (set h (coco_db_unq m h))
+          (set h (? (== mode 1) (coco_db_unq m h) (coco_db_unq_atoms m h sysq)))
           (if (and (== mode 0) (coco-tag-is FUN (nth h (-> m heap))) (== (coco_arity m h) 0))
               (set h (coco_new_atom m (coco_atom_name m (coco_name_of m h)))))
           (set (cof hp) h)
@@ -487,16 +563,17 @@
   ;;; traced builtin's (none where the printer hides the call, PRINTR 2 on
   ;;; its frame, 3.27.0) and its errors named by its own row (`kcall', the
   ;;; goal in flight): retract/1's as through 3.27.0 (`coco_clause_check'),
-  ;;; clause/2's an unbound head's instantiation_error and type_error(callable,
-  ;;; H). One step and one inference, as the builtin was. Answers as
-  ;;; `coco_construct' does.
+  ;;; clause/2's an unbound head's instantiation_error, type_error(callable,
+  ;;; H) and, of a predicate written in C, permission_error(access,
+  ;;; private_procedure, N/A) (3.38.0, `coco_db_private'). One step and one
+  ;;; inference, as the builtin was. Answers as `coco_construct' does.
   (weak) (cold)
   (func coco_db_walk ((coco_engine * e) (size_t g) (int mode) (size_t k) (size_t b)
                       (int * ok) (int * ret)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st))
-              (size_t h . 0) (size_t bd . 0) (int ssu . 0) (int rc . 0) (int r . 0)
-              (int tport . 0) (int td . 0))
+              (size_t h . 0) (size_t bd . 0) (int ssu . 0) (int sysq . 0) (int pv . 0)
+              (int rc . 0) (int r . 0) (int tport . 0) (int td . 0))
           (set (-> e kcall) g)
           (if (-> e trace)
               (block (set td (+ (-> e trace_depth) 1))
@@ -504,16 +581,28 @@
                      (if (== tport 1) (coco_trace_port e "Call" td g))))
           (if (== mode 1)
               (set rc (coco_clause_check e (coco_arg m g 0) 0))
-              (let ((size_t h0 . #'(coco_db_unq m (coco_arg m g 0))))
+              (let ((size_t h0 . #'(coco_db_unq_atoms m (coco_arg m g 0) (aof sysq))))
                 (if (not (coco_is_callable m h0)) (set rc (coco_type_error e "callable" h0)))))
           (if (!= rc 0) (return (coco_db_raised rc ret)))
-          (coco_db_parts m g mode (aof h) (aof bd) (aof ssu))
+          (coco_db_parts m g mode (aof h) (aof bd) (aof ssu) (aof sysq))
           (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m h) (coco_arity m h))))
             (if (and (not ssu) (< pi (-> st npreds)))
                 (block
                  ;; a predicate the knowledge base could not hand over raises,
                  ;; as its call does (2.11.1)
                  (if (not (coco_pred_ensure st pi)) (return (coco_db_raised (coco_fetch_error e) ret)))
+                 ;; CLAUSE/2 OF A PREDICATE WRITTEN IN C raises, as swipl's
+                 ;; (3.38.0; through 3.37.0 it failed, and showed the
+                 ;; clauses cocolog's library writes for between/3), and
+                 ;; under `system:' nothing else is the system's
+                 (if (== mode 0)
+                     (set pv (coco_db_private m st (coco_name_of m h) (coco_arity m h) pi sysq)))
+                 (if (== pv 1)
+                     (return (coco_db_raised
+                              (coco_permission_error e "access" "private_procedure"
+                                                     (coco_indicator m (coco_name_of m h)
+                                                                     (coco_arity m h)))
+                              ret)))
                  ;; THE DEAD GO FIRST where no frame is open on them, as
                  ;; clause/2's '$pred_count'/3 took them through 3.27.0: a
                  ;; retract under a walk's own frame leaves its clause
@@ -523,7 +612,8 @@
                  ;; faster
                  (if (!= ($ (nth pi (-> st preds)) ntomb) 0) (coco_tomb_try_sweep st m pi))
                  (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
-                       (u32 cend . #'(cast u32 ($ (nth pi (-> st preds)) nclauses)))
+                       ;; none to walk where the system's is no store's
+                       (u32 cend . #'(? (== pv 2) 0 (cast u32 ($ (nth pi (-> st preds)) nclauses))))
                        (u32 kpos . 0) (u64 key . 0) (size_t ix . 0) (int fr . 0) (size_t ci . 0))
                    (if (> cend 0)
                        (block
@@ -565,7 +655,7 @@
               (u32 cend . #'($ (nth ci (-> e choices)) cend))
               (size_t ix . #'($ (nth ci (-> e choices)) clause_ix))
               (int mode . #'(? (== (coco_name_of (-> e m) g) (coco-id (-> e m) "retract")) 1 0))
-              (size_t h . 0) (size_t bd . 0) (int ssu . 0) (int r . 0)
+              (size_t h . 0) (size_t bd . 0) (int ssu . 0) (int sysq . 0) (int r . 0)
               (int tport . 0) (int td . 0) (u64 key . 0))
           (if (-> e trace)
               (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
@@ -577,7 +667,7 @@
                     (block (coco_trace_port e "Redo" td g)
                            (coco_trace_reopen e ci td)))
                 (if (== tport 2) (coco_trace_goal_own e ci))))
-          (coco_db_parts m g mode (aof h) (aof bd) (aof ssu))
+          (coco_db_parts m g mode (aof h) (aof bd) (aof ssu) (aof sysq))
           (set key (? (== kpos 0) (coco_arg_key m h) (coco_call_arg_key m h kpos)))
           (set r (coco_db_from e pi kpos key ix cend mode h bd 1 ci))
           (if (== tport 1) (coco_trace_port e (? r "Exit" "Fail") td g))
@@ -1374,27 +1464,6 @@
           (coco_out_puts stdout ($ b s))
           (coco_sb_free (aof b))))
 
-  ;;; A PREDICATE OF THE SYSTEM'S: a construct, a row of the engine or of a
-  ;;; compiled-in module, as current_predicate/1 named whole answers
-  ;;; (`coco_pred_current''s first question)
-  (static)
-  (func coco_listing_sys ((coco_machine * m) (u64 nid) (u32 n)) (out int)
-        (return (or (>= (coco_builtin_index m nid n) 0)
-                    (and (!= coco_claims_hook nil)
-                         (coco_claims_hook (coco_atom_name m nid) n)))))
-
-  ;;; A SYSTEM PREDICATE AS SWIPL LISTS ONE, `%   Foreign: system:N/A': what
-  ;;; cocolog writes in C, and what its library writes as clauses where
-  ;;; swipl defines it in C (lib/swipl-det.cicili's *swipl-foreign*:
-  ;;; between/3, atom_concat/3, sub_atom/5), where the store holds them
-  (static)
-  (func coco_listing_sysdef ((coco_machine * m) (coco_store * st) (u64 nid) (u32 n)) (out int)
-        (if (coco_listing_sys m nid n) (return 1))
-        (if (not (coco_det_foreign_name (coco_atom_name m nid) n)) (return 0))
-        (let ((size_t pi . #'(coco_pred_find st nid n)))
-          (return (and (< pi (-> st npreds)) ($ (nth pi (-> st preds)) library)
-                       (> (coco_pred_live (aof (nth pi (-> st preds)))) 0)))))
-
   ;;; WHETHER A CLAUSE'S HEAD UNIFIES WITH HEAD, undone after: swipl's
   ;;; `\+ \+ rule_head(Rule, Head)' in list_clauses/3, a single-sided rule's
   ;;; head the one before its guard
@@ -1588,20 +1657,6 @@
   ;;;   - none is error(existence_error(procedure, Spec), context(toplevel,
   ;;;     'DWIM could not correct goal')), Spec as given with `user:' taken
   ;;;     off. No near name is offered: swipl's asks whether to correct it.
-
-  ;;; WHETHER THE STORE'S PREDICATE PI IS ONE A LISTING FINDS: a live clause,
-  ;;; or a dynamic, discontiguous or multifile declaration, as swipl's
-  ;;; current_predicate/2 has it -- 1, or 2 for a library's that is the
-  ;;; system's (`coco_listing_sysdef': nb_current/2's clause beside its C,
-  ;;; between/3's), which is listed as the system's alone
-  (static)
-  (func coco_listing_found ((coco_machine * m) (coco_store * st) (size_t pi)) (out int)
-        (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
-          (if (not (or (> (coco_pred_live p) 0) (or (-> p dynamic) (-> p declared))))
-              (return 0))
-          (if (and (-> p library) (not (-> p own)))
-              (return (? (coco_listing_sysdef m st (-> p name) (-> p arity)) 2 1)))
-          (return 1)))
 
   ;;; THE MODULE A FOUND PREDICATE IS LISTED UNDER, for the standard order:
   ;;; `system', a module/2 read's (`pmod'), or `user'

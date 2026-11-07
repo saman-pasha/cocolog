@@ -13860,3 +13860,99 @@ basics/07, 09 and 11, library/04, 37, 50 and 54. The batch found the solve
 binary's check that listing/1 of an unknown predicate fails; it now checks
 that it raises existence_error, as swipl's. The card's cites hold (26
 rows, 38 cites).
+
+
+## clause/2 of a predicate written in C raises, as swipl's (3.38.0)
+
+swipl's clause/2 refuses to show a predicate written in C: pl-proc.c raises
+error(permission_error(access, private_procedure, Name/Arity),
+context(system:clause/2, _)). cocolog's failed, as of a predicate with no
+clauses, and for the predicates its library writes as clauses where swipl
+writes them in C it showed its own (`clause(between(_, _, _), B)` gave
+`integer(Z), !, '$between'(X, Y, Z, N)`). A minor: the error is new, and
+clause/2's qualifiers are swipl's.
+
+- The rule (lib/solve-db.cicili, `coco_db_private`): clause/2 raises for
+  what listing/1 writes as the system's, `%   Foreign:` -- a construct, a C
+  row of the engine or of a compiled-in module (a loaded library(stream)'s
+  too), and a library's clauses where swipl writes the predicate in C
+  (lib/swipl-det.cicili's `*swipl-foreign*`: between/3, atom_concat/3,
+  sub_atom/5, string_concat/3, nb_current/2) -- unless the program defines
+  the name itself: msort/2 a file took over, a dynamic declaration, and the
+  facts library(reasoning) asserts under number/1's name and reads back
+  with clause/2, which must go on answering (test/errors.pl's
+  `assertz(number(dos))` check).
+- The qualifiers (`coco_db_unq_atoms`), as PL_strip_module() takes them:
+  an atom's come off, so `M:p(X)` with M unbound, `f(x):p` and `[]:p` (the
+  list's end is no atom) stay heads of (:)/2, which has no clause -- through
+  3.37.0 any qualifier came off and p/1's clauses answered -- and the
+  innermost `system` asks the system's definition alone:
+  `system:msort(_, _)` raises though the program defines msort/2, and
+  `system:zz(_)` of a program's zz/1 finds nothing.
+- The helpers listing/1 asks (`coco_listing_sys`, `coco_listing_sysdef`,
+  `coco_listing_found`) moved above the clause/2 walk, which asks them too.
+
+test/files/clause_private.pl, new: 219 lines, swipl 9.0.4's byte for byte
+(3.37.0 differs at line 3). It holds:
+
+- 157 predicates swipl writes in C that cocolog defines, every one of them:
+  the control, the type tests, the term builtins, arithmetic, text, the
+  database, the globals, output and the files' predicates;
+- a system name the program defines, unqualified and under `system:` and
+  `user:`, each order of the two;
+- the qualifiers: `system:`, `user:`, `lists:`, a variable, a compound,
+  the list's end, a number, and a head that is no callable under each;
+- the program's own clauses, a declared predicate with none, an unknown
+  one, and bodies that are no goal;
+- the errors: an unbound head, a number, a float, and each under a
+  qualifier.
+
+Not swipl's (COMPAT.md):
+
+- What cocolog writes in C where swipl writes it in Prolog -- the control
+  constructs, call/N, findall/3, catch/3, format/1, length/2, memberchk/2,
+  a library's nth0/3, last/2 and aggregate_all/3 -- raises, where swipl's
+  clause/2 shows its own implementation's clauses (`(G1, G2) :- call((G1,
+  G2))`, `false :- fail`).
+- A program's own clause for between/3 joins the library's, which are the
+  system's, so clause/2 raises where swipl's shows the program's.
+- A predicate swipl writes in C that cocolog defines nowhere (tty_size/2),
+  or in a loadable module none of whose predicates listing/1 or
+  predicate_property/2 sees (library(thread)'s mutex_lock/1): clause/2
+  fails, as of an unknown predicate.
+- A fact asserted under a builtin's name stays cocolog's, kept and shown,
+  where swipl refuses it.
+
+Arms, a build each, the rule taken out (12). Each is red in
+clause_private.pl or test/errors.pl, and the arm of no edit is green in
+both:
+
+- the raise itself;
+- a library's clauses where swipl writes the predicate in C;
+- a construct or a C row the program gave no clause of its own;
+- the program's own definition winning, red in both: msort/2, and
+  errors.pl's `assertz(number(dos))`;
+- under `system:`: the system's definition, nothing else, and the walk
+  honouring it;
+- the atom-only strip, the list's end being no atom, the innermost
+  qualifier counting;
+- the strip in clause/2's callable check and in its head.
+
+The cost, callgrind. zero.sh, work less padding, 3.37.0 to 3.38.0:
+
+| program | 3.37.0 | 3.38.0 |
+|---|---|---|
+| nrev | 65 997 161 | 65 997 161 |
+| queens | 40 281 294 | 40 281 283 |
+| lookup | 48 092 654 | 48 092 754 |
+
+The step loop is not touched; the moved functions shift what follows
+them. A start (`cocolog query true`, the two binaries side by side) is
+34 768 110 instructions and 34 768 532.
+
+Narrow cases green: lint, files (119 cases, each agreeing with swipl),
+errors, engine, directives, library, reconsult, trace, flowchart, static,
+repl, reason, gc, translate, and the solve, module and state binaries.
+Lessons basics/07, library/04, 37, 43 and 50. Every clause/2 call in
+library/ and the lessons either catches its errors or reads the program's
+own predicates. The card's cites hold (26 rows, 38 cites).
