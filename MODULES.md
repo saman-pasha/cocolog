@@ -1279,14 +1279,15 @@ CLAUDE.md carry the argument and what fixing it would cost.
 
 ### Back to this module
 
-**`format/2` has no column directives.** `~t`, `~|` and `~+` lay text out in
-fields by measuring what has been written since the last column stop, which is
-a second pass this does not make. They raise an error naming themselves rather
-than being ignored — silently dropping them turns a table into a run-on line
-and blames the program. Everything else is there: `~w ~q ~p ~a ~d ~D ~s ~c ~e
-~f ~g ~r ~R ~n ~i ~~`, the numeric and `~*` argument prefixes, and the
-`atom(A)`, `codes(C)`, `codes(H,T)`, `chars(C)`, `chars(H,T)`, `user_output`
-and `user_error` sinks. The difference-list sinks are not decoration: they are
+**`format/2` has no `~@`.** It calls a goal for its output, and it raises an
+error naming itself rather than being ignored — silently dropping it would
+lose the goal's text and blame the program. Everything else is there: `~w ~q
+~p ~k ~W ~a ~d ~D ~I ~s ~c ~e ~f ~g ~r ~R ~n ~N ~i ~~`, the numeric, `~*` and
+backquote argument prefixes, the column directives `~t`, `~|` and `~+` (since
+3.33.0, swipl's: the segment since the last stop held, its fill points sharing
+the room from the middle out, the column reckoned from where the sink stands),
+and the `atom(A)`, `string(S)`, `codes(C)`, `codes(H,T)`, `chars(C)`,
+`chars(H,T)`, `user_output` and `user_error` sinks. The difference-list sinks are not decoration: they are
 what makes `format(codes(H,T), '~d', [I])` work as a grammar body, which is how
 SWI's `dcg/basics` generates every number it can also parse.
 

@@ -36,8 +36,9 @@ digit(D) --> [D].   % cocolint: N1 -- walked into on purpose
 
 selftest_main :-
 
-    %% ---- F1: the column directives, refused by name -------------------
-    format(atom(_), "~t~20|x", []),   % cocolint: F1 -- walked into on purpose
+    %% ---- F1 IS GONE, and this is where it was -------------------------
+    %% format/2 refused ~t, ~| and ~+ by name. Since 3.33.0 they lay text
+    %% out as swipl's, and the row is retired.
 
     %% ---- W1 IS GONE, and this is where it was -------------------------
     %% write_canonical/1 kept operators and named variables `_G12'. Since

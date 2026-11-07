@@ -896,7 +896,25 @@ with_output_to_fails :-
     ( with_output_to(codes(_C7), fail) -> true ; true ),
     with_output_to(codes(C8), write(back)),
     atom_codes(A8, C8),
-    check('and stdout is back afterwards, which a lost line would hide', A8, back).
+    check('and stdout is back afterwards, which a lost line would hide', A8, back),
+    format_argument_overflow.
+
+%% ---- format/2's digits past a C int --------------------------------------
+%%
+%% A NUMERIC ARGUMENT OF FORMAT/2 IS HELD TO A C INT (3.33.0): past 2^31 - 1
+%% it is format('argument overflow'), the error swipl's pl-fmt.c raises
+%% there -- in its source: swipl 9.0.4's check is compiled away, and the
+%% number wraps (`~99999999999|' writes 1 215 752 191 spaces), so this is
+%% held here and not to swipl (COMPAT.md). Through 3.32.0 the digits were a
+%% long, and `~99999999999c' set out to write that many characters. The
+%% directives here write nothing of their argument's size, so that a build
+%% without the check answers at once: `~i' ignores, `~r' refuses its radix.
+format_argument_overflow :-
+    section('a numeric argument of format/2 past a C int is format(argument overflow)'),
+    catch(( format(atom(_), "~99999999999i", [x]), R1 = wrote ), error(E1, _), R1 = E1),
+    check('an argument past it', R1, format('argument overflow')),
+    catch(( format(atom(_), "~2147483648r", [1]), R2 = wrote ), error(E2, _), R2 = E2),
+    check('one past it, and no radix error after', R2, format('argument overflow')).
 
 %% ---- a list cell is '.'/2 ----------------------------------------------------
 %%

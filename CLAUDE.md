@@ -3027,9 +3027,30 @@ cocolint index offers no import of it.
   prints with stdio of its own; a capture (with_output_to/2) has a column
   of its own from 0 and gives the console's back. A new writer to the
   console goes through `coco_out_puts`/`coco_out_putc` or notes what it
-  wrote, or the next `~N` and the next report guess. `format`'s `~N` writes
-  a newline only where a line is open; a term sink starts at 0; a file of
-  library(stream) answers for itself (`coco_m_sink_open_install`).
+  wrote, or the next `~N` and the next report guess. **`format` keeps
+  swipl's column** (3.33.0, pl-fmt.c's format_state, `coco_fmt_cols` in
+  lib/builtins-format.cicili): it begins where the sink stands
+  (`coco_fmt_start`: the console's `coco_con_lp`, a capture's
+  `coco_cap_lp`, a term sink 0, a file of library(stream) its own column,
+  `coco_m_sink_column_install`, the "line open" hook through 3.32.0), and
+  its `~N` writes a newline unless that column is 0 (after a return, or a
+  stop the text passed back to 0, none). The column directives are
+  swipl's: `~t` a fill point, `~N|` a stop at N, `~N+` one N past the last
+  stop; the text since the first fill point is held (`pb`) and put out at
+  the stop with the room shared from the middle out, and the column is the
+  stop whatever the text reached. **Two rules reckon the column, as
+  swipl's do**: format's own text (`~a`, `~s`, `~c`, the numbers, the
+  format's characters) walks a tab to (COL + 1) | 7 (`coco_col_walk` mode
+  0, `coco-fmt-now`), and a writer (`~w`, `~q`, `~p`, `~k`, `~W`) leaves
+  the stream's linepos where nothing is held and the column is where the
+  sink stands, else the column before it plus the linepos its text reaches
+  from 0 (`coco-fmt-writer`, prepare_sub_format()) -- **a new directive
+  that writes a term goes through `coco-fmt-writer`**, any other writes
+  into `o` and is walked by the first rule. **The column is walked only
+  in a format that asks it**, a fill point, a stop or `~N` among its
+  directives (`coco_fmt_asks_column`, `on`): a format that asks none
+  pays no walk -- so **a new directive that reads the column goes into
+  that function's test too**, or it reads a column nothing walked.
 * **The reader is written ONCE and emitted TWICE** (1.10.7): the bodies of
   `coco_parse_term`, `_primary`, `_named`, `_args` and `_list` are macros at
   the top of `lib/syntax.cicili`, emitted as the family every consult uses

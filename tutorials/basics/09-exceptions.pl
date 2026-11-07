@@ -122,17 +122,18 @@ main :-
     must('a file that is not there', E4,
          existence_error(source_sink, '/no/such/library.pl')),
     %% A REFUSAL is `error(cocolog_error(Text), _)': cocolog declining
-    %% something no ISO formal fits -- here format's column directives,
-    %% which cocolog does not have. The first argument is a SENTENCE and
-    %% not one of ISO's formals. It is row C2 of the dialect card, and
-    %% cocolint has a rule for it, because a handler written for SWI names
-    %% a formal and walks past: `format(Message)' is the one swipl raises
-    %% for a format string it cannot use, and cocolog raises it too, for
-    %% `~a' with no argument left.
-    catch(format(atom(_), "~t~20|x", []), error(E7, _), true),   % cocolint: F1 -- the refusal is the lesson
+    %% something no ISO formal fits -- here format's `~@', which calls a
+    %% goal for its output and which cocolog does not have (its column
+    %% directives were refused so too, through 3.32.0). The first argument
+    %% is a SENTENCE and not one of ISO's formals. It is row C2 of the
+    %% dialect card, and cocolint has a rule for it, because a handler
+    %% written for SWI names a formal and walks past: `format(Message)' is
+    %% the one swipl raises for a format string it cannot use, and cocolog
+    %% raises it too, for `~a' with no argument left.
+    catch(format(atom(_), "~@", [true]), error(E7, _), true),
     ( E7 = cocolog_error(_) -> Shape = cocolog_error ; Shape = E7 ),
     must('a refusal is cocolog_error/1', Shape, cocolog_error),
-    catch( catch(format(atom(_), "~t~20|x", []),   % cocolint: F1 -- the refusal is the lesson
+    catch( catch(format(atom(_), "~@", [true]),
                  error(format(_), _), Inner2 = caught),
            error(cocolog_error(_), _), Outer2 = caught),
     ( var(Inner2) -> Miss = missed ; Miss = caught ),

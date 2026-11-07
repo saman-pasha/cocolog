@@ -695,14 +695,6 @@
   (static) (var int st_saved_fd . -1)
   (static) (var FILE * st_term . nil)
 
-  ;;; WHETHER A LINE IS OPEN on a slot's output (2.16.0), for format's `~N':
-  ;;; the last byte written there was no newline. user_output and user_error
-  ;;; are the console's, whose column the engine keeps with its own writes
-  ;;; (`coco_m_out_note'); a file's is its own, at its start from the open. A
-  ;;; file that is the current output gets the engine's write/1 and format/2
-  ;;; through fd 1, and those are counted as the console's.
-  (static) (var int st_open [256])
-
   ;;; An encoding's class, as the table above names them, and a stream's
   ;;; encoding set: a binary stream's is octet, which open/4 and
   ;;; set_stream/2 see to.
@@ -764,16 +756,17 @@
                            (#t (set (cof lp) (+ (cof lp) 1)))))))))
 
   ;;; What a write put in a stream: the console's column for user_output
-  ;;; and user_error, and for a file whether a line is open and, since
-  ;;; 3.16.0, its position -- characters, line, column and bytes from the
-  ;;; open, as swipl counts an output stream's
+  ;;; and user_error, and for a file, since 3.16.0, its position --
+  ;;; characters, line, column and bytes from the open, as swipl counts an
+  ;;; output stream's. The column is where format's `~N' and its column
+  ;;; stops begin (3.33.0; through 3.32.0 a flag of its own said whether a
+  ;;; line was open, the last byte written no newline)
   (static)
   (func st_wrote ((int s) (const char * buf) (size_t n)) (out void)
         (if (== n 0) (return))
         (if (or (== s 1) (== s 2)) (block (coco_m_out_note s buf n) (return)))
         (if (>= s 3)
             (block
-              (set (nth s st_open) (? (== (nth (- n 1) buf) (cast char 10)) 0 1))
               (set (nth s st_nb) (+ (nth s st_nb) (cast i64 n)))
               (st_pos_walk (cast (const u8 *) buf) n (== (nth s st_cls) 1)
                            (aof (nth s st_nc)) (aof (nth s st_nl)) (aof (nth s st_lp))))))
@@ -786,7 +779,6 @@
         (if (or (== s 1) (== s 2)) (block (coco_m_out_note s text n) (return)))
         (if (>= s 3)
             (block
-              (set (nth s st_open) (? (== (nth (- n 1) text) (cast char 10)) 0 1))
               (set (nth s st_nb) (+ (nth s st_nb) (cast i64 raw)))
               (st_pos_walk (cast (const u8 *) text) n 0
                            (aof (nth s st_nc)) (aof (nth s st_nl)) (aof (nth s st_lp))))))
@@ -1249,7 +1241,6 @@
           (set (nth s st_mode) (cast int mode))
           (set (nth s st_path) (strdup path))
           (set (nth s st_npush) 0)
-          (set (nth s st_open) 0)
           (set (nth s st_bom) 0)
           (set (nth s st_bomlen) 0)
           (st_set_enc s (cast int enc))
@@ -1386,7 +1377,6 @@
           (set (nth s st_nl) l)
           (set (nth s st_lp) lp)
           (set (nth s st_hi) 0)
-          (if (>= s 3) (set (nth s st_open) (? (== lp 0) 0 1)))
           (return 1)))
 
   (func st_p_where ((coco_engine * e) (size_t g)) (out int)
@@ -2119,12 +2109,13 @@
           ;; through 3.15.2), and every stream in its encoding (3.19.0)
           (return (st_emit e sink s text len))))
 
-  ;;; Whether a line is open on a sink of this table (2.16.0, `~N'): 1 open,
-  ;;; 0 at a line's start, -1 not one of its own -- the sinks st_sink takes,
-  ;;; user_output and user_error by the console's column, a file by its own.
-  ;;; A slot that is no stream answers 0, and format raises after.
+  ;;; The column a sink of this table stands at (2.16.0 whether a line was
+  ;;; open, for `~N'; 3.33.0 the column, for its column stops too), or -1
+  ;;; not one of its own -- the sinks st_sink takes, user_output and
+  ;;; user_error by the console's column, a file by its own. A slot that is
+  ;;; no stream answers 0, and format raises after.
   (static)
-  (func st_sink_open ((coco_engine * e) (size_t sink)) (out int)
+  (func st_sink_column ((coco_engine * e) (size_t sink)) (out int)
         (let ((u32 ar . 0) (const char * nm . nil) (int s . -1))
           (st_setup)
           (set nm (coco_m_functor e sink (aof ar)))
@@ -2139,9 +2130,9 @@
                    (if (and (!= (nth i st_alias) nil) (== 0 (strcmp (nth i st_alias) nm)))
                        (block (set s i) break))))
           (if (< s 0) (return -1))
-          (if (or (== s 1) (== s 2)) (return (coco_m_out_open s)))
+          (if (or (== s 1) (== s 2)) (return (cast int (coco_m_out_column s))))
           (if (== (nth s st_kind) 0) (return 0))
-          (return (nth s st_open))))
+          (return (cast int (nth s st_lp)))))
 
   ;;; Loaded: the standard slots, and the hooks installed. Idempotent, since
   ;;; a module's init runs once for every store that loads it.
@@ -2149,7 +2140,7 @@
   (func st_init ((coco_engine * e)) (out int)
         (st_setup)
         (coco_m_sink_install st_sink)
-        (coco_m_sink_open_install st_sink_open)
+        (coco_m_sink_column_install st_sink_column)
         (return 1))
 
   (static) (coco-emit-module-dispatch st_dispatch *stream-predicates*)

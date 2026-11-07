@@ -252,7 +252,7 @@ the_acks(Agent) :-
     findall(Line, ( member(Fmt-Args, [ "a :- b_setval(k, 1).   ~c cocolint: G1 -- shown on purpose~n"-[37],
                                        "~c cocolint: G1 -- shown on purpose~n"-[37],
                                        "b :- b_setval(k, 1).~n"-[],
-                                       "c :- b_setval(k, 1), format(\"~ct~cw\", [x]).   ~c cocolint: G1, F1 -- both~n"-[126, 126, 37],
+                                       "c :- b_setval(k, 1), freeze(X, true).   ~c cocolint: G1, X3 -- both~n"-[37],
                                        "d :- b_setval(k, 1).   ~c cocolint: G1~n"-[37],
                                        "e :- true.   ~c cocolint: X3 -- nothing here~n"-[37] ] ),
                     format(atom(Line), Fmt, Args) ), Lines),
@@ -267,7 +267,7 @@ the_acks(Agent) :-
     check('read: what is not acknowledged, and a U1 for each that excuses nothing (line:col rule)', Read,
           ['5:6 S1G1', '5:24 U1', '6:14 U1']),
     check('ignored: every finding is back, and no U1', Ignored,
-          ['1:6 S1G1', '3:6 S1G1', '4:6 S1G1', '4:30 S1F1', '5:6 S1G1']),
+          ['1:6 S1G1', '3:6 S1G1', '4:6 S1G1', '4:22 S1X3', '5:6 S1G1']),
     shl(['rm -rf ', T]).
 
 %% ---- 3e. N1 sees the preloaded libraries -----------------------------------
@@ -512,8 +512,8 @@ the_findings(Agent) :-
 %% ELEVEN FINDINGS WERE PINNED HERE until 2.2.1, each with the argument for
 %% keeping it; the tree is held to none now. Six were lessons teaching the
 %% trap the rule enforces, and they acknowledge it where it stands (09's
-%% C2, 04's F1, 38's P1; 07's R1 and the case test/stream.pl's W1 went with
-%% their traps, in 3.28.0 and 3.1.0). Three
+%% C2, 38's P1; 04's F1, 07's R1 and the case test/stream.pl's W1 went with
+%% their traps, in 3.33.0, 3.28.0 and 3.1.0). Three
 %% were no-op imports and are gone (26, 27, library/astar.pl); the files
 %% swipl also runs keep theirs, acknowledged. Lesson 10's digits//1 and
 %% digit//1 joined dcg_basics' and are numeral//1 and numeral_digit//1;

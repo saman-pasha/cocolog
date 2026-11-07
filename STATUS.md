@@ -13177,3 +13177,141 @@ solve, module, state, term and syntax binaries; lesson library/37, whose
 paragraph on rule P1 named seventeen flags and names twenty. The card's
 row P1 names stack_limit among the flags that answer, and its cites hold
 (27 rows, 39 cites; X1, N1 and D3 renumbered).
+
+## format/2 lays out columns as swipl's (3.33.0)
+
+swipl's format/2 lays text out in columns: `~t' is a fill point, `~N|' a
+column stop at column N and `~N+' one N past the last stop, and the text
+since the last stop is padded at its fill points to reach the next. cocolog
+refused the three by name, error(cocolog_error('format/2: cocolog has no
+column directives (~t, ~| and ~+)'), _), and its programs padded by hand --
+library(main)'s usage table, cocolint's card and its prompt cards,
+test/run.pl's report -- with row F1 of the dialect card telling them to.
+
+THE COLUMN (lib/builtins-format.cicili, `coco_fmt_cols', swipl's
+format_state in pl-fmt.c): it begins where the sink stands
+(`coco_fmt_start'): the console's column (`coco_con_lp', one for stdout and
+stderr), a capture's own (`coco_cap_lp', 0 at with_output_to/2's start and
+the outer one's back at its end, lib/term.cicili), a term sink's 0, and a
+file of library(stream) its own, which its sink hook answers
+(`coco_m_sink_column_install', the hook that answered whether a line was
+open through 3.32.0, `coco_m_sink_open_install'; library(stream)'s
+`st_open' flag is gone, its column `st_lp' says it). Two rules walk it, as
+swipl's do (`coco_col_walk'): format's own text -- its characters, `~a',
+`~s', `~c', the numbers -- by pl-fmt.c's update_column(), a tab to (COL +
+1) | 7, a column short of the next eighth (`coco-fmt-own'); and a writer
+-- `~w', `~q', `~p', `~k', `~W' -- by its stream's linepos, as
+prepare_sub_format() and end_sub_format() reckon it: with no fill point
+held and the column where the sink stands (`slp', walked over what was put
+out, `coco-fmt-direct'), the linepos after the text; else the column before
+it plus the linepos the text reaches from 0, a newline in it no reset
+(`coco-fmt-wcol'; `coco-fmt-writer', a DEFMACRO round the four writers). A
+newline and a return set it to 0, a backspace takes one back, and a
+character -- not a byte -- is a column.
+
+THE WALK WAITS FOR THE FIRST ASK: a fill point, a stop or `~N'. Until then
+nothing is walked (`on' 0) and a writer notes where its text begins and
+ends in the sink's buffer (`wbeg', `wend', eight writers, the ninth asking),
+and the first ask walks what the format put out before it, each piece by
+its rule (`coco_fmt_catchup'): no fill point stood before it, so the
+writers' texts are all there is to know. A format that asks no column
+walks nothing. Three DEFMACROs hold the rules, each written once and used
+by the writers and by the walk at the first ask alike.
+
+THE DIRECTIVES: `~t' records a fill point, its character the argument --
+digits (`~42t'), `*' (the next argument) or a backquote (`~`-t') -- or a
+space; from the first the text is held (`pb') and put out at the next stop,
+a hundred fill points at most (format('Too many tab stops'), MAXRUBBER).
+`~N|' stops at column N, `~|' alone at the column the text has reached;
+`~N+' at N past the last stop, `~+' alone eight. At a stop the room between
+the column and the stop is shared among the fill points as
+distribute_rubber() shares it -- alike, and what is left one each from the
+middle out, the middle, the one after it, two before, three after -- a
+place outside the segment taking none, as swipl's drops it (five fill
+points short of four spaces put out a column fewer); a stop with no fill
+point fills after the text. The column is the stop whatever the text
+reached: text past it overflows, nothing cut and nothing added, and the
+next stop reckons from the stop. With `:' (`~:|', `~:+') a stop the text
+has passed begins a new line filled to it, with the last fill point's
+character. A segment no stop closed is put out at the end, its fill points
+empty, before an argument left over is refused; one an error ends is lost,
+as swipl's. `~N' writes a newline unless the column is 0 -- after a return,
+or a stop the text passed, none -- where through 3.32.0 it asked whether
+the last character written was a newline.
+
+A NUMERIC ARGUMENT IS HELD TO A C INT, as swipl's: `*' past 2^31 - 1 is
+format('no or negative integer for `*\' argument') (swipl's
+PL_get_integer()), and digits past it format('argument overflow'), the
+error swipl's source raises there -- its check is compiled away in 9.0.4,
+whose digits wrap at 32 bits (`~99999999999|' writes 1 215 752 191 spaces):
+COMPAT.md's row, and test/errors.pl holds it.
+
+THE CARD: row F1 and its S1 pattern are retired (26 rows, 38 cites, seven
+patterns), with the selftest's line, test/lint.pl's acknowledgement of
+two IDs (G1 and X3 now), lesson 37's counts, and cocolint's guide and
+README, whose examples were F1's. Lessons 09 and 04 catch `~@', which is
+still refused by name, where they caught `~t~20|'; lesson 04 lays out three
+columns and lesson 38 one row of the usage table. COMPAT.md's row for
+between(1, infinite, X), stale since 3.0.0, is gone: between/3 counts for
+ever to `infinite' as to `inf', and test/files/between.pl has held it.
+
+test/files/format_columns.pl, new: 216 lines, swipl 9.0.4's byte for byte
+(3.32.0 differs at 2): stops, fills and their characters, the remainder
+from the middle and the places dropped, overflow, `~:|' and `~:+', newlines,
+tabs and backspaces in the format and in a writer's text, with a fill
+point held and without, writers before the first ask -- nine of them, and
+format text and tabs before them -- every writer, the sinks -- atom,
+string, codes, a difference list, a capture, a capture inside a capture,
+the console after text written before the format, user_output, the console
+named by a stream term, a library(stream) file -- and the errors.
+
+THE ARMS, a build each, the rule taken out, each red in format_columns.pl
+unless named: no fill point; the remainder not from the middle; a place
+outside the segment kept; `~|' alone at column 0; `~+' alone four; `~N+'
+from the column; the column the one the text reached; no `:'; `:''s line
+filled with spaces; a writer's column by format's rule; a writer taken to
+write to the stream unasked; format's own text by the stream's rule; the
+console's column 0; a capture's the console's; a library(stream) file's 0;
+`~N' asking the last character; no segment put out at the end; 99 fill
+points; `*' any integer; digits any number (errors.pl); a fill character a
+byte; a left-over argument refused before the held segment is put out; the
+console's column 0 through a stream term; a capture's column not counted,
+not set to 0, not given back; the walk at the first ask walking nothing; a
+writer not noted; the ninth writer not asking; the walk leaving `cdone' at
+a writer's start; the walk not turning `on'. Two were green at their first
+run and the case was made to see them: the left-over argument's, whose
+held segment was empty (`~w~t~w' of [a, b, c] now), and the ninth
+writer's, whose tab and the eighth's cancelled (the ninth writes `j' now).
+Green, as a guard of cost is: the column walked at every format from its
+start -- the same text, at 1 336 instructions a call more on the long line.
+
+THE COST, counted (callgrind, 20 000 calls of format(atom(_), F, A) a run,
+instructions a call beyond the same run with none), 3.32.0 to 3.33.0: a
+format that asks no column, `~w ~a ~d~n', 6 409 to 6 457 (+48, +0.75 %),
+and a line of 44 characters and `~w~n' 11 146 to 11 240 (+94, +0.84 %): the
+build's own setting up and each writer's note (+23 and +69 in
+`coco_fmt_do'), and coco_write_mode, which clang no longer inlines into
+format/2 (its 31 instructions moved out, its call added). The two designs
+before it, built and counted: the column walked at every format, +165 and
++1 336; a scan of the format for the directives that ask it, +269 and
++417. A format that asks, `~w~t~10|~t~d~6+~n', counts 7 589 (the scan's
+7 697, the column walked at every format 7 571). Tried and not kept, each
+built and counted: the writer's FORM put once in its macro (+0 and +3); no
+address of `o' taken (the same binary, byte for byte); the scan by
+memchr(3) (-180 on the long line, +40 on the short one, and the walk at
+the first ask needs no scan). tools/flow/zero.sh, work less padding,
+3.32.0 to 3.33.0: nrev 65 997 070 to 65 997 151, queens 40 281 173 to
+40 281 281, lookup 48 083 687 to 48 092 805 -- the step loop is not
+touched, and lookup's +9 118 is libc's strcmp, memcmp and strncmp (+76 776
+over the whole run: the placement of the binary's strings, which moved it
+by -8 856 at 3.32.0). A start (`cocolog query true', the two binaries run
+from one path) 34 983 463 instructions to 34 985 603.
+
+Narrow cases green on the final build (44): lint, files, errors, stream,
+engine, units, string, serialize, library, directives, trace, backtrace,
+repl, script, argv, flowchart, window, flowdebug, gc, text, template,
+process, os, signal, thread, async, cowork, meter, journal, cyclic,
+rationals, hex, astar, static, reconsult, reason, normalise, translate,
+tokens, and the solve, module, state, term and syntax binaries; lessons
+basics/09, library/04, 37 and 38. The card's cites hold (26 rows, 38 cites;
+X2 renumbered).

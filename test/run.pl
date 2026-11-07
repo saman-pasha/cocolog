@@ -82,7 +82,8 @@ cicili_cases(Only, Cicili, Sbcl, Red) :-
     ( Only == all -> Cases = All ; memberchk(Only, All) -> Cases = [Only] ; Cases = [] ),
     cicili_each(Cases, Cicili, Sbcl, 0, Red).
 
-%% `printf '%-10s '': cocolog's format has no column directives
+%% `printf '%-10s '': a blank after a name that passes the width too, which
+%% a column stop (format's since 3.33.0) would not leave
 padded(Name, Width) :-
     atom_length(Name, L), Pad is max(1, Width - L),
     length(Spaces, Pad), maplist(=(0' ), Spaces), atom_codes(Blank, Spaces),

@@ -33,9 +33,9 @@
 %% prompt a human edits most.
 %%
 %% EVERY COLUMN IS COMPUTED. Python had %-4s, %-28s, %-6s, %-40s and %5d;
-%% cocolog refuses ~t, ~| and ~+ by name -- F1 in the very card this file
-%% assembles -- so as_pad/3 and as_lpad/3 do the work. That is the documented
-%% fix for the trap, applied in the tool that ships the trap.
+%% cocolog refused ~t, ~| and ~+ by name through 3.32.0 -- F1 in the card
+%% this file assembles, until format/2 laid them out as swipl's -- so
+%% as_pad/3 and as_lpad/3 do the work, as they still do.
 
 :- use_module(library(json)).
 
