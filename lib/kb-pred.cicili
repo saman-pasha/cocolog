@@ -914,6 +914,15 @@
                          (return 0))))
             (return 1))))
 
+  ;;; WHETHER THE META_PREDICATE DECLARATION OF PREDICATE PI MARKS AN
+  ;;; ARGUMENT SWIPL QUALIFIES WITH A MODULE (3.45.0): `0' to `9', `:',
+  ;;; `^' or `//' (written `/') -- and the predicate was not called before
+  ;;; it was declared (`pattrs' 256). Decided by the declaration, which
+  ;;; sets `pattrs' 512 (`coco_pred_meta_note'), so the step asks a bit
+  (static) (inline)
+  (func coco_pred_meta_q ((coco_store * st) (size_t pi)) (out int)
+        (return (!= (bitand ($ (nth pi (-> st preds)) pattrs) 512) 0)))
+
   ;;; A META_PREDICATE DECLARATION'S SPECS NOTED (3.41.0), for
   ;;; predicate_property/2's meta_predicate(Spec) and transparent: each
   ;;; Name(Arg, ...) of a conjunction or a list, under its qualifiers, its
@@ -956,8 +965,24 @@
           (set (nth k s) (cast char 0))
           (set pi (coco_pred_make st (coco_name_of m t) k))
           (if (>= pi (-> st npreds)) (block (free s) (return)))
+          ;; A PREDICATE CALLED BEFORE ITS DECLARATION never qualifies its
+          ;; arguments (3.45.0, `pattrs' 256), as swipl 9.0.4's, whose
+          ;; first call built the code that calls it: a step called it
+          ;; (`pattrs' 128) and no declaration of its had marked an argument
+          ;; to qualify. One that qualified already goes on, as a re-read
+          ;; declares it again
+          (if (and (!= (bitand ($ (nth pi (-> st preds)) pattrs) 128) 0)
+                   (not (coco_pred_meta_q st pi)))
+              (set ($ (nth pi (-> st preds)) pattrs) (bitor ($ (nth pi (-> st preds)) pattrs) 256)))
           (free ($ (nth pi (-> st preds)) pmeta))
-          (set ($ (nth pi (-> st preds)) pmeta) s)))
+          (set ($ (nth pi (-> st preds)) pmeta) s)
+          ;; and whether the step qualifies its arguments (512), as the
+          ;; declaration now stands
+          (set ($ (nth pi (-> st preds)) pattrs)
+               (- ($ (nth pi (-> st preds)) pattrs) (bitand ($ (nth pi (-> st preds)) pattrs) 512)))
+          (if (and (== (bitand ($ (nth pi (-> st preds)) pattrs) 256) 0)
+                   (!= (strpbrk s "0123456789:^/") nil))
+              (set ($ (nth pi (-> st preds)) pattrs) (bitor ($ (nth pi (-> st preds)) pattrs) 512)))))
 
   ;;; Is F one of the three flags a directive answers itself, the ones that
   ;;; act on what the rest of the file reads (2.2.2)? Every other
@@ -1067,8 +1092,8 @@
           ;; that is the truth: SWI's names for what this build carries under
           ;; another arrangement are answered as loaded (library.cicili's
           ;; `lb_carried').
-          ;; `meta_predicate' exists to tell a module system which
-          ;; arguments to qualify, and with no modules there is nothing to say.
+          ;; `meta_predicate' tells which arguments a call qualifies with
+          ;; its module (3.45.0, `coco_meta_qualify'; noted below).
           ;; module/2 and meta_predicate/1 define (3.6.0, `ldefs'), as swipl's
           ;; and names the module a single-sided rule's error names (3.19.0)
           (if (and (== n 2) (== 0 (strcmp name "module")))
@@ -1111,7 +1136,8 @@
           (if (and (<= n 2) (== 0 (strcmp name "autoload")))
               (block (if (!= coco_import_hook nil) (coco_import_hook st m g))
                      (return 1)))
-          ;; its specs noted for predicate_property/2 (3.41.0)
+          ;; its specs noted for predicate_property/2 (3.41.0) and for the
+          ;; step, which qualifies the arguments they mark (3.45.0)
           (if (and (== n 1) (== 0 (strcmp name "meta_predicate")))
               (block (coco_pred_meta_note st m (coco_arg m g 0))
                      (set (-> m ldefs) (+ (-> m ldefs) 1)) (return 1)))

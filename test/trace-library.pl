@@ -61,6 +61,15 @@ ct(X) :- clause(rq(X), true), X > 2.
 %% arg/3 with its index unbound (3.29.0): a walk of its term's places, its
 %% retry the call's own Redo
 at(X) :- arg(_, f(1, 2, 3), X), X > 2.
+%% a meta-predicate (3.45.0): its Exit and its Fail show its argument said
+%% of user; and one called before its declaration qualifies nothing, traced
+%% too, where each call takes the step's slow path and no stamp from the
+%% untraced call answers for it (test/trace.pl's `qualified_ports/3')
+:- meta_predicate mt1(0).
+mt1(G) :- call(G).
+mt2(G) :- call(G).
+:- mt2(true).
+:- meta_predicate mt2(0).
 
 %% generate_debug_info false: what this file defines from here on hides its
 %% children as a library's predicates do, until the flag is true again --

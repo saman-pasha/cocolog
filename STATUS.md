@@ -15027,3 +15027,148 @@ and with a server up zigurat and shared; lint rerun alone after the card's
 X3 cite moved a second time. library/reasoning/ calls with_output_to/2
 over forall/2 alone and matches no error's context: reasoning stays at its
 number. The card's cites hold (X3's moved).
+
+## A meta-predicate's arguments said of the module the call is made in, as swipl's (3.45.0)
+
+swipl 9.0.4 qualifies each argument a meta_predicate/1 declaration marks
+`0` to `9`, `:`, `^` or `//` with the module the call is made in, unless it
+is a term `M:X` already, whatever M is (`1:foo`, `_:foo`): `p(foo)` of `:-
+meta_predicate p(0).` runs as `p(user:foo)`, so a head `h(user:foo)`
+matches `h(foo)` and a head `h(foo)` does not; `m:q(foo)` is `q(m:foo)`,
+and so is call/N of a closure `m:q`. The module is the one of the clause
+the call is written in -- a meta-predicate's own clause's its own module,
+a module_transparent/1 predicate's its caller's -- and a directive's the
+module of the file being read. A predicate called before its declaration
+qualifies nothing: its first call built the code that calls it; and a
+declaration made again is the one that stands (`rd(0)` then `rd(?)`
+qualifies nothing). Through 3.44.0 cocolog noted the declaration for
+predicate_property/2 alone and qualified nothing, so library(aggregate)'s
+`aggregate(count, _, N)` -- swipl's instantiation error from
+findall_loop/4, its goal `user:_` -- ran its unbound goal through
+clean_body/2 to the stack limit, and an error named an argument as the
+call wrote it: `lists:max_member(le, _, foo)` where swipl's names
+`lists:max_member(user:le, _, foo)`, `assoc:map_assoc_(foo, integer)` and
+`[_,_,_]>>true` where swipl's have `user:integer` and `user:true`
+(COMPAT.md's row, now gone). Found by the scan of the vendored libraries'
+exports over odd shapes: lists, assoc, pairs, ordsets, ugraphs, yall,
+aggregate, dcg/basics and dcg/high_order, each export over a proper, an
+unbound, a partial and an improper argument, up to four answers or the
+ball; they agree with swipl now but for the context of
+resource_error(stack), a dict in swipl's (COMPAT.md).
+
+- THE STEP QUALIFIES (`coco_meta_qualify`, lib/solve-control.cicili) on
+  its slow path, after the Call port: swipl's Call shows `p(foo)`, its
+  Exit and its Fail `p(user:foo)`. A functor of such a predicate is never
+  stamped a plain predicate (`fgen`), so each of its calls takes that path
+  and the fast path asks nothing more. The slow path asks a bit the
+  declaration sets (`pattrs` 512, `coco_pred_meta_note`) and calls the
+  qualification out of line on a branch of its own (`coco_step_meta`):
+  a plain predicate's slow path calls nothing it did not call through
+  3.44.0 (below).
+- THE MODULE (`coco_meta_ctx`): the module/2 read's that defined the
+  clause the call is written in (`pmod`), user for a program's clause;
+  where no clause is the goal's -- a directive's, a search's -- or the
+  clause is a module_transparent/1 predicate's, the module of the read
+  under way (`ssu_mod`), else user. M:G qualifies with M
+  (`coco_meta_colon`, in `coco_colon`), library(aggregate)'s
+  aggregate_all/3 too, whose goal swipl calls in M.
+- CALLED BEFORE DECLARED: every predicate the slow path resolves is noted
+  called (`pattrs` 128), and a declaration of one called and not yet
+  qualifying qualifies nothing (256). A declaration made again sets 512
+  as it now stands.
+- library(lists)' max_member/3 and min_member/3 are meta-predicates, as
+  swipl's; library(apply)'s are not, whose answers would not move.
+
+test/files/meta_args.pl, new: 68 lines, swipl 9.0.4's byte for byte
+(3.44.0 differs at 53 of them), over a module its fixture writes
+(test/files.pl). test/trace.pl: five queries of a meta-predicate's ports,
+`mp/1` of test/trace-program.pl and `mt1/1` and `mt2/1` of
+test/trace-library.pl, and the Exit and Fail goals of four of them
+compared as swipl writes them, qualifier and all (`qualified_ports/3`:
+trace-diff.pl takes swipl's qualifiers off, so the ports alone could not
+see the qualification, nor a declaration after a call: in the untraced
+case the stamp the first call left answers for it). Not swipl's
+(COMPAT.md): a search a module's clause starts, a module_transparent/1
+predicate called under a qualifier and a module file's initialization/1
+goal call in user.
+
+THE STEP'S PRICE, FOUND BY ITS PLACE (tools/flow/zero.sh against 3.44.0,
+work less padding). The first cut noted the predicate called, asked
+whether it qualified (`strpbrk` over the spec) and called the
+qualification inline in the slow path: nrev +0.153 %, queens -0.042 %,
+lookup +0.059 %, all of it `coco_engine_run`'s own, about an instruction
+an inference -- on the fast path, which the change did not touch. The
+whole of it out of line, one call in the slow path: nrev +0.159 %,
+queens +0.073 %, lookup +0.060 %. That call with its result thrown away
+cost the same (nrev +0.158 %), and 3.44.0's inline stamp in its place,
+the rest unchanged, nothing (+1, +87, +144 instructions): the call
+itself, not the new goal it hands back. Callgrind's instructions in the
+loop showed it: the machine pointer, reloaded from the stack into `r8` --
+`coco_pred_probe`'s fifth argument -- went to `rdi` with the call there,
+and was loaded a second time before the probe, once an inference. Four
+arguments in three orders (nrev +0.168 %, queens +0.232 %), the machine
+itself the fifth (lookup +0.584 %), the whole slow path out of line
+(nrev +0.314 %, lookup +0.792 %): none. On a branch of its own, by the
+declaration's bit, with the note and 3.44.0's stamp inline beside it:
+nrev 66 134 088 to 66 132 243 (-0.003 %), queens 40 275 211 to
+40 254 061 (-0.053 %), lookup 48 043 059 to 48 031 727 (-0.024 %), the
+binary as committed, cuts and all. A
+call in the loop's slow path is a register of its fast path, wherever it
+stands and whatever it takes.
+
+WHAT A DECLARED PREDICATE'S CALL COSTS (callgrind against 3.44.0, 2 000
+calls a probe; instructions a call). `mp(ok(1))` of `:- meta_predicate
+mp(0).` 557 more: the step's slow path, the functor never stamped (181),
+the new goal and its `user:ok(1)` (243), the module (60); `mp(user:ok(1))`,
+qualified already, 363; `mc(ok(1))` whose clause is `call(G)` 642, and
+`mc2(ok, 1)` whose clause is `call(G, X)` 886; library(lists)'
+`max_member(@<, _, [1,2,3])` 2 359 (it cost 8 553), library(aggregate)'s
+`aggregate(count, ok(1), _)` 3 758 (31 460) and three inferences more,
+its clauses taking `user:ok(1)` apart as swipl's do; a yall lambda
+maplist/2 calls 1 001 (13 888). `lists:ok(1)` pays 46 (`coco_meta_colon`),
+and a plain predicate's call, maplist/2 and call/N of a plain closure
+nothing. The start, `cocolog query true`, 87 612 more (+0.25 %): where
+strcmp's strings fall, which an earlier build of the change moved 136 816
+the other way. Every other inference count is 3.44.0's. THREE CUTS GOT
+THERE, each measured on its own build. Both names a qualification makes
+were interned at each call and the clause's predicate found by name:
+`:`/2 and user/0 are interned once a machine beside the ids
+(`*functor-names*`, `coco-is-colon`), the predicate read from its
+functor's cached index (`mp(ok(1))` 904 to 557, `mc(ok(1))` 1 707 to
+1 327, max_member/3 3 478 to 2 929, aggregate/3 4 158 to 3 763). call/1
+walked a qualified plain goal for `$/0`, which it cannot hold
+(`coco_det_kq`: `mc(ok(1))` 1 327 to 1 201, max_member/3 2 929 to 2 681).
+And a meta-call's `user:G` ran the `:` step, a frame and a dispatch,
+before G: of a predicate the step has stamped plain it is G now
+(`coco_user_plain`, call/1's and call/N's, untraced; a meta-predicate is
+never stamped, so G's own arguments are said of nothing), and call/N
+makes its closure's qualifier by the functor's id, where it interned `:`
+(`mc(ok(1))` 1 201 to 642, max_member/3 2 681 to 2 359, the lambda 1 551
+to 1 001, aggregate/3 3 763 to 3 758).
+
+
+THE ARMS, one build each on the code as it stands, red in meta_args.pl or in
+trace.pl's ports (test/trace.pl): the step's qualification (M01, both),
+the stamp kept off a meta-predicate's functor (M02: a functor stamped at
+its first call goes the fast path after it and qualifies nothing more),
+every predicate the slow path resolves noted called (M03: the ports of a
+declaration after a call), a late declaration qualifying nothing (M04),
+asked by the declaration's bit (M05), an argument that is M:X already
+left as it is (M06), the module/2 read's module of the clause (M07), a
+module_transparent/1 clause's caller's (M08), the read under way's where
+no clause is the goal's (M09), M:G (M10), library(lists)' declarations
+(M11), and the spec's characters (M12, both). The bit recomputed at a
+declaration made again (M13) is a guard of cost, its arm green: the call
+reads the spec it finds, and a bit left on keeps a predicate whose
+declaration qualifies nothing off the fast path.
+
+Narrow cases green, each alone on the binary as committed: lint, reason,
+translate and normalise (library/reasoning/ declares no meta-predicate,
+and of the declared library ones calls aggregate_all/3 alone, cocolog's
+builtin, which qualifies nothing: its answers and counts do not move, and
+reasoning stays 1.0.27), files (each case agreeing with swipl), trace,
+backtrace, window, journal, repl, script, reconsult, library, engine,
+errors, gc, meter, thread, async, flowchart, flowdebug, directives,
+static, cowork, string, units, solve, module and state, and lessons 01,
+02, 06, 09, 37 and 51. The card's cites hold (I1's range corrected).
+

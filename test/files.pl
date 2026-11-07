@@ -125,6 +125,21 @@ fixtures(module_context, Sandbox) :- !,
     md5_fixture(built(So)),
     atom_concat(Sandbox, '/library', Lib),
     shl(['mkdir -p ', Lib, ' && cp ', So, ' ', Lib, '/md5.so']).
+%% a module whose meta-predicates the case calls, whose clauses call them
+%% from inside it, and whose directives call them as it loads
+fixtures(meta_args, Sandbox) :- !,
+    atom_concat(Sandbox, '/ma_mod.pl', P),
+    fixture(P, [ ':- module(ma_mod, [q/1, r/2, lit/0, tr/1, hq/1, mt/1]).',
+                 ':- meta_predicate q(0), r(?, ^), tr(0).',
+                 ':- module_transparent mt/1.',
+                 'q(G) :- \\+ \\+ ( numbervars(G, 0, _), print(q(G)) ), nl.',
+                 'r(T, G) :- \\+ \\+ ( numbervars(T-G, 0, _), print(r(T, G)) ), nl.',
+                 'lit :- q(lit), r(t, lit2), call(q, lit3), G = q(lit5), call(G).',
+                 'tr(G) :- q(G), q(inner).',
+                 'hq(X) :- q(X).',
+                 'mt(_) :- q(inner_mt).',
+                 ':- q(at_load).',
+                 ':- findall(x, q(at_load2), _).' ]).
 %% three files in a directory, a fourth in one below it
 fixtures(absolute_file_name, Sandbox) :- !,
     shl(['mkdir -p ', Sandbox, '/d1/sub']),

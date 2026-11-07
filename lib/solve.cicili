@@ -291,7 +291,12 @@
     ;; $/1's exit and its failure (3.20.0, `coco_det')
     ("$det_exit" 3) ("$det_fail" 2)
     ;; $/0's guarded frame: its exit and its guard's alternative (3.21.0)
-    ("$det_end" 1) ("$det_fail0" 1)))
+    ("$det_end" 1) ("$det_fail0" 1)
+    ;; the qualifier a meta-predicate's argument is given, and user/0, whose
+    ;; name is the module it is said of where no module/2 read is (3.45.0,
+    ;; `coco_meta_qualify', `coco_meta_ctx'): interned at each call, the two
+    ;; names cost a qualified call some 300 instructions
+    (":" 2) ("user" 0)))
 
 (DEFUN coco-fid-index (name arity)
   (OR (POSITION (LIST name arity) *functor-names* :TEST #'EQUAL)
@@ -299,6 +304,21 @@
 
 ;;; `(coco-fid m "$k" 3)' is `m->fids[K]', with K settled at expansion time.
 (DEFMACRO coco-fid (m name arity) `(nth ,(coco-fid-index name arity) (-> ,m fids)))
+
+;;; `(coco-is-colon m a qf)': whether the cell A (dereferenced) is a term
+;;; M:X, by the functor id QF of `:'/2 -- an argument a meta-predicate's
+;;; call leaves as it is (3.45.0, `coco_meta_qualify'), a goal call/1 walks
+;;; for no `$/0' (`coco_det_kq')
+(DEFMACRO coco-is-colon (m a qf)
+  `(and (coco-tag-is FUN (nth ,a (-> ,m heap))) (== (coco-payload (nth ,a (-> ,m heap))) ,qf)))
+
+;;; `(coco-user-plain e m g)': the goal G a meta-call runs, or for a G that
+;;; is user:G0, G0 where it is known a plain predicate (3.45.0,
+;;; `coco_user_plain'): told by the qualifier's functor first, so a goal
+;;; with none pays a load and a compare
+(DEFMACRO coco-user-plain (e m g)
+  `(? (coco-is-colon ,m (coco_deref ,m ,g) (coco-fid ,m ":" 2))
+      (coco_user_plain ,e (coco_deref ,m ,g)) ,g))
 
 ;;; THE EVALUABLE FUNCTORS, interned beside the dispatch names (1.8.46).
 ;;; `is/2' compared the operator's name with `strcmp' down a chain -- the
@@ -1649,6 +1669,7 @@
   ;;; whether goal G holds `$/0' where its frame runs it -- in its control
   ;;; structure, not in a goal it hands another frame (`coco_det0_in')
   (decl) (func coco_det0_in ((coco_machine * m) (size_t g)) (out int))
+  (decl) (func coco_user_plain ((coco_engine * e) (size_t d)) (out size_t))
 
   ;;; ---- a goal under a ceiling -------------------------------------------
   ;;;

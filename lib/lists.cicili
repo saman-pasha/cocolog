@@ -80,6 +80,10 @@
            ;; a call a program's clause makes of one of these, and nothing
            ;; they call (3.27.0, the read's `nodbg')
            ":- set_prolog_flag(generate_debug_info, false)."
+           ;; and max_member/3 and min_member/3 are its meta-predicates
+           ;; (3.45.0): the order is said of the module the call is made in,
+           ;; `user:(@<)', as a list no rule matches names it
+           ":- meta_predicate max_member(2, -, +), min_member(2, -, +)."
 
            ;; ---- length/2 -------------------------------------------------
            ;; A SWI BUILTIN, not library(lists), and cocolog had none.

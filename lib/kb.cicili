@@ -983,7 +983,9 @@
     ;; Appended. 16 a non-terminal (3.14.0); and (3.27.0) 32 its children
     ;; hidden from the tracer (swipl's HIDE_CHILDS), 64 a library's: its
     ;; first clause was a compiled-in module's text or a preloaded library's
-    ;; (`coco_assert_from')
+    ;; (`coco_assert_from'); and (3.45.0) 128 called (the step's slow path),
+    ;; 256 declared a meta-predicate after it was called, 512 its arguments
+    ;; qualified (`coco_pred_meta_note', `coco_pred_meta_q')
     (member int      pattrs)
     ;; THE FIRST ARGUMENT'S SPEEDUP AS SWIPL ASSESSES IT (3.24.0), what
     ;; `coco_argix''s AVER and ASPD are to the others: asked by the JIT

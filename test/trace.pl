@@ -55,7 +55,9 @@ main :-
                        'rp(K)', rq, 'repeat, !',
                        %% numbervars/3 over numbervars/4, and a goal written as
                        %% print/1 writes it (3.40.0)
-                       'nv(f(X, _, X))', nw, nq, 'nr(X)', 'ns(X)' ]),
+                       'nv(f(X, _, X))', nw, nq, 'nr(X)', 'ns(X)',
+                       %% a meta-predicate's argument said of user (3.45.0)
+                       'mp(atom(foo))', 'mp(fail)', mq ]),
            traced(Swipl, Program, Q)),
     %% LIBRARY CALLS (3.27.0, test/trace-library.pl): a library predicate a
     %% program's clause calls is a port, and what it calls is none -- its
@@ -70,8 +72,15 @@ main :-
                        'a(X)', 'b(M)', 'c', 'e(L)', 'f(S)', 'g(P)', 'h(X)', 'w(B)', ld,
                        m5, a5, b5, n5, s5, u5, 'xm(X)', 'nd(X)', 'ud(X)', 'kd(X)', 'gd(X)',
                        'vd(X)', nt, 'nq(X)', nn, 'member(X, [1, 2]), X > 1',
-                       'rt(X)', 'ct(X)', 'ur(X)', 'at(X)', 'ua(X)', 'uk(C)' ]),
+                       'rt(X)', 'ct(X)', 'ur(X)', 'at(X)', 'ua(X)', 'uk(C)',
+                       'mt1(atom(a))', 'mt2(atom(a))' ]),
            traced_in(Swipl, [Library], Q, Q)),
+    %% A META-PREDICATE'S ARGUMENT AS ITS EXIT AND ITS FAIL SHOW IT (3.45.0),
+    %% compared with the qualifiers the comparison above takes off: said of
+    %% user where the declaration came first, as it was written where a call
+    %% came before the declaration
+    forall(member(Q, [ 'mt1(atom(a))', 'mt1(fail)', 'mt2(atom(a))', 'mt2(fail)' ]),
+           qualified_ports(Swipl, [Library], Q)),
     %% THE FLAG IS THE FILE'S: test/trace-library.pl ends with it false, and
     %% the file read after it is the program's again (swipl's load puts the
     %% flag back at a file's end)
@@ -147,6 +156,30 @@ traced_in(Swipl, Files, Q, Name) :-
     td_ports(Swi0, Swi), td_ports(Coco0, Coco),
     ( td_compare(Swi, Coco, 1, Q) -> R = identical ; R = differs ),
     check(Name, R, identical).
+
+%% the Exit and the Fail ports of Q traced as `traced_in/4' traces it, each
+%% goal as it was printed, its qualifiers on (3.45.0)
+qualified_ports(Swipl, Files, Q) :-
+    findall(S1, ( member(F1, Files), sh_join(['consult(''', F1, '''), '], S1) ), Cs),
+    sh_join(Cs, Consults),
+    sh_join(['yes '''' | timeout 20 ', Swipl, ' -q -g "leash(-all), ', Consults,
+             'trace, ( ', Q, ' -> true ; true ), notrace, halt" -t halt 2>&1'], SwiCmd),
+    proc_run(SwiCmd, 30000, Swi0, _),
+    cocolog(C),
+    findall(S2, ( member(F2, Files), sh_join([F2, ' '], S2) ), Fs),
+    sh_join(Fs, Paths),
+    sh_join(['timeout 20 ', C, ' run ', Paths, '"trace, ( ', Q, ' -> true ; true ), notrace" 2>&1 >/dev/null'],
+            CocoCmd),
+    proc_run(CocoCmd, 30000, Coco0, _),
+    qp_goals(Swi0, Swi), qp_goals(Coco0, Coco),
+    atom_concat('the qualified ports of ', Q, Name),
+    check(Name, Coco, Swi).
+
+qp_goals(Codes, Gs) :-
+    td_lines(Codes, Lines),
+    findall(P-G, ( member(L, Lines), td_port(L, P, _, G0),
+                   memberchk(P, ['Exit', 'Fail']), atom_codes(G, G0) ),
+            Gs).
 
 %% a fixture each, traced from inside the goal, and a line it must print or
 %% must not. A program's clause joins a library's predicate (card row N1):

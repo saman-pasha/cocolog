@@ -983,6 +983,9 @@
                   (if (== rc 2) (return 1))
                   (set (cof ret) rc)
                   (return 2)))
+            ;; a meta-predicate's arguments said of M (3.45.0), as swipl's
+            ;; M:G sets the module G is called in
+            (set gl (coco_meta_colon e gl mo))
             (set (-> e frees) (+ (-> e frees) 1))
             (set (-> e goals) (coco_k_push e gl b k))
             (return 1))))
@@ -1629,14 +1632,23 @@
 
   ;;; ...asked only where it can answer anything but K: a guard on, or a
   ;;; goal named by a construct -- `$' itself, or a structure that may hold
-  ;;; it -- so a meta-call of a plain goal pays two tests
+  ;;; it -- so a meta-call of a plain goal pays two tests. M:G OF A PLAIN G
+  ;;; IS A PLAIN GOAL (3.45.0): the goal a meta-predicate's qualified
+  ;;; argument hands call/1 holds no `$', and walked for one each such call
+  ;;; paid some 150 instructions
   (static) (inline)
   (func coco_det_kq ((coco_engine * e) (size_t g) (size_t b) (size_t k)) (out size_t)
         (let ((coco_machine * m . #'(-> e m))
-              (u64 nm . #'(coco_name_of m (coco_deref m g))))
-          (if (or (!= (-> e dgk) (coco-det-none)) (coco_is_construct m nm))
-              (return (coco_det_k e g b k)))
-          (return k)))
+              (size_t d . #'(coco_deref m g))
+              (u64 nm . #'(coco_name_of m d)))
+          (if (!= (-> e dgk) (coco-det-none)) (return (coco_det_k e g b k)))
+          (if (not (coco_is_construct m nm)) (return k))
+          (if (coco-is-colon m d (coco-fid m ":" 2))
+              (let ((size_t q . #'(coco_deref m (coco_arg m d 1))))
+                (if (and (or (coco-tag-is ATOM (nth q (-> m heap))) (coco-tag-is FUN (nth q (-> m heap))))
+                         (not (coco_is_construct m (coco_name_of m q))))
+                    (return k))))
+          (return (coco_det_k e g b k))))
 
   ;;; A META-PREDICATE'S CALL THAT IS THE INNERMOST GUARDED FRAME'S LAST
   ;;; (K its exit): once/1, ignore/1, not/1 -- swipl's transparent
@@ -1941,15 +1953,16 @@
                    ;; the clause's where call/1 is a goal of one, whose frame
                    ;; swipl's I_USERCALL raises in (3.1.0), a structure with
                    ;; one in it as well (`coco_goal_ok'); its goal carries the
-                   ;; frame it runs in (`coco_meta_bar')
-                   (if (not (coco_goal_ok m (coco_arg m g 0)))
-                       (return (coco_call_bad e g (coco_arg m g 0) b k 1 ret)))
-                   ;; and its goal no last call of the frame (I_USERCALL),
-                   ;; a $/0 in it its own frame's (3.21.0, `coco_det_kq')
-                   (let ((size_t mb . #'(coco_meta_bar e (coco_arg m g 0) b k
-                                                       (cast u64 (coco-payload (nth g (-> m heap)))) g)))
-                     (set (-> e goals) (coco_k_push e (coco_arg m g 0) mb
-                                                    (coco_det_kq e (coco_arg m g 0) mb k)))))
+                   ;; frame it runs in (`coco_meta_bar'). A goal user:G of a
+                   ;; plain predicate is G (3.45.0, `coco_user_plain')
+                   (let ((size_t cg . #'(coco-user-plain e m (coco_arg m g 0))))
+                     (if (not (coco_goal_ok m cg))
+                         (return (coco_call_bad e g cg b k 1 ret)))
+                     ;; and its goal no last call of the frame (I_USERCALL),
+                     ;; a $/0 in it its own frame's (3.21.0, `coco_det_kq')
+                     (let ((size_t mb . #'(coco_meta_bar e cg b k
+                                                         (cast u64 (coco-payload (nth g (-> m heap)))) g)))
+                       (set (-> e goals) (coco_k_push e cg mb (coco_det_kq e cg mb k))))))
 
                   ((and (== n 3) (== nid (coco-id m "catch")))
                    ;; The catcher and the recovery goal are put on the heap as
@@ -2049,7 +2062,7 @@
                      ;; A CLOSURE M:C (3.1.0) gives C the arguments and the
                      ;; goal its innermost qualifier, as swipl's call/N does
                      ;; (`call(system:succ, 1, X)', `coco_colon')
-                     (while (and (coco_is_compound2 m c ":")
+                     (while (and (coco-is-colon m c (coco-fid m ":" 2))
                                  (coco-tag-is ATOM (nth (coco_deref m (coco_arg m c 0)) (-> m heap)))
                                  (not (coco_is_nil m (coco_deref m (coco_arg m c 0)))))
                        (set cq (coco_deref m (coco_arg m c 0)))
@@ -2085,8 +2098,11 @@
                                              (+ have extra) args))
                          (free args)
                          ;; a closure M:C is M:C' (3.1.0, swipl's): the
-                         ;; arguments go to C, under its module
-                         (if hasq (set built (coco_make2 m ":" cq built)))
+                         ;; arguments go to C, under its module, the
+                         ;; qualifier made by its functor's id (3.45.0: by
+                         ;; its name it was an intern a call), and user:C'
+                         ;; of a plain predicate is C' (`coco_user_plain')
+                         (if hasq (set built (coco_user_plain e (coco_make2_f m (coco-fid m ":" 2) cq built))))
                          ;; opaque to cut, exactly as call/1 is, and run in
                          ;; the frame call/1's would be (3.1.0), no last call
                          ;; of a guarded frame (3.21.0)
@@ -2944,13 +2960,25 @@
                              ;; there is no module seam, or the remembered walk
                              ;; of this very generation found no owner. A walk
                              ;; with a decline in it remembered nothing, so it
-                             ;; stamps nothing either.
-                             (if (and (< pi ($ (cof st) npreds))
-                                      (not (coco_is_construct m nid))
-                                      (or (== coco_extern_call nil)
-                                          (and (== (-> f1 dgen) coco_extern_generation)
-                                               (< (-> f1 dmod) 0))))
-                                 (set (-> f1 fgen) coco_extern_generation))))
+                             ;; stamps nothing either. Nor a meta-predicate
+                             ;; whose arguments a module qualifies (3.45.0,
+                             ;; `pattrs' 512): each of its calls comes here,
+                             ;; and its arguments are said of the module the
+                             ;; call is made in (`coco_step_meta'). Every
+                             ;; predicate called is noted so (128): a
+                             ;; declaration after a call qualifies nothing, as
+                             ;; swipl's (`coco_pred_meta_note')
+                             (if (< pi ($ (cof st) npreds))
+                                 (block
+                                  (set ($ (nth pi ($ (cof st) preds)) pattrs)
+                                       (bitor ($ (nth pi ($ (cof st) preds)) pattrs) 128))
+                                  (if (!= (bitand ($ (nth pi ($ (cof st) preds)) pattrs) 512) 0)
+                                      (set g (coco_step_meta e pi g b))
+                                      (if (and (not (coco_is_construct m nid))
+                                               (or (== coco_extern_call nil)
+                                                   (and (== (-> f1 dgen) coco_extern_generation)
+                                                        (< (-> f1 dmod) 0))))
+                                          (set (-> f1 fgen) coco_extern_generation)))))))
                           (#t (set pi (coco_pred_of st m g))))
                          ;; A LAST CALL OF A GUARDED FRAME takes its guard on
                          ;; (3.21.0, $/0, `coco_det_pcall'): one compare while

@@ -1494,6 +1494,45 @@ cocolint index offers no import of it.
   replaces the goal's only when it is more urgent** (`'$scc_urgency'/2`,
   swipl 9.0.4's ranks: time_limit_exceeded over error(_, _) over any
   other), and never one raised after the goal exited.
+* **A meta-predicate's module-sensitive arguments are said of the module
+  the call is made in** (3.45.0, swipl's; `coco_meta_qualify`,
+  `coco_meta_ctx` and `coco_meta_colon` in lib/solve-control.cicili,
+  test/files/meta_args.pl): each argument a meta_predicate/1 declaration
+  marks `0` to `9`, `:`, `^` or `//` becomes `M:A` unless it is a term
+  `_:_` already. M is the module/2 read's that defined the clause the call
+  is written in (`pmod`; user for a program's clause, a meta-predicate's
+  own clause its own module's, as swipl's), the read under way's
+  (`ssu_mod`) where no clause is the goal's -- a directive's, a search's
+  -- or the clause is a module_transparent/1 predicate's, else user; and
+  `M:G` qualifies with M (`coco_colon`, so call/N of a closure `M:C` too).
+  The step qualifies on its slow path, after the Call port, as swipl's
+  ports show it (Call `p(foo)`, Exit `p(user:foo)`), out of line
+  (`coco_step_meta`) on a branch of its own, asked by a bit the
+  declaration sets (`pattrs` 512, `coco_pred_meta_note`): **a functor of
+  such a predicate is never stamped a plain predicate** (`fgen`), so each
+  of its calls takes the slow path and the fast path asks nothing more.
+  **A plain predicate's slow path calls nothing it did not call**: with a
+  call there for every predicate -- wherever it stood, whatever it took,
+  the whole slow path out of line too -- a register of the hot path moved
+  and naive reverse paid an instruction an inference (nrev +0.16 %,
+  lookup up to +0.79 %, tools/flow/zero.sh); on its own branch the three
+  run as 3.44.0's. **Every predicate the slow path resolves is noted
+  called** (`pattrs` 128), and a declaration after a call qualifies
+  nothing (256), as swipl's first call built the code that calls it; a
+  declaration made again is the one that stands. library(lists)'
+  max_member/3 and min_member/3 are declared, as swipl's; library(apply)'s
+  are not, and no answer of theirs would move. **What it costs is the
+  call's own**: `:`/2 and user/0 are interned once a machine beside the
+  ids (`(":" 2)` and `("user" 0)` in `*functor-names*`, `coco-is-colon`)
+  and the clause's predicate read from its functor's cached index -- by
+  name, at each call, they cost it some 350 instructions -- and a
+  meta-call's goal `user:G` of a predicate the step has stamped plain is G
+  (`coco_user_plain`, call/1's and call/N's, untraced), the `:` step and
+  call/1's walk for `$/0` (`coco_det_kq`) passed by: stepped through, a
+  `call(G)` of a qualified goal cost 1 707 instructions more where it
+  costs 642. A declared predicate's call costs 557 more than a plain one
+  (the slow path, the new goal, the module), max_member/3 2 359 of its
+  10 912, a yall lambda maplist/2 calls 1 001 of 14 889.
 * **`$/1` and `@/2` are swipl's control constructs** (3.20.0; `coco_det`,
   `coco_det_exit`, `coco_det_fail` and `coco_at` in lib/solve-loop.cicili):
   `$(G)` pushes a GOAL frame whose alternative is `'$det_fail'($(G), Ctx)`,

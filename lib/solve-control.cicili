@@ -3091,6 +3091,141 @@
                                   ($ (nth (- p 1) (-> m functors)) arity)
                                   (coco_new_var m))))))
 
+  ;;; ---- A META-PREDICATE'S ARGUMENTS SAID OF A MODULE (3.45.0) ----------
+  ;;;
+  ;;; swipl qualifies each argument a meta_predicate/1 declaration marks
+  ;;; `0' to `9', `:', `^' or `//' with the module the call is made in --
+  ;;; `p(foo)' of `:- meta_predicate p(0).' runs as `p(user:foo)' -- unless
+  ;;; it is a term M:X already, whatever M is (`1:foo', `_:foo'). So a head
+  ;;; `h(user:foo)' matches `h(foo)', library(aggregate)'s aggregate/3 is
+  ;;; handed `user:_' for an unbound goal and raises instantiation_error
+  ;;; (the bare variable ran its clean_body/2 to the stack limit), and an
+  ;;; error names the argument qualified, `lists:max_member(user:le, _,
+  ;;; _)'. Through 3.44.0 the declaration was noted for
+  ;;; predicate_property/2 alone. The step qualifies on its slow path
+  ;;; (`coco_meta_qualify'), which every call of such a predicate takes, its
+  ;;; functor never stamped a plain predicate (`fgen'); M:G qualifies with M
+  ;;; (`coco_meta_colon'), and so does call/N of a closure M:C, which is
+  ;;; M:C' (`coco_colon').
+
+  ;;; G WITH ITS MODULE-SENSITIVE ARGUMENTS SAID OF THE MODULE CTX (an
+  ;;; atom's id), by SPEC: a new goal where one changed, else G. The new
+  ;;; goal's header and arguments are pushed first, then each M:X, written
+  ;;; into its argument once it is made: the heap may move under a push
+  (weak)
+  (func coco_meta_qualify ((coco_machine * m) (size_t g) (const char * spec) (u64 ctx)) (out size_t)
+        (let ((u32 n . #'(coco_arity m g)) (int any . 0) (u64 qf . #'(coco-fid m ":" 2)))
+          (for ((u32 i . 0)) (and (< i n) (!= (nth i spec) 0)) ((++ i))
+            (if (!= (strchr "0123456789:^/" (nth i spec)) nil)
+                (let ((size_t a . #'(coco_deref m (coco_arg m g i))))
+                  (if (not (coco-is-colon m a qf)) (set any 1)))))
+          (if (not any) (return g))
+          (let ((size_t ca . #'(coco_new_atom_id m ctx))
+                (u64 hd . #'(nth g (-> m heap)))
+                (size_t h . #'(coco_push m hd)))
+            (for ((u32 i . 0)) (< i n) ((++ i))
+              (coco_push m (coco-cell REF (coco_deref m (coco_arg m g i)))))
+            (for ((u32 i . 0)) (and (< i n) (!= (nth i spec) 0)) ((++ i))
+              (let ((size_t a . #'(coco_deref m (+ (+ h 1) i))))
+                (if (and (!= (strchr "0123456789:^/" (nth i spec)) nil)
+                         (not (coco-is-colon m a qf)))
+                    (let ((size_t q . #'(coco_make2_f m qf ca a)))
+                      (set (nth (+ (+ h 1) i) (-> m heap)) (coco-cell REF q))))))
+            (return h))))
+
+  ;;; THE MODULE A GOAL OF WORD B IS CALLED IN, as an atom's id: the
+  ;;; module/2 read's that defined the clause it is written in (`pmod'),
+  ;;; user for a clause no module/2 read defined -- a meta-predicate's
+  ;;; clause too, which swipl runs in its own module. Where no clause is
+  ;;; the goal's -- a directive's, a search's, a frame of the system's --
+  ;;; or the clause's predicate is module_transparent/1's, whose context
+  ;;; swipl takes from its caller, which one namespace does not keep: the
+  ;;; module/2 of the read under way (`ssu_mod'), whose directives swipl
+  ;;; runs in it, else user. The clause's predicate is the one its functor
+  ;;; keeps for the store where it keeps one, as the step left it, and
+  ;;; `user' the name of the functor the machine interned beside its ids:
+  ;;; found by name and interned at each call, the two cost a call some 300
+  ;;; instructions
+  (weak)
+  (func coco_meta_ctx ((coco_engine * e) (size_t b)) (out u64)
+        (let ((coco_machine * m . #'(-> e m)) (coco_store * st . #'(-> e st))
+              (size_t p . #'(cast size_t (coco-bar-pred b)))
+              (u64 user . #'($ (nth (coco-fid m "user" 0) (-> m functors)) name)))
+          (if (and (!= p 0) (<= p (-> m functors_len)) (!= st nil))
+              (let ((coco_functor * f . #'(aof (nth (- p 1) (-> m functors))))
+                    (size_t i . #'(? (and (== (-> f pst) (cast (void *) st))
+                                          (== (-> f pserial) (-> st serial)))
+                                     (-> f pidx)
+                                     (coco_pred_find st (-> f name) (-> f arity)))))
+                (if (and (< i (-> st npreds))
+                         (== (bitand ($ (nth i (-> st preds)) pattrs) 4) 0))
+                    (return (? (!= ($ (nth i (-> st preds)) pmod) 0)
+                               (- ($ (nth i (-> st preds)) pmod) 1)
+                               user)))))
+          (if (!= (-> m ssu_mod) 0) (return (- (-> m ssu_mod) 1)))
+          (return user)))
+
+  ;;; G, A GOAL M:G RUNS, WITH ITS ARGUMENTS SAID OF M (an atom's cell) where
+  ;;; it calls a meta-predicate of the store's, by the index its functor
+  ;;; keeps for the store where it keeps one -- a builtin's name too, as
+  ;;; library(aggregate) declares aggregate_all/3, whose goal swipl calls in
+  ;;; M. A qualifier on call/N or a control structure is compiled before
+  ;;; (`coco_colon_written')
+  (weak)
+  (func coco_meta_colon ((coco_engine * e) (size_t g) (size_t mo)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m)) (coco_store * st . #'(-> e st))
+              (size_t pi . 0) (size_t fi . 0))
+          (set g (coco_deref m g))
+          (if (or (== st nil) (not (coco-tag-is FUN (nth g (-> m heap))))) (return g))
+          (set fi (cast size_t (coco-payload (nth g (-> m heap)))))
+          (if (and (== ($ (nth fi (-> m functors)) pst) (cast (void *) st))
+                   (== ($ (nth fi (-> m functors)) pserial) (-> st serial)))
+              (set pi ($ (nth fi (-> m functors)) pidx))
+              (set pi (coco_pred_find st (coco_name_of m g) (coco_arity m g))))
+          (if (or (>= pi (-> st npreds)) (not (coco_pred_meta_q st pi))) (return g))
+          (return (coco_meta_qualify m g ($ (nth pi (-> st preds)) pmeta) (coco_name_of m mo)))))
+
+  ;;; A META-CALL'S GOAL D, user:G, AS G WHERE G IS KNOWN A PLAIN PREDICATE
+  ;;; (3.45.0): its functor stamped for the store as the step's fast path
+  ;;; asks it (`fgen'), the run untraced. The `:' step would push G under
+  ;;; the same word, as no inference of its own, and say nothing of its
+  ;;; arguments: a meta-predicate's functor is never stamped. Each goal a
+  ;;; meta-predicate's call qualifies reaches call/N so, and the step cost
+  ;;; each meta-call some 400 instructions. D where any of it does not hold
+  (weak)
+  (func coco_user_plain ((coco_engine * e) (size_t d)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m)) (coco_store * st . #'(-> e st))
+              (size_t mo . #'(coco_deref m (coco_arg m d 0)))
+              (size_t gl . #'(coco_deref m (coco_arg m d 1))))
+          (if (or (!= (-> e trace) 0) (== st nil)
+                  (not (coco-tag-is ATOM (nth mo (-> m heap))))
+                  (!= (coco_name_of m mo) ($ (nth (coco-fid m "user" 0) (-> m functors)) name))
+                  (not (coco-tag-is FUN (nth gl (-> m heap)))))
+              (return d))
+          (let ((coco_functor * f . #'(aof (nth (cast size_t (coco-payload (nth gl (-> m heap))))
+                                                (-> m functors)))))
+            (if (and (== (-> f fgen) coco_extern_generation)
+                     (== (-> f pst) (cast (void *) st))
+                     (== (-> f pserial) (-> st serial)))
+                (return gl)))
+          (return d)))
+
+  ;;; G, A CALL OF THE META-PREDICATE PI FROM A GOAL OF WORD B, WITH ITS
+  ;;; ARGUMENTS SAID OF THE MODULE THE CALL IS MADE IN (3.45.0), as the
+  ;;; step's slow path asks for it, after the Call port, as swipl's ports
+  ;;; show it: a meta-predicate is never stamped a plain predicate (`fgen'),
+  ;;; so each of its calls comes there. OUT OF LINE AND COLD, ON A BRANCH OF
+  ;;; ITS OWN, by the bit the declaration set (`pattrs' 512): a plain
+  ;;; predicate's slow path calls nothing it did not call through 3.44.0.
+  ;;; Called there for every predicate, as the first cut did, a call moved a
+  ;;; register of the hot path, and naive reverse paid an instruction an
+  ;;; inference (+0.16 %, tools/flow/zero.sh), wherever the call stood and
+  ;;; whatever it took
+  (weak) (cold)
+  (func coco_step_meta ((coco_engine * e) (size_t pi) (size_t g) (size_t b)) (out size_t)
+        (return (coco_meta_qualify (-> e m) g ($ (nth pi (-> (-> e st) preds)) pmeta)
+                                   (coco_meta_ctx e b))))
+
   ;;; the frame a search was asked from: a frame of its goal with no owner
   ;;; (ATEND 0) is forall/2's own clause or the `'<meta-call>'/1' swipl
   ;;; compiles the goal into; its end (ATEND 1) is the starter's frame

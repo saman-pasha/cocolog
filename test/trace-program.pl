@@ -105,3 +105,10 @@ nr(X) :- member(X, ['don''t', b]), X == b.
 ns(X) :- nt(X, 'don''t'), X == b.
 nt(a, _).
 nt(b, _).
+
+%% A META-PREDICATE'S ARGUMENTS (3.45.0): its Call port shows the call as it
+%% was made, its Exit and its Fail the argument said of the module the call
+%% is made in, as swipl's frame holds it
+:- meta_predicate mp(0).
+mp(G) :- call(G).
+mq :- mp(atom(foo)).
