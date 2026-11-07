@@ -790,13 +790,21 @@
 
   ;;; A predicate has just been declared dynamic. One row, idempotent at the
   ;;; other end, so two interpreters declaring the same thing is not a conflict.
+  ;;; OR ABOLISHED (3.36.0, `coco_pred_undeclare'), its DYNAMIC 0: the
+  ;;; declaration's row goes, through `cocolog::forget', which takes the
+  ;;; predicate's clause rows with it -- none by now, abolish/1 having taken
+  ;;; every clause first, and the next flush of the predicate writes none --
+  ;;; so another process's call of it raises existence_error, as this one's
+  ;;; does, where its warm would have found the row and failed the call.
   (func coco_zg_on_dynamic ((coco_store * st) (void * ctx) (size_t pi)) (out int)
         (let ((coco_zg * z . #'(cast (coco_zg *) ctx))
-              (i64 wrote . 0))
+              (i64 wrote . 0)
+              (const char * proc . "cocolog::declare_dynamic"))
           (if (not (-> z write_through)) (return 1))
           (if (>= pi ($ (cof st) npreds)) (return 0))
-          (if (not (zg_call (-> z db) "cocolog::declare_dynamic"))
-              (return (coco_zg_dynamic_fail st z "declare_dynamic")))
+          (if (not ($ (nth pi (-> st preds)) dynamic)) (set proc "cocolog::forget"))
+          (if (not (zg_call (-> z db) proc))
+              (return (coco_zg_dynamic_fail st z proc)))
           (if (not (zg_write_string (-> z db) (-> z kb)))
               (return (coco_zg_dynamic_fail st z "kb")))
           (if (not (zg_write_string (-> z db)
@@ -807,7 +815,7 @@
                                  (cast i32 ($ (nth pi (-> st preds)) arity))))
               (return (coco_zg_dynamic_fail st z "arity")))
           (if (not (coco_zg_finish z (aof wrote)))
-              (return (coco_zg_dynamic_fail st z "declare_dynamic")))
+              (return (coco_zg_dynamic_fail st z proc)))
           ;; A THREAD THAT IS NOT THE STORE'S COMMITS ITS OWN WRITE: its
           ;; session has a transaction of its own (a green worker's), and
           ;; the load's commit runs on the owner's.

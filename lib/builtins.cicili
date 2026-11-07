@@ -96,6 +96,7 @@
     ("$pred_props"             2 coco_b_pred_props)
     ("$dwim_predicates"        2 coco_b_dwim_predicates)
     ("abolish"                 1 coco_b_abolish)
+    ("abolish"                 2 coco_b_abolish2)
 
     ("nb_setval"               2 coco_b_setval)
     ("nb_getval"               2 coco_b_getval)

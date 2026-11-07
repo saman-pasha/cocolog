@@ -509,7 +509,7 @@
     ("$btree_find_node" 5)
     ("copy_term" 2) ("compare" 3) ("term_variables" 2) ("subsumes_term" 2)
     ("unify_with_occurs_check" 2)
-    ("abolish" 1) ("assert" 1) ("asserta" 1) ("assertz" 1) ("retract" 1)
+    ("abolish" 1) ("abolish" 2) ("assert" 1) ("asserta" 1) ("assertz" 1) ("retract" 1)
     ;; a construct since 3.28.0, as retract/1 is, named as the goal in flight
     ("clause" 2)
     ("redefine_system_predicate" 1)

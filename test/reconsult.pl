@@ -39,7 +39,7 @@ main :-
     scratch(D),
     atom_concat(D, '/prog.pl', F),
     twice(D, F), survives(D, F), edited(D, F), two_spellings(D, F),
-    a_librarys_clauses(D), as_a_goal(D), loaded_once(D), when_changed(D), reports(D),
+    a_librarys_clauses(D), abolished(D), as_a_goal(D), loaded_once(D), when_changed(D), reports(D),
     module_reread(D), over_the_wire(F),
     shl(['rm -rf ', D]),
     checks_done.
@@ -131,6 +131,56 @@ a_librarys_clauses(D) :-
              ' query "findall(A-B-Cc, clause(http_header(A,B,Cc), _), L), length(L, N), write(answer(N)), nl"'], R3),
     cocolog_answer(R3, G3),
     check('a tier-2 library''s clause is not written either', G3, answer(1)).
+
+%% ABOLISH/1 TAKES THE PREDICATE OUT OF THE KNOWLEDGE BASE, ITS DECLARATION
+%% WITH IT (3.36.0, swipl's): the clauses' rows and the `:- dynamic' row go,
+%% so a second process's call of it raises existence_error, as the calling
+%% process's does -- through 3.35.0 the declaration stayed and both calls
+%% failed. The process that abolishes need not have known the predicate
+%% dynamic: one that met its clauses first never read the row (the first
+%% cut left it standing), nor a fresh store it makes after (run_isolated/2,
+%% `coco_dynamic_known'). A library's clauses are never the program's to
+%% take: abolish of member/2 takes the clause the program gave it.
+abolished(D) :-
+    section('abolish/1 takes the clauses and the declaration out of the knowledge base'),
+    atom_concat(D, '/abstore', S),
+    sh_join(['--kb abolished --embed ', S,
+             ' query "dynamic(ab/1), assertz(ab(1)), assertz(ab(2)), dynamic(ae/1), dynamic(ai/1)"'], W1),
+    cocolog_out(W1, _),
+    sh_join(['--kb abolished --embed ', S,
+             ' query "findall(X, ab(X), L), abolish(ab/1), abolish(ae/1), ',
+             'catch(ab(_), error(E, _), true), write(answer(L-E)), nl"'], A1),
+    cocolog_answer(A1, G1),
+    check('a process that read the clauses abolishes them, and its call raises', G1,
+          answer([1,2]-existence_error(procedure, ab/1))),
+    sh_join(['--kb abolished --embed ', S,
+             ' query "catch(ab(_), error(E1, _), true), catch(ae(_), error(E2, _), true), ',
+             '( current_predicate(ab/1) -> C = yes ; C = no ), write(answer(E1-E2-C)), nl"'], A2),
+    cocolog_answer(A2, G2),
+    check('and a second process finds neither predicate, declared or not', G2,
+          answer(existence_error(procedure, ab/1)-existence_error(procedure, ae/1)-no)),
+    sh_join(['--kb abolished --embed ', S, ' query "use_module(library(thread)), ',
+             '( catch(ai(_), _, fail) -> true ; true ), abolish(ai/1), ',
+             'run_isolated(( catch(ai(_), error(E, _), true), ',
+             '( E = existence_error(procedure, ai/1) -> true ; throw(wrong(E)) ) ), St), ',
+             'write(answer(St)), nl"'], A3),
+    cocolog_answer(A3, G3),
+    check('a fresh store the process makes after finds it undefined too', G3, answer(true)),
+    %% the clause committed by a process before: asserted and abolished in
+    %% one, the end of its query rewrites member/2 from what it holds, and
+    %% the backend is never asked whether it was told
+    sh_join(['--kb abolished --embed ', S, ' query "assertz(member(foo, [a]))"'], W4),
+    cocolog_out(W4, _),
+    sh_join(['--kb abolished --embed ', S,
+             ' query "abolish(member/2), findall(X, member(X, [p,q]), L), ',
+             '( member(foo, [a]) -> R = yes ; R = no ), write(answer(L-R)), nl"'], A4),
+    cocolog_answer(A4, G4),
+    check('abolish of member/2 takes the program''s clause, and the library''s answer on', G4,
+          answer([p,q]-no)),
+    sh_join(['--kb abolished --embed ', S,
+             ' query "( member(foo, [a]) -> R = yes ; R = no ), write(answer(R)), nl"'], A5),
+    cocolog_answer(A5, G5),
+    check('and the clause is out of the knowledge base', G5, answer(no)).
 
 %% CONSULT/1 AS A GOAL IS A CONSULT (2.13.0). A running program reads the
 %% file into the knowledge base as `run' reads it: written through, so a

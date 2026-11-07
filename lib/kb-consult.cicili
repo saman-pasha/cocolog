@@ -503,21 +503,25 @@
   ;;; nothing. `coco_pred_forget_from', after the walk.
   ;;;
   ;;; Whether clause I of P is one a forget takes: ORIGIN's under MUTE (0
-  ;;; or 1), or, MUTE 2, any muted one.
+  ;;; or 1), or, MUTE 2, any muted one; and abolish/1's (3.36.0), MUTE 3
+  ;;; any the program gave (unmuted), 4 every one.
   (static) (inline)
   (func coco_forget_match ((coco_pred * p) (size_t i) (u64 origin) (int mute)) (out int)
         (if (== mute 2) (return (!= (nth i (-> p muted)) 0)))
+        (if (== mute 3) (return (== (nth i (-> p muted)) 0)))
+        (if (== mute 4) (return 1))
         (return (and (== (nth i (-> p origins)) origin) (== (nth i (-> p muted)) mute))))
 
-  ;;; The two forgets' one walk: the live clauses of PI that
-  ;;; `coco_forget_match' takes.
+  ;;; The forgets' one walk: the live clauses of PI that `coco_forget_match'
+  ;;; takes. The backend hears of the program's clauses alone: told once
+  ;;; when an unmuted one went (UG), as a mute of 0 always told it and 1
+  ;;; and 2 never did.
   (func coco_pred_forget_where ((coco_store * st) (coco_machine * m) (size_t pi)
                                 (u64 origin) (int mute)) (out int)
         (if (>= pi (-> st npreds)) (return 0))
         (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
-              (size_t kept . 0) (int gone . 0) (size_t swept . 0)
-              ;; the backend hears of the program's clauses alone
-              (int tell . #'(and (== mute 0) (not (coco_store_is_muted st)) (!= (-> st on_retract) nil))))
+              (size_t kept . 0) (int gone . 0) (size_t swept . 0) (int ug . 0)
+              (int tell . #'(and (not (coco_store_is_muted st)) (!= (-> st on_retract) nil))))
           ;; THE LOGICAL UPDATE VIEW: with a call open on the predicate, the
           ;; file's clauses die where they stand and stay for it, and what
           ;; the file says now comes after every one of them
@@ -526,9 +530,10 @@
                 (block
                   (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
                     (if (and (coco_forget_match p i origin mute) (== (nth i (-> p tomb)) 0))
-                        (block (coco_tomb_set p i era) (set gone (+ gone 1)))))
+                        (block (coco_tomb_set p i era) (set gone (+ gone 1))
+                               (if (== (nth i (-> p muted)) 0) (set ug 1)))))
                   (if (== gone 0) (return 0))
-                  (if tell ((-> st on_retract) st (-> st ctx) pi))
+                  (if (and tell ug) ((-> st on_retract) st (-> st ctx) pi))
                   (return gone))))
           ;; no call open: taken out, and the dead of an earlier change with them
           (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
@@ -538,6 +543,7 @@
                (coco_store_orphan st m (nth i (-> p clauses))))
               ((coco_forget_match p i origin mute)
                (set gone (+ gone 1))
+               (if (== (nth i (-> p muted)) 0) (set ug 1))
                (coco_store_orphan st m (nth i (-> p clauses))))
               (#t
                 (if (!= kept i)
@@ -557,7 +563,7 @@
           (coco_pred_nprobe p)
           (coco_pred_unindex p)
           (if (== gone 0) (return 0))
-          (if tell ((-> st on_retract) st (-> st ctx) pi))
+          (if (and tell ug) ((-> st on_retract) st (-> st ctx) pi))
           (return gone)))
 
   (func coco_pred_forget_from ((coco_store * st) (coco_machine * m) (size_t pi) (u64 origin)) (out int)

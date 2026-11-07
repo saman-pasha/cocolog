@@ -13593,3 +13593,96 @@ script, reconsult, stream, units, string, serialize, cyclic, static, argv,
 backtrace, trace, flowchart, translate, reason, normalise, and the syntax,
 state, term, module and solve binaries. Lessons basics/08, 09 and 13,
 library/04, 37, 43, 44 and 46. The card's cites hold (26 rows, 38 cites).
+
+## abolish/1 and abolish/2 as swipl's (3.36.0)
+
+swipl's abolish/1 takes a predicate away and its declarations with it: a
+call of it after raises existence_error, as of one never defined. cocolog's
+took the clauses and kept the predicate known -- a dynamic declaration
+stayed, so the call failed -- took every clause, a library's too
+(`abolish(member/2)` and member/2 failed for good, where swipl's takes
+user's import away and lists:member/2 answers again), took an ISO
+predicate's clauses and a negative arity in silence, refused a qualified
+spec, and had no abolish/2. A minor: abolish/2 is new.
+
+- The C half (lib/builtins-db.cicili, `coco_abolish_pi`): the spec under
+  any atom's qualifiers (`coco_abolish_strip`, PL_strip_module()'s), a
+  Name/Arity or type_error(predicate_indicator, T); the name an atom, then
+  the arity an integer an int holds (representation_error(int), pl-proc.c's
+  get_arity()) and not negative (domain_error(not_less_than_zero, A)), each
+  unbound an instantiation error, in swipl's order. An ISO predicate is
+  permission_error(modify, static_procedure, PI): the 158 of
+  `*iso-predicates*`, exactly the ones swipl's abolish refuses (its locked
+  system predicates are its `iso` ones, every one asked of swipl 9.0.4).
+  A thread_local one is permission_error(modify, thread_local_procedure,
+  PI). abolish/2 (`coco_b_abolish2`) asks the same of a name and an arity,
+  `abolish(user:p, 1)` among them.
+- The clauses go by the reconsult's walk (`coco_pred_forget_where`, two
+  modes more: 4 every clause, and 3 the program's alone, for a library's
+  predicate, `library` and not `own`), each with a call open on the
+  predicate dead where it stands for that call to try still; the backend is
+  told once when a clause it holds went -- the walk's rule for every mode
+  now, which answers as the old rules did for the three there were.
+- The declarations (lib/kb-pred.cicili, `coco_pred_undeclare`): dynamic,
+  discontiguous and multifile, public, volatile, transparent, a
+  non-terminal, what the tracer hides. The table a fresh store of the
+  process reads forgets the name (`coco_dynamic_forget`), and the backend
+  hears it as `on_dynamic` with the predicate's DYNAMIC 0, which the
+  Zigurat hook answers with `cocolog::forget` (the declaration's row, and
+  the clause rows, none by then) -- whether or not this process knew the
+  predicate dynamic. The first cut told the backend only of a declaration
+  it knew, and a process learns one only on the way to an existence error,
+  so one that met the clauses first left the row standing: its own call
+  after the abolish failed, its warm finding the row, and the next process
+  found the predicate dynamic.
+- A predicate a program file took over (msort/2) stays taken, so its call
+  raises after, as swipl's user definition is then undefined and the
+  system's is not called.
+
+test/files/abolish.pl, new: 88 lines, swipl 9.0.4's byte for byte (3.35.0
+differs at 47): an asserted, a declared and a file's predicate abolished,
+and what a call, current_predicate/1, predicate_property/2, retract/1,
+clause/2, retractall/1, dynamic/1 and assertz/1 find after; public and
+multifile reset; a call open on it; the ISO, control, call/N, thread_local,
+other system, library and taken predicates; and the arguments of both
+arities. test/reconsult.pl's `abolished`: a second process over one
+embedded store finds the predicate undefined, declared or not; a fresh
+store of the process (run_isolated/2) too; and abolish of member/2 takes
+the program's clause out of the knowledge base and leaves the library's.
+library/flow: abolish/2's mode (modes.pl) and its write to the knowledge
+base (lanes.pl).
+
+Not swipl's (COMPAT.md, the abolish row): `abolish(lists:member/2)` is
+member/2 in one namespace, and the library's clauses stay where swipl's
+take lists:member/2 away; a program's own between/3, whose clauses joined
+the library's, is taken away and the library's answer again, where swipl's
+user definition hid the system's and a call raises; and a predicate of more
+than 1024 arguments is one (swipl refuses it as max_procedure_arity, at
+assertz/1 and at abolish/1).
+
+Arms, a build each, the rule taken out (19), each red in abolish.pl or
+in reconsult.pl's section: the declarations withdrawn at all, and dynamic,
+discontiguous and multifile, and public each; the backend told only of a
+declaration the process knew; the Zigurat hook's forget; the process
+table's; a library's clauses kept; the walk's modes 3 and 4; the backend
+told when a program's clause went, red once the check committed the
+clause in a process before (asserted and abolished in one, the end of its
+query rewrote the predicate from what it held, and the arm was green);
+the ISO and the thread_local refusals; the qualifiers taken off; an arity
+past an int; a negative one; the name asked before the arity; a spec that
+is no Name/Arity; and abolish/2's row. The arm of no edit is green in both
+rounds. Written and taken out, no check seeing them: an unbound name, arity
+or spec asked apart (the module seam's type error of a variable is an
+instantiation error already), and the module of the first read reset.
+
+The cost, callgrind. zero.sh, work less padding, 3.35.0 to 3.36.0: nrev
+65 997 163 to 65 997 153, queens 40 281 305 to 40 281 327, lookup
+48 092 716 to 48 092 629 -- the step loop is not touched. A start
+(`cocolog query true`) 19 478 679 instructions to 19 489 442 (+10 763,
++0.055 %), all of it strcmp(3): the builtins table's one row more, which
+the registry's walks of names pass.
+
+Narrow cases green: lint, files, errors, engine, directives, library,
+reconsult, flowchart, static, trace, repl, script, async, thread, cowork, and
+the solve, module and state binaries. Lessons basics/07, 09 and 11,
+library/04, 37, 50 and 54. The card's cites hold (26 rows, 38 cites).

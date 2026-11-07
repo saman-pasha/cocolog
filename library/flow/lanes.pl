@@ -225,6 +225,7 @@ flow_kb_op(assert(C), assert, C).
 flow_kb_op(retract(C), retract, C).
 flow_kb_op(retractall(H), retractall, H).
 flow_kb_op(abolish(PI), abolish, PI).
+flow_kb_op(abolish(N, A), abolish, N/A).
 
 flow_kb_pred(abolish, PI, N/A) :- !,
     nonvar(PI), PI = N/A, atom(N), integer(A).

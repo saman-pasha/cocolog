@@ -663,47 +663,102 @@
               (set (nth n v) (coco_new_atom m "defined")) (++ n)
               (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_list e v n)))))))
 
-  ;;; `abolish(Name/Arity)' -- every clause of it goes, and the write-through
-  ;;; hook hears about it because this is a retract of the whole predicate.
-  (func coco_b_abolish ((coco_engine * e) (size_t g)) (out int)
+  ;;; ---- abolish/1,2 (3.36.0, swipl 9.0.4's pl_abolish) -------------------
+  ;;;
+  ;;; THE PREDICATE GOES, ITS DECLARATIONS WITH IT: every clause, and then
+  ;;; what was declared of it, dynamic among them (`coco_pred_undeclare'),
+  ;;; so a call of it raises existence_error as of one never defined,
+  ;;; current_predicate/1 names it no more and predicate_property/2 answers
+  ;;; nothing for it -- a static predicate of a file's too, as swipl's when
+  ;;; its `iso' flag is false. An ISO predicate, the 158 swipl locks
+  ;;; (`*iso-predicates*'), is permission_error(modify, static_procedure,
+  ;;; PI), redefined or not, and a thread_local one
+  ;;; permission_error(modify, thread_local_procedure, PI); any other
+  ;;; system predicate is none of the program's, which abolish leaves as it
+  ;;; is (format/2 answers on). A LIBRARY'S PREDICATE KEEPS THE LIBRARY'S
+  ;;; CLAUSES: abolish of member/2 takes away the clauses the program gave
+  ;;; it alone, as swipl's takes away user's definition or import and
+  ;;; lists:member/2 answers again. One a program file took over stays taken
+  ;;; (`taken'), and its call raises, as swipl's user definition is then
+  ;;; undefined and the system's is not called. Through 3.35.0 every clause
+  ;;; went, a library's too (member/2 failed for good after it), a dynamic
+  ;;; declaration stayed, so a call failed, an ISO predicate and a negative
+  ;;; arity were taken in silence, a qualified spec was refused and
+  ;;; abolish/2 did not exist.
+
+  ;;; SPEC WITH ITS QUALIFIERS TAKEN OFF, as swipl's PL_strip_module: each
+  ;;; `M:' whose M is an atom; an unbound or other M stops it, and the spec
+  ;;; is then no predicate indicator.
+  (func coco_abolish_strip ((coco_engine * e) (size_t s)) (out size_t)
+        (let ((coco_machine * m . #'(coco_m_machine e)))
+          (set s (coco_deref m s))
+          (while (and (coco_is_compound2 m s ":")
+                      (coco_m_is_atom e (coco_deref m (coco_arg m s 0))))
+            (set s (coco_deref m (coco_arg m s 1))))
+          (return s)))
+
+  ;;; NAME AND ARITY ASKED IN swipl's ORDER -- the name first, an atom; then
+  ;;; the arity, an integer, one an int holds (representation_error(int):
+  ;;; pl-proc.c's get_arity() reads it with PL_get_integer_ex()), 0 or
+  ;;; more -- and the predicate abolished; either unbound is an
+  ;;; instantiation error, as a type error of a variable is
+  ;;; (`coco_m_type_error'). swipl's 1024 arguments a procedure may have
+  ;;; (representation_error(max_procedure_arity)) are no limit here, where
+  ;;; a predicate takes any arity a clause gives it (COMPAT.md).
+  (func coco_abolish_pi ((coco_engine * e) (size_t nm) (size_t ar)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (coco_store * st . #'(-> e st))
-              (size_t spec . #'(coco_m_arg e g 0)))
+              (i64 arity . 0))
+          (set nm (coco_deref m nm))
+          (set ar (coco_deref m ar))
+          (if (not (coco_m_is_atom e nm)) (return (coco_m_type_error e "atom" nm)))
+          (if (not (coco-is-int (nth ar (-> m heap)))) (return (coco_m_type_error e "integer" ar)))
+          (set arity (coco_int_val m (nth ar (-> m heap))))
+          (if (or (> arity 2147483647) (< arity -2147483648))
+              (return (coco_m_raise e (coco_make1 m "representation_error" (coco_new_atom m "int")))))
+          (if (< arity 0) (return (coco_m_domain_error e "not_less_than_zero" ar)))
+          (if (coco_iso_predicate (coco_atom_name m (coco_name_of m nm)) (cast u32 arity))
+              (return (coco_m_permission_error e "modify" "static_procedure"
+                                               (coco_make2 m "/" nm ar))))
+          (with-green-write e
+           (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m nm) (cast u32 arity)))
+                 (int lib . 0))
+            (if (>= pi ($ (cof st) npreds)) (return 1))
+            (if (bitand ($ (nth pi ($ (cof st) preds)) pattrs) 8)
+                (return (coco_m_permission_error e "modify" "thread_local_procedure"
+                                                 (coco_make2 m "/" nm ar))))
+            ;; unread, the rows it would leave in the database are not
+            ;; known, and rewriting the predicate empty would take them
+            (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
+            (set lib (and ($ (nth pi ($ (cof st) preds)) library)
+                          (not ($ (nth pi ($ (cof st) preds)) own))))
+            ;; the clauses go as a reconsult takes a file's, in one walk:
+            ;; with a call open on the predicate each dies where it stands
+            ;; for that call to try still (the logical update view), and the
+            ;; backend hears once, if a clause it holds went
+            (coco_pred_forget_where st m pi 0 (? lib 3 4))
+            (coco_store_maybe_compact st m)
+            (if lib (return 1))
+            (if (< (coco_pred_undeclare st pi) 0)
+                (return (coco_m_error_msg e "resource_error" "knowledge_base" nil
+                                          (cast size_t -1) (-> st write_err))))
+            (return 1)))))
+
+  ;;; abolish(Spec): Name/Arity under any atom's qualifiers
+  ;;; (`coco_abolish_strip'); unbound an instantiation error, and a term of
+  ;;; any other shape type_error(predicate_indicator, T), Name//Arity among
+  ;;; them.
+  (func coco_b_abolish ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t spec . #'(coco_abolish_strip e (coco_m_arg e g 0))))
           (if (not (coco_is_compound2 m spec "/"))
               (return (coco_m_type_error e "predicate_indicator" spec)))
-          (let ((size_t nm . #'(coco_deref m (coco_arg m spec 0)))
-                (size_t ar . #'(coco_deref m (coco_arg m spec 1)))
-                (i64 arity . 0))
-            (if (not (coco_m_is_atom e nm))
-                (return (coco_m_type_error e "atom" nm)))
-            (if (not (coco_m_int e ar (aof arity)))
-                (return (coco_m_type_error e "integer" ar)))
-            (with-green-write e
-             (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m nm) (cast u32 arity))))
-              (if (>= pi ($ (cof st) npreds)) (return 1))
-              ;; unread, the rows it would leave in the database are not
-              ;; known, and rewriting the predicate empty would take them
-              (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
-              ;; retract the first clause until there is none, so that the
-              ;; backend hears once per removal exactly as it would from a
-              ;; program doing the same thing -- the first LIVE one: one
-              ;; retracted while a call on it is open stays, dead, where it
-              ;; stood (the logical update view, lib/kb.cicili)
-              (while (> (coco_pred_live (aof (nth pi ($ (cof st) preds)))) 0)
-                (let ((size_t mark . #'($ (cof m) heap_len))
-                      (size_t at . #'(coco_pred_live_at (aof (nth pi ($ (cof st) preds))) 0))
-                      (size_t t . #'(coco_store_get m st
-                                                  (nth at ($ (nth pi ($ (cof st) preds)) clauses))))
-                      (int ok . #'(coco_retract st m t)))
-                  (set (-> m heap_len) mark)
-                  (if (< ok 0) (return (coco_fetch_error e)))
-                  (if (not ok) break)))
-              ;; and a discontiguous or multifile declaration with them, as
-              ;; swipl resets a predicate's attributes (3.1.0); a dynamic
-              ;; one stays, a database store keeping it as a row
-              (set ($ (nth pi ($ (cof st) preds)) declared) 0)
-              (coco_store_maybe_compact st m)
-              (return 1))))))
+          (return (coco_abolish_pi e (coco_arg m spec 0) (coco_arg m spec 1)))))
+
+  ;;; abolish(Name, Arity), swipl's: the name under any atom's qualifiers,
+  ;;; `abolish(user:p, 1)'.
+  (func coco_b_abolish2 ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_abolish_pi e (coco_abolish_strip e (coco_m_arg e g 0)) (coco_m_arg e g 1))))
 
   ;;; ---- global variables -------------------------------------------------
   ;;;

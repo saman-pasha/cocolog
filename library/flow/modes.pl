@@ -235,6 +235,7 @@ flow_mode(current_prolog_flag, 2, ['+', '-'], semidet).
 flow_mode(current_prolog_flag, 2, ['?', '?'], nondet).
 flow_mode(set_prolog_flag, 2, ['+', '+'], det).
 flow_mode(abolish, 1, ['+'], det).
+flow_mode(abolish, 2, ['+', '+'], det).
 flow_mode((dynamic), 1, ['+'], det).
 flow_mode((discontiguous), 1, ['+'], det).
 flow_mode((multifile), 1, ['+'], det).

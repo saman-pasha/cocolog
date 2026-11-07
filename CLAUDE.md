@@ -2022,6 +2022,24 @@ cocolint index offers no import of it.
   library/flow reads both as builtins (`flow_kind`'s construct row) and
   offers them as near names (`flow_lib_pred`). test/files/retract_view.pl
   holds 110 lines to swipl, test/engine.pl's update-view section the freeze.
+* **abolish/1,2 are swipl's** (3.36.0, `coco_abolish_pi` in
+  lib/builtins-db.cicili): the clauses go by the forget walk a reconsult
+  takes (`coco_pred_forget_where`: mute 4 every one, and for a library's
+  predicate -- `library` and not `own` -- mute 3, the program's clauses
+  alone, so member/2 answers on), then the declarations
+  (`coco_pred_undeclare`: dynamic, discontiguous and multifile, `pattrs`),
+  so a call raises existence_error; an ISO predicate (`*iso-predicates*`,
+  exactly swipl's 158 locked ones) and a thread_local one are refused, and
+  a taken one stays taken. **A backend hears the withdrawal as `on_dynamic`
+  with the predicate's DYNAMIC 0** (the Zigurat hook calls
+  `cocolog::forget` then), told whether or not this process knew the
+  predicate dynamic -- a process learns a declaration only on the way to
+  an existence error (`warmed`), and the first cut, which told only of one
+  it knew, left the row for the next process -- and the table a fresh
+  store reads forgets it (`coco_dynamic_forget`). **A new backend's
+  `on_dynamic` reads DYNAMIC** to tell a declaration from a withdrawal.
+  test/files/abolish.pl holds 88 lines to swipl, test/reconsult.pl's
+  `abolished` the second process and the fresh store.
 * **A global is found by a hash of its name (1.9.4), copied AS ITS BLOCK,
   and a GROUND one's copy handed out shared while it lives (1.12.1)**
   (`nb_getval/2`, `b_getval/2`, `nb_current/2`; `coco_b_global_term`).

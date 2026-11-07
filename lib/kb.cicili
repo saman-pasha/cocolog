@@ -2034,6 +2034,14 @@
   ;;; Answers 1 declared, 0 out of memory, and -1 when the backend refused the
   ;;; declaration (3.0.3): then it was not made, and `write_err' says why.
   (decl) (func coco_pred_dynamic ((coco_store * st) (u64 name) (u32 arity)) (out int))
+  ;;; And abolish/1's withdrawal of PI's declarations (3.36.0): 1, or -1
+  ;;; when the backend refused to forget the dynamic one (`write_err').
+  (decl) (func coco_pred_undeclare ((coco_store * st) (size_t pi)) (out int))
+  (decl) (func coco_dynamic_forget ((const char * name) (u32 arity)))
+  ;;; The live clauses of PI a forget takes (lib/kb-consult.cicili): MUTE 0
+  ;;; or 1 ORIGIN's of that mute, 2 any muted one, 3 any unmuted, 4 all.
+  (decl) (func coco_pred_forget_where ((coco_store * st) (coco_machine * m) (size_t pi)
+                                       (u64 origin) (int mute)) (out int))
 
   ;;; Removes the first clause whose head and body unify with the given term:
   ;;; 1 when one went, 0 when none matched, -1 when the predicate could not be
