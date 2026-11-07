@@ -1576,6 +1576,10 @@ cocolint index offers no import of it.
   second candidate**: each call of a rule pushes a choice point its cut
   takes, and loses the register call -- subset/2's rules cost 41 % more
   than its plain clauses (STATUS.md), where swipl raises from the machine.
+  Since 3.42.3 nth0/3 and nth1/3 with the index given bind the unbound
+  tail their walk meets to `[_, ..., Elem|_]`, once, as swipl's
+  '$seek_list'/4 and nth0_det/3 do (test/files/nth_open.pl; through
+  3.42.2 the call failed).
 * **library(error) is swipl 9.0.4's** (3.29.0, the Prolog half of
   lib/builtins.cicili; test/files/error_types.pl): must_be/2 asks
   has_type/2 -- one clause a type, in swipl's order, a table a library
@@ -3030,8 +3034,15 @@ cocolint index offers no import of it.
   first line, `Stack limit (1.0Gb) exceeded`, from the flag
   (`coco_error_text`, library(print_message)'s `'$pm_stack_size'/2`). **A
   new array that grows with a search takes its growth from the room the
-  limit leaves**, as the three do. test/files/stack_limit.pl holds the flag
-  and the stops to swipl; test/errors.pl's `stack_limit_said` and
+  limit leaves**, as the three do. **A C row that builds a list of a size
+  it is given asks `coco-l-too-long` first** (3.42.3, lib/lists.cicili:
+  nth0/3's and nth1/3's tail, length/2's, numlist/3's): cells whose bytes
+  alone pass the limit raise resource_error(stack) before one is built, as
+  swipl's length/2 does -- a growth past the limit is given and stops the
+  engine only at its next step, so a C loop never sees it, and
+  `length(L, 10^12)` built until the kernel killed the process.
+  test/files/stack_limit.pl holds the flag and the stops to swipl;
+  test/errors.pl's `stack_limit_said` and
   test/solve.cicili (an engine that never collects) the rest.
 * **A refused allocation raises resource_error(memory)** (1.10.28). A
   doubling refused is tried again with what is needed and a sixteenth

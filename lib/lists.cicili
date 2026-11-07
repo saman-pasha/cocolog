@@ -336,6 +336,16 @@
 
   ) ; decl-lists
 
+;;; A LIST TOO LONG FOR THE STACK LIMIT (3.42.3): N list cells to build,
+;;; three heap cells each, whose bytes ALONE pass the machine's stack limit
+;;; -- no collection could make room for them. The builders ask it before
+;;; they build a cell and raise error(resource_error(stack), _), as swipl's
+;;; length/2 raises at once; a list the limit could hold is built, and the
+;;; step after asks what the stacks hold (3.32.0). N is compared, never
+;;; multiplied: a count of 2^62 cells is no overflow
+(DEFMACRO coco-l-too-long (m n)
+  `(and (> (-> ,m slimit) 0)
+        (> (cast u64 ,n) (/ (cast u64 (-> ,m slimit)) 24))))
 
 (generic impl-lists
   ()
@@ -873,11 +883,20 @@
               (return (coco_m_type_error e "integer" (coco_m_arg e g 1))))
           (if (> lo hi) (return 0))
           ;; the count in u64 (2.0.0): `hi - lo' of the two ends of 64 bits
-          ;; is past an i64, and a list that long is no memory's anyway
+          ;; is past an i64. A list past the stack limit raises before its
+          ;; array is asked for (3.42.3), and an array refused raises
+          ;; resource_error(memory): through 3.42.2 numlist(1, 10^12, L)
+          ;; failed, its malloc(3) refused
+          (if (coco-l-too-long (coco_m_machine e) (- (cast u64 hi) (cast u64 lo)))
+              (return (coco_m_resource_error e "stack")))
           (let ((size_t cnt . #'(cast size_t (+ (- (cast u64 hi) (cast u64 lo)) 1)))
                 (size_t * v . nil) (size_t out . 0))
+            ;; with no limit: a count past what an array's bytes can say --
+            ;; 2^64 wraps to 0 -- is memory no machine has
+            (if (or (== cnt 0) (> cnt (/ (cast size_t -1) (sizeof size_t))))
+                (return (coco_m_resource_error e "memory")))
             (set v (cast (size_t *) (malloc (* cnt (sizeof size_t)))))
-            (if (== v nil) (return 0))
+            (if (== v nil) (return (coco_m_resource_error e "memory")))
             (for ((size_t k . 0)) (< k cnt) ((++ k))
               (set (nth k v) (coco_m_new_int e (+ lo (cast i64 k)))))
             (set out (coco_m_list e v cnt))
@@ -947,6 +966,11 @@
               (block
                (if (< want (cast i64 k)) (return 0))
                (if (== want (cast i64 k)) (return (coco_m_unify e tail (coco_m_nil e))))
+               ;; cells past the stack limit raise before one is built
+               ;; (3.42.3), as swipl's: `length(L, 1000000000000)' built
+               ;; for minutes until memory ran out
+               (if (coco-l-too-long m (- want (cast i64 k)))
+                   (return (coco_m_resource_error e "stack")))
                (let ((u64 cf . #'(coco_cons_fid m)) (size_t first . 0) (size_t prev . 0)
                      (size_t h . 0) (size_t end . 0))
                  (for ((i64 i . #'(cast i64 k))) (< i want) ((++ i))
@@ -966,10 +990,14 @@
           (return 0)))
 
   ;;; `nth0(?N, ?List, ?Elem)' and `nth1/3' with the index given: the
-  ;;; element by '$nth0''s walk; an index below the base or past the end
-  ;;; fails, and so does one bound to anything but an integer (the clauses'
-  ;;; `integer(N)' and `var(N)' both said no). An unbound index enumerates:
-  ;;; declined.
+  ;;; element by '$nth0''s walk; an index below the base fails, one that is
+  ;;; no integer raises, and a list that ends before the index -- `[]',
+  ;;; `foo' -- fails. A WALK THAT MEETS AN UNBOUND TAIL BINDS IT (3.42.3), as
+  ;;; swipl's '$seek_list'/4 and nth0_det/3 bind it, once: to the cells the
+  ;;; walk had still to pass, fresh, and the element's, then a fresh tail --
+  ;;; `nth0(1, L, a)' is L = [_, a|_], where through 3.42.2 the call failed.
+  ;;; Cells the stack limit cannot hold raise before one is built
+  ;;; (`coco-l-too-long'). An unbound index enumerates: declined.
   (static)
   (func coco_l_nth_at ((coco_engine * e) (size_t g) (int * found) (i64 base)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
@@ -981,15 +1009,30 @@
           (if (not (coco_m_int e ix (aof want))) (return (coco_m_type_error e "integer" ix)))
           (if (< want base) (return 0))
           (set want (- want base))
+          ;; the old loop, its `return 0' a break: the walk a proper list
+          ;; takes is the instructions it was
           (set p (coco_m_arg e g 1))
           (while (> want 0)
             (set p (coco_deref m p))
-            (if (not (coco_is_cons m p)) (return 0))
+            (if (not (coco_is_cons m p)) break)
             (set p (coco_arg m p 1))
             (set want (- want 1)))
           (set p (coco_deref m p))
-          (if (not (coco_is_cons m p)) (return 0))
-          (return (coco_m_unify e (coco_m_arg e g 2) (coco_arg m p 0)))))
+          (if (coco_is_cons m p) (return (coco_m_unify e (coco_m_arg e g 2) (coco_arg m p 0))))
+          (if (not (coco_m_is_var e p)) (return 0))
+          (if (coco-l-too-long m want) (return (coco_m_resource_error e "stack")))
+          ;; WANT cells, then the element's, each linked by its tail
+          (let ((u64 cf . #'(coco_cons_fid m)) (size_t first . 0) (size_t prev . 0)
+                (size_t h . 0))
+            (for ((i64 i . 0)) (<= i want) ((++ i))
+              (set h (coco_push_struct m (coco-cell FUN cf) 2))
+              (if (== h 0) (return 0))
+              (if (== i 0)
+                  (set first h)
+                  (set (nth (+ prev 2) (-> m heap)) (coco-cell REF h)))
+              (set prev h))
+            (set (nth (+ prev 1) (-> m heap)) (coco-cell REF (coco_deref m (coco_m_arg e g 2))))
+            (return (coco_m_unify e p first)))))
 
   (func coco_l_nth0_at ((coco_engine * e) (size_t g) (int * found)) (out int)
         (return (coco_l_nth_at e g found 0)))

@@ -14667,3 +14667,85 @@ Narrow cases green: lint, engine, files (each agreeing with swipl),
 library, directives, reconsult, errors, repl, kbs, zigurat-lib, async,
 httpd, cowork, tunnel and thread, with a server up, and the solve, module
 and zigurat binaries, which compile lib/kb.cicili. The card's cites hold.
+
+
+## nth0/3 and nth1/3 over a partial list, and lists past the stack limit, as swipl's (3.42.3)
+
+swipl 9.0.4's nth0/3 and nth1/3 with the index given walk the list with
+'$seek_list'/4 and hand what is left to nth0_det/3, whose head binds an
+unbound tail: `nth0(1, L, a)` is L = [_, a|_], `nth0(3, [a|T], X)` binds
+T = [_, _, X|_], once. Through 3.42.2 cocolog's C row failed wherever its
+walk met an unbound tail -- the one difference left after 3.42.1 by a scan
+of every export of swipl's library(lists) over each shape a list takes. A
+patch, as 3.42.1 was.
+
+- THE WALK BINDS THE TAIL IT MEETS (`coco_l_nth_at`, lib/lists.cicili): the
+  cells it had still to pass, fresh, and the element's, then a fresh tail,
+  built as length/2's completion builds its cells (`coco_push_struct`, each
+  linked by its tail) and unified with the tail once. A tail that is
+  anything else -- `[]`, `foo` -- fails, as before.
+- A LIST TOO LONG FOR THE STACK LIMIT RAISES BEFORE IT IS BUILT
+  (`coco-l-too-long`, a DEFMACRO): list cells whose bytes alone pass the
+  machine's limit raise error(resource_error(stack), _) -- nth0/3's and
+  nth1/3's tail, length/2's completion, numlist/3 -- as swipl's length/2
+  raises at once. A growth past the limit is given and stops the engine
+  only at its next step (3.32.0), so a C loop never saw it: through 3.42.2
+  `length(L, 1000000000000)` built until the kernel killed the process, and
+  the new nth0/3 would have. A list the limit could hold is built, and the
+  step after asks what the stacks hold, as before. swipl's nth0/3 and
+  numlist/3 are Prolog and build such a list a step at a time, for ever
+  where its collector takes the cells nobody holds (COMPAT.md).
+- numlist/3's count with no limit (COCOLOG_STACK_LIMIT=0): 2^64 cells
+  wrapped to 0 and answered [], and a count past what an array's bytes can
+  say wrapped them (2^62 + 1 cells asked for 8 bytes and wrote past them);
+  each raises resource_error(memory) before anything is allocated, and an
+  array malloc(3) refuses raises it too, where through 3.42.2 the call
+  failed.
+
+test/files/nth_open.pl, new: 48 lines, swipl 9.0.4's byte for byte (3.42.1
+fails at its first line, and on its length/2 line built until the kernel
+killed it). It holds nth0/3 and nth1/3 over an unbound list, a partial one
+and one that ends in `foo`, `[]` or too soon, an index past the end of
+those; the element shared with the caller; the index's errors; each answer
+deterministic; and length/2 of a count no stack holds raising
+resource_error(stack). swipl 9.0.4 itself crashes (SIGSEGV) on
+`length([a, b|_], 9223372036854775807)`, which the file leaves out.
+test/engine.pl's `own_too_long` holds what swipl never answers: nth0/3,
+nth1/3 and numlist/3 past the limit raising at once, a list the limit holds
+built, and with no limit a count no array can hold, and one malloc(3)
+refuses, raising resource_error(memory), checked in a child.
+
+Arms, a build each, the rule taken out (10), each red in nth_open.pl or
+test/engine.pl's `own_too_long`, the arm of no edit green in both and in
+lists_ssu.pl; the arms run under `ulimit -v 2500000`:
+
+- the unbound tail bound at all (red in both); the element's cell
+  (nth_open); the count of cells, the element's beside the cells passed
+  (both); the walk's break where its tail ends, a failure through 3.42.2
+  (both); a tail that is no list failing (nth_open);
+- the limit asked of nth0/3's and nth1/3's tail (engine), of length/2's
+  completion (nth_open, its length/2 line building until the ulimit
+  stopped it), and of numlist/3 (engine);
+- numlist/3's count past what an array's bytes can say (engine), and its
+  array malloc(3) refuses (engine).
+
+The cost, callgrind, 3.42.2 to 3.42.3. The step loop is not touched
+(tools/flow/zero.sh, work less padding: nrev 65 903 609 on both, queens
+40 275 120 and 40 275 127, lookup 48 052 661 on both). A start (`cocolog
+query true`) is 35 051 474 instructions on both. A call, 2 000 of each
+less the same loop with none: nth0(50, L, _) of a list of 100, 2 219 and
+2 227; nth1/3 the same, 2 225 and 2 233; length(_, 10) 957 and 970; and
+numlist(1, 10, _) 2 207 and 2 215 -- the questions of the tail and of the
+limit. nth0(5, _, a), which failed, builds six cells: 530 and 806. The
+first cut walked the list with the tail's question in the loop's test,
+and nth0(50, ...) cost 55 instructions a call more than 3.42.1's; the walk
+is 3.42.2's loop again, its `return 0` a break.
+
+Narrow cases green: lint (the changed files), engine, files (each
+agreeing with swipl), errors, cyclic, gc, library, reason, translate,
+trace, window, static and flowchart; lessons library/01, 11, 42, 48 and
+51, which call nth0/3, nth1/3 or numlist/3, run as the suite runs them.
+No test binary compiles lib/lists.cicili. library/reasoning/ calls nth0/3
+and nth1/3 of proper lists, and nth0/4, which is not touched: reasoning
+stays at its number. The card's cites hold.
+

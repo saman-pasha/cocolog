@@ -37,9 +37,53 @@ main :-
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
     update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), repeat_runs(D), jit_runs(D),
-    btree_places, op_names_frozen(D), own_properties, own_current,
+    btree_places, op_names_frozen(D), own_properties, own_current, own_too_long,
     shl(['rm -rf ', D]),
     checks_done.
+
+%% ---- a list too long for the stack limit (3.42.3) -----------------------
+%% swipl's nth0_det/3 and numlist_/3 build such a list a step at a time,
+%% for ever where its collector takes the cells nobody holds, so
+%% test/files/nth_open.pl cannot ask them; cocolog's C rows refuse before
+%% they build a cell, as swipl's length/2 does (the file holds that one).
+%% Through 3.42.2 nth0/3 of an unbound list failed, and numlist/3 failed
+%% where its malloc(3) was refused.
+own_too_long :-
+    section('a list too long for the stack limit'),
+    F = 1000000000000,
+    ( catch(nth0(F, _, _), error(E1, _), true) -> true ; E1 = failed ),
+    check('nth0/3 of an unbound list past the limit raises at once', E1,
+          resource_error(stack)),
+    ( catch(nth1(F, [a, b|_], _), error(E2, _), true) -> true ; E2 = failed ),
+    check('...and nth1/3 of a partial one', E2, resource_error(stack)),
+    ( catch(numlist(1, F, _), error(E3, _), true) -> true ; E3 = failed ),
+    check('numlist/3 past the limit raises at once', E3, resource_error(stack)),
+    ( catch(numlist(-9223372036854775808, 9223372036854775807, _), error(E4, _), true)
+    -> true ; E4 = failed ),
+    check('...and over the whole of 64 bits, whose count is past a u64', E4,
+          resource_error(stack)),
+    (   nth0(2, L5, c), L5 = [A5, B5, c|T5], var(A5), var(B5), var(T5),
+        numlist(1, 3, N5)
+    ->  R5 = N5
+    ;   R5 = failed
+    ),
+    check('a list the limit holds is built', R5, [1, 2, 3]),
+    %% with no limit, a count past what an array's bytes can say is memory
+    %% no machine has, raised before anything is allocated: 2^64 wrapped to
+    %% 0 and answered [], and 2^62 + 1 wrapped its bytes to 8 and wrote past
+    %% them. An array whose bytes can be said, 2^58 + 1 cells, is past any
+    %% address space, and malloc(3) refuses it: through 3.42.2 the call
+    %% failed
+    cocolog(C),
+    sh_join(['COCOLOG_STACK_LIMIT=0 ', C, ' query "',
+             'catch(numlist(-9223372036854775808, 9223372036854775807, _), error(F6, _), true), ',
+             'catch(numlist(0, 4611686018427387904, _), error(F7, _), true), ',
+             'catch(numlist(0, 288230376151711744, _), error(F8, _), true), ',
+             'writeq(answer(F6, F7, F8)), nl" 2>&1'], Cmd),
+    proc_run(Cmd, 120000, Out, _),
+    ( re_first_atom('answer\\([^\n]*\\)', Out, A) -> term_to_atom(G, A) ; G = none ),
+    check('...and with no limit, a count no array can hold raises resource_error(memory)', G,
+          answer(resource_error(memory), resource_error(memory), resource_error(memory))).
 
 %% ---- predicate_property/2 of a builtin swipl has none of (3.41.0) --------
 %% swipl's table (lib/swipl-props.cicili) answers for what swipl has, and
