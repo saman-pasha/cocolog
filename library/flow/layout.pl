@@ -130,6 +130,8 @@ flow_meta_note(aggregate_all, '    every solution').
 flow_meta_note(forall, '    for every one').
 flow_meta_note(once, '    the first solution').
 flow_meta_note(ignore, '    never fails').
+flow_meta_note($, '    one solution and no choice point, or an error').
+flow_meta_note(@, '    as its goal, in the module named').
 flow_meta_note(phrase, '    the grammar over a list').
 flow_meta_note(with_mutex, '    once, holding the lock').
 flow_meta_note(channel_forall, '    for every term the channel brings').

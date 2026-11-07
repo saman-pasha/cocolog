@@ -16,6 +16,17 @@
 ;;; Yss)' backtracks, because `member/2' does; `maplist(succ, [1,2], L)' does
 ;;; not, because `succ/2' does not. That falls out of their being clauses and
 ;;; could not have been had in C.
+;;;
+;;; AND NO MORE (3.23.0): each is swipl's own clauses, the list FIRST in a
+;;; helper and the goal after it, so a call with the list given is keyed on
+;;; `[]' or `[_|_]' and has one candidate, and no element leaves a choice
+;;; point -- `$, maplist(atom, [a, b])' is deterministic, as swipl's. Through
+;;; 3.22.0 they wrote the goal first, which the index cannot tell apart, and
+;;; every element left one. A helper is named as swipl names its own in what
+;;; goes wrong in its body (*frame-contexts*: apply:maplist_/2). With the
+;;; first list unbound and another one given, swipl's index on that other
+;;; list leaves none; cocolog's builds such an index from eight clauses up,
+;;; and the last element leaves one (COMPAT.md).
 
 (DEFPACKAGE :cocolog
   (:USE :COMMON-LISP)
@@ -31,15 +42,21 @@
            ;; Each arity is written out rather than built on a general one,
            ;; which is what SWI does too: the lists have to be walked in step,
            ;; and a version that took a list of lists would have to build a
-           ;; term per element to call with.
-           "maplist(_, [])."
-           "maplist(G, [X|Xs]) :- call(G, X), maplist(G, Xs)."
-           "maplist(_, [], [])."
-           "maplist(G, [X|Xs], [Y|Ys]) :- call(G, X, Y), maplist(G, Xs, Ys)."
-           "maplist(_, [], [], [])."
-           "maplist(G, [X|Xs], [Y|Ys], [Z|Zs]) :- call(G, X, Y, Z), maplist(G, Xs, Ys, Zs)."
-           "maplist(_, [], [], [], [])."
-           "maplist(G, [X|Xs], [Y|Ys], [Z|Zs], [W|Ws]) :- call(G, X, Y, Z, W), maplist(G, Xs, Ys, Zs, Ws)."
+           ;; term per element to call with. The lists come first in the
+           ;; helper, as swipl's maplist_/2..5 take them, so the first one
+           ;; keys the call (3.23.0).
+           "maplist(G, L) :- '$maplist_'(L, G)."
+           "'$maplist_'([], _)."
+           "'$maplist_'([X|Xs], G) :- call(G, X), '$maplist_'(Xs, G)."
+           "maplist(G, L1, L2) :- '$maplist_'(L1, L2, G)."
+           "'$maplist_'([], [], _)."
+           "'$maplist_'([X|Xs], [Y|Ys], G) :- call(G, X, Y), '$maplist_'(Xs, Ys, G)."
+           "maplist(G, L1, L2, L3) :- '$maplist_'(L1, L2, L3, G)."
+           "'$maplist_'([], [], [], _)."
+           "'$maplist_'([X|Xs], [Y|Ys], [Z|Zs], G) :- call(G, X, Y, Z), '$maplist_'(Xs, Ys, Zs, G)."
+           "maplist(G, L1, L2, L3, L4) :- '$maplist_'(L1, L2, L3, L4, G)."
+           "'$maplist_'([], [], [], [], _)."
+           "'$maplist_'([X|Xs], [Y|Ys], [Z|Zs], [W|Ws], G) :- call(G, X, Y, Z, W), '$maplist_'(Xs, Ys, Zs, Ws, G)."
 
            ;; ---- foldl/4..7 -----------------------------------------------
            ;; The accumulator travels as the last two arguments, so the goal is
@@ -75,27 +92,40 @@
            "'$scanl4'([X|Xs], [Y|Ys], [Z|Zs], [W|Ws], G, A0, [A1|As]) :- call(G, X, Y, Z, W, A0, A1), '$scanl4'(Xs, Ys, Zs, Ws, G, A1, As)."
 
            ;; ---- filtering ------------------------------------------------
-           ;; The cut in each clause is what makes these SEMIDET in the goal:
-           ;; `include' asks whether the goal succeeds, not how many ways.
-           "include(_, [], [])."
-           "include(G, [X|Xs], R) :- ( call(G, X) -> R = [X|R1] ; R = R1 ), include(G, Xs, R1)."
-           "exclude(_, [], [])."
-           "exclude(G, [X|Xs], R) :- ( call(G, X) -> R = R1 ; R = [X|R1] ), exclude(G, Xs, R1)."
-           "partition(_, [], [], [])."
-           "partition(G, [X|Xs], I, E) :- ( call(G, X) -> I = [X|I1], E = E1 ; I = I1, E = [X|E1] ), partition(G, Xs, I1, E1)."
+           ;; The if-then-else in each clause is what makes these SEMIDET in
+           ;; the goal: `include' asks whether the goal succeeds, not how many
+           ;; ways. The list first in the helper, as swipl's include_/3,
+           ;; exclude_/3 and partition_/4 (3.23.0).
+           "include(G, L, R) :- '$include_'(L, G, R)."
+           "'$include_'([], _, [])."
+           "'$include_'([X|Xs], G, R) :- ( call(G, X) -> R = [X|R1] ; R = R1 ), '$include_'(Xs, G, R1)."
+           "exclude(G, L, R) :- '$exclude_'(L, G, R)."
+           "'$exclude_'([], _, [])."
+           "'$exclude_'([X|Xs], G, R) :- ( call(G, X) -> R = R1 ; R = [X|R1] ), '$exclude_'(Xs, G, R1)."
+           "partition(G, L, I, E) :- '$partition_'(L, G, I, E)."
+           "'$partition_'([], _, [], [])."
+           "'$partition_'([X|Xs], G, I, E) :- ( call(G, X) -> I = [X|I1], '$partition_'(Xs, G, I1, E) ; E = [X|E1], '$partition_'(Xs, G, I, E1) )."
 
            ;; partition/5 sorts into three by a comparison, and the goal is
-           ;; called as call(G, X, Order) answering <, = or >.
-           "partition(_, [], [], [], [])."
-           "partition(G, [X|Xs], L, E, R) :- call(G, X, Order), '$partition5'(Order, X, L, E, R, L1, E1, R1), partition(G, Xs, L1, E1, R1)."
-           "'$partition5'(<, X, [X|L], E, R, L, E, R)."
-           "'$partition5'(=, X, L, [X|E], R, L, E, R)."
-           "'$partition5'(>, X, L, E, [X|R], L, E, R)."
+           ;; called as call(G, X, Order) answering <, = or >: swipl's
+           ;; partition_/5 and partition_/7, the order the second's key. An
+           ;; unbound order is taken as `<', once (the cut); any other is
+           ;; must_be/2's type_error(oneof([<,=,>]), O), where through 3.22.0
+           ;; the first failed and the second answered three times.
+           "partition(G, L, Ls, Es, Gs) :- '$partition_'(L, G, Ls, Es, Gs)."
+           "'$partition_'([], _, [], [], [])."
+           "'$partition_'([X|Xs], G, L, E, R) :- call(G, X, O), '$partition_'(O, X, G, Xs, L, E, R)."
+           "'$partition_'(<, X, G, Xs, L, E, R) :- !, L = [X|L1], '$partition_'(Xs, G, L1, E, R)."
+           "'$partition_'(=, X, G, Xs, L, E, R) :- !, E = [X|E1], '$partition_'(Xs, G, L, E1, R)."
+           "'$partition_'(>, X, G, Xs, L, E, R) :- !, R = [X|R1], '$partition_'(Xs, G, L, E, R1)."
+           "'$partition_'(O, _, _, _, _, _, _) :- must_be(oneof([<,=,>]), O)."
 
            ;; convlist/3 is maplist and include at once: the goal may fail, and
            ;; an element it fails on is dropped rather than failing the whole.
-           "convlist(_, [], [])."
-           "convlist(G, [X|Xs], R) :- ( call(G, X, Y) -> R = [Y|R1] ; R = R1 ), convlist(G, Xs, R1)."
+           ;; swipl's convlist_/3, the input list first.
+           "convlist(G, L, R) :- '$convlist_'(L, R, G)."
+           "'$convlist_'([], [], _)."
+           "'$convlist_'([X|Xs], R, G) :- ( call(G, X, Y) -> R = [Y|R1], '$convlist_'(Xs, R1, G) ; '$convlist_'(Xs, R, G) )."
 
            ;; ---- apply/2, the old spelling of call/N -----------------------
            ;; DEPRECATED IN SWI AND PRESENT THERE, which is the whole reason
@@ -103,8 +133,14 @@
            ;; write `call(G, A, B)' -- it does not know how many there are --
            ;; and `apply' is the name every Prolog book gives to that. Univ,
            ;; append, univ, call: the deprecation is about style, not about
-           ;; the thing not working.
-           "apply(G, Extra) :- G =.. L0, append(L0, Extra, L), G2 =.. L, call(G2).")))
+           ;; the thing not working. swipl's own clauses (boot/apply.pl), the
+           ;; module its meta-argument is qualified with taken off by
+           ;; strip_module/3 (3.23.0): what is no goal is
+           ;; type_error(callable, G), and an unbound one instantiation_error,
+           ;; where through 3.22.0 univ raised type_error(atom, G) and its
+           ;; own; a qualified goal is called in its module, where univ made
+           ;; it `:'/3; and an unknown procedure is '$apply':apply/2's.
+           "apply(G0, Extra) :- strip_module(G0, M, G1), ( atom(G1) -> compound_name_arguments(G, G1, Extra) ; compound(G1) -> compound_name_arguments(G1, N, A0), append(A0, Extra, A), compound_name_arguments(G, N, A) ; must_be(callable, G1) ), call(M:G).")))
 
 (generic decl-apply
   ()

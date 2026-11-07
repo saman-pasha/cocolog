@@ -33,9 +33,9 @@
 %% prompt a human edits most.
 %%
 %% EVERY COLUMN IS COMPUTED. Python had %-4s, %-28s, %-6s, %-40s and %5d;
-%% cocolog refuses ~t, ~| and ~+ by name -- F1 in the very card this file
-%% assembles -- so as_pad/3 and as_lpad/3 do the work. That is the documented
-%% fix for the trap, applied in the tool that ships the trap.
+%% cocolog refused ~t, ~| and ~+ by name through 3.32.0 -- F1 in the card
+%% this file assembles, until format/2 laid them out as swipl's -- so
+%% as_pad/3 and as_lpad/3 do the work, as they still do.
 
 :- use_module(library(json)).
 
@@ -492,13 +492,16 @@ as_symbols(BL, Libs, Text) :-
     as_get(T1, c, json(Cs)),
     findall(L,
             ( member(K-_, Cs), \+ as_dollar(K),
-              as_pad(K, 28, P), atomic_list_concat(['  ', P, ' det'], L) ),
+              ( atom_concat(_, '/*', K) -> D = ' ctl' ; D = ' det' ),
+              as_pad(K, 28, P), atomic_list_concat(['  ', P, D], L) ),
             CLines),
     findall(L, as_tier2_symbol(BL, Libs, L), T2Lines),
     append([ 'THE NAMES THAT EXIST. Anything else raises existence_error at run time.',
              '`det'' means a C table entry: it answers ONCE and leaves no choice point,',
              'so a failure-driven loop over one runs the body exactly once.',
              '`nondet'' means Prolog clauses: it backtracks.',
+             '`ctl'' means a control construct the engine runs itself: call/N and',
+             '`;'' answer as their goals do, retract/1 and clause/2 once a clause.',
              '',
              'Also present and not listed: assoc pairs ordsets yall aggregate ugraphs',
              'dcg_basics dcg_high_order -- SWI''s own files, vendored unmodified, and',

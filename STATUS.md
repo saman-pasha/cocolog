@@ -11479,3 +11479,1839 @@ is gone: a variable a left branch counted back to 0 pushed again onto the
 branch list it was on. Narrow cases green: files, errors, directives,
 reconsult, library, engine, cyclic, lint, flowchart, flowdebug, argv, and
 lesson basics/02 alone.
+
+## `$/1` and `G@M`, swipl's control constructs (3.20.0)
+
+`$(G)` is G, which must succeed and leave no choice point, and `G@M` is G
+called with M its context module: two of swipl's control constructs, which
+3.19.5 took for goals. Both are constructs now (`*construct-names*`, so the
+dispatch ids are held to 256 where they were 192, 191 of them used), and
+neither is an inference of its own (statistics/2 counts G's alone, as
+swipl's).
+
+`$(G)` RAN: a GOAL frame at CI before G runs, its alternative `'$det_fail'($(G),
+Ctx)`, and `'$det_exit'(CI, $(G), Ctx)` after it. Failing into the frame is
+G's failure, `determinism_error(G, det, fail, goal)`; a frame above CI that
+may still retry when G exits is a choice point left,
+`determinism_error(G, det, nondet, goal)` with G as it exited (`$(p(X)),
+X > 1` raises at p's exit, before the test, as swipl's); else the frame goes.
+G's cut is its own (`$(!)` cuts G alone). CTX is the frame swipl's compile
+puts it in: the clause it is written in, or `'<meta-call>'/1' where it was
+meta-called (call/1, once/1, catch/3, findall/3, a search's own goal). Not a
+choice point above CI: a DEAD frame (a catch's whose goal exited, a soft
+cut's else), CATCH_RETRY and SPENT, the kinds `coco_catch_exit` passes over;
+a CATCH frame G made is gone by then, and CLOCKED is none under trace.
+
+UNDER TRACE every call keeps a clause frame, its last candidate's too, for
+its Fail port, and `$(G)` would see a choice point no untraced run made. The
+tracer's shadow frame says so (`last`): set by the selection when it enters
+the last candidate, cleared where a traced call pushes the frame, which
+`printr` marks. A clear in every push cost queens 27 032 instructions and
+lookup 23 415 (zero.sh, work less padding); the traced push's alone costs
+what the whole change does (below). A frame no traced call
+pushed -- trace/0 turned on inside G -- goes at its last candidate as it
+does untraced (found by the arms: `$((p(X), on(X)))` with `on(1) :- trace,
+fail.` answered `nondet` where untraced it answers `yes`).
+
+G@M RAN: one namespace has no context module to set, so G runs as the
+program's goal, the cut the clause's (transparent, as swipl's), in the
+clause's frame -- an unknown procedure in it names the clause, swipl's
+I_CALLATM making no last call -- and meta-called in `'<meta-call>'/1'. An
+unbound M is an instantiation error and an M that is no atom (`[]` among
+them) type_error(module, M), named by the frame G@M runs in.
+
+META-CALLED, swipl's call/1 asks a G@M first, in the caller's frame: M
+unbound, then G unbound, an instantiation error; M no atom, type_error(module,
+M); the qualifiers of G the same; then G as any goal, whose fault is the
+whole G@M's (`coco_goal_check`, `coco_goal_formal`). Inside a structure an
+`@` whose M is bound and no atom is the compile's type_error(module, M), the
+first fault met left to right, and one whose M is unbound raises as it runs,
+in `'<meta-call>'/1' (`G = (true, @(foo, _)), call(G)`). once/1 and its kin
+ask theirs before any of it runs: `once((writeln(a), @(foo, 3)))` writes
+nothing.
+
+WHAT A CLAUSE STORES, as swipl's compiler keeps it: `$(G)`'s G is an arm
+(`$((a, (b, c)))` is `$((a, b, c))`, `$(X)` `$(call(X))`); G@M is said of
+each goal under it, as a qualifier is, through the constructs and into a
+`$` (`@((a ; b), m)` is `@(a, m) ; @(b, m)`, `@($(p), m)` `$(@(p, m))`), the
+innermost `@` winning and a qualifier staying inside it (`foo:@(p, m)` is
+`@(foo:p, m)`, `@(user:p, m)` `@(p, m)`), the goals compiled in place losing
+it (`@(true, m)` is `true`), under a variable qualifier each goal
+call(@(M:G, A)), and past the compile's 256 constructs the rest as one
+`@`. In passing: a variable goal under a variable module is call(M:X),
+where 3.15.0's compile made it call(call(M:X)).
+
+LOADS AND ASSERTS walk both as control (3.19.2's and 3.19.3's walks): `@`'s
+module before its goal, so `@(foo, 3)` is type_error(module, 3), `@(3, m)`
+type_error(callable, ...) of the body, and `@(foo, M), M = a` an
+instantiation error, the module a fresh variable.
+
+MESSAGES: an uncaught determinism error is said as swipl's -- `Goal G
+failed`, `Goal G succeeded with a choice point`, and its three other kinds
+(`property`, `guard`, `guard_in_caller`), in the engine's printer and in
+library(print_message)'s, which had the two of `goal` since 2.16.0 -- and
+the backtrace hides `'$det_fail'/2` and `'$det_exit'/3`. listing/1 and
+portray_clause/1 lay `$(G)` and `@(G, M)` out as swipl's. A `'$det_exit'`
+a program writes names no frame of `$/1`'s and cuts nothing.
+
+NOT SWIPL'S, and stated (COMPAT.md): `$/0`; the error's G holds the clause's
+own variables as G bound them, where swipl's decompiled goal has a fresh one
+for a variable the clause names nowhere else; and `$(member(X, [1]))` is
+nondet, as are select/3, between/3 at its bound and nth0/3 and nth1/3 with
+the index unbound on their last answers, where swipl's leave no choice point
+(their determinism, which nothing showed before).
+
+LIBRARY(FLOW) CHARTS BOTH (library/flow/read.pl, analyse.pl, layout.pl): a
+`$(G)` and a G@M are boxes with G inside them, as once/1's is -- a goal
+under them is read and placed (`nope25/1 is not defined` at its own
+column), its bars and asserts found; `$(G)` is det and never fails, its
+failure an error, and G@M is what its G is; the reader takes `$` and `@`,
+a symbol's token, as a goal's name. The generated tables have both
+arities (tools/flow/tables.pl, where `$` alone is no engine marker), and
+the debugger's calls inside them are matched to the chart's boxes
+(test/flowdebug.pl's why).
+
+THE CARD: X3's cite of lib/builtins.cicili moved with the construct list,
+and its anchor repeats in the file, so the range is corrected by hand
+(tools/cocolint/traps.jsonl).
+
+CHECK: test/files/det_at.pl (new; 294 lines with swipl 9.0.4: $(G) run
+plain and meta-called, G@M run plain and meta-called, what 49 clauses
+store, what 23 loads refuse and 25 of 27 asserts, listing/1 and
+portray_clause/1, the messages, the inference counts) -- all 97
+test/files cases agree; test/engine.pl's `det_traced` (untraced and
+`--trace`, trace/0 inside a `$`, a predicate with a dead clause, a
+disjunction's frame, a body deeper than the compile, a program's own
+`'$det_exit'`); test/errors.pl's `det_said` (the uncaught messages, their
+backtraces, G@M's, swipl's other kinds and one that is no `det` one);
+test/flowchart.pl's `findings_det_at` and test/flowdebug.pl's
+`asked_why_det`. 115 arms, each a rule taken out of one build by an
+environment variable (`coco_arm`) -- 110 in the engine, the store and the
+walks, 5 of library(print_message)'s rules -- and every one red in those
+checks but arm 83: a conjunction whose list of goals cannot grow, memory
+refused, stored as one `@` over the whole, which no case reaches; it is
+kept and stated. Five pieces of the first cut changed no answer and are
+gone: a CATCH frame passed over at `$(G)`'s exit (a catch G made is DEAD
+or gone by then); a CLOCKED frame passed over under trace (the clock marks
+no frame in a traced engine, `coco_clock_mark`); `coco_at`'s own test of an
+unbound G (the step raises the same error from the same frame); and `$` and
+`@` as structures to the meta-call's walk and its raise (`coco_part_bar`'s
+rule already gives their parts the meta-call's word). Thirteen arms of
+library(flow), each red in test/flowchart.pl, the two analyser boxes in
+test/flowdebug.pl too: the boxes, their notes, their determinism, the
+reader's meta arguments, its bars, its places and the symbol's token. Four
+of the debugger's matcher (library/flow/dbgmatch.pl: `$` and `@` as goals
+of their own and in the plan's meta items) stayed green, its own(all)
+probe among them -- the chart's boxes are what it matches -- and are gone;
+so is their place in the walk of a library's bodies for the world it
+reaches (`flow_goals_in/2`), as no library body writes either, nor not/1.
+
+THE UNTRACED ENGINE (tools/flow/zero.sh, work less padding, 3.19.5 to
+3.20.0): nrev 66 102 847 to 66 103 004 (+157), queens 43 031 803 to
+43 031 930 (+127), lookup 47 895 011 to 47 904 510 (+9 499, 0.020 %).
+
+Narrow cases green: lint, files, trace, backtrace, window, journal,
+engine, errors, gc, directives, static, script, reconsult, flowchart,
+flowdebug, and the test binaries solve, module, state, term and syntax.
+
+## `$/0`, swipl's determinism guard, carried through last calls (3.21.0)
+
+`$` cuts as `!` does and guards the frame it runs in -- the clause it is
+written in, or the `'<meta-call>'/1` a goal holding it is called in -- which
+must then succeed and leave no choice point, else
+`determinism_error(PI, det, fail|nondet, guard|guard_in_caller)`. Through
+3.20.0 it was an unknown procedure (COMPAT.md, "Not there at all").
+
+THE GUARD IS A FRAME AND A MARKER. `$` pushes a GOAL frame whose alternative
+is `'$det_fail0'(D)` -- backtracking into it is the guarded frame failing --
+and whose `goals` is the frame's EXIT MARKER, `'$k'('$det_end'(0), Owner,
+K)`, which a body that holds `$` is closed by as it is entered (`ex` 4) and
+a meta-called goal holding it by `coco_det_k`. Reaching the marker is the
+frame exiting: `coco_det_end` asks whether a frame above the guard may still
+retry (`coco_det_live`: none DEAD, CATCH, CATCH_RETRY or SPENT, nor a clause
+frame only trace keeps), raises `nondet` where one may, and otherwise takes
+the guard frame. The engine keeps the innermost guard frame (`dgh`) and,
+while its guard is on, its marker (`dgk`).
+
+A LAST CALL TAKES THE GUARD ON, as swipl's I_DEPART hands a frame's
+DETGUARD to the frame it calls. A call is a guarded frame's last call when
+its continuation is `dgk` -- one compare where the step calls a predicate
+(`coco_det_pcall`), fails a builtin (`coco_det_bfail`), meta-calls
+(`coco_det_meta`, `coco_det_kq`) or enters catch/3 (`coco_det_catch`).
+Where nothing above the guard frame may retry it is swipl's last-call
+optimisation: the callee's frame IS the caller's, its owner word now the
+callee's and its `$` no longer SET (so the error is `guard_in_caller`, named
+by the first frame down the chain whose own `$` set its guard); a predicate
+swipl marks transparent (`*swipl-transparent*`, 200 of them) drops the
+guard. Else the callee gets a guard frame of its own. A predicate swipl
+defines in C that cocolog's library writes as clauses (`*swipl-foreign*`,
+453; between/3, sub_atom/5, atom_concat/3) is one frame: its body runs on to
+an exit marker of its own, and the error names `system:between/3`. Both
+tables are lib/swipl-det.cicili, generated by tools/det/tables.pl under the
+reference swipl 9.0.4. What swipl's compiler does in place is no call
+(`cc_det_inline_last`, `ex` bit 8: `=/2` with a variable on either side,
+`==/2` and `\==/2` of two variables the clause names twice or a variable
+and an atom or a small integer, the type tests of a variable met before;
+the step `'$det_hide'` between that goal and the guard). call/N's goal, the
+left arm of a disjunction and catch/3's goal make no last call (each runs on
+to a continuation that is not `dgk`), and a cut never clears the guard
+(`coco_det_floor` raises the barriers of the cuts after `$` over its frame).
+
+WHAT ELSE MOVES THE CHOICE STACK sets the guard again: a throw's unwinding
+and a thaw find the innermost guard frame again (`coco_det_unwound`), a
+collection reads it from the frame whose marker moved (`coco_det_top`).
+Under trace a traced call keeps its frame where swipl's debugger makes no
+last call; cocolog's trace goes on making them, past the Exit markers
+(`coco_det_kk`), so a traced run answers as an untraced one (COMPAT.md).
+None of the guard's steps is an inference.
+
+test/files/det_guard.pl: 164 lines, swipl 9.0.4's byte for byte (the
+`files` case runs it under both); test/engine.pl's `det_guard_runs` holds
+the same answers under `--trace`, a collection every 2000 cells, KMAT=2,
+and a machine frozen and thawed every 25 inferences, and no Redo for a
+guard frame. test/flowchart.pl and test/flowdebug.pl hold library(flow)'s:
+`$/0` is a cut, and a clause is deterministic past its first `$`.
+
+THE ARMS (one build, `COCO_ARM=N` taking rule N out; the case plainly,
+under `--trace`, under the collector's torture, and frozen and thawed): 49
+rules, each red in one of the four but arm 37, the marker a clause matched
+in the store is closed by (`coco_try_store`): it runs only for a clause no
+program can be had for (memory refused, a frame past 2^24 slots), which no
+case reaches; it is kept and stated. Arm 31 (the thaw's guard) went red only
+once both its lines were armed: the height the walk starts from as well as
+the walk. Three arms of library(flow), each red in test/flowchart.pl: the
+cut, the commitment, and the determinism past `$`. The debugger's matcher's
+`$` clause stayed green -- without it `$` is planned as a call that never
+comes, and nothing is placed otherwise -- and is gone.
+
+THE COST, a compare where a guard may be on (tools/flow/zero.sh, work less
+padding, 3.20.0 to 3.21.0): nrev 66 103 117 to 66 333 037 (+0.35 %), queens
+43 031 930 to 43 342 082 (+0.72 %), lookup 47 904 371 to 48 180 952
+(+0.58 %). On nrev that is coco_try_clause's own +2.0 instructions an entry
+and the loop's +0.1 a step. The first cut was nrev +1.76 %, queens +1.49 %,
+lookup +1.22 %: the clause entry asked its guard questions in its body,
+which kept GOALS on the stack, and the step's local `k` lived on the stack
+for the whole loop because `coco_det_pcall` took its address (a store an
+inference to clear it). Three moves took it down. The guarded entry is a
+function of its own, `coco_try_clause_det`, which `coco_try_clause` jumps to
+from its top with its own arguments (+1.03 % on nrev): dispatched from
+inside the body instead, where the code's kind is asked anyway, the plain
+path's registers fell out otherwise and nrev paid 8 more instructions an
+entry. `coco_det_pcall` hands the continuation back. And the det entry
+writes no register for a guarded frame's last call, so the step that takes
+the registers asks nothing (it paid 3 instructions a step).
+
+NOT SWIPL'S (COMPAT.md): a guarded last call into a library predicate swipl
+writes in Prolog names cocolog's predicate (`member/2`) where swipl's names
+its helper (`lists:member_/3`); swipl's debugger makes no last call and
+cocolog's trace does; swipl's first call of a library predicate it has not
+resolved makes no last call, and cocolog has no autoloader; a `$/1` whose
+goal holds `$/0` is the clause's guard in cocolog, where swipl answers
+`$(($, true))` nondet; and `\+ ($, G)` in a condition, and `\+ \+ ($, G)`,
+stop swipl 9.0.4 on an assertion where cocolog raises the clause's `fail`.
+member/2, select/3, between/3, nth0/3 and nth1/3 still leave a choice point
+on their last answers, which `$/0` shows as `$/1` did.
+
+Narrow cases green: lint, files, errors, backtrace, window, journal,
+directives, static, script, reconsult, trace, gc, engine, flowchart,
+flowdebug, and the test binaries solve, module, state, term and syntax.
+
+## A clause ending on a goal swipl compiles in place keeps the plain entry (3.21.1)
+
+3.21.0 marked a clause whose last goal swipl compiles in place (`X = Y`,
+`X == Y`, a type test) as bit 8 of its code's `ex`, and `coco_try_clause`
+sent every code of `ex` 4 or more to the guarded entry, whether a guard was
+on or not. The mark matters only under a guard (the step that hides the
+guard from that goal), so every entry of such a clause paid the guarded
+entry's own work besides the plain function's prologue and
+`coco_det_enter`: about 90 instructions. A loop of 100 000 turns over two
+such clauses (`cp(X, Y) :- Y = X.`, `tt(X) :- atom(X).`) ran 242.3 million
+instructions on 3.20.0, 262.5 million on 3.21.0 (+8.3 %) and 245.6 million
+now (+1.4 %: the guard's compare where a framed call is made, 2
+instructions, and the loop's registers). None of zero.sh's three programs
+has such a clause, which is how 3.21.0's measurement missed it.
+
+The mark is the code's own field now, `dlast`, appended to `coco_code`, and
+`ex` has 3.20.0's values and 4. A clause ending so enters by the plain path
+while no guard is on, and by the guarded one under a guard.
+`coco_try_env`'s test of the guards-and-environment kind is 3.20.0's again
+(`ex` 3). Arm 52, the det entry's `dlast`, is red in the case, and arms 35
+and 36 follow the code. `(cold)` on `coco_det_pcall` was tried: it made all
+three of zero.sh's programs dearer (nrev +0.16 %, lookup +0.58 % over the
+build without it) and is not shipped.
+
+tools/flow/zero.sh against 3.20.0 (work less padding): nrev 66 103 059 to
+66 334 010 (+0.35 %), queens 43 031 930 to 43 342 034 (+0.72 %), lookup
+47 904 208 to 48 129 511 (+0.47 %). Start-up is unchanged: `cocolog query
+true` counts 33 291 186 instructions on 3.20.0 and 33 338 459 on 3.21.0,
+both binaries in the checkout (a copy elsewhere finds no `library/` beside
+it, preloads nothing, and counts 12.9 million).
+
+## member/2, select/3, nth0/3, nth1/3 and between/3 leave no choice point on their last answer (3.22.0)
+
+As swipl's: `$, member(X, [1])` is deterministic, and so is the last answer
+of each of the five, where through 3.21 each left a choice point there --
+which `$/1` (3.20.0) and `$/0` (3.21.0) showed as
+`determinism_error(member/2, det, nondet, guard_in_caller)` and swipl does
+not.
+
+THE FOUR LIST PREDICATES ARE SWIPL'S CLAUSES (lib/lists.cicili):
+`member(X, [H|T]) :- '$member_'(T, X, H).`, select/3 over `'$select3_'/4`,
+and nth0/3 and nth1/3 with the index unbound over `'$nth_gen'/5` (`L =
+[H|T]` first, as swipl's). The rest of the list is the helper's FIRST
+argument, so the call for the last element is keyed on `[]` and has one
+candidate. A determinism error names each helper as swipl names it:
+`*frame-contexts*` (lib/solve.cicili) takes a fourth field, swipl's own
+name, and `coco_det_pi` asks it -- `lists:member_/3`, `lists:select3_/4`,
+`lists:nth_gen/5`.
+
+BETWEEN/3 COUNTS ITS ANSWERS DOWN (lib/builtins.cicili). Its C half,
+`'$between'/4`, checks the three arguments as before and now decides a
+bound X itself (`L =< X =< H`), so `between(1, 3, 2)` is one step of C
+after the guard where it was three; for an unbound X it fails on an empty
+range and else hands `'$between_n'/3` N, the count of the answers after the
+first. The answer at 0 is the first clause's, keyed on 0, which cuts; any
+other count passes the first three clauses by the index, answers in the
+fourth and goes on in the fifth (two guards and a call an answer, where
+3.0.0's took three guards and a call, and a failing retry after the last).
+`inf` and `infinite` are N `inf`, an upper bound of none
+(`'$between_inf'/2`). A range whose count passes 64 bits (L < 0 =< H, H - L
+past the largest integer, `coco_sub_ovf`) is N `A+B`, the counts of L..-1
+and 0..H, each of which fits, enumerated one after the other.
+
+WITH THEM, sub_atom/5, atom_concat/3 in mode (-,-,+), clause/2 and
+string_code/3 leave no choice point on their last answers either, as
+swipl's: each enumerates through between/3. What still leaves one where
+swipl's does not (COMPAT.md): maplist/2..5, include/3, exclude/3 and
+partition/4,6, which write the goal first and the list after it, so every
+element leaves one; and current_op/3.
+
+A WINDOW'S QUESTION AT A FAILURE SEES NOTHING BOUND
+(`coco_engine_window`, lib/solve-loop.cicili). `'$trace_window'/4`'s
+`ask(Cond, Holds)` is asked over the bindings the run left, and a run that
+failed past its last choice point undid nothing on the way: test/window.pl's
+`w_pick(X)` (`member(X, [1,2,3]), X > 1`) left X = 3 for the question once
+member/2's last answer left no choice point to undo it. The run is undone
+to its start before the question at a failure (`out` 0).
+
+THE TRACER AND THE DEBUGGER show the helpers' calls, as they showed
+`'$between_up'/3`'s and `'$nth_gen'/4`'s: a retry inside member/2 is
+`Redo: '$member_'(...)`, as swipl prints a helper of the program's own --
+swipl's tracer hides its library's helpers and prints the Redo at the
+visible call (COMPAT.md). In library(flow/debug) a helper's calls have no
+box, so the binding view shows no Redo at member/2's box; test/flowdebug.pl
+holds a Redo and a Fail at a box with the program's own `mem/2` now
+(test/flowdebug/run.pl, two checks).
+
+THE CASES. test/files/det_guard.pl: 180 lines, swipl 9.0.4's byte for byte
+(sixteen more, l1..l16, the five's last answers and the helpers' names);
+test/files/between.pl, new: 48 lines, between/3's answers, its errors, the
+bounds of 64 bits, `inf`, a bound X and which answers leave no choice
+point. Moved with the helpers: test/window.pl (the recorder's and the
+printer's ports, a Redo of `'$member_'/3`, the answers one inference later,
+the clock's keys, 19 999 retries of between/3's where there were 20 000),
+test/engine.pl (three pinned counts, 1105 to 1075, 1162 to 1122 and 834 to
+804: between/3's answers one guard cheaper each, and no retry after the
+last), test/flowdebug.pl (thirteen checks: member/2's calls exit where
+they failed, and its helper's are `'$member_'/3`) and test/repl.pl, which
+CI's suite found after the commit: the toplevel's `member(X, [a,b])` closes
+`X = b.`, as swipl's, where it waited for a third `;` and said `false.`; the
+`;` and the `false.` are `member(X, [a,b]) ; fail`'s now, and a check of its
+own holds member/2's full stop.
+
+THE ARMS, a build each, the rule taken out, each red: member/2's,
+select/3's and nth0/3's and nth1/3's old clauses back (det_guard.pl, 6, 6
+and 10 lines); `coco_det_pi`'s ask of `*frame-contexts*` (det_guard.pl, 8:
+the error names `'$member_'/3`, though the context the row gives still
+names `lists:member_/3`); and between/3's seven (between.pl) -- the cut at
+0 (and det_guard.pl, 4), `inf`'s clause (6), `A+B`'s clause (6), the
+overflow's test in the C half (8: the count wrapped, and `-1..max` raises
+int_overflow at its second answer), the bound X's range in the C half (10),
+the bound X's clause and the empty range's failure; without the cut at 0,
+the clause for a bound X or the empty range's failure, the enumeration runs
+on past its last answer. And the window's undo at a failure: test/window.pl's `at a
+failure, what the failure left: nothing bound`.
+
+THE COST, callgrind over `cocolog run`, the same program's run with no
+work taken away, 3.21.1 to 3.22.0, instructions:
+- between/3, an answer of 200 000: 553 135 418 to 534 959 203 (-3.3 %); a
+  range of two, entered, enumerated and passed, 50 000 times: -7.4 %; a
+  bound X: -23.4 %; once/1 of one: -0.1 %; clause/2 of 20 facts: -1.9 %.
+- member/2, an answer of 200 000: -0.4 %; select/3: -0.5 %; nth0/3 and
+  nth1/3: +0.77 % (22 instructions an answer, the helper's fifth argument).
+- a SHORT call is where member/2 and select/3 pay: they are a call deeper,
+  one inference more at their entry, as swipl's. `( member(a, [a,b,c]) ->
+  true ; true )`, answered at the first element and cut: +442 instructions
+  a turn (+20.8 % of the loop's turn); at the third and last, +152
+  (+3.3 %); `select(b, [a,b,c], _)` cut: +563 (+15.4 %); `nth1(I, [a,b,c],
+  c)`: -479 (-6.6 %).
+- tools/flow/zero.sh, work less padding: nrev 66 334 230 to 66 333 912,
+  queens 43 342 109 to 40 342 889 (-6.92 %: its select/3 leaves no choice
+  point after the last of each list), lookup 48 129 715 to 48 128 803.
+
+THE COUNTS MOVE, the translator's among them: a member/2 or select/3 that
+answers is an inference more, a last answer an inference less, and each
+answer of between/3 one fewer. Four sections of test/translate.pl, their
+inferences on 3.21.1 and 3.22.0, the same library: newspaper_bank 2 680 862
+to 2 684 590 (+0.14 %), newspaper_corsica 4 179 243 to 4 170 669
+(-0.21 %), question_roles 664 264 to 664 550 (+0.04 %), newspaper_rognoni
+3 186 706 to 3 189 149 (+0.08 %); every text the same (the case is green).
+
+Narrow cases green: files, window, trace, engine, flowdebug, flowchart,
+backtrace, journal, gc, errors, directives, static, script, reconsult,
+library, cyclic, meter, string, units, rationals, async, thread, cowork,
+serialize, template, hex, astar, argv, reason, normalise, translate,
+process, text, os, signal, stream and lint, the test binaries term,
+syntax, solve, module and state, and lesson 51; and repl, once CI's suite
+on the commit had found it red (CI's whole suite is the gate this ring of
+cases is not).
+
+## library(apply) as swipl writes it: no element leaves a choice point (3.23.0)
+
+As swipl's: `$, maplist(atom, [a, b])` is deterministic, and so is every
+call of maplist/2..5, include/3, exclude/3, partition/4,5 and convlist/3
+with its list given, where through 3.22.0 each element left a choice point
+-- which `$/1` (3.20.0) and `$/0` (3.21.0) showed as a determinism error
+swipl does not raise.
+
+THEY ARE SWIPL'S CLAUSES (lib/apply.cicili): `maplist(G, L) :-
+'$maplist_'(L, G).` and its helper's two clauses, and likewise
+`'$maplist_'/3..5`, `'$include_'/3`, `'$exclude_'/3`, `'$partition_'/4`
+(the recursion in each branch, as swipl's), `'$partition_'/5` over
+`'$partition_'/7` and `'$convlist_'/3` -- the list the helper's FIRST
+argument, so its call is keyed on `[]` or `[_|_]` and has one candidate.
+Through 3.22.0 they wrote the goal first, which every clause shares, and
+the index could not pass the clause for `[]` over. partition/5 is
+swipl's partition_/7: an order the goal leaves unbound is taken as `<`,
+once (the order clause's cut), where 3.22.0 answered three times, and one
+that is none raises must_be/2's `type_error(oneof([<,=,>]), O)`, where it
+failed. apply/2 is swipl's boot/apply.pl over strip_module/3: what is no
+goal is `type_error(callable, G)` (through 3.22.0 univ's
+`type_error(atom, G)`, and its own for an unbound one), a qualified goal
+is called in its module (univ made `m:foo` the goal `:(m, foo, X)`), and
+an argument list that is none is compound_name_arguments/3's
+`type_error(list, L)`. foldl/4..7 and scanl/4..7 were list first already.
+
+THE FRAMES ARE NAMED AS SWIPL NAMES THEM: an unknown procedure, or what
+is no goal, called in a helper's body is `context(apply:maplist_/2, _)`,
+`apply:include_/3`, `apply:partition_/5`, ..., and foldl's and scanl's
+helpers, `'$foldl'/4` to `'$scanl4'/7`, are `apply:foldl_/4` to
+`apply:scanl_/7`; apply/2's is `'$apply':apply/2`. Through 3.22.0
+`maplist/2`, `'$foldl'/4`, `apply/2`. Nineteen rows of `*frame-contexts*`
+(lib/solve.cicili), the fourth field swipl's own name (3.22.0's).
+
+WHAT IS NOT SWIPL'S YET (COMPAT.md): a call whose FIRST list is unbound
+and another one given -- `maplist(succ, L, [2, 3])`,
+`maplist(=, [a|_], [a, b])` -- is deterministic in swipl, whose index on
+that other list tells the helper's two clauses apart (its JIT index, of
+any predicate called with its first argument unbound: `q(_, [1, 2])` over
+`q(_, []). q(_, [_|T]) :- q(_, T).` too), and leaves a choice point here
+on the last element: cocolog builds another argument's index from eight
+clauses up (`coco_pred_first_enough`), and below that keys the call on
+its first argument alone. And current_op/3, which leaves one on its last
+answer.
+
+THE CASE. test/files/apply_det.pl, new: 108 lines, swipl 9.0.4's byte for
+byte -- the answers of all seventeen and of apply/2, the frame each error
+names (an unknown procedure in each helper, an integer and an unbound goal
+for call/N), partition/5's order that is none and unbound, apply/2's
+errors, which calls leave no choice point, and that a guarded clause's
+last call of each drops its guard, swipl marking them transparent
+(`lc1` to `lc11`). test/files/apply.pl (25 lines) stays as it was.
+
+THE ARMS, a build each, the rule taken out, each red in apply_det.pl:
+maplist/2..5's old clauses (13 lines: the helpers' frames and seven
+calls that left a choice point), include/3's (4), exclude/3's (3),
+partition/4's (3), partition/5's (8), partition/5's three cuts (6: an
+unbound order answers four times, the clause for an order that is none
+taking every order too), its clause for an order that is none (2: the
+order fails), convlist/3's (3), apply/2's old univ clause (9: a qualified
+goal is `:'/3, `foo()` a domain error, what is no goal univ's error), the
+rows for the new helpers (16), for foldl's and scanl's (10) and for
+apply/2 (1).
+
+THE COST, callgrind over `cocolog -s`, a run over a list of 20 000
+integers less the same run over none, 3.22.0 to 3.23.0, instructions an
+element (numlist/3's share in both):
+- maplist/2 2 468.7 to 1 908.0 (-22.7 %), maplist/3 3 014.0 to 2 488.8
+  (-17.4 %), maplist/4 3 310.1 to 2 741.8 (-17.2 %);
+- include/3 3 331.9 to 2 637.3 (-20.8 %), exclude/3 3 217.9 to 2 523.3
+  (-21.6 %), partition/4 3 798.5 to 2 829.6 (-25.5 %), convlist/3 3 775.2
+  to 3 215.5 (-14.8 %);
+- partition/5 5 013.6 to 5 073.9 (+1.2 %): swipl's partition_/7 is keyed
+  on the order, and its clause for `<` and the one for an order that is
+  none are both candidates, so each element pushes a choice point the cut
+  takes, where 3.22.0's pushed one for the list and kept it;
+- foldl/4, whose clauses did not change, 2 705.1 to 2 687.1 (-0.7 %:
+  where the code fell).
+- Each is a call deeper, as swipl's: one inference more at entry. The
+  start-up reads the extra clauses: 33 844 918 to 34 042 473 instructions
+  for an empty run (+0.58 %).
+- tools/flow/zero.sh, work less padding: nrev 66 333 940 to 66 333 984,
+  queens 40 342 911 to 40 342 898, lookup 48 129 152 to 48 130 551.
+
+THE COUNTS of a program that calls them are an inference more a call;
+the translator's barely move: test/translate.pl's sections up to
+newspaper_units, 308 794 409 inferences on 3.22.0 and 308 794 625 now
+(+216), 3 290 checks green on both; newspaper_bank, newspaper_corsica,
+question_roles and newspaper_rognoni, 3.22.0's four, the same to the unit.
+
+Narrow cases green: files, window, trace, engine, flowdebug, flowchart,
+backtrace, journal, gc, errors, directives, static, script, reconsult,
+library, repl, cyclic, meter, string, units, rationals, async, thread,
+cowork, serialize, template, hex, astar, argv, reason, normalise,
+translate, process, text, os, signal, stream and lint, the test binaries
+term, syntax, solve, module and state, and lesson 51 (its output the
+same as 3.22.0's but for its clock's readings).
+
+## A call whose first argument cannot choose is keyed on another, as swipl's JIT index keys it (3.24.0)
+
+As swipl's: `$, maplist(succ, L, [2, 3]), true` is deterministic, and so is
+`q(_, [1, 2])` over `q(_, []). q(_, [_|T]) :- q(_, T).` -- where through
+3.23.0 a predicate of fewer than eight clauses keyed every call on its
+first argument alone, and the last clause tried left a choice point that
+`$/1` (3.20.0) and `$/0` (3.21.0) showed as a determinism error swipl does
+not raise.
+
+WHEN, as swipl's first_clause_guarded asks (pl-index.c, read at 9.0.4):
+the call's first argument unbound, or its first two candidates both of its
+key (swipl's "duplicate"). `coco_pred_probe` answers 3 there, for a
+predicate under the floor with more than one argument -- a 2 to every
+caller that does not ask further -- and only where it has found a second
+candidate, so a call with one pays nothing.
+
+WHICH, as bestHash chooses (`coco_pred_jit`, lib/kb-pred.cicili): of the
+call's bound arguments 1 to 8, the one whose assessment over the clauses
+promises the most (`coco_jit_assess`: N clauses, D distinct keys, V
+clauses with none, N*D / (N - V + V*D), divided by 1 + stdev*D/N of the
+keys' counts, and nothing where V passes a tenth of D), the first on a
+tie; where that one is the first argument, the call keeps its first
+argument's walk. Swipl's rule that one value that is no compound promises
+nothing is not kept: such an argument promises 1, less than any argument
+of two values or more, and keyed on it a call has the candidates no index
+gives it, all or none -- its arm changed no answer, and it was taken out.
+The assessment is kept until the clauses change (`tver`: `j0ver`/`j0spd`
+on the predicate for the first argument, `aver`/`aspd` on another's
+`coco_argix`), written under the green barrier as the index is.
+
+WHERE: the step's term path asks out of line (`coco_term_jit`, weak, its
+answer and the argument in one int, so the loop takes no local's address
+for it). A call from the registers whose probe answers 3 goes the long way,
+building its term: a fourth answer in the registers' test made it a jump
+table, five instructions a call. A TRACED call is keyed on the argument an
+untraced one would be (`coco_trace_kpos`, which asks `coco_pred_select` for
+a big predicate too): through 3.23.0 every traced call was keyed on its
+first argument, so a `$` under `--trace` could raise where the run did
+not. It is asked in the trace's own arm of the test, so an untraced push
+asks nothing: a test at the push cost queens 0.2 % of its work, and
+marking `coco_trace_kpos` cold moved the loop's layout, nrev +0.65 % and
+lookup +1.95 %.
+
+WHAT IS NOT SWIPL'S (COMPAT.md, each row probed against 9.0.4): a
+predicate of eight clauses or more keeps cocolog's fewest candidates for
+the call's own keys (`coco_pred_select`), and swipl's assessment can key
+such a call elsewhere (`b8(_, b, x)`: swipl's bucket on the third argument
+holds three clauses, cocolog's on the second one); swipl walks an index it
+built at an earlier call whatever the clauses come to promise, and keeps
+an argument it judged unfit while a dynamic predicate had one clause until
+the count reaches a power of two, where cocolog chooses again at each
+call; no deep index inside a compound every clause shares (`dp([a|T],
+X)`); no index of two arguments together (`m2(b, y, _)`, swipl's
+`multi([1,2])`); a float's, a string's, a big integer's and a rational's
+key is none; no argument past the eighth; and while a retracted clause is
+still visible to an open call, a new call is keyed on its first argument
+alone (`coco_pred_probe_dead`). And SWIPL 9.0.4 MISREADS A KEY: in a head
+with two anonymous variables in a row right before the argument asked
+(`v(_, _, x)`), pl-comp.c's skipArgs returns the H_VOID_N they compile to
+when the skip ends exactly at its end, not the instruction after it, so
+that clause's key there reads as none, the clause is a candidate for every
+value, and the argument is judged unfit: `$, v(_, _, x), true` over `v(_,
+_, x). v(_, a, y). v(_, b, y). v(_, c, y).` raises in swipl and is
+deterministic here, which reads the key. Not copied, as 9.0.4's assertion
+in `\+ ($, G)` is not (3.21.0).
+
+THE CASE. test/files/jit_index.pl, new: 78 lines, swipl 9.0.4's byte for
+byte -- which argument the calls of twenty-three predicates are keyed on (the
+first argument unbound and another bound, of two clauses and of seven; the
+first two candidates of one key; the variables some clause leaves; a
+functor and an atom; dynamic predicates changed by assertz, asserta and
+retract in an order whose answers swipl's history does not decide;
+maplist/3 with its first list unbound or partial; and each rule: the
+variables past a tenth, the first of a tie and the first argument against
+another, the spread, and calls from the registers under `$/1`), told by
+`$/0`, `$/1` and the answers. 3.23.0 gets 27 of its lines wrong.
+test/engine.pl's new section `jit_runs`: the case's answers under
+`--trace` and under a collection every 2000 cells, and the argument chosen
+again after an assertz (`ja/2`, `jb/3`, where swipl's history leaves a
+choice point).
+
+THE ARMS, a build each, the rule taken out, each red: the first argument
+unbound asks no other (24 of the case's lines), the first two candidates
+of one key ask none (3), the variables' tenth (2), the spread (2), the
+last of a tie (3, and the choice made again), a call from the registers
+pushing its frame keyed on its first argument (2), a traced call keyed on
+its first argument (27 lines under `--trace`, none untraced), and the
+assessment never made again (the choice made again, alone).
+
+THE COST, tools/flow/zero.sh, work less padding: nrev 66 333 984 to
+66 232 949 (-0.15 %), queens 40 342 898 to 40 325 605 (-0.04 %), lookup
+48 130 551 to 48 110 527 (-0.04 %) -- none of the three asks the new path.
+A call that asks it, callgrind over a run of 20 000 less the same over
+none, instructions an element: maplist(succ, L, Ns) with L unbound 3 118.9
+to 2 965.1 (-4.9 %), `q(_, Ns)` 1 207.2 to 1 088.2 (-9.9 %), and `w(_, b)`
+from the registers 1 897.5 to 1 893.5 (-0.2 %: the long way builds the
+term the frame it no longer pushes cost). Inferences do not move:
+test/translate.pl's sections up to newspaper_units, 308 794 629 on 3.23.0
+and on 3.24.0, 3 290 checks green on both.
+
+test/window.pl's heads a window records (1.11.2) had `w_kv(K, 2)` try
+every clause, its first argument unbound: it is keyed on its second now,
+and the heads it passes over are not recorded, as the case says of the
+first argument's (two checks, red on 3.23.0); every clause is tried of
+`w_kx/2`, a clause of which leaves the second argument unbound (the old
+two checks, as they were). Its clock's retry checks (1.13.7) need a retry
+whose head does not unify: `w_pm/2`'s and `w_pq/2`'s heads differ inside a
+compound both share, which no index looks into, where through 3.23.0 they
+differed in the second argument, which keys them now.
+
+Narrow cases green: files, window (red at first, as above, and run again
+alone), trace, engine, flowdebug, flowchart, backtrace, journal, gc,
+errors, directives, static, script, reconsult, library, repl, cyclic,
+meter, string, units, rationals, async, thread, cowork, serialize,
+template, hex, astar, argv, reason, normalise, translate, process, text,
+os, signal, stream and lint, the test binaries term, syntax, solve, module
+and state, and the lessons that speak of choice points (basics 05, 07 and
+08, library 01 and 37) and lesson 51.
+
+## current_op/3, current_predicate/1, predicate_property/2 and sub_atom/5 leave no choice point at their last answer (3.25.0)
+
+As swipl's C predicates: `$, current_op(_, _, is), true` is deterministic,
+and so are `current_op(_, _, -)` at its second answer,
+`current_predicate(foo/1)`, `predicate_property(foo(_), dynamic)` and
+`sub_atom(abc, B, 1, A, c)` -- where through 3.24.0 each walked a list with
+`'$cp_member'/2`, the goal first and the list after it, and the last
+element left a choice point.
+
+CURRENT_OP/3 walks what `'$ops'/4` hands back (lib/builtins-db.cicili,
+through 3.24.0 `'$ops'/1`, the whole table): only the operators the call's
+bound arguments name, so its last match is its list's last element, and a
+NAME GIVEN in swipl's order -- the program's definitions before the
+system's, each prefix before infix: `-` is 200 fy and then 500 yfx (through
+3.24.0 500 yfx first), a program's `===>` declared 700 xfx and then 200 fy
+answers 200 fy first, and its infix `volatile` comes before the system's
+prefix one. The walk is `'$cp_in_'/3`, member/2's helper under a private
+name (a program's member/2 joins the library's), the list split where the C
+half answers, so no step is added. With its name unbound current_op/3
+answers in its tables' order and the last answer leaves none: swipl's
+answers in its hash tables' order, and its last answer leaves a choice
+point or none by where they put it (`current_op(1200, T, N)` none,
+`current_op(P, fx, N)` one; COMPAT.md).
+
+CURRENT_PREDICATE/1 named whole is a check, memberchk/2 over the list
+`'$predicates'/1` builds; with a part unbound swipl's leaves a choice
+point at every answer, its last too, and so does cocolog's, which keeps
+`'$cp_member'/2` there. PREDICATE_PROPERTY/2 of a head given is a check
+for a property given and walks the properties with `'$cp_in'/2` for none,
+the last leaving no choice point. SUB_ATOM/5 with the text it looks for
+given walks the places with `'$cp_in_'/3`, and `'$sub_atom_positions'/5`
+(through 3.24.0 `/4`) keeps the place given alone, so a place given is a
+check. Postfix operators, which cocolog has none of, are not here.
+
+THE CASE. test/files/current_det.pl, new: 55 lines, swipl 9.0.4's byte
+for byte, traced too -- the four predicates' calls that leave a choice point
+and those that do not, at a first answer and at a last, and current_op/3's
+order of a name's definitions, the system's and a program's. 3.24.0 gets
+41 of them wrong.
+
+THE ARMS, a build each, the rule taken out, each red: current_op/3's walk
+as through 3.24.0 (18 lines), `'$ops'/4` handing back the whole table
+(18), of a name given the tables' own order (9), the system's table first
+(2), current_predicate/1 named whole walked (3), predicate_property/2 with
+its property given walked (3) and its walk as through 3.24.0 (2), the
+place given not kept alone (2), and sub_atom/5's walk as through 3.24.0
+(9).
+
+THE COST, callgrind over 2 000 calls less none, instructions a call:
+`current_op(_, _, is)` 87 523 to 13 195 (-84.9 %), all of `-`'s answers
+174 722 to 28 100 (-83.9 %), `predicate_property(foo(_), dynamic)` 11 346
+to 9 209 (-18.8 %), `sub_atom(abcdefabc, _, _, _, c)` 10 675 to 10 390
+(-2.7 %) and with its place given 11 309 to 9 938 (-12.1 %), and
+`current_predicate(foo/1)` 9 576 to 10 203 (+6.5 %: the if-then-else; the
+list of every predicate it builds is the rest). tools/flow/zero.sh, work
+less padding: nrev 66 232 935 to 66 232 851, queens 40 325 605 to
+40 325 643, lookup 48 110 851 to 48 108 195. The translator, whose
+sub_atom/5 is the one of the four it calls: test/translate.pl's sections
+up to newspaper_units 308 794 629 inferences on 3.24.0 and 308 475 927 on
+3.25.0 (-0.10 %: a place given is no walk), 3 290 checks green on both;
+with the place checked in the clause, a first cut's if-then-else, they
+were 309 472 937 (+0.22 %).
+
+## A determinism error names a library's frame with its module, and library(lists) is swipl's clauses (3.26.0)
+
+As swipl's pl-wam.c names it: `p :- $, append(_, _, [1, 2]).` raises
+`determinism_error(lists:append/3, det, nondet, guard_in_caller)` with
+`context(lists:append/3, _)`, where through 3.25.0 it said `append/3`;
+`$, append([_, [2]], [1, 2])` names lists:append_/2, `$, reverse(_, _)`
+lists:reverse/4, `$, length(_, _)` `'$length3'/3` (context
+`system:'$length3'/3`), `$, gen_assoc(_, A, _)` assoc:gen_assoc_/3,
+`$, is_of_type(integer, a)` error:is_of_type/2, and an unknown procedure
+max_member/3's body calls `context(lists:max_member_/4, _)`.
+
+THE ROWS. Every library(lists) and library(error) predicate cocolog writes
+has a row of `*frame-contexts*` (lib/solve.cicili) naming swipl's module
+for it, sumlist/2's backward_compatibility, and each helper its row by
+swipl's own name for it -- `'$append2'/2` lists:append_/2, `'$perm'/2`
+lists:perm/2, `'$last_gen'/3` lists:last_/3, and the C halves the
+clauses end in: `'$sum'/3` lists:sum_list/3, `'$maxl'/3` lists:max_list/3,
+`'$numlist'/3` lists:numlist/3. A row's fifth field is another arity:
+reverse/2's own frame is a determinism error's only where its C half
+failed (its clause always hands the guard on), which swipl's names
+lists:reverse/4. `coco_det_pi` names no `system` or `$` module, as swipl's
+GP_HIDESYSTEM, so `'$length3'/3`'s `system` row names its context alone.
+
+THE MODULE OF A READ. A predicate whose first clause a module/2 read added
+carries that module (`pmod`, appended to `coco_pred`: the read's
+`ssu_mod`, `user` and `system` none, `coco_pred_note_mod` in
+`coco_assert_from`), which `coco_frame_mod` hands `coco_det_pi` and
+`coco_owner_ctx`: the vendored libraries' predicates are named as swipl's
+(assoc:gen_assoc_/3, ordsets:union2/4, pairs:pairs_keys/2,
+dcg_high_order:sequence_/4 in an unknown procedure's context), and so is a
+program's module file's (test/library.pl's `module_names`). One namespace:
+a program's predicate that a module's read then joins keeps the program's
+name, the first read that gave it a clause naming it.
+
+THE CLAUSES. The library(lists) predicates whose frames or answers were
+not swipl's are swipl's clauses (lib/lists.cicili): length/2's declined
+case over `'$length3'/3` (a tail that is the length itself stays the C
+half's, which fails it); append/2's must_be(list, L) (a partial list of lists ran for ever);
+prefix/2's own recursion (it was append/3's); select/4 over
+`'$select4_'/4`; selectchk/3 committing to the first match, so
+`selectchk(X, [a, b], [a])` fails where it answered X = b; nth0/4 and nth1/4
+over `'$generate_nth'/5` and `'$find_nth0'/4`, a bound index must_be/2's
+(type_error(nonneg, a), type_error(positive_integer, 0), where they failed)
+and found by a walk that cuts (`nth0(1, [a, b, c], E, R)` left a choice
+point); reverse/2's declined case over `'$reverse4'/4`, the second list
+bounding the walk (`reverse(L, [1, 2])` searched for ever after its
+answer); proper_length/2, permutation/2 (type_error(list, a) where it
+failed), list_to_set/2 over sort/4 and pairs_keys/2 (n log n, where each
+element was asked of every one kept before it), is_set/1 and clumped/2.
+
+THE CASE. test/files/det_names.pl, new: 118 lines, swipl 9.0.4's byte for
+byte, traced and under COCOLOG_GC_CELLS=2000 too -- 20 calls that leave a
+choice point, 49 that fail, 7 that do not, 27 goals' answers and 15
+errors, over library(lists), library(error) and the vendored assoc, pairs,
+ordsets and dcg/high_order. 3.25.0 differs at 112 of them, and at `reverse(L, [1, 2])`'s answers runs
+for ever.
+
+THE ARMS, a build each, the rule taken out, each red: the public
+predicates' rows (27 lines), the helpers' rows (23), a row's own arity
+always (reverse/2's C half named lists:reverse/2, 2), `'$length3'/3` with
+no `system` row (2), a `system` module kept in the formal (2), no predicate
+taking a read's module (9), the module not asked by an unknown procedure's
+context (9) and by a determinism error (8), length/2's clause as through
+3.25.0 (2), append/2 with no must_be/2 (27: `append(_, [1])` runs until the
+kernel kills it for memory), prefix/2 over append/3 (2), select/4 (3),
+selectchk/3 (1), nth0/4 and nth1/4 (11), proper_length/2 (1), reverse/2's
+clause (81: it runs for ever), permutation/2 (3), list_to_set/2 (3),
+is_set/1 (1) and clumped/2 (2) as through 3.25.0; and a module's read
+naming a predicate the program gave clauses first, red in test/library.pl's
+`module_names`, which names mn_mod:mn_j/1 where swipl's and cocolog's say
+mn_j/1.
+
+NOT SWIPL'S (COMPAT.md): a library(lists) predicate cocolog answers in its
+C half -- nth0/3 and nth1/3 with the index given, last/2 of a proper list
+-- is one frame, and its failure names it (lists:nth0/3, lists:last/2),
+where swipl's names the helper its clause reached (lists:nth0_det/3,
+lists:last_/3); a system predicate swipl had not resolved in `user` when
+the clause was read (msort/2, sort/4, memberchk/2, atomic_list_concat/2,
+string_code/3 at 9.0.4's start) gets no last call there (pl-comp.c's
+lookupBodyProcedure, pl-vmi.c's I_DEPART), so its failure names the
+caller, where cocolog's names the predicate; and a program's own clause
+for a library predicate joins the library's (one namespace), so its
+error names lists:member/2 where swipl's user:member/2 is the program's
+alone.
+
+THE COST, inferences a call, 3.25.0 to 3.26.0: is_set/1 of 20 elements
+429 to 8, list_to_set/2 of 20 210 to 119 and of 2 11 to 24, nth0/4 with an
+index 10 to 14 and nth1/4 10 to 15 (must_be/2), nth0/4 without one 10 to
+11, prefix/2 6 to 5, select/4 5 to 6, clumped/2 of 5 20 to 21,
+permutation/2's first answer 18 to 29, append/2 of three lists 14 to 18;
+selectchk/3, reverse/2, length/2 and proper_length/2 the same. The
+translator: test/translate.pl's sections up to newspaper_units 308 475 927
+inferences on 3.25.0 and 308 519 613 on 3.26.0 (+0.014 %), 3 290 checks
+green on both.
+tools/flow/zero.sh, work less padding: nrev 66 232 836 to 66 003 313
+(-0.35 %), queens 40 325 613 to 40 325 380, lookup 48 109 119 to
+48 109 149: nothing the step runs changed, and nrev's fall is where the
+build put things.
+
+Narrow cases green: files, window, trace, engine, flowdebug, flowchart,
+backtrace, journal, gc, errors, directives, static, script, reconsult,
+library, repl, cyclic, meter, string, units, rationals, async, thread,
+cowork, serialize, template, hex, astar, argv, reason, normalise,
+translate, process, text, os, signal, stream and lint (red at first on a
+card cite the kb head's new lines moved and two acknowledgements no
+finding needed, and run again alone), and lesson library/01.
+
+## max_member/2,3 and min_member/2,3 are swipl's single-sided rules (3.26.1)
+
+As swipl 9.0.4's library(lists) writes them: `max_member(Max, [H|T]) =>
+max_member_(T, H, Max)`, the /3 forms asking the order as `call(Pred, H,
+Max0)` and `call(Pred, Min0, H)` and keeping Max0 and Min0 when it holds.
+Through 3.26.0 the /3 forms asked `call(P, Max0, H)` and took H, so of two
+elements the order ties the other one was kept --
+`max_member([A,B]>>(A=<B), M, [1, 1.0])` answered 1.0 where swipl's
+answers 1 -- and the /2 forms sorted the list (msort/2), so an unbound,
+partial or improper list failed or raised msort/2's instantiation error
+where swipl's matches no rule.
+
+THE RULES (lib/lists.cicili): the four over `'$max_member_'/3,4` and
+`'$min_member_'/3,4`, each `=>` as swipl's, so a list no rule matches raises
+existence_error(matching_rule, Goal). THE NAME IT RAISES WITH: a
+single-sided rule's last clause, `H :- '$ssu_none'(Mod, G)`, takes its
+predicate's row of `*frame-contexts*` where it has one (`coco_ssu_last`,
+lib/kb-consult.cicili, `coco_frame_ctx` declared in the kb head): the row's
+module, and for a helper H under swipl's name, its arguments H's -- so
+`max_member(_, [a|_])` raises existence_error(matching_rule,
+lists:max_member_(_, a, _)) with context(lists:max_member_/3, _), as
+swipl's, and `max_member(_, _)` lists:max_member(_, _); a predicate with no
+row names the read's module as before. The rows: `'$max_member_'/3,4` and
+`'$min_member_'/3,4` (lists:max_member_/3,4, lists:min_member_/3,4), where
+`'$max_by'/4` and `'$min_by'/4` stood.
+
+THE CASE. test/files/max_member.pl, new: 48 lines, swipl 9.0.4's byte for
+byte -- ties under `=<`, `<`, `>=`, `@=<` and a length order, the standard
+order's answers, the empty list, the unbound, partial and improper lists'
+rules, the order's own errors, and that each call leaves no choice point;
+3.26.0 differs at 21 of them. Not swipl's (COMPAT.md): the culprit's
+meta-argument is as the call wrote it, `lists:max_member(le, _, _)`, where
+swipl's qualifies it, `lists:max_member(user:le, _, _)`: the case shows a
+culprit by its module and functor.
+
+THE ARMS, a build each, the rule taken out, each red: max_member/3's order
+as through 3.26.0 (3 lines), min_member/3's (4), the /2 forms sorted (7),
+the /3 forms' public clauses plain clauses (2: an unbound list is the
+helper's error), the last clause under cocolog's name for a helper (7) and
+under the read's module rather than the row's (14).
+
+THE COST, inferences a call, 3.26.0 to 3.26.1: max_member/2 of 3 elements
+9 to 16 and of 20 9 to 84, min_member/2 of 20 6 to 103 (the list walked in
+Prolog, where msort/2 sorted it in C), max_member/3 of 20 120 to 122 and
+min_member/3 of 20 101 to 141. tools/flow/zero.sh, work less padding: nrev
+66 003 219 to 66 003 270, queens 40 325 380 to 40 325 457, lookup
+48 108 852 to 48 109 392: the start-up reads the longer clauses, and
+nothing the step runs changed.
+
+Narrow cases green: files, flowchart, flowdebug, library, errors, trace,
+window, engine, static and lint (red at first on the card's I1 cite, which
+the kb head's new declaration moved, and on the case's own
+`error(F, context(C, _))` pattern, cocolint's S1; run again alone), and
+lesson library/51.
+
+## The tracer shows a library's call and hides what it calls, as swipl's (3.27.0)
+
+As swipl 9.0.4's debugger prints it (pl-trace.c's isDebugFrame and
+dbgRedoFrame): a library predicate, or a builtin, that a program's clause
+calls is a port, and what it calls is not -- its helpers and the builtins
+they call -- but a predicate of the program's that it calls back is
+(max_member/3's order, forall/2's action); a retry inside one is printed as
+the Redo of the library call the program made, once that call has exited.
+Through 3.26 every helper's ports were printed: `Call: (2)
+'$member_'([2],_G1,1)' under member/2, `'$nth_gen'/5', `'$between_n'/3',
+append/3's own recursion, and their Redos where swipl's says
+`Redo: lists:member(...)'.
+
+WHICH PREDICATES HIDE WHAT THEY CALL (lib/solve-control.cicili,
+`coco_trace_hc', asked in the step's dispatch order): a builtin's row, the C
+of a compiled-in module (`coco_sysclaims_hook': the tier-1 rows and green's,
+library(async)'s C half -- not the load's claims, so nothing a program can
+take over moves), and a predicate of the store by its `pattrs' 32. Without
+green's rows async_workers/1's `'$async_workers'/1' was shown (the first
+cut's claims had the tier-1 tables alone); and the store comes after the
+modules because a fact a program asserts under a module's C name -- a
+`'$path_base'/2' -- is no predicate the call reaches, files' C answers it,
+and asked first its predicate would show what file_base_name/2 calls.
+
+THE MARK IS swipl's HIDE_CHILDS, decided by a predicate's first clause in a
+read (`coco_assert_from', as swipl's assert_term decides it): set where the
+machine's `nodbg' is 1, cleared where it is 0, and no later clause moves
+it. `nodbg' is swipl's generate_debug_info false, set by the directive
+(`coco_directive') and by set_prolog_flag/2 as a goal (`lb_set_flag'),
+saved and put back around each read (`coco_consult_oid'), so the file
+read after one that ends with it false is the program's again; and a
+compiled-in module's text, or a preloaded library's, starts at true
+whatever the read it is nested in said (lib/module.cicili) -- a `run'
+file's first directive reads them inside its own read. cocolog's system
+libraries say it at their head as swipl's do: the halves of lists,
+builtins, dcg, files and library, library/print_message.pl and
+library/async.pl; the vendored aggregate.pl and ordsets.pl say it
+themselves. apply, pairs, assoc and yall are debuggable in swipl, and here.
+A library's predicate is marked 64 too (its first clause a `noexp' read's),
+and each later clause a read gives it decides again: a program's clause for
+member/2 joins lists' (one namespace, card row N1), where swipl's program
+has a member/2 of its own, debuggable.
+
+THE PORTS: a hidden call's frame has PRINTR 2 (`coco_tchoice', no new
+member), and it has no Exit or Fail port (the `'$trace_exit'' marker, the
+builtin's two sites, `coco_trace_fail', `_nomatch', `_spent'). A retry
+inside one is the Redo of the outermost call of its region whose caller does
+not hide (`coco_trace_region', `coco_trace_redo_at'), printed as the retry
+begins, before the selection, whether or not a head then matches
+(`coco_trace_paint') -- swipl reports a retry before it tries a clause --
+and nothing while that call has not exited. A builtin that starts an engine
+hands the tracer on (`coco_trace_inner'): findall/3, forall/2 and
+call_limited/3 in the builtin's context (swipl's clauses for them, and
+call_with_inference_limit/3's), with_output_to/2 in none (swipl's C runs a
+query of its own, and member/2 in it is shown), one deeper, and a boundary
+no Redo crosses (`trace_bhc', appended to the engine; `nodbg' to the
+machine). The recorder (`trace' 2, library(flow/debug)) and the quiet trace
+(3) keep every call.
+
+THE CASE. test/trace.pl, 88 checks: test/trace-library.pl's 32 queries held
+to swipl 9.0.4 port for port (library calls and a goal failing into them,
+max_member/3's callback, forall/2, findall/3, msort/2, sum_list/2,
+list_to_set/2 over library(pairs), permutation/2, phrase/2, a files and a
+library predicate cocolog writes as clauses, member/2, append/3, between/3,
+nth0/3 and select/3 failed past every answer, a program predicate between a
+library call and its retry, max_member/2's rule whose body is `fail'; and
+the flag: false by the directive and by a goal, true by both, a predicate's
+first clause deciding, a directive's goal under false reading the libraries
+with their own flag, and a `true', a `fail', a qualified builtin and a
+builtin of no arguments in a clause under false), a second file after one
+that ends under false, and eight lines swipl has none of held to cocolog's
+own (a program's clause for member/2 joining lists', before and after the
+library's read; with_output_to/2's query; call_limited/3's search, a
+library call in it hidden and a program's predicate shown;
+print_message/2; async_workers/1; and a fact the program asserted under a
+module's C name, files' `'$path_base'/2', which leaves what
+file_base_name/2 calls hidden: the store is asked after the modules, as
+the step dispatches). The trace is switched on inside the goal
+for the library file, as test/trace-library.pl has a directive's goal that
+`--trace' would print as the file is read. test/window.pl: a window's
+recorder keeps a helper's calls and the printer does not.
+Not swipl's (COMPAT.md): once/1, ignore/1, not/1 and catch/3 are no frames,
+so the library call in them is the program's and shown, where swipl shows
+`^  Call: once(G)'; with_output_to/2's goal has no frame of its own;
+findall/3's goals are one level below it, where swipl's are five; apply's
+helper is `'$maplist_'/3', swipl's `maplist_/3'; a file read again keeps
+the mark its first read gave; a clause whose body is `true' alone prints
+that `true''s ports, where swipl's compiler makes it a fact; and a retry of
+a program's predicate whose remaining heads all fail prints nothing, where
+swipl's prints its Redo and its Fail (as through 3.26).
+
+THE ARMS, a build each, the rule taken out, each red (the lines of
+test/trace.pl as it stood when the arm ran). The mark: the directive's
+false not set (28 lines), its true (1), the goal's true (1) and false (2),
+the read's flag not put back (1: the second file), a compiled-in module's
+text not started at true (1: f(S), pairs_keys/2's helper hidden), every
+clause deciding (2), a library's predicate not decided again by a later
+clause (1: the clause read after the library's), the library's mark from
+any read (2) and the mark itself never set (28). The libraries' heads:
+lists (21), builtins (3), dcg (1), files (1), library (1), and
+library/print_message.pl and library/async.pl (1 each, the files alone, no
+build). Which predicates hide: a builtin's row by its functor (12) and by
+an atom's name (1: `nl'), the compiled-in modules' C (11), green's among
+them (1: async_workers/1), the store asked before the modules (1: the fact
+under `'$path_base'/2'), the store's mark (31), and the caller's context
+(81: every call hidden). The ports: the Call port's question (31), its
+Exit (31), its Fail at a builtin's sites (7) and from its frame's
+`coco_trace_fail', `_nomatch' and `_spent' (1), PRINTR 2 (25), and a
+`true' and a `fail' (2: max_member/2's rule, nt) and a builtin a library's
+taken name reaches (1: is_list/1 under must_be/2) in a clause that hides.
+A builtin's search: findall/3's goals handed the tracer (2),
+call_limited/3's (1: the program's predicate in it), with_output_to/2's a
+query of its own (1), one deeper (3), in the builtin's context (3), and the
+boundary no Redo crosses (1).
+The Redo: on the region's call (17), the walk stopping at a caller that
+does not hide (9), a written `;' in a library's clause its call's (3) and
+found by its goal and depth (3), a call that hides nothing its own Redo
+(15), printed before the selection (9) and only where it is another call's
+(8), and nothing while that call has not exited (8). Green, and so gone:
+a qualified goal's own branch in `coco_trace_hc' (the `:' construct takes
+the qualifier off before any port or context sees the goal). Six arms
+were green on the case as it first stood and are red on a line added for
+them: the program's predicate in call_limited/3's goal, a `true' and a
+`fail' in a hiding clause, the library's re-decided predicate, `nl', the
+fact under a module's name and the taken name.
+
+THE COST, tools/flow/zero.sh, work less padding, 3.26.1 to 3.27.0: nrev
+66 003 389 to 65 997 374, queens 40 325 446 to 40 280 918, lookup
+48 109 694 to 48 090 363 -- no more than before. The first cut kept a flag
+of its own beside `tport' in the step's call path and cost queens' search
+127 919 instructions over its 21 322 calls (callgrind's
+coco_engine_run'2), six a call: `tport' left its register for the stack.
+Folded into `tport' (0, 1, 2) with the question and the Call port two
+calls in the loop it was four a call, as two weak wrappers in the places
+of `coco_trace_port' five, and as one call out of line and cold
+(`coco_trace_call', answering `tport') none: the loop's calls of a cold
+function are blocks clang lays out of its way.
+
+Narrow cases green: files, trace, engine, backtrace, journal, gc, errors,
+directives, static, script, reconsult, library, repl, cyclic, meter,
+string, units, rationals, serialize, template, hex, astar, argv, reason,
+normalise, translate, process, text, os, signal, stream, flowchart, lint,
+and on the final build window, flowdebug, async, thread, cowork and the
+loop's cases again (trace, engine, backtrace, journal, gc, errors);
+lessons library/50, 51, 54 and 56.
+
+## retract/1 answers again, and clause/2 sees the clauses that stood when it began, as swipl's (3.28.0)
+
+As swipl 9.0.4's pl_retract and clause/2: each walks the clauses its
+predicate had when the call began, keyed as a call of the predicate is,
+and an answer with a candidate after it leaves a choice point to come back
+to; the last candidate leaves none. retract/1 takes the clause each answer
+matched, so `findall(X, retract(q(X)), L)' over `q(1). q(2). q(3).' is
+`[1,2,3]', and the failure-driven loop takes every clause. A clause
+asserted while the walk is open is none of its candidates, and one
+retracted since is still an answer, retracted already -- swipl's retry
+succeeds on a clause erased since, so `findall(X, ( retract(q(X)), ( X ==
+1 -> retract(q(2)) ; true ) ), L)' is `[1,2,3]'. clause/2 walks the same
+view whatever its own goals do to the predicate. Through 3.27.0 retract/1
+was a C builtin that took its first match and left no choice point
+(COMPAT.md's old row 18, cocolint's card row R1), and clause/2 a library
+clause that counted the clauses once and read each by its place among the
+live ones (`'$pred_count'/3', `'$clause'/3'), so a retract under it skipped
+the next clause and an asserta answered the first one again (the old row
+19: `[1,3]' and `[1,1,1]' where swipl's are `[1,2,3]').
+
+THE WALK (lib/solve-db.cicili, `coco_db_walk', `coco_db_retry'): two
+constructs, since a walk keeps a frame on the engine's choice stack and a
+builtin answers once. The candidates are a call's (`coco_trace_kpos': the
+first argument, or the one swipl's JIT index takes, 3.24.0), each copied
+from the store and its head and body unified with the goal's. A second
+candidate pushes a DB frame (`COCO_CH_DB') whose predicate, place, end,
+first death (`fera') and keyed argument are a clause frame's, so the
+logical update view keeps it (`coco_frames_on': a retract under it kills
+the clause in place, an asserta moves it on) and `coco_backtrack' retries
+it. retract/1 takes no single-sided rule, nor the `'$ssu_none'' clause
+after a predicate's rules, as swipl 9.0.4's matches none; clause/2 shows a
+rule as `coco_ssu_body' does; a qualifier is taken off, and `clause(f(),
+B)' asks f/0's clauses, as before. One step and one inference each, as the
+builtin was; the errors are the goal's own (`kcall', and clause/2's row of
+`*error-contexts*'); the ports a traced builtin's, a retry the call's Redo,
+or the Redo of the call a hidden walk is in (`coco_trace_redo_at', as a `;'
+in a library's clause is since 3.27.0). A freeze writes a DB frame as it
+writes a clause frame -- its predicate's name, and its place and its end
+among the live clauses (`C', `L') -- and a thaw makes it again. As it
+begins, a walk sweeps its predicate's dead where no frame is open on them
+(`coco_tomb_try_sweep'), as clause/2's `'$pred_count'/3' did: a retract
+under the walk's own frame leaves its clause dead in place.
+`'$retractall'/1' keeps the C half (`coco_bi_retract'), whose retract of
+one clause is `coco_retract_at', the walk's too.
+
+A GREEN WORLD'S STORE IS SHARED, AND THREE RECLAMATIONS DID NOT ASK, all
+through 3.27.0, found by the async section below. A task's query start
+took the whole store's dead clauses (`coco_tomb_sweep_all') and its retired
+codes (`coco_code_retired_free'), on the ground that nothing ran on its own
+machine, and a task's heap collection freed every retired code its own heap
+named none of (`coco_gc_codes'). Another task's open call then went on from
+a place that had moved -- with one worker, a plain call of rd/1 that
+retracted as it went answered [0,3] for [0,1,3] -- and another task's
+environment went on in a freed code: valgrind's memcheck reported twelve
+invalid reads and writes after the other task's garbage_collect/0, and
+twelve after its go/2. Each now runs only where the store's `machines' is
+nil, outside a world; the world's end hands the store back to the host,
+whose next query and collections take what was kept.
+
+THE TOOLS. library/flow reads both as builtins (`flow_kind''s construct
+row; retract/1 nondet in library/flow/modes.pl, a row for clause/2) and
+offers both as near names (`flow_lib_pred': a construct a program calls by
+name, so `retrakt(x)' is told it meant retract/1). cocolint's card loses R1
+and its S1 pattern (27 rows, 39 cites, eight patterns), and its list of the
+names that exist marks a construct `ctl'. Lesson 07 teaches the loop that
+takes every clause and a walk that does not see what it adds; lesson 37
+counts the card again.
+
+THE CASES. test/files/retract_view.pl, 42 cases, 110 lines held to swipl
+9.0.4's: every answer of facts, rules and a predicate of 2000 clauses; the
+`:-' forms; the last candidate's determinism keyed on the first argument
+and on another; a walk whose own goals retract, retractall, assert,
+asserta, retract again, call clause/2 or count; a cut, a throw and once/1;
+single-sided rules; the errors; a call of the predicate open around the
+walk; `user:'; the count after a walk that met a clause retracted since;
+`f()'. test/trace.pl: three queries more held to swipl's ports (a retract
+retried, a clause/2 walk, a walk hidden in a nodebug predicate, its retry
+its caller's Redo). test/engine.pl: both walks thawed at every 50
+inferences go on where they stood. test/async.pl: a retract walk and
+another task's call share the view in a world of one worker and of two (the
+walk answers [0,1,2,3], the call [1,3], no clause that was dead when it
+began, and a plain call of the walker [0,1,3]), and memcheck reads no freed
+code after the other task's collection or start, where valgrind is.
+test/flowchart.pl: `retrakt' and `clausee' are told what they meant.
+test/files/update_view.pl loses its three R1 acknowledgements; test/repl.pl's
+transcript puts the fact last, so its retract answers once, with `.'. Not
+swipl's (COMPAT.md, four rows): a retract of a predicate nobody declared
+dynamic -- a file's, a library's -- takes the clause where swipl raises
+permission_error(modify, static_procedure, PI), as through 3.27.0;
+clause/2 of a predicate swipl writes in C fails where swipl raises
+permission_error(access, private_procedure, PI); clause/2 of a library
+predicate shows cocolog's names for its helpers (`'$member_'/3'); and a
+predicate given both `:-' clauses and `=>' rules keeps both where swipl
+refuses the second kind.
+
+THE ARMS, a build each, the rule taken out, each red (a second round:
+the first round's four workers shared test/files.pl's sandbox under
+/tmp, and its files results were void). The walk: no frame for a second
+candidate (the case, three trace lines, the engine's freeze check, both
+async worlds), no retry (the same), the last candidate keeping its frame
+(the case: the determinism lines), the DB frame off `coco_frames_on''s
+walk (the case, two trace lines, the freeze, both worlds), `framed' not
+set (the case, two trace lines, two engine checks, both worlds), `fera'
+not read (the case: a clause retracted since is met no more), a dead
+clause retracted again (both async worlds: the other task's call saw rd(2)
+come back -- in one process no frame can begin between the two deaths and
+still be open at the second, so the case cannot see it), a single-sided
+rule taken, the `'$ssu_none'' clause taken, clause/2 showing a rule as
+stored, a qualifier kept, `f()' kept a compound, clause/2's context row
+and `kcall' not set (each the case), the walk keyed on the first argument
+alone (the case: the JIT index's determinism), the retry's Redo port (two
+trace lines), the hidden walk's Redo not found by its goal and depth
+(one), the printer's hiding not asked (one). The freeze: the frame's
+predicate and place not written (`C'), its end not written (`L'), its end
+not read, and the thaw not making it (each the engine's check). The
+tools: `flow_kind''s construct row (six flowchart checks), the near name
+(one). The green world: the query start's sweep of the dead on a shared
+store (the one worker's check), its freeing of retired codes (memcheck,
+after the other task's start), the collector's (memcheck, after its
+garbage_collect/0). And the sweep as a walk begins: green in the five
+cases of the round, and 38 % of a drain's time -- `once(retract(q(_)))'
+over 20 000 clauses 0.429 s with it against 0.267 s without, over 40 000
+1.830 s against 1.139 s, medians of five alternating runs. Taken out of a
+build, it was red in test/gc.pl: a drain that sweeps nothing counts
+nothing dead, and the case's thousand of 1 500 wide clauses retracted no
+longer compacted the store. It stays.
+The async case's check that a child's write lands within a 100 ms foreign
+sleep was red in three arms of the 28 with four builds beside it, an arm
+whose rule it does not touch each time, and green on a quiet box.
+
+THE COST, tools/flow/zero.sh, work less padding, 3.27.0 to 3.28.0: nrev
+65 997 276 to 65 997 217, queens 40 280 929 to 40 280 703, lookup
+48 090 634 to 48 090 998 -- the untraced engine runs what it ran: the walks
+are two arms at the end of `coco_construct''s chain, and the DB frame's
+retry a branch of `coco_backtrack''s only its kind takes, out of line and
+cold (`coco_db_retry'). The counts move where the walks are: clause/2 is
+one inference a call where its clause, its count, between/3 and
+`'$clause'/3' were 29 (`clause(q(5), true)' over ten clauses), a findall/3
+over ten clauses 12 where it was 61; retract/1 is one, as it was, and a
+findall/3 over every answer 12. A queue drained one retract a turn by
+once/1, 3.27.0's direct removal against 3.28.0's walk, its frame and the
+next walk's sweep: 0.434 s and 0.429 s for 20 000 clauses, 1.523 s and
+1.830 s for 40 000 (medians of five alternating runs) -- both a pass over
+the clauses after the one taken, the sweep's a fifth dearer at 40 000.
+
+Narrow cases green on the final build: files, engine, trace, window,
+errors, gc, flowchart, flowdebug, async, thread, cowork, library, reason,
+translate, normalise, repl, static, directives, reconsult, meter,
+backtrace, journal, cyclic, units, string, script, rationals, serialize,
+template, hex, astar, argv, process, text, os, signal, stream, lint, and
+the solve, state and module binaries; lessons basics/07, 09 and 11 and
+library/04, 05, 37, 43, 46 and 54; test/files/retract_view.pl and
+update_view.pl under COCOLOG_GC_CELLS=2000 and the freeze's torture
+(KMAT 1 and 2), swipl's text each time.
+
+## arg/3 walks its places, and library(error) is swipl's: the vendored libraries answer as swipl's (3.29.0)
+
+The vendored libraries (lib/swipl: aggregate, assoc, ordsets, pairs,
+ugraphs, yall, dcg/basics, dcg/high_order) are swipl's own files, so where
+they answer otherwise than swipl's the cause is the engine under them.
+Each was called through its exports by swipl 9.0.4 and by cocolog -- the
+modes a caller uses and the ones it should not, every answer with whether
+it left a choice point, or the error -- and two things under them were not
+swipl's. Nothing was imported that was not there.
+
+ARG/3 WITH ITS INDEX UNBOUND ENUMERATES, as swipl's foreign arg/3: the
+term's places are tried in order, the third argument unified first and
+then the index, and an answer short of the last place leaves a choice point
+whatever the places after it hold; the last place leaves none. Through
+3.28.0 it raised instantiation_error, and library(aggregate)'s
+free_variables/4, whose var_in_term/2 walks a term with `arg(_, T, A)',
+raised with it.
+
+THE WALK (lib/solve-text.cicili, `coco_arg_walk', `coco_arg_retry'): a C
+builtin answers once, so the row hands its goal over (`coco_bi_arg'
+answers -2) and its caller -- the step's call by the functor's row, an
+environment's BUILTIN unit (`coco_env_place'), the `:' construct's own call
+of a row (`coco_colon_run': `system:G' of a name a program file took over)
+-- walks it with the continuation it holds, the goal
+being `kcall', which the row's call set. A term of two places or more
+pushes an ARG frame (`COCO_CH_ARG'): the goal, the continuation, the next
+place in `clause_ix', its barrier 0 -- an answer goes on to the
+continuation, whose goals carry their own. `coco_backtrack' retries it, and
+the last place pops it before it is tried. One step and one inference, as
+the row's call was; the ports a traced builtin's, a retry the call's Redo
+with the goal as it was called, or the Redo of the call a hidden walk is in
+(`coco_trace_redo_at', as a DB frame's). A freeze writes it as any frame,
+its next place as it stands, and a thaw makes it again.
+
+LIBRARY(ERROR) IS SWIPL 9.0.4'S (the Prolog half of lib/builtins.cicili):
+must_be/2 asks has_type/2 -- a clause a type, in swipl's order, a table a
+library extends (library(assoc)'s `error:has_type(assoc, X)' joins it, one
+namespace) -- and then says why not as swipl's is_not/2 does: an unbound
+value or a partial list an instantiation error, a list of the wrong things
+its first wrong element's error, an improper list a type error naming
+list(Of), `var' an uninstantiation error, `cyclic' and `acyclic' domain
+errors, a value a ground type holds unbound an instantiation error, a type
+no clause names existence_error(type, T). is_of_type/2 asks has_type/2
+alone. `stream' asks library(stream)'s is_stream/1 where it is loaded, and
+`dict', which cocolog has none of, holds of nothing. Through 3.28.0 a table
+of cocolog's own: must_be(assoc, A) raised type_error(assoc, A) of an
+assoc and is_of_type(assoc, A) failed (no has_type/2 was asked, which
+assoc.pl extends), a partial list was type_error(list, L) where swipl's is
+an instantiation error -- which ord_intersection/2 of a partial list of
+lists and a lambda's partial parameters met -- an unknown type
+type_error(T, X), and an unbound type was read as `any'. Each helper names
+its frame by swipl's name (`*frame-contexts*': error:is_not/2,
+error:not_a_list/2, error:element_types/2, ...).
+
+WHAT IS LEFT (COMPAT.md: three rows, and one extended). get_assoc/3 of a
+term that is no assoc, which swipl's C '$btree_find_node'/5 refuses with
+type_error(btree, T) and cocolog's copy of the library's own rules with
+existence_error(matching_rule, assoc:get_assoc(K, T, V)). char_type/2 and
+code_type/2 with the character or the type unbound, which swipl enumerates
+and cocolog refuses, and the grammars over them on an unbound list
+(dcg/basics' digit//1 under dcg/high_order's sequence//2). A search that
+never ends (ord_memberchk(a, L) with L unbound, pairs_keys_values/3 in
+findall/3), which swipl stops at its stack limit and cocolog when memory is
+refused -- four such probes run with no limit were killed by the kernel
+beside three builds while this was checked. A meta-argument in an error's
+culprit, `user:G' in swipl's (map_assoc/2's, a lambda's). Two the probes
+met were rows already: `"..."''s default, and integers past 64 bits --
+where COMPAT.md and CLAUDE.md said number_codes/2 fails for such a numeral,
+which it raises syntax_error(illegal_number) for, as number_chars/2 does;
+atom_number/2 fails. A code past ASCII is classed by swipl as the
+process's locale says (the probes' swipl ran in C), by cocolog as glibc's
+C.UTF-8 does, swipl's in a UTF-8 locale: no row.
+
+THE CASES. test/files/arg_enum.pl, 42 lines held to swipl 9.0.4's (3.28.0
+differs at 36): every answer with its determinism, a third argument the
+places share, places that take nothing, an atom, two numbers, two lists, an
+unbound term, a term of one place and of none, `user:', `system:' and
+`lists:' (each the step's way), call/N, and walks inside a clause's body
+-- a disjunction, a negation, findall/3, an environment's builtin in place
+-- undone by backtracking and cut. test/files/arg_taken.pl, 6 lines (3.28.0
+raises at 3): arg/3 a program file took over, and the system's called as
+`system:arg/3' (`coco_colon_run').
+test/files/error_types.pl, 129 lines (3.28.0 differs at 46): must_be/2 and
+is_of_type/2 over every type swipl's has_type/2 names, and library(assoc)'s.
+test/files/must_be.pl, a line more: `must_be(stream, foo)' with no
+library(stream) loaded, where cocolog's is_stream/1 is not there.
+test/files/library_calls.pl, 403 lines (3.28.0 differs at 7:
+free_variables/4 three times, must_be/2 and is_of_type/2 of an assoc, and
+the two partial lists): the eight libraries through their exports.
+test/trace.pl: seven queries more held to swipl's ports (a walk's answers
+and Redos, one no place takes, the last place's Exit, a walk in a clause
+the printer shows and one in a predicate that hides its children).
+test/engine.pl: a walk thawed at every 50 inferences goes on where it
+stood. library/flow/modes.pl: arg/3 with its index unbound is nondet, and
+its refusal row is gone.
+
+THE ARMS, a build each, the rule taken out, each red, the case it went red
+in named. The walk: the row raising as through 3.28.0 (arg_enum,
+library_calls, seven trace lines), no ARG frame (arg_enum, library_calls,
+four trace lines, the engine's freeze), the last place keeping its frame
+(arg_enum's determinism, two trace lines), no retry (arg_enum,
+library_calls, four trace lines, the freeze), the environment's hand-over
+(arg_enum), the step's (arg_enum, library_calls, six trace lines), the `:'
+construct's (arg_taken: green until that case was written, since `user:',
+`system:' and `lists:' of a name nobody took over go the step's way), the
+retry's Redo (three trace lines), a hidden walk's Redo not found by the
+frame's kind (one), the frame's PRINTR (four), and arg/3's refusal row put
+back in library/flow/modes.pl (flowchart). library(error): has_type/2 under
+a name of cocolog's, so assoc.pl's clause joins no table (error_types,
+library_calls), a partial list a type error as through 3.28.0 (error_types,
+library_calls, must_be), an unknown type's type error (error_types), an
+unbound type read as `any' (error_types), list(Of) no type (error_types),
+the ground types not asked (error_types, must_be), oneof/1 binding its list
+with no double negation (error_types), the list's error for its first
+wrong element's (error_types, must_be), is_of_type/2 of an unbound type
+failing (error_types), the encodings no type (error_types), a code past
+0x10FFFF (error_types), cyclic's domain error (error_types), var's
+uninstantiation error (error_types, must_be), an improper list naming
+`list' for list(Of) (error_types), '$current_type'/1 holding of any type
+(error_types), the stream type (error_types), and its guard where no
+library(stream) is loaded (must_be: the line written for it). The order of
+the walk's two unifications has no arm: with no coroutining, no answer
+tells it.
+
+THE COST, tools/flow/zero.sh, work less padding, 3.28.0 to 3.29.0: nrev
+65 997 137 to 65 996 479, queens 40 280 758 to 40 280 709, lookup
+48 090 739 to 48 088 887. The first cut asked the hand-over beside the
+loop's test of -1, after the module seam: nrev +211 547 instructions, two
+reloads of the engine a step in `coco_engine_run', whose registers the
+walk's call had moved. Asked beside the row's call, nrev and queens were
+3.28.0's and lookup +37 831, one instruction a builtin in place: the walk
+took the goal and the unit's barrier after the row's call, and
+`coco_env_place' copied the barrier to a callee-saved register at its
+entry, for every unit. The goal from `kcall' and no barrier: none. must_be/2
+asks has_type/2, three inferences a call more (must_be(list, L) 4 to 7,
+must_be(oneof(L), X) 5 to 13, must_be(list(integer), L) of three 4 to 23,
+as swipl's walks the elements), and append/2, nth0/4 and nth1/4 with it +3;
+is_of_type/2 2 to 6. The translator, which calls append/2, nth0/4 or nth1/4
+in 98 goals of library/reasoning: test/translate.pl's sections up to
+newspaper_units 308 262 465 inferences on 3.28.0 and 308 288 787 on 3.29.0
+(+0.0085 %), 3 189 checks green on both.
+
+Narrow cases green on the final build (41): lint (twice, the last after
+the last case file), files, engine, trace, errors, gc, flowchart, library,
+reason, translate, normalise, repl, static, directives, reconsult, meter,
+backtrace, journal, cyclic, units, string, script, rationals, serialize,
+template, hex, astar, argv, process, text, os, signal, stream, async,
+window, flowdebug, cowork, thread, and the solve, state and module
+binaries; lessons basics/09 and 12 and library/04 and 05, which call arg/3
+or must_be/2; test/files/det_names.pl's library(error) frames swipl's. The
+card's cites hold (27 rows, 39 cites; X3's range and three cites
+renumbered for the new lines).
+
+## char_type/2 and code_type/2 walk the codes and the classes, as swipl's (3.30.0)
+
+3.29.0's check of the vendored libraries left one thing under them that
+was not swipl's: char_type/2 and code_type/2 with the character or the
+type unbound, which swipl enumerates and cocolog refused, and with them
+the grammars over them on an unbound list (dcg/basics' digit//1 under
+dcg/high_order's sequence//2). Both are swipl 9.0.4's do_char_type()
+(pl-ctype.c) now, read from its source and held to its answers.
+
+THE ROW (lib/solve-text.cicili, `coco_bi_ctype'): the two predicates are
+rows of the engine's table (lib/solve.cicili), out of the Builtins module,
+whose C half could answer only once. Both arguments unbound is
+instantiation_error and a type none of the table's names
+type_error(char_type, T), each with `context(char_type/2, _)', the one C
+function's own name, for code_type/2 too. The character is read as
+PL_get_char() reads one (`coco_ct_getc'): an integer from 0 to U+10FFFF,
+-1 or `end_of_file' -- which answers `end_of_file' before any type is
+asked, so code_type(-1, foo) fails -- or a text of one character (one byte
+under bytes); an integer past U+10FFFF that a C int holds is
+domain_error(character, N), anything else type_error(character, T), named
+system:code_type/2 or system:char_type/2. Both bound, the test; a class
+with an argument has its value unified, and where that fails "the other
+way around", as swipl tries it: the argument's reverse, so
+code_type(0'a, to_lower(0'a)) is true though to_lower(U) of `a' is `A'.
+The character unbound and the argument bound, the reverse alone, and no
+walk: code_type(C, upper(0'a)) is C = 0'A. Anything else unbound answers
+-2, and the row's caller hands the goal on, as arg/3's does.
+
+THE WALK (`coco_walk', `coco_walk_retry', `coco_ct_from'; arg/3's
+`coco_arg_walk' and `coco_arg_retry' of 3.29.0 made one, and its ARG frame
+the WALK frame, `COCO_CH_WALK'): the codes -1 to U+10FFFF, or the 33 rows
+of swipl's char_types[] in its order, csymf twice; an answer short of the
+last code or the last class leaves the frame, whatever comes after it, and
+the last none (xdigit/1 is the table's last row). char_type/2 under
+characters passes the 2048 surrogates by, as char_code/2 refuses to make
+one in both systems (swipl's walk answers '\uD800'), and under bytes its
+characters are the bytes 0 to 255. The position is packed in the frame's
+`clause_ix' (`coco-ctw-pos': bit 48 says it is char_type/2's or
+code_type/2's, where arg/3's holds a place, bit 41 char_type/2's, bit 40 a
+walk of the classes, bits 32 to 39 the class, the low 32 bits the code
+plus one), so a freeze writes it as it stands and a thaw makes it again.
+One step and one inference, as the row's call is; the ports a traced
+builtin's, a retry the call's Redo.
+
+THE CLASSES ARE SWIPL'S, EVERY CODE POINT'S. Through 3.29.0 they were the
+scripts a program here meets, written out by hand (`coco_uc_letter',
+`coco_uc_space', `coco_uc_case', 250 lines), and over the 1 114 112 code
+points they answered otherwise than swipl's under C.UTF-8 for 925 551: an
+unassigned code point was punct, graph, print and prolog_symbol (824 718,
+U+0378 the first), 98 112 letters were no alpha (U+02B0's modifier letters
+the first), 1 344 capitals and 1 903 small letters no case (U+0180,
+U+0181), 810 lower-to-upper and 795 upper-to-lower maps another code, and
+paren(C) knew no character of a bracket. tools/ctype/tables.pl, run by the
+REFERENCE swipl under C.UTF-8 (`swipl -q -g main -t halt
+tools/ctype/tables.pl > lib/swipl-ctype.cicili': run it again, never edit
+the file), asks swipl every class of every code point -- eleven bits:
+alpha, upper, lower, print, space, cntrl, prolog_var_start,
+prolog_atom_start, prolog_identifier_continue, prolog_symbol, decimal, and
+a decimal's weight -- and checks that the classes swipl derives are what
+it derives (alnum alpha or 0-9, csym alnum or `_', csymf alpha or `_',
+graph print and not space, punct graph and not alnum), and towupper/
+towlower, as runs: 1 708 runs of the bits, 174 and 157 of the two case
+maps, 66 of the decimals, 549 lines. At transpile time DEFMACROs of
+lib/term.cicili turn the runs into two-level tables with their pages
+shared (`coco-ct-emit-flags': u16 bits in pages of 128 codes;
+`coco-ct-emit-case': u8 indices into 173 distinct deltas, in pages of 256),
+`coco_ct_flags' and `coco_uc_case', and the classes are expressions over
+those bits (`*coco-ct-exprs*') that two more DEFMACROs turn into one switch
+each, `coco_ct_test' and `coco_ct_reverse' -- 33 classes, no function a
+class. upcase_atom/2, downcase_atom/2, string_upper/2, string_lower/2
+and sub_atom_icasechk/3's fold ask `coco_uc_case' too, and are exact past
+the scripts the hand had: swipl's own upcase_atom/2 of `µ' or `ÿ' under
+C.UTF-8 aborts on an assertion (`c <= 0xff' in modify_case_atom()), which
+is not copied. The binary grew 1 796 440 bytes to 1 895 064. Not swipl's
+(COMPAT.md, its row rewritten): period and quote past ASCII, which
+swipl's strchr() over a truncated code also calls U+0100, U+3000 and
+17 402 more each; the walk's surrogates; the NUL as a character, '' here
+as char_code/2 makes it.
+
+THE ATOM TABLE'S HASH IS SPREAD (`coco_hash', lib/term.cicili): djb2, then
+times the FNV prime and its high bits folded down into the low ones the
+table's mask keeps, as `coco_name_arity_hash' spreads its word. djb2 alone
+kept short names apart in its high bits only, so the one-character atoms
+past ASCII -- two to four bytes that differ in the last -- fell into runs
+of neighbouring slots that the linear probe walked at each new atom:
+131 072 of them by char_code/2 took 18 s where they take 0.05, and
+char_type(C, to_lower(_)), an atom an answer, did not end in ten minutes
+(it takes 0.6 s).
+
+THE CASES. test/files/char_enum.pl, 243 lines held to swipl 9.0.4's under
+C.UTF-8 (3.29.0 differs at 5, and on 183): every bound pair the edges ask
+-- the integers at and past U+10FFFF and 2^31, -1 and -2, texts of one
+character and of two, end_of_file, each class with its argument bound and
+unbound, the other way around -- each answer with its determinism; walks
+of the codes and of the classes, inside a disjunction, a negation,
+findall/3, call/N and a module's qualifier; dcg/basics' generators on an
+unbound list (digit//1, xdigit//1, nonblank//1, xdigits//1); and the
+digests -- count, sum and a weighted hash -- of every class over every
+code point, period and quote below 128, the characters of three classes,
+the determinism of three walks' last answers, and upcase_atom/2 and
+downcase_atom/2 of every character but the NUL, the surrogates and the
+two swipl aborts on.
+test/units.pl: char_type/2's walk passes the surrogates, code_type/2's does
+not, and under bytes the walk is the 256 bytes and the letters ASCII's 52.
+test/engine.pl: 131 072 one-character atoms within ten seconds and the
+whole walk within a minute (`atom_table'), and a walk of the codes and one
+of the classes thawed at every 50 inferences go on where they stood.
+test/trace.pl: six queries more held to swipl's ports (a walk of the codes
+and of the classes, their Redos, the last class's Exit with no choice
+point, a class that fails with no walk, and a walk inside a predicate that
+hides its children). library/flow/modes.pl: the refusal rows are the two
+unbound arguments' alone. Lesson basics/13 walks the classes of `a', the
+ten digits and the capitals of every script (1 982, swipl's count).
+
+THE ARMS, a build each, the rule taken out, each red, the case it went red
+in named: the row raising as through 3.29.0 (char_enum), every answer the
+last (char_enum, five trace queries), the last code or class keeping the
+frame (char_enum's determinism: swipl's ports do not show it), no retry
+(char_enum, five trace queries), csymf once (char_enum), no "other way
+around" (char_enum), the end of the input asked after the type
+(char_enum), no domain error past U+10FFFF (char_enum), an unknown type
+passed on as class -1 (char_enum), both unbound no instantiation error
+(char_enum), 3.29.0's hand-written case maps (char_enum's digests), the
+surrogates walked (units), the walk past 255 under bytes (units), the hash
+unspread (engine: both atom_table checks), and 3.29.0's refusal rows put
+back in library/flow/modes.pl (flowchart).
+
+THE COST, tools/flow/zero.sh, work less padding, 3.29.0 to 3.30.0: nrev
+65 996 348 to 65 996 634, queens 40 280 709 to 40 281 239, lookup
+48 088 677 to 48 096 806 -- four instructions a hash in `coco_intern_len',
+where `coco_hash' is inlined, for the atoms lookup's facts name. A start
+(`cocolog query true') 34 908 931 instructions to 35 106 635 (+0.57 %):
+the hash +57 456, and __strcmp_avx2 +144 050 at the reader's operator
+lookups, whose calls are as many (the strings' places, not settled
+further). The translator: test/translate.pl's sections up to
+newspaper_units 308 310 484 inferences on 3.29.0 and 308 310 478 on
+3.30.0, every check green on both.
+
+Narrow cases green (44) on the build before the bump: lint, files,
+engine, trace, units, errors, gc, flowchart, library, string, serialize,
+script, text, cyclic, reason, translate, normalise, window, flowdebug,
+directives, argv, static, stream, repl, reconsult, meter, backtrace,
+journal, rationals, template, hex, astar, process, os, signal, async,
+cowork, thread, and the term, syntax, solve, state, module and shared
+binaries (shared with a server up); and on the final build lint, files,
+units, trace, engine, argv, flowchart, errors, gc, translate, library,
+reason and window. Lessons basics/08 and 13 and library/04, 05, 43, 44,
+46 and 50. The card's cites hold (27 rows, 39 cites; X1's and X3's
+ranges renumbered).
+
+## get_assoc/3 walks the tree in C, and current_predicate/1 answers for the system's, as swipl's (3.31.0)
+
+The vendored library(assoc) has two get_assoc/3s. A `:- if(current_predicate(
+'$btree_find_node'/5))' keeps the one that walks the tree in swipl's C
+(pl-btree.c), and single-sided rules stand in its `:- else' for a system
+without that predicate. swipl takes the first: a term that is no assoc is
+type_error(btree, T) and an unbound one an instantiation error, each with
+context(system:'$btree_find_node'/5, _), a node of any name with five
+arguments is walked, and a subtree of another name ends the walk. cocolog
+took the rules -- its read answered `current_predicate(Name/Arity)' from the
+program's store alone, which held no system predicate -- and a term that was
+no assoc was existence_error(matching_rule, assoc:get_assoc(a, foo, _)), an
+x/5 node too. test/files/library_calls.pl left it out by name.
+
+THE ROW (lib/solve-text.cicili, `coco_bi_btree_find_node'):
+'$btree_find_node'(+Key, +Tree, +Pos, -Node, -Arg), swipl's. Pos is 65536 * K
++ 256 * L + R, the places of a node's key and of its two subtrees counted
+from 1, a byte each, the bits above them not read, and a byte of 0 a place
+past every arity. Pos is read as PL_cvt_i_uint reads it: unbound an
+instantiation error, no integer type_error(integer, P), below 0 or past 32
+bits representation_error(uint); then Tree: unbound an instantiation error,
+no compound, or one whose arity is short of a place, type_error(btree, T).
+From Tree the key is compared in the standard order: equal, Node is the
+node and Arg `='; smaller the left subtree, larger the right, while it is a
+node of Tree's own name and arity -- else Node is where the walk stands and
+Arg the side a new node would go, named by the place taken, as swipl's `arg
+== lp' (where the two places are one, `<' either way). One step and one
+inference, deterministic, its errors the row's own (`*error-contexts*').
+NOT SWIPL'S: a place equal to the node's arity, which swipl's check passes
+and its walk then reads past the term (0x060101 of a node of five arguments
+ends swipl with a segmentation fault): the key's place is type_error(btree,
+T) here, and a subtree's no subtree. COMPAT.md has the row; the one row of
+get_assoc/3 it had is gone.
+
+CURRENT_PREDICATE/1 NAMED WHOLE ANSWERS FOR THE SYSTEM'S (`coco_pred_current',
+lib/kb.cicili): a row of the engine, or what the builtins module's claims
+hook names, a construct or a compiled-in module's row -- what
+predicate_property/2 calls built_in -- as swipl's answers for module
+system's through user's import of it (atom_length/2, call/1, (',')/2,
+format/2, msort/2). Else the program's, a clause or a declaration and no
+library's, as '$predicates'/1 lists them. Its two callers: the clause, whose
+ground branch is `'$cp_defined'/1' now, and the read's `:- if' evaluator
+(`coco_cond_eval', lib/kb-consult.cicili), which through 3.30.0 answered for
+any entry of the store -- a library's predicate, or a name a call had only
+looked up -- so `:- if(current_predicate(ord_union/3))' was true in cocolog
+and false in swipl. Named whole, the clause no longer makes the list of
+every predicate of the program at each call: '$cp_defined'/1 looks the one
+up. A spec with a part unbound walks the program's alone, where swipl's
+walks its system's 1 278 too, and a library's predicate is never answered
+(swipl answers for one the program imported): COMPAT.md, a row of its own.
+test/engine.pl's check that retractall/1 of a builtin's name declares
+nothing asks `current_predicate(atom/A)' now, which walks the program's.
+
+'$CP_SPEC'/2's ERRORS NAME THE SPEC AS IT CAME, as swipl's: its qualifiers
+kept and an unbound module unbound (`current_predicate(_:1/2)' is
+type_error(predicate_indicator, _:1/2), and `user:foo' itself), the modules
+bound to `user' only once the spec is known good; through 3.30.0 they were
+bound first and the error named what was under them. An arity past 2^31 - 1
+is type_error(predicate_indicator, Spec), as swipl's.
+
+THE CASES. test/files/btree_system.pl, 127 lines held to swipl 9.0.4's (3.30.0
+differs at 85): the `:- if' conditions a read decides (the system's
+predicate, a construct, none, the program's own above it, a library's the
+program did not load, a name a call only looked up); get_assoc/3 over an
+assoc of five keys found, missing and with the key unbound, of `t', of
+every kind of term that is no assoc, of x/5 nodes, of a node of four and of
+six arguments, of keys 1 and 1.0; '$btree_find_node'/5 itself, its places
+(0x010405, 0x020103, a list's 0x010202), Node and Arg bound, the bits above
+24, each byte 0, and its errors; current_predicate/1 of the system's,
+constructs, the program's, the qualified, and its errors; and print_message/2
+of three of the errors. test/files/library_calls.pl: get_assoc/3 of a term
+that is no assoc, an unbound one, t/2 and an x/5 node, out of its list of
+what is not compared (407 lines, and the list's dcg/basics line, which
+char_enum.pl holds since 3.30.0, gone). test/engine.pl (`btree_places'): a
+key's place equal to the arity raises, and a subtree's ends the walk, of a
+node functor/3 made right before another of its name.
+
+THE ARMS, a build each, the rule taken out, each red, the case it went red
+in named: the row gone (btree_system and library_calls: the `:- if' kept
+the rules); Pos no integer, Pos past 32 bits, an arity short of a subtree's
+place, a subtree of another name walked, the side named by the direction
+(btree_system); swipl's own check of the key's place, `arity < K', and no
+guard on a subtree's place (the engine's `btree_places': the key's place
+read past the node, and the walk gone on into the node functor/3 made
+beside it); no answer for the system's, no names filled before a read's
+first step (the start-up read of assoc.pl asks before any), no filter of
+the program's (a library's predicate and a name only looked up), the
+read's evaluator as it was, the clause's list as it was, the error's spec
+stripped, the modules bound first, no cap on the arity (btree_system).
+The compound check before the arity's was green -- no compound has arity
+0 to coco_arity, short of every place -- and is gone.
+
+THE COST, tools/flow/zero.sh, work less padding, 3.30.0 to 3.31.0: nrev
+65 996 629 to 65 996 416, queens 40 281 239 to 40 281 066, lookup
+48 097 024 to 48 095 872 -- the step loop is not touched. A start
+(`cocolog query true', the two binaries run from one path: a path of
+another length costs realpath and the loader otherwise) 34 991 023
+instructions to 34 948 954 (-0.12 %): assoc.pl stores one get_assoc/3
+clause where its rules' branch stored six. get_assoc/3 over an assoc of
+10 000 keys, 200 000 lookups, half of them found: 11 345 284 inferences to
+1 600 004 (a compare/3 and a clause a level, against one step for the
+walk), 0.552 s to 0.133 s. current_predicate/1 named whole, 200 000 calls
+in a program of 300 predicates: 1 900 004 inferences to 1 700 004, 2.298 s
+to 0.087 s (the list of every predicate of the program made at each call,
+against one lookup). The times are medians of five alternating pairs.
+
+Narrow cases green (19) on the build before the bump: lint, files,
+engine, units, trace, errors, flowchart, library, gc, directives, string,
+serialize, reason, window, flowdebug, translate, static, script and text;
+and (23) on the final build: lint, files, engine, units, trace, errors,
+flowchart, library, gc, translate, window, argv, directives, reconsult,
+repl, static, stream, cyclic, and the solve, module, state, term and
+syntax binaries. Lessons library/00, 04, 06, 20 and 36 and basics/13. The
+card's cites hold (27 rows, 39 cites; ten cites in nine rows renumbered,
+and T2's why says what current_predicate/1 answers named whole).
+
+## A search past the stack limit is stopped, as swipl's stack_limit (3.32.0)
+
+swipl stops a search whose stacks pass its `stack_limit' flag -- 1 GB by
+default, the local, global and trail stacks together -- with
+error(resource_error(stack), Context): a recursion that never ends, choice
+points that pile up, a term that grows while something still names it.
+cocolog had no such flag. Its heap grew until memory was refused,
+error(resource_error(memory), _), or until the kernel killed the process
+first, as it killed four probes beside three builds while 3.29.0 was
+checked; test/files/library_calls.pl left the library calls that search
+for ever out by name (COMPAT.md).
+
+THE FLAG (lib/library.cicili): current_prolog_flag(stack_limit, L) answers
+the machine's limit (`slimit', appended to the machine), 1073741824 by
+default, and an unbound flag enumerates it. set_prolog_flag/2 sets it as
+swipl's does: unbound an instantiation error; an atom, a string, a
+fraction, a rational, an infinity, a NaN or a float past 64 bits
+type_error(integer, V); a float that is an integer that integer (2.0e7 is
+20000000); a value below what the stacks hold now permission_error(limit,
+stacks, N), N the integer read (0 and 1000 in both systems); a negative
+one taken as it is, and no limit. It is the process's default for a
+machine made after it, as text_units is (`coco_slimit_default'), so a
+green task's machine (`coco_machine_init_alias') and a thread's take it,
+and COCOLOG_STACK_LIMIT, read once, is that default before any set.
+
+WHAT IS COUNTED (`coco_stack_used', lib/solve.cicili): the heap's cells
+and the trail's entries, 8 bytes each, and the choice frames of every
+engine on the machine's chain, 72 bytes each and the tracer's shadow
+frame's 24 beside it. swipl's local stack holds what cocolog keeps on its
+heap -- the continuation and the environments -- so the two count one
+search otherwise, and stop it at other depths.
+
+WHERE IT IS ASKED: never in the step loop, and at every growth of an array
+of the stacks, which grows by the room the limit leaves it (`coco-room-cap',
+one DEFMACRO for the three): a doubling within that room and a sixteenth is
+taken, one past it stops there while what is needed is within the room --
+a heap of 1 GB is not doubled to 2 -- and what passes the room grows by a
+sixteenth only and stops the running engine at its next step, halted 3
+through `haltp', once the growth is given (a growth refused is memory's, as
+it was). The heap and the trail take the limit's cells as their room
+(`coco_stack_cap', from `coco_grow_slow'); the choice stack takes the
+frames the limit leaves beside the heap, the trail and the other engines'
+frames (`coco_eng_grow_slow', `coco-room-left'), so the growth after a
+near one comes as the stacks reach the limit: through a doubling at 65 536
+frames, a search that left a choice point a level ran on to half again a
+limit of 20 MB before its heap's collection asked. A collection that leaves
+more than the limit stops the run too (the end of `coco_heap_collect'),
+with SOVER set. At halted 3 the step (`coco_halted_step') collects where
+its engine may and SOVER does not say a collection just did -- the
+collector itself, `coco_heap_collect': calling the step's static
+`coco_heap_gc' from a second place took it out of the step loop, whose
+instructions on queens rose 3.9 % -- and asks again: past the limit it
+raises error(resource_error(stack), _), its context unbound; under it the
+run goes on and the step is given back, so the inferences are what they
+were. After each collection the collector waits for no more heap than the
+limit leaves beside the trail and the choice frames (`gc_next',
+`coco-room-left'), so a heap of garbage is collected before the stacks pass
+the limit, and choice points held leave a recursion the rest; and from the
+flag's set on for no more than the limit's cells, so a heap grown under a
+larger limit holds a search to a lowered one (asking the room there too
+moved nothing measured: the heap's growth or the collection after asked
+first). It waits for no less than a sixteenth of the limit's cells: as what
+a search holds nears the limit, the room left shrinks with every collection
+by the share of the garbage the search keeps, and choice points beside a
+heap of garbage took 553 collections and 344 s to be stopped at 1 GB, 277
+and 112 s with the least, where swipl 9.0.4 takes 223 and 86 s.
+
+THE MESSAGES: an uncaught one says swipl's first line, `Stack limit
+(1.0Gb) exceeded' (`coco_error_text'), the limit in swipl's own sizes
+(messages.pl's human_stack_size, of kilobytes: 48Kb, 19.1Mb, 0.3Gb), and
+the backtrace after it says where the search was; print_message/2 says the
+same line (library(print_message)'s `'$pm_stack_size'/2'). swipl writes the
+rest -- the stacks' sizes, the depth, the frames of the recursion -- from
+the dict it makes the context, which cocolog has not got (COMPAT.md).
+
+THE CASES. test/files/stack_limit.pl, 25 lines held to swipl 9.0.4's
+(3.31.0 differs at 2): the flag, its enumeration, its ten values and their
+errors, and eight searches under 20 MB -- a recursion twice, choice points,
+a held list, ord_memberchk/2 over a held list, and a recursion inside
+findall/3, forall/2 and aggregate_all/3 -- each stopped with
+resource_error(stack), one caught inside its own catch/3, and a run after
+them. test/errors.pl's `stack_limit_said': the uncaught line (19.1Mb, and
+48Kb, 0.3Gb and 1.0Gb from a thrown ball), print_message/2's line,
+COCOLOG_STACK_LIMIT (and a value that is no number), a green task's
+machine, a heap of garbage past the limit run with the inferences of the
+same run under none, and how far a search gets under 20 MB in a fresh
+machine -- a heap of garbage held under 25 MB, a recursion at about 40
+bytes a level, choice points at about 240, within a tenth -- after a heap
+grown under 400 MB, of a recursion after 60 000 choice points held, beside
+a collection and beside a lowered limit, and of choice points beside a heap
+of garbage, stopped in some 100 collections. test/solve.cicili: an
+engine that never collects, stopped under 40 MB by a recursion and by a
+heap of garbage, its heap grown past the limit by a sixteenth and a
+sixteenth again, where a doubling would have taken it to 1.68 times the
+limit, and going on under it after.
+
+THE ARMS, a build each, the rule taken out, each red, the case it went
+red in named, the arms of the collector and the choice stack run again
+on the final source: the flag not read, not set, an integral float
+refused, no permission error, not enumerated (each in stack_limit.pl);
+the tracer's 24 bytes not counted (the held checks: 141 723 and 142 042
+levels), a collection's end asking nothing (the lowered limit's search
+ran on past the case's two minutes, and beside choice points to 269 485
+levels), no collection before the raise (a heap of garbage raised;
+choice points stopped at 65 535), the step not given back (the garbage
+run's inferences 164 where a run under no limit counts 163), the growth's
+OVER unset (the solve binary: no error at all), the growth's top gone
+(the solve binary's heap past it; a heap of garbage with a capacity of
+33 554 432), no cap on `gc_next' after a collection (34 519 592, and the
+lowered held check 135 993), none at the flag's set (the 400 MB heap's
+search 1 242 752 levels), the uncaught message, print_message/2's, the
+environment unread, a green task's machine unset (resource_error(memory)),
+the sizes in C and in Prolog, the machine's start unset (0, no limit);
+the choice frames not counted (choice points 120 239 levels, beside
+a collection 250 858), the choice stack's room gone and its stop gone
+(98 376 each), the collector's room gone (the held checks 119 341 and
+119 335), its least gone (270 collections; the check holds 150). Green,
+and so kept or taken out as they cost: SOVER, which saves a collection
+at each stop a collection makes (a held list at a limit of 1 000 000 000
+bytes: 6 collections and 4.7 s against 7 and 5.9; at 20 MB 2 against 3)
+-- kept; the choice stack's stop on the stacks' total beside OVER, each
+green without the other, the same test -- OVER kept, the total taken out;
+the room at the flag's set, which moved no search measured (the heap's
+growth or the collection after asked first) -- taken out.
+
+THE COST, tools/flow/zero.sh, work less padding, 3.31.0 to 3.32.0:
+nrev 65 996 390 to 65 997 047, queens 40 281 027 to 40 281 173, lookup
+48 092 685 to 48 083 829 -- the step loop is not touched. A start (`cocolog
+query true', the two binaries run from one path) 35 047 785 instructions
+to 35 091 091 (+0.12 %: strcmp +44 602, the placement of the reader's
+strings, and the environment's read +1 477). Under the default limit of
+1 GB a recursion that never ends is stopped in 8.9 s, its peak of memory
+1.58 GB; choice points that pile up in 3.0 s at 1.25 GB (1.60 GB before
+the choice stack took the room the limit leaves); a held list in 6.4 s at
+1.47 GB; choice points beside a heap of garbage in 112 s at 1.26 GB, 277
+collections (swipl 9.0.4: 86 s, 223). The first build, whose heap doubled
+past the limit, peaked at 3.2 GB. A teach of the Spanish lessons into a
+fresh store (254 977 terms, 22 s, 1.02 GB resident with the store's pages)
+runs under the default limit, and the Italian one under a limit of 200 MB.
+
+Narrow cases green on the final build (43): lint, files, engine, units,
+errors, gc, flowchart, library, directives, argv, reconsult, repl, static,
+stream, cyclic, translate, reason, string, serialize, script, text, trace,
+window, flowdebug, async, thread, cowork, meter, backtrace, journal,
+normalise, rationals, template, hex, astar, process, os, signal, and the
+solve, module, state, term and syntax binaries; lesson library/37, whose
+paragraph on rule P1 named seventeen flags and names twenty. The card's
+row P1 names stack_limit among the flags that answer, and its cites hold
+(27 rows, 39 cites; X1, N1 and D3 renumbered).
+
+## format/2 lays out columns as swipl's (3.33.0)
+
+swipl's format/2 lays text out in columns: `~t' is a fill point, `~N|' a
+column stop at column N and `~N+' one N past the last stop, and the text
+since the last stop is padded at its fill points to reach the next. cocolog
+refused the three by name, error(cocolog_error('format/2: cocolog has no
+column directives (~t, ~| and ~+)'), _), and its programs padded by hand --
+library(main)'s usage table, cocolint's card and its prompt cards,
+test/run.pl's report -- with row F1 of the dialect card telling them to.
+
+THE COLUMN (lib/builtins-format.cicili, `coco_fmt_cols', swipl's
+format_state in pl-fmt.c): it begins where the sink stands
+(`coco_fmt_start'): the console's column (`coco_con_lp', one for stdout and
+stderr), a capture's own (`coco_cap_lp', 0 at with_output_to/2's start and
+the outer one's back at its end, lib/term.cicili), a term sink's 0, and a
+file of library(stream) its own, which its sink hook answers
+(`coco_m_sink_column_install', the hook that answered whether a line was
+open through 3.32.0, `coco_m_sink_open_install'; library(stream)'s
+`st_open' flag is gone, its column `st_lp' says it). Two rules walk it, as
+swipl's do (`coco_col_walk'): format's own text -- its characters, `~a',
+`~s', `~c', the numbers -- by pl-fmt.c's update_column(), a tab to (COL +
+1) | 7, a column short of the next eighth (`coco-fmt-own'); and a writer
+-- `~w', `~q', `~p', `~k', `~W' -- by its stream's linepos, as
+prepare_sub_format() and end_sub_format() reckon it: with no fill point
+held and the column where the sink stands (`slp', walked over what was put
+out, `coco-fmt-direct'), the linepos after the text; else the column before
+it plus the linepos the text reaches from 0, a newline in it no reset
+(`coco-fmt-wcol'; `coco-fmt-writer', a DEFMACRO round the four writers). A
+newline and a return set it to 0, a backspace takes one back, and a
+character -- not a byte -- is a column.
+
+THE WALK WAITS FOR THE FIRST ASK: a fill point, a stop or `~N'. Until then
+nothing is walked (`on' 0) and a writer notes where its text begins and
+ends in the sink's buffer (`wbeg', `wend', eight writers, the ninth asking),
+and the first ask walks what the format put out before it, each piece by
+its rule (`coco_fmt_catchup'): no fill point stood before it, so the
+writers' texts are all there is to know. A format that asks no column
+walks nothing. Three DEFMACROs hold the rules, each written once and used
+by the writers and by the walk at the first ask alike.
+
+THE DIRECTIVES: `~t' records a fill point, its character the argument --
+digits (`~42t'), `*' (the next argument) or a backquote (`~`-t') -- or a
+space; from the first the text is held (`pb') and put out at the next stop,
+a hundred fill points at most (format('Too many tab stops'), MAXRUBBER).
+`~N|' stops at column N, `~|' alone at the column the text has reached;
+`~N+' at N past the last stop, `~+' alone eight. At a stop the room between
+the column and the stop is shared among the fill points as
+distribute_rubber() shares it -- alike, and what is left one each from the
+middle out, the middle, the one after it, two before, three after -- a
+place outside the segment taking none, as swipl's drops it (five fill
+points short of four spaces put out a column fewer); a stop with no fill
+point fills after the text. The column is the stop whatever the text
+reached: text past it overflows, nothing cut and nothing added, and the
+next stop reckons from the stop. With `:' (`~:|', `~:+') a stop the text
+has passed begins a new line filled to it, with the last fill point's
+character. A segment no stop closed is put out at the end, its fill points
+empty, before an argument left over is refused; one an error ends is lost,
+as swipl's. `~N' writes a newline unless the column is 0 -- after a return,
+or a stop the text passed, none -- where through 3.32.0 it asked whether
+the last character written was a newline.
+
+A NUMERIC ARGUMENT IS HELD TO A C INT, as swipl's: `*' past 2^31 - 1 is
+format('no or negative integer for `*\' argument') (swipl's
+PL_get_integer()), and digits past it format('argument overflow'), the
+error swipl's source raises there -- its check is compiled away in 9.0.4,
+whose digits wrap at 32 bits (`~99999999999|' writes 1 215 752 191 spaces):
+COMPAT.md's row, and test/errors.pl holds it.
+
+THE CARD: row F1 and its S1 pattern are retired (26 rows, 38 cites, seven
+patterns), with the selftest's line, test/lint.pl's acknowledgement of
+two IDs (G1 and X3 now), lesson 37's counts, and cocolint's guide and
+README, whose examples were F1's. Lessons 09 and 04 catch `~@', which is
+still refused by name, where they caught `~t~20|'; lesson 04 lays out three
+columns and lesson 38 one row of the usage table. COMPAT.md's row for
+between(1, infinite, X), stale since 3.0.0, is gone: between/3 counts for
+ever to `infinite' as to `inf', and test/files/between.pl has held it.
+
+test/files/format_columns.pl, new: 216 lines, swipl 9.0.4's byte for byte
+(3.32.0 differs at 2): stops, fills and their characters, the remainder
+from the middle and the places dropped, overflow, `~:|' and `~:+', newlines,
+tabs and backspaces in the format and in a writer's text, with a fill
+point held and without, writers before the first ask -- nine of them, and
+format text and tabs before them -- every writer, the sinks -- atom,
+string, codes, a difference list, a capture, a capture inside a capture,
+the console after text written before the format, user_output, the console
+named by a stream term, a library(stream) file -- and the errors.
+
+THE ARMS, a build each, the rule taken out, each red in format_columns.pl
+unless named: no fill point; the remainder not from the middle; a place
+outside the segment kept; `~|' alone at column 0; `~+' alone four; `~N+'
+from the column; the column the one the text reached; no `:'; `:''s line
+filled with spaces; a writer's column by format's rule; a writer taken to
+write to the stream unasked; format's own text by the stream's rule; the
+console's column 0; a capture's the console's; a library(stream) file's 0;
+`~N' asking the last character; no segment put out at the end; 99 fill
+points; `*' any integer; digits any number (errors.pl); a fill character a
+byte; a left-over argument refused before the held segment is put out; the
+console's column 0 through a stream term; a capture's column not counted,
+not set to 0, not given back; the walk at the first ask walking nothing; a
+writer not noted; the ninth writer not asking; the walk leaving `cdone' at
+a writer's start; the walk not turning `on'. Two were green at their first
+run and the case was made to see them: the left-over argument's, whose
+held segment was empty (`~w~t~w' of [a, b, c] now), and the ninth
+writer's, whose tab and the eighth's cancelled (the ninth writes `j' now).
+Green, as a guard of cost is: the column walked at every format from its
+start -- the same text, at 1 336 instructions a call more on the long line.
+
+THE COST, counted (callgrind, 20 000 calls of format(atom(_), F, A) a run,
+instructions a call beyond the same run with none), 3.32.0 to 3.33.0: a
+format that asks no column, `~w ~a ~d~n', 6 409 to 6 457 (+48, +0.75 %),
+and a line of 44 characters and `~w~n' 11 146 to 11 240 (+94, +0.84 %): the
+build's own setting up and each writer's note (+23 and +69 in
+`coco_fmt_do'), and coco_write_mode, which clang no longer inlines into
+format/2 (its 31 instructions moved out, its call added). The two designs
+before it, built and counted: the column walked at every format, +165 and
++1 336; a scan of the format for the directives that ask it, +269 and
++417. A format that asks, `~w~t~10|~t~d~6+~n', counts 7 589 (the scan's
+7 697, the column walked at every format 7 571). Tried and not kept, each
+built and counted: the writer's FORM put once in its macro (+0 and +3); no
+address of `o' taken (the same binary, byte for byte); the scan by
+memchr(3) (-180 on the long line, +40 on the short one, and the walk at
+the first ask needs no scan). tools/flow/zero.sh, work less padding,
+3.32.0 to 3.33.0: nrev 65 997 070 to 65 997 151, queens 40 281 173 to
+40 281 281, lookup 48 083 687 to 48 092 805 -- the step loop is not
+touched, and lookup's +9 118 is libc's strcmp, memcmp and strncmp (+76 776
+over the whole run: the placement of the binary's strings, which moved it
+by -8 856 at 3.32.0). A start (`cocolog query true', the two binaries run
+from one path) 34 983 463 instructions to 34 985 603.
+
+Narrow cases green on the final build (44): lint, files, errors, stream,
+engine, units, string, serialize, library, directives, trace, backtrace,
+repl, script, argv, flowchart, window, flowdebug, gc, text, template,
+process, os, signal, thread, async, cowork, meter, journal, cyclic,
+rationals, hex, astar, static, reconsult, reason, normalise, translate,
+tokens, and the solve, module, state, term and syntax binaries; lessons
+basics/09, library/04, 37 and 38. The card's cites hold (26 rows, 38 cites;
+X2 renumbered).

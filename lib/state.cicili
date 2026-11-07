@@ -168,7 +168,7 @@
           (for ((size_t i . 0)) (< i (-> e nchoices)) ((++ i))
             (let ((coco_choice * c . #'(aof (nth i (-> e choices))))
                   (u64 pname . 0) (u32 parity . 0))
-              (if (== (-> c kind) COCO_CH_CLAUSE)
+              (if (or (== (-> c kind) COCO_CH_CLAUSE) (== (-> c kind) COCO_CH_DB))
                   (block (set pname ($ (nth (-> c pred) ($ (cof (-> e st)) preds)) name))
                          (set parity ($ (nth (-> c pred) ($ (cof (-> e st)) preds)) arity))))
               (coco_sb_put_sz b (cast size_t (-> c kind)))       (coco_sb_putc b (cast char 32))
@@ -180,7 +180,7 @@
               ;; clauses: the knowledge base a thaw reloads holds none of
               ;; the dead the frame kept open (the logical update view,
               ;; lib/kb.cicili), and the call goes on where it stood in it
-              (coco_sb_put_sz b (? (== (-> c kind) COCO_CH_CLAUSE)
+              (coco_sb_put_sz b (? (or (== (-> c kind) COCO_CH_CLAUSE) (== (-> c kind) COCO_CH_DB))
                                    (coco_pred_live_before
                                     (aof (nth (-> c pred) ($ (cof (-> e st)) preds)))
                                     (-> c clause_ix))
@@ -188,7 +188,7 @@
               (coco_sb_putc b (cast char 32))
               (coco_sb_put_sz b (-> c barrier))                  (coco_sb_putc b (cast char 32))
               (coco_sb_put_sz b (cast size_t parity))            (coco_sb_putc b (cast char 32))
-              (if (== (-> c kind) COCO_CH_CLAUSE)
+              (if (or (== (-> c kind) COCO_CH_CLAUSE) (== (-> c kind) COCO_CH_DB))
                   (coco_sb_put_name b (coco_atom_name m pname)
                                   (strlen (coco_atom_name m pname)))
                 (coco_sb_put b "0 "))
@@ -262,7 +262,7 @@
           (coco_sb_put b "L ") (coco_sb_put_sz b (-> e nchoices)) (coco_sb_putc b (cast char 10))
           (for ((size_t i . 0)) (< i (-> e nchoices)) ((++ i))
             (let ((coco_choice * c . #'(aof (nth i (-> e choices)))))
-              (coco_sb_put_sz b (? (!= (-> c kind) COCO_CH_CLAUSE) 0
+              (coco_sb_put_sz b (? (and (!= (-> c kind) COCO_CH_CLAUSE) (!= (-> c kind) COCO_CH_DB)) 0
                                    (? (== (-> c cend) 4294967295) 4294967295
                                       (coco_pred_live_before
                                        (aof (nth (-> c pred) ($ (cof (-> e st)) preds)))
@@ -590,7 +590,8 @@
                     (for ((size_t i . 0)) (and ok (< i nl)) ((++ i))
                       (let ((u64 v . #'(coco_scan_u64 (aof z) 10)))
                         (if (and (< i (-> e nchoices))
-                                 (== ($ (nth i (-> e choices)) kind) COCO_CH_CLAUSE)
+                                 (or (== ($ (nth i (-> e choices)) kind) COCO_CH_CLAUSE)
+                                     (== ($ (nth i (-> e choices)) kind) COCO_CH_DB))
                                  (< v 4294967295))
                             (set ($ (nth i (-> e choices)) cend) (cast u32 v))))))))
 
@@ -608,6 +609,12 @@
                                "the frozen machine could not be read (at offset %llu)"
                                (cast ullong ($ z pos)))
                      (return 0)))
+          ;; THE GUARD ON (3.21.0, $/0): its guard frames came back as GOAL
+          ;; frames, their flags in `clause_ix', and the innermost is the
+          ;; topmost of them
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
+          (set (-> e dgh) (-> e nchoices))
+          (coco_det_unwound e)
           (return 1)))
 
   ) ; impl-state

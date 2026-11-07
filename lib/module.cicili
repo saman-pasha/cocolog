@@ -469,17 +469,20 @@
   ;;; In-tree: the hook's answer, 0 when none is installed.
   (decl) (func coco_m_sink_call ((coco_engine * e) (size_t sink) (const char * text) (size_t len)) (out int))
 
-  ;;; THE CONSOLE'S COLUMN (2.16.0), for format's `~N' and print_message/2.
-  ;;; A module that owns a sink answers whether a line is open there: 1
-  ;;; open, 0 at a line's start, -1 not one of its own (the engine then asks
-  ;;; its own, user_output and user_error by the console's column and a term
-  ;;; sink at 0). One hook per process, as the sink's. A module that writes
-  ;;; to the console itself says what it wrote, FD 1 for user_output and 2
-  ;;; for user_error, and can ask the console's column the same way.
-  (decl) (func coco_m_sink_open_install ((func hook ((coco_engine * e) (size_t sink)) (out int))))
-  (decl) (func coco_m_sink_open_call ((coco_engine * e) (size_t sink)) (out int))
+  ;;; THE CONSOLE'S COLUMN (2.16.0), for format's `~N', its column stops
+  ;;; and print_message/2. A module that owns a sink answers the column
+  ;;; its line stands at there, 0 at a line's start, or -1 not one of its
+  ;;; own (the engine then asks its own, user_output and user_error by the
+  ;;; console's column and a term sink at 0) -- through 3.32.0 whether a
+  ;;; line was open, 1 or 0, and the hook named so (`coco_m_sink_open_*').
+  ;;; One hook per process, as the sink's. A module that writes to the
+  ;;; console itself says what it wrote, FD 1 for user_output and 2 for
+  ;;; user_error, and can ask the console's column the same way.
+  (decl) (func coco_m_sink_column_install ((func hook ((coco_engine * e) (size_t sink)) (out int))))
+  (decl) (func coco_m_sink_column_call ((coco_engine * e) (size_t sink)) (out int))
   (decl) (func coco_m_out_note ((int fd) (const char * text) (size_t len)))
   (decl) (func coco_m_out_open ((int fd)) (out int))
+  (decl) (func coco_m_out_column ((int fd)) (out i64))
   (decl) (func coco_m_out_where ((i64 * nc) (i64 * nl) (i64 * lp) (i64 * nb)))
   (decl) (func coco_m_out_set_column ((i64 lp)))
 
@@ -828,11 +831,22 @@
                          ;; use_module' reads the libraries after it inside
                          ;; its own read, and a program's module read so
                          ;; is the program's
-                         (let ((int nx . #'(-> st noexp)))
+                         ;; and generate_debug_info is its own too (3.27.0):
+                         ;; a compiled-in module's text, or a preloaded
+                         ;; library's, starts at true whatever the read it is
+                         ;; nested in set -- a `run' file's first directive
+                         ;; reads them inside the file's own read -- and says
+                         ;; false where swipl's library does (lists, error,
+                         ;; aggregate, ordsets) or swipl defines it in system
+                         ;; mode; a library file a program loads takes the
+                         ;; flag the program left, as swipl's load does
+                         (let ((int nx . #'(-> st noexp)) (int nd . #'(-> m nodbg)))
                            (set (-> st noexp) (? (or (== (-> mod file) nil) (-> mod noexp)) 1 0))
+                           (if (or (== (-> mod file) nil) (-> mod noexp)) (set (-> m nodbg) 0))
                            (set cr (coco_consult_owner st m (-> mod prolog)
                                                        (? (== (-> mod file) nil) (-> mod name) (-> mod file))
                                                        (-> mod real) 0 err (sizeof err)))
+                           (set (-> m nodbg) nd)
                            (set (-> st noexp) nx))
                          (set (-> st ownload) ow)
                          (set (-> m dgc) 0)
@@ -1339,17 +1353,17 @@
         (if (== coco_m_sink_hook nil) (return 0))
         (return (coco_m_sink_hook e sink text len)))
 
-  (static) (var func coco_m_sink_open_hook ((coco_engine * e) (size_t sink)) (out int) . nil)
+  (static) (var func coco_m_sink_column_hook ((coco_engine * e) (size_t sink)) (out int) . nil)
 
-  (func coco_m_sink_open_install ((func hook ((coco_engine * e) (size_t sink)) (out int)))
-        (set coco_m_sink_open_hook hook))
+  (func coco_m_sink_column_install ((func hook ((coco_engine * e) (size_t sink)) (out int)))
+        (set coco_m_sink_column_hook hook))
 
   ;;; a replay's stream opened nothing, and its line is at its start
-  (func coco_m_sink_open_call ((coco_engine * e) (size_t sink)) (out int)
+  (func coco_m_sink_column_call ((coco_engine * e) (size_t sink)) (out int)
         (if (!= ($ (cof (-> e m)) rec) nil)
             (if (coco_m_replay_sink e sink) (return 0)))
-        (if (== coco_m_sink_open_hook nil) (return -1))
-        (return (coco_m_sink_open_hook e sink)))
+        (if (== coco_m_sink_column_hook nil) (return -1))
+        (return (coco_m_sink_column_hook e sink)))
 
   (func coco_m_out_note ((int fd) (const char * text) (size_t len))
         (if (== fd 1) (coco_out_note stdout text len))
@@ -1359,6 +1373,9 @@
         (if (== fd 1) (return (coco_out_open stdout)))
         (if (== fd 2) (return (coco_out_open stderr)))
         (return 0))
+
+  (func coco_m_out_column ((int fd)) (out i64)
+        (return (coco_out_column (? (== fd 2) stderr stdout))))
 
   (func coco_m_out_where ((i64 * nc) (i64 * nl) (i64 * lp) (i64 * nb))
         (coco_out_where nc nl lp nb))
@@ -1573,16 +1590,13 @@
   ;;; variable, type_error(callable, GOAL) for anything else -- and for a
   ;;; control structure with a goal that is no goal anywhere in it (3.1.0,
   ;;; `coco_goal_ok'), the whole of it, as swipl compiles it before it runs
+  ;;; -- and a G@M's own fault, its module's (3.20.0, `coco_goal_formal')
   (func coco_m_goal_bad ((coco_engine * e) (size_t goal) (const char * mod)
                          (const char * name) (u32 arity)) (out int)
         (let ((coco_machine * m . #'(-> e m)))
           (set goal (coco_deref m goal))
           (if (coco_goal_ok m goal) (return 0))
-          (if (coco-tag-is REF (nth goal (-> m heap)))
-              (return (coco_m_raise_pi e (coco_new_atom m "instantiation_error")
-                                       mod name arity)))
-          (return (coco_m_raise_pi e (coco_make2 m "type_error" (coco_new_atom m "callable") goal)
-                                   mod name arity))))
+          (return (coco_m_raise_pi e (coco_goal_formal m goal) mod name arity))))
 
   ;;; an unbound culprit is an instantiation_error (3.0.0), as swipl's
   ;;; PL_error() makes ERR_TYPE of a variable; type_error(variable, T) stays

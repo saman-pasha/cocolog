@@ -166,6 +166,9 @@ flow_bar_meta(forall(_, _), [1, 2]).
 flow_bar_meta(aggregate_all(_, _, _), [2]).
 flow_bar_meta(once(_), [1]).
 flow_bar_meta(ignore(_), [1]).
+%% swipl's control constructs $/1 and @/2 (cocolog 3.20.0)
+flow_bar_meta($(_), [1]).
+flow_bar_meta(@(_, _), [1]).
 flow_bar_meta(not(_), [1]).
 flow_bar_meta(call(_), [1]).
 flow_bar_meta(catch(_, _, _), [1, 3]).
@@ -378,6 +381,8 @@ flow_body_goal(B, G) :-
 flow_meta_arg(call(A), A).
 flow_meta_arg(once(A), A).
 flow_meta_arg(ignore(A), A).
+flow_meta_arg($(A), A).
+flow_meta_arg(@(A, _), A).
 flow_meta_arg(not(A), A).
 flow_meta_arg(forall(A, _), A).
 flow_meta_arg(forall(_, A), A).
@@ -857,7 +862,8 @@ flow_ann_body(G, T0, T, '$at'(GA, [at(L, K)])) :-
     flow_meta_args(G, Kinds), !,
     flow_leaf_start(T0, t(Kd, Tx, L, K), T1),
     functor(G, Name, _),
-    ( Kd == name ; Kd == qatom ), Tx == Name,
+    %% a symbol char name too: $/1 and @/2 (3.20.0)
+    ( Kd == name ; Kd == qatom ; Kd == sym ), Tx == Name,
     T1 = [_, t(punct, '(', _, _)|T2],
     G =.. [Name|Args],
     flow_ann_args(Args, Kinds, T2, T3, AArgs),
@@ -875,6 +881,8 @@ flow_meta_args(aggregate_all(_, _, _), [t, g, t]).
 flow_meta_args(forall(_, _), [g, g]).
 flow_meta_args(once(_), [g]).
 flow_meta_args(ignore(_), [g]).
+flow_meta_args($(_), [g]).
+flow_meta_args(@(_, _), [g, t]).
 flow_meta_args(not(_), [g]).
 flow_meta_args(call(G), [g]) :- nonvar(G).
 flow_meta_args(catch(_, _, _), [g, t, g]).

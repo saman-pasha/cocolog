@@ -19,8 +19,8 @@
 %%
 %% THE ANCHOR IS CODE, NEVER PROSE NEAR IT. Comments are the part of a file
 %% that gets rewritten without the behaviour changing, so anchoring on one
-%% gives a check that passes while the claim quietly stops being true. Row F1
-%% anchors on `(== d 116)' and not on the word "column"; row I1 on
+%% gives a check that passes while the claim quietly stops being true. Row G1
+%% anchors on the row `("b_setval"' and not on the word "backtrackable"; row I1 on
 %% `coco_arg_key' and not on the declaration's shouted comment above it. P1
 %% anchored on a comment for a while and the rule caught it the hard way: a
 %% rewrite of that comment deleted the anchor, and the check said GONE.
@@ -184,9 +184,11 @@ cd_walk(Term, Complaint) :-
         %% unknown functor until it was split this way.
         %%
         %% `=..' AND NOT arg/3: arg(N, T, A) with N unbound enumerates in
-        %% SWI and raises instantiation_error here, from inside a findall,
-        %% where C1 says an outer catch will never see it. The symptom was
-        %% an uncaught error with no indication of which row produced it.
+        %% SWI and raised instantiation_error here through 3.28.0, from
+        %% inside a findall, where C1 says an outer catch will never see it.
+        %% The symptom was an uncaught error with no indication of which row
+        %% produced it. It enumerates here too since 3.29.0; the walk stays
+        %% the one every version runs.
         \+ cd_ctor_data(F),
         Term =.. [_|Args],
         member(A, Args),
@@ -589,9 +591,9 @@ cd_facts_header(
     '%%',
     '%%   Scan is `code'' (a match inside a quote or a comment is not a',
     '%%   finding) or `text'' (a quote counts as code; a comment still',
-    '%%   does not). Only F1 and L1 are `text'', both because the form',
-    '%%   they look for lives INSIDE a quote by construction -- a format',
-    '%%   directive, a list-cell atom.',
+    '%%   does not). Only L1 is `text'', because the form it looks for',
+    '%%   lives INSIDE a quote by construction -- a list-cell atom (F1''s',
+    '%%   format directives were too, until 3.33.0 laid them out).',
     '%%',
     '%%   Pattern is a TERM, matched by cl_match/4. See lint.pl for the',
     '%%   vocabulary and for why it is not a regex.',
@@ -714,9 +716,9 @@ cd_main :-
     ;   cd_do_check(Args)
     ).
 
-%% `%-4s %s' -- the id left-aligned in four columns. NO ~t OR ~|: cocolog
-%% refuses the column directives by name (F1 in this very card), so the
-%% padding is computed, which is the documented fix for the trap.
+%% `%-4s %s' -- the id left-aligned in four columns, the padding computed:
+%% written when cocolog refused the column directives by name (F1 in this
+%% very card, through 3.32.0), where `~w~t~4|' would say it now.
 cd_do_patterns :-
     cd_patterns(Ps),
     forall(member(p(Id, Pat, _, _, _, _), Ps),

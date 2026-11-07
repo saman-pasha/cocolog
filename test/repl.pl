@@ -16,8 +16,10 @@
 %%
 %%   THE PUNCTUATION IS HONEST. A determinate answer ends `.` with nobody
 %%   asked; one that left a choice point waits for `;`, and the `;` a
-%%   terminal would have echoed is restored to piped output, so `member`
-%%   reads `X = a ;` `X = b ;` `false.`
+%%   terminal would have echoed is restored to piped output, so `member(X,
+%%   [a,b]) ; fail` reads `X = a ;` `X = b ;` `false.`, and member/2 alone,
+%%   whose last answer leaves no choice point since 3.22.0 (swipl's),
+%%   `X = a ;` `X = b.`
 %%
 %%   ONE SESSION IS ONE WORLD. What a goal asserts or consults, the next
 %%   goal sees; a syntax error costs the goal and not the session; `halt.`
@@ -52,8 +54,11 @@ local(D) :-
     section('local: names, aliases, punctuation, the session'),
     piped('X = 41 + 1, Y is X.\\n', G1),
     check('names survive into the answer', G1, 'X = 41+1,\nY = 42.'),
-    piped('member(X, [a,b]).\\n;\\n;\\n', G2),
+    piped('member(X, [a,b]) ; fail.\\n;\\n;\\n', G2),
     check('; asks again, the echo restored, false closes', G2, 'X = a ;\nX = b ;\nfalse.'),
+    piped('member(X, [a,b]).\\n;\\n', G2b),
+    check('...and member/2''s last answer, which leaves no choice point, closes with a full stop, as swipl''s',
+          G2b, 'X = a ;\nX = b.'),
     piped('true.\\n', G3),
     check('no variables says true', G3, 'true.'),
     piped('fail.\\n', G4),
@@ -84,16 +89,19 @@ local(D) :-
     shell(Cmd13, G13, _),
     has('and names the unknown procedure on stderr', 'Unknown procedure: mystery/1', G13),
     %% fact/1's second answer is determinate -- the store knows its last
-    %% clause -- so it closes with `.' where member/2, whose alternatives
-    %% live in a recursive clause body, waits a third time and closes with
-    %% false
+    %% clause -- so it closes with `.', as member/2's last answer has since
+    %% 3.22.0 (through 3.21 its alternatives lived in a recursive clause
+    %% body, and it waited a third time and closed with false)
     piped('assertz(fact(one)).\\nassertz(fact(two)).\\nfact(X).\\n;\\n', G14),
     check('what one goal asserts the next goal sees', G14, 'true.\ntrue.\nX = one ;\nX = two.'),
     %% retract respects the body (the shorthand IS (H :- true), so a
     %% same-headed rule survives a fact's retract -- kb.cicili, a CivV
     %% capture's finding) while retractall keeps SWI's wider head-only
-    %% contract and takes the rule too. The transcript is a live SWI's.
-    piped('assertz(f(a)), assertz((f(X) :- X == b)), assertz(f(c)).\\nretract(f(a)).\\nf(b), !.\\nf(a).\\nretractall(f(_)).\\nf(b).\\n', G15),
+    %% contract and takes the rule too. The transcript is a live SWI's. The
+    %% rule stands before the fact, so the fact is retract's last candidate
+    %% and the answer closes with `.' (3.28.0: a retract with a candidate
+    %% after its answer leaves a choice point, as swipl's does)
+    piped('assertz((f(X) :- X == b)), assertz(f(a)), assertz(f(c)).\\nretract(f(a)).\\nf(b), !.\\nf(a).\\nretractall(f(_)).\\nf(b).\\n', G15),
     check('retract minds the body; retractall removes rules too', G15, 'true.\ntrue.\ntrue.\nfalse.\ntrue.\nfalse.'),
     %% THE COUNT STARTS AGAIN AT EACH GOAL (1.12.2): `true' and `=/2' are
     %% no inference, counted apart from the steps, and the second goal here

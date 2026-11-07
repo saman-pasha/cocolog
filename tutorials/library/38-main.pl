@@ -38,7 +38,7 @@
 %%     5  a boolean's Default is for when the flag IS given
 %%     6  `--' again, inside your own arguments
 %%     7  unguided parsing, when you define no opt_type/3
-%%     8  the usage table, with no column directives to build it
+%%     8  the usage table, its columns computed
 
 :- use_module(library(main)).
 
@@ -226,11 +226,12 @@ s7 :-
 
 %% ---- 8. the usage table -----------------------------------------------
 %%
-%% NO ~t, ~| OR ~+ ANYWHERE IN IT. cocolog refuses the three column
-%% directives by name -- F1 in the dialect card -- and this is what the
-%% documented fix looks like: measure the widest left column, compute the
-%% padding, write it. SWI's own argv_usage/1 uses ~t twice and is two of the
-%% 31 reasons its file cannot be vendored here.
+%% THE COLUMNS ARE COMPUTED: argv_usage/1 measures the widest left column
+%% and writes the padding itself, as it had to while cocolog refused the
+%% three column directives by name (F1 in the dialect card, through
+%% 3.32.0). SWI's own argv_usage/1 lays the table out with ~t, which
+%% format/2 does as swipl's since 3.33.0: the last check below is one row
+%% both ways.
 s8 :-
     with_output_to(codes(Cs), argv_usage(0)),
     atom_codes(A, Cs),
@@ -242,6 +243,8 @@ s8 :-
     must('and opt_meta''s FILE overrides it', T3, yes),
     ( sub_atom(A, _, _, _, 'how many times') -> T4 = yes ; T4 = no ),
     must('and the help text', T4, yes),
+    format(atom(ByStop), "~w~t~19|~w", ['--count INTEGER', 'how many times']),
+    must('~t~19| pads a row as the table pads it', ByStop, '--count INTEGER    how many times'),
     format("~n~w", [A]).
 
 %% ---- the two helpers every lesson repeats ----------------------------

@@ -761,7 +761,12 @@
     (member size_t       varhead)
     (member size_t       vartail)
     (member size_t       nvar)
-    (member int          indexed))
+    (member int          indexed)
+    ;; SWIPL'S ASSESSMENT OF THE ARGUMENT (3.24.0, `coco_jit_speedup'): its
+    ;; expected speedup as an index, for the clauses as they stood at
+    ;; `tver' AVER names (bit 32 set, 0 for none). Appended.
+    (member u64          aver)
+    (member double       aspd))
 
   ;;; One predicate: a name, an arity, and the clauses under it in the order
   ;;; they were asserted. `loaded' says the fetch hook has already been asked
@@ -975,8 +980,24 @@
     ;; predicate_property/2 and listing/1 say of it. None of them defines
     ;; the predicate but thread_local/1, as swipl's -- a call of a public
     ;; one with no clauses raises existence_error. Kept by the process only.
-    ;; Appended.
-    (member int      pattrs))
+    ;; Appended. 16 a non-terminal (3.14.0); and (3.27.0) 32 its children
+    ;; hidden from the tracer (swipl's HIDE_CHILDS), 64 a library's: its
+    ;; first clause was a compiled-in module's text or a preloaded library's
+    ;; (`coco_assert_from')
+    (member int      pattrs)
+    ;; THE FIRST ARGUMENT'S SPEEDUP AS SWIPL ASSESSES IT (3.24.0), what
+    ;; `coco_argix''s AVER and ASPD are to the others: asked by the JIT
+    ;; index of a predicate under the floor (`coco_pred_jit'). Appended.
+    (member u64      j0ver)
+    (member double   j0spd)
+    ;; THE MODULE THE READ THAT GAVE IT ITS FIRST CLAUSE IS (3.26.0): that
+    ;; read's module/2 name, an atom plus one, and 0 for the program's own
+    ;; (user's) and for a clause no read added -- what a determinism error
+    ;; and an unknown procedure's context name it with, as swipl names
+    ;; assoc:gen_assoc_/3 (`coco_pred_note_mod', `coco_frame_pi'). One
+    ;; namespace: a second module's clauses join the first one's predicate
+    ;; and keep its name. Appended.
+    (member u64      pmod))
 
   ;;; Forward-declared, because the two hooks below are members of the store
   ;;; and take a pointer to it -- the typedef has to exist before the struct
@@ -1599,7 +1620,9 @@
     (member u64 *  etmpl)
     ;; WHAT ENTERING THE CLAUSE TAKES beyond the plain executor: 0 nothing,
     ;; 1 its guards, 2 its environment, 3 both -- so `coco_try_clause' asks
-    ;; a plain clause one question, the one it asked through 1.9.2
+    ;; a plain clause one question, the one it asked through 1.9.2 -- and 4
+    ;; (3.21.0) a body that holds $/0, built whole and closed by its
+    ;; frame's exit marker (`coco_try_clause_det')
     (member u32    ex)
     ;; AN ENVIRONMENT HAS NAMED THIS CODE (`envd'), so a clause that dies
     ;; retires it instead of freeing it (`coco_code_drop'); GCMARK is the
@@ -1616,7 +1639,13 @@
     ;; the barrier its body leaves on the continuation, which is how an
     ;; error a body goal raises names the clause's predicate, as swipl's
     ;; frames do
-    (member u64    ptag))
+    (member u64    ptag)
+    ;; A LAST GOAL SWIPL COMPILES IN PLACE (3.21.1, `cc_det_inline_last'):
+    ;; under a guard that goal is no call, and a step hides the guard from
+    ;; it (`coco_det_enter'). A field of its own, not a bit of `ex': as one
+    ;; (3.21.0) every clause ending so went the guarded entry's way while
+    ;; no guard was on, about 90 instructions an entry
+    (member u32    dlast))
 
   ;;; The clause's code, compiled on the first ask; null when it could not
   ;;; be compiled (out of memory, a head that is not callable), and the
@@ -1676,6 +1705,9 @@
   (decl) (func coco_iso_predicate ((const char * name) (u32 arity)) (out int))
   (decl) (func coco_bix_fill ((coco_machine * m) (coco_store * st) (u64 nid) (u32 n)) (out u32))
   (decl) (func coco_pred_take_over ((coco_store * st) (coco_machine * m) (size_t pi) (size_t head)))
+  ;;; The frame swipl names for NID/N (lib/solve.cicili's *frame-contexts*),
+  ;;; which a single-sided rule's last clause names too (3.26.1)
+  (decl) (func coco_frame_ctx ((coco_machine * m) (u64 nid) (u32 n) (size_t * out)) (out int))
   ;;; The engine's names interned (lib/solve.cicili), which the question
   ;;; above wants before a fresh machine's first step.
   (decl) (func coco_ids_fill ((coco_machine * m)))
@@ -1807,6 +1839,8 @@
                                      (u64 oid) (coco_origin_seen * seen)))
   (decl) (func coco_ssu_body ((coco_machine * m) (size_t b)) (out size_t))
   (decl) (func coco_ssu_rule ((coco_machine * m) (size_t t)) (out size_t))
+  ;;; the module a read under module/2 names a predicate with (3.26.0)
+  (decl) (func coco_pred_note_mod ((coco_store * st) (coco_machine * m) (size_t pi)))
 
   ;;; A clause as a backend stores it: bare, or `'$from'(Path, Clause)'
   ;;; carrying the name of the file that consulted it. Either goes into the
@@ -1837,7 +1871,8 @@
   (decl) (func coco_pred_next_clause ((coco_store * st) (coco_pred * p)
                                     (u64 key) (size_t from)) (out size_t))
   ;; the first candidate and whether a second exists: 0 none, 1 one, 2 more
-  ;; -- of the LIVE clauses, a new call's (`coco_pred_dead')
+  ;; -- of the LIVE clauses, a new call's (`coco_pred_dead') -- and 3 a 2
+  ;; where swipl's JIT index would ask another argument (`coco_pred_jit')
   (decl) (func coco_pred_probe ((coco_store * st) (coco_pred * p)
                               (u64 key) (size_t * ix) (coco_machine * m)) (out int))
 
@@ -1903,6 +1938,12 @@
                                   (u32 pos) (u64 key) (size_t from)) (out size_t))
   (decl) (func coco_pred_probe_at ((coco_store * st) (coco_machine * m) (coco_pred * p)
                                    (u32 pos) (u64 key) (size_t * ix)) (out int))
+  ;;; SWIPL'S JIT INDEX for a predicate under the floor (3.24.0): asked when
+  ;;; `coco_pred_probe' answers 3, and answering as it does, on the argument
+  ;;; swipl's assessment chooses (KPOS) -- the call's term at CALL, or its
+  ;;; arguments in the registers REGS
+  (decl) (func coco_pred_jit ((coco_store * st) (coco_machine * m) (coco_pred * p) (size_t call)
+                              (size_t * regs) (size_t * ix) (u32 * kpos)) (out int))
 
   ;;; What `coco_pred_next_clause' answers when the clauses have run out. Not
   ;;; a position anything can hold, because the clause array would have to
@@ -1997,7 +2038,13 @@
   ;;; Removes the first clause whose head and body unify with the given term:
   ;;; 1 when one went, 0 when none matched, -1 when the predicate could not be
   ;;; read from the backend (the reason in `fetch_err', 2.11.1).
+  ;;; '$retractall'/1's; retract/1 walks the clauses itself (3.28.0).
   (decl) (func coco_retract ((coco_store * st) (coco_machine * m) (size_t clause)) (out int))
+  ;;; Clause I of PI taken out, its cells SPAN long: dead in place under an
+  ;;; open call (the logical update view), else out of the predicate, and the
+  ;;; backend told. 1.
+  (decl) (func coco_retract_at ((coco_store * st) (coco_machine * m) (size_t pi) (size_t i)
+                                (size_t span)) (out int))
 
   ;;; Declares every predicate a declaration's spec names, as KIND says: 0
   ;;; dynamic/1, 1 discontiguous/1, 2 multifile/1 (3.1.0). SPEC is a
@@ -2147,6 +2194,14 @@
   (decl) (func coco_claims_install
                ((func h ((const char * name) (u32 arity)) (out int))))
 
+  ;;; WHAT THE TRACER TAKES FOR THE SYSTEM'S C (3.27.0), installed by the
+  ;;; builtins module (its `coco_b_system_claims'): the compiled-in modules'
+  ;;; rows, green's among them, which the printer hides where a library's
+  ;;; clause calls them (`coco_trace_hc'). Null in a test binary: there the
+  ;;; engine's own rows are all the system's C
+  (decl) (func coco_sysclaims_install
+               ((func h ((const char * name) (u32 arity)) (out int))))
+
   ;;; WHAT AN UNKNOWN PROCEDURE'S NAME IS NEAR (3.3.0), installed by the
   ;;; builtins module (its `coco_b_dwim_text'): the lines swipl's message
   ;;; ends on, `However, there are definitions for:' and a line each, which
@@ -2161,6 +2216,16 @@
   ;;; Whether the store's NAME/ARITY is one a program file took over
   ;;; (`taken', 3.1.0): 0 at once while none is.
   (decl) (func coco_pred_taken ((coco_store * st) (u64 name) (u32 arity)) (out int))
+
+  ;;; WHAT current_predicate/1 ANSWERS OF NID/N NAMED WHOLE (3.31.0), and so
+  ;;; a read's `:- if(current_predicate(Name/Arity))': 1 for a predicate the
+  ;;; system defines -- a row of the engine, or what the claims hook names,
+  ;;; a construct or a compiled-in module's row: what predicate_property/2
+  ;;; calls built_in -- as swipl's answers for its system's through user's
+  ;;; import of it; else 1 for one the program defines, a clause or a
+  ;;; declaration and not a library's, as '$predicates'/1 lists it.
+  (decl) (func coco_pred_current ((coco_store * st) (coco_machine * m) (u64 nid) (u32 n))
+               (out int))
 
   ;;; Ends the process from inside a load with CODE -- SWI's halt, which
   ;;; stops the load where it stands -- after the store's `on_halt', when it
@@ -2221,6 +2286,12 @@
   (func coco_claims_install ((func h ((const char * name) (u32 arity)) (out int)))
         (set coco_claims_hook h))
 
+  ;; and the tracer's, the same rows and green's (3.27.0)
+  (static) (var func coco_sysclaims_hook ((const char * name) (u32 arity)) (out int))
+
+  (func coco_sysclaims_install ((func h ((const char * name) (u32 arity)) (out int)))
+        (set coco_sysclaims_hook h))
+
   ;; and what an unknown procedure is near, by the same module
   (static) (var func coco_dwim_hook ((coco_machine * m) (coco_store * st) (u64 nid)
                                      (u32 zar) (coco_strbuf * b)))
@@ -2262,6 +2333,21 @@
           ;; a construct a program cannot take over: 0, as before
           (if (and (< row 0) (coco_is_construct m nid)) (return 0))
           (return 1)))
+
+  (func coco_pred_current ((coco_store * st) (coco_machine * m) (u64 nid) (u32 n)) (out int)
+        ;; a fresh machine's first consult comes before its first step,
+        ;; which is where the engine's names are interned otherwise: the
+        ;; libraries read at start-up ask before any
+        (if (not (-> m ids_ready)) (coco_ids_fill m))
+        (if (or (>= (coco_builtin_index m nid n) 0)
+                (and (!= coco_claims_hook nil) (coco_claims_hook (coco_atom_name m nid) n)))
+            (return 1))
+        (coco_store_warm st)
+        (let ((size_t pi . #'(coco_pred_find st nid n)) (coco_pred * p . nil))
+          (if (>= pi (-> st npreds)) (return 0))
+          (set p (aof (nth pi (-> st preds))))
+          (return (and (or (not (-> p library)) (-> p own))
+                       (or (> (coco_pred_live p) 0) (or (-> p dynamic) (-> p declared)))))))
 
   (func coco_halt_load ((coco_store * st) (int code) (int keep))
         ;; the program's output first: a failed commit says so on stderr

@@ -186,6 +186,8 @@ main :-
     shared_store,
     shared_store_concurrent,
     cleanups,
+    retract_walks,
+    retired_codes,
     checks_done.
 
 %% ---- values ------------------------------------------------------------
@@ -474,3 +476,100 @@ cleanups :-
     section('a task that leaves a cleanup pending'),
     answer(acl_go(S1), S1, G1),
     check('each task''s cleanup ran as it ended, its catcher the cut', G1, [a-!, b-!]).
+
+%% A WALK OF retract/1's LIVES THROUGH THE DEATHS IT MAKES (3.28.0): its
+%% retry over a clause retracted since is an answer and takes nothing
+%% again. A second death would give the clause a later number, and a call
+%% another task began after the first one, and has open across the second,
+%% would see the clause come back. The walker takes rd(0), then rd(2) in
+%% its own goals, and lets the caller begin a call of rd/1 then -- rd(2)
+%% dead before it began, rd(1) and rd(3) its answers; it takes rd(1) under
+%% the caller's open call, so the caller lives through a death, and walks
+%% on to rd(2) and rd(3) while the caller waits on its first answer.
+
+%% One worker is the world where the caller's task starts after the walker
+%% has blocked: through 3.27.0 its query start swept the dead under the
+%% walker's open call (`coco_tomb_sweep_all'), which then went on from a
+%% place that had moved -- a plain call of rd/1 there answered [0,3] for
+%% [0,1,3]. Two workers start both tasks at once. Each world is a child.
+retract_walks :-
+    section('a retract walk and another task\'s call share the logical update view'),
+    scratch(D),
+    atom_concat(D, '/rd.pl', Path),
+    fixture(Path,
+            [ ':- dynamic rd/1, rd_walked/1, rd_seen/1.',
+              'rd_walker(C1, C2) :-',
+              '    (   retract(rd(X)), assertz(rd_walked(X)),',
+              '        ( X == 0 -> retract(rd(2)), channel_send(C1, go), channel_recv(C2, _) ; true ),',
+              '        fail',
+              '    ;   true',
+              '    ),',
+              '    channel_send(C1, done).',
+              'rd_walker2(C1, C2) :-',
+              '    (   rd(X), retract(rd(X)), assertz(rd_walked(X)),',
+              '        ( X == 0 -> retract(rd(2)), channel_send(C1, go), channel_recv(C2, _) ; true ),',
+              '        fail',
+              '    ;   true',
+              '    ),',
+              '    channel_send(C1, done).',
+              'rd_caller(C1, C2) :-',
+              '    channel_recv(C1, go),',
+              '    (   rd(Y), assertz(rd_seen(Y)),',
+              '        ( Y == 1 -> channel_send(C2, first), channel_recv(C1, done) ; true ),',
+              '        fail',
+              '    ;   true',
+              '    ).',
+              'rd_world(Walker) :-',
+              '    channel(C1), channel(C2),',
+              '    go(call(Walker, C1, C2), W), go(rd_caller(C1, C2), K),',
+              '    await_all([W, K]).',
+              'rd_go(Walker) :-',
+              '    retractall(rd(_)), retractall(rd_walked(_)), retractall(rd_seen(_)),',
+              '    forall(between(0, 3, I), assertz(rd(I))),',
+              '    async_run(rd_world(Walker)),',
+              '    findall(X, rd_walked(X), Walked), findall(Y, rd_seen(Y), Seen),',
+              '    write(Walked-Seen), nl.',
+              'main :- rd_go(rd_walker), rd_go(rd_walker2).' ]),
+    cocolog(C),
+    forall(member(N-Label, [1-'one worker', 2-'two workers']),
+           ( sh_join(['COCOLOG_GREEN_WORKERS=', N, ' ', C, ' run ', Path, ' main 2>&1'], Cmd),
+             shell(Cmd, Out, Exit),
+             atom_concat(Label, ': the walk answers every clause it began with, the call no clause dead when it began, and a plain call of the walker is on its place', Says),
+             check(Says, Out-Exit, '[0,1,2,3]-[1,3]\n[0,1,3]-[1,3]'-0) )),
+    shl(['rm -rf ', D]).
+
+%% A DEAD CLAUSE'S CODE THAT ANOTHER TASK'S ENVIRONMENT IS PART WAY
+%% THROUGH IS NOT FREED (3.28.0). Task A enters a clause whose body has an
+%% environment (its `;') and waits in it; task B retracts the clause, whose
+%% code the store retires, and then collects its heap, or starts a task of
+%% its own. Through 3.27.0 each freed the code -- B's mark finds B's heap's
+%% environments alone, and a query start took every retired code -- and A
+%% went on in freed memory: valgrind's memcheck reported twelve invalid
+%% reads and writes either way. Where the box has no valgrind the section
+%% says so.
+retired_codes :-
+    section('a retired clause code outlives another task\'s collection and start'),
+    (   sh_exit('command -v valgrind >/dev/null 2>&1', 0)
+    ->  scratch(D),
+        atom_concat(D, '/uaf.pl', Path),
+        fixture(Path,
+                [ ':- dynamic ra/2, ra_done/0.',
+                  'ra(C1, C2) :- channel_send(C1, entered), channel_recv(C2, _), ( true ; true ), !, assertz(ra_done).',
+                  'killer(C1, C2, How) :-',
+                  '    channel_recv(C1, entered),',
+                  '    retract((ra(_, _) :- _)),',
+                  '    ( How == gc -> garbage_collect ; How == start -> go(true, F), await(F, _) ; true ),',
+                  '    channel_send(C2, go).',
+                  'world(How) :- channel(C1), channel(C2), go(ra(C1, C2), A), go(killer(C1, C2, How), K), await_all([A, K]).',
+                  'main :- current_prolog_flag(argv, [_, How|_]),',
+                  '        async_run(world(How)), ( ra_done -> write(done) ; write(not_done) ), nl.' ]),
+        cocolog(C),
+        forall(member(How, [gc, start]),
+               ( sh_join(['COCOLOG_GREEN_WORKERS=2 valgrind -q --error-exitcode=9 ', C,
+                          ' -s ', Path, ' -- ', How, ' 2>&1'], Cmd),
+                 shell(Cmd, Out, Exit),
+                 atom_concat('memcheck reads no freed code after the other task\'s ', How, Says),
+                 check(Says, Out-Exit, done-0) )),
+        shl(['rm -rf ', D])
+    ;   format("   SKIP (no valgrind here)~n", [])
+    ).

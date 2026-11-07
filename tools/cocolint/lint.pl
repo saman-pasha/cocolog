@@ -29,10 +29,10 @@
 %%     U1  an acknowledgement that acknowledges nothing, or gives no reason
 %%
 %% A FINDING THE CODE MEANS IS ACKNOWLEDGED WHERE IT STANDS, by a comment
-%% that names it and says why -- a lesson that shows `retract(X), fail'
-%% removing one clause commits the trap on purpose:
+%% that names it and says why -- a lesson that shows b_setval/2 keeping its
+%% value past backtracking commits the trap on purpose:
 %%
-%%     ( retract(seen(_)), fail ; true ),   % cocolint: R1 -- the lesson
+%%     ( b_setval(k, 1), fail ; nb_getval(k, V) ),   % cocolint: G1 -- the lesson
 %%
 %% See cl_acks/3 below for the whole of the rule.
 %% WHY THIS IS CLAUSES AND NOT PYTHON. A lint rule IS a clause -- a head that
@@ -413,9 +413,10 @@ cl_dcg_note(_, _, _, '').
 %% MASKED BY REGION, and the mask is per trap. `code' means a match inside a
 %% quote or a comment is not a finding -- without it a tutorial explaining
 %% `retract(X), fail' is reported as committing it. `text' means a quote
-%% counts as code, which F1 and L1 need because the form they look for
-%% lives inside a quote by construction. NOTHING scans comments: a comment
-%% naming ~t documents the rule rather than breaking it.
+%% counts as code, which L1 needs because the form it looks for lives
+%% inside a quote by construction (as F1's format directives did, until
+%% 3.33.0). NOTHING scans comments: a comment naming '[|]' documents the
+%% rule rather than breaking it.
 %%
 %% AND A MATCH THAT OPENS ON AN ESCAPED BACKSLASH IS NO MATCH (cl_escaped_backslash/2).
 %% Inside a quote `\\u0041' is a backslash and the letters u0041 -- what every

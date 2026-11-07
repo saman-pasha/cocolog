@@ -725,15 +725,28 @@
   ;;; - THE UNIFICATIONS THAT BEGIN THE BODY GO INTO THE HEAD, under swipl's
   ;;;   flag `optimise_unify' (`coco_cbody_scan'): `p(X) :- X = f(Y), q(Y)'
   ;;;   is `p(f(Y)) :- q(Y)', and a body left with nothing is `true'.
+  ;;; - `$(G)' IS COMPILED IN PLACE (3.20.0), its G an arm (`$((a, (b,
+  ;;;   c)))' is `$((a, b, c))', `$(X)' `$(call(X))'), and keeps no qualifier
+  ;;;   of its own: `foo:$(p)' is `$(foo:p)'.
+  ;;; - G@M IS SAID OF EACH GOAL UNDER IT (3.20.0), as a qualifier is,
+  ;;;   through the constructs and into a `$': `@((a ; b), m)' is `@(a, m) ;
+  ;;;   @(b, m)', `@($(p), m)' `$(@(p, m))', the innermost `@' winning and
+  ;;;   a qualifier staying inside it (`foo:@(p, m)' is `@(foo:p, m)',
+  ;;;   `@(user:p, m)' `@(p, m)'); the goals the compiler makes no call of
+  ;;;   lose it, and under a variable qualifier each goal is call(@(M:G, A)).
+  ;;; - A VARIABLE GOAL UNDER A VARIABLE MODULE is call(M:X) (3.20.0; through
+  ;;;   3.19.5 `M:(a, X)' made it call(call(M:X))).
   ;;; The compile's state: the clause, its variables counted on the first
-  ;;; question (COUNTED 1, or -1 where the walk gave up), and the goals that
-  ;;; went into the head.
+  ;;; question (COUNTED 1, or -1 where the walk gave up), the goals that
+  ;;; went into the head, and AT the module of the `@' the walk is inside
+  ;;; (`(size_t)-1' for none).
   (struct coco_cbody
     (member size_t        clause)
     (member int           counted)
     (member coco_varmap * vm)
     (member size_t *      drop)
-    (member u32           ndrop))
+    (member u32           ndrop)
+    (member size_t        at))
 
   ;;; Each unbound variable's occurrences in the whole clause, once: an
   ;;; explicit stack, and past twice the heap's length and 64 nodes the
@@ -813,9 +826,10 @@
                             (== 0 (strcmp nm "rational")))))))
 
   ;;; Which construct G is, by its characters (`coco_cbody_goal'): 1 `,',
-  ;;; 2 `;', 3 '|', 4 `->', 5 `*->', 6 `\+', 7 `:', 8 `=', 0 none. A name is
-  ;;; compared only where its first byte could be a construct's: a strcmp a
-  ;;; node cost the translator's consult 1.3 million instructions (3.2.0).
+  ;;; 2 `;', 3 '|', 4 `->', 5 `*->', 6 `\+', 7 `:', 8 `=', 9 `$/1', 10
+  ;;; `@/2', 0 none. A name is compared only where its first byte could be a
+  ;;; construct's: a strcmp a node cost the translator's consult 1.3
+  ;;; million instructions (3.2.0).
   (static)
   (func coco_cbody_kind ((coco_machine * m) (size_t g)) (out int)
         (if (not (coco-tag-is FUN (nth g (-> m heap)))) (return 0))
@@ -825,11 +839,14 @@
           (if (or (== n 0) (> n 2)) (return 0))
           (set c0 (bitand (cast int (nth 0 nm)) 255))
           (if (== n 1)
-              (return (? (and (== c0 92) (and (== (bitand (cast int (nth 1 nm)) 255) (coco-ch "+"))
-                                              (== (nth 2 nm) 0)))
-                         6 0)))
+              (block
+                (if (and (== c0 (coco-ch "$")) (== (nth 1 nm) 0)) (return 9))
+                (return (? (and (== c0 92) (and (== (bitand (cast int (nth 1 nm)) 255) (coco-ch "+"))
+                                                (== (nth 2 nm) 0)))
+                           6 0))))
           (if (not (or (or (or (== c0 (coco-ch ",")) (== c0 (coco-ch ";"))) (or (== c0 (coco-ch "|")) (== c0 (coco-ch "-"))))
-                       (or (or (== c0 (coco-ch "*")) (== c0 (coco-ch ":"))) (== c0 (coco-ch "=")))))
+                       (or (or (== c0 (coco-ch "*")) (== c0 (coco-ch ":")))
+                           (or (== c0 (coco-ch "=")) (== c0 (coco-ch "@"))))))
               (return 0))
           (set c1 (bitand (cast int (nth 1 nm)) 255))
           (if (== c1 0)
@@ -838,6 +855,7 @@
                     ((== c0 (coco-ch "|")) (return 3))
                     ((== c0 (coco-ch ":")) (return 7))
                     ((== c0 (coco-ch "=")) (return 8))
+                    ((== c0 (coco-ch "@")) (return 10))
                     (#t (return 0))))
           (if (and (== c0 (coco-ch "-")) (and (== c1 (coco-ch ">")) (== (nth 2 nm) 0))) (return 4))
           (if (and (== c0 (coco-ch "*")) (== 0 (strcmp nm "*->"))) (return 5))
@@ -851,6 +869,19 @@
         (let ((size_t q . #'(coco_make2 m ":" mod g)))
           (if (coco-tag-is REF (nth (coco_deref m mod) (-> m heap))) (return (coco_make1 m "call" q)))
           (return q)))
+
+  ;;; G as written under MOD and inside the `@' the walk is in (3.20.0):
+  ;;; `coco_cbody_qual''s answer outside one, else @(G, A) with G
+  ;;; qualified, call/1 of it under a variable MOD
+  (static)
+  (func coco_cbody_wrap ((coco_machine * m) (coco_cbody * cb) (size_t g) (size_t mod)) (out size_t)
+        (if (== (-> cb at) (cast size_t -1)) (return (coco_cbody_qual m g mod)))
+        (let ((size_t q . #'(? (== mod (cast size_t -1)) g (coco_make2 m ":" mod g)))
+              (size_t r . 0))
+          (set r (coco_make2 m "@" q (-> cb at)))
+          (if (and (!= mod (cast size_t -1)) (coco-tag-is REF (nth (coco_deref m mod) (-> m heap))))
+              (return (coco_make1 m "call" r)))
+          (return r)))
 
   (decl) (func coco_cbody_goal ((coco_machine * m) (coco_cbody * cb) (size_t g) (size_t mod)
                                 (int depth)) (out size_t))
@@ -913,7 +944,7 @@
               (set ok (coco_cbody_push m r (aof v) (aof vn) (aof vcap) loc))
               (set t (coco_deref m (coco_arg m t 1)))))
           (if (not ok)
-              (block (if (!= v loc) (free v)) (return (coco_cbody_qual m g mod))))
+              (block (if (!= v loc) (free v)) (return (coco_cbody_wrap m cb g mod))))
           (if same (block (if (!= v loc) (free v)) (return g)))
           ;; made again, from its last goal back
           (set r (cast size_t -1))
@@ -932,15 +963,42 @@
   (func coco_cbody_goal ((coco_machine * m) (coco_cbody * cb) (size_t g) (size_t mod) (int depth))
         (out size_t)
         (set g (coco_deref m g))
-        (if (> depth 256) (return (coco_cbody_qual m g mod)))
+        (if (> depth 256) (return (coco_cbody_wrap m cb g mod)))
+        ;; a variable goal: call/1 of it as it stands, qualified and inside
+        ;; its `@', one call/1 under a variable module too
         (if (coco-tag-is REF (nth g (-> m heap)))
-            (return (coco_make1 m "call" (coco_cbody_qual m g mod))))
+            (block
+              (if (and (== (-> cb at) (cast size_t -1))
+                       (or (== mod (cast size_t -1))
+                           (not (coco-tag-is REF (nth (coco_deref m mod) (-> m heap))))))
+                  (return (coco_make1 m "call" (coco_cbody_qual m g mod))))
+              (if (== (-> cb at) (cast size_t -1))
+                  (return (coco_cbody_qual m g mod)))
+              (return (coco_make1 m "call"
+                                  (coco_make2 m "@" (? (== mod (cast size_t -1)) g (coco_make2 m ":" mod g))
+                                              (-> cb at))))))
         (if (and (coco-tag-is FUN (nth g (-> m heap))) (== (coco_arity m g) 0))
             (set g (coco_new_atom_id m (coco_name_of m g))))
         (if (not (coco_is_callable m g)) (return (coco_cbody_qual m g mod)))
         (let ((int k . #'(coco_cbody_kind m g)) (u64 nid . #'(coco_name_of m g)))
           (cond
             ((== k 1) (return (coco_cbody_conj m cb g mod depth)))
+            ;; $(G): G an arm, in place
+            ((== k 9)
+             (let ((size_t a . #'(coco_deref m (coco_arg m g 0)))
+                   (size_t ra . #'(coco_cbody_arm m cb a mod (+ depth 1))))
+               (if (== ra a) (return g))
+               (return (coco_make1 m "$" ra))))
+            ;; G@M: G's goals each inside M, the innermost `@' winning (an M
+            ;; that is no module, a load and an assert refuse)
+            ((== k 10)
+             (let ((size_t gg . #'(coco_deref m (coco_arg m g 0)))
+                   (size_t am . #'(coco_deref m (coco_arg m g 1)))
+                   (size_t sat . #'(-> cb at)) (size_t r . 0))
+               (set (-> cb at) am)
+               (set r (coco_cbody_goal m cb gg mod (+ depth 1)))
+               (set (-> cb at) sat)
+               (return r)))
             ((and (>= k 2) (<= k 5))
              (let ((size_t a . #'(coco_deref m (coco_arg m g 0)))
                    (size_t b . #'(coco_deref m (coco_arg m g 1)))
@@ -957,8 +1015,11 @@
              (let ((size_t mm . #'(coco_deref m (coco_arg m g 0)))
                    (size_t gg . #'(coco_deref m (coco_arg m g 1))))
                (cond
-                 ;; M:X, X a variable: call/1 of it as written
-                 ((coco-tag-is REF (nth gg (-> m heap))) (return (coco_make1 m "call" g)))
+                 ;; M:X, X a variable: call/1 of it as written, inside its
+                 ;; `@' (3.20.0)
+                 ((coco-tag-is REF (nth gg (-> m heap)))
+                  (return (coco_make1 m "call" (? (== (-> cb at) (cast size_t -1)) g
+                                                  (coco_make2 m "@" g (-> cb at))))))
                  ((and (coco-tag-is ATOM (nth mm (-> m heap))) (not (coco_is_nil m mm)))
                   (block
                     (if (== 0 (strcmp (coco_atom_name m (coco_name_of m mm)) "user"))
@@ -973,9 +1034,9 @@
             ((== k 8)
              (for ((u32 i . 0)) (< i (-> cb ndrop)) ((++ i))
                (if (== (nth i (-> cb drop)) g) (return (cast size_t -1)))))))
-        (if (== mod (cast size_t -1)) (return g))
+        (if (and (== mod (cast size_t -1)) (== (-> cb at) (cast size_t -1))) (return g))
         (if (coco_cbody_inline (coco_arity m g) (coco_atom_name m (coco_name_of m g))) (return g))
-        (return (coco_cbody_qual m g mod)))
+        (return (coco_cbody_wrap m cb g mod)))
 
   ;;; THE UNIFICATIONS THAT BEGIN THE BODY (3.15.0), as swipl's compiler
   ;;; takes them into the head: the leading goals walked, a `true' and a
@@ -1045,6 +1106,7 @@
           (set ($ cb vm) (aof vm))
           (set ($ cb drop) nil)
           (set ($ cb ndrop) 0)
+          (set ($ cb at) (cast size_t -1))
           (set nh h)
           (if (and lift (and (coco_optimise_unify)
                              (and (coco-tag-is FUN (nth h (-> m heap))) (> (coco_arity m h) 0))))
@@ -1130,6 +1192,14 @@
             (return (and (coco-tag-is ATOM (nth a (-> m heap)))
                          (== 0 (strcmp (coco_atom_name m (coco_name_of m a)) "$ssu")))))))
 
+  ;;; THE MODULE A READ NAMES (3.26.0): its module/2's, `ssu_mod', for a
+  ;;; predicate whose first clause the read adds -- `user' and `system'
+  ;;; name none, as swipl's determinism error names neither
+  (func coco_pred_note_mod ((coco_store * st) (coco_machine * m) (size_t pi))
+        (let ((const char * mn . #'(coco_atom_name m (- (-> m ssu_mod) 1))))
+          (if (and (!= 0 (strcmp mn "user")) (!= 0 (strcmp mn "system")))
+              (set ($ (nth pi (-> st preds)) pmod) (-> m ssu_mod)))))
+
   ;;; A READ NOTES THE PREDICATE, once, from its own base on
   ;;; (`coco_consult_oid'): its end puts the last clause after it
   (func coco_ssu_note ((coco_machine * m) (size_t pi))
@@ -1146,14 +1216,19 @@
         (set (nth (-> m nssu) (-> m ssu_pis)) pi)
         (set (-> m nssu) (+ (-> m nssu) 1)))
 
-  ;;; THE LAST CLAUSE, `H :- '$ssu_none'(Mod, H)', H the predicate's head of
+  ;;; THE LAST CLAUSE, `H :- '$ssu_none'(Mod, G)', H the predicate's head of
   ;;; fresh variables, MOD the module's atom id plus one, 0 for user, and
-  ;;; for a pattern any module (-1)
+  ;;; for a pattern any module (-1). G is H, or for a predicate swipl names
+  ;;; otherwise (3.26.1, a row of *frame-contexts*) H under swipl's name,
+  ;;; its arguments H's, and the row's module stands for MOD:
+  ;;; '$max_member_'(T, a, M) raises existence_error(matching_rule,
+  ;;; lists:max_member_(T, a, M)), as swipl's lists:max_member_/3 does
   (static)
   (func coco_ssu_last ((coco_store * st) (coco_machine * m) (size_t pi) (u64 mod)) (out size_t)
         (let ((u64 nid . #'($ (nth pi (-> st preds)) name))
               (u32 n . #'($ (nth pi (-> st preds)) arity))
-              (size_t h . 0) (size_t md . 0))
+              (size_t h . 0) (size_t g . 0) (size_t md . 0) (size_t fc . 0)
+              (size_t rmod . 0) (int hasmod . 0))
           (if (== n 0)
               (set h (coco_new_atom_id m nid))
               (block
@@ -1161,10 +1236,32 @@
                (for ((u32 i . 0)) (< i n) ((++ i))
                  (set (nth (+ h (+ (cast size_t i) 1)) (-> m heap))
                       (coco-cell REF (+ h (+ (cast size_t i) 1)))))))
+          (set g h)
+          (if (coco_frame_ctx m nid n (aof fc))
+              (let ((size_t ind . #'(coco_deref m (coco_arg m fc 0))))
+                (if (coco_is_compound2 m ind ":")
+                    (block
+                     (set rmod (coco_deref m (coco_arg m ind 0)))
+                     (set hasmod 1)
+                     (set ind (coco_deref m (coco_arg m ind 1)))))
+                (if (and (> n 0) (coco_is_compound2 m ind "/"))
+                    (let ((size_t sn . #'(coco_deref m (coco_arg m ind 0)))
+                          (size_t sa . #'(coco_deref m (coco_arg m ind 1))))
+                      (if (and (coco-tag-is ATOM (nth sn (-> m heap)))
+                               (coco-is-int (nth sa (-> m heap)))
+                               (== (coco_int_val m (nth sa (-> m heap))) (cast i64 n))
+                               (!= (coco_name_of m sn) nid))
+                          (block
+                           (set g (coco_push_struct_raw
+                                   m (coco-cell FUN (coco_functor_id m (coco_name_of m sn) n)) n))
+                           (for ((u32 i . 0)) (< i n) ((++ i))
+                             (set (nth (+ g (+ (cast size_t i) 1)) (-> m heap))
+                                  (coco-cell REF (+ h (+ (cast size_t i) 1)))))))))))
           (cond ((== mod (cast u64 -1)) (set md (coco_new_var m)))
+                (hasmod (set md rmod))
                 ((== mod 0) (set md (coco_new_atom m "user")))
                 (#t (set md (coco_new_atom_id m (- mod 1)))))
-          (return (coco_make2 m ":-" h (coco_make2 m "$ssu_none" md h)))))
+          (return (coco_make2 m ":-" h (coco_make2 m "$ssu_none" md g)))))
 
   ;;; AN ASSERT KEEPS THE LAST CLAUSE LAST: the one there goes and a new one
   ;;; is put after the rule just added, wherever that went
@@ -1407,6 +1504,28 @@
           (let ((size_t pi . #'(coco_pred_make st (coco_name_of m head) (coco_arity m head)))
                 (size_t stored) (coco_reload * rl . nil))
             (if (>= pi (-> st npreds)) (return 0))
+            ;; a read under a module/2 (its `ssu_mod', 0 outside every read)
+            ;; names the predicate's module, if its first clause is that
+            ;; read's (3.26.0)
+            (if (and (!= (-> m ssu_mod) 0)
+                     (== ($ (nth pi (-> st preds)) pmod) 0)
+                     (== ($ (nth pi (-> st preds)) nclauses) 0))
+                (coco_pred_note_mod st m pi))
+            ;; A PREDICATE A READ DEFINES UNDER generate_debug_info FALSE
+            ;; HIDES ITS CHILDREN FROM THE TRACER (3.27.0, `pattrs' 32,
+            ;; swipl's HIDE_CHILDS): its first clause decides, as swipl's
+            ;; assert_term decides it -- set under false, cleared under true
+            ;; -- and no clause after it does. A library's predicate (64: its
+            ;; first clause a compiled-in module's text or a preloaded
+            ;; library's, `noexp') is decided again by each clause a read
+            ;; gives it: a program's clause for it would be a predicate of its
+            ;; own in swipl, user's, and here there is one namespace
+            (if (and (> (-> m lreads) 0)
+                     (or (== ($ (nth pi (-> st preds)) nclauses) 0)
+                         (bitand ($ (nth pi (-> st preds)) pattrs) 64)))
+                (set ($ (nth pi (-> st preds)) pattrs)
+                     (bitor (bitand ($ (nth pi (-> st preds)) pattrs) -97)
+                            (bitor (? (-> st noexp) 64 0) (? (-> m nodbg) 32 0)))))
             ;; the two expansion hooks are multifile in swipl, so their
             ;; clauses may stand apart; term_expansion/2,4 is the one the
             ;; system does not otherwise declare here (3.17.0's warning
@@ -1543,10 +1662,12 @@
   ;;; run as a goal -- the same bind that makes `op/3' a special case. What
   ;;; the vendored SWI libraries actually probe is whether some VM intrinsic
   ;;; exists (`current_predicate(\'$btree_find_node\'/5)' in assoc.pl), and
-  ;;; THAT is answerable from the store: cocolog has no such predicate, by
-  ;;; construction. So: `true', `fail'/`false', `\+'/1, and
-  ;;; `current_predicate(Name/Arity)' against the store. Anything else is
-  ;;; refused by name rather than guessed at.
+  ;;; THAT is answered as the goal answers it (`coco_pred_current', 3.31.0):
+  ;;; the system's predicate, or one the program defines -- through 3.30.0
+  ;;; any entry of the store, which held no system's predicate, so assoc.pl
+  ;;; kept its single-sided get_assoc/3 where swipl keeps the C walk's. So:
+  ;;; `true', `fail'/`false', `\+'/1, and `current_predicate(Name/Arity)'.
+  ;;; Anything else is refused by name rather than guessed at.
   (static)
   (func coco_cond_eval ((coco_store * st) (coco_machine * m) (size_t g)
                         (int * truth) (char * err) (size_t errlen)) (out int)
@@ -1581,10 +1702,9 @@
                                (return 0)))
                     ;; an arity past 32 bits names no predicate (2.0.0)
                     (if (coco-tag-is BIG c) (block (set (cof truth) 0) (return 1)))
-                    (let ((size_t pi . #'(coco_pred_find st (coco_name_of m nm)
-                                                        (cast u32 (coco-signed-payload c)))))
-                      (set (cof truth) (? (< pi (-> st npreds)) 1 0))
-                      (return 1))))))
+                    (set (cof truth) (coco_pred_current st m (coco_name_of m nm)
+                                                        (cast u32 (coco-signed-payload c))))
+                    (return 1)))))
           (snprintf err errlen "if: cannot decide `%s/%u' while reading" name n)
           (return 0)))
 
@@ -1705,7 +1825,11 @@
                 ;; THE SINGLE-SIDED PREDICATES THIS READ GIVES RULES (3.19.0),
                 ;; noted after an outer read's, and its module, user until a
                 ;; module/2 says otherwise
-                (size_t sbase . #'(-> m nssu)) (u64 smod . #'(-> m ssu_mod)))
+                (size_t sbase . #'(-> m nssu)) (u64 smod . #'(-> m ssu_mod))
+                ;; and generate_debug_info, scoped to the read as swipl's
+                ;; file-scoped flags are: what it sets, its end puts back
+                ;; (3.27.0)
+                (int snodbg . #'(-> m nodbg)))
             (set (-> m ssu_mod) 0)
             ;; THE READS UNDER WAY (3.7.0): the outermost runs the main goal
             ;; a nested one hands it (`ltop', which every outermost read
@@ -1719,6 +1843,7 @@
                 (coco_consult_ssu_close st m sbase oid (? reread (aof seen) nil))
                 (set (-> m nssu) sbase))
             (set (-> m ssu_mod) smod)
+            (set (-> m nodbg) snodbg)
             (set (-> m lreads) (- (-> m lreads) 1))
             (set (-> st nroots) depth)
             (set (-> m nhroots) hdepth)
@@ -1904,7 +2029,7 @@
                 (set ok (coco_fv_keep fv b))
               (if (and (coco_is_callable m b) (not (coco_is_nil m b)))
                   (let ((u64 nid . #'(coco_name_of m b)) (u32 n . #'(coco_arity m b)))
-                    (if (and (== n 1) (== nid (nth 4 ids)))
+                    (if (and (== n 1) (or (== nid (nth 4 ids)) (== nid (nth 11 ids))))
                         (block (set b (coco_arg m b 0)) (set next 1))
                       (if (== n 2)
                           (cond
@@ -1912,6 +2037,12 @@
                              (let ((size_t q . #'(coco_deref m (coco_arg m b 0))))
                                (if (coco-tag-is REF (nth q (-> m heap))) (set ok (coco_fv_keep fv q)))
                                (set b (coco_arg m b 1))
+                               (set next 1)))
+                            ;; G@M (3.20.0): its module, then its goal
+                            ((== nid (nth 12 ids))
+                             (let ((size_t q . #'(coco_deref m (coco_arg m b 1))))
+                               (if (coco-tag-is REF (nth q (-> m heap))) (set ok (coco_fv_keep fv q)))
+                               (set b (coco_arg m b 0))
                                (set next 1)))
                             ((or (or (== nid (nth 0 ids)) (== nid (nth 1 ids)))
                                  (or (or (== nid (nth 2 ids)) (== nid (nth 3 ids))) (== nid (nth 6 ids))))
@@ -1934,11 +2065,12 @@
   (static)
   (func coco_fv_control ((coco_machine * m) (size_t t) (const u64 * ids)) (out int)
         (let ((u64 nid . #'(coco_name_of m t)) (u32 n . #'(coco_arity m t)))
-          (if (== n 1) (return (== nid (nth 4 ids))))
+          (if (== n 1) (return (or (== nid (nth 4 ids)) (== nid (nth 11 ids)))))
           (if (!= n 2) (return 0))
           (return (or (or (or (== nid (nth 0 ids)) (== nid (nth 1 ids)))
                           (or (== nid (nth 2 ids)) (== nid (nth 3 ids))))
-                      (or (== nid (nth 6 ids)) (== nid (nth 7 ids)))))))
+                      (or (or (== nid (nth 6 ids)) (== nid (nth 7 ids)))
+                          (== nid (nth 12 ids)))))))
 
   ;;; SWIPL'S COUNT of each variable kept: T walked with CONTROL 1 where
   ;;; it is the body's control, 0 in the head and inside a goal. Frames:
@@ -2113,10 +2245,13 @@
                           ((and (== n 2) (or (== nid (nth 2 ids)) (== nid (nth 3 ids))))
                            (set ok (and (coco_fv_push4 fv 0 (coco_arg m g 1) 0 0)
                                         (coco_fv_push4 fv 0 (coco_arg m g 0) 0 0))))
-                          ((and (== n 1) (== nid (nth 4 ids)))
+                          ((and (== n 1) (or (== nid (nth 4 ids)) (== nid (nth 11 ids))))
                            (set ok (coco_fv_push4 fv 0 (coco_arg m g 0) 0 0)))
-                          ((and (== n 2) (== nid (nth 7 ids)))
-                           (let ((size_t mq . #'(coco_deref m (coco_arg m g 0))))
+                          ;; M:G, and G@M (3.20.0): the module, then the goal
+                          ((and (== n 2) (or (== nid (nth 7 ids)) (== nid (nth 12 ids))))
+                           (let ((u32 mi . #'(? (== nid (nth 12 ids)) 1 0))
+                                 (size_t mq . 0))
+                             (set mq (coco_deref m (coco_arg m g mi)))
                              (cond
                                ((coco-tag-is REF (nth mq (-> m heap)))
                                 ;; one the count takes for a singleton is never
@@ -2124,9 +2259,9 @@
                                 (let ((i64 i . #'(coco_fv_at fv mq)))
                                   (if (or (< i 0) (not (bitand (nth i (-> fv flag)) 1)))
                                       (block (set (cof q) mq) (set r 2))
-                                    (set ok (coco_fv_push4 fv 0 (coco_arg m g 1) 0 0)))))
+                                    (set ok (coco_fv_push4 fv 0 (coco_arg m g (- 1 mi)) 0 0)))))
                                ((coco_module_name m mq)
-                                (set ok (coco_fv_push4 fv 0 (coco_arg m g 1) 0 0)))
+                                (set ok (coco_fv_push4 fv 0 (coco_arg m g (- 1 mi)) 0 0)))
                                (#t (set (cof q) mq) (set r 4)))))
                           (#t
                            (if (not (and (== n 2) (and (or (== nid (nth 9 ids)) (== nid (nth 10 ids)))
@@ -2187,6 +2322,8 @@
   ;;; callable term and nothing more, and `p :- foo:3' went in. FV is set
   ;;; where a variable stands for a goal or a module before the walk ends
   ;;; (3.19.3): the clause is then asked by `coco_fresh_fault'.
+  ;;; `$(G)' AND G@M ARE CONTROL TOO (3.20.0, swipl's): G walked, and an M
+  ;;; of G@M asked before its G, as `M:G''s is (IDS[11] and IDS[12]).
   (static)
   (func coco_consult_goals ((coco_machine * m) (size_t b) (const u64 * ids) (size_t * mod) (int * fv))
         (out int)
@@ -2195,14 +2332,15 @@
           (if (coco-tag-is REF (nth b (-> m heap))) (block (set (cof fv) 1) (return 1)))
           (if (or (not (coco_is_callable m b)) (coco_is_nil m b)) (return 0))
           (let ((u64 nid . #'(coco_name_of m b)) (u32 n . #'(coco_arity m b)))
-            (if (and (== n 1) (== nid (nth 4 ids)))
+            (if (and (== n 1) (or (== nid (nth 4 ids)) (== nid (nth 11 ids))))
                 (block (set b (coco_arg m b 0)) continue))
-            (if (and (== n 2) (== nid (nth 7 ids)))
-                (let ((size_t q . #'(coco_deref m (coco_arg m b 0))))
+            (if (and (== n 2) (or (== nid (nth 7 ids)) (== nid (nth 12 ids))))
+                (let ((int at . #'(== nid (nth 12 ids))) (size_t q . 0))
+                  (set q (coco_deref m (coco_arg m b (? at 1 0))))
                   (if (coco-tag-is REF (nth q (-> m heap))) (set (cof fv) 1))
                   (if (not (or (coco-tag-is REF (nth q (-> m heap))) (coco_module_name m q)))
                       (block (set (cof mod) q) (return 2)))
-                  (set b (coco_arg m b 1))
+                  (set b (coco_arg m b (? at 0 1)))
                   continue))
             (if (not (and (== n 2) (or (or (== nid (nth 0 ids)) (== nid (nth 1 ids)))
                                          (or (== nid (nth 2 ids)) (== nid (nth 3 ids)))
@@ -3163,9 +3301,10 @@
               ;; left open at the end names (3.1.0)
               (int cline [16])
               ;; the control names a body is walked by, `:-', `:' and `=>',
-              ;; interned once (`coco_consult_refused'), and ==/2's and
-              ;; \==/2's (`coco_fresh_fault', 3.19.3)
-              (u64 cids [11])
+              ;; interned once (`coco_consult_refused'), ==/2's and
+              ;; \==/2's (`coco_fresh_fault', 3.19.3), and `$' and `@'
+              ;; (3.20.0)
+              (u64 cids [13])
               ;; WHERE THE CLAUSE IN HAND BEGINS, counted forward and never
               ;; back: `scanned' is how far the newline count has read and
               ;; `line' the answer at that point, so the whole file is walked
@@ -3218,6 +3357,8 @@
           (set (nth 8 cids) (coco_intern m "=>"))
           (set (nth 9 cids) (coco_intern m "=="))
           (set (nth 10 cids) (coco_intern m "\\=="))
+          (set (nth 11 cids) (coco_intern m "$"))
+          (set (nth 12 cids) (coco_intern m "@"))
           (set te_id (coco_intern m "term_expansion"))
           (set ge_id (coco_intern m "goal_expansion"))
           (set eof_id (coco_intern m "end_of_file"))
@@ -3845,6 +3986,67 @@
                 (coco_halt_load st halt_code (? (== halt_code 2) 0 1))))
           (return n)))
 
+  ;;; CLAUSE I OF PI TAKEN OUT, its cells SPAN long in the store: retract/1's
+  ;;; answer (3.28.0, `coco_db_walk', and '$retractall'/1's through
+  ;;; `coco_retract'). 1.
+  (func coco_retract_at ((coco_store * st) (coco_machine * m) (size_t pi) (size_t i)
+                         (size_t span)) (out int)
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+          ;; THE LOGICAL UPDATE VIEW: with a call open on the predicate the
+          ;; clause dies where it stands, for the calls open now to try still
+          ;; and no later call to see (`coco_tomb_set'); the database loses
+          ;; it now
+          (let ((u32 era . #'(coco_tomb_open st m pi)))
+            (if (!= era 0)
+                (block
+                  (coco_tomb_set p i era)
+                  (set (-> p dynamic) 1)
+                  (if (and (not (coco_store_is_muted st))
+                           (!= (-> st on_retract) nil))
+                      ((-> st on_retract) st (-> st ctx) pi))
+                  (return 1))))
+          ;; none open, and the dead of an earlier change go with it
+          (if (!= (-> p ntomb) 0)
+              (block
+               (coco_tomb_set p i 1)
+               (coco_pred_sweep st m pi)
+               (set (-> p dynamic) 1)
+               (if (and (not (coco_store_is_muted st))
+                        (!= (-> st on_retract) nil))
+                   ((-> st on_retract) st (-> st ctx) pi))
+               (return 1)))
+          ;; drop it from the predicate; the cells are orphaned until the
+          ;; next compaction (`coco_store_compact'), and its compiled
+          ;; program goes now
+          (set (-> st dead) (+ (-> st dead) span))
+          (coco_code_drop st (nth i (-> p clauses)))
+          (set (nth i (-> p codes)) nil)
+          ;; The index keys shift with them, and the chains -- which hold
+          ;; POSITIONS -- are dropped: everything after this clause has just
+          ;; been renumbered.
+          (for ((size_t j . i)) (< (+ j 1) (-> p nclauses)) ((++ j))
+            (set (nth j (-> p clauses)) (nth (+ j 1) (-> p clauses)))
+            (set (nth j (-> p keys)) (nth (+ j 1) (-> p keys)))
+            (set (nth j (-> p origins)) (nth (+ j 1) (-> p origins)))
+            (set (nth j (-> p muted)) (nth (+ j 1) (-> p muted)))
+            (set (nth j (-> p codes)) (nth (+ j 1) (-> p codes))))
+          (set (-> p nclauses) (- (-> p nclauses) 1))
+          (coco_pred_nprobe p)
+          (set (-> p tver) (+ (-> p tver) 1))
+          (coco_pred_unindex p)
+          ;; anything retractable is dynamic by definition, whether or not
+          ;; anybody said so
+          (set (-> p dynamic) 1)
+          ;; and the database is told. NOTHING IS WOUND BACK HERE: the whole
+          ;; point of `retract(counter(X))' is that X is left bound to what
+          ;; was retracted, and the term it is bound into is the copy the
+          ;; caller made on the heap. The hook keeps its own heap use to
+          ;; itself.
+          (if (and (not (coco_store_is_muted st))
+                   (!= (-> st on_retract) nil))
+              ((-> st on_retract) st (-> st ctx) pi))
+          (return 1)))
+
   (func coco_retract ((coco_store * st) (coco_machine * m) (size_t clause)) (out int)
         (set clause (coco_deref m clause))
         (let ((size_t head . clause) (size_t body . 0) (int has_body . 0))
@@ -3915,61 +4117,7 @@
                        (if (== has_body 0) (set body (coco_new_atom m "true")))
                        (set ok (coco_unify m body cbody))))
                   (if ok
-                      (block
-                       ;; THE LOGICAL UPDATE VIEW: with a call open on the
-                       ;; predicate the clause dies where it stands, for the
-                       ;; calls open now to try still and no later call to
-                       ;; see (`coco_tomb_set'); the database loses it now
-                       (let ((u32 era . #'(coco_tomb_open st m pi)))
-                         (if (!= era 0)
-                             (block
-                               (coco_tomb_set p i era)
-                               (set (-> p dynamic) 1)
-                               (if (and (not (coco_store_is_muted st))
-                                        (!= (-> st on_retract) nil))
-                                   ((-> st on_retract) st (-> st ctx) pi))
-                               (return 1))))
-                       ;; none open, and the dead of an earlier change go with it
-                       (if (!= (-> p ntomb) 0)
-                           (block
-                            (coco_tomb_set p i 1)
-                            (coco_pred_sweep st m pi)
-                            (set (-> p dynamic) 1)
-                            (if (and (not (coco_store_is_muted st))
-                                     (!= (-> st on_retract) nil))
-                                ((-> st on_retract) st (-> st ctx) pi))
-                            (return 1)))
-                       ;; drop it from the predicate; the cells are orphaned
-                       ;; until the next compaction (`coco_store_compact'),
-                       ;; and its compiled program goes now
-                       (set (-> st dead) (+ (-> st dead) span))
-                       (coco_code_drop st (nth i (-> p clauses)))
-                       (set (nth i (-> p codes)) nil)
-                       ;; The index keys shift with them, and the chains --
-                       ;; which hold POSITIONS -- are dropped: everything
-                       ;; after this clause has just been renumbered.
-                       (for ((size_t j . i)) (< (+ j 1) (-> p nclauses)) ((++ j))
-                         (set (nth j (-> p clauses)) (nth (+ j 1) (-> p clauses)))
-                         (set (nth j (-> p keys)) (nth (+ j 1) (-> p keys)))
-                         (set (nth j (-> p origins)) (nth (+ j 1) (-> p origins)))
-                         (set (nth j (-> p muted)) (nth (+ j 1) (-> p muted)))
-                         (set (nth j (-> p codes)) (nth (+ j 1) (-> p codes))))
-                       (set (-> p nclauses) (- (-> p nclauses) 1))
-                       (coco_pred_nprobe p)
-                       (set (-> p tver) (+ (-> p tver) 1))
-                       (coco_pred_unindex p)
-                       ;; anything retractable is dynamic by definition, whether
-                       ;; or not anybody said so
-                       (set (-> p dynamic) 1)
-                       ;; and the database is told. NOTHING IS WOUND BACK HERE:
-                       ;; the whole point of `retract(counter(X))' is that X is
-                       ;; left bound to what was retracted, and the term it is
-                       ;; bound into is the copy this loop made on the heap. The
-                       ;; hook keeps its own heap use to itself.
-                       (if (and (not (coco_store_is_muted st))
-                                (!= (-> st on_retract) nil))
-                           ((-> st on_retract) st (-> st ctx) pi))
-                       (return 1)))
+                      (return (coco_retract_at st m pi i span)))
                   (coco_undo_to m tmark)
                   (set (-> m heap_len) mark))))
             (return 0))))

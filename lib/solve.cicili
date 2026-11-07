@@ -127,6 +127,14 @@
 
     ("functor"      3 coco_bi_functor)
     ("arg"          3 coco_bi_arg)
+    ;; swipl's C walk of a balanced tree (3.31.0), which library(assoc)'s
+    ;; get_assoc/3 asks where `current_predicate/1' answers for it
+    ("$btree_find_node" 5 coco_bi_btree_find_node)
+    ;; the engine's own since 3.30.0, as arg/3 is: a row that hands its
+    ;; goal to the walk (`coco_walk') where the character or type is
+    ;; unbound -- the builtins module's through 3.29.0
+    ("code_type"    2 coco_bi_code_type)
+    ("char_type"    2 coco_bi_char_type)
     ("setarg"       3 coco_bi_setarg)
     ("nb_setarg"    3 coco_bi_nb_setarg)
     ("=.."          2 coco_bi_univ)
@@ -179,8 +187,8 @@
     ("assert"       1 coco_bi_assertz)
     ("asserta"      1 coco_bi_asserta)
     ("assertz"      1 coco_bi_assertz)
-    ("retract"      1 coco_bi_retract)
-    ;; retractall/1's own retract, its errors retractall/1's (3.0.0)
+    ;; retractall/1's own retract, its errors retractall/1's (3.0.0); retract/1
+    ;; is a construct since 3.28.0 (`coco_db_walk')
     ("$retractall"  1 coco_bi_retract)
 
     ("dynamic"      1 coco_bi_dynamic)
@@ -248,7 +256,21 @@
     ;; the record a body's later goals are reached from (Stage 5)
     "$e"
     ;; the neck, so a clause splits into head and body without a strcmp
-    ":-"))
+    ":-"
+    ;; $/1, the goal that must succeed deterministically, and G@M, G run
+    ;; with M for its context module (3.20.0, swipl's): `coco_det',
+    ;; `coco_at', and the two markers `$/1' leaves -- its exit, which asks
+    ;; whether G left a choice point, and the alternative that says G
+    ;; failed. Last, so every name before them keeps its index
+    "$" "@" "$det_exit" "$det_fail"
+    ;; $/0's (3.21.0, swipl's): a guarded frame's exit (`coco_det_end'), the
+    ;; alternative its guard frame offers, which says it failed
+    ;; (`coco_det_fail0'), and the step that hides a guarded frame's exit
+    ;; from a goal no last call of it reaches (`'$det_hide'')
+    "$det_end" "$det_fail0" "$det_hide"
+    ;; retract/1 and clause/2 (3.28.0, swipl's): a walk of the clauses that
+    ;; stood when the call began, retried from its DB frame (`coco_db_walk')
+    "retract" "clause"))
 
 ;;; THE FUNCTORS THE ENGINE BUILDS, interned once beside the names. Every
 ;;; one of these was `coco_make' with a C string -- `strlen', the atom
@@ -262,7 +284,11 @@
 ;;; which a goal's barrier names as its owner (3.1.0, `coco-bar-pred').
 (DEFPARAMETER *functor-names*
   '(("$k" 3) ("$cut" 1) ("$softcut" 1) ("$catch" 2) ("$catch_exit" 1)
-    ("$trace_exit" 3) ("<meta-call>" 1)))
+    ("$trace_exit" 3) ("<meta-call>" 1)
+    ;; $/1's exit and its failure (3.20.0, `coco_det')
+    ("$det_exit" 3) ("$det_fail" 2)
+    ;; $/0's guarded frame: its exit and its guard's alternative (3.21.0)
+    ("$det_end" 1) ("$det_fail0" 1)))
 
 (DEFUN coco-fid-index (name arity)
   (OR (POSITION (LIST name arity) *functor-names* :TEST #'EQUAL)
@@ -308,13 +334,13 @@
         (SETF names (APPEND names (LIST name)))))
     names))
 
-;;; 192 is the array in `coco_machine'. A Cicili array size is one token, so
+;;; 256 is the array in `coco_machine'. A Cicili array size is one token, so
 ;;; the bound cannot be computed there -- it is checked HERE instead, at
 ;;; expansion time, which turns "one builtin too many" into a build error
 ;;; with a name on it rather than a write past the end of a struct.
 (DEFUN coco-check-ids ()
-  (WHEN (> (LENGTH *dispatch-names*) 192)
-    (ERROR "coco: ~D dispatch names, and coco_machine.ids holds 192"
+  (WHEN (> (LENGTH *dispatch-names*) 256)
+    (ERROR "coco: ~D dispatch names, and coco_machine.ids holds 256"
            (LENGTH *dispatch-names*))))
 
 (DEFUN coco-id-index (name)
@@ -480,9 +506,12 @@
 (DEFPARAMETER *error-contexts*
   '(("<" 2) (">" 2) ("=<" 2) (">=" 2) ("=:=" 2) ("=\\=" 2) ("is" 2)
     ("=.." 2) ("functor" 3) ("arg" 3) ("setarg" 3) ("nb_setarg" 3)
+    ("$btree_find_node" 5)
     ("copy_term" 2) ("compare" 3) ("term_variables" 2) ("subsumes_term" 2)
     ("unify_with_occurs_check" 2)
     ("abolish" 1) ("assert" 1) ("asserta" 1) ("assertz" 1) ("retract" 1)
+    ;; a construct since 3.28.0, as retract/1 is, named as the goal in flight
+    ("clause" 2)
     ("redefine_system_predicate" 1)
     ("atom_chars" 2) ("atom_codes" 2) ("atom_length" 2) ("atom_number" 2)
     ("atom_string" 2) ("atom_to_term" 3) ("atomic_concat" 3)
@@ -546,8 +575,6 @@
     ("$path_dir" 2 :MAP "system" "file_directory_name" 2)
     ("$ext_split" 3 :MAP "system" "file_name_extension" 3)
     ("$ext_join" 3 :MAP "system" "file_name_extension" 3)
-    ("$clause" 3 :MAP "system" "clause" 2)
-    ("$pred_count" 3 :MAP "system" "clause" 2)
     ("$keysort" 2 :MAP "system" "keysort" 2)
     ("$op_spec" 3 :MAP "system" "current_op" 3)
     ("$cp_spec" 2 :MAP "system" "current_predicate" 1)
@@ -644,9 +671,71 @@
 ;;; written as clauses here whose frame swipl's own library names with its
 ;;; module, (NAME ARITY MOD), for what goes wrong in its body that names
 ;;; the frame (`coco_owner_ctx') -- an unknown procedure call_dcg/3 calls
-;;; is `'$dcg':call_dcg/3''s, where through 3.12.0 it was phrase/3's, bare
+;;; is `'$dcg':call_dcg/3''s, where through 3.12.0 it was phrase/3's, bare.
+;;; (NAME ARITY MOD SNAME) names a helper of cocolog's by swipl's own name
+;;; for it (3.22.0): a determinism error the guard of a last call into
+;;; member/2 raises names lists:member_/3 (`coco_det_pi'), as swipl's
+;;; -- and library(apply)'s helpers (3.23.0): an unknown procedure, or what
+;;; is no goal, that maplist/2's body calls is apply:maplist_/2's, foldl/4's
+;;; apply:foldl_/4's, apply/2's '$apply':apply/2's. EVERY PREDICATE OF
+;;; library(lists) AND library(error) cocolog writes (3.26.0) is named with
+;;; the module swipl's is in, lists:append/3, error:is_of_type/2,
+;;; backward_compatibility:sumlist/2, and each helper by swipl's own name
+;;; for it, lists:append_/2, lists:perm/2, lists:sum_list/3 for the C half
+;;; that sums; (NAME ARITY MOD SNAME SARITY) names it with another arity:
+;;; reverse/2's own frame is a determinism error's only where its C half
+;;; failed, which swipl's names lists:reverse/4. A predicate a module/2
+;;; read defines carries its module (`pmod', 3.26.0), which no row names
 (DEFPARAMETER *frame-contexts*
-  '(("call_dcg" 3 "$dcg")))
+  '(("call_dcg" 3 "$dcg")
+    ("$member_" 3 "lists" "member_") ("$select3_" 4 "lists" "select3_")
+    ("$nth_gen" 5 "lists" "nth_gen")
+    ("$select4_" 4 "lists" "select4_") ("$generate_nth" 5 "lists" "generate_nth")
+    ("$find_nth0" 4 "lists" "find_nth0") ("$append2" 2 "lists" "append_")
+    ("$reverse4" 4 "lists" "reverse") ("$perm" 2 "lists" "perm")
+    ("$last_gen" 3 "lists" "last_") ("$clump" 2 "lists" "clump")
+    ("$ccount" 5 "lists" "ccount") ("$number_list" 3 "lists" "number_list")
+    ("$remove_dup_keys" 2 "lists" "remove_dup_keys")
+    ("$remove_same_key" 3 "lists" "remove_same_key")
+    ("$sum" 3 "lists" "sum_list") ("$maxl" 3 "lists" "max_list")
+    ("$minl" 3 "lists" "min_list") ("$numlist" 3 "lists" "numlist")
+    ("$max_member_" 3 "lists" "max_member_") ("$min_member_" 3 "lists" "min_member_")
+    ("$max_member_" 4 "lists" "max_member_") ("$min_member_" 4 "lists" "min_member_")
+    ("$flatten" 3 "lists" "flatten") ("$length3" 3 "system")
+    ("member" 2 "lists") ("append" 2 "lists") ("append" 3 "lists") ("prefix" 2 "lists")
+    ("select" 3 "lists") ("selectchk" 3 "lists") ("select" 4 "lists")
+    ("selectchk" 4 "lists") ("subtract" 3 "lists") ("delete" 3 "lists")
+    ("nextto" 3 "lists") ("nth0" 3 "lists") ("nth1" 3 "lists") ("nth0" 4 "lists")
+    ("nth1" 4 "lists") ("last" 2 "lists") ("proper_length" 2 "lists")
+    ("same_length" 2 "lists") ("reverse" 2 "lists" "reverse" 4)
+    ("permutation" 2 "lists") ("flatten" 2 "lists") ("clumped" 2 "lists")
+    ("max_member" 2 "lists") ("min_member" 2 "lists") ("max_member" 3 "lists")
+    ("min_member" 3 "lists") ("sum_list" 2 "lists") ("max_list" 2 "lists")
+    ("min_list" 2 "lists") ("numlist" 3 "lists") ("is_set" 1 "lists")
+    ("list_to_set" 2 "lists") ("intersection" 3 "lists") ("union" 3 "lists")
+    ("subset" 2 "lists") ("sumlist" 2 "backward_compatibility")
+    ("must_be" 2 "error") ("is_of_type" 2 "error") ("type_error" 2 "error")
+    ("domain_error" 2 "error") ("instantiation_error" 1 "error")
+    ;; must_be/2's table and its helpers (3.29.0), by swipl's names
+    ("has_type" 2 "error") ("$is_not" 2 "error" "is_not")
+    ("$not_a_list" 2 "error" "not_a_list") ("$element_is_not" 2 "error" "element_is_not")
+    ("$element_types" 2 "error" "element_types") ("$element_types_" 2 "error" "element_types_")
+    ("$ground_type" 1 "error" "ground_type") ("$current_type" 1 "error" "current_type" 3)
+    ("$text" 1 "error" "text") ("$list_or_partial" 1 "error" "is_list_or_partial_list")
+    ("$encoding" 1 "error" "current_encoding") ("$is_char" 1 "system")
+    ("$is_char_code" 1 "system") ("$is_stream" 1 "system" "is_stream")
+    ("$char_list" 1 "system" "$is_char_list" 2)
+    ("$code_list" 1 "system" "$is_code_list" 2)
+    ("$maplist_" 2 "apply" "maplist_") ("$maplist_" 3 "apply" "maplist_")
+    ("$maplist_" 4 "apply" "maplist_") ("$maplist_" 5 "apply" "maplist_")
+    ("$include_" 3 "apply" "include_") ("$exclude_" 3 "apply" "exclude_")
+    ("$partition_" 4 "apply" "partition_") ("$partition_" 5 "apply" "partition_")
+    ("$partition_" 7 "apply" "partition_") ("$convlist_" 3 "apply" "convlist_")
+    ("$foldl" 4 "apply" "foldl_") ("$foldl2" 5 "apply" "foldl_")
+    ("$foldl3" 6 "apply" "foldl_") ("$foldl4" 7 "apply" "foldl_")
+    ("$scanl" 4 "apply" "scanl_") ("$scanl2" 5 "apply" "scanl_")
+    ("$scanl3" 6 "apply" "scanl_") ("$scanl4" 7 "apply" "scanl_")
+    ("apply" 2 "$apply")))
 
 (DEFMACRO coco-emit-frame-ctx ()
   `(func coco_frame_ctx ((coco_machine * m) (u64 nid) (u32 n) (size_t * out)) (out int)
@@ -654,8 +743,11 @@
        ,@(LOOP FOR row IN *frame-contexts*
                COLLECT `(if (and (== n ,(SECOND row)) (== 0 (strcmp s ,(FIRST row))))
                             (block
-                             (set (cof out) (coco_ectx_pi m ,(THIRD row) (coco_new_atom_id m nid)
-                                                          n (coco_new_var m)))
+                             (set (cof out) (coco_ectx_pi m ,(THIRD row)
+                                                          ,(IF (FOURTH row)
+                                                               `(coco_new_atom m ,(FOURTH row))
+                                                               `(coco_new_atom_id m nid))
+                                                          ,(OR (FIFTH row) 'n) (coco_new_var m)))
                              (return 1))))
        (return 0))))
 
@@ -736,6 +828,20 @@
             arities)
          (#t (return 0))))))
 
+;;; THE ROOM THE STACK LIMIT LEAVES AN ARRAY (3.32.0): ROOM is set to the
+;;; entries of ESIZE bytes that LIM leaves beside what the stacks hold but
+;;; the array's own OWN bytes (`coco_stack_used' of engine E), 0 where the
+;;; rest passes the limit already. The choice stack grows by it
+;;; (`coco_eng_grow_slow', with `coco-room-cap'), and the collector waits
+;;; for no more heap than it (`coco_heap_collect'), so what one array holds
+;;; is room the others have not got.
+(DEFMACRO coco-room-left (room e lim own esize)
+  `(let ((u64 rrest . #'(coco_stack_used ,e)) (u64 rown . #'(cast u64 ,own))
+         (u64 rlim . #'(cast u64 ,lim)))
+     (if (>= rrest rown) (set rrest (- rrest rown)))
+     (set ,room 0)
+     (if (< rrest rlim) (set ,room (cast size_t (/ (- rlim rrest) ,esize))))))
+
 
 ;;;; ------------------------------------------------------------------
 ;;;; Declarations
@@ -804,9 +910,20 @@
   ;;; freeze meets one: a machine is frozen at a turn's end, its top
   ;;; engine's frames (lib/state.cicili), and a clock runs only on the
   ;;; engines a builtin starts, inside the builtin.
+  ;;; A DB frame (3.28.0) is retract/1's or clause/2's walk of a predicate's
+  ;;; clauses: `pred', `clause_ix', `cend', `fera' and `ixpos' as a clause
+  ;;; frame's -- the logical update view's, which `coco_frames_on' keeps --
+  ;;; `call' the goal, `goals' what runs after an answer (`coco_db_retry').
+  ;;; A WALK frame (3.29.0, arg/3's ARG frame until 3.30.0) is a row's walk
+  ;;; of its answers: arg/3's of its term's places, its index unbound, and
+  ;;; char_type/2's and code_type/2's of the codes or the classes (3.30.0):
+  ;;; `call' the goal, `goals' what runs after an answer, `clause_ix' the
+  ;;; next position to try (`coco_walk_retry'), `barrier' 0: what runs
+  ;;; after an answer carries its own -- no predicate's, so no view, no
+  ;;; call's and nothing a freeze names.
   (enum coco_choice_kind (COCO_CH_CLAUSE . 0) (COCO_CH_GOAL . 1) (COCO_CH_CATCH . 2)
                          (COCO_CH_DEAD . 3) (COCO_CH_CATCH_RETRY . 4) (COCO_CH_SPENT . 5)
-                         (COCO_CH_CLOCKED . 6))
+                         (COCO_CH_CLOCKED . 6) (COCO_CH_DB . 7) (COCO_CH_WALK . 8))
 
   (struct coco_choice
     (member int      kind)
@@ -851,11 +968,22 @@
   ;;; EXITED remembers that the call has passed its Exit port, so a resumed
   ;;; frame whose remaining heads all fail is discarded in silence -- which
   ;;; is what SWI's clause indexing does by never keeping the frame at all.
+  ;;; LAST (3.20.0) says a CLAUSE frame's selection entered its last
+  ;;; candidate, a frame only trace keeps (`coco_select_clause'): what an
+  ;;; untraced run has no frame for, so `$/1''s exit counts it as none
+  ;;; (`coco_det_exit'). It sits in the padding after EXITED, cleared by the
+  ;;; traced call's push alone (PRINTR 1): cleared by every push, it cost
+  ;;; queens 27 000 instructions of 43 million.
+  ;;; PRINTR 2 (3.27.0): a traced call whose ports are hidden from the
+  ;;; printer, as swipl hides a call a predicate that hides its children
+  ;;; makes of another (`coco_trace_hidden') -- a call's frame all the same,
+  ;;; to every reader that asks PRINTR whether it is one.
   (struct coco_tchoice
     (member size_t   goal)
     (member int      depth)
     (member int      printr)
-    (member int      exited))
+    (member int      exited)
+    (member int      last))
 
   (struct coco_engine
     (member coco_machine * m)
@@ -882,9 +1010,11 @@
     (member u64         max_inf)
     (member u64         tcap)
     (member int         resume)    ; a solution has been reported; go back first
-    ;; 0 none, 1 halt, 2 memory; 4 + SIGNO a POSIX signal (2.6.0), which a
-    ;; signal handler writes through the machine's `haltp'. Volatile
-    ;; sig_atomic_t: the only object an asynchronous handler may assign.
+    ;; 0 none, 1 halt, 2 memory, 3 the stack limit passed (3.32.0, a
+    ;; growth's or a collection's: `coco_halted_step' asks again); 4 + SIGNO
+    ;; a POSIX signal (2.6.0), which a signal handler writes through the
+    ;; machine's `haltp'. Volatile sig_atomic_t: the only object an
+    ;; asynchronous handler may assign.
     (member coco_sig_halt halted)
     (member int         halt_code)
 
@@ -1047,7 +1177,19 @@
     ;; WHILE `system:G' CALLS A MODULE'S G PAST A PROGRAM FILE'S TAKE-OVER
     ;; (3.1.0, `coco_colon'): set around the seam's walk, which then passes
     ;; no taken name by (`coco_m_taken'). Appended.
-    (member int         systake))
+    (member int         systake)
+    ;; THE GUARD ON (3.21.0, $/0): DGH the innermost guarded frame's guard
+    ;; frame, its index plus one (0 none), and DGK its exit marker while its
+    ;; guard is on, else no continuation (`coco_det_top'): a call whose
+    ;; continuation is DGK is a last call of that frame, as swipl's I_DEPART
+    ;; is, and takes the guard on (`coco_det_call'). Appended.
+    (member size_t      dgh)
+    (member size_t      dgk)
+    ;; THE PRINTER'S CONTEXT AT THE ENGINE'S BASE HIDES ITS CHILDREN (3.27.0):
+    ;; 1 for the search a builtin started (findall/3, forall/2,
+    ;; call_limited/3, with_output_to/2) under `trace' 1, whose goals the
+    ;; builtin calls, 0 for a query's. Appended.
+    (member int         trace_bhc))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
   ;;; their first goal. A per-engine affair after that -- `trace/0' and
@@ -1393,6 +1535,11 @@
   ;;; Interns the dispatcher's whole vocabulary into `m->ids'. Called once
   ;;; per machine, from the top of `coco_engine_next'.
   (decl) (func coco_ids_fill ((coco_machine * m)))
+  ;;; the formal a meta-call's goal that is no goal raises: a variable's
+  ;;; instantiation_error, a G@M's type_error(module, M), else
+  ;;; type_error(callable, G) of the whole (3.20.0, `coco_goal_check' in
+  ;;; lib/solve-control.cicili), for the raisers here
+  (decl) (func coco_goal_formal ((coco_machine * m) (size_t g)) (out size_t))
   (decl) (func coco_builtin_index ((coco_machine * m) (u64 nid) (u32 arity)) (out int))
   (decl) (func coco_builtin_call ((coco_engine * e) (int ix) (size_t g)) (out int))
   ;; whether the module walk passes a name a program file took over (3.1.0)
@@ -1469,6 +1616,17 @@
   ;;; its instructions, for a peak 28 % lower (52.7 MB, not 73.2).
   (decl) (func coco_gc_nested_begin ((coco_machine * m) (size_t hmark)) (out size_t))
   (decl) (func coco_gc_nested_end ((coco_machine * m) (size_t saved)))
+
+  ;;; ---- $/0's guard (3.21.0, lib/solve-loop.cicili) ----------------------
+  ;;;
+  ;;; The guard on after its frames moved or went: `dgh' and `dgk' read
+  ;;; again from the guard frame DGH names (`coco_det_top', after a
+  ;;; collection), and the guard a throw's unwinding left (`coco_det_unwound')
+  (decl) (func coco_det_top ((coco_engine * e) (size_t dgh)))
+  (decl) (func coco_det_unwound ((coco_engine * e)))
+  ;;; whether goal G holds `$/0' where its frame runs it -- in its control
+  ;;; structure, not in a goal it hands another frame (`coco_det0_in')
+  (decl) (func coco_det0_in ((coco_machine * m) (size_t g)) (out int))
 
   ;;; ---- a goal under a ceiling -------------------------------------------
   ;;;
@@ -1607,6 +1765,31 @@
                                   (size_t clause_ix) (size_t barrier)
                                   (const char * pred_name) (u32 pred_arity)) (out int))
 
+  ;;; retract/1 and clause/2 (3.28.0, lib/solve-db.cicili): the construct's
+  ;;; call, answered as `coco_construct' answers, and its DB frame at CI
+  ;;; retried by `coco_backtrack' -- 1 with the continuation set, 0 with the
+  ;;; frame gone and nothing tried
+  (decl) (func coco_db_walk ((coco_engine * e) (size_t g) (int mode) (size_t k) (size_t b)
+                             (int * ok) (int * ret)) (out int))
+  (decl) (func coco_db_retry ((coco_engine * e) (size_t ci)) (out int))
+
+  ;;; THE WALK a row hands over by answering -2 (lib/solve-text.cicili):
+  ;;; arg/3's with its index unbound (3.29.0, `coco_bi_arg'), char_type/2's
+  ;;; and code_type/2's with the character or the type unbound (3.30.0,
+  ;;; `coco_bi_ctype'), of the goal in flight (`kcall'), K the
+  ;;; continuation after it, TPORT its printer (0, 1 shown, 2 hidden) -- 1
+  ;;; an answer, 0 none, -1 no memory -- and its WALK frame at CI retried by
+  ;;; `coco_backtrack', as a DB frame is
+  (decl) (func coco_walk ((coco_engine * e) (size_t k) (int tport)) (out int))
+  (decl) (func coco_walk_retry ((coco_engine * e) (size_t ci)) (out int))
+
+  ;;; THE STACK LIMIT (3.32.0, swipl's `stack_limit' flag, the machine's
+  ;;; `slimit'): what the machine's stacks hold in bytes -- the heap's cells,
+  ;;; the trail's entries and the choice frames of every engine on its chain
+  ;;; -- and whether that is more than the limit, 0 or less none
+  (decl) (func coco_stack_used ((coco_engine * e)) (out u64))
+  (decl) (func coco_stack_over ((coco_engine * e)) (out int))
+
   ) ; decl-solve
 
 
@@ -1617,15 +1800,54 @@
 (generic impl-solve
   ()
 
+  ;;; WHAT THE STACKS HOLD (3.32.0), as swipl's `stack_limit' reckons its
+  ;;; local, global and trail stacks together: the heap's cells -- the terms,
+  ;;; and the continuation and the environments, which swipl keeps on its
+  ;;; local stack -- the trail's entries, and the choice frames, with their
+  ;;; shadow frames, of every engine on the machine's chain, from the
+  ;;; innermost running out (`eng', `outer'), or E's alone where none runs
+  (func coco_stack_used ((coco_engine * e)) (out u64)
+        (let ((coco_machine * m . #'(-> e m))
+              (u64 n . #'(* (cast u64 (+ (-> m heap_len) (-> m trail_len))) 8))
+              (coco_engine * x . #'(cast (coco_engine *) (-> m eng))))
+          (if (== x nil) (set x e))
+          ;; a choice frame and the tracer's shadow frame beside it
+          (while (!= x nil)
+            (set n (+ n (* (cast u64 (-> x nchoices))
+                           (+ (sizeof coco_choice) (sizeof coco_tchoice)))))
+            (set x (cast (coco_engine *) (-> x outer))))
+          (return n)))
+
+  (func coco_stack_over ((coco_engine * e)) (out int)
+        (let ((i64 lim . #'(-> (-> e m) slimit)))
+          (if (<= lim 0) (return 0))
+          (return (> (coco_stack_used e) (cast u64 lim)))))
+
   ;;; The choice stack's growth, out of line (weak), as `coco_grow_slow' is:
   ;;; inlined into `coco_push_choice', its refused doubling's second try
-  ;;; would have cost every push (1.10.28) -- and cold as it is (2.11.2)
+  ;;; would have cost every push (1.10.28) -- and cold as it is (2.11.2).
+  ;;; Under the machine's stack limit (3.32.0) it grows by the room the
+  ;;; limit leaves, and past it stops the run at its next step, halted 3,
+  ;;; as the heap's growth does (`coco-room-cap', `coco_stack_cap')
   (weak) (cold)
   (func coco_eng_grow_slow ((coco_engine * e) (size_t need)) (out int)
         (let ((size_t ncap . #'(? (== (-> e choice_cap) 0) 64 (-> e choice_cap)))
               (coco_choice * nb)
-              (coco_tchoice * tb))
+              (coco_tchoice * tb)
+              (int over . 0))
           (while (< ncap need) (set ncap (* ncap 2)))
+          ;; under a stack limit (3.32.0) the stack grows by the frames the
+          ;; limit leaves beside the heap, the trail and the other engines'
+          ;; frames, and a sixteenth (`coco-room-cap'): a doubling near the
+          ;; limit would add frames nothing asks about until the next
+          ;; doubling, and a search that leaves a choice point a level ran on
+          ;; to half again the limit before its heap's collection asked
+          (if (> (-> (-> e m) slimit) 0)
+              (let ((size_t room . 0))
+                (coco-room-left room e (-> (-> e m) slimit)
+                                (* (cast u64 (-> e nchoices)) (+ (sizeof coco_choice) (sizeof coco_tchoice)))
+                                (+ (sizeof coco_choice) (sizeof coco_tchoice)))
+                (coco-room-cap room need ncap over)))
           (set nb (cast (coco_choice *) (realloc (-> e choices) (* ncap (sizeof coco_choice)))))
           ;; a doubling refused: less, and the run raises resource_error
           ;; at its next step, as the machine's arrays do (`coco_grow_short')
@@ -1642,6 +1864,10 @@
           (if (== tb nil) (return 0))
           (set (-> e tchoices) tb)
           (set (-> e choice_cap) ncap)
+          ;; the frames to come pass the limit (OVER, which is what the
+          ;; stacks hold past it as well: the room is the limit less them),
+          ;; and the run stops at its next step
+          (if (and (== (-> e halted) 0) over) (set (-> e halted) 3))
           (return 1)))
 
   (static)
@@ -2434,17 +2660,11 @@
   ;;; `'<meta-call>'/1' for a goal the loop meets (call/N's, a conjunction's
   ;;; in a meta-call), `once/1' and its kin for their own argument. The
   ;;; raise's answer: 2 caught, -1 not. Through 2.16 the context was empty.
+  ;;; A G@M's own fault is its formal (3.20.0, `coco_goal_formal').
   (weak) (cold)
   (func coco_goal_bad ((coco_engine * e) (size_t g) (const char * mod)
                        (const char * name) (u32 arity)) (out int)
-        (let ((coco_machine * m . #'(-> e m)))
-          (set g (coco_deref m g))
-          (if (coco-tag-is REF (nth g (-> m heap)))
-              (return (coco_raise_named e (coco_new_atom m "instantiation_error")
-                                        mod name arity)))
-          (return (coco_raise_named e (coco_make2 m "type_error"
-                                                  (coco_new_atom m "callable") g)
-                                    mod name arity))))
+        (return (coco_raise_named e (coco_goal_formal (-> e m) g) mod name arity)))
 
   ;;; What a refused allocation raises (1.10.28): error(resource_error(memory),
   ;;; _), built on a heap that still has room -- a C buffer was refused, or

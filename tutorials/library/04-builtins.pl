@@ -45,12 +45,22 @@ main :-
     format(atom(A6), "100~~", []),
     must('~~~~ is a literal tilde', A6, '100~'),
 
-    format("~n-- and the ones that are NOT, loudly~n"),
-    catch(format(atom(_), "~t~20|x", []), error(cocolog_error(Fmt), _), true),   % cocolint: F1 -- the refusal is the lesson
-    ( sub_atom(Fmt, _, _, _, 'no column directives') -> F = refused ; F = Fmt ),
-    must('a column directive', F, refused),
-    format("   ...and the message NAMES all three of them, so the fix is~n"),
-    format("   in the error rather than in the manual.~n"),
+    %% THE COLUMNS ARE SWIPL'S (3.33.0; through 3.32.0 refused by name):
+    %% `~t' is where the room goes, `~N|' a stop at column N, `~N+' one N
+    %% past the last stop
+    format(atom(A7), "~w~t~8|~w", [ab, cd]),
+    must('~~t~~8| pads to column 8', A7, 'ab      cd'),
+    format(atom(A8), "~t~w~6|", [42]),
+    must('a fill point before the text puts it right', A8, '    42'),
+    format(atom(A9), "~w~`.t~10|~w~t~6+", [name, x]),
+    must('a backquote gives ~~t its character, ~~6+ a stop six on', A9, 'name......x     '),
+
+    format("~n-- and the one that is NOT, loudly~n"),
+    catch(format(atom(_), "~@", [true]), error(cocolog_error(Fmt), _), true),
+    ( sub_atom(Fmt, _, _, _, 'no ~@ directive') -> F = refused ; F = Fmt ),
+    must('~~@, a goal''s output', F, refused),
+    format("   ...and the message NAMES it, so the fix is in the error~n"),
+    format("   rather than in the manual.~n"),
 
     format("~n-- between/3 is the loop, and it GENERATES~n"),
     findall(N, between(1, 5, N), Ns),

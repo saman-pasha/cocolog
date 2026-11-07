@@ -37,7 +37,7 @@ cocolog -s test/lint.pl                            # the suite case
 | `tool.sh` | one driver for `build`, `card`, `index` and `assemble` |
 | `selftest/reader.pl` `.expected` | every shape that has ever fooled a clause reader |
 | `build.pl` | the reserved-name blocklist, from five registration shapes |
-| `traps.jsonl` | the dialect card as data: 28 rows, 40 checked citations |
+| `traps.jsonl` | the dialect card as data: 27 rows, 39 checked citations |
 | `card.pl` | the anchor checker, and the generator of `traps.pl` |
 | `lint.sh` | the human wrapper; rebuilds the index first, always |
 | `oracle.pl` / `.sh` | G2+G3: which predicates the store calls the program's own |
@@ -305,21 +305,21 @@ the same list.
 
 ## The dialect card is data, and its citations are checked
 
-`traps.jsonl` is section 4 of the design doc as 28 rows of
+`traps.jsonl` is section 4 of the design doc as 26 rows of
 `{id, swi, cocolog, why, cite, anchor, rule, severity}`. Each cite is a
 `path:A-B` line range and each anchor a literal substring that must appear
-inside it. `card --check` verifies all 40, and when one has moved it says
+inside it. `card --check` verifies all 38, and when one has moved it says
 where it is now, so the repair is a single number:
 
 ```
-traps: F1: anchor not in lib/builtins.cicili:900-910 (it is at line 1015)
-             '(== d 116)'
+traps: G1: anchor not in lib/builtins.cicili:100-104 (it is at line 109)
+             '("b_setval"'
 ```
 
 **The anchor is code, never prose near it.** A comment is the part of a file
 that gets rewritten without the behaviour changing, so anchoring on one buys a
-check that passes while the claim quietly stops being true. Row F1 anchors on
-`(== d 116)` rather than on the word "column"; row I1 on `coco_arg_key` rather
+check that passes while the claim quietly stops being true. Row G1 anchors on
+the table row `("b_setval"` rather than on the word "backtrackable"; row I1 on `coco_arg_key` rather
 than on the shouted comment above the declaration, true though that comment is.
 Two rows anchor on a comment anyway and say so in the file: `Z1`'s page limit
 lives in `parsi/01-schema.parsi` as a paragraph of measured numbers with no
@@ -378,10 +378,11 @@ Writing the trap file caught two bugs in the linter itself:
   after it found its match inside a quote and skipped it. H1 and L1 both went
   missing that way — the trap file trapping its own author.
 * **`'[|]'` is a quoted atom by construction**, so L1 needed the same
-  `scan: text` that F1's format directives have (and E1's escapes had, until
-  the reader took them and the row was retired at 3.1.0). The two of them read
-  a quote as code; nothing reads a comment as code, because a comment
-  naming `~t` documents the rule rather than breaking it.
+  `scan: text` that F1's format directives had (until format/2 laid them out
+  as swipl's and the row was retired at 3.33.0), and E1's escapes had (until
+  the reader took them and the row was retired at 3.1.0). Such a row reads a
+  quote as code; nothing reads a comment as code, because a comment naming
+  the form documents the rule rather than breaking it.
 
 ## The whole tree lints clean, and how it got there
 
@@ -409,10 +410,11 @@ had 122, and they went four ways:
   (`expr(_, _, _, _) :- fail.`), as library(httpd) declares `httpd_page/3`;
   `test/torch-graph.pl` calls the `file_base_name/2` it had defined again.
 * **Acknowledged where the code means it.** A comment that names the finding
-  and says why — `% cocolint: R1 -- the lesson: this loop removes ONE
-  clause` — covers its own line, or the next when it stands alone, and **U1**
+  and says why — `% cocolint: C2 -- the refusal is the lesson` — covers its
+  own line, or the next when it stands alone, and **U1**
   reports one whose finding has gone or that gives no reason, so an
-  acknowledgement cannot outlive what it excused. The four lessons, the case
+  acknowledgement cannot outlive what it excused. The lessons that teach a
+  trap (four then; 04's and 07's went with F1 and R1), the case
   that pins what `write_canonical/2` writes, the six `test/files` cases swipl
   also runs (whose tier-1 imports are SWI's portable form) and every line of
   `selftest/traps.pl` carry one; the suite reads the fixture with

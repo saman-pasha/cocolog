@@ -159,70 +159,6 @@
 
   ;;; ---- the clause database ----------------------------------------------
 
-  ;;; How many clauses a predicate has, and its index in the store. The index
-  ;;; comes back too so that `$clause' need not find it again. The LIVE
-  ;;; clauses, counted by ordinal as `$clause' reads them: one retracted
-  ;;; while a call on it is still open (the logical update view, lib/kb.cicili)
-  ;;; is no clause of the program's, and goes first if no call wants it.
-  (func coco_b_pred_count ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (coco_store * st . #'(-> e st))
-              (size_t head . #'(coco_m_arg e g 0)))
-          (if (not (coco_is_callable m head))
-              (return (coco_m_type_error e "callable" head)))
-          (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m head)
-                                               (coco_arity m head))))
-            (if (>= pi ($ (cof st) npreds)) (return 0))
-            ;; a predicate the knowledge base could not hand over raises,
-            ;; as its call does (2.11.1)
-            (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
-            (coco_tomb_try_sweep st m pi)
-            (let ((size_t mark . #'(coco_m_mark e)))
-              (if (not (coco_m_unify_int e (coco_m_arg e g 1)
-                                       (cast i64 (coco_pred_live (aof (nth pi ($ (cof st) preds)))))))
-                  (block (coco_m_undo e mark) (return 0)))
-              (if (not (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 pi)))
-                  (block (coco_m_undo e mark) (return 0))))
-            (return 1))))
-
-  ;;; The Ith clause of the predicate named by Head, as Head and Body. I counts
-  ;;; from one, because the Coco half enumerates it with `between/3', and
-  ;;; counts the live clauses (`coco_pred_live_at'), so the dead that a sweep
-  ;;; takes out between two of its calls move nothing it counts.
-  (func coco_b_clause_at ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (coco_store * st . #'(-> e st))
-              (size_t head . #'(coco_m_arg e g 0))
-              (i64 want . 0))
-          (if (not (coco_m_int e (coco_m_arg e g 2) (aof want))) (return 0))
-          (if (not (coco_is_callable m head)) (return 0))
-          (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m head)
-                                               (coco_arity m head))))
-            (if (>= pi ($ (cof st) npreds)) (return 0))
-            (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
-            (let ((coco_pred * p . #'(aof (nth pi ($ (cof st) preds))))
-                  (size_t at . 0))
-              (if (< want 1) (return 0))
-              (set at (coco_pred_live_at p (- (cast size_t want) 1)))
-              (if (== at (coco_no_clause)) (return 0))
-              (let ((size_t mark . #'(coco_m_mark e))
-                    (size_t t . #'(coco_store_get m st (nth at (-> p clauses))))
-                    (size_t h . 0) (size_t bdy . 0))
-                (coco_clause_parts m t (aof h) (aof bdy))
-                ;; a single-sided rule's body as swipl's clause/2 shows it, and
-                ;; the predicate's last clause none (3.19.0, `coco_ssu_body')
-                (if (!= bdy 0)
-                    (let ((size_t sb . #'(coco_ssu_body m bdy)))
-                      (if (== sb (cast size_t -1)) (block (coco_m_undo e mark) (return 0)))
-                      (set bdy sb)))
-                ;; a fact's body is `true', which is what SWI answers too
-                (if (== bdy 0) (set bdy (coco_new_atom m "true")))
-                (if (not (coco_m_unify e head h))
-                    (block (coco_m_undo e mark) (return 0)))
-                (if (not (coco_m_unify e (coco_m_arg e g 1) bdy))
-                    (block (coco_m_undo e mark) (return 0)))
-                (return 1))))))
-
   ;;; '$unbind_template'(T) (3.19.0, swipl's), which aggregate.pl's foreach/2
   ;;; asks after each goal it proves: every argument of the compound T is
   ;;; unbound again and stays T's. An argument that names an older cell names
@@ -322,6 +258,16 @@
                     *files-predicates* *dcg-predicates* *library-predicates*
                     *zigurat-predicates*)
   (coco-emit-claims coco_b_construct_claims *callable-constructs*)
+  (coco-emit-claims coco_b_green_claims *green-predicates*)
+
+  ;;; WHAT THE TRACER TAKES FOR THE SYSTEM'S C (3.27.0, installed as
+  ;;; `coco_sysclaims_hook'): the rows above and green's, library(async)'s C
+  ;;; half -- what swipl's system defines in C, whose call the printer hides
+  ;;; where a library's clause makes it. Not the load's claims: a program
+  ;;; file's clause for a green name is no take-over
+  (func coco_b_system_claims ((const char * name) (u32 arity)) (out int)
+        (return (or (coco_b_tier1_claims name arity)
+                    (coco_b_green_claims name arity))))
 
   ;;; WHAT A LOAD ASKS OF A PROGRAM FILE'S CLAUSE (3.1.0, installed as
   ;;; `coco_claims_hook'): whether a compiled-in module or a construct
@@ -1301,57 +1247,101 @@
 
   ;;; '$cp_spec'(Spec, PI), current_predicate/1's checks, swipl's (3.0.0):
   ;;; Spec unbound, or Name/Arity with Name unbound or an atom and Arity
-  ;;; unbound or an integer of 0 or more, PI that; M:Spec with M unbound
-  ;;; (bound to `user', the one module there is) or an atom, PI Spec's;
-  ;;; anything else type_error(predicate_indicator, Spec), a negative arity
-  ;;; domain_error(not_less_than_zero, A), a module type_error(atom, M).
-  ;;; Through 2.16 none was asked: any other term failed.
+  ;;; unbound or an integer of 0 to 2^31 - 1, PI that; M:Spec with M
+  ;;; unbound (bound to `user', the one module there is) or an atom, PI
+  ;;; Spec's; anything else type_error(predicate_indicator, Spec), a
+  ;;; negative arity domain_error(not_less_than_zero, A), a module
+  ;;; type_error(atom, M). Through 2.16 none was asked: any other term
+  ;;; failed. THE TYPE ERROR NAMES THE SPEC AS IT CAME (3.31.0, swipl's),
+  ;;; its qualifiers and an unbound module unbound: the modules are bound
+  ;;; only once the spec is known good, where through 3.30.0 they were
+  ;;; bound first and the error named what was under them, and an arity
+  ;;; past 2^31 - 1 was a spec.
   (func coco_b_cp_spec ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t s . #'(coco_deref m (coco_m_arg e g 0))) (i64 a . 0))
-          (while (and (coco-tag-is FUN (nth s (-> m heap)))
-                      (and (== (coco_arity m s) 2)
-                           (== 0 (strcmp (coco_atom_name m (coco_name_of m s)) ":"))))
+              (size_t s0 . #'(coco_deref m (coco_m_arg e g 0)))
+              (size_t s . s0) (i64 a . 0))
+          (while (coco_is_compound2 m s ":")
+            (let ((size_t md . #'(coco_deref m (coco_arg m s 0))))
+              (if (and (not (coco_m_is_var e md)) (not (coco_m_is_atom e md)))
+                  (return (coco_m_type_error e "atom" md)))
+              (set s (coco_deref m (coco_arg m s 1)))))
+          (if (not (coco_m_is_var e s))
+              (block
+                (if (not (coco_is_compound2 m s "/"))
+                    (return (coco_m_type_error e "predicate_indicator" s0)))
+                (let ((size_t n . #'(coco_deref m (coco_arg m s 0)))
+                      (size_t ar . #'(coco_deref m (coco_arg m s 1))))
+                  (if (and (not (coco_m_is_var e n)) (not (coco_m_is_atom e n)))
+                      (return (coco_m_type_error e "predicate_indicator" s0)))
+                  (if (not (coco_m_is_var e ar))
+                      (block (if (not (coco_m_int e ar (aof a)))
+                                 (return (coco_m_type_error e "predicate_indicator" s0)))
+                             (if (< a 0)
+                                 (return (coco_m_domain_error e "not_less_than_zero" ar)))
+                             (if (> a 2147483647)
+                                 (return (coco_m_type_error e "predicate_indicator" s0))))))))
+          (set s s0)
+          (while (coco_is_compound2 m s ":")
             (let ((size_t md . #'(coco_deref m (coco_arg m s 0))))
               (if (coco_m_is_var e md)
-                  (block (if (not (coco_m_unify e md (coco_new_atom m "user"))) (return 0)))
-                  (if (not (coco_m_is_atom e md)) (return (coco_m_type_error e "atom" md))))
+                  (if (not (coco_m_unify e md (coco_new_atom m "user"))) (return 0)))
               (set s (coco_deref m (coco_arg m s 1)))))
-          (if (coco_m_is_var e s) (return (coco_m_unify e (coco_m_arg e g 1) s)))
-          (if (or (not (coco-tag-is FUN (nth s (-> m heap))))
-                  (or (!= (coco_arity m s) 2)
-                      (!= 0 (strcmp (coco_atom_name m (coco_name_of m s)) "/"))))
-              (return (coco_m_type_error e "predicate_indicator" s)))
-          (let ((size_t n . #'(coco_deref m (coco_arg m s 0)))
-                (size_t ar . #'(coco_deref m (coco_arg m s 1))))
-            (if (and (not (coco_m_is_var e n)) (not (coco_m_is_atom e n)))
-                (return (coco_m_type_error e "predicate_indicator" s)))
-            (if (not (coco_m_is_var e ar))
-                (block (if (not (coco_m_int e ar (aof a)))
-                           (return (coco_m_type_error e "predicate_indicator" s)))
-                       (if (< a 0)
-                           (return (coco_m_domain_error e "not_less_than_zero" ar))))))
           (return (coco_m_unify e (coco_m_arg e g 1) s))))
 
-  ;;; Every operator there is, as `op(Priority, Type, Name)'. The DECLARED ones
-  ;;; first and the built-in ones after, with a built-in left out when a
-  ;;; declaration of the same name and kind has hidden it -- so what comes back
-  ;;; is what the reader would actually do, not two tables stuck together.
+  ;;; '$cp_defined'(Name/Arity), current_predicate/1 named whole (3.31.0),
+  ;;; after '$cp_spec'/2 made it an atom and an integer: a predicate of the
+  ;;; system's, or one the program defines (`coco_pred_current'), as
+  ;;; swipl's answers for module system's through user's import of it --
+  ;;; atom_length/2, call/1, format/2 -- where through 3.30.0 the clause
+  ;;; looked the name up in the list of the program's alone, which it made
+  ;;; at every call.
+  (func coco_b_cp_defined ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t s . #'(coco_deref m (coco_m_arg e g 0))) (i64 a . 0))
+          (if (not (coco_m_int e (coco_arg m s 1) (aof a))) (return 0))
+          (return (coco_pred_current (-> e st) m (coco_name_of m (coco_deref m (coco_arg m s 0)))
+                                     (cast u32 a)))))
+
+  ;;; '$ops'(P, T, N, L): THE OPERATORS current_op(P, T, N) CAN ANSWER, as
+  ;;; `op(Priority, Type, Name)': those its bound arguments name and no
+  ;;; other (3.25.0), so that the clause's member of them leaves no choice
+  ;;; point at the last, as swipl's current_op/3 leaves none (through 3.24.0
+  ;;; the whole table, walked by a member that left one at every answer).
+  ;;; The DECLARED ones first and the built-in ones after, a built-in left out
+  ;;; where a declaration of the same name and kind has hidden it -- what the
+  ;;; reader would do, not two tables stuck together -- and of a NAME given,
+  ;;; each table's prefix definition before its infix one, swipl's order
+  ;;; (`-' is 200 fy, then 500 yfx); of none, the tables' own order.
   (func coco_b_ops ((coco_engine * e) (size_t g)) (out int)
-        (let ((size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out))
-
-          (coco_b_ops_push e (aof v) (aof n) (aof cap) 1)
-          (coco_b_ops_push e (aof v) (aof n) (aof cap) 0)
-
+        (let ((size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out)
+              (size_t pa . #'(coco_m_arg e g 0)) (size_t ta . #'(coco_m_arg e g 1))
+              (size_t na . #'(coco_m_arg e g 2))
+              (i64 pf . -1) (const char * tf . nil) (const char * nf . nil))
+          (if (not (coco_m_is_var e pa))
+              (if (not (coco_m_int e pa (aof pf))) (set pf -2)))
+          (if (not (coco_m_is_var e ta)) (set tf (coco_m_atom e ta)))
+          (if (not (coco_m_is_var e na)) (set nf (coco_m_atom e na)))
+          (if (!= nf nil)
+              (block
+               (coco_b_ops_push e (aof v) (aof n) (aof cap) 1 1 nf pf tf)
+               (coco_b_ops_push e (aof v) (aof n) (aof cap) 1 0 nf pf tf)
+               (coco_b_ops_push e (aof v) (aof n) (aof cap) 0 1 nf pf tf)
+               (coco_b_ops_push e (aof v) (aof n) (aof cap) 0 0 nf pf tf))
+              (block
+               (coco_b_ops_push e (aof v) (aof n) (aof cap) 1 -1 nf pf tf)
+               (coco_b_ops_push e (aof v) (aof n) (aof cap) 0 -1 nf pf tf)))
           (set out (coco_m_list e v n))
           (free v)
-          (return (coco_m_unify e (coco_m_arg e g 0) out))))
+          (return (coco_m_unify e (coco_m_arg e g 3) out))))
 
-  ;;; DECLARED when `dyn', built-in otherwise. Pulled out because the two loops
-  ;;; are the same but for which table they read and whether they skip.
+  ;;; DECLARED when `dyn', built-in otherwise, of the kind KF (1 prefix, 0
+  ;;; infix, -1 either), named NF, of the priority PF and the type TF where
+  ;;; those are given (nil, or -1, for none). Pulled out because the loops are
+  ;;; the same but for which table they read and whether they skip.
   (static)
   (func coco_b_ops_push ((coco_engine * e) (size_t ** v) (size_t * n) (size_t * cap)
-                       (int dyn))
+                       (int dyn) (int kf) (const char * nf) (i64 pf) (const char * tf))
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t total . #'(? dyn (coco_op_dyn_count) (coco_op_static_count))))
           (for ((size_t i . 0)) (< i total) ((++ i))
@@ -1363,6 +1353,10 @@
               ;; a declaration with priority 0 is not an operator, and a
               ;; built-in that one has hidden is not one either
               (if (== prec 0) continue)
+              (if (and (>= kf 0) (!= kind kf)) continue)
+              (if (and (!= nf nil) (!= 0 (strcmp name nf))) continue)
+              (if (and (!= pf -1) (!= (cast i64 prec) pf)) continue)
+              (if (and (!= tf nil) (!= 0 (strcmp (coco_b_typename type) tf))) continue)
               (if (not dyn)
                   (let ((int dp . 0) (int dt . 0))
                     (if (>= (coco_op_dyn_lookup_pub name kind (aof dp) (aof dt)) 0)

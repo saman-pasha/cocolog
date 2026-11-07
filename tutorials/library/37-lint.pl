@@ -15,10 +15,11 @@
 %% compile, and far enough that they will be wrong. Every rule cocolint has
 %% exists because the failure it catches is SILENT or nearly so -- a loud
 %% failure needs no linter, because the interpreter already names it. A
-%% program that clears a predicate with `retract(p(_)), fail' removes ONE
-%% clause; one that defines `step/4' merges its clauses into a library's; one
-%% that writes `~t~20|' for alignment gets a format directive refused by
-%% name. None of the three says so.
+%% program that scopes a value with `b_setval/2' finds it still set after
+%% backtracking; one that defines `step/4' merges its clauses into a
+%% library's; one that branches on `current_prolog_flag(occurs_check, B)'
+%% takes the other branch, the flag being none here. None of the three says
+%% so.
 %%
 %% WHAT THIS LESSON CLAIMS. Nine sections, every claim a must/3:
 %%
@@ -154,19 +155,19 @@ t37_rules :-
 
     %% ---- AND A FINDING THE CODE MEANS IS ACKNOWLEDGED WHERE IT STANDS.
     %%
-    %% Lesson 07 shows `retract(X), fail' removing one clause by writing it,
-    %% and R1 is right about that line: the trap IS the lesson. A comment
-    %% that names the finding and says why -- `cocolint: R1 -- the lesson'
-    %% after the `%' -- covers its own line, or the next one when it stands
+    %% Lesson 09 shows a handler naming a context(_,_) by writing one, and
+    %% C2 is right about that line: the trap IS the lesson. A comment that
+    %% names the finding and says why -- `cocolint: C2 -- the lesson' after
+    %% the `%' -- covers its own line, or the next one when it stands
     %% alone, and the reason is required. cl_acks/3 reads them out of a
     %% file's codes and its comment regions; the text below is a quoted
     %% string, so it is no acknowledgement of anything in THIS file.
-    AckSrc = "p :- q.   % cocolint: R1 -- shown on purpose\n% cocolint: F1, X3 -- the next line\nr.\n",
+    AckSrc = "p :- q.   % cocolint: G1 -- shown on purpose\n% cocolint: L1, X3 -- the next line\nr.\n",
     cc_regions(AckSrc, AckRegs),
     cl_acks(AckSrc, AckRegs, Acks),
     findall(Ln-Cov-Ids, member(ack(_, Ln, Cov, Ids, _), Acks), AckLines),
     must('after code it covers its line; alone, the next', AckLines,
-         [1-1-['R1'], 2-3-['F1', 'X3']]),
+         [1-1-['G1'], 2-3-['L1', 'X3']]),
     ( memberchk(u1-warn, Sevs) -> U1 = warn ; U1 = other ),
     %% U1 keeps them honest: one whose finding has gone would excuse the
     %% next thing to land on its line, so it is a finding itself, and so
@@ -241,15 +242,16 @@ t37_where :-
 
 t37_lookahead :-
     format("~n-- 7. THE NEGATIVE LOOKAHEAD POSIX HAS NO FORM FOR~n"),
-    format("   Rule P1: seventeen prolog flags answer here -- executable,~n"),
+    format("   Rule P1: twenty prolog flags answer here -- executable,~n"),
     format("   argv, os_argv, double_quotes, text_units, since 2.0.0 bounded~n"),
-    format("   and the four integer bounds, and since 2.2.2 the four float~n"),
-    format("   flags and the three float bounds -- and every other one FAILS, so a~n"),
-    format("   portability shim written against another flag takes the wrong~n"),
-    format("   branch, silently. The rule has to fire on every flag BUT those~n"),
-    format("   (one of them, here). In a DCG the lookahead is \\+, one word;~n"),
-    format("   in POSIX it does not exist and a port of it fails without~n"),
-    format("   saying so.~n"),
+    format("   and the four integer bounds, since 2.2.2 the four float flags~n"),
+    format("   and the three float bounds, since 2.16.0 verbose, since 3.15.0~n"),
+    format("   optimise_unify and since 3.32.0 stack_limit -- and every other~n"),
+    format("   one FAILS, so a portability shim written against another flag~n"),
+    format("   takes the wrong branch, silently. The rule has to fire on every~n"),
+    format("   flag BUT those (one of them, here). In a DCG the lookahead is \\+,~n"),
+    format("   one word; in POSIX it does not exist and a port of it fails~n"),
+    format("   without saying so.~n"),
     ( cl_match(seq([lit(current_prolog_flag), ws, lit('('), ws,
                     notword(executable), oneof(abcdefghijklmnopqrstuvwxyz_)]),
                "p :- current_prolog_flag(occurs_check, B).", OffP, _)
@@ -274,12 +276,12 @@ t37_card :-
     read_file_to_codes('tools/cocolint/traps.jsonl', TrapCodes),
     t37_rows(TrapCodes, Rows),
     length(Rows, NRows),
-    must('rows in the card', NRows, 28),
+    must('rows in the card', NRows, 26),
     findall(Id, ( member(R, Rows), t37_field(R, id, Id) ), Ids),
     sort(Ids, SortedIds),
     length(SortedIds, NIds),
-    must('every id distinct', NIds, 28),
-    %% NINE OF THE TWENTY-EIGHT CARRY A PATTERN, and the gap is the point
+    must('every id distinct', NIds, 26),
+    %% SEVEN OF THE TWENTY-SIX CARRY A PATTERN, and the gap is the point
     %% of the card: a row documents a divergence, and only some divergences
     %% are things a linter can SEE in a source file. `X3' can be matched --
     %% a predicate cocolog leaves out on purpose is right there in the text
@@ -300,7 +302,12 @@ t37_card :-
     %% model to write a workaround for nothing. And thirty until 3.1.0, when W1
     %% and E1 went, two patterns with them: write_canonical/1 is swipl's,
     %% operators ignored and variables named A and _, and the reader takes
-    %% every escape, backquote, digit group and radix numeral E1 named.)
+    %% every escape, backquote, digit group and radix numeral E1 named. And
+    %% twenty-eight until 3.28.0, when R1 went with its pattern: retract/1
+    %% answers again on backtracking, as swipl's, so the `retract(X), fail'
+    %% loop it flagged takes every clause. And twenty-seven until 3.33.0, when
+    %% F1 went with its pattern: format/2 lays out ~t, ~| and ~+ as swipl's,
+    %% where it refused the three by name.)
     %%
     %% IT WAS SEVENTEEN, AND THE STRING TYPE TOOK TWO OF THEM. Row X1 said
     %% the string predicates did not exist and flagged every call to one;
@@ -324,7 +331,7 @@ t37_card :-
     %% `:- initialization(main).' with a halt in main, writes nothing.
     findall(P, ( member(R, Rows), t37_field(R, pattern, P) ), Pats),
     length(Pats, NPats),
-    must('rows carrying an S1 pattern term', NPats, 9),
+    must('rows carrying an S1 pattern term', NPats, 7),
     findall(x, ( member(R, Rows), t37_field(R, cite, Cites), Cites == [] ), NoCite),
     must('rows with no citation at all', NoCite, []),
 

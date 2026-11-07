@@ -244,16 +244,16 @@ the_lifts(Agent) :-
 %% after the code on its line (covered), alone on the line before (covered),
 %% two IDs in one (both covered), one with no reason after `--' (not
 %% covered, and a U1), and one whose finding is not on its line (a U1, the
-%% stale kind). Under COCO_LINT_NO_ACK=1 none is read, and every R1 is back.
+%% stale kind). Under COCO_LINT_NO_ACK=1 none is read, and every G1 is back.
 the_acks(Agent) :-
     section('an acknowledgement covers its line or the next, and U1 reports one that excuses nothing'),
     scratch(T), shl(['mkdir -p ', T]),
     sh_join([T, '/acks.pl'], F),
-    findall(Line, ( member(Fmt-Args, [ "a :- ( retract(i(_)), fail ; true ).   ~c cocolint: R1 -- shown on purpose~n"-[37],
-                                       "~c cocolint: R1 -- shown on purpose~n"-[37],
-                                       "b :- ( retract(i(_)), fail ; true ).~n"-[],
-                                       "c :- ( retract(i(_)), fail ; true ), format(\"~ct~cw\", [x]).   ~c cocolint: R1, F1 -- both~n"-[126, 126, 37],
-                                       "d :- ( retract(i(_)), fail ; true ).   ~c cocolint: R1~n"-[37],
+    findall(Line, ( member(Fmt-Args, [ "a :- b_setval(k, 1).   ~c cocolint: G1 -- shown on purpose~n"-[37],
+                                       "~c cocolint: G1 -- shown on purpose~n"-[37],
+                                       "b :- b_setval(k, 1).~n"-[],
+                                       "c :- b_setval(k, 1), freeze(X, true).   ~c cocolint: G1, X3 -- both~n"-[37],
+                                       "d :- b_setval(k, 1).   ~c cocolint: G1~n"-[37],
                                        "e :- true.   ~c cocolint: X3 -- nothing here~n"-[37] ] ),
                     format(atom(Line), Fmt, Args) ), Lines),
     atomic_list_concat(Lines, '', Text), atom_codes(Text, TCs), write_file_from_codes(F, TCs),
@@ -265,9 +265,9 @@ the_acks(Agent) :-
                                      re_replace_atom('^[^ :]+:([0-9]+:[0-9]+) (HARD|WARN) ([A-Z0-9]+) (\\[([A-Z0-9]+)\\] )?.*', '\\1 \\3\\5', LA, LC) ), Got) ),
             [_-Read, _-Ignored]),
     check('read: what is not acknowledged, and a U1 for each that excuses nothing (line:col rule)', Read,
-          ['5:8 S1R1', '5:40 U1', '6:14 U1']),
+          ['5:6 S1G1', '5:24 U1', '6:14 U1']),
     check('ignored: every finding is back, and no U1', Ignored,
-          ['1:8 S1R1', '3:8 S1R1', '4:8 S1R1', '4:46 S1F1', '5:8 S1R1']),
+          ['1:6 S1G1', '3:6 S1G1', '4:6 S1G1', '4:22 S1X3', '5:6 S1G1']),
     shl(['rm -rf ', T]).
 
 %% ---- 3e. N1 sees the preloaded libraries -----------------------------------
@@ -384,11 +384,11 @@ the_auto(Agent) :-
     check('a clean repository has nothing to lint', Rc1, 0),
     has('...and says so', 'no changed .pl file', Out1),
     auto_at(S, 'bad.pl', B1),
-    fixture(B1, ['bad :- retract(x), fail.']),
+    fixture(B1, ['bad :- b_setval(k, 1).']),
     lint_at(Agent, S, '--auto', Out2, Rc2),
     check('an untracked .pl is linted', Rc2, 1),
     has('...and the finding names it', 'bad.pl', Out2),
-    has('...and names the rule', 'HARD S1 [R1]', Out2),
+    has('...and names the rule', 'HARD S1 [G1]', Out2),
     git_at(S, 'add bad.pl'),
     lint_at(Agent, S, '--staged', Out3, Rc3),
     check('--staged lints the index', Rc3, 1),
@@ -511,8 +511,9 @@ the_findings(Agent) :-
 %%
 %% ELEVEN FINDINGS WERE PINNED HERE until 2.2.1, each with the argument for
 %% keeping it; the tree is held to none now. Six were lessons teaching the
-%% trap the rule enforces, and they acknowledge it where it stands (07's
-%% R1, 09's C2, 04's F1, 38's P1, and the case test/stream.pl's W1). Three
+%% trap the rule enforces, and they acknowledge it where it stands (09's
+%% C2, 38's P1; 04's F1, 07's R1 and the case test/stream.pl's W1 went with
+%% their traps, in 3.33.0, 3.28.0 and 3.1.0). Three
 %% were no-op imports and are gone (26, 27, library/astar.pl); the files
 %% swipl also runs keep theirs, acknowledged. Lesson 10's digits//1 and
 %% digit//1 joined dcg_basics' and are numeral//1 and numeral_digit//1;

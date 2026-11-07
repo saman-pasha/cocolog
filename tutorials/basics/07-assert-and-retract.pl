@@ -74,19 +74,22 @@ main :-
     findall(T2, todo(T2), Left2),
     must('and gone for the next call', Left2, [a, b]),
 
-    format("~n-- A DIFFERENCE WORTH KNOWING: builtins here answer ONCE~n"),
-    format("   The classic `retract(X), fail' loop iterates by BACKTRACKING~n"),
-    format("   into retract, so it needs one that answers many times. Every~n"),
-    format("   builtin in cocolog is deterministic, on purpose -- one that~n"),
-    format("   left a choice point behind would need the engine's choice~n"),
-    format("   stack in its hands. So that loop removes exactly ONE clause.~n"),
+    format("~n-- retract/1 ANSWERS AGAIN on backtracking~n"),
+    format("   Each answer takes the next clause of the ones that stood when~n"),
+    format("   the retract began, as swipl's does, so the classic~n"),
+    format("   `retract(X), fail' loop takes every one of them.~n"),
     findall(S4, seen(S4), WasThere),
-    ( retract(seen(_)), fail ; true ),   % cocolint: R1 -- the lesson: this loop removes ONE clause
+    ( retract(seen(_)), fail ; true ),
     findall(S5, seen(S5), StillThere),
     length(WasThere, WasN), length(StillThere, StillN),
     Removed is WasN - StillN,
-    must('clauses the failure-driven loop removed', Removed, 1),
-    format("   Write the recursion instead -- empty_seen/0, at the bottom.~n"),
+    must('clauses the failure-driven loop removed', Removed, 4),
+    must('and what is left', StillThere, []),
+    assertz(seen(a)), assertz(seen(b)),
+    findall(S6, ( retract(seen(S6)), assertz(seen(again)) ), Took),
+    must('a retract walks what stood when it began, not what it adds', Took, [a, b]),
+    findall(S7, seen(S7), Added),
+    must('the clauses it added are there afterwards', Added, [again, again]),
 
     format("~n-- and clean up, because in cocolog these may be a DATABASE~n"),
     empty_seen,
@@ -100,13 +103,11 @@ main :-
 
 bump :- retract(counter(C)), D is C + 1, assertz(counter(D)).
 
-%% RECURSION, because a failure-driven loop cannot iterate a deterministic
-%% retract -- the lesson above counts what it actually removed.
-%%
-%% `retractall/1' does exactly this and is the one to reach for; it is
-%% spelt out here so you can see there is nothing in it. It was ITSELF
-%% written as the failure-driven loop until this tutorial counted, and had
-%% been quietly removing one clause of three.
+%% A RECURSION, one retract a turn, which empties the predicate as the loop
+%% does: each turn's retract is a new call, and sees what the turn before
+%% left. `retractall/1' is the one to reach for; it is spelt out here so
+%% you can see there is nothing in it. Through cocolog 3.27.0 retract/1
+%% answered once, the loop above took one clause, and this was the way.
 empty_seen :- ( retract(seen(_)) -> empty_seen ; true ).
 
 %% ---- the two helpers every lesson here carries ------------------------

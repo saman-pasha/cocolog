@@ -22,6 +22,9 @@ flow_kind(G, Ctx, Kind) :-
     (   flow_test(N, A)                 -> Kind = test
     ;   N == (=), A =:= 2               -> Kind = unify
     ;   flow_t_c(N, A, _)               -> Kind = builtin
+    %% a construct the step answers itself and no program clause reaches:
+    %% retract/1 and clause/2 (3.28.0) as they were in the C table
+    ;   flow_t_construct(N, A, _)       -> Kind = builtin
     ;   flow_portal_row(Mod, N, A, _)    -> Kind = portal(Mod)
     ;   get_assoc(N/A, Prog, V)         -> ( V = dyn(_) -> Kind = dynamic ; Kind = user )
     ;   flow_t_lib(N, A, L, _)          -> Kind = library(L)
@@ -615,6 +618,9 @@ flow_an_item(P, St0, St, Ctx, M0, M, [meta(phrase, Head, [':'|Ms], [Ns], [])]) :
 flow_an_item(_:G, St0, St, Ctx, M0, M, Ns) :- !,
     flow_an_item(G, St0, St, Ctx, M0, M, Ns).
 flow_an_item(!, St, St, _, M, M, [cut]) :- !.
+%% $/0 (cocolog 3.21.0) cuts as ! does, and has no port of its own; what
+%% it guards is the determinism's (flow_guarded_nls/3)
+flow_an_item($, St, St, _, M, M, [cut]) :- !.
 %% nothing after fail or throw runs: the state is dead past them
 flow_an_item(fail, St, [dead-dead|St], _, M, M, [failn]) :- !.
 flow_an_item(false, St, [dead-dead|St], _, M, M, [failn]) :- !.
@@ -659,6 +665,13 @@ flow_an_item(once(G), St0, St, Ctx, M0, M, [meta(once, once('…'), [':'], [Ns],
 flow_an_item(ignore(G), St0, St, Ctx, M0, M, [meta(ignore, ignore('…'), [':'], [Ns], [])]) :- !,
     flow_an_seq(G, St0, St1, Ctx, M0, M, Ns),
     flow_join(St0, St1, St).
+%% swipl's control constructs (cocolog 3.20.0): $(G) is G, which must
+%% succeed once, and G@M is G with M for its context module
+flow_an_item($(G), St0, St, Ctx, M0, M, [meta($, $('…'), [':'], [Ns], [])]) :- !,
+    flow_an_seq(G, St0, St, Ctx, M0, M, Ns).
+flow_an_item(@(G, Mo), St0, St, Ctx, M0, M, [meta(@, @('…', Mo), [':', MM], [Ns], [])]) :- !,
+    flow_arg_mode(Mo, St0, MM),
+    flow_an_seq(G, St0, St, Ctx, M0, M, Ns).
 flow_an_item(catch(G, Ball, R), St0, St, Ctx, M0, M, [catchc(Gn, Ball, Rn)]) :- !,
     flow_an_seq(G, St0, St1, Ctx, M0, M1, Gn),
     flow_catcher_state(Ball, St0, StR),
@@ -1120,7 +1133,8 @@ flow_vars_final(Vs, St, S) :-
 %% choice left after a clause's last cut makes it nondet, and it is det
 %% when no clause that can be reached can fail.
 flow_pred_det([], _, _, semidet) :- !.
-flow_pred_det(Cls, NLs, CM, Det) :-
+flow_pred_det(Cls, NLs0, CM, Det) :-
+    flow_guarded_nls(Cls, NLs0, NLs),
     (   flow_alternatives(Cls, CM) -> Det = nondet
     ;   flow_late_choice(NLs) -> Det = nondet
     ;   flow_pred_total(Cls, NLs, CM) -> Det = det
@@ -1136,6 +1150,32 @@ flow_pred_total(Cls, NLs, CM) :-
     flow_nodes_total(LastNs),
     (   Init == [] -> true ; flow_committed(Cls) ),
     forall(member(Ns, InitNs), ( flow_after_cut(Ns, After), flow_nodes_total(After) )).
+
+%% A CLAUSE THAT HOLDS $/0 (cocolog 3.21.0) at the top of its body is past
+%% the first such `$' guarded: it succeeds once and leaves no choice point,
+%% or raises a determinism error -- so each clause's nodes are read up to
+%% that `$''s cut, its top-level cuts and the body's !/0 and $/0 goals
+%% being one to one
+flow_guarded_nls([], [], []).
+flow_guarded_nls([cl(_, B, _, _)|Cls], [Ns0|NLs0], [Ns|NLs]) :-
+    flow_conj(B, Gs),
+    include(flow_cut_goal, Gs, Cuts),
+    (   nth1(K, Cuts, C), flow_guard_goal(C)
+    ->  flow_upto_cut(K, Ns0, Ns)
+    ;   Ns = Ns0
+    ),
+    flow_guarded_nls(Cls, NLs0, NLs).
+
+flow_cut_goal(G) :- ( G == ! ; flow_guard_goal(G) ), !.
+flow_cut_goal(G) :- nonvar(G), G = '$at'(G0, _), G0 == !.
+
+flow_guard_goal(G) :- G == ($), !.
+flow_guard_goal(G) :- nonvar(G), G = '$at'(G0, _), G0 == ($).
+
+flow_upto_cut(1, [cut|_], [cut]) :- !.
+flow_upto_cut(K, [cut|Ns0], [cut|Ns]) :- !, K1 is K - 1, flow_upto_cut(K1, Ns0, Ns).
+flow_upto_cut(K, [N|Ns0], [N|Ns]) :- !, flow_upto_cut(K, Ns0, Ns).
+flow_upto_cut(_, [], []).
 
 flow_late_choice(NLs) :-
     member(Ns, NLs),
@@ -1177,18 +1217,21 @@ flow_node_nondet(ite(_, Arms, Else)) :- !,
     ;   Else \== none, flow_nodes_nondet(Else)
     ).
 flow_node_nondet(meta(phrase, _, _, [Ns], _)) :- !, flow_nodes_nondet(Ns).
+flow_node_nondet(meta(@, _, _, [Ns], _)) :- !, flow_nodes_nondet(Ns).
 flow_node_nondet(catchc(G, _, R)) :-
     (   flow_nodes_nondet(G) -> true ; flow_nodes_nondet(R) ).
 
 %% findall/3,4 fails only on a list it is handed; aggregate_all/3 on a
 %% result it is handed, or for max or min of nothing; forall/2 on a
-%% counter-example; ignore/1 never; once/1 as its goal does
+%% counter-example; ignore/1 never; once/1 as its goal does; $/1 never (a
+%% goal that fails raises determinism_error), and @/2 as its goal does
 flow_meta_can_fail(findall, _, Ms, _, CF) :- !,
     (   Ms = [_, _, '-'|_] -> CF = false ; CF = true ).
 flow_meta_can_fail(aggregate_all, aggregate_all(Spec, _, _), [_, _, MR], _, CF) :- !,
     (   MR == '-', nonvar(Spec), \+ flow_agg_partial(Spec) -> CF = false ; CF = true ).
 flow_meta_can_fail(forall, _, _, _, true) :- !.
 flow_meta_can_fail(ignore, _, _, _, false) :- !.
+flow_meta_can_fail($, _, _, _, false) :- !.
 flow_meta_can_fail(cond_wait_until, _, _, _, false) :- !.    % it waits until the goal holds
 flow_meta_can_fail(httpd_serve, _, _, _, false) :- !.        % a page that fails is a 404
 flow_meta_can_fail(_, _, _, [Ns], CF) :-
@@ -1212,7 +1255,7 @@ flow_committed(Cls) :-
 
 flow_has_cut(B) :-
     flow_conj(B, Gs),
-    memberchk(!, Gs).
+    member(G, Gs), flow_cut_goal(G), !.
 
 %% a bound argument whose patterns all differ picks at most one clause
 flow_indexed(Cls, CM) :-

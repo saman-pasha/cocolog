@@ -77,7 +77,7 @@
     ("downcase_atom"           2 coco_b_downcase)
     ("term_to_atom"            2 coco_b_term_to_atom)
     ("$sub_atom"               6 coco_b_sub_atom_at)
-    ("$sub_atom_positions"     4 coco_b_sub_atom_positions)
+    ("$sub_atom_positions"     5 coco_b_sub_atom_positions)
     ("$atom_byte_length"       2 coco_b_atom_byte_length)
     ("atomic_list_concat"      2 coco_b_alc2)
     ("atomic_list_concat"      3 coco_b_alc3)
@@ -88,12 +88,11 @@
     ("write_term"              2 coco_b_write_term)
     ("tab"                     1 coco_b_tab)
 
-    ("$clause"                 3 coco_b_clause_at)
     ("$unbind_template"       1 coco_b_unbind_template)
     ("$skip_list"             3 coco_b_skip_list)
-    ("$pred_count"             3 coco_b_pred_count)
     ("$predicates"             1 coco_b_predicates)
     ("$cp_spec"                2 coco_b_cp_spec)
+    ("$cp_defined"             1 coco_b_cp_defined)
     ("$pred_props"             2 coco_b_pred_props)
     ("$dwim_predicates"        2 coco_b_dwim_predicates)
     ("abolish"                 1 coco_b_abolish)
@@ -124,11 +123,8 @@
     ("format"                  3 coco_b_format3)
     ("flush_output"            0 coco_b_flush)
 
-    ("code_type"               2 coco_b_code_type)
-    ("char_type"               2 coco_b_char_type)
-
     ("op"                      3 coco_b_op)
-    ("$ops"                    1 coco_b_ops)
+    ("$ops"                    4 coco_b_ops)
     ("$op_spec"                3 coco_b_op_spec)
     ("$cn_check"               4 coco_b_cn_check)
     ("$compound"               4 coco_b_compound)
@@ -167,11 +163,19 @@
   '(("true" 0) ("fail" 0) ("false" 0) ("!" 0) ("trace" 0) ("notrace" 0)
     ("," 2) (";" 2) ("->" 2) ("*->" 2) ("\\+" 1) ("not" 1) ("once" 1) ("ignore" 1)
     ("call" 1) ("call" 2) ("call" 3) ("call" 4) ("call" 5) ("call" 6) ("call" 7) ("call" 8)
-    ("catch" 3) ("throw" 1)))
+    ("catch" 3) ("throw" 1)
+    ;; 3.20.0's, and $/0 (3.21.0)
+    ("$" 1) ("@" 2) ("$" 0)
+    ;; the walks of the database (3.28.0)
+    ("retract" 1) ("clause" 2)))
 
 (DEFPARAMETER *builtins-prolog*
   (FORMAT NIL "~{~A ~}"
           (LIST
+           ;; swipl defines these in its system (or library(error), a
+           ;; nodebug library), which hides their children from the
+           ;; tracer as this flag does (3.27.0, the read's `nodbg')
+           ":- set_prolog_flag(generate_debug_info, false)."
            ;; ---- with_local_clauses/1 -----------------------------------
            ;;
            ;; What a module's clauses already get, asked for by a program:
@@ -308,8 +312,27 @@
            ;; has no type to be wrong, so it is an instantiation error; `var'
            ;; is the one type a BOUND value fails, so it is an uninstantiation
            ;; error. test/files/must_be.pl holds all three against SWI.
-           "must_be(Type, X) :- is_of_type(Type, X), !."
-           "must_be(Type, X) :- '$must_be_failed'(Type, X)."
+           ;;
+           ;; SWIPL 9.0.4'S DESIGN SINCE 3.29.0 (test/files/error_types.pl): a
+           ;; type is a clause of has_type/2, which a library extends --
+           ;; assoc.pl's error:has_type(assoc, _) -- and must_be/2 asks it,
+           ;; then says why not ('$is_not'/2): an unbound value an
+           ;; instantiation error, and a partial list one too; a list of the
+           ;; wrong things the first wrong element's error; `var' an
+           ;; uninstantiation error; `cyclic' and `acyclic' domain errors; a
+           ;; value a type that must be ground holds unbound an instantiation
+           ;; error; a type no clause names existence_error(type, T), and an
+           ;; unbound type an instantiation error. Through 3.28.0 a table of
+           ;; cocolog's own: no has_type/2, so must_be(assoc, A) of an assoc
+           ;; raised type_error(assoc, A); a partial list was
+           ;; type_error(list, L), which ordsets.pl's ord_intersection/2 and
+           ;; yall.pl's parameters met; an unknown type type_error(T, X); an
+           ;; unbound type was read as `any'; and list(Type), cyclic, acyclic,
+           ;; rational, pair, symbol, constant, encoding, type and string
+           ;; were no types.
+           "must_be(Type, X) :- ( nonvar(Type), has_type(Type, X) -> true"
+           "    ; nonvar(Type) -> '$is_not'(Type, X)"
+           "    ; throw(error(instantiation_error, _)) )."
 
            ;; the two throwers library(error) exports that the vendored
            ;; libraries call by name -- ordsets.pl reaches type_error/2 and
@@ -338,80 +361,145 @@
            "strip_module(T, M, G) :- '$strip_module'(T, user, M, G)."
            "'$strip_module'(T, _, M, G) :- nonvar(T), T = W:T1, !, '$strip_module'(T1, W, M, G)."
            "'$strip_module'(G, W, W, G)."
-           "'$must_be_failed'(var, X) :- !, throw(error(uninstantiation_error(X), _))."
-           "'$must_be_failed'(ground, _) :- !, throw(error(instantiation_error, _))."
-           "'$must_be_failed'(_, X) :- var(X), !, throw(error(instantiation_error, _))."
-           ;; A LIST OF THE WRONG THING NAMES THE ELEMENT, not the list. SWI
-           ;; answers `type_error(char, 97)' for `must_be(chars, [97])' -- which
-           ;; is the useful half of the message, and the half a caller cannot
-           ;; work out from `type_error(chars, [97])'.
-           "'$must_be_failed'(chars, X) :- is_list(X), '$bad_elem'(X, char, B), !,"
-           "    throw(error(type_error(char, B), _))."
-           "'$must_be_failed'(codes, X) :- is_list(X), '$bad_elem'(X, code, B), !,"
-           "    throw(error(type_error(code, B), _))."
-           "'$must_be_failed'(Type, X) :- throw(error(type_error(Type, X), _))."
-           "'$bad_elem'([X|_], T, X) :- \\+ is_of_type(T, X), !."
-           "'$bad_elem'([_|Xs], T, B) :- '$bad_elem'(Xs, T, B)."
+           ;; WHY A VALUE IS NOT OF ITS TYPE, swipl 9.0.4's is_not/2: lists
+           ;; first -- a partial one an instantiation error, an improper one
+           ;; a type error naming list(Of) where the elements had a type
+           ;; (chars is list(char)), a proper one its first wrong element's
+           ;; own -- then var, cyclic and acyclic, then any type a clause
+           ;; names, and last a type none does
+           "'$is_not'(list, X) :- !, '$not_a_list'(list, X)."
+           "'$is_not'(list(Of), X) :- !, '$not_a_list'(list(Of), X)."
+           "'$is_not'(list_or_partial_list, X) :- !, throw(error(type_error(list, X), _))."
+           "'$is_not'(chars, X) :- !, '$not_a_list'(list(char), X)."
+           "'$is_not'(codes, X) :- !, '$not_a_list'(list(code), X)."
+           "'$is_not'(var, X) :- !, throw(error(uninstantiation_error(X), _))."
+           "'$is_not'(cyclic, X) :- throw(error(domain_error(cyclic_term, X), _))."
+           "'$is_not'(acyclic, X) :- throw(error(domain_error(acyclic_term, X), _))."
+           "'$is_not'(Type, X) :- '$current_type'(Type), !,"
+           "    ( var(X) -> throw(error(instantiation_error, _))"
+           "    ; '$ground_type'(Type), \\+ ground(X) -> throw(error(instantiation_error, _))"
+           "    ; throw(error(type_error(Type, X), _)) )."
+           "'$is_not'(Type, _) :- throw(error(existence_error(type, Type), _))."
+           "'$not_a_list'(Type, X) :- '$skip_list'(_, X, Rest),"
+           "    ( var(Rest) -> throw(error(instantiation_error, _))"
+           "    ; Rest == [] -> Type = list(Of),"
+           "      ( nonvar(Of) -> '$element_is_not'(X, Of) ; throw(error(instantiation_error, _)) )"
+           "    ; throw(error(type_error(Type, X), _)) )."
+           "'$element_is_not'([H|T], Of) :- has_type(Of, H), !, '$element_is_not'(T, Of)."
+           "'$element_is_not'([H|_], Of) :- '$is_not'(Of, H)."
 
-           "is_of_type(any, _)."
-           "is_of_type(var, X) :- var(X)."
-           "is_of_type(nonvar, X) :- nonvar(X)."
-           "is_of_type(ground, X) :- ground(X)."
-           "is_of_type(atom, X) :- atom(X)."
-           "is_of_type(atomic, X) :- atomic(X)."
-           "is_of_type(callable, X) :- callable(X)."
-           "is_of_type(compound, X) :- compound(X)."
-           "is_of_type(integer, X) :- integer(X)."
-           "is_of_type(float, X) :- float(X)."
-           "is_of_type(number, X) :- number(X)."
-           "is_of_type(boolean, X) :- (X == true ; X == false), !."
-           "is_of_type(nonneg, X) :- integer(X), X >= 0."
-           "is_of_type(positive_integer, X) :- integer(X), X > 0."
-           "is_of_type(negative_integer, X) :- integer(X), X < 0."
-           "is_of_type(oneof(L), X) :- ground(X), memberchk(X, L)."
-           "is_of_type(between(L, H), X) :- number(X), X >= L, X =< H."
-           "is_of_type(list, X) :- is_list(X)."
-           "is_of_type(proper_list, X) :- is_list(X)."
-           "is_of_type(list_or_partial_list, X) :- '$partial_list'(X)."
-           ;; a char is a ONE-character atom and a code a non-negative
-           ;; integer -- `[ab]' is not a list of chars and `[-1]' not one of
-           ;; codes, which is what makes the element-naming above worth having
-           "is_of_type(char, X) :- atom(X), atom_length(X, 1)."
-           "is_of_type(code, X) :- integer(X), X >= 0."
-           "is_of_type(chars, X) :- is_list(X), '$all_of'(X, char)."
-           "is_of_type(codes, X) :- is_list(X), '$all_of'(X, code)."
-           "is_of_type(text, X) :- (atom(X) ; is_list(X)), !."
-           "'$all_of'([], _)."
-           "'$all_of'([X|Xs], T) :- is_of_type(T, X), '$all_of'(Xs, T)."
-           "'$partial_list'(X) :- var(X), !."
-           "'$partial_list'([])."
-           "'$partial_list'([_|T]) :- '$partial_list'(T)."
+           ;; is_of_type/2 answers where must_be/2 raises, which is the whole
+           ;; difference -- but for an unbound type, which both refuse
+           "is_of_type(Type, X) :- nonvar(Type), !, has_type(Type, X), !."
+           "is_of_type(_, _) :- throw(error(instantiation_error, _))."
+           "'$ground_type'(ground)."
+           "'$ground_type'(oneof(_))."
+           "'$ground_type'(stream)."
+           "'$ground_type'(text)."
+           "'$ground_type'(string)."
+           "'$ground_type'(rational)."
+           ;; a type is one a clause names, a library's own among them
+           "'$current_type'(Type) :- \\+ \\+ clause(has_type(Type, _), _)."
+
+           ;; THE TYPES, swipl 9.0.4's, in its order. A stream is what
+           ;; library(stream)'s is_stream/1 says is one, where it is loaded,
+           ;; and nothing where it is not (no stream is open then). Not
+           ;; swipl's: no dict is one, there being none
+           "has_type(any, _)."
+           "has_type(atom, X) :- atom(X)."
+           "has_type(atomic, X) :- atomic(X)."
+           "has_type(between(L, U), X) :- ( integer(L) -> integer(X), between(L, U, X)"
+           "    ; number(X), X >= L, X =< U )."
+           "has_type(boolean, X) :- ( X == true ; X == false ), !."
+           "has_type(callable, X) :- callable(X)."
+           "has_type(char, X) :- '$is_char'(X)."
+           "has_type(code, X) :- '$is_char_code'(X)."
+           "has_type(chars, X) :- is_list(X), '$char_list'(X)."
+           "has_type(codes, X) :- is_list(X), '$code_list'(X)."
+           "has_type(text, X) :- '$text'(X)."
+           "has_type(compound, X) :- compound(X)."
+           "has_type(constant, X) :- atomic(X)."
+           "has_type(float, X) :- float(X)."
+           "has_type(ground, X) :- ground(X)."
+           "has_type(cyclic, X) :- cyclic_term(X)."
+           "has_type(acyclic, X) :- acyclic_term(X)."
+           "has_type(integer, X) :- integer(X)."
+           "has_type(nonneg, X) :- integer(X), X >= 0."
+           "has_type(positive_integer, X) :- integer(X), X > 0."
+           "has_type(negative_integer, X) :- integer(X), X < 0."
+           "has_type(nonvar, X) :- nonvar(X)."
+           "has_type(number, X) :- number(X)."
+           "has_type(oneof(L), X) :- ground(X), \\+ \\+ memberchk(X, L)."
+           "has_type(pair, X) :- nonvar(X), X = _-_."
+           "has_type(proper_list, X) :- is_list(X)."
+           "has_type(list, X) :- is_list(X)."
+           "has_type(list_or_partial_list, X) :- '$list_or_partial'(X)."
+           "has_type(symbol, X) :- atom(X)."
+           "has_type(var, X) :- var(X)."
+           "has_type(rational, X) :- rational(X)."
+           "has_type(string, X) :- string(X)."
+           "has_type(stream, X) :- '$is_stream'(X)."
+           "has_type(encoding, X) :- '$encoding'(X)."
+           "has_type(dict, _) :- fail."
+           "has_type(list(Type), X) :- is_list(X), '$element_types'(X, Type)."
+           "has_type(type, Type) :- ground(Type), '$current_type'(Type)."
+           ;; a char is a ONE-character atom and a code a code point --
+           ;; `[ab]' is not a list of chars and `[-1]' not one of codes,
+           ;; which is what makes the element-naming above worth having
+           "'$is_stream'(X) :- catch(is_stream(X), error(existence_error(procedure, is_stream/1), _), fail)."
+           "'$is_char'(X) :- atom(X), atom_length(X, 1)."
+           "'$is_char_code'(X) :- integer(X), X >= 0, X =< 1114111."
+           "'$char_list'([])."
+           "'$char_list'([C|T]) :- '$is_char'(C), '$char_list'(T)."
+           "'$code_list'([])."
+           "'$code_list'([C|T]) :- '$is_char_code'(C), '$code_list'(T)."
+           "'$text'(X) :- ( atom(X) ; string(X) ; is_list(X), '$char_list'(X)"
+           "    ; is_list(X), '$code_list'(X) ), !."
+           "'$list_or_partial'(L0) :- '$skip_list'(_, L0, L), ( var(L) -> true ; L == [] )."
+           "'$element_types'(List, Type) :- nonvar(Type), !, '$element_types_'(List, Type)."
+           "'$element_types'(_, _) :- throw(error(instantiation_error, _))."
+           "'$element_types_'([], _)."
+           "'$element_types_'([H|T], Type) :- has_type(Type, H), !, '$element_types_'(T, Type)."
+           "'$encoding'(octet)."
+           "'$encoding'(ascii)."
+           "'$encoding'(iso_latin_1)."
+           "'$encoding'(text)."
+           "'$encoding'(utf8)."
+           "'$encoding'(unicode_be)."
+           "'$encoding'(unicode_le)."
+           "'$encoding'(wchar_t)."
 
            ;; ---- between/3, which enumerates and so must be clauses --------
            ;; '$between'/4 checks the three as swipl's between/3 does, ONCE A
-           ;; CALL (3.0.0): L an integer, H one or `inf' or `infinite' (H1
-           ;; the bound, `inf' for both), X an integer or unbound. The
-           ;; integer(X) guard stays first, so an unbound X goes on at the
-           ;; guard's cost, and the answers come from '$between_up'/3, which
-           ;; checks nothing. With the check in the clause the recursion came
-           ;; back to, every answer paid a failing C call and a backtrack
-           ;; where the guard had failed in the clause's entry, and
+           ;; CALL (3.0.0): L an integer, H one or `inf' or `infinite', X an
+           ;; integer or unbound. The integer(X) guard stays first, so an
+           ;; unbound X goes on at the guard's cost, and the answers come
+           ;; from a helper that checks nothing ('$between_up'/3 through
+           ;; 3.21, '$between_n'/3 since). With the check in the clause the
+           ;; recursion came back to, every answer paid a failing C call and a
+           ;; backtrack where the guard had failed in the clause's entry, and
            ;; `forall(between(1, 3000000, _), true)' took 1.6 times 2.16.1's
-           ;; time.
-           "between(L, H, X) :- integer(X), !, '$between'(L, H, X, H1), X >= L, X =< H1."
-           "between(L, H, X) :- '$between'(L, H, X, H1), '$between_up'(L, H1, X)."
-           "'$between_up'(L, H, L) :- L =< H."
-           "'$between_up'(L, H, X) :- L < H, M is L + 1, '$between_up'(M, H, X)."
+           ;; time. THE LAST ANSWER LEAVES NO CHOICE POINT (3.22.0), as
+           ;; swipl's C between/3's: '$between'/4 decides a bound X itself and
+           ;; hands an unbound one N, the count of the answers after the
+           ;; first, which '$between_n'/3 counts down. The answer at 0 is the
+           ;; first clause's, keyed on 0, which cuts (`$, between(1, 1, X)' is
+           ;; det); any other count passes the first three clauses by the
+           ;; index, answers in the fourth and goes on in the fifth. `inf' is
+           ;; an upper bound of none, and A+B a range whose count passes 64
+           ;; bits (L < 0 =< H), counted as its two halves.
+           "between(L, H, X) :- integer(X), !, '$between'(L, H, X, _)."
+           "between(L, H, X) :- '$between'(L, H, X, N), '$between_n'(N, L, X)."
+           "'$between_n'(0, L, L) :- !."
+           "'$between_n'(inf, L, X) :- !, '$between_inf'(L, X)."
+           "'$between_n'(A+B, L, X) :- !, ( '$between_n'(A, L, X) ; '$between_n'(B, 0, X) )."
+           "'$between_n'(_, L, L)."
+           "'$between_n'(N, L, X) :- N1 is N - 1, M is L + 1, '$between_n'(N1, M, X)."
+           "'$between_inf'(L, L)."
+           "'$between_inf'(L, X) :- M is L + 1, '$between_inf'(M, X)."
 
-           ;; ---- clause/2, over the primitive that answers by position -----
-           ;; The count is taken once and the position enumerated, so a clause
-           ;; asserted while this is backtracking does not shift the ones after
-           ;; it under the cursor -- which is the hazard `retract' has always
-           ;; had against a running query, and is written down in STATUS.md.
-           ;; A HEAD OF NO ARGUMENTS, `f()', asks f/0's clauses (3.12.0, swipl
-           ;; 7's), which the store keeps under the atom
-           "clause(H, B) :- compound(H), compound_name_arity(H, N, 0), !, clause(N, B)."
-           "clause(H, B) :- '$pred_count'(H, N, _), N > 0, between(1, N, I), '$clause'(H, B, I)."
+           ;; clause/2 and retract/1 are constructs since 3.28.0, a walk of
+           ;; the clauses that stood when the call began (`coco_db_walk')
 
            ;; ---- a single-sided rule, `Head => Body' (3.19.0) ------------
            ;; stored `Head :- '$ssu', !, Body' (`coco_assert_from'): the
@@ -423,10 +511,23 @@
            "'$ssu_none'(M, H) :- functor(H, N, A), ( M == user -> G = H, C = N/A ; G = M:H, C = M:N/A ), throw(error(existence_error(matching_rule, G), context(C, _)))."
 
            ;; ---- current_predicate/1 ---------------------------------------
-           ;; the spec checked first, swipl's (3.0.0, '$cp_spec'/2)
-           "current_predicate(S) :- '$cp_spec'(S, PI), '$predicates'(L), '$cp_member'(PI, L)."
+           ;; the spec checked first, swipl's (3.0.0, '$cp_spec'/2). Named
+           ;; whole, it is a check that leaves no choice point, as swipl's
+           ;; (3.25.0), and answers for the system's predicates too, as
+           ;; swipl's (3.31.0, '$cp_defined'/1); with a part unbound swipl's
+           ;; leaves one at every answer, its last too, and so does
+           ;; `'$cp_member'/2', the goal first and the list after it, over
+           ;; the program's
+           "current_predicate(S) :- '$cp_spec'(S, PI), ( ground(PI) -> '$cp_defined'(PI) ; '$predicates'(L), '$cp_member'(PI, L) )."
            "'$cp_member'(X, [X|_])."
            "'$cp_member'(X, [_|T]) :- '$cp_member'(X, T)."
+           ;; A MEMBER THAT LEAVES NO CHOICE POINT AT ITS LAST ELEMENT
+           ;; (3.25.0), member/2's own clauses under a name no program
+           ;; shares: the rest of the list its helper's first argument, so the
+           ;; last element's call, keyed on `[]', has one candidate
+           "'$cp_in'(X, [H|T]) :- '$cp_in_'(T, X, H)."
+           "'$cp_in_'(_, X, X)."
+           "'$cp_in_'([H|T], X, _) :- '$cp_in_'(T, X, H)."
 
            ;; ---- nb_current/2 with its key unbound (1.12.0) ---------------
            ;; The C half answers a bound key in one step and declines an
@@ -438,7 +539,9 @@
            ;; an unbound head walks current_predicate/1's, the program's.
            ;; M:H is H (one namespace), so user:H walks them too.
            "predicate_property(H, P) :- nonvar(H), H = _:G, !, predicate_property(G, P)."
-           "predicate_property(H, P) :- nonvar(H), !, '$pred_props'(H, Ps), '$cp_member'(P, Ps)."
+           ;; a property named is a check, and of none the last one leaves
+           ;; no choice point, as swipl's (3.25.0)
+           "predicate_property(H, P) :- nonvar(H), !, '$pred_props'(H, Ps), ( nonvar(P) -> memberchk(P, Ps) ; '$cp_in'(P, Ps) )."
            "predicate_property(H, P) :- current_predicate(N/A), functor(H, N, A), '$pred_props'(H, Ps), '$cp_member'(P, Ps)."
 
            ;; ---- retractall/1 ----------------------------------------------
@@ -493,7 +596,11 @@
            ;; After each unbound or a size, and Sub unbound or atomic -- so a
            ;; list of codes or characters is type_error(atom, L) as swipl's,
            ;; where through 2.16.1 it was read as the text it spells.
-           "sub_atom(A, B, L, Aft, Sub) :- nonvar(Sub), !, '$sub_text_length'(A, B, L, Aft, Sub, N, atom), atom_length(Sub, L), Max is N - L, Max >= 0, '$atom_byte_length'(A, NB), '$sub_atom_positions'(A, Sub, NB, Bs), '$cp_member'(B, Bs), Aft is N - B - L."
+           ;; The places walked by a member that leaves no choice point at
+           ;; the last, the place given the one place there is, as swipl's
+           ;; (3.25.0); no step more than '$cp_member'/2's walk was, the list
+           ;; split where the C half answers
+           "sub_atom(A, B, L, Aft, Sub) :- nonvar(Sub), !, '$sub_text_length'(A, B, L, Aft, Sub, N, atom), atom_length(Sub, L), Max is N - L, Max >= 0, '$atom_byte_length'(A, NB), '$sub_atom_positions'(A, Sub, NB, B, [B0|Bs]), '$cp_in_'(Bs, B, B0), Aft is N - B - L."
            "sub_atom(A, B, L, Aft, Sub) :- '$sub_text_length'(A, B, L, Aft, Sub, N, atom), '$atom_byte_length'(A, NB), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_atom'(A, B, L, Aft, Sub, NB)."
 
            ;; ---- sub_string/5 ------------------------------------------------
@@ -530,10 +637,11 @@
            ;; (1.12.2), choosing between the two as the clauses did.
 
            ;; ---- current_op/3 -----------------------------------------------
-           ;; Enumerating is backtracking, so the C half hands over the whole
-           ;; table at once and `member/2' does the rest -- the same shape
-           ;; `current_predicate/1' has, and for the same reason.
-           "current_op(P, T, N) :- '$op_spec'(P, T, N), '$ops'(L), '$cp_member'(op(P, T, N), L)."
+           ;; Enumerating is backtracking, so the C half hands over at once
+           ;; the operators the call's bound arguments name ('$ops'/4) and a
+           ;; member does the rest, leaving no choice point at the last, as
+           ;; swipl's (3.25.0)
+           "current_op(P, T, N) :- '$op_spec'(P, T, N), '$ops'(P, T, N, [O|Os]), '$cp_in_'(Os, op(P, T, N), O)."
 
            ;; ---- keysort/2 --------------------------------------------------
            ;; Sorting by the key and keeping duplicates, stably, is exactly
@@ -677,7 +785,8 @@
   (static) (decl) (func coco_b_case ((coco_engine * e) (size_t g) (int up)) (out int))
   (static) (decl) (func coco_b_typename ((int type)) (out const char *))
   (static) (decl) (func coco_b_ops_push ((coco_engine * e) (size_t ** v) (size_t * n)
-                                       (size_t * cap) (int dyn)))
+                                       (size_t * cap) (int dyn) (int kf) (const char * nf)
+                                       (i64 pf) (const char * tf)))
 
   ;;; ---- all solutions ---------------------------------------------------
 
@@ -1381,9 +1490,16 @@
           (if bad (return bad)))
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t lst . 0)
-              (size_t goal . #'(coco_make2 m "," (coco_m_arg e g 0)
-                                         (coco_make1 m "\\+" (coco_m_arg e g 1))))
-              (int fr . #'(coco_engine_findall e (coco_new_atom m "x") goal (aof lst) (aof g) 2)))
+              (size_t c . #'(coco_m_arg e g 0))
+              (size_t a . #'(coco_m_arg e g 1))
+              (size_t goal . 0) (int fr . 0))
+          ;; EACH OF THE TWO IS A GOAL OF ITS OWN, as swipl's forall/2 calls
+          ;; them: one that holds $/0 is called, so that its `$' guards
+          ;; its own frame and cuts nothing of the other's (3.21.0)
+          (if (coco_det0_in m c) (set c (coco_make1 m "call" c)))
+          (if (coco_det0_in m a) (set a (coco_make1 m "call" a)))
+          (set goal (coco_make2 m "," c (coco_make1 m "\\+" a)))
+          (set fr (coco_engine_findall e (coco_new_atom m "x") goal (aof lst) (aof g) 2))
           (if (== fr 2) (return 2))
           (if (not fr) (return -1))
           ;; no counterexample means the list is empty
@@ -1608,28 +1724,41 @@
 
   ;;; ---- arithmetic in the small ----------------------------------------
 
-  ;;; '$between'(L, H, X, H1), the C half of between/3 (3.0.0), swipl's
+  ;;; '$between'(L, H, X, N), the C half of between/3 (3.0.0), swipl's
   ;;; checks in its order: L an integer, H an integer or `inf' or
   ;;; `infinite', each unbound instantiation_error and else
-  ;;; type_error(integer, T); then X an integer or unbound -- it succeeds,
-  ;;; H1 the bound, `inf' for either infinity, which `=<' evaluates -- or
-  ;;; else type_error(integer, X). Through 2.16 an integer(X) guard alone
-  ;;; stood before the answers: a bound X that was no integer failed, L and
-  ;;; H were compared as any numbers, and between(1, inf, a) ran for ever.
+  ;;; type_error(integer, T); then X an integer or unbound, or else
+  ;;; type_error(integer, X). Through 2.16 an integer(X) guard alone stood
+  ;;; before the answers: a bound X that was no integer failed, L and H
+  ;;; were compared as any numbers, and between(1, inf, a) ran for ever.
+  ;;; A BOUND X IS ANSWERED HERE (3.22.0): it succeeds when L =< X =< H.
+  ;;; For an unbound one it fails where H < L and else hands
+  ;;; '$between_n'/3 N, the count of the answers after the first: H - L,
+  ;;; `inf' for either infinity, and `A+B' where H - L passes 64 bits (L <
+  ;;; 0 =< H), the two halves' counts, L..-1 and 0..H, each of which fits.
   (func coco_b_between ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t l . #'(coco_m_arg e g 0)) (size_t h . #'(coco_m_arg e g 1))
-              (size_t x . #'(coco_m_arg e g 2)) (i64 v . 0) (const char * hn . nil))
+              (size_t x . #'(coco_m_arg e g 2)) (i64 lv . 0) (i64 hv . 0) (i64 xv . 0)
+              (i64 d . 0) (int inf . 0) (const char * hn . nil))
           (if (coco_m_is_var e l) (return (coco_m_instantiation_error e)))
-          (if (not (coco_m_int e l (aof v))) (return (coco_m_type_error e "integer" l)))
+          (if (not (coco_m_int e l (aof lv))) (return (coco_m_type_error e "integer" l)))
           (if (coco_m_is_var e h) (return (coco_m_instantiation_error e)))
           (set hn (coco_m_atom e h))
           (if (and (!= hn nil) (or (== 0 (strcmp hn "inf")) (== 0 (strcmp hn "infinite"))))
-              (set h (coco_new_atom m "inf"))
-              (if (not (coco_m_int e h (aof v))) (return (coco_m_type_error e "integer" h))))
-          (if (and (not (coco_m_is_var e x)) (not (coco_m_int e x (aof v))))
-              (return (coco_m_type_error e "integer" x)))
-          (return (coco_m_unify e (coco_m_arg e g 3) h))))
+              (set inf 1)
+              (if (not (coco_m_int e h (aof hv))) (return (coco_m_type_error e "integer" h))))
+          (if (not (coco_m_is_var e x))
+              (block
+               (if (not (coco_m_int e x (aof xv))) (return (coco_m_type_error e "integer" x)))
+               (if (and (>= xv lv) (or inf (<= xv hv))) (return 1))
+               (return 0)))
+          (if inf (return (coco_m_unify e (coco_m_arg e g 3) (coco_new_atom m "inf"))))
+          (if (> lv hv) (return 0))
+          (if (not (coco_sub_ovf hv lv (aof d)))
+              (return (coco_m_unify_int e (coco_m_arg e g 3) d)))
+          (return (coco_m_unify e (coco_m_arg e g 3)
+                                (coco_make2 m "+" (coco_new_int m (- -1 lv)) (coco_new_int m hv))))))
 
   ;;; `succ(?X, ?Y)' -- Y is X+1, either way round, over NATURAL numbers only,
   ;;; which is what makes `succ(X, 0)' fail rather than answer -1.

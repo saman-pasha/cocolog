@@ -169,6 +169,30 @@
 (DEFMACRO coco-trail-cell (w) `(bitand ,w (- (<< (cast u64 1) 40) 1)))
 (DEFMACRO coco-trail-tag (w) `(bitand (>> ,w 40) (- (<< (cast u64 1) 23) 1)))
 
+;;; THE STACK LIMIT AT A GROWTH (3.32.0): what an array of the stacks grows
+;;; to under the machine's `slimit' (swipl's stack_limit flag). NCAP is the
+;;; doubling and ROOM the entries the limit leaves the array. A doubling
+;;; within ROOM and a sixteenth is taken; one past it stops at that while
+;;; NEED is within ROOM, so a doubling past the limit is never made (a heap
+;;; of 1 GB would take 2), and the growth after it comes as the array
+;;; reaches the limit and asks again; NEED past ROOM is grown by a
+;;; sixteenth, as a refused doubling is, and OVER is set: the running
+;;; engine stops at its next step, halted 3, where the step collects where
+;;; its engine may and asks what the stacks hold (`coco_halted_step'). The
+;;; stop is made once the growth is given: a growth refused is memory's, as
+;;; it always was (`coco_grow_short'). One rule for the heap and the trail
+;;; (`coco_stack_cap', ROOM the limit's cells) and the choice stack
+;;; (`coco_eng_grow_slow', ROOM the frames the limit leaves beside the heap,
+;;; the trail and the other engines'). NCAP and OVER are assigned; ROOM and
+;;; NEED are read more than once: variables, never calls.
+(DEFMACRO coco-room-cap (room need ncap over)
+  `(if (> ,ncap (+ ,room (+ (/ ,room 16) 64)))
+       (if (<= ,need ,room)
+           (set ,ncap (+ ,room (+ (/ ,room 16) 64)))
+           (block
+             (set ,over 1)
+             (set ,ncap (+ ,need (+ (/ ,need 16) 64)))))))
+
 ;;;; ------------------------------------------------------------------
 ;;;; The term DSL -- Prolog terms as s-expressions, built at compile time
 ;;;; ------------------------------------------------------------------
@@ -287,6 +311,105 @@
          (var-locals (MAPCAR (LAMBDA (pair) `(size_t ,(CDR pair) . #'(coco_new_var ,m))) vars)))
     (MULTIPLE-VALUE-BIND (root locals stmts) (emit-term m expr vars NIL NIL)
       `(letn (,@var-locals ,@locals) ,@stmts ,root))))
+
+;;;; ------------------------------------------------------------------
+;;;; Every code point's classes and other case (3.30.0)
+;;;; ------------------------------------------------------------------
+;;;
+;;; lib/swipl-ctype.cicili holds what the reference swipl 9.0.4 answers on
+;;; Linux for each code point from 0 to U+10FFFF, as runs (LO HI A B): the
+;;; codes LO to HI hold A, B, A ... from LO, any other 0. These make them
+;;; two-level tables as cocolog is built -- a page number a block of codes,
+;;; each page held once -- so a code's classes are three reads, and the
+;;; source keeps 46 KB of runs where the tables are 100 KB. `coco_ct_flags'
+;;; answers its eleven class bits and a digit's weight, `coco_uc_case' its
+;;; other case (towupper() and towlower() under C.UTF-8). A build that
+;;; imports no table (lib/swipl-ctype.cicili ahead of this file) has no
+;;; code in a class and every code in its own case. Through 3.29.0 the
+;;; classes past ASCII were the scripts written out here by hand.
+
+(DEFUN coco-ct-runs (name)
+  (IF (BOUNDP name) (SYMBOL-VALUE name) NIL))
+
+;;; every code's value from runs
+(DEFUN coco-ct-vector (runs)
+  (LET ((v (MAKE-ARRAY #x110000 :INITIAL-ELEMENT 0)))
+    (DOLIST (r runs v)
+      (DESTRUCTURING-BIND (lo hi a b) r
+        (LOOP FOR k FROM lo TO hi
+              DO (SETF (AREF v k) (IF (EVENP (- k lo)) a b)))))))
+
+;;; V cut into pages of 2^SHIFT codes, each page held once: (INDEX VALUES
+;;; COUNT), INDEX a page's number for each block of codes
+(DEFUN coco-ct-pages (v shift)
+  (LET ((size (ASH 1 shift)) (seen (MAKE-HASH-TABLE :TEST 'EQUAL))
+        (index NIL) (vals NIL) (n 0))
+    (LOOP FOR p FROM 0 BELOW (FLOOR (LENGTH v) size)
+          DO (LET* ((page (COERCE (SUBSEQ v (* p size) (* (1+ p) size)) 'LIST))
+                    (key (FORMAT NIL "~{~D ~}" page))
+                    (k (GETHASH key seen)))
+               (UNLESS k
+                 (SETF k n)
+                 (SETF (GETHASH key seen) n)
+                 (INCF n)
+                 (PUSH page vals))
+               (PUSH k index)))
+    (LIST (NREVERSE index) (LOOP FOR pg IN (NREVERSE vals) APPEND pg) n)))
+
+;;; the type a page number is held in
+(DEFUN coco-ct-index-type (n) (IF (<= n 256) 'u8 'u16))
+
+;;; A CODE'S CLASSES, eleven bits -- alpha 1, upper 2, lower 4, print 8,
+;;; space 16, cntrl 32, prolog_var_start 64, prolog_atom_start 128,
+;;; prolog_identifier_continue 256, prolog_symbol 512, decimal 1024 -- and a
+;;; digit's weight in bits 11 to 14; 0 for a code past U+10FFFF or below 0
+(DEFMACRO coco-ct-emit-flags (fname)
+  (LET ((v (coco-ct-vector (coco-ct-runs '*swipl-ctype-flags*))))
+    (DOLIST (r (coco-ct-runs '*swipl-ctype-decimal*))
+      (DESTRUCTURING-BIND (lo hi d) r
+        (LOOP FOR k FROM lo TO hi
+              DO (SETF (AREF v k) (LOGIOR (AREF v k) (ASH (+ k d) 11))))))
+    (DESTRUCTURING-BIND (index vals n) (coco-ct-pages v 7)
+      `(func ,fname ((i64 c)) (out u32)
+             (let ((static) (const ,(coco-ct-index-type n) ix [] . '{ ,@index })
+                   (static) (const u16 pg [] . '{ ,@vals }))
+               (if (or (< c 0) (> c 1114111)) (return 0))
+               (return (nth (+ (* (cast size_t (nth (>> c 7) ix)) 128) (cast size_t (bitand c 127)))
+                            pg)))))))
+
+;;; C's capital (UP 1) or small letter: C and one of the differences
+;;; towupper() and towlower() make, a palette of them both share; C itself
+;;; for a code past U+10FFFF or below 0
+(DEFMACRO coco-ct-emit-case (fname)
+  (LET* ((uruns (coco-ct-runs '*swipl-ctype-toupper*))
+         (lruns (coco-ct-runs '*swipl-ctype-tolower*))
+         (pal (LET ((s NIL))
+                (DOLIST (r (APPEND uruns lruns)) (PUSHNEW (THIRD r) s) (PUSHNEW (FOURTH r) s))
+                (CONS 0 (SORT (REMOVE 0 s) #'<))))
+         (at (LET ((h (MAKE-HASH-TABLE)))
+               (LOOP FOR d IN pal FOR i FROM 0 DO (SETF (GETHASH d h) i))
+               h))
+         (u (MAP 'VECTOR (LAMBDA (d) (GETHASH d at)) (coco-ct-vector uruns)))
+         (l (MAP 'VECTOR (LAMBDA (d) (GETHASH d at)) (coco-ct-vector lruns))))
+    (WHEN (> (LENGTH pal) 256) (ERROR "cocolog: ~D case differences, past a byte" (LENGTH pal)))
+    (DESTRUCTURING-BIND (uindex uvals un) (coco-ct-pages u 8)
+      (DESTRUCTURING-BIND (lindex lvals ln) (coco-ct-pages l 8)
+        `(func ,fname ((i64 c) (int up)) (out i64)
+               (let ((static) (const ,(coco-ct-index-type un) uix [] . '{ ,@uindex })
+                     (static) (const u8 upg [] . '{ ,@uvals })
+                     (static) (const ,(coco-ct-index-type ln) lix [] . '{ ,@lindex })
+                     (static) (const u8 lpg [] . '{ ,@lvals })
+                     (static) (const i32 pal [] . '{ ,@pal }))
+                 (if (or (< c 0) (> c 1114111)) (return c))
+                 (if up
+                     (return (+ c (nth (nth (+ (* (cast size_t (nth (>> c 8) uix)) 256)
+                                               (cast size_t (bitand c 255)))
+                                            upg)
+                                       pal))))
+                 (return (+ c (nth (nth (+ (* (cast size_t (nth (>> c 8) lix)) 256)
+                                           (cast size_t (bitand c 255)))
+                                        lpg)
+                                   pal)))))))))
 
 ;;;; ------------------------------------------------------------------
 ;;;; Declarations
@@ -498,11 +621,13 @@
     ;; to zero -- which is what makes a THAWED machine refill rather than
     ;; trust ids from an atom table that is no longer there.
     ;;
-    ;; 192 is written out because a Cicili array size is one token and a
+    ;; 256 is written out because a Cicili array size is one token and a
     ;; `#define' of your own is invisible to the language. The macro that
     ;; fills it checks the count at EXPANSION time, so a name added past the
-    ;; end is a build error rather than a stray write.
-    (member u64        ids [192])
+    ;; end is a build error rather than a stray write. (192 through 3.19.5,
+    ;; 191 of them used; 3.20.0's `$/1' and `@/2' and their two markers
+    ;; passed it.)
+    (member u64        ids [256])
     (member int        ids_ready)
     ;; THE ENGINE'S OWN FUNCTORS, INTERNED ONCE WITH THE ATOMS. `'$k'/3' is
     ;; built once per goal proven, and `coco_make' interned its name from a
@@ -804,7 +929,24 @@
     ;; THE PRIORITY A WRITE STARTS AT (3.19.0, write_term/2's priority(P)), P
     ;; plus one, 0 for 1200: set around one write by `coco_wt_put' and read by
     ;; `coco_write_top' alone. Appended.
-    (member int        wprec))
+    (member int        wprec)
+    ;; GENERATE_DEBUG_INFO FALSE FOR THE REST OF A READ (3.27.0), as swipl's
+    ;; file-scoped flag: a predicate whose first clause the read adds hides
+    ;; its children from the tracer (`pattrs' 32). Saved and put back around
+    ;; each read (`coco_consult_oid'), 0 at a module's own. Appended.
+    (member int        nodbg)
+    ;; THE STACK LIMIT (3.32.0), swipl's `stack_limit' flag: how many bytes
+    ;; the heap, the trail and the choice frames of the engines on the chain
+    ;; may hold (`coco_stack_used'), 0 or less none -- a machine made by
+    ;; `memset' alone has none. Taken from the process's default when the
+    ;; machine is made (`coco_slimit_default': COCOLOG_STACK_LIMIT, or the
+    ;; last set_prolog_flag/2 of it). A growth of the heap, the trail or a
+    ;; choice stack past it stops the running engine at its next step
+    ;; (halted 3, through `haltp'), which collects and asks again; so does a
+    ;; collection that leaves more than it, with SOVER set, so the step asks
+    ;; without collecting a second time (`coco_halted_step'). Appended.
+    (member i64        slimit)
+    (member int        sover))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -841,6 +983,9 @@
   ;; ---- the float flags (2.2.2) ----
   (decl) (func coco_fflags_default () (out int))
   (decl) (func coco_fflags_default_set ((int fl)))
+  ;; ---- the stack limit (3.32.0) ----
+  (decl) (func coco_slimit_default () (out i64))
+  (decl) (func coco_slimit_default_set ((i64 v)))
   ;; ---- the console's column (2.16.0): `~N' and print_message/2 ----
   (decl) (func coco_out_note ((FILE * f) (const char * s) (size_t n)))
   (decl) (func coco_out_where ((i64 * nc) (i64 * nl) (i64 * lp) (i64 * nb)))
@@ -848,9 +993,11 @@
   (decl) (func coco_out_puts ((FILE * f) (const char * s)))
   (decl) (func coco_out_putc ((FILE * f) (int c)))
   (decl) (func coco_out_open ((FILE * f)) (out int))
+  (decl) (func coco_out_column ((FILE * f)) (out i64))
   (decl) (func coco_out_fresh ((FILE * f)))
-  (decl) (func coco_out_capture_begin () (out int))
-  (decl) (func coco_out_capture_end ((int saved)))
+  (decl) (func coco_out_capture_begin () (out i64))
+  (decl) (func coco_out_capture_end ((i64 saved)))
+  (decl) (func coco_col_walk ((const char * s) (size_t from) (size_t to) (i64 col) (int mode)) (out i64))
   (decl) (func coco_utf8_get ((const char * s) (size_t n) (size_t * i)) (out i64))
   (decl) (func coco_utf8_enc ((char * u) (i64 cp)) (out int))
   (decl) (func coco_utf8_put ((coco_strbuf * b) (i64 cp)) (out int))
@@ -859,8 +1006,7 @@
   (decl) (func coco_utf8_at ((const char * s) (size_t n) (size_t k)) (out size_t))
   (decl) (func coco_utf8_one ((const char * s)) (out i64))
   (decl) (func coco_uc_case ((i64 c) (int up)) (out i64))
-  (decl) (func coco_uc_letter ((i64 c)) (out int))
-  (decl) (func coco_uc_space ((i64 c)) (out int))
+  (decl) (func coco_ct_flags ((i64 c)) (out u32))
   (decl) (func coco_text_case ((const char * s) (size_t n) (int up) (coco_strbuf * o)) (out int))
 
   ;; ---- the two shifts, by any count (1.14.0) ----
@@ -1204,17 +1350,36 @@
   ;;; block is unlikely: `coco_clause_run_r' ran 2.0 % fewer instructions
   ;;; on naive reverse, the cost 1.10.28 recorded (+0.63 % of nrev, all of
   ;;; it there) taken back and more (STATUS.md).
+  ;;; THE STACK LIMIT AT A GROWTH (3.32.0): the heap and the trail are each
+  ;;; capped by the limit's cells (`coco-room-cap', the rule the choice
+  ;;; stack's growth shares); the collector waits for no more than the cells
+  ;;; the trail and the choices leave the heap (`coco_heap_collect'), so a
+  ;;; heap the limit holds is collected before it grows past it, and the
+  ;;; collection asks what all of them hold. Only a doubling comes here.
+  (weak) (cold)
+  (func coco_stack_cap ((coco_machine * m) (void ** buf) (size_t need) (size_t ncap) (int * over))
+        (out size_t)
+        (if (and (!= buf (cast (void **) (aof (-> m heap))))
+                 (!= buf (cast (void **) (aof (-> m trail)))))
+            (return ncap))
+        (let ((size_t lc . #'(cast size_t (/ (cast u64 (-> m slimit)) 8))))
+          (coco-room-cap lc need ncap (cof over))
+          (return ncap)))
+
   (weak) (cold)
   (func coco_grow_slow ((coco_machine * m) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
         (out int)
         (let ((size_t ncap . #'(? (== (cof cap) 0) 64 (cof cap)))
-              (void * nbuf))
+              (void * nbuf) (int over . 0))
           (while (< ncap need) (set ncap (* ncap 2)))
+          (if (> (-> m slimit) 0) (set ncap (coco_stack_cap m buf need ncap (aof over))))
           (set nbuf (realloc (cof buf) (* ncap esize)))
           (if (== nbuf nil)
               (return (coco_grow_short m buf cap need esize)))
           (set (cof buf) nbuf)
           (set (cof cap) ncap)
+          (if (and over (!= (-> m haltp) nil))
+              (if (== (cof (-> m haltp)) 0) (set (cof (-> m haltp)) 3)))
           (return 1)))
 
   ;;; GROWING. Every array in the machine grows the same way and every one of
@@ -1237,14 +1402,21 @@
   ;;; which is above 2^63 and so cannot be written as a plain literal -- it
   ;;; would need a ULL suffix, and a suffix is not something a Cicili number
   ;;; carries. djb2's constants are 5381 and 33, the arithmetic is the same mod
-  ;;; 2^64, and for a table of a few thousand interned names the distribution
-  ;;; is indistinguishable.
+  ;;; 2^64. THEN SPREAD (3.30.0), as `coco_name_arity_hash' spreads its word:
+  ;;; multiplied by the FNV prime and the high bits folded down into the low
+  ;;; ones the table's mask keeps. djb2 alone set short names apart in its
+  ;;; high bits only, and the one-character atoms past ASCII, two to four
+  ;;; bytes each, fell into a few runs of neighbouring slots that the linear
+  ;;; probe walked to their end at each new atom: 40 000 of them by
+  ;;; char_code/2 took 0.7 s and 20 000 0.09, and char_type(C, alpha), which
+  ;;; makes 139 057, ran for minutes.
   (static)
   (func coco_hash ((const char * s) (size_t len)) (out u64)
         (let ((u64 h . 5381))
           (for ((size_t i . 0)) (< i len) ((++ i))
             (set h (xor (* h 33) (cast u64 (cast uchar (nth i s))))))
-          (return h)))
+          (set h (* h 1099511628211))
+          (return (xor h (>> h 29)))))
 
   ;;; ---- lifecycle ----------------------------------------------------
 
@@ -1262,6 +1434,7 @@
         (set (-> m ubudget) 1048576)
         (set (-> m text_chars) (coco_text_default))
         (set (-> m fflags) (coco_fflags_default))
+        (set (-> m slimit) (coco_slimit_default))
         (return 1))
 
   (func coco_troot ((coco_machine * m)) (out coco_machine *)
@@ -1398,6 +1571,7 @@
         (set (-> m ubudget) 1048576)
         (set (-> m text_chars) (coco_text_default))
         (set (-> m fflags) (coco_fflags_default))
+        (set (-> m slimit) (coco_slimit_default))
         (set (-> m tshared) 1)
         (let ((coco_machine * root . #'(coco_troot base)))
           ;; THE ALIAS LIST IS SHARED BY EVERY WORKER'S TASKS when the
@@ -1577,6 +1751,30 @@
   (func coco_fflags_default_set ((int fl))
         (set coco_fflags_dflt fl))
 
+  ;;; THE STACK LIMIT'S DEFAULT (3.32.0): swipl's, 1 GB, or COCOLOG_STACK_LIMIT
+  ;;; read once (bytes, as the flag takes them), until a set_prolog_flag/2 of
+  ;;; it, and then what it left, so a machine made after it -- a thread's,
+  ;;; run_isolated/2's, a green task's -- is held to what the program asked
+  ;;; for, as `coco_text_default' keeps the units. A value of 0 or less is
+  ;;; no limit; one the variable does not spell as a number is the default.
+  (static) (var i64 coco_slimit_dflt . 0)
+  (static) (var int coco_slimit_read . 0)
+
+  (func coco_slimit_default () (out i64)
+        (if (not coco_slimit_read)
+            (let ((const char * v . #'(getenv "COCOLOG_STACK_LIMIT")) (char * end . nil))
+              (set coco_slimit_read 1)
+              (set coco_slimit_dflt 1073741824)
+              (if (and (!= v nil) (!= (nth 0 v) (cast char 0)))
+                  (let ((i64 n . #'(cast i64 (strtol v (aof end) 10))))
+                    (if (and (!= end nil) (== (nth 0 end) (cast char 0)))
+                        (set coco_slimit_dflt n))))))
+        (return coco_slimit_dflt))
+
+  (func coco_slimit_default_set ((i64 v))
+        (set coco_slimit_read 1)
+        (set coco_slimit_dflt v))
+
   ;;; THE CONSOLE'S COLUMN (2.16.0): whether a line is open on stdout and on
   ;;; stderr -- the last character the engine wrote there was no newline --
   ;;; for format's `~N' and for print_message/2, whose every prefix begins
@@ -1596,6 +1794,10 @@
   (static) (var int coco_out_mid . 0)
   (static) (var int coco_err_mid . 0)
   (static) (var int coco_out_cap . 0)
+  ;;; and a capture's column, counted as the console's is (3.33.0): format's
+  ;;; column stops begin where with_output_to/2's text stands, as swipl's
+  ;;; begin where its memory stream's linepos stands
+  (static) (var i64 coco_cap_lp . 0)
 
   ;;; AND THE CONSOLE'S POSITION (3.19.0), what character_count/2,
   ;;; line_count/2 and line_position/2 answer for user_output and
@@ -1614,6 +1816,8 @@
           (cond
             ((== f stdout) (set coco_out_mid mid) (if (not coco_out_cap) (set coco_err_mid mid)))
             ((== f stderr) (set coco_err_mid mid) (if (not coco_out_cap) (set coco_out_mid mid))))
+          (if (and (== f stdout) coco_out_cap)
+              (set coco_cap_lp (coco_col_walk s 0 n coco_cap_lp 1)))
           (if (or (== f stderr) (and (== f stdout) (not coco_out_cap)))
               (block
                 (set coco_con_nb (+ coco_con_nb (cast i64 n)))
@@ -1659,6 +1863,12 @@
         (if (== f stderr) (return coco_err_mid))
         (return 0))
 
+  ;;; the column F stands at, where format's column stops begin (3.33.0):
+  ;;; the console's, or stdout's in a capture
+  (func coco_out_column ((FILE * f)) (out i64)
+        (if (and (== f stdout) coco_out_cap) (return coco_cap_lp))
+        (return coco_con_lp))
+
   ;;; `~N' on F: a newline only when a line is open there
   (func coco_out_fresh ((FILE * f))
         (if (coco_out_open f) (coco_out_putc f 10)))
@@ -1666,15 +1876,34 @@
   ;;; with_output_to/2's capture of fd 1: stdout's column starts at 0 and is
   ;;; its own until the end, which gives back what the capture's start saved
   ;;; -- an outer capture's column, or the console's as stderr left it
-  (func coco_out_capture_begin () (out int)
-        (let ((int saved . #'(bitor coco_out_mid (<< coco_out_cap 1))))
+  (func coco_out_capture_begin () (out i64)
+        (let ((i64 saved . #'(bitor (cast i64 (bitor coco_out_mid (<< coco_out_cap 1)))
+                                    (<< coco_cap_lp 2))))
           (set coco_out_cap 1)
           (set coco_out_mid 0)
+          (set coco_cap_lp 0)
           (return saved)))
 
-  (func coco_out_capture_end ((int saved))
-        (set coco_out_cap (bitand (>> saved 1) 1))
-        (set coco_out_mid (? coco_out_cap (bitand saved 1) coco_err_mid)))
+  (func coco_out_capture_end ((i64 saved))
+        (set coco_out_cap (cast int (bitand (>> saved 1) 1)))
+        (set coco_out_mid (? coco_out_cap (cast int (bitand saved 1)) coco_err_mid))
+        (set coco_cap_lp (>> saved 2)))
+
+  ;;; THE COLUMN AFTER TEXT (3.33.0): S[FROM..TO) walked from COL, swipl's
+  ;;; rules -- a character a column and a byte that continues one none, a
+  ;;; newline and a return 0, a backspace one back -- and a tab a stream's
+  ;;; (MODE 1: to the next multiple of eight, as the console and
+  ;;; library(stream) count one) or format's own (MODE 0: pl-fmt.c's
+  ;;; update_column(), (COL + 1) | 7, a column short of it)
+  (func coco_col_walk ((const char * s) (size_t from) (size_t to) (i64 col) (int mode)) (out i64)
+        (for ((size_t i . from)) (< i to) ((++ i))
+          (let ((int c . #'(bitand (cast int (nth i s)) 255)))
+            (if (!= (bitand c 192) 128)
+                (cond ((or (== c 10) (== c 13)) (set col 0))
+                      ((== c 9) (set col (? mode (+ (bitor col 7) 1) (bitor (+ col 1) 7))))
+                      ((== c 8) (if (> col 0) (set col (- col 1))))
+                      (#t (set col (+ col 1)))))))
+        (return col))
 
   ;;; ONE CHARACTER OF S (N bytes) AT *I, as its code point, *I moved past
   ;;; it. A byte that begins no well-formed UTF-8 -- a stray continuation, a
@@ -1793,137 +2022,17 @@
           (set c (coco_utf8_get s n (aof i)))
           (return (? (== i n) c -1))))
 
-  ;;; A RUN LO..HI OF LETTERS IN PAIRS, the capital at the even code point
-  ;;; (EVEN_UPPER 1) or at the odd one: C's capital (UP 1) or small letter,
-  ;;; or -1 outside the run.
-  (static)
-  (func coco_uc_pair ((i64 c) (int up) (i64 lo) (i64 hi) (int even_upper)) (out i64)
-        (if (or (< c lo) (> c hi)) (return -1))
-        (let ((int isup . #'(? (== (bitand c 1) (? even_upper 0 1)) 1 0)))
-          (if up (return (? isup c (- c 1))))
-          (return (? isup (+ c 1) c))))
+  ;;; THE OTHER CASE OF A CODE (1.13.0; every code point since 3.30.0):
+  ;;; towupper() (UP 1) or towlower() as glibc's C.UTF-8 answers them and so
+  ;;; swipl on Linux, from lib/swipl-ctype.cicili's tables -- WRITTEN OUT
+  ;;; rather than asked of the C library, because its table moves with its
+  ;;; locale and a program's meaning must not. Anything with no other case
+  ;;; answers itself. Through 3.29.0 the scripts a program here was thought
+  ;;; to meet, by hand, and the rest unchanged.
+  (coco-ct-emit-case coco_uc_case)
 
-  ;;; C's capital (UP 1) or small letter, by an offset when C is in LO..HI
-  ;;; (the capitals) or LO+OFF..HI+OFF (the small letters); -1 outside both.
-  (static)
-  (func coco_uc_shift ((i64 c) (int up) (i64 lo) (i64 hi) (i64 off)) (out i64)
-        (if (and (>= c lo) (<= c hi)) (return (? up c (+ c off))))
-        (if (and (>= c (+ lo off)) (<= c (+ hi off))) (return (? up (- c off) c)))
-        (return -1))
-
-  ;;; THE OTHER CASE OF A LETTER (1.13.0): ASCII, Latin-1, Latin Extended-A
-  ;;; and the regular runs of -B, Latin Extended Additional, Greek,
-  ;;; Cyrillic, Armenian, Georgian and the fullwidth Latin letters, as
-  ;;; glibc's C.UTF-8 pairs them (swipl's on Linux) -- WRITTEN OUT, as
-  ;;; the ASCII half always was, because a C library's table moves with its
-  ;;; locale and a program's meaning must not. UP 1 answers the capital, 0
-  ;;; the small letter; anything with no other case answers itself.
-  (func coco_uc_case ((i64 c) (int up)) (out i64)
-        (let ((i64 r . -1))
-          (if (< c 128)
-              (block
-               (if (and up (and (>= c 97) (<= c 122))) (return (- c 32)))
-               (if (and (not up) (and (>= c 65) (<= c 90))) (return (+ c 32)))
-               (return c)))
-          (if (< c 256)
-              (block
-               (if (and (and (>= c 192) (<= c 222)) (!= c 215)) (return (? up c (+ c 32))))
-               (if (and (and (>= c 224) (<= c 254)) (!= c 247)) (return (? up (- c 32) c)))
-               (if (== c 255) (return (? up 376 c)))
-               (if (== c 181) (return (? up 924 c)))
-               (return c)))
-          ;; Latin Extended-A, with its five exceptions
-          (if (== c 304) (return (? up c 105)))
-          (if (== c 305) (return (? up 73 c)))
-          (if (== c 376) (return (? up c 255)))
-          (if (== c 383) (return (? up 83 c)))
-          (if (or (== c 312) (== c 329)) (return c))
-          (set r (coco_uc_pair c up 256 303 1))   (if (>= r 0) (return r))
-          (set r (coco_uc_pair c up 306 311 1))   (if (>= r 0) (return r))
-          (set r (coco_uc_pair c up 313 328 0))   (if (>= r 0) (return r))
-          (set r (coco_uc_pair c up 330 375 1))   (if (>= r 0) (return r))
-          (set r (coco_uc_pair c up 377 382 0))   (if (>= r 0) (return r))
-          ;; Latin Extended-B's regular runs
-          (set r (coco_uc_pair c up 461 476 0))   (if (>= r 0) (return r))
-          (set r (coco_uc_pair c up 478 495 1))   (if (>= r 0) (return r))
-          (set r (coco_uc_pair c up 500 501 1))   (if (>= r 0) (return r))
-          (set r (coco_uc_pair c up 504 543 1))   (if (>= r 0) (return r))
-          (set r (coco_uc_pair c up 546 563 1))   (if (>= r 0) (return r))
-          (set r (coco_uc_pair c up 582 591 1))   (if (>= r 0) (return r))
-          ;; Greek: the accented capitals, the alphabet, final sigma, the
-          ;; archaic pairs
-          (if (== c 902) (return (? up c 940)))
-          (if (== c 940) (return (? up 902 c)))
-          (set r (coco_uc_shift c up 904 906 37)) (if (>= r 0) (return r))
-          (if (== c 908) (return (? up c 972)))
-          (if (== c 972) (return (? up 908 c)))
-          (set r (coco_uc_shift c up 910 911 63)) (if (>= r 0) (return r))
-          (if (== c 962) (return (? up 931 c)))
-          (set r (coco_uc_shift c up 913 929 32)) (if (>= r 0) (return r))
-          (set r (coco_uc_shift c up 931 939 32)) (if (>= r 0) (return r))
-          (set r (coco_uc_pair c up 984 1007 1))  (if (>= r 0) (return r))
-          ;; Cyrillic
-          (set r (coco_uc_shift c up 1024 1039 80)) (if (>= r 0) (return r))
-          (set r (coco_uc_shift c up 1040 1071 32)) (if (>= r 0) (return r))
-          (set r (coco_uc_pair c up 1120 1153 1))   (if (>= r 0) (return r))
-          (set r (coco_uc_pair c up 1162 1215 1))   (if (>= r 0) (return r))
-          (if (== c 1216) (return (? up c 1231)))
-          (if (== c 1231) (return (? up 1216 c)))
-          (set r (coco_uc_pair c up 1217 1230 0))   (if (>= r 0) (return r))
-          (set r (coco_uc_pair c up 1232 1327 1))   (if (>= r 0) (return r))
-          ;; Armenian
-          (set r (coco_uc_shift c up 1329 1366 48)) (if (>= r 0) (return r))
-          ;; Georgian: Asomtavruli to Nuskhuri, Mtavruli to Mkhedruli
-          (set r (coco_uc_shift c up 4256 4293 7264)) (if (>= r 0) (return r))
-          (if (or (== c 4295) (== c 4301)) (return (? up c (+ c 7264))))
-          (if (or (== c 11559) (== c 11565)) (return (? up (- c 7264) c)))
-          (set r (coco_uc_shift c up 7312 7354 -3008)) (if (>= r 0) (return r))
-          (set r (coco_uc_shift c up 7357 7359 -3008)) (if (>= r 0) (return r))
-          ;; Latin Extended Additional (Vietnamese among it), the capital ß
-          (if (== c 7838) (return (? up c 223)))
-          (set r (coco_uc_pair c up 7680 7829 1))   (if (>= r 0) (return r))
-          (set r (coco_uc_pair c up 7840 7935 1))   (if (>= r 0) (return r))
-          ;; fullwidth Latin
-          (set r (coco_uc_shift c up 65313 65338 32)) (if (>= r 0) (return r))
-          (return c)))
-
-  ;;; WHETHER C, past ASCII, IS A LETTER (1.13.0): the Latin, Greek,
-  ;;; Cyrillic, Armenian, Hebrew, Arabic, Devanagari, Thai and Georgian
-  ;;; letters, the kana, Hangul, the CJK ideographs and the fullwidth Latin
-  ;;; letters -- the scripts a program here meets, written out for the
-  ;;; reason `coco_uc_case' gives. ASCII is the caller's.
-  (func coco_uc_letter ((i64 c)) (out int)
-        (if (or (or (== c 170) (== c 181)) (== c 186)) (return 1))
-        (if (and (>= c 192) (<= c 687))
-            (return (? (or (== c 215) (== c 247)) 0 1)))
-        (if (and (>= c 880) (<= c 1023))
-            (return (? (or (or (or (== c 884) (== c 885)) (or (== c 888) (== c 889)))
-                           (or (or (or (== c 890) (== c 894)) (or (== c 900) (== c 901)))
-                               (or (or (== c 903) (== c 907)) (or (or (== c 909) (== c 930)) (== c 1014)))))
-                       0 1)))
-        (if (or (and (>= c 1024) (<= c 1153)) (and (>= c 1162) (<= c 1327))) (return 1))
-        (if (or (and (>= c 1329) (<= c 1366)) (and (>= c 1377) (<= c 1415))) (return 1))
-        (if (and (>= c 1488) (<= c 1514)) (return 1))
-        (if (or (and (>= c 1568) (<= c 1610)) (and (>= c 1649) (<= c 1747))) (return 1))
-        (if (and (>= c 2308) (<= c 2361)) (return 1))
-        (if (and (>= c 3585) (<= c 3632)) (return 1))
-        (if (and (>= c 4256) (<= c 4351)) (return 1))
-        (if (or (and (>= c 7312) (<= c 7359)) (and (>= c 11520) (<= c 11565))) (return 1))
-        (if (and (>= c 7680) (<= c 8188)) (return 1))
-        (if (or (and (>= c 12353) (<= c 12438)) (and (>= c 12449) (<= c 12538))) (return 1))
-        (if (or (and (>= c 13312) (<= c 19903)) (and (>= c 19968) (<= c 40959))) (return 1))
-        (if (and (>= c 44032) (<= c 55203)) (return 1))
-        (if (or (and (>= c 65313) (<= c 65338)) (and (>= c 65345) (<= c 65370))) (return 1))
-        (return 0))
-
-  ;;; Whether C, past ASCII, is a blank, as glibc's C.UTF-8 answers and so
-  ;;; swipl on Linux: Unicode's White_Space past 127 less the no-break
-  ;;; spaces (U+00A0, U+2007, U+202F) and the next line (U+0085).
-  (func coco_uc_space ((i64 c)) (out int)
-        (if (or (== c 5760) (and (>= c 8192) (<= c 8198))) (return 1))
-        (if (and (>= c 8200) (<= c 8202)) (return 1))
-        (if (or (or (== c 8232) (== c 8233)) (== c 8287)) (return 1))
-        (return (? (== c 12288) 1 0)))
+  ;;; A CODE'S CLASSES (3.30.0): what code_type/2 reads, from the same tables
+  (coco-ct-emit-flags coco_ct_flags)
 
   ;;; S's N bytes on the end of O with every letter in the other case (UP 1
   ;;; the capitals), a character at a time: upcase_atom/2 and its kin under

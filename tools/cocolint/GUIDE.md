@@ -92,9 +92,9 @@ runs only when `DIR` is this checkout.
 ### A finding
 
 ```
-tutorials/basics/07-assert-and-retract.pl:75:7 HARD S1 [R1] retract/1 is a C builtin: deterministic, leaving no choice point to fail back into. ...
-    fix: recurse instead of failing back
-    see: lib/solve.cicili:140-144
+prog.pl:2:5 HARD S1 [G1] b_setval IS nb_setval -- the same C function -- and the table is a file-scope static outside the machine, so nothing about it is backtrackable.
+    fix: pass the value as an argument
+    see: lib/builtins.cicili:108
 ```
 
 `path:line:col`, the severity, the rule, the card row in brackets when the
@@ -116,18 +116,18 @@ it left alone (`8 vendored and not read`).
 
 ### Acknowledging a finding
 
-Some code trips a rule on purpose — a lesson that shows `retract(X), fail`
-removing one clause, a case pinning what `write_canonical/2` writes. Say so
-where it stands, with a line comment that opens on the marker:
+Some code trips a rule on purpose — a lesson that shows `b_setval/2` keeping
+its value past backtracking, a case pinning what `write_canonical/2` writes.
+Say so where it stands, with a line comment that opens on the marker:
 
 ```prolog
-    ( retract(seen(_)), fail ; true ),   % cocolint: R1 -- the lesson: this loop removes ONE clause
+    ( b_setval(k, 1), fail ; nb_getval(k, V) ),   % cocolint: G1 -- the lesson: V is 1
 % cocolint: T1 -- swipl runs this file too, and the import is its portable form
 :- use_module(library(aggregate)).
 ```
 
 After code, the comment covers its own line; alone on its line, the next
-one. The IDs are what the finding renders — the card row for S1 (`R1`,
+one. The IDs are what the finding renders — the card row for S1 (`G1`,
 `X2`), the rule for the rest (`T1`, `N1`, `Z1`) — and several go in one
 comment, apart by blanks or commas. The reason after `--` is required. An
 acknowledged finding is not printed and the count line says how many there
@@ -152,20 +152,18 @@ and so is one with no reason.
 | **C2** | HARD | one name defined in two of the files named, when they are declared one program; off by default, see below | one definition |
 | **U1** | WARN | an acknowledgement that excuses nothing: its finding has gone from the line it covers, or it gives no reason | delete it, or say why after `--` |
 
-S1's nine forms are rows of the dialect card, `traps.jsonl`, each with
+S1's seven forms are rows of the dialect card, `traps.jsonl`, each with
 a `pattern`. `tool.sh card --patterns` prints the terms.
 
 | row | the SWI reflex | cocolog | why |
 |---|---|---|---|
-| R1 | `clear :- retract(x(_)), fail.` | `( retract(x(_)) -> clear ; true )` | `retract/1` is a C builtin, deterministic: the failure-driven loop removes ONE clause |
 | D2 | `:- table p/2.` | delete it, and write `p/2` to end untabled | there is no tabling: the directive parses, as swipl's, and `table/1` is an unknown procedure, reported as the load goes on |
 | C2 | `error(T, context(_,_))` | `error(T, _)` | a refusal (a library found and refused, a module's own failure) is `error(cocolog_error(Text), _)`, a missing file swipl's `existence_error(source_sink, Spec)` since 3.4.0, both with the context unbound, and the house style puts a bare `Name/Arity` second |
 | G1 | `b_setval/2` | thread an accumulator | `b_setval` IS `nb_setval`; nothing about it backtracks |
-| F1 | `~t ~| ~+` | pad by hand | refused by name at the three codes |
 | L1 | `'[|]'` | `'.'/2` or `[_|_]` | a list cell is `'.'/2` |
 | X2 | `open/3` `close/1` `read/1` `nl/1` `write/2` … | `read_file_to_codes/2` and a DCG; `format/3` with a sink | there is no stream layer in the engine; a file that loads `library(stream)`, or `library(websocket)`, which loads it — by a directive or as a goal — is not flagged |
 | X3 | `predsort/3` `numbervars/3` `freeze/2` `dif/2` `when/2` … | write it out; `call_limited/3` | deliberately absent so ported code errors instead of differing |
-| P1 | `current_prolog_flag(occurs_check, B)` | do not branch on a flag | eighteen flags answer — `executable`, `argv`, `os_argv`, `double_quotes`, `text_units`, since 2.0.0 `bounded`, `max_integer`, `min_integer`, `max_tagged_integer`, `min_tagged_integer`, since 2.2.2 the four float flags and `float_min`, `float_max`, `float_max_integer`, and since 2.16.0 `verbose` — and every other one FAILS |
+| P1 | `current_prolog_flag(occurs_check, B)` | do not branch on a flag | twenty flags answer — `executable`, `argv`, `os_argv`, `double_quotes`, `text_units`, since 2.0.0 `bounded`, `max_integer`, `min_integer`, `max_tagged_integer`, `min_tagged_integer`, since 2.2.2 the four float flags and `float_min`, `float_max`, `float_max_integer`, since 2.16.0 `verbose`, since 3.15.0 `optimise_unify` and since 3.32.0 `stack_limit` — and every other one FAILS |
 
 The card has nineteen more rows that inform the prompt rather than the
 linter — row T1 on probing a library as a goal, Z1 on the page budget, the

@@ -57,6 +57,11 @@
 %%
 %% library/async/README.md has the model, the benchmark against OS threads,
 %% Go goroutines and asyncio, and the shared-heap design note.
+%%
+%% A system library: the tracer shows a program's call of async_run/1, go/2
+%% and the rest, and hides what they call but the program's own goals
+%% (3.27.0).
+:- set_prolog_flag(generate_debug_info, false).
 
 async_run(Goal) :-
     async_run(Goal, _).

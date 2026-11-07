@@ -33,12 +33,32 @@
 
 main :-
     scratch(D),
-    linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
+    linear_backtracking(D), deep_recursion(D), atom_table(D), sorting(D), any_argument(D), still_the_answers,
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
-    update_view(D), sleeps(D), compiled(D),
+    update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), jit_runs(D),
+    btree_places,
     shl(['rm -rf ', D]),
     checks_done.
+
+%% ---- '$btree_find_node'/5 where swipl reads past the term (3.31.0) ------
+%% A place equal to a node's arity passes swipl's check, and its walk then
+%% reads the cell past the term (a segmentation fault, or whatever lies
+%% there), so test/files/btree_system.pl cannot ask it. Here the key's place
+%% is a type error, and a subtree's no subtree -- of a node functor/3 made
+%% right before another of its name, whose header is that cell.
+btree_places :-
+    section('\'$btree_find_node\'/5 reads no place past a node'),
+    catch(( '$btree_find_node'(m, t(m, 1, <, t, t), 0x060101, _, _), F1 = answered ),
+          error(F1, _), true),
+    check('the key\'s place equal to the arity is type_error(btree, T)', F1,
+          type_error(btree, t(m, 1, <, t, t))),
+    '$btree_find_node'(z, t(a, 1, 2, 3), 0x010405, N2, A2),
+    check('a subtree\'s place equal to the arity is no subtree', N2-A2, t(a, 1, 2, 3)-(>)),
+    functor(T3, t, 4), functor(U3, t, 4), arg(1, T3, a), arg(1, U3, b),
+    '$btree_find_node'(z, T3, 0x010405, N3, A3),
+    ( N3 == T3 -> R3 = the_node-A3 ; N3 == U3 -> R3 = the_next-A3 ; R3 = other-A3 ),
+    check('...though the cell past it is a node of its name', R3, the_node-(>)).
 
 %% a child `cocolog run FILE main' under a timeout, its last line
 last_line_of(File, Goal, TimeoutMs, Last) :-
@@ -87,6 +107,24 @@ deep_recursion(D) :-
                  'main :- count(500000), write(done), nl.' ]),
     last_line_of(F, main, 30000, G),
     check('500000 deep deterministic recursion still finishes', G, done).
+
+%% THE ATOM TABLE STAYS A HASH (3.30.0). Its probe is linear, and the name's
+%% djb2 alone put the names of one character past ASCII -- two to four
+%% bytes that differ in the last -- into runs of neighbouring slots, so each
+%% new one walked its run: 131 072 of them took 18 s, and char_type(C,
+%% to_lower(_)) over every code point did not end in ten minutes. The hash
+%% is spread (`coco_hash'), and the two take 0.05 s and 0.6 s.
+atom_table(D) :-
+    section('one-character atoms past ASCII are interned in linear time'),
+    atom_concat(D, '/atoms.pl', F1),
+    fixture(F1, ['main :- findall(A, ( between(0x10000, 0x2FFFF, C), char_code(A, C) ), L),',
+                 '        length(L, N), write(N), nl.']),
+    last_line_of(F1, main, 10000, G1),
+    check('131072 atoms of one character each', G1, '131072'),
+    atom_concat(D, '/walk.pl', F2),
+    fixture(F2, ['main :- aggregate_all(count, char_type(_, to_lower(_)), N), write(N), nl.']),
+    last_line_of(F2, main, 60000, G2),
+    check('and char_type/2 walks every code point but the surrogates, an atom each', G2, '1112064').
 
 %% sort/4 was an insertion sort -- "n is small in every use this has" --
 %% and keysort/2 is sort/4 at key 1, so a keysort was quadratic: 20 000
@@ -518,13 +556,15 @@ environments(D) :-
     ev_both6(Lines18), fixture(F18, Lines18),
     ev_run_both(F18, A18, B18),
     check('so does one whose bodies start with guards', A18, B18),
-    atom_codes(W18, "[3-yes,4-yes,5-yes]\n[4,alt(4)]\n[a]\n[1-1,2-2,4-4]\n[0-other,1-small(3),1-other,5-big]\n108\n[1-2,2-3,3-4,4-5,5-6,6-7,7-8,8-9,9-10,10-11,11-12,12-13,13-14,14-15,15-16,16-17,17-18,18-19,19-20,20-21,21-22,22-22,23-22,24-22,25-22,26-22,27-22,28-22,29-22,30-22]\n1105\n"),
+    atom_codes(W18, "[3-yes,4-yes,5-yes]\n[4,alt(4)]\n[a]\n[1-1,2-2,4-4]\n[0-other,1-small(3),1-other,5-big]\n108\n[1-2,2-3,3-4,4-5,5-6,6-7,7-8,8-9,9-10,10-11,11-12,12-13,13-14,14-15,15-16,16-17,17-18,18-19,19-20,20-21,21-22,22-22,23-22,24-22,25-22,26-22,27-22,28-22,29-22,30-22]\n1075\n"),
     %% (probe/4's `A1 = A0' and the program's `Y = yes' and the like are no
     %% inference since 1.12.2: the probe costs 22, and the count was 1134;
     %% between/3's answers cost one inference fewer since 3.0.0, and the
     %% count was 1107; since 3.1.0 -s loads its file and then asks main/0
     %% apart, as swipl's -g main does, so the conjunction and use_module/1
-    %% are no longer counted with main's: 1105)
+    %% are no longer counted with main's: 1105; since 3.22.0 between/3
+    %% counts its answers down, one guard fewer each, and its last leaves
+    %% no choice point to retry: 1075)
     check('...and its answers, stops and count are 1.9.2\'s', A18, W18).
 
 %% THE BUILTINS IN PLACE (Stage 7). A later goal of a body that makes an
@@ -679,8 +719,9 @@ in_place(D) :-
     %% wrote alike
     %% (1164: between/3's answers one inference fewer since 3.0.0, and the
     %% message names atom_length/2; 1162 since 3.1.0, -s asking main/0 apart
-    %% from its file's load)
-    W9e = '1162\nERROR: -s main: atom_length/2: Arguments are not sufficiently instantiated\nERROR: In:\n',
+    %% from its file's load; 1122 since 3.22.0, between/3 counting its
+    %% answers down)
+    W9e = '1122\nERROR: -s main: atom_length/2: Arguments are not sufficiently instantiated\nERROR: In:\n',
     ( sub_atom(A9, _, _, _, W9e), atom_concat(_, 'exit 2\n', A9) -> T9e = yes ; T9e = A9 ),
     check('...as are its count and the error nothing caught', T9e, yes).
 
@@ -829,8 +870,9 @@ fused(D) :-
     %% the error, then its backtrace (1.10.17), which the two runs above
     %% wrote alike
     %% (836: between/3's answers one inference fewer since 3.0.0; 834 since
-    %% 3.1.0, -s asking main/0 apart from its file's load)
-    W7e = '834\nERROR: -s main: is/2: Arguments are not sufficiently instantiated\nERROR: In:\n',
+    %% 3.1.0, -s asking main/0 apart from its file's load; 804 since 3.22.0,
+    %% between/3 counting its answers down)
+    W7e = '804\nERROR: -s main: is/2: Arguments are not sufficiently instantiated\nERROR: In:\n',
     ( sub_atom(A7, _, _, _, W7e), atom_concat(_, 'exit 2\n', A7) -> T7e = yes ; T7e = A7 ),
     check('...as are its count and the error nothing caught', T7e, yes).
 
@@ -1767,6 +1809,14 @@ update_view(D) :-
         'grow :- ( q(X), write(X), nl, ( X < 5 -> Y is X + 5, assertz(q(Y)) ; true ), uv_spin(300), fail ; true ),',
         '        findall(Z, q(Z), L), write(L), nl.',
         'cut :- q(X), retract(q(2)), X == 1, !.',
+        'rwalk :- ( retract(q(X)), write(X), nl, ( X == 1 -> assertz(q(9)) ; true ), uv_spin(300), fail ; true ),',
+        '         findall(Y, q(Y), L), write(L), nl.',
+        'cwalk :- ( clause(q(X), true), write(X), nl, ( X == 2 -> retract(q(1)), assertz(q(9)) ; true ),',
+        '           uv_spin(300), fail ; true ),',
+        '         findall(Y, q(Y), L), write(L), nl.',
+        'awalk :- ( arg(N, f(a, b, c, d), X), write(N-X), nl, uv_spin(300), fail ; true ), write(done), nl.',
+        'twalk :- ( char_type(C, digit(W)), format("~w~n", [C-W]), uv_spin(300), fail ; true ), write(done), nl.',
+        'kwalk :- ( code_type(0''a, T), format("~w~n", [T]), uv_spin(300), fail ; true ), write(done), nl.',
         'uv_spin(0) :- !.',
         'uv_spin(N) :- M is N - 1, uv_spin(M).'
     ]),
@@ -1783,7 +1833,22 @@ update_view(D) :-
     sh_join([C, ' --embed ', K3, ' run ', F1, ' cut >/dev/null 2>&1; ',
              C, ' --embed ', K3, ' query ''findall(X, q(X), L), write(L), nl'' 2>&1 | head -n 1'], Cmd3),
     proc_run(Cmd3, 60000, Out3, _), atom_codes(O3, Out3),
-    check('a clause retracted under a call the run cuts away is gone for the next process', O3, '[1,3,4]\n').
+    check('a clause retracted under a call the run cuts away is gone for the next process', O3, '[1,3,4]\n'),
+    %% A WALK OF retract/1's OR clause/2's IS SUCH A CALL (3.28.0): its DB
+    %% frame keeps the predicate, its place and its horizon through a freeze
+    %% as a clause frame does (lib/state.cicili's `C' and `L'); arg/3's
+    %% walk of its term's places (3.29.0) its WALK frame its next place, and
+    %% char_type/2's of the codes and code_type/2's of the classes (3.30.0)
+    %% the code or the class (an answer's line written in one step: a turn
+    %% stopped between write/1 and nl/0 puts its report on the open line)
+    findall(G4-O4, ( member(G4, [rwalk, cwalk, awalk, twalk, kwalk]), uv_whole(C, D, F1, G4, O4) ), L4),
+    check('retract/1 and clause/2 walk the clauses that stood when they began, arg/3 its places, char_type/2 the codes, code_type/2 the classes', L4,
+          [rwalk-'1\n2\n3\n4\n[9]\n', cwalk-'1\n2\n3\n4\n[2,3,4,9]\n',
+           awalk-'1-a\n2-b\n3-c\n4-d\ndone\n',
+           twalk-'0-0\n1-1\n2-2\n3-3\n4-4\n5-5\n6-6\n7-7\n8-8\n9-9\ndone\n',
+           kwalk-'alnum\nalpha\ncsym\ncsymf\nprolog_atom_start\nprolog_identifier_continue\ncsymf\nascii\nprint\ngraph\nlower\nlower(65)\nto_lower(65)\nto_upper(97)\nxdigit(10)\ndone\n']),
+    findall(G5-O5, ( member(G5, [rwalk, cwalk, awalk, twalk, kwalk]), uv_stepped(C, D, F1, G5, O5) ), L5),
+    check('...and thawed at every 50 inferences, the walk goes on where it stood', L5, L4).
 
 %% the goal run whole, on an embedded store of its own
 uv_whole(C, D, F, G, O) :-
@@ -1835,7 +1900,9 @@ compiled(D) :-
     %% implements: swipl raises for the other two, cocolog keeps facts
     %% under a builtin's name (`number(dos)') and leaves a static one so
     catch(retractall(atom(_)), _, true),
-    ( current_predicate(atom/1) -> R3 = declared ; R3 = not_declared ),
+    %% named whole, current_predicate/1 answers for the system's atom/1 too
+    %% (3.31.0); with its arity unbound it walks the program's alone
+    ( current_predicate(atom/A3), A3 == 1 -> R3 = declared ; R3 = not_declared ),
     check('retractall/1 of a builtin\'s name declares nothing', R3, not_declared),
     retractall(cc_static(2)),
     ( predicate_property(cc_static(_), dynamic) -> R4 = dynamic ; R4 = static ),
@@ -1851,3 +1918,240 @@ compiled(D) :-
              C5, ' --embed ', K5, ' query ''clause(cc_d(A), _), ( var(A) -> write(kept) ; write(moved) ), nl'' 2>&1 | head -n 1'], Cmd5),
     proc_run(Cmd5, 60000, Out5, _), atom_codes(O5, Out5),
     check('a dynamic clause read back by another process keeps its unification', O5, 'kept\n').
+
+%% $/1 UNDER TRACE ANSWERS AS IT DOES UNTRACED (3.20.0). Trace keeps a
+%% clause frame for every call, the last candidate's too, for its Fail
+%% port; $/1's exit passes over a frame whose selection entered its last
+%% candidate (`last' on the tracer's shadow frame), or every traced $(G)
+%% would see a choice point an untraced run never made -- and over what
+%% trace keeps around it: the catch frame a goal that exited left (DEAD)
+%% and the frame above it that would retry the goal (CATCH_RETRY), and a
+%% call's own frame its cut kept (SPENT). A disjunction's frame is one,
+%% though its slot held a traced call's that had no clause left.
+det_traced(D) :-
+    section('$/1 under trace answers as it does untraced'),
+    atom_concat(D, '/det_traced.pl', F),
+    fixture(F, [ 'p(1). p(2). q(1). r(X) :- q(X). s(X) :- p(X), !.',
+                 't(G, R) :- catch(( G -> R = yes ; R = no ), error(E, _),',
+                 '    ( E = determinism_error(_, _, W, _) -> R = W ; R = E )).',
+                 'main :- findall(R, ( member(G, [$(q(_)), $((true ; true)), $(p(1)), $((p(X), X > 1)),',
+                 '                                $(r(_)), $(p(_)), $((q(Y), q(Y))), $(fail),',
+                 '                                $(catch(q(_), _, true)), $(s(_))]), t(G, R) ), Rs),',
+                 '    write(Rs), nl.' ]),
+    last_line_of(F, main, 30000, U),
+    check('untraced: deterministic, nondeterministic and failed', U,
+          '[yes,nondet,yes,yes,yes,nondet,yes,fail,yes,yes]'),
+    cocolog(C),
+    sh_join([C, ' --trace run ', F, ' main 2>/dev/null'], Cmd),
+    proc_run(Cmd, 30000, Out, _),
+    (   chomp(Out, Body), codes_lines(Body, Lines), Lines \== [], last(Lines, L), atom_codes(T, L)
+    ->  true
+    ;   T = nothing
+    ),
+    check('traced: the same answers', T, '[yes,nondet,yes,yes,yes,nondet,yes,fail,yes,yes]'),
+    %% a disjunction's frame is a choice point whatever its slot held before
+    %% (`last' is a clause frame's alone)
+    atom_concat(D, '/det_traced_or.pl', F5),
+    fixture(F5, [ 'q(1).',
+                  't(G, R) :- catch(( G -> R = yes ; R = no ), error(E, _),',
+                  '    ( E = determinism_error(_, _, W, _) -> R = W ; R = E )).',
+                  'main :- t($(q(_)), A), t($((true ; true)), B), t($(q(_)), C), t($((q(_) ; true)), D),',
+                  '    t($((fail ; true ; true)), E), write([A, B, C, D, E]), nl.' ]),
+    sh_join([C, ' --trace run ', F5, ' main 2>/dev/null'], Cmd5),
+    proc_run(Cmd5, 30000, Out5, _),
+    (   chomp(Out5, Body5), codes_lines(Body5, Lines5), Lines5 \== [], last(Lines5, L5),
+        atom_codes(T5, L5)
+    ->  true
+    ;   T5 = nothing
+    ),
+    check('traced: a disjunction''s frame is a choice point', T5, '[yes,nondet,yes,nondet,nondet]'),
+    %% and failing into $/1's own frame is no Redo of the clause it stands in
+    atom_concat(D, '/det_redo.pl', F7),
+    fixture(F7, [ 'p :- catch($(fail), _, true).', 'main :- p.' ]),
+    sh_join([C, ' --trace run ', F7, ' main 2>&1'], Cmd7),
+    proc_run(Cmd7, 30000, Out7, _), atom_codes(A7, Out7),
+    ( sub_atom(A7, _, _, _, 'Redo') -> R7 = redo ; R7 = none ),
+    check('failing into $/1''s own frame prints no Redo', R7, none),
+    %% a body deeper than the store's compile walks (256 constructs) keeps
+    %% its `@' where the walk stops, as a qualifier is kept there
+    atom_concat(D, '/det_deep.pl', F6),
+    fixture(F6, [ 'mk(0, G, G) :- !.', 'mk(N, G0, \\+ G) :- N1 is N - 1, mk(N1, G0, G).',
+                  'has_at(T) :- compound(T), ( T = @(_, _) -> true ; T =.. [_|As], member(A, As), has_at(A) ).',
+                  'main :- mk(300, p, B), assertz((deep :- @(B, m))), clause(deep, Body),',
+                  '    ( has_at(Body) -> write(kept) ; write(lost) ), nl.' ]),
+    last_line_of(F6, main, 30000, W6),
+    check('a body deeper than the compile''s walk keeps its @ where the walk stops', W6, kept),
+    %% trace/0 inside $(G): a frame pushed before it, retried to its last
+    %% clause under the trace, is gone as it is untraced, and one that
+    %% still has a clause to try is a choice point though its slot held a
+    %% traced frame that had none (`last' is the traced push's)
+    atom_concat(D, '/det_trace_on.pl', F2),
+    fixture(F2, [ ':- dynamic d/1.', 'd(1). d(2). d(3).',
+                  'p(1). p(2). q(1). on(1) :- trace, fail. on(2).',
+                  'r :- q(_), q(_), q(_), q(_), q(_).',
+                  't(G, R) :- catch(( G -> R = yes ; R = no ), error(E, _),',
+                  '    ( E = determinism_error(_, _, W, _) -> R = W ; R = E )).',
+                  'main :- t($((p(X), on(X))), A), notrace, trace, r, !, notrace,',
+                  '    t($((p(_), trace)), B), notrace,',
+                  '    d(Z), Z == 1, retract(d(3)), t($((d(Y), on(Y))), C), notrace,',
+                  '    write([A, B, C]), nl.' ]),
+    last_line_of(F2, main, 30000, V),
+    check('trace/0 inside $(G): a spent frame goes, a live one stays', V, '[yes,nondet,yes]'),
+    %% and a predicate with a dead clause (the logical update view) selects
+    %% out of line, and says so of its last candidate too
+    atom_concat(D, '/det_traced_dead.pl', F3),
+    fixture(F3, [ ':- dynamic r/1.', 'r(1). r(2).',
+                  't(G, R) :- catch(( G -> R = yes ; R = no ), error(E, _),',
+                  '    ( E = determinism_error(_, _, W, _) -> R = W ; R = E )).',
+                  'main :- r(X), X == 1, retract(r(2)), t($(r(_)), A), write(A), nl.' ]),
+    last_line_of(F3, main, 30000, W1),
+    check('untraced: a call that cannot see the dead clause is deterministic', W1, yes),
+    sh_join([C, ' --trace run ', F3, ' main 2>/dev/null'], Cmd3),
+    proc_run(Cmd3, 30000, Out3, _),
+    (   chomp(Out3, Body3), codes_lines(Body3, Lines3), Lines3 \== [], last(Lines3, L3),
+        atom_codes(T3, L3)
+    ->  true
+    ;   T3 = nothing
+    ),
+    check('traced: the same', T3, yes),
+    %% the exit is the engine's own: one a program writes names no frame of
+    %% `$/1''s, and cuts nothing
+    atom_concat(D, '/det_marker.pl', F4),
+    fixture(F4, [ 'm(C, R) :- ( member(X, [1, 2]), ''$det_exit''(C, $(true), x), X == 2 -> R = yes ; R = no ).',
+                  'main :- m(0, A), m(99999999, B), write([A, B]), nl.' ]),
+    last_line_of(F4, main, 30000, W4),
+    check('a $/1 exit a program wrote cuts nothing', W4, '[yes,yes]').
+
+%% $/0 ANSWERS AS IT DOES UNDER TRACE, UNDER A COLLECTOR THAT RUNS EVERY
+%% 2000 CELLS, AND IN A MACHINE FROZEN AND THAWED EACH 25 INFERENCES
+%% (3.21.0). test/files/det_guard.pl holds swipl's answers untraced; here
+%% the same file's: a traced call keeps its frame, and the guard reads a
+%% last call past the Exit marker the trace puts after it (`coco_det_kk');
+%% a collection moves the guard frame's exit marker, and the guard on is
+%% read again from it (`coco_det_top'); and a thaw finds the innermost
+%% guard frame again, the topmost GOAL frame that is one
+%% (`coco_det_unwound'). A guard frame is no Redo of anything.
+det_guard_runs(D) :-
+    section('$/0 under trace, a collector, and a freeze and a thaw'),
+    cocolog(C),
+    sh_join([C, ' --local run test/files/det_guard.pl main 2>/dev/null'], Cmd0),
+    proc_run(Cmd0, 60000, Out0, _), atom_codes(U, Out0),
+    ( sub_atom(U, _, _, _, 'caught(error(determinism_error(p/1,det,nondet,guard_in_caller)') -> H = yes ; H = no ),
+    check('untraced: the case answers', H, yes),
+    sh_join([C, ' --trace --local run test/files/det_guard.pl main 2>/dev/null'], Cmd1),
+    proc_run(Cmd1, 120000, Out1, _), atom_codes(T, Out1),
+    check('traced: the same answers', T, U),
+    sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' --local run test/files/det_guard.pl main 2>/dev/null'], Cmd2),
+    proc_run(Cmd2, 60000, Out2, _), atom_codes(G, Out2),
+    check('a collection every 2000 cells: the same answers', G, U),
+    sh_join(['COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 ', C,
+             ' --local run test/files/det_guard.pl main 2>/dev/null'], Cmd3),
+    proc_run(Cmd3, 60000, Out3, _), atom_codes(K, Out3),
+    check('each collection a freeze''s materialisation: the same answers', K, U),
+    %% a machine frozen and thawed each 25 inferences, its guard frames
+    %% on the choice stack across every turn
+    atom_concat(D, '/det_turns.pl', F),
+    fixture(F, [ 'p(1). p(2).', 'cnt(0) :- !.', 'cnt(N) :- $, N1 is N - 1, cnt(N1).',
+                 'g1 :- $, cnt(40), p(_).', 'g2 :- $, cnt(40), q2.', 'q2 :- cnt(30), fail.' ]),
+    atom_concat(D, '/det_turns_kb', Kb),
+    sh_join([C, ' --embed ', Kb, ' consult ', F, ' >/dev/null 2>&1'], CCons),
+    shl([CCons]),
+    det_turns(C, Kb, g1, E1),
+    check('frozen and thawed: a last call''s nondet exit', E1,
+          'error(determinism_error(p/1,det,nondet,guard_in_caller),context(p/1,_))'),
+    det_turns(C, Kb, g2, E2),
+    check('frozen and thawed: a last call''s failure', E2,
+          'error(determinism_error(q2/0,det,fail,guard_in_caller),context(q2/0,_))'),
+    %% and failing into a guard frame prints no Redo
+    atom_concat(D, '/det_guard_redo.pl', F8),
+    fixture(F8, [ 'q(1).', 'p :- catch(($, q(_), fail), _, true).', 'main :- p.' ]),
+    sh_join([C, ' --trace run ', F8, ' main 2>&1'], Cmd8),
+    proc_run(Cmd8, 30000, Out8, _), atom_codes(A8, Out8),
+    ( sub_atom(A8, _, _, _, 'Redo') -> R8 = redo ; R8 = none ),
+    check('failing into a guard frame prints no Redo', R8, none).
+
+%% SWIPL'S JIT INDEX ANSWERS AS IT DOES UNDER TRACE, UNDER A COLLECTOR THAT
+%% RUNS EVERY 2000 CELLS, AND AFTER THE CLAUSES CHANGE (3.24.0).
+%% test/files/jit_index.pl holds swipl's answers untraced; here the same
+%% file's under trace, where a traced call is keyed on the argument the
+%% untraced one would be (`coco_trace_kpos'), and under the collector. And
+%% the argument is chosen again once the clauses have changed
+%% (`coco_jit_speedup', by `tver'): of `ja/2' the first argument promises
+%% least at the first call and as much as the second after the assertz, so
+%% the call goes back to it; of `jb/3' the second promises as much as the
+%% third at the first call and less after. Each call leaves no choice point
+%% here. Not swipl's (COMPAT.md): its index, once built at the first call,
+%% is walked by every later call that can key it whatever the clauses come
+%% to promise, and swipl leaves a choice point at the second of each pair.
+jit_runs(D) :-
+    section('the JIT index under trace, a collector, and after an assertz'),
+    cocolog(C),
+    sh_join([C, ' --local run test/files/jit_index.pl main 2>/dev/null'], Cmd0),
+    proc_run(Cmd0, 60000, Out0, _), atom_codes(U, Out0),
+    ( sub_atom(U, _, _, _, 'det(cw([''_''|''_'']))') -> H = yes ; H = no ),
+    check('untraced: the case answers', H, yes),
+    sh_join([C, ' --trace --local run test/files/jit_index.pl main 2>/dev/null'], Cmd1),
+    proc_run(Cmd1, 120000, Out1, _), atom_codes(T, Out1),
+    check('traced: the same answers', T, U),
+    sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' --local run test/files/jit_index.pl main 2>/dev/null'], Cmd2),
+    proc_run(Cmd2, 60000, Out2, _), atom_codes(G, Out2),
+    check('a collection every 2000 cells: the same answers', G, U),
+    atom_concat(D, '/jit_again.pl', F),
+    fixture(F, [ ':- dynamic ja/2, jb/3.',
+                 'ja(a, x). ja(a, y).',
+                 'jb(_, a, x). jb(_, b, y).',
+                 'dd(G) :- $, G, true.',
+                 'd(G) :- catch((dd(G) -> R = det ; R = fail), error(E, _), R = E), print(R), nl.',
+                 'main :- d(ja(a, y)), assertz(ja(b, y)), d(ja(a, y)),',
+                 '        d(jb(_, a, x)), assertz(jb(_, a, z)), d(jb(_, a, x)).' ]),
+    sh_join([C, ' --local run ', F, ' main 2>&1'], Cmd3),
+    proc_run(Cmd3, 30000, Out3, _), atom_codes(A3, Out3),
+    check('the argument chosen again after an assertz', A3, 'det\ndet\ndet\ndet\n').
+
+%% GOAL run as machine NAME of store KB, 25 inferences a turn: what it
+%% printed, its variables `_'
+det_turns(C, Kb, Goal, Printed) :-
+    atom_concat(m_, Goal, Name),
+    sh_join([C, ' --embed ', Kb, ' start ', Name, ' "catch(', Goal, ', E, true), print(E), nl" >/dev/null 2>&1'],
+            Start),
+    shl([Start]),
+    det_turn(C, Kb, Name, 0, [], Cs),
+    atom_codes(A0, Cs),
+    det_text(A0, Printed).
+
+det_turn(_, _, _, 40, Acc, Acc) :- !.
+det_turn(C, Kb, Name, I, Acc, Cs) :-
+    sh_join([C, ' --embed ', Kb, ' --steps 25 step ', Name, ' 2>&1'], Cmd),
+    proc_run(Cmd, 30000, Out, _),
+    atom_codes(A, Out),
+    (   sub_atom(A, B, _, _, ': suspended at')
+    ->  sub_atom(A, 0, B, _, Before), det_before(Before, Name, Mine),
+        atom_codes(Mine, MC), append(Acc, MC, Acc1),
+        I1 is I + 1,
+        det_turn(C, Kb, Name, I1, Acc1, Cs)
+    ;   sub_atom(A, B, _, _, ': finished after')
+    ->  sub_atom(A, 0, B, _, Before), det_before(Before, Name, Mine0),
+        atom_codes(Mine0, MC0), append(Acc, MC0, Cs)
+    ;   Cs = Acc
+    ).
+
+%% what a turn printed before its status line: the text before NAME, the
+%% answer lines (`  1. ...') left out
+det_before(Before, Name, Mine) :-
+    (   sub_atom(Before, P, _, _, Name) -> sub_atom(Before, 0, P, _, B0) ; B0 = Before ),
+    atomic_list_concat(Ls, '\n', B0),
+    exclude([L]>>sub_atom(L, 0, _, _, '  '), Ls, Keep),
+    atomic_list_concat(Keep, '', Mine).
+
+%% the text with each `_G123' written `_'
+det_text(A0, A) :-
+    atom_codes(A0, Cs0),
+    det_vars(Cs0, Cs),
+    atom_codes(A, Cs).
+
+det_vars([], []).
+det_vars([0'_, 0'G|T0], [0'_|T]) :- !, det_digits(T0, T1), det_vars(T1, T).
+det_vars([C|T0], [C|T]) :- det_vars(T0, T).
+
+det_digits([C|T0], T) :- C >= 0'0, C =< 0'9, !, det_digits(T0, T).
+det_digits(T, T).

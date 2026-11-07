@@ -18,6 +18,145 @@
 
 (IN-PACKAGE :cocolog)
 
+;;; ---- char_type/2 and code_type/2: swipl's table (3.30.0) ----------------
+;;;
+;;; SWIPL 9.0.4'S char_types[] (pl-ctype.c), IN ITS ORDER, which is the
+;;; order an unbound type is walked in: a class's name, its arity, its test,
+;;; and for one with an argument its reverse (`none' for decimal/1: swipl
+;;; walks every code for it) and whether that argument is a number (1) or a
+;;; character (0: a code to code_type/2). csymf is there twice, as in
+;;; swipl's table; a class is found by its first row. The tests are
+;;; keywords: a row `("name" N word)' is what tools/cocolint/build.pl reads
+;;; as a builtin's (its shape 1), and a class is no predicate.
+(DEFPARAMETER *coco-ct-classes*
+  '(("alnum" 0 :alnum) ("alpha" 0 :alpha) ("csym" 0 :csym) ("csymf" 0 :csymf)
+    ("prolog_var_start" 0 :pvs) ("prolog_atom_start" 0 :pas)
+    ("prolog_identifier_continue" 0 :pic) ("decimal" 0 :decimal)
+    ("decimal" 1 :weight :none 1) ("prolog_symbol" 0 :psym) ("csymf" 0 :csymf)
+    ("ascii" 0 :ascii) ("white" 0 :white) ("cntrl" 0 :cntrl) ("digit" 0 :digit)
+    ("print" 0 :print) ("graph" 0 :graph) ("lower" 0 :lower) ("upper" 0 :upper)
+    ("punct" 0 :punct) ("space" 0 :space) ("end_of_file" 0 :eof)
+    ("end_of_line" 0 :eol) ("newline" 0 :nl) ("period" 0 :period) ("quote" 0 :quote)
+    ("lower" 1 :fupper :flower 0) ("upper" 1 :flower :fupper 0)
+    ("to_lower" 1 :ftoupper :ftolower 0) ("to_upper" 1 :ftolower :ftoupper 0)
+    ("paren" 1 :fparen :rparen 0) ("digit" 1 :fdigit :rdigit 1)
+    ("xdigit" 1 :fxdigit :rxdigit 1)))
+
+;;; EACH TEST AND REVERSE as swipl's C function answers, of the code C, F
+;;; its class bits as the units read them (`coco_ct_flags', none past ASCII
+;;; under bytes) and UC the units: a class with no argument true or false,
+;;; one with an argument its value or -1. The classes swipl asks of glibc
+;;; are its bits, the rest ASCII's: alnum is alpha or 0-9, csym alnum or
+;;; `_', graph print and not space, punct graph and not alnum (true of every
+;;; code point, tools/ctype/tables.pl checks it). period and quote are
+;;; ASCII's alone: swipl's strchr() over a truncated code also calls 17 404
+;;; code points past it so (U+0100, U+0121), which is not copied (COMPAT.md).
+(DEFPARAMETER *coco-ct-exprs*
+  '((:alnum (or (!= (bitand f 1) 0) (and (>= c 48) (<= c 57))))
+    (:alpha (!= (bitand f 1) 0))
+    (:csym (or (or (!= (bitand f 1) 0) (and (>= c 48) (<= c 57))) (== c 95)))
+    (:csymf (or (!= (bitand f 1) 0) (== c 95)))
+    (:pvs (!= (bitand f 64) 0))
+    (:pas (!= (bitand f 128) 0))
+    (:pic (!= (bitand f 256) 0))
+    (:decimal (!= (bitand f 1024) 0))
+    (:weight (? (!= (bitand f 1024) 0) (cast int (bitand (>> f 11) 15)) -1))
+    (:psym (!= (bitand f 512) 0))
+    (:ascii (and (>= c 0) (<= c 127)))
+    (:white (or (== c 32) (== c 9)))
+    (:cntrl (!= (bitand f 32) 0))
+    (:digit (and (>= c 48) (<= c 57)))
+    (:print (!= (bitand f 8) 0))
+    (:graph (== (bitand f 24) 8))
+    (:lower (!= (bitand f 4) 0))
+    (:upper (!= (bitand f 2) 0))
+    (:punct (and (== (bitand f 24) 8) (and (== (bitand f 1) 0) (or (< c 48) (> c 57)))))
+    (:space (!= (bitand f 16) 0))
+    (:eof (== c -1))
+    (:eol (and (>= c 10) (<= c 13)))
+    (:nl (== c 10))
+    (:period (or (or (== c 33) (== c 46)) (== c 63)))
+    (:quote (or (or (== c 34) (== c 39)) (== c 96)))
+    (:fupper (? (!= (bitand f 4) 0) (cast int (coco_uc_case c 1)) -1))
+    (:flower (? (!= (bitand f 2) 0) (cast int (coco_uc_case c 0)) -1))
+    (:ftoupper (? (< c 0) -1 (cast int (? (or uc (< c 128)) (coco_uc_case c 1) c))))
+    (:ftolower (? (< c 0) -1 (cast int (? (or uc (< c 128)) (coco_uc_case c 0) c))))
+    (:fparen (? (== c 40) 41 (? (== c 91) 93 (? (== c 123) 125 -1))))
+    (:rparen (? (== c 41) 40 (? (== c 93) 91 (? (== c 125) 123 -1))))
+    (:fdigit (? (and (>= c 48) (<= c 57)) (cast int (- c 48)) -1))
+    (:rdigit (? (and (>= c 0) (<= c 9)) (cast int (+ c 48)) -1))
+    (:fxdigit (? (and (>= c 48) (<= c 57)) (cast int (- c 48))
+                (? (and (>= c 97) (<= c 102)) (cast int (- c 87))
+                   (? (and (>= c 65) (<= c 70)) (cast int (- c 55)) -1))))
+    (:rxdigit (? (and (>= c 0) (<= c 9)) (cast int (+ c 48))
+                (? (and (>= c 10) (<= c 15)) (cast int (+ c 87)) -1)))))
+
+(DEFUN coco-ct-expr (sym)
+  (LET ((e (ASSOC sym *coco-ct-exprs*)))
+    (UNLESS e (ERROR "cocolog: no char_type test ~S" sym))
+    (SECOND e)))
+
+;;; the number of classes, and the last one's number
+(DEFMACRO coco-ct-count () (LENGTH *coco-ct-classes*))
+
+;;; CLASS K's TEST of C: 1 or 0 for a class with no argument, its value or
+;;; -1 for one with; -1 for no class K
+(DEFMACRO coco-ct-emit-test (fname)
+  `(func ,fname ((int k) (i64 c) (int uc)) (out int)
+         (let ((u32 f . #'(? (or uc (< c 128)) (coco_ct_flags c) 0)))
+           (switch k
+             ,@(LOOP FOR row IN *coco-ct-classes* FOR k FROM 0
+                     COLLECT `(case ,k (return ,(IF (= (SECOND row) 0)
+                                                    `(? ,(coco-ct-expr (THIRD row)) 1 0)
+                                                    (coco-ct-expr (THIRD row))))))
+             (default (return -1))))))
+
+;;; CLASS K's REVERSE of C, the code its argument C names (lower('A')'s
+;;; `a'): -1 for none, -2 for a class with no reverse
+(DEFMACRO coco-ct-emit-reverse (fname)
+  `(func ,fname ((int k) (i64 c) (int uc)) (out int)
+         (let ((u32 f . #'(? (or uc (< c 128)) (coco_ct_flags c) 0)))
+           (switch k
+             ,@(LOOP FOR row IN *coco-ct-classes* FOR k FROM 0
+                     WHEN (AND (= (SECOND row) 1) (NOT (EQ (FOURTH row) :none)))
+                       COLLECT `(case ,k (return ,(coco-ct-expr (FOURTH row)))))
+             (default (return -2))))))
+
+;;; THE CLASS NAME/ARITY names, its first row, or -1
+(DEFMACRO coco-ct-emit-find (fname)
+  `(func ,fname ((const char * name) (u32 arity)) (out int)
+         (cond
+           ,@(LET ((seen NIL))
+               (LOOP FOR row IN *coco-ct-classes* FOR k FROM 0
+                     UNLESS (MEMBER (LIST (FIRST row) (SECOND row)) seen :TEST #'EQUAL)
+                       COLLECT (PROGN
+                                 (PUSH (LIST (FIRST row) (SECOND row)) seen)
+                                 `((and (== arity ,(SECOND row)) (== 0 (strcmp name ,(FIRST row))))
+                                   (return ,k)))))
+           (#t (return -1)))))
+
+;;; CLASS K's NAME, and through AR and NUM its arity and whether its
+;;; argument is a number; null for no class K
+(DEFMACRO coco-ct-emit-info (fname)
+  `(func ,fname ((int k) (int * ar) (int * num)) (out const char *)
+         (switch k
+           ,@(LOOP FOR row IN *coco-ct-classes* FOR k FROM 0
+                   COLLECT `(case ,k
+                              (set (cof ar) ,(SECOND row))
+                              (set (cof num) ,(IF (= (SECOND row) 1) (FIFTH row) 0))
+                              (return ,(FIRST row))))
+           (default (return nil)))))
+
+;;; A WALK FRAME'S POSITION for char_type/2 and code_type/2: bit 48 says it
+;;; is theirs (arg/3's holds a place), bit 41 char_type/2's, bit 40 a walk
+;;; of the classes (the character bound), bits 32 to 39 the class -- the
+;;; next to try when walking the classes -- and the low 32 bits the code
+;;; plus one, the next to try when walking the codes
+(DEFMACRO coco-ctw-pos (how mode k c)
+  `(bitor (bitor (<< (cast u64 1) 48) (<< (cast u64 ,how) 41))
+          (bitor (bitor (<< (cast u64 ,mode) 40) (<< (cast u64 ,k) 32))
+                 (cast u64 (+ ,c 1)))))
+
 (generic impl-solve-text
   ()
 
@@ -68,12 +207,15 @@
                 (return (? (coco_unify m (coco_arg m g 0) h) 1 0)))))))
 
   ;;; SWI'S ERRORS, IN SWI'S ORDER: the term first -- unbound an
-  ;;; instantiation error, atomic a type error -- then the index: unbound an
-  ;;; instantiation error (SWI enumerates there; every builtin here is
-  ;;; deterministic), bound and not an integer a type error, below 0 a
-  ;;; domain error; 0 and past the arity fail. Through 1.10.5 an unbound or
-  ;;; atomic term FAILED, and an index of any kind but an integer was an
-  ;;; instantiation error.
+  ;;; instantiation error, atomic a type error -- then the index: bound and
+  ;;; not an integer a type error, below 0 a domain error; 0 and past the
+  ;;; arity fail. Through 1.10.5 an unbound or atomic term FAILED, and an
+  ;;; index of any kind but an integer was an instantiation error. AN
+  ;;; UNBOUND INDEX ENUMERATES (3.29.0, swipl's): the row answers -2 and
+  ;;; its caller hands the goal to `coco_walk', which has the
+  ;;; continuation the row is never given; through 3.28.0 it raised
+  ;;; instantiation_error, and library(aggregate)'s free_variables/4, whose
+  ;;; var_in_term/2 walks a term with arg(_, T, A), raised with it.
   (func coco_bi_arg ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (size_t it . #'(coco_a e g 0))
@@ -83,8 +225,7 @@
               (return (coco_instantiation_error_bare e)))
           (if (not (coco-tag-is FUN (nth t (-> m heap))))
               (return (coco_type_error_bare e "compound" t)))
-          (if (coco-tag-is REF (nth it (-> m heap)))
-              (return (coco_instantiation_error e)))
+          (if (coco-tag-is REF (nth it (-> m heap))) (return -2))
           (if (not (coco-is-int (nth it (-> m heap))))
               (return (coco_type_error e "integer" it)))
           (let ((i64 i . #'(coco_int_val m (nth it (-> m heap))))
@@ -92,6 +233,96 @@
             (if (< i 0) (return (coco_domain_error e "not_less_than_zero" it)))
             (if (or (< i 1) (> i (cast i64 n))) (return 0))
             (return (? (coco_unify m (coco_arg m g 2) (coco_arg m t (cast u32 (- i 1)))) 1 0)))))
+
+  ;;; ---- arg/3 with its index unbound (3.29.0) ---------------------------
+  ;;;
+  ;;; SWIPL'S FOREIGN arg/3: G's places tried in order from I, the third
+  ;;; argument unified with each and then the index with its number, the
+  ;;; first place both take the answer; short of the term's last place the
+  ;;; WALK frame at CI (FR) is left to go on from the next, and at the last
+  ;;; it is gone, so the last answer leaves no choice point -- an answer
+  ;;; before it leaves one whatever the places after it hold, as swipl's
+  ;;; ForeignRedoInt does. The machine is at the frame's marks on the way
+  ;;; in, and back at them after a place that does not take. 1 an answer,
+  ;;; 0 none, the frame gone.
+  (static)
+  (func coco_arg_from ((coco_engine * e) (size_t g) (u32 i) (u32 n) (int fr) (size_t ci))
+        (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t t . #'(coco_deref (-> e m) (coco_arg (-> e m) g 1)))
+              (size_t tmark . #'($ (cof (-> e m)) trail_len))
+              (size_t hmark . #'($ (cof (-> e m)) heap_len)))
+          (while (<= i n)
+            (if fr
+                (if (== i n)
+                    (set (-> e nchoices) ci)
+                    (set ($ (nth ci (-> e choices)) clause_ix) (cast size_t (+ i 1)))))
+            (if (and (coco_unify m (coco_arg m g 2) (coco_arg m t (- i 1)))
+                     (coco_unify m (coco_arg m g 0) (coco_new_int m (cast i64 i))))
+                (return 1))
+            (coco_undo_to m tmark)
+            (set (-> m heap_len) hmark)
+            (set i (+ i 1)))
+          (if fr (set (-> e nchoices) ci))
+          (return 0)))
+
+  ;;; ---- '$btree_find_node'/5 (3.31.0, swipl's pl-btree.c) ----------------
+  ;;;
+  ;;; '$btree_find_node'(+Key, +Tree, +Pos, -Node, -Arg): THE NODE OF A
+  ;;; BALANCED TREE where Key is, or would go -- what swipl's
+  ;;; library(assoc) asks for get_assoc/3, the branch its `:- if' keeps
+  ;;; where current_predicate/1 answers for this. Pos is 65536 * K +
+  ;;; 256 * L + R, the places of a node's key and of its two subtrees,
+  ;;; each a byte counted from 1, the bits above them not read. From Tree
+  ;;; the key is compared in the standard order: equal, Node is the node and
+  ;;; Arg `='; smaller, the left subtree taken, larger the right, while it
+  ;;; is a node of Tree's own name and arity -- else Node is the node the
+  ;;; walk stands on and Arg `<' or `>', the side a new node would go.
+  ;;; swipl's errors in swipl's order: Pos first, as PL_cvt_i_uint reads
+  ;;; it (unbound an instantiation error, no integer type_error(integer,
+  ;;; P), past 32 bits or below 0 representation_error(uint)), then Tree
+  ;;; (unbound an instantiation error, no compound, or one whose arity is
+  ;;; short of a place, type_error(btree, T)). NOT SWIPL'S: a place equal
+  ;;; to the arity, which swipl's check passes and its walk then reads past
+  ;;; the term (0x060101 of a node of five arguments ends swipl with a
+  ;;; segmentation fault): the key's place is a type error here, and a
+  ;;; subtree's no subtree.
+  (static)
+  (func coco_btree_found ((coco_engine * e) (size_t g) (size_t t) (const char * side)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (if (not (coco_unify m (coco_arg m g 3) t)) (return 0))
+          (return (? (coco_unify m (coco_arg m g 4) (coco_new_atom m side)) 1 0))))
+
+  (func coco_bi_btree_find_node ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t pc . #'(coco_a e g 2))
+              (size_t t . #'(coco_a e g 1))
+              (i64 p . 0) (u32 kp . 0) (u32 lp . 0) (u32 rp . 0) (u32 n . 0) (u64 fd . 0))
+          ;; unbound, the type error is an instantiation error
+          (if (not (coco-is-int (nth pc (-> m heap)))) (return (coco_type_error e "integer" pc)))
+          (set p (coco_int_val m (nth pc (-> m heap))))
+          (if (or (< p 0) (> p 4294967295)) (return (coco_representation_error e "uint")))
+          ;; a byte of 0 is place 0 - 1, past every arity, as swipl's
+          (set rp (- (cast u32 (bitand p 255)) 1))
+          (set lp (- (cast u32 (bitand (>> p 8) 255)) 1))
+          (set kp (- (cast u32 (bitand (>> p 16) 255)) 1))
+          ;; no compound has arity 0 here, short of every place, so it is
+          ;; type_error(btree, T) -- and unbound an instantiation error
+          (set n (coco_arity m t))
+          (if (or (>= kp n) (or (< n lp) (< n rp))) (return (coco_type_error e "btree" t)))
+          (set fd (nth t (-> m heap)))
+          ;; the side is named by the place taken, as swipl's `arg == lp':
+          ;; where the two subtrees' places are one, `<' either way
+          (while 1
+            (let ((int d . #'(coco_compare m (coco_arg m g 0) (coco_arg m t kp)))
+                  (u32 a . 0) (size_t c . 0))
+              (if (== d 0) (return (coco_btree_found e g t "=")))
+              (set a (? (< d 0) lp rp))
+              (if (>= a n) (return (coco_btree_found e g t (? (== a lp) "<" ">"))))
+              (set c (coco_deref m (coco_arg m t a)))
+              (if (!= (nth c (-> m heap)) fd)
+                  (return (coco_btree_found e g t (? (== a lp) "<" ">"))))
+              (set t c)))))
 
   ;;; ---- setarg/3 and nb_setarg/3 (1.12.0) --------------------------------
   ;;;
@@ -1907,5 +2138,278 @@
           (if (not (coco_unify m (coco_arg m g 1) t)) (return 0))
           (if asked (return (? (coco_unify m vn names) 1 0)))
           (return 1)))
+
+  ;;; ---- char_type/2 and code_type/2 (3.30.0) ------------------------------
+  ;;;
+  ;;; SWIPL 9.0.4'S do_char_type() (pl-ctype.c): rows of the engine's own
+  ;;; since 3.30.0, as arg/3 is, so that an unbound character or type is
+  ;;; walked as arg/3's index is (`coco_walk'); through 3.29.0 they were the
+  ;;; builtins module's and raised instantiation_error for either. The
+  ;;; classes are the table above (`*coco-ct-classes*'), a code's from
+  ;;; lib/swipl-ctype.cicili (`coco_ct_flags', `coco_uc_case').
+  (coco-ct-emit-test coco_ct_test)
+  (coco-ct-emit-reverse coco_ct_reverse)
+  (coco-ct-emit-find coco_ct_find)
+  (coco-ct-emit-info coco_ct_info)
+
+  ;;; A CHARACTER AS swipl's PL_get_char() READS ONE: an integer from 0 to
+  ;;; U+10FFFF, -1 or `end_of_file' where EOF lets the end of the input be
+  ;;; one, an atom, a string or a list of codes or of characters of one
+  ;;; character (one byte under bytes). An integer past U+10FFFF that a C
+  ;;; int holds is domain_error(character, T), and anything else -- a code
+  ;;; below -1, 2147483648, foo, ab -- type_error(character, T), the
+  ;;; predicate's own errors (system:code_type/2). 1 with *OUT set, or the
+  ;;; raise's answer.
+  (static)
+  (func coco_ct_getc ((coco_engine * e) (size_t t) (int eof) (i64 * out)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t d . #'(coco_deref (-> e m) t))
+              (u64 w . 0) (i64 c . -1) (coco_strbuf tb))
+          (set w (nth d (-> m heap)))
+          (if (coco-is-int w)
+              (let ((i64 v . #'(coco_int_val m w)))
+                (if (or (and (>= v 0) (<= v 1114111)) (and eof (== v -1)))
+                    (block (set (cof out) v) (return 1)))
+                (if (and (> v 1114111) (<= v 2147483647))
+                    (return (coco_domain_error e "character" d)))
+                (return (coco_type_error e "character" d))))
+          (if (and eof (and (coco-tag-is ATOM w)
+                            (== 0 (strcmp (coco_atom_name m (coco_name_of m d)) "end_of_file"))))
+              (block (set (cof out) -1) (return 1)))
+          (if (coco_tx_get e d 13 (aof tb))
+              (block
+               (set c (? (-> m text_chars)
+                         (coco_utf8_one (coco_tx_s (aof tb)))
+                         (? (== ($ tb len) 1) (cast i64 (bitand (cast int (nth 0 ($ tb s))) 255)) -1)))
+               (coco_sb_free (aof tb))
+               (if (>= c 0) (block (set (cof out) c) (return 1)))))
+          (return (coco_type_error e "character" d))))
+
+  ;;; THE CHARACTER C as HOW names one: its code (0), or a one-character
+  ;;; atom (1) -- `end_of_file' for -1, a byte under bytes, and '' for the
+  ;;; NUL, which no atom here holds, as char_code/2 makes it
+  (static)
+  (func coco_ct_char ((coco_machine * m) (i64 c) (int how)) (out size_t)
+        (let ((char one [8]) (int n . 1))
+          (if (not how) (return (coco_new_int m c)))
+          (if (< c 0) (return (coco_new_atom m "end_of_file")))
+          (if (-> m text_chars)
+              (set n (coco_utf8_enc one c))
+              (set (nth 0 one) (cast char c)))
+          (set (nth n one) (cast char 0))
+          (return (coco_new_atom m one))))
+
+  ;;; swipl's PL_unify_char(): an unbound T takes the character C as HOW
+  ;;; names one, and a bound one is read as a character (`coco_ct_getc',
+  ;;; the end of the input one too, anything that is none raising) and
+  ;;; compared, so `char_type('A', upper(97))' is true. 1, 0, or the
+  ;;; raise's answer.
+  (static)
+  (func coco_ct_unify_char ((coco_engine * e) (size_t t) (i64 c) (int how)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t d . #'(coco_deref (-> e m) t))
+              (i64 c2 . 0) (int rc . 0))
+          (if (coco-tag-is REF (nth d (-> m heap)))
+              (return (? (coco_unify m d (coco_ct_char m c how)) 1 0)))
+          (set rc (coco_ct_getc e d 1 (aof c2)))
+          (if (!= rc 1) (return rc))
+          (return (? (== c c2) 1 0))))
+
+  ;;; THE ROW, swipl's first call: char_type/2 (HOW 1) and code_type/2 (0).
+  ;;; Both unbound is instantiation_error and a type that is none of the
+  ;;; table's type_error(char_type, T), each named `char_type/2' bare, as
+  ;;; swipl's one C function names itself; the character is read first
+  ;;; (`coco_ct_getc'), and the end of the input answers `end_of_file' before
+  ;;; any type is asked (`code_type(-1, foo)' is false). Both bound, the
+  ;;; test, and for a class with an argument its value unified, and where
+  ;;; that fails "the other way around", as swipl tries it: the argument's
+  ;;; reverse, so `code_type(0'a, to_lower(0'a))' is true though to_lower(U)
+  ;;; of `a' is `A'. The character unbound and the argument bound, the
+  ;;; reverse alone: `code_type(C, upper(0'a))' is C = 0'A and no walk.
+  ;;; Anything else unbound answers -2, and the row's caller hands the goal
+  ;;; to the walk (`coco_walk').
+  (static)
+  (func coco_bi_ctype ((coco_engine * e) (size_t g) (int how)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t ch . #'(coco_a e g 0))
+              (size_t cl . #'(coco_a e g 1))
+              (int chv . 0) (int clv . 0) (int uc . #'(-> (-> e m) text_chars))
+              (i64 c . -1) (i64 ca . 0) (int k . -1) (int ar . 0) (int num . 0)
+              (int rv . 0) (int rc . 0))
+          (set chv (coco-tag-is REF (nth ch (-> m heap))))
+          (set clv (coco-tag-is REF (nth cl (-> m heap))))
+          (if (and chv clv)
+              (return (coco_raise_named e (coco_new_atom m "instantiation_error") "" "char_type" 2)))
+          (if (not chv)
+              (block
+               (set rc (coco_ct_getc e ch 1 (aof c)))
+               (if (!= rc 1) (return rc))
+               (if (< c 0) (return (? (coco_unify m cl (coco_new_atom m "end_of_file")) 1 0)))))
+          (if (not clv)
+              (block
+               (if (coco_is_callable m cl)
+                   (set k (coco_ct_find (coco_atom_name m (coco_name_of m cl)) (coco_arity m cl))))
+               (if (< k 0)
+                   (return (coco_raise_named e (coco_make2 m "type_error" (coco_new_atom m "char_type") cl)
+                                             "" "char_type" 2)))
+               (coco_ct_info k (aof ar) (aof num))))
+          (if (and (not chv) (not clv))
+              (block
+               (set rv (coco_ct_test k c uc))
+               (if (== ar 0) (return (? rv 1 0)))
+               (if (< rv 0) (return 0))
+               (set rc (? num
+                          (? (coco_unify m (coco_arg m cl 0) (coco_new_int m (cast i64 rv))) 1 0)
+                          (coco_ct_unify_char e (coco_arg m cl 0) (cast i64 rv) how)))
+               (if (!= rc 0) (return rc))))
+          (if (and (not clv) (== ar 1))
+              (let ((size_t a . #'(coco_deref m (coco_arg m cl 0))))
+                (if (not (coco-tag-is REF (nth a (-> m heap))))
+                    (block
+                     ;; decimal/1 has no reverse: swipl walks every code
+                     (if (== (coco_ct_reverse k 0 uc) -2) (return (? chv -2 0)))
+                     (set rc (coco_ct_getc e a 0 (aof ca)))
+                     (if (!= rc 1) (return rc))
+                     (set rv (coco_ct_reverse k ca uc))
+                     (if (< rv 0) (return 0))
+                     (return (coco_ct_unify_char e ch (cast i64 rv) how))))))
+          (return (? (or chv clv) -2 0))))
+
+  ;;; THE CLASS NM, of arity AR, with the value V: the atom, or NM(V), V a
+  ;;; number where NUM and otherwise a character as HOW names one
+  (static)
+  (func coco_ct_class ((coco_machine * m) (const char * nm) (int ar) (int num) (int v) (int how))
+        (out size_t)
+        (if (== ar 0) (return (coco_new_atom m nm)))
+        (return (coco_make1 m nm (? num (coco_new_int m (cast i64 v)) (coco_ct_char m (cast i64 v) how)))))
+
+  (func coco_bi_code_type ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_bi_ctype e g 0)))
+
+  (func coco_bi_char_type ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_bi_ctype e g 1)))
+
+  ;;; ONE STRETCH OF THE WALK, swipl's loop: from the code C (MODE 0, the
+  ;;; character unbound, class K) or from the class K (MODE 1, the type
+  ;;; unbound, the code C), the first that holds made the answer -- the
+  ;;; character unified, then the class -- and the WALK frame at CI left on
+  ;;; the next or gone, where this was the last code (U+10FFFF, or 255 for
+  ;;; char_type/2 under bytes, whose characters are bytes) or the last class,
+  ;;; as swipl's advanceGen() keeps its choice point: an answer short of the
+  ;;; last leaves one whatever comes after it. char_type/2 under characters
+  ;;; passes a surrogate by, as char_code/2 refuses to make one (swipl's
+  ;;; walk answers '\uD800'). The machine is at the frame's marks on the way
+  ;;; in, and back at them after a candidate that does not take. 1 an
+  ;;; answer, 0 none, the frame gone.
+  (static)
+  (func coco_ct_from ((coco_engine * e) (size_t g) (int how) (int mode) (int k) (i64 c) (size_t ci))
+        (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t ch . #'(coco_arg (-> e m) g 0))
+              (size_t cl . #'(coco_arg (-> e m) g 1))
+              (int uc . #'(-> (-> e m) text_chars))
+              (i64 last . #'(? (and how (not (-> (-> e m) text_chars))) 255 1114111))
+              (int nk . #'(coco-ct-count))
+              (size_t tmark . #'($ (cof (-> e m)) trail_len))
+              (size_t hmark . #'($ (cof (-> e m)) heap_len))
+              (const char * nm . nil) (int ar . 0) (int num . 0) (int rv . 0))
+          (set nm (coco_ct_info k (aof ar) (aof num)))
+          (while (? mode (< k nk) (<= c last))
+            (if mode (set nm (coco_ct_info k (aof ar) (aof num))))
+            (set rv (coco_ct_test k c uc))
+            (if (and (? (== ar 0) (!= rv 0) (>= rv 0))
+                     (not (and (and how uc) (and (>= c 55296) (<= c 57343)))))
+                (block
+                 (if (? mode (== k (- nk 1)) (== c last))
+                     (set (-> e nchoices) ci)
+                     (set ($ (nth ci (-> e choices)) clause_ix)
+                          (cast size_t (coco-ctw-pos how mode (? mode (+ k 1) k) (? mode c (+ c 1))))))
+                 (if (and (or mode (coco_unify m ch (coco_ct_char m c how)))
+                          (or (and (not mode) (== ar 0))
+                              (coco_unify m cl (coco_ct_class m nm ar num rv how))))
+                     (return 1))
+                 (coco_undo_to m tmark)
+                 (set (-> m heap_len) hmark)))
+            (if mode (set k (+ k 1)) (set c (+ c 1))))
+          (set (-> e nchoices) ci)
+          (return 0)))
+
+  ;;; ---- the walk (3.29.0; char_type/2 and code_type/2 since 3.30.0) ------
+
+  ;;; THE WALK, from the row's caller: the goal in flight (`kcall', which
+  ;;; the row's call set) whose row answered -2 -- arg/3's with its index
+  ;;; unbound (`coco_bi_arg'), or char_type/2's or code_type/2's with the
+  ;;; character or the type unbound (`coco_bi_ctype'). A walk that may
+  ;;; answer twice pushes its WALK frame first, at the machine's marks,
+  ;;; its continuation K, and its shadow says how the call was printed
+  ;;; (TPORT, for the retry's Redo); the caller prints the Call, Exit and
+  ;;; Fail ports and sets the continuation, as for the row's own answer.
+  ;;; One step and one inference, as the row's call was. 1, 0, or -1 for
+  ;;; no room for the frame, `err' said (`coco_fail_err'), so each caller's
+  ;;; own test of -1 serves it. THE FRAME KEEPS NO BARRIER (0): a retry
+  ;;; goes on to K, whose goals carry their own, and nothing reads a WALK
+  ;;; frame's. So the callers keep nothing live across the row's call that
+  ;;; they did not keep through 3.28.0: with the goal and the barrier for
+  ;;; this call after it, the step loop reloaded the engine twice a step,
+  ;;; and every builtin in place ran an instruction more
+  ;;; (`tools/flow/zero.sh').
+  (weak) (cold)
+  (func coco_walk ((coco_engine * e) (size_t k) (int tport)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t g . #'(-> e kcall))
+              (size_t a . #'(coco_deref (-> e m) (coco_arg (-> e m) (-> e kcall) 1)))
+              (int ct . #'(== (coco_arity (-> e m) (coco_deref (-> e m) (-> e kcall))) 2))
+              (u32 n . 0) (int how . 0) (int mode . 0) (int cls . 0) (i64 c . -1)
+              (size_t ci . 0))
+          (if ct
+              (block
+               (set how (== 0 (strcmp (coco_atom_name m (coco_name_of m (coco_deref m g))) "char_type")))
+               (set mode (coco-tag-is REF (nth a (-> m heap))))
+               ;; the row read both: neither raises here
+               (if mode
+                   (coco_ct_getc e (coco_arg m g 0) 1 (aof c))
+                   (set cls (coco_ct_find (coco_atom_name m (coco_name_of m a)) (coco_arity m a)))))
+              (set n (coco_arity m a)))
+          (if (or ct (> n 1))
+              (block
+               (if (not (coco_push_choice e COCO_CH_WALK g k 0))
+                   (return (coco_fail_err e "out of memory")))
+               (set ci (- (-> e nchoices) 1))
+               (set ($ (nth ci (-> e tchoices)) printr) tport)))
+          (if ct (return (coco_ct_from e g how mode cls c ci)))
+          (return (coco_arg_from e g 1 n (> n 1) ci))))
+
+  ;;; THE WALK FRAME AT CI RETRIED, the machine at its marks: on from the
+  ;;; position after the last answer's -- arg/3's place, or char_type/2's
+  ;;; and code_type/2's code or class (`coco-ctw-pos', bit 48) -- its Redo
+  ;;; first where the printer shows the call, or the region's it is hidden
+  ;;; in, as a DB frame's (`coco_trace_goal_own'), and its Exit or its Fail.
+  ;;; 1 with the continuation set, 0 with the frame gone.
+  (weak) (cold)
+  (func coco_walk_retry ((coco_engine * e) (size_t ci)) (out int)
+        (let ((size_t g . #'($ (nth ci (-> e choices)) call))
+              (size_t k . #'($ (nth ci (-> e choices)) goals))
+              (u64 w . #'(cast u64 ($ (nth ci (-> e choices)) clause_ix)))
+              (int tport . 0) (int td . 0) (int r . 0))
+          (if (-> e trace)
+              (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
+                (set tport (-> tc printr))
+                (set td (+ (-> tc depth) 1))
+                (set (-> e trace_goal) (-> tc goal))
+                (set (-> e trace_depth) (-> tc depth))
+                (if (== tport 1)
+                    (block (coco_trace_port e "Redo" td g)
+                           (coco_trace_reopen e ci td)))
+                (if (== tport 2) (coco_trace_goal_own e ci))))
+          (if (bitand (>> w 48) 1)
+              (set r (coco_ct_from e g (cast int (bitand (>> w 41) 1)) (cast int (bitand (>> w 40) 1))
+                                   (cast int (bitand (>> w 32) 255))
+                                   (- (cast i64 (bitand w 4294967295)) 1) ci))
+              (set r (coco_arg_from e g (cast u32 w)
+                                    (coco_arity (-> e m) (coco_deref (-> e m) (coco_arg (-> e m) g 1)))
+                                    1 ci)))
+          (if (== tport 1) (coco_trace_port e (? r "Exit" "Fail") td g))
+          (if r (set (-> e goals) k))
+          (return r)))
 
   ) ; impl-solve-text

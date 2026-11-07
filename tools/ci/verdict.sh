@@ -80,8 +80,13 @@ awk -v allowed=" $allowed " -v summary="$summary" -v rerun="$rerun" '
         if (index(allowed, " " c " ")) { state[k] = "SKIP"; skiplist = skiplist " " c }
         else {
           odd++; state[k] = "SKIP, not allowed here"
-          problems = problems "- **" c "**: SKIP, which this runner had no reason to take\n"
-          printf "::error title=suite::%s SKIPPED, and nothing on this runner should make it skip (its reason is in the rerun below)\n", c
+          # the reason test/run.pl writes under the line of a case that
+          # skipped (its first SKIP line, indented): the rerun alone may
+          # well not skip
+          why = extra; nl = index(why, "\n"); if (nl) why = substr(why, 1, nl - 1)
+          sub(/^ +/, "", why)
+          problems = problems "- **" c "**: SKIP, which this runner had no reason to take" (why != "" ? ": `" md(why) "`" : "") "\n"
+          printf "::error title=suite::%s SKIPPED, and nothing on this runner should make it skip (%s)\n", c, (why != "" ? why : "its reason is in the rerun below")
           print c > rerun
         }
       } else {

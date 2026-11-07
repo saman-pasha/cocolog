@@ -548,7 +548,7 @@ Read them in order — each leans on the one before.
 | [04-arithmetic](tutorials/basics/04-arithmetic.pl) | `is` vs `=`, and the evaluable functors |
 | [05-backtracking-and-cut](tutorials/basics/05-backtracking-and-cut.pl) | choice points, `!`, and the four shapes it appears in |
 | [06-findall-and-friends](tutorials/basics/06-findall-and-friends.pl) | `findall`, `bagof`, `setof`, `aggregate_all`, and the free-variable rule |
-| [07-assert-and-retract](tutorials/basics/07-assert-and-retract.pl) | a program that edits itself, and `retract/1`'s determinism |
+| [07-assert-and-retract](tutorials/basics/07-assert-and-retract.pl) | a program that edits itself, and a call -- `retract/1`'s too -- seeing the clauses that stood when it began |
 | [08-atoms-text-and-codes](tutorials/basics/08-atoms-text-and-codes.pl) | atoms, codes, and the string you have to ask for |
 | [09-exceptions](tutorials/basics/09-exceptions.pl) | failure is not an error; `catch/3`, `throw/1`, ISO error terms |
 | [10-grammars](tutorials/basics/10-grammars.pl) | `-->`, `phrase/2,3`, and a parser that also generates |
@@ -560,10 +560,10 @@ Five of them exist because cocolog differs, and each difference is
 checked by a `must/3` in the file that teaches it: `double_quotes`
 DEFAULTS to `codes`, so `"hi"` IS `[104,105]` in a file that does not set
 the flag (08); **every builtin is
-deterministic**, which retires the `retract(X), fail` loop (07), and the
-predicates that enumerate -- `between/3`, `atom_concat/3`'s (-,-,+) -- are
-clauses rather than builtins, because a choice point needs the engine's
-own stack (08); an integer stops at 64 bits,
+deterministic**, and the predicates that enumerate -- `between/3`,
+`atom_concat/3`'s (-,-,+) -- are clauses rather than builtins, because a
+choice point needs the engine's own stack (08; `retract/1` and `clause/2`
+are constructs that keep a frame of their own, since 3.28.0, 07); an integer stops at 64 bits,
 `int_overflow` past them where SWI goes on in a bignum (04), and a rational
 -- exact, `1r2`, since 2.5.0 -- stops where its numerator or denominator
 does, with SWI's whole arithmetic beside it (04); text is counted in characters as SWI counts it, and in bytes
@@ -651,9 +651,9 @@ $ ./cocolog run tutorials/basics/05-backtracking-and-cut.pl main
 
 **That last line did not work when it was written.** `once/1` and
 `ignore/1` did not exist, and `retractall/1` was written as a
-failure-driven loop — `retract(H), fail` — which retracts exactly ONE
-clause in an interpreter where every builtin is deterministic, and then
-reports success. Three bugs, found by documentation that runs, in a
+failure-driven loop — `retract(H), fail` — which retracted exactly ONE
+clause in an interpreter where every builtin was deterministic, and then
+reported success (retract/1 answers again since 3.28.0, as SWI's). Three bugs, found by documentation that runs, in a
 language whose own suite had never needed those predicates.
 
 ## A whole test suite is a cocolog script
@@ -1420,7 +1420,10 @@ and they printed 1 and 3 and left two. A clause retracted under an open call
 is marked dead where it stands, seen by the calls that were open and by no
 other, and taken out once no call is open on its predicate; an asserted one
 lies past the end every open call began with. `test/files/update_view.pl`
-holds 34 cases to swipl's text.
+holds 34 cases to swipl's text. **retract/1 and clause/2 walk the same view**
+since 3.28.0, as swipl's: `findall(X, retract(q(X)), L)` takes `[1,2,3]`,
+a clause one of them retracted since it began is still an answer, and one
+asserted is none (`test/files/retract_view.pl`, 42 cases).
 
 **And a resumed machine runs on the knowledge base as it is.** A frozen
 machine records no revision of the knowledge base, on purpose: the base is
@@ -2044,8 +2047,9 @@ what is known to be missing.
 
 **Where cocolog differs from SWI-Prolog and from ISO is one table:
 [COMPAT.md](COMPAT.md)** — every row checked by running the same goal on both,
-the ones that can give a silently different answer first (`retract/1` is
-deterministic, `number_codes/2` reads the number at the front of its text;
+the ones that can give a silently different answer first (`retract/1`
+takes a clause of a predicate nobody declared dynamic, `abolish/1` keeps the
+predicate known;
 since 2.0.0 integers stop at 64 bits with an error rather than wrapping, and
 text is counted in characters), and for each what to write instead.
 

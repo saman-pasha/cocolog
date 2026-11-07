@@ -57,17 +57,30 @@ w_churn(N) :-
     N1 is N - 1,
     w_churn(N1).
 
-%% a call that exits and is backtracked past with no clause left to try
-w_look(K, V) :- w_pairs(Ps), member(K-V, Ps).
+%% a call that exits and is backtracked past with no clause left to try,
+%% a program's own member/2 and its helper, as library(lists) writes them
+%% -- and the library's, whose helper the printer hides (3.27.0)
+w_look(K, V) :- w_pairs(Ps), w_mem(K-V, Ps).
 w_pairs([a-1, b-2]).
+w_mem(X, [H|T]) :- w_mem_(T, X, H).
+w_mem_(_, X, X).
+w_mem_([H|T], X, _) :- w_mem_(T, X, H).
+w_lib(K, V) :- w_pairs(Ps), member(K-V, Ps).
 
 %% heads the selection tries and heads the index passes over (1.11.2): a
 %% call keyed on its first argument tries only the clauses whose first
-%% argument could match it, and one unbound there tries them all
+%% argument could match it, and one unbound there is keyed on its second,
+%% as swipl's JIT index keys it (3.24.0) -- of w_kx/2 it cannot be, a clause
+%% leaving it unbound, and the call tries every clause
 w_kv(a, 3).
 w_kv(b, 2).
 w_kv(d, 3).
 w_kvs(K) :- w_kv(K, 3), K \== a.
+w_kx(a, 3).
+w_kx(b, 2).
+w_kx(d, 3).
+w_kx(c, _).
+w_kxs(K) :- w_kx(K, 3), K \== a.
 
 %% a list filled one element at a time; a loop; and a term made before
 %% collections, for a question asked after them (1.10.16)
@@ -156,7 +169,10 @@ clock_counted_file(N, Switches) :-
 %% ---- the recorder and the printer --------------------------------------
 %%
 %% THE RECORDER RECORDS THE PORTS THE PRINTER PRINTS, and the printer is
-%% held to SWI's by the trace case. A retry prints its Redo only once it
+%% held to SWI's by the trace case -- but the calls the printer hides
+%% (3.27.0: a library predicate's helpers and the builtins a library
+%% calls, as swipl's tracer hides them), which a window records for
+%% library(flow/debug)'s charts and profiles. A retry prints its Redo only once it
 %% enters a clause: through 1.10.12 a window recorded one as every retry
 %% began, so a call that had exited and was backtracked past with no clause
 %% left -- which goes quietly -- showed a Redo the printer never printed,
@@ -173,12 +189,28 @@ printed :-
     check('the trace case''s 33 queries: the same ports, at the same depths, of the same goals', Off1, []),
     scratch(D),
     atom_concat(D, '/look.pl', F),
-    fixture(F, [ 'w_look(K, V) :- w_pairs(Ps), member(K-V, Ps).', 'w_pairs([a-1, b-2]).' ]),
+    %% the program's own member/2 and its helper, as library(lists) writes
+    %% them: the printer hides a library's helpers (3.27.0, below)
+    fixture(F, [ 'w_look(K, V) :- w_pairs(Ps), w_mem(K-V, Ps).', 'w_pairs([a-1, b-2]).',
+                 'w_mem(X, [H|T]) :- w_mem_(T, X, H).', 'w_mem_(_, X, X).',
+                 'w_mem_([H|T], X, _) :- w_mem_(T, X, H).',
+                 'w_lib(K, V) :- w_pairs(Ps), member(K-V, Ps).' ]),
     recorded_ports(w_look(z, _), R2),
     printed_ports(F, w_look(z, _), P2),
     check('a call that exited and is backtracked past with no clause left goes quietly in both',
-          R2-P2, P2-[ call-0-w_look, call-1-w_pairs, exit-1-w_pairs, call-1-member, call-2-member,
-                      call-3-member, fail-3-member, fail-2-member, fail-1-member, fail-0-w_look ]),
+          R2-P2, P2-[ call-0-w_look, call-1-w_pairs, exit-1-w_pairs, call-1-w_mem, call-2-w_mem_,
+                      call-3-w_mem_, fail-3-w_mem_, fail-2-w_mem_, fail-1-w_mem, fail-0-w_look ]),
+    %% A LIBRARY'S HELPERS ARE THE RECORDER'S, NOT THE PRINTER'S (3.27.0):
+    %% `--trace' prints member/2's call and none of the calls it makes, as
+    %% swipl's tracer hides them, where a window records every call --
+    %% library(flow/debug) charts and profiles them
+    recorded_ports(w_lib(z, _), R3),
+    printed_ports(F, w_lib(z, _), P3),
+    check('a library''s helpers are recorded in a window and not printed',
+          R3-P3, [ call-0-w_lib, call-1-w_pairs, exit-1-w_pairs, call-1-member, call-2-'$member_',
+                   call-3-'$member_', fail-3-'$member_', fail-2-'$member_', fail-1-member, fail-0-w_lib ]-
+                 [ call-0-w_lib, call-1-w_pairs, exit-1-w_pairs, call-1-member, fail-1-member,
+                   fail-0-w_lib ]),
     shl(['rm -rf ', D]).
 
 %% Port-Depth-Name, each depth from the first port's
@@ -357,11 +389,13 @@ window :-
     section('answers, exceptions and texts'),
     '$trace_window'(w_pick(_), [from(1), answers(2)], Es7, End7),
     check('answers(2): the run goes on to the second answer, and says where each came',
-          End7, end(answer, 9, [6, 9])),
+          End7, end(answer, 10, [7, 10])),
     maplist(win_key, Es7, Ks7),
     win_kinds(Ks7, redo, Redo7),
-    check('the Redo of member/2 after 1 > 1 fails, and after the first answer',
-          Redo7, [redo(3, member, ['_', '[1,2,3]']), redo(6, member, ['_', '[2,3]'])]),
+    %% member/2's answers are '$member_'/3's since 3.22.0, the list's rest
+    %% its first argument, as swipl's lists:member_/3
+    check('the Redo of member/2''s helper after 1 > 1 fails, and after the first answer',
+          Redo7, [redo(4, '$member_', ['[2,3]', '_', '1']), redo(7, '$member_', ['[3]', '_', '2'])]),
     '$trace_window'(w_safe(_), [from(1)], Es8, End8),
     maplist(win_key, Es8, Ks8),
     win_kinds(Ks8, throw, Th8), win_kinds(Ks8, catch, Ca8),
@@ -412,21 +446,30 @@ window :-
 
 tried :-
     section('the heads a window records are the ones the selection tried'),
-    win_keys(w_kv(_, 2), K1),
-    check('w_kv(K, 2): K unbound, so every clause is tried -- w_kv(a, 3) did not match, w_kv(b, 2) entered and bound K',
-          K1, [call(1, w_kv, ['_', '2']), nohead(1, 1), clause(1, 2), exit(1, w_kv, [b, '2'])]),
+    win_keys(w_kx(_, 2), K1),
+    check('w_kx(K, 2): K unbound and no argument chooses, so every clause is tried -- w_kx(a, 3) did not match, w_kx(b, 2) entered and bound K',
+          K1, [call(1, w_kx, ['_', '2']), nohead(1, 1), clause(1, 2), exit(1, w_kx, [b, '2'])]),
+    win_keys(w_kv(_, 2), K1b),
+    check('w_kv(K, 2): K unbound, so the call is keyed on its second argument -- w_kv(a, 3) passed over, not recorded (3.24.0)',
+          K1b, [call(1, w_kv, ['_', '2']), clause(1, 2), exit(1, w_kv, [b, '2'])]),
     win_keys(w_kv(d, _), K2),
     check('w_kv(d, V): the index passes over the clauses for a and b, and they are not recorded',
           K2, [call(1, w_kv, [d, '_']), clause(1, 3), exit(1, w_kv, [d, '3'])]),
     win_keys(w_kv(e, _), K3),
     check('w_kv(e, V): no clause is for e -- none tried, none recorded, and the call fails',
           K3, [call(1, w_kv, [e, '_']), fail(1, w_kv, [e, '_'])]),
-    win_keys(w_kvs(_), K4),
+    win_keys(w_kxs(_), K4),
     win_kinds(K4, redo, R4),
-    append(_, [redo(I4, w_kv, ['_', '3'])|After4], K4),
+    append(_, [redo(I4, w_kx, ['_', '3'])|After4], K4),
     win_first(3, After4, Next4),
-    check('a retry: w_kv(K, 3) again with K unbound -- w_kv(b, 2) tried and not matched, w_kv(d, 3) entered',
-          R4-Next4, [redo(I4, w_kv, ['_', '3'])]-[nohead(I4, 2), clause(I4, 3), exit(I4, w_kv, [d, '3'])]),
+    check('a retry: w_kx(K, 3) again with K unbound -- w_kx(b, 2) tried and not matched, w_kx(d, 3) entered',
+          R4-Next4, [redo(I4, w_kx, ['_', '3'])]-[nohead(I4, 2), clause(I4, 3), exit(I4, w_kx, [d, '3'])]),
+    win_keys(w_kvs(_), K4b),
+    win_kinds(K4b, redo, R4b),
+    append(_, [redo(I4b, w_kv, ['_', '3'])|After4b], K4b),
+    win_first(2, After4b, Next4b),
+    check('a retry keyed on the second argument: w_kv(b, 2) passed over, w_kv(d, 3) entered (3.24.0)',
+          R4b-Next4b, [redo(I4b, w_kv, ['_', '3'])]-[clause(I4b, 3), exit(I4b, w_kv, [d, '3'])]),
     forall(between(1, 10000, I5), ( atom_concat(k, I5, A5), assertz(w_many(A5, I5)) )),
     '$trace_window'(w_many(k9999, _), [from(1)], Es5, _),
     length(Es5, N5),
@@ -621,11 +664,15 @@ w_pk(a). w_pk(b). w_pk(c).
 w_rt :- w_pk(X), X == c.
 w_rs :- w_pk(X), numlist(1, 20000, _), X == c.
 w_rtf(L) :- findall(X, ( w_pk(X), X \== a ), L).
-w_pm(X, n) :- between(1, 20000, X).
-w_pm(none, m).
-w_rtb(L) :- findall(X, w_pm(X, n), L).
-w_pq(a, n). w_pq(b, m).
-w_rte :- w_pq(X, n), X == z.
+%% w_pm/2's and w_pq/2's heads differ inside a compound both share, which
+%% no index looks into (COMPAT.md): keyed on n and m, as through 3.23.0,
+%% their calls are keyed on the second argument since 3.24.0 and their
+%% second clause is never tried
+w_pm(X, s(n)) :- between(1, 20000, X).
+w_pm(none, s(m)).
+w_rtb(L) :- findall(X, w_pm(X, s(n)), L).
+w_pq(a, s(n)). w_pq(b, s(m)).
+w_rte :- w_pq(X, s(n)), X == z.
 w_rtn(0) :- !.
 w_rtn(N) :- w_rt, N1 is N - 1, w_rtn(N1).
 
@@ -661,8 +708,8 @@ retried :-
             NDs3),
     msort(NDs3, [N3-D3|_]),
     ( N3 * 100 < D3 -> R3 = apart ; R3 = N3-D3 ),
-    check('a retry pending as findall/3''s search ends ends there: between/3''s 20 000 and w_pm/2''s last, a hundredth of findall''s time at most (the least of three runs)',
-          NR3-Pm3-R3, 20001-[2]-apart),
+    check('a retry pending as findall/3''s search ends ends there: between/3''s 19 999 (its last answer leaves no choice point) and w_pm/2''s last, a hundredth of findall''s time at most (the least of three runs)',
+          NR3-Pm3-R3, 20000-[2]-apart),
     %% ... and one pending when the run fails ends with the run
     w_retries(w_rte, [time(1, 0)], E4, Rs4, _),
     check('a retry pending when the run fails ends with it',
@@ -755,17 +802,18 @@ run_timed :-
           E1-Rd1-N1-Ks1-Sum1, end(answer, 9, [9])-6-512-[none-1-0, !/0-1-0, w_cnt/1-4-0]-adds_up),
     w_rt_rows(w_fa(_), E2, _, Ks2, Sum2),
     check('into findall/3''s engine and out: every inner step its goal''s, the first too, and each answer handed back a step of none',
-          E2-Ks2-Sum2, end(answer, 10, [10])-[none-4-0, findall/3-1-0, member/2-4-retried, w_fa/1-1-0]-adds_up),
+          E2-Ks2-Sum2, end(answer, 10, [10])-[none-4-0, '$member_'/3-3-retried, findall/3-1-0, member/2-1-0, w_fa/1-1-0]-adds_up),
     %% 20 000 answers copied into the store and the list built of them at
     %% the end are findall/3's own, after the inner engine's last step: some
     %% 2 ms, where the 20 001 answers handed back are some 0.8
     w_rt_rows(w_big(_), _, R3, Ks3, Sum3),
     w_rt_ns(R3, findall/3, F3), w_rt_ns(R3, none, A3),
     ( F3 > A3 -> C3 = own ; C3 = F3-A3 ),
-    %% between/3's answers are '$between_up'/3's since 3.0.0, which checks
-    %% nothing: between/3 checks once, and its one step goes on there
-    ( memberchk('$between_up'/3-S3-T3, Ks3) -> true ; S3 = 0, T3 = 0 ),
-    check('findall/3''s copies are its own, not the answers'': its time over none''s, between/3''s 20 000 steps retried in ''$between_up''/3',
+    %% between/3's answers are a helper's since 3.0.0, which checks
+    %% nothing: between/3 checks once, and its one step goes on there --
+    %% '$between_n'/3 since 3.22.0, which counts the answers down
+    ( memberchk('$between_n'/3-S3-T3, Ks3) -> true ; S3 = 0, T3 = 0 ),
+    check('findall/3''s copies are its own, not the answers'': its time over none''s, between/3''s 20 000 steps retried in ''$between_n''/3',
           C3-S3-T3-Sum3, own-20000-retried-adds_up),
     %% THE BEST OF FIVE PROBES: findall/3's copies are some 0.85 ms and
     %% member/2's three steps some 1.5 us, so one interruption of those

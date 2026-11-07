@@ -347,6 +347,7 @@ findings :-
     findings_load(D),
     findings_near(D),
     findings_bar(D),
+    findings_det_at(D),
     findings_include(D),
     %% the table of calls the engine refuses unbound: every example raises,
     %% and for its unbound argument -- since 3.0.0 a code list is no text
@@ -443,7 +444,19 @@ findings_near(D) :-
     flow_findings(G22, [finding(_, unknown_procedure, _, _, _, _, T22, _)]),
     yes_no(sub_atom(T21, _, _, _, 'did you mean fooo_baz/1?'), Y21),
     yes_no(sub_atom(T22, _, _, _, 'did you mean'), Y22),
-    check('a near name is the chart''s own: fooo_baz/1 for the first program, nothing for the second', Y21-Y22, yes-no).
+    check('a near name is the chart''s own: fooo_baz/1 for the first program, nothing for the second', Y21-Y22, yes-no),
+    %% a construct a program calls by name is a near name too: retract/1
+    %% and clause/2 are constructs since 3.28.0, where they were a C row and
+    %% a library clause, and a slip of either is still told what it meant
+    atomic_list_concat([D, '/near23.pl'], NF23),
+    fixture(NF23, ['go23 :- retrakt(x), clausee(y, _).']),
+    flow_graph(go23, G23, [source(NF23)]),
+    flow_findings(G23, Fs23),
+    findall(W23, ( member(finding(_, unknown_procedure, _, _, _, _, T23, _), Fs23),
+                   (   sub_atom(T23, _, _, _, 'did you mean retract/1?') -> W23 = retract
+                   ;   sub_atom(T23, _, _, _, 'did you mean clause/2?') -> W23 = clause
+                   ;   W23 = none ) ), Ws23),
+    check('a slip of retract/1 or clause/2 is told the construct it meant', Ws23, [retract, clause]).
 
 %% a body's bar is its disjunction (cocolog 3.2.0): the reader reads
 %% '|'(A, B), and the chart reads a body's and a findall/3 goal's as `;',
@@ -467,6 +480,62 @@ findings_bar(D) :-
     flow_term_full(m((a | b)), [], 1200, T25),
     flow_term_full((a xor b) * 2, [], 1200, T26),
     check('a box writes the bar at 1105 and xor at 400', T25-T26, 'm((a | b))'-'a xor b * 2').
+
+%% $(G) AND G@M ARE CONTROL (cocolog 3.20.0), as the engine runs them: the
+%% chart walks G where it stands -- placed, a bar in it a disjunction, what
+%% it asserts declared -- and the unknowns are the goals inside, never $/1
+%% or @/2, through 3.19.5's chart calls of predicates nothing defined;
+%% $(G) is deterministic and never fails (a G that fails or leaves a
+%% choice point raises), G@M is as its G is; and each is drawn with its
+%% note
+findings_det_at(D) :-
+    atomic_list_concat([D, '/detat25.pl'], DF),
+    fixture(DF, ['god25(X) :- $(p25(X)), @(nope25(X), m), $(nope26).',
+                 'goe25(X) :- $(( X = 1 | X = 2 )), $(assertz(t25(X))), t25(X),',
+                 '    @(( X = 1 | X = 2 ), m), @(assertz(t26(X)), m), t26(X).',
+                 'gof25(X) :- @(q25(X), m).',
+                 'gog25(X) :- $(q25(X)).',
+                 'p25(1).', 'q25(1).', 'q25(2).',
+                 'goh25(X) :- $, q25(X).',
+                 'goi25(1) :- ($).', 'goi25(2).']),
+    flow_graph(god25('-'), G1, [source(DF)]),
+    flow_findings(G1, Fs1),
+    findall(T1-L1:C1, member(finding(_, unknown_procedure, _, _, _, where(_, L1, C1), T1, _), Fs1), Ts1),
+    check('$(G) and G@M walked: the unknowns are the goals inside, where they stand',
+          Ts1, ['nope25/1 is defined nowhere: no clause, builtin, module or dynamic declaration answers it, so this call raises existence_error'-1:26,
+                'nope26/0 is defined nowhere: no clause, builtin, module or dynamic declaration answers it, so this call raises existence_error'-1:43]),
+    flow_graph(goe25('-'), G2, [source(DF)]),
+    flow_findings(G2, Fs2),
+    check('a bar inside $(G) and G@M is a disjunction, and what each asserts is declared', Fs2, []),
+    flow_graph(gof25('-'), graph(_, _, P3, _, _), [source(DF)]),
+    flow_graph(gog25('-'), graph(_, _, P4, _, _), [source(DF)]),
+    flow_graph(gog25('+'), graph(_, _, P5, _, _), [source(DF)]),
+    findall(K3-Det3, ( member(panel(I3, K3, _, _, _, _, Det3, _), P3), I3 > 0, K3 == gof25/1 ), D3),
+    findall(K4-Det4, ( member(panel(I4, K4, _, _, _, _, Det4, _), P4), I4 > 0, K4 == gog25/1 ), D4),
+    findall(K5-Det5, ( member(panel(I5, K5, _, _, _, _, Det5, _), P5), I5 > 0, K5 == gog25/1 ), D5),
+    check('G@M is as its goal (q25/1 two answers), $(G) deterministic, and never fails though its goal can',
+          D3-D4-D5, [gof25/1-nondet]-[gog25/1-det]-[gog25/1-det]),
+    flow_svg(G1, Svg),
+    xml_codes(Svg, SvgCs, [header(true)]),
+    atom_codes(SvgA, SvgCs),
+    yes_no(( sub_atom(SvgA, _, _, _, 'one solution and no choice point, or an error'),
+             sub_atom(SvgA, _, _, _, 'as its goal, in the module named') ), Y5),
+    check('each is drawn with its note', Y5, yes),
+    %% $/0 (3.21.0) is a cut, and past it the clause is deterministic: it
+    %% succeeds once, or raises -- through 3.20.0 a call nothing defined
+    flow_graph(goh25('-'), G6, [source(DF)]),
+    flow_findings(G6, Fs6),
+    check('$/0 is control: no finding of the clause that holds it', Fs6, []),
+    G6 = graph(_, _, P6, _, _),
+    flow_graph(goi25('-'), G7, [source(DF)]),
+    G7 = graph(_, _, P7, _, _),
+    findall(K6-Det6, ( member(panel(I6, K6, _, _, _, _, Det6, _), P6), I6 > 0, K6 == goh25/1 ), D6),
+    findall(K7-Det7, ( member(panel(I7, K7, _, _, _, _, Det7, _), P7), I7 > 0, K7 == goi25/1 ), D7),
+    check('past $/0 a clause is deterministic (q25/1 has two answers), and $/0 commits as ! does',
+          D6-D7, [goh25/1-det]-[goi25/1-det]),
+    flow_findings(G7, Fs7),
+    findall(W7, member(finding(_, W7, _, _, _, _, _, _), Fs7), Ws7),
+    check('a clause after one that $/0 commits is never tried', Ws7, [unreachable_clause]).
 
 %% AN INCLUDED FILE IS READ WHERE ITS INCLUDE STANDS (3.13.1), as the
 %% engine reads it and as swipl's include/1 is textual: its predicates are

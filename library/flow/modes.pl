@@ -51,6 +51,7 @@ flow_mode(plus, 3, ['?', '?', '?'], semidet).
 flow_mode(functor, 3, ['+', '-', '-'], det).
 flow_mode(functor, 3, ['-', '+', '+'], det).
 flow_mode(arg, 3, ['+', '+', '?'], semidet).
+flow_mode(arg, 3, ['-', '+', '?'], nondet).
 flow_mode(setarg, 3, ['+', '+', '?'], semidet).
 flow_mode(nb_setarg, 3, ['+', '+', '?'], semidet).
 flow_mode('=..', 2, ['+', '-'], det).
@@ -94,8 +95,10 @@ flow_mode(read, 1, ['-'], det).
 flow_mode(assertz, 1, ['+'], det).
 flow_mode(asserta, 1, ['+'], det).
 flow_mode(assert, 1, ['+'], det).
-flow_mode(retract, 1, ['?'], semidet).
+%% re-executable, each answer a clause that stood when the walk began (3.28.0)
+flow_mode(retract, 1, ['?'], nondet).
 flow_mode(retractall, 1, ['?'], det).
+flow_mode(clause, 2, ['+', '?'], nondet).
 flow_mode(nb_setval, 2, ['+', '+'], det).
 flow_mode(nb_getval, 2, ['+', '-'], det).
 flow_mode(b_setval, 2, ['+', '+'], det).
@@ -420,7 +423,6 @@ flow_raises_unbound(name, 2, [1, 2], name(_, _)).
 flow_raises_unbound(split_string, 4, [1], split_string(_, "", "", _)).
 flow_raises_unbound(functor, 3, [1, 3], functor(_, f, _)).
 flow_raises_unbound(functor, 3, [1, 2], functor(_, _, 2)).
-flow_raises_unbound(arg, 3, [1], arg(_, f(a), _)).
 flow_raises_unbound(arg, 3, [2], arg(1, _, _)).
 flow_raises_unbound(setarg, 3, [1], setarg(_, f(a), b)).
 flow_raises_unbound(setarg, 3, [2], setarg(1, _, b)).
@@ -449,13 +451,14 @@ flow_raises_unbound(between, 3, [1], between(_, 3, _)).
 flow_raises_unbound(between, 3, [2], between(1, _, _)).
 flow_raises_unbound(numlist, 3, [1], numlist(_, 3, _)).
 flow_raises_unbound(numlist, 3, [2], numlist(1, _, _)).
-flow_raises_unbound(char_type, 2, [1], char_type(_, alpha)).
-flow_raises_unbound(code_type, 2, [1], code_type(_, alpha)).
+flow_raises_unbound(char_type, 2, [1, 2], char_type(_, _)).
+flow_raises_unbound(code_type, 2, [1, 2], code_type(_, _)).
 flow_raises_unbound(throw, 1, [1], throw(_)).
 flow_raises_unbound(assertz, 1, [1], assertz(_)).
 flow_raises_unbound(asserta, 1, [1], asserta(_)).
 flow_raises_unbound(assert, 1, [1], assert(_)).
 flow_raises_unbound(retract, 1, [1], retract(_)).
+flow_raises_unbound(clause, 2, [1], clause(_, _)).
 
 %% ARITHMETIC evaluates every variable in an expression: is/2's second
 %% argument, and both sides of a comparison

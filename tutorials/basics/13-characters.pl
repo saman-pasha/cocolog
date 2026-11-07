@@ -71,6 +71,18 @@ main :-
     ( char_type('ß', alpha) -> Alpha = yes ; Alpha = no ),
     must('and a letter past ASCII is alpha', Alpha, yes),
 
+    format("~n-- an unbound character or class is walked, as SWI's is~n"),
+    findall(T, char_type(a, T), Classes),
+    must('char_type(a, T): the classes of a, in SWI\'s order', Classes,
+         [alnum, alpha, csym, csymf, prolog_atom_start, prolog_identifier_continue,
+          csymf, ascii, print, graph, lower, lower('A'), to_lower('A'), to_upper(a),
+          xdigit(10)]),
+    findall(C-W, char_type(C, digit(W)), Digits),
+    must('char_type(C, digit(W)): every code point asked, ten digits', Digits,
+         ['0'-0, '1'-1, '2'-2, '3'-3, '4'-4, '5'-5, '6'-6, '7'-7, '8'-8, '9'-9]),
+    aggregate_all(count, char_type(_, upper), Capitals),
+    must('and the capitals of every script, as glibc\'s C.UTF-8 says', Capitals, 1982),
+
     format("~n-- the reader reads characters too~n"),
     Quoted = "dár",
     must('"dár" in this file', Quoted, [100, 225, 114]),

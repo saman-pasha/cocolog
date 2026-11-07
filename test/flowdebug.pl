@@ -118,11 +118,14 @@ placed(D) :-
     section('each call of a run is the box it is in the chart, and enters the panel it calls'),
     debugged(D, top5, top(5, Y1), ['Y'=Y1], [], R1),
     calls(R1, C1),
+    %% member/2's answers are its helper's since 3.22.0, '$member_'/3, and
+    %% the last leaves no choice point: each call exits, and none is asked
+    %% again to fail
     check('top(5, Y): the then, \\+ over a call that fails, findall/3 over member/2, each call its box',
           C1, [ top/2-'query.g1'-p1-exit, (>)/2-'p1.c1.g1.a1.if.g1'-none-exit,
                 pos/2-'p1.c1.g1.a1.g1'-p2-exit, bad/1-'p1.c1.g2.g1'-p4-fail,
-                findall/3-'p1.c1.g3'-none-exit, member/2-'p1.c1.g3.g1'-none-fail,
-                member/2-none-none-fail, member/2-none-none-fail ]),
+                findall/3-'p1.c1.g3'-none-exit, member/2-'p1.c1.g3.g1'-none-exit,
+                '$member_'/3-none-none-exit, '$member_'/3-none-none-exit ]),
     R1 = run(How1, At1, Ats1, W1, Calls1, _, Div1, J1),
     metered(top(5, _), U1),
     check('...it answers where the untraced run does, recorded whole, as the probe ran, with no journal',
@@ -142,8 +145,8 @@ control(D) :-
           C2, [ top/2-'query.g1'-p1-exit, (>)/2-'p1.c1.g1.a1.if.g1'-none-fail,
                 neg/2-'p1.c1.g1.else.g1'-p3-exit, (=:=)/2-'p3.c1.g1.b1.g1'-none-fail,
                 (is)/2-'p3.c1.g1.b2.g1'-none-exit, bad/1-'p1.c1.g2.g1'-p4-fail,
-                findall/3-'p1.c1.g3'-none-exit, member/2-'p1.c1.g3.g1'-none-fail,
-                member/2-none-none-fail, member/2-none-none-fail ]),
+                findall/3-'p1.c1.g3'-none-exit, member/2-'p1.c1.g3.g1'-none-exit,
+                '$member_'/3-none-none-exit, '$member_'/3-none-none-exit ]),
     debugged(D, twice, twice(A3, B3), ['A'=A3, 'B'=B3], [], R3),
     calls(R3, C3),
     check('twice(A, B): one predicate twice in a clause, each call its own box, one panel',
@@ -154,7 +157,12 @@ control(D) :-
     check('choose(-1): after the condition fails the call is the else''s, though the then''s comes first',
           C4, [ choose/1-'query.g1'-p1-exit, (>)/2-'p1.c1.g1.a1.if.g1'-none-fail,
                 inc/2-'p1.c1.g1.else.g1'-p2-exit, (is)/2-'p2.c1.g1'-none-exit,
-                inc/2-'p1.c1.g2'-p2-exit, (is)/2-'p2.c1.g1'-none-exit ]).
+                inc/2-'p1.c1.g2'-p2-exit, (is)/2-'p2.c1.g1'-none-exit ]),
+    %% $/0 (3.21.0) makes no call: the call after it is the box after it
+    debugged(D, guarded, guarded(Y5), ['Y'=Y5], [], R5),
+    calls(R5, C5),
+    check('guarded(Y): $/0 makes no call, and the call after it is the box after it',
+          C5, [ guarded/1-'query.g1'-p1-exit, inc/2-'p1.c1.g2'-p2-exit, (is)/2-'p2.c1.g1'-none-exit ]).
 
 %% ---- the values that crossed --------------------------------------------
 
@@ -162,10 +170,12 @@ bindings(D) :-
     section('the values that crossed into the variables the source names'),
     debugged(D, top5b, top(5, Y1), ['Y'=Y1], [], R1),
     binds(R1, B1),
-    check('top(5, Y): X given to the test, Y bound by pos/2, Z = 1 undone at a Redo and Z = 2 as member/2 failed',
+    %% the retry that undoes Z = 1 is member/2's helper's since 3.22.0, a
+    %% call of no box, and Z = 2 its last answer: member/2's box exits twice
+    %% (a redo and a fail at a box: mem/2's, below)
+    check('top(5, Y): X given to the test, Y bound by pos/2, Z = 1 and then Z = 2 as member/2 exits again',
           B1, [ call-'X'-'5'-'p1.c1.g1.a1.if.g1', exit-'Y'-'5'-'p1.c1.g1.a1.g1',
-                exit-'Z'-'1'-'p1.c1.g3.g1', redo-'Z'-'1'-'p1.c1.g3.g1',
-                exit-'Z'-'2'-'p1.c1.g3.g1', fail-'Z'-'2'-'p1.c1.g3.g1',
+                exit-'Z'-'1'-'p1.c1.g3.g1', exit-'Z'-'2'-'p1.c1.g3.g1',
                 exit-'Y'-'5'-'query.g1' ]),
     debugged(D, topm3b, top(-3, Y2), ['Y'=Y2], [], R2),
     binds(R2, B2),
@@ -182,12 +192,25 @@ bindings(D) :-
                  exit-'A'-'2'-'query.g1', exit-'B'-'3'-'query.g1' ]),
     debugged(D, pick, pick(X4), ['X'=X4], [], R4),
     binds(R4, B4),
-    check('pick(X): X = 1 made, undone at the redo when 1 > 1 fails, X = 2 made, answered',
-          B4, [ exit-'X'-'1'-'p1.c1.g1', redo-'X'-'1'-'p1.c1.g1', exit-'X'-'2'-'p1.c1.g1',
-                exit-'X'-'2'-'query.g1' ]),
+    check('pick(X): X = 1 made, undone when 1 > 1 fails by a retry of member/2''s helper, X = 2 made, answered',
+          B4, [ exit-'X'-'1'-'p1.c1.g1', exit-'X'-'2'-'p1.c1.g1', exit-'X'-'2'-'query.g1' ]),
     R4 = run(_, _, _, _, Calls4, _, _, _),
     findall(F, member(call(_, _, _, _, 'p1.c1.g2', _, _, _, _, F), Calls4), F4),
-    check('...the test called twice at its box: failed, then exited', F4, [fail, exit]).
+    check('...the test called twice at its box: failed, then exited', F4, [fail, exit]),
+    %% a redo and a fail at a box: the program's own mem/2, member/2 as it
+    %% was written through 3.21 -- its choice point the frame of the call
+    %% the box is
+    debugged(D, pickmem, pick_mem(X5), ['X'=X5], [], R5),
+    binds(R5, B5),
+    check('pick_mem(X): X = 1 made, undone at the redo when 1 > 1 fails, the recursion given [2,3], X = 2 made in it and handed up, answered',
+          B5, [ exit-'X'-'1'-'p1.c1.g1', redo-'X'-'1'-'p1.c1.g1', call-'T'-'[2,3]'-'p2.c2.g1',
+                exit-'X'-'2'-'p2.c2.g1', exit-'X'-'2'-'p1.c1.g1', exit-'X'-'2'-'query.g1' ]),
+    debugged(D, allmem, all_mem, [], [], R6),
+    binds(R6, B6),
+    check('all_mem: findall/3 over mem/2, Z = 1 undone at a Redo, Z = 2 from the recursion, undone at its own Redo, and Z = 2 as mem/2 failed',
+          B6, [ exit-'Z'-'1'-'p1.c1.g1.g1', redo-'Z'-'1'-'p1.c1.g1.g1', call-'T'-'[2]'-'p2.c2.g1',
+                exit-'X'-'2'-'p2.c2.g1', exit-'Z'-'2'-'p1.c1.g1.g1', redo-'X'-'2'-'p2.c2.g1',
+                call-'T'-'[]'-'p2.c2.g1', fail-'Z'-'2'-'p1.c1.g1.g1' ]).
 
 %% ---- exceptions -----------------------------------------------------------
 
@@ -223,8 +246,8 @@ failing(D) :-
     calls(R7, C7),
     check('find(z, V): member/2 finds no z-V and every call above it fails; pairs/1 had exited',
           C7, [ find/2-'query.g1'-p1-fail, lookup/2-'p1.c1.g1'-p2-fail, pairs/1-'p2.c1.g1'-p3-exit,
-                member/2-'p2.c1.g2'-none-fail, member/2-none-none-fail, member/2-none-none-fail,
-                member/2-none-none-fail ]),
+                member/2-'p2.c1.g2'-none-fail, '$member_'/3-none-none-fail, '$member_'/3-none-none-fail,
+                '$member_'/3-none-none-fail ]),
     binds(R7, B7),
     check('...K given twice, once to each clause that reads it, and Ps made by pairs/1',
           B7, [ call-'K'-z-'p1.c1.g1', exit-'Ps'-'[a-1,b-2,c-3]'-'p2.c1.g1', call-'K'-z-'p2.c1.g2' ]),
@@ -450,8 +473,8 @@ asked_when(D) :-
     flow_when(pick(P5), P5 == 1, [source(F)], W5),
     flow_when(pick(P6), P6 == 1, [source(F), step(1)], W6),
     ( W6 = at(I6) -> call_at(D, at6, pick(_), I6, C6) ; C6 = W6 ),
-    check('pick(X): X = 1 is undone by backtracking, so not where the run ends -- never; asked at every step, member/2''s call made it so',
-          W5-C6, never-(member/2-['_', '[1,2,3]'])),
+    check('pick(X): X = 1 is undone by backtracking, so not where the run ends -- never; asked at every step, member/2''s helper''s call made it so',
+          W5-C6, never-('$member_'/3-['[2,3]', '_', '1'])),
     atom_concat(D, '/whenw', B7),
     flow_when(fill(L7), (nth1(5, L7, X7), X7 == 5), [source(F), base(B7), window(10)], W7),
     atom_concat(B7, '.xml', XF7),
@@ -503,8 +526,8 @@ asked_why(D) :-
                    x_el(Xr, call, Cs), memberchk(n=Cr, Cs), memberchk(pred=P, Cs),
                    ( memberchk(exited=E, Ar) -> true ; E = none ) ),
             R5r),
-    check('...a redo says whether its call had exited: member/2 in pick(X) had, classify/2 had not',
-          R5r, ['member/2'-true, 'classify/2'-false]),
+    check('...a redo says whether its call had exited: member/2''s helper in pick(X) had, classify/2 had not',
+          R5r, ['\'$member_\'/3'-true, 'classify/2'-false]),
     debugged(D, whyok, top(5, Y4), ['Y'=Y4], [], R4),
     flow_why(R4, W4),
     atom_concat(D, '/whyok.xml', XF4),
@@ -513,7 +536,23 @@ asked_why(D) :-
     ( x_el(X4, why, _) -> Y4w = said ; Y4w = none ),
     ( W4 = [exited(1, top/2, _, _)] -> W4s = exited ; W4s = W4 ),
     check('a run that answered: its top call exited, and no <why>', W4s-Y4w, exited-none),
-    asked_why_own(D).
+    asked_why_own(D),
+    asked_why_det(D).
+
+%% $(G) AND G@M ARE CONTROL (3.20.0): no port of their own, as once/1, and
+%% each call in them matched to its box inside
+asked_why_det(D) :-
+    atomic_list_concat([D, '/det10.pl'], F10),
+    fixture(F10, ['l10(1).', 'l10b(1).', 't10 :- $(l10(X)), @(l10b(X), m), X > 5.']),
+    atomic_list_concat([D, '/det10'], B10),
+    flow_debug(t10, B10, [source(F10)], R10),
+    flow_why(R10, W10), why_shape(W10, S10),
+    R10 = run(_, _, _, _, Calls10, _, _, _),
+    findall(N10-Box10, member(call(_, N10, _, _, Box10, _, _, _, _, _), Calls10), Bs10),
+    check('$(G) and G@M: no port of their own, each call in its box inside',
+          S10-Bs10,
+          [why(t10/0, [entered(1, [exited(l10/1), exited(l10b/1), failed((>)/2)])])]
+          -[t10/0-'query.g1', l10/1-'p1.c1.g1.g1', l10b/1-'p1.c1.g2.g1', (>)/2-'p1.c1.g3']).
 
 %% a program of two files debugged from its top: the chart has a panel for
 %% the top's predicates alone, so the why stopped at the first call into the
@@ -589,7 +628,7 @@ documents(D) :-
     msort(DK0, DK),
     findall(K, ( x_el(X, binding, BA), memberchk(disc=KA, BA), atom_number(KA, K) ), XK0),
     msort(XK0, XK),
-    check('each disc of the picture is a binding of the XML, by its number', DK-XK, [1,2,3,4,5,6,7]-[1,2,3,4,5,6,7]),
+    check('each disc of the picture is a binding of the XML, by its number', DK-XK, [1,2,3,4,5]-[1,2,3,4,5]),
     svg_box(S, 'p1.c1.g2.g1', BadA),
     svg_box(S, 'p1.c1.g1.a1.g1', PosA),
     svg_box(S, 'query.g1', QA),
@@ -722,10 +761,10 @@ command(D) :-
                     '1 find(z,_) fail [c1] query.g1',
                     '2   lookup(z,_) fail [c1] p1.c1.g1 :35:15',
                     '3     pairs(_) exit pairs([a-1,b-2,c-3]) [c1] p2.c1.g1 :37:17',
-                    '4     member(z-_,[a-1,b-2,c-3]) fail [h1 c2] p2.c1.g2 :37:28',
-                    '5       member(z-_,[b-2,c-3]) fail [h1 c2] -',
-                    '6         member(z-_,[c-3]) fail [h1 c2] -',
-                    '7           member(z-_,[]) fail [h1 h2] -',
+                    '4     member(z-_,[a-1,b-2,c-3]) fail [c1] p2.c1.g2 :37:28',
+                    '5       \'$member_\'([b-2,c-3],z-_,a-1) fail [h1 c2] -',
+                    '6         \'$member_\'([c-3],z-_,b-2) fail [h1 c2] -',
+                    '7           \'$member_\'([],z-_,c-3) fail [h1] -',
                     '% where it got furthest:',
                     '%  find(z,_): clause 1, the furthest of 1 tried: 0 of its calls exited (call 1)',
                     '%    lookup(z,_): clause 1, the furthest of 1 tried: 1 of its calls exited (call 2)',
@@ -809,7 +848,7 @@ kept_(D) :-
     maplist(no_cpu, Ls5c, Ls5),
     atom_concat(B5, '.svg', SF5), atom_concat(B5, '.xml', XF5),
     check('cache=DIR: the command names the chart''s XML after the two files',
-          E5-Ls5, 0-[SF5, XF5, XF, 'find(z, V): answer at step 10; recorded 1 to 10; diverged no']).
+          E5-Ls5, 0-[SF5, XF5, XF, 'find(z, V): answer at step 11; recorded 1 to 11; diverged no']).
 
 kept_doc(B, X) :-
     atom_concat(B, '.xml', XF),
@@ -967,8 +1006,8 @@ compared_own(D) :-
 profiled(D) :-
     section('profile(P): where the window''s steps went -- a call spends up to its first Exit or Fail'),
     debugged(D, prof1, pick(X1), ['X'=X1], [profile(P1)], _),
-    check('pick(X): member/2 spends to its first Exit -- the 1 > 1 its redo comes back past is pick''s',
-          P1, profile(1, 6, 5, [prof(pick/1, 5, 1, 5), prof((>)/2, 2, 2, 1), prof(member/2, 2, 2, 1)])),
+    check('pick(X): member/2 spends to its first Exit, its helper''s first call inside it -- the 1 > 1 the redo comes back past is pick''s',
+          P1, profile(1, 7, 6, [prof(pick/1, 6, 1, 6), prof('$member_'/3, 2, 2, 1), prof((>)/2, 2, 2, 1), prof(member/2, 2, 1, 2)])),
     debugged(D, prof2, rec(6, R2), ['R'=R2], [from(1), profile(P2)], _),
     P2 = profile(_, _, Spent2, Rows2),
     findall(P-I-N, ( member(prof(P, I, N, _), Rows2), memberchk(P, [nrev/2, app/3]) ), NA2),
@@ -980,7 +1019,7 @@ profiled(D) :-
     atomic_list_concat(PLs1, '\n', PT1),
     PLs1 = [PH1, _, PR1|_],
     check('as text: the window, then a row a predicate, the most inclusive first', PH1-PR1,
-          '% 5 steps spent by the calls of the window 1 to 6, 5 of them inferences (true/0 and =/2 are none), 3 predicates -- a call spends from its Call to its first Exit or Fail'-'          5   100.0        1        5  pick/1'),
+          '% 6 steps spent by the calls of the window 1 to 7, 6 of them inferences (true/0 and =/2 are none), 4 predicates -- a call spends from its Call to its first Exit or Fail'-'          6   100.0        1        6  pick/1'),
     fx(F),
     atomic_list_concat([D, '/profc'], B3),
     atomic_list_concat(['-s tools/flow/debug.pl -- \'pick(X)\' ', F, ' ', B3, ' profile=true'], A3),
@@ -1105,12 +1144,12 @@ viewed_command(D) :-
     findall(Top, ( member(Sec, Secs5), atomic_list_concat([L|_], '\n', Sec), sub_atom(L, 0, 89, _, Top) ), Tops5),
     check('profile=all svg=false xml=false: BASE.prof alone and the line, the five views in order (time since 1.13.3)',
           E5-Ls5-Tops5,
-          0-[PF5, 'pick(X): answer at step 6; recorded 1 to 6; diverged no']-
-            ['% 5 steps spent by the calls of the window 1 to 6, 5 of them inferences (true/0 and =/2 a',
-             '% the 6 steps of the window 1 to 6, 6 of them inferences (true/0 and =/2 are none), by wh',
-             '% the callers of the 3 predicates the window 1 to 6 called, the most called first: its ca',
-             '% the goals the window 1 to 6 asked more than once, by predicate (0), the most repeats fi',
-             '% the 6 steps of the window 1 to 6, 6 of them inferences (true/0 and =/2 are none), took ']),
+          0-[PF5, 'pick(X): answer at step 7; recorded 1 to 7; diverged no']-
+            ['% 6 steps spent by the calls of the window 1 to 7, 6 of them inferences (true/0 and =/2 a',
+             '% the 7 steps of the window 1 to 7, 7 of them inferences (true/0 and =/2 are none), by wh',
+             '% the callers of the 4 predicates the window 1 to 7 called, the most called first: its ca',
+             '% the goals the window 1 to 7 asked more than once, by predicate (0), the most repeats fi',
+             '% the 7 steps of the window 1 to 7, 7 of them inferences (true/0 and =/2 are none), took ']),
     atomic_list_concat([D, '/vieww'], B6),
     atomic_list_concat(['-s tools/flow/debug.pl -- \'rec(30, R)\' ', F, ' ', B6, ' window=40 windows=2 jobs=2 profile=steps,callers,time svg=false xml=false txt=true'], A6),
     cocolog_run(A6, T6, E6),

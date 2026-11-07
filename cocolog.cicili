@@ -187,6 +187,9 @@
   (import "./lib/zeytun.cicili" :zt)
   ;; sig_atomic_t, for the engine's halted cell and the signal library
   (include <signal.h>)
+  ;; every code point's classes and other case, the tables term.cicili's
+  ;; macros make (3.30.0)
+  (import "./lib/swipl-ctype.cicili")
   (import "./lib/term.cicili")
   (import "./lib/term-walk.cicili")
   (import "./lib/syntax.cicili")
@@ -195,6 +198,9 @@
   (import "./lib/kb-compile.cicili")
   (import "./lib/kb-pred.cicili")
   (import "./lib/kb-consult.cicili")
+  ;; swipl's transparent and foreign predicates, tables solve-loop.cicili's
+  ;; $/0 reads
+  (import "./lib/swipl-det.cicili")
   (import "./lib/solve.cicili")
   (import "./lib/solve-journal.cicili")
   (import "./lib/solve-control.cicili")
@@ -410,7 +416,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.19.5"))
+  (func coco_version_text () (out const char *) (return "3.33.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -2390,6 +2396,8 @@
         ;; what the compiled-in modules claim, for a program file's clause
         ;; of one's name (3.1.0): refused if ISO, else taking it over
         (coco_claims_install coco_b_claims)
+        ;; and what the tracer takes for the system's C (3.27.0)
+        (coco_sysclaims_install coco_b_system_claims)
         ;; and what an unknown procedure's name is near, for its message
         ;; (3.3.0): swipl's `However, there are definitions for:'
         (coco_dwim_install coco_b_dwim_text)

@@ -154,9 +154,9 @@ continuation alone* — and −1 when nothing caught it. A predicate writes
 
 The second argument of `error/2` is the **engine's**: SWI puts a
 `context(Module:Name/Arity, Message)` there, and since 3.0.0 so does cocolog
-for a predicate a row of `*error-contexts*` names -- the core builtins and
-the compiled-in modules (`char_type/2`, `length/2`), each as swipl 9.0.4
-names it. **A loadable module's own predicate names its module** (3.0.2),
+for a predicate a row of `*error-contexts*` names -- the core builtins
+(`char_type/2`) and the compiled-in modules (`length/2`), each as swipl
+9.0.4 names it. **A loadable module's own predicate names its module** (3.0.2),
 as swipl names a foreign predicate's errors by the module that defines it:
 a `.so` registered as `md5` whose `md5_hash/3` raises through these helpers
 raises `error(type_error(text, f(x)), context(md5:md5_hash/3, _))`, and an
@@ -596,7 +596,9 @@ Not one line of C. Every one of them is a goal applied to the elements of a
 list — `call(Goal, X)` — so every one is two or three clauses. **They are as
 nondeterministic as what they are given:** `maplist(member, Xs, Yss)`
 backtracks because `member/2` does, and that falls out of their being clauses
-rather than being arranged for.
+rather than being arranged for. **And no more** (3.23.0): each is swipl's own
+clauses, the list first in a helper (`'$maplist_'/2`, swipl's `maplist_/2`),
+so a call with its list given leaves no choice point on any element.
 
 ## Grammars, and a library that is borrowed rather than written
 
@@ -1226,8 +1228,10 @@ needed them first.)
 
 ### What was added alongside the ISO core
 
-`format/1,2,3`, `with_output_to/2`, `code_type/2`, `char_type/2`, `must_be/2`
-and `is_of_type/2`.
+`format/1,2,3`, `with_output_to/2`, `must_be/2` and `is_of_type/2`, and
+`code_type/2` and `char_type/2` until 3.30.0 moved them into the engine's
+table, where their walks of the codes and the classes keep a choice point,
+as a C half here cannot.
 
 None of these is ISO. They are here because SWI's `library(dcg/basics)` calls
 them and cocolog is meant to run that file unmodified — and because `format/2`
@@ -1275,14 +1279,15 @@ CLAUDE.md carry the argument and what fixing it would cost.
 
 ### Back to this module
 
-**`format/2` has no column directives.** `~t`, `~|` and `~+` lay text out in
-fields by measuring what has been written since the last column stop, which is
-a second pass this does not make. They raise an error naming themselves rather
-than being ignored — silently dropping them turns a table into a run-on line
-and blames the program. Everything else is there: `~w ~q ~p ~a ~d ~D ~s ~c ~e
-~f ~g ~r ~R ~n ~i ~~`, the numeric and `~*` argument prefixes, and the
-`atom(A)`, `codes(C)`, `codes(H,T)`, `chars(C)`, `chars(H,T)`, `user_output`
-and `user_error` sinks. The difference-list sinks are not decoration: they are
+**`format/2` has no `~@`.** It calls a goal for its output, and it raises an
+error naming itself rather than being ignored — silently dropping it would
+lose the goal's text and blame the program. Everything else is there: `~w ~q
+~p ~k ~W ~a ~d ~D ~I ~s ~c ~e ~f ~g ~r ~R ~n ~N ~i ~~`, the numeric, `~*` and
+backquote argument prefixes, the column directives `~t`, `~|` and `~+` (since
+3.33.0, swipl's: the segment since the last stop held, its fill points sharing
+the room from the middle out, the column reckoned from where the sink stands),
+and the `atom(A)`, `string(S)`, `codes(C)`, `codes(H,T)`, `chars(C)`,
+`chars(H,T)`, `user_output` and `user_error` sinks. The difference-list sinks are not decoration: they are
 what makes `format(codes(H,T), '~d', [I])` work as a grammar body, which is how
 SWI's `dcg/basics` generates every number it can also parse.
 
@@ -1292,7 +1297,10 @@ implementation says letters only. `to_upper(L)` reads as though `L` were the
 uppercase and it is the lowercase — `dcg/basics` depends on that, in
 `alpha_to_lower//1`. `test/files/ctype.pl` walks every code from 0 to 127
 through every category in both systems, which is the only way either of those
-would have been got right.
+would have been got right; and since 3.30.0 `test/files/char_enum.pl` holds
+every class of every code point, the walks of an unbound character or class
+and their errors to swipl 9.0.4 under C.UTF-8, the classes written out from
+it by `tools/ctype/tables.pl`.
 
 **`string/1` answers about a real type now, and the library code it was
 written for still works.** It used to fail always, deliberately, because

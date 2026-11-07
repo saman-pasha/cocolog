@@ -523,14 +523,19 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   `text_units` (1.13.0), since 2.0.0 `bounded`, `max_integer`,
   `min_integer`, `max_tagged_integer` and `min_tagged_integer`, and since
   2.2.2 swipl's four float flags and `float_min`, `float_max` and
-  `float_max_integer`, since 2.16.0 `verbose` (`normal`), and since 3.15.0
-  `optimise_unify` (`true`), are the only flags answered; set_prolog_flag/2
-  sets `double_quotes`, `text_units`, `generate_debug_info` (taken and
-  unused), the float flags, `verbose` (any atom, the process's: `silent`,
+  `float_max_integer`, since 2.16.0 `verbose` (`normal`), since 3.15.0
+  `optimise_unify` (`true`), and since 3.32.0 `stack_limit` (1073741824),
+  are the only flags answered; set_prolog_flag/2
+  sets `double_quotes`, `text_units`, `generate_debug_info` (swipl's
+  booleans, the read's own since 3.27.0: what it defines after the flag is
+  false hides its children from the tracer; taken and unused through
+  3.26), the float flags, `verbose` (any atom, the process's: `silent`,
   swipl -q's, quiets print_message/2's informational and banner kinds) and
   `optimise_unify` (swipl's booleans, the process's: whether a store moves
-  the unifications that begin a body into its head), as a goal since 2.2.2, and refuses
-  every other flag in swipl's words. `library(main)` parses the tail.
+  the unifications that begin a body into its head) and `stack_limit` (the
+  machine's and the process's default; the bullet on the stack limit,
+  below), as a goal since 2.2.2, and refuses every other flag in swipl's
+  words. `library(main)` parses the tail.
 * **Exit status is SWI's**: 0 proved, 1 failed silently, 2 threw; `halt(N)`
   is N from `-s`, `run` and `query` alike.
 * **An error nothing caught is followed on stderr by its backtrace**
@@ -622,7 +627,9 @@ line said only `BUILD FAILED`, over a tail ending on clang's command line.
   is killed (exit 124) and hands back only what it printed by then**, which a
   case can read as "nothing found". A step whose work grows with the tree, or
   with the machine's speed, takes `shell/4` with a ceiling of its own
-  (`test/lint.pl`'s corpus lint has five minutes, a test binary's build ten).
+  (`test/lint.pl`'s corpus lint has five minutes, a test binary's build ten,
+  `test/httpd-tls.pl`'s certificate ten: an RSA key is a prime search, and
+  two minutes stopped it once on GitHub's Intel Mac, CI run 42109468644).
 * **A container runs as root**, who writes through a mode of 444: a
   permission check skips by name when `os_uid/1` answers 0
   (`test/stream.pl`).
@@ -674,7 +681,9 @@ line said only `BUILD FAILED`, over a tail ending on clang's command line.
   install goes into `allowed_skips` in the same commit.** Each red case is
   run again alone (its whole output: the runner keeps five FAIL lines, the
   last twenty of a case that did not end on its own RED -- it raised, or a
-  goal failed: `raised_tail/2`, 2.14.1 -- and no SKIP reason), and the logs
+  goal failed: `raised_tail/2`, 2.14.1 -- and a SKIP's first reason line,
+  indented under its case's line, `skip_reason/1`, which verdict.sh names in
+  the annotation of a SKIP the job does not allow), and the logs
   are the run's artifact for 14 days.
 * **A case sizes a green pool from the world, never with a number.** The
   world has a worker a core and the acceptor holds one, so
@@ -1027,10 +1036,13 @@ much later.
   `no dispatch id`, and one added there wants its arities in
   tools/flow/tables.pl (`ft_construct_arities/2`), or `make modules` stops
   naming it (3.2.0's bar did). **The dispatch names -- the constructs, the builtin rows
-  and the arithmetic names -- are held to `coco_machine.ids [192]`**, and a
-  build past it stops naming both numbers: a new builtin that would pass it
-  shares a C half with others by an argument (3.2.0's four declarations are
-  one row, `'$declare'/2`, under clauses of the Prolog half).
+  and the arithmetic names -- are held to `coco_machine.ids [256]`** (192
+  through 3.19.5, 191 used, which 3.20.0's `$`, `@` and their two markers
+  passed; 198 used since 3.21.0's three for $/0), and a build past it stops naming both numbers: a new builtin
+  that would pass it shares a C half with others by an argument (3.2.0's
+  four declarations are one row, `'$declare'/2`, under clauses of the
+  Prolog half). A construct name a frame or a program never names first is
+  appended at the table's end, so the names before it keep their ids.
 
 ## Parsi
 
@@ -1128,9 +1140,20 @@ cocolint index offers no import of it.
   by its path (`-s FILE`, `ensure_loaded/1`, `use_module/1` of a file: a
   module whose predicates are `own`, beside the `library` flag the pre-warm
   needs; 1.10.28, until which they were left out with the library's, and
-  `listing/0` too). SWI answers for a library's and a builtin's as well;
-  this does not. Through 1.10.2 it also answered for any name a call or
-  `clause/2` had merely looked up (each makes a table entry).
+  `listing/0` too). **Named whole it answers for the system's too** (3.31.0,
+  `'$cp_defined'/1` over `coco_pred_current` in lib/kb.cicili): a construct,
+  a row of the engine or of a compiled-in module, what predicate_property/2
+  calls built_in, as swipl's answers for module system's -- and a read's
+  `:- if(current_predicate(N/A))` asks the same function
+  (`coco_cond_eval`), so library(assoc) keeps the get_assoc/3 swipl's keeps,
+  over the engine's `'$btree_find_node'/5` (through 3.30.0 the condition
+  asked the store alone, and the library's single-sided rules answered a
+  term that was no assoc with existence_error(matching_rule, ...)). A spec
+  with a part unbound walks the program's alone, where swipl's walks its
+  system's 1 278 too, and a library's predicate is never answered (SWI
+  answers for one the program imported). Through 1.10.2 it also answered
+  for any name a call or `clause/2` had merely looked up (each makes a
+  table entry).
   `predicate_property/2` (1.10.28) answers for a construct (by name AND
   arity, `*callable-constructs*`: the construct table also holds the
   engine's markers, `'$k'`, `[]`, `:-`, which are no predicates), a C
@@ -1187,11 +1210,49 @@ cocolint index offers no import of it.
   files, whose predicates then count as defined (`load=` on
   tools/flow/chart.pl), and `progress(S)` (stderr, every S seconds, 10 from
   the command).
-* **Every builtin is deterministic**, so a failure-driven loop written from
-  habit (`retract(H), fail`) runs ONCE -- wrong, not slow. `once/1`,
-  `ignore/1` and `\+` are control constructs. So `arg(N, f(a, b), A)` with
-  `N` unbound and `char_type(C, alpha)` with `C` unbound RAISE where SWI
-  enumerates. A module row that must enumerate for some arguments ends in
+* **Every builtin is deterministic** (arg/3, char_type/2 and code_type/2
+  with an argument unbound aside, below), so a failure-driven loop written
+  from habit over one runs it ONCE -- wrong, not slow (`retract(H), fail`
+  was the classic one until 3.28.0 made retract/1 a walk that answers
+  again). `once/1`, `ignore/1` and `\+` are control constructs. **arg/3
+  with its index unbound enumerates** (3.29.0, swipl's foreign arg/3;
+  through 3.28.0 it raised, and library(aggregate)'s free_variables/4 with
+  it): its row answers -2
+  (`coco_bi_arg`), and each of the row's three callers -- the step
+  (`coco_builtin_call` by the functor's row), an environment's BUILTIN unit
+  (`coco_env_place`) and the `:` construct's own call of a row
+  (`coco_colon_run`: `system:G` of a name a program file took over,
+  test/files/arg_taken.pl) -- hands it to
+  `coco_walk` with the continuation it holds, the goal being `kcall`:
+  the places tried in order, the third argument unified first, a WALK
+  frame (`COCO_CH_WALK`, ARG through 3.29.0, its barrier 0) kept for the
+  next place while one remains, so an answer short of the last place
+  leaves a choice point whatever the places after it hold, and the last
+  none (test/files/arg_enum.pl). **char_type/2 and code_type/2 with the
+  character or the type unbound walk the same way** (3.30.0, swipl 9.0.4's
+  do_char_type; through 3.29.0 they raised): the codes -1 to U+10FFFF
+  (255 for char_type/2 under bytes, whose walk passes the surrogates by)
+  or the 33 classes of swipl's table in its order, csymf twice
+  (`*coco-ct-classes*` in lib/solve-text.cicili), the frame's position
+  packed in its `clause_ix` (`coco-ctw-pos`, bit 48 telling it from
+  arg/3's place). Each class's test and reverse is an expression of
+  `*coco-ct-exprs*`, which DEFMACROs turn into one switch each
+  (`coco_ct_test`, `coco_ct_reverse`), so **a new class is a row and an
+  expression, never a function** -- and its test a keyword (`:alnum`): a
+  row `("name" N word)` is a builtin's to tools/cocolint/build.pl. The
+  classes are swipl's on Linux under C.UTF-8, written out at transpile
+  time from the runs of lib/swipl-ctype.cicili into two-level tables, a
+  page of 128 or 256 codes each (`coco_ct_flags`, `coco_uc_case`, the
+  macros of lib/term.cicili), which tools/ctype/tables.pl generates under
+  the REFERENCE swipl (run it again, never edit the file);
+  test/files/char_enum.pl holds every class of every code point, the walks
+  and the errors to swipl. **A new
+  row that hands its goal over answers -2 to those three, asked right beside
+  the row's call**: asked after the loop's module seam, beside its -1, the
+  walk's call cost the step loop two reloads of the engine a step, and a
+  goal and a barrier kept live across the row's call cost every builtin in
+  place an instruction (`tools/flow/zero.sh`, all three under 3.28.0's now).
+  A module row that must enumerate for some arguments ends in
   `:declines` (1.12.0, `coco-emit-module-dispatch`): its function takes
   `found` and turns those goals down (`coco_m_decline`) to a clause of its
   Prolog half -- nb_current/2 with its key unbound.
@@ -1321,6 +1382,147 @@ cocolint index offers no import of it.
   guards' and the environment's in `coco_try_clause`, the units' link,
   `cc_ulink`), or its goals' errors name the caller. One OR an entry: nrev
   +0.44 % of zero.sh's work, +0.15 % less its padding.
+* **`$/1` and `@/2` are swipl's control constructs** (3.20.0; `coco_det`,
+  `coco_det_exit`, `coco_det_fail` and `coco_at` in lib/solve-loop.cicili):
+  `$(G)` pushes a GOAL frame whose alternative is `'$det_fail'($(G), Ctx)`,
+  runs G with its own cut and then `'$det_exit'(CI, $(G), Ctx)`, which asks
+  whether a frame above CI may still retry -- none DEAD, CATCH_RETRY or
+  SPENT, the kinds `coco_catch_exit` passes over: **a new kind that is no
+  choice point goes into that list too**. Neither step is an inference
+  (`frees`). **Under trace a clause frame stays at its last candidate, and
+  its shadow frame's `last` says so**: set by the selection, cleared by the
+  traced push alone, which `printr` marks -- a clear in every push cost
+  queens 27 032 instructions and lookup 23 415 -- and a frame no traced call
+  pushed (trace/0 turned on mid-run) goes at its last candidate as it does
+  untraced. A meta-call asks a G@M's module and goal before it runs
+  (`coco_goal_check`: 2 an instantiation error, 3 type_error(module, M);
+  `coco_goal_formal` builds the ball), so **a new raiser of a meta-call's
+  goal that is no goal builds its formal there**. The store says G@M of each
+  goal under it, as a qualifier is (`coco_cbody`'s `at`, `coco_cbody_wrap`),
+  and every refusal walk takes `$` and `@` as control (ids 11 and 12 of the
+  consult's and the assert's tables). test/files/det_at.pl holds it to
+  swipl, test/engine.pl's `det_traced` the trace.
+* **`$/0` is swipl's determinism guard, carried through last calls**
+  (3.21.0, lib/solve-loop.cicili's `coco_det*`): `$` cuts as `!` does and
+  guards the frame it runs in -- its clause, or the `'<meta-call>'/1` a goal
+  holding it is called in -- which must then succeed and leave no choice
+  point, else determinism_error(PI, det, fail|nondet, guard|guard_in_caller).
+  A guard is a GOAL frame, alternative `'$det_fail0'(D)` (the frame
+  failed), `goals` its frame's EXIT MARKER `'$k'('$det_end'(0), Owner, K)`
+  (the frame exited: `coco_det_end` asks `coco_det_live`), `barrier` the
+  owner word naming the frame, `clause_ix` the guard below it << 2, ORed
+  with 1 while it is on and 2 when SET (its own `$` set it). The engine's `dgh` is the
+  innermost guard frame plus one and `dgk` its marker while its guard is
+  on, else none, so **a last call is a call whose continuation is `dgk`**
+  -- one compare where the step calls (`coco_det_pcall`, `coco_det_bfail`,
+  `coco_det_meta`, `coco_det_kq`) -- and takes the guard on as swipl's
+  I_DEPART does: over the same frame where nothing above it may retry, the
+  callee's `$` no longer SET and, for a predicate swipl marks transparent,
+  the guard dropped; else in a guard frame of its own. A predicate swipl
+  defines in C that cocolog's library writes as clauses is ONE frame
+  (`coco_det_opaque`, system:Name/Arity). lib/swipl-det.cicili holds the two
+  tables, generated by `tools/det/tables.pl` under the REFERENCE swipl (run
+  it again, never edit them). **Whatever moves the choice stack otherwise
+  sets the guard again** -- a throw's unwinding and a thaw
+  (`coco_det_unwound`), a collection (`coco_det_top`) -- and `$` raises the
+  barriers of the cuts after it over its frame (`coco_det_floor`), as a
+  cut never clears swipl's flag. **What a clause entry adds is kept off the
+  plain path**: `coco_try_clause` hands every clause to
+  `coco_try_clause_det` while a guard is on, and a code that holds `$`
+  (`ex` 4, below), with its
+  own arguments -- a jump -- and the det entry writes no register for a
+  guarded frame's last call, so the step that takes the registers asks
+  nothing: asked in the step, or with the test inside the body, naive
+  reverse paid 3 to 8 instructions a call (3.21.0's zero.sh against
+  3.20.0: nrev +0.35 %, queens +0.72 %, lookup +0.58 %). **A local whose
+  address the loop takes lives on the stack**: `coco_det_pcall` hands its
+  continuation back rather than taking `&k`, which cost nrev a store an
+  inference. test/files/det_guard.pl holds 180 lines to swipl 9.0.4,
+  test/engine.pl's `det_guard_runs` the trace, the collector, KMAT and a
+  freeze; COMPAT.md has what is not swipl's.
+* **member/2, select/3, nth0/3, nth1/3 and between/3 leave no choice point
+  on their last answer** (3.22.0, swipl's): the first four are swipl's
+  clauses, the rest of the list the helper's FIRST argument (`'$member_'/3`,
+  `'$select3_'/4`, `'$nth_gen'/5`), so the last element's call, keyed on
+  `[]`, has one candidate; between/3's C half decides a bound X itself and
+  hands an unbound one the count of the answers after the first, which
+  `'$between_n'/3` counts down to a clause keyed on 0 that cuts (`inf` for
+  no upper bound, `A+B` for a range whose count passes 64 bits). A
+  determinism error names each helper by swipl's own name and module: a
+  row of `*frame-contexts*` takes a fourth field, swipl's name
+  (`lists:member_/3`), which `coco_det_pi` asks. sub_atom/5,
+  atom_concat/3, clause/2 and string_code/3 are deterministic on their
+  last answers with them (sub_atom/5 with its text given since 3.25.0,
+  below). **A library predicate that would leave a choice
+  point on its last element wants its list first in a helper**, and since
+  3.23.0 library(apply)'s are swipl's too: maplist/2..5, include/3,
+  exclude/3, partition/4,5 and convlist/3 over `'$maplist_'/2..5`,
+  `'$include_'/3`, `'$exclude_'/3`, `'$partition_'/4,5,7`,
+  `'$convlist_'/3` (lib/apply.cicili), where through 3.22.0 they wrote the
+  goal first and every element left a choice point; partition/5 raises
+  must_be/2's type_error(oneof([<,=,>]), O) for an order that is none and
+  takes an unbound one as `<`, once. An error in a helper's body names it
+  as swipl's (`*frame-contexts*`: apply:maplist_/2, apply:foldl_/4 for
+  `'$foldl'/4`, '$apply':apply/2), and apply/2 is swipl's boot/apply.pl
+  over strip_module/3. Each is a call deeper: one inference more at entry,
+  as swipl's. With the first list unbound and another given, the index on
+  that list leaves no choice point either, since 3.24.0 (swipl's JIT index,
+  below). **The enumerators swipl writes in C leave none at their last
+  answer** since 3.25.0: current_op/3 walks what `'$ops'/4` hands back --
+  only the operators the call's bound arguments name, a given name's the
+  program's first and the system's after, each prefix before infix, swipl's
+  order -- with `'$cp_in'/2`, member/2's clauses under a private name (a
+  program's member/2 joins the library's); current_predicate/1 named whole
+  and predicate_property/2 with its property named are a memberchk/2, and
+  sub_atom/5 with its text given walks the places with `'$cp_in'/2`, or
+  checks the one given. `'$cp_member'/2`, the goal first, stays where
+  swipl's leaves a choice point at every answer, its last too:
+  current_predicate/1 with a part of its spec unbound. **A determinism
+  error names a library's frame with its module** since 3.26.0, as swipl's
+  pl-wam.c does (test/files/det_names.pl): every library(lists) and
+  library(error) predicate cocolog writes has a row of
+  `*frame-contexts*` (lists:append/3, error:is_of_type/2), each helper its
+  row by swipl's name for it (lists:append_/2 for `'$append2'/2`, a C half
+  too: lists:sum_list/3 for `'$sum'/3`), a fifth field another arity
+  (reverse/2's C half fails as lists:reverse/4), and `'$length3'/3` a
+  `system` row, which the formal drops and the context keeps
+  (`coco_det_pi` names no `system` or `$` module); **a predicate whose
+  first clause a module/2 read added carries that module** (`pmod`, from
+  the read's `ssu_mod`, `coco_pred_note_mod`), which `coco_frame_mod`
+  hands `coco_det_pi` and `coco_owner_ctx` (assoc:gen_assoc_/3, an
+  unknown procedure's context(mn_mod:mn_u/0, _)). **A new library helper
+  gets its row**, or its errors name cocolog's `'$...'` name. The
+  library(lists) predicates whose frames or answers differed are swipl's
+  clauses since 3.26.0: length/2's declined case over `'$length3'/3`,
+  append/2's must_be(list, L) (a partial list ran for ever), prefix/2,
+  select/4 over `'$select4_'/4`, selectchk/3 committing to the first
+  match, nth0/4 and nth1/4 over `'$generate_nth'/5` and `'$find_nth0'/4`
+  (a bound index must_be/2's and deterministic), reverse/2's declined case
+  over `'$reverse4'/4` (a proper second list ends it), proper_length/2,
+  permutation/2 (type_error(list, L)), list_to_set/2 over pairs_keys/2,
+  is_set/1 and clumped/2; and since 3.26.1 max_member/2,3 and
+  min_member/2,3, swipl's single-sided rules over `'$max_member_'/3,4`
+  and `'$min_member_'/3,4` (test/files/max_member.pl): a tie keeps the
+  element swipl's keeps, and a list no rule matches raises
+  existence_error(matching_rule, lists:max_member_(...)) -- **a
+  single-sided rule's last clause takes its row's module and swipl's
+  name** (`coco_ssu_last`), so a library helper's rules need their row.
+* **library(error) is swipl 9.0.4's** (3.29.0, the Prolog half of
+  lib/builtins.cicili; test/files/error_types.pl): must_be/2 asks
+  has_type/2 -- one clause a type, in swipl's order, a table a library
+  extends (library(assoc)'s `error:has_type(assoc, X)` joins it, one
+  namespace) -- and then says why not as swipl's is_not/2 does: an unbound
+  value or a partial list an instantiation error, a list of the wrong things
+  its first wrong element's error, an improper list `type_error(list(Of),
+  L)`, `var` an uninstantiation error, `cyclic`/`acyclic` domain errors, a
+  value a ground type holds unbound an instantiation error, and a type no
+  clause names `existence_error(type, T)`; is_of_type/2 asks has_type/2
+  alone. Through 3.28.0 a table of cocolog's own: `must_be(assoc, A)` raised
+  `type_error(assoc, A)` of an assoc, a partial list `type_error(list, L)`
+  (ord_intersection/2 and yall's parameters met it), an unknown type
+  `type_error(T, X)`, an unbound type read as `any`. **A new type is a
+  has_type/2 clause**, never a case in must_be/2, and its helpers have their
+  `*frame-contexts*` rows by swipl's names (`error:is_not/2`).
 * **A cut runs the cleanups of the frames it takes** (3.1.0,
   setup_call_cleanup/3): a setup_call_cleanup/3 frame is a goal frame,
   `'$scc_fail'/2`, and each of the four cuts -- the goal `!`, `$cut`, an
@@ -1336,9 +1538,9 @@ cocolint index offers no import of it.
   answer paid a failing C call and a backtrack where 2.16's integer(X)
   guard had failed inside the clause's entry: 1.6 times the time,
   found by test/window.pl's retry counts. Check once at the entry and
-  recurse through a helper that checks nothing (`'$between_up'/3`), or
-  let the C half fail where a guard would (numlist/3 is one clause over
-  `'$numlist'/3`).
+  recurse through a helper that checks nothing (`'$between_n'/3`, through
+  3.21 `'$between_up'/3`), or let the C half fail where a guard would
+  (numlist/3 is one clause over `'$numlist'/3`).
 * **The backtrace is written by the throw, before anything unwinds**
   (1.10.17, `coco_bt_capture` beside `coco_throw`), and only for a ball no
   catch on the chain of engines would take as things stand
@@ -1488,7 +1690,11 @@ cocolint index offers no import of it.
   `coco_decl_kind`; `thread_local/1`, kind 6, is always the goal's, which
   refuses a predicate with clauses), `module/2`, `use_module/1,2`,
   `autoload/1,2`, `ensure_loaded/1`, `meta_predicate/1`,
-  `if/elif/else/endif`) and calls everything else in file order. The four
+  `if/elif/else/endif` -- an `if` decided below the engine,
+  `coco_cond_eval`: `true`, `fail`, `false`, `\+` and
+  `current_predicate(Name/Arity)`, which answers as the goal does since
+  3.31.0, anything else refused by name) and calls everything else in file
+  order. The four
   record an attribute, `pattrs` on the predicate (1 public, 2 volatile, 4
   transparent, 8 thread_local), that predicate_property/2 tells; only
   thread_local/1 defines the predicate (dynamic), so a call of what public/1
@@ -1620,8 +1826,8 @@ cocolint index offers no import of it.
   bytes were through 1.x). A code is a code point, a char one character of
   however many bytes, in the text builtins, the reader (`"..."`, `0'c`),
   format's `~c`, `~s` and codes/chars sinks, char_type/2 (past ASCII as
-  glibc's C.UTF-8 classes them, swipl on Linux: `coco_uc_case`,
-  `coco_uc_letter`, `coco_uc_space` in lib/term.cicili, written out),
+  glibc's C.UTF-8 classes them, swipl on Linux: lib/swipl-ctype.cicili's
+  tables since 3.30.0, every code point's classes and case),
   read/write_file_from_codes, library(stream)'s text streams,
   library(process)'s output, library(text) and the document libraries'
   character references. A byte that is no UTF-8 decodes to U+DC00 plus the
@@ -1721,6 +1927,29 @@ cocolint index offers no import of it.
   argument still walks the whole predicate**; a hit hides it, a miss or a
   `findall` pays it. To read a predicate's heads, `clause/2` enumerates
   them; calling the goal proves it.
+* **Under the floor, swipl's JIT index chooses** (3.24.0, `coco_pred_jit`
+  in lib/kb-pred.cicili): `coco_pred_probe` answers 3, a 2, where swipl's
+  first_clause_guarded would ask another argument -- the call's first
+  argument unbound, or its first two candidates both of its key -- and the
+  step's term path asks `coco_pred_jit` out of line (`coco_term_jit`): of
+  the call's bound arguments 1 to 8 the one swipl's assessment over the
+  clauses promises most of (`coco_jit_assess`, bestHash's N*D/(N-V+V*D)
+  over 1 + stdev*D/N, nothing where the clauses with no key there pass a
+  tenth of D), the first on a tie, the first argument's own walk where that
+  one wins. The assessment is kept until `tver` moves (`j0ver`/`j0spd` on
+  the predicate, `aver`/`aspd` on the argument's table). A call from the
+  registers whose probe answers 3 goes the long way below (a fourth arm in
+  its test made a jump table, five instructions a call), and a traced call
+  is keyed on the argument an untraced one would be (`coco_trace_kpos`, in
+  the trace's own arm of the test: a test at the frame's push cost queens
+  0.2 %), so a `$` answers under trace as without. **A new caller of
+  `coco_pred_probe` reads its 3 as 2, or asks `coco_pred_jit`.** Not
+  swipl's (COMPAT.md): no deep index, no index of two arguments, a float's
+  or a string's key is none, each call chooses afresh where swipl walks an
+  index it built, and swipl 9.0.4's misreading of a key after two
+  anonymous variables in a row is not copied. test/files/jit_index.pl
+  holds 78 lines to swipl, test/engine.pl's `jit_runs` the trace, the
+  collector and the choice made again.
 * **A call sees the clauses that stood when it began** (ISO's logical update
   view, swipl's; through 2.2.5 a retry read the live list). A clause frame
   carries `cend`, the clause count at its push (both push sites), so what is
@@ -1741,13 +1970,20 @@ cocolint index offers no import of it.
   with every function on a 64-byte line, queens +0.1 % and +5.3 %.
   The dead are taken out (`coco_pred_sweep`) when no frame is open on the
   predicate: a retract, assert or reconsult then, every 256th out-of-line
-  probe, `'$pred_count'`, and every query's start (`coco_tomb_sweep_all`
-  over the store's `tpreds`). `coco_frames_on` walks `m->eng` and each
+  probe, a walk of retract/1's or clause/2's as it begins (through 3.27.0
+  clause/2's `'$pred_count'`), and every query's start (`coco_tomb_sweep_all`
+  over the store's `tpreds`) -- on a store no other machine shares (3.28.0,
+  `machines` nil: through 3.27.0 a green task's start swept the dead under
+  another task's open call, which went on from a place that had moved).
+  **A reclamation of the whole store asks `machines` first**: a green
+  world's tasks share the store, and a task's own heap and its query's
+  start say nothing of another task's frames and environments. `coco_frames_on` walks `m->eng` and each
   engine's `outer` over the same store, the predicate's `framed` saying
   whether a frame may be open (set at every push and restore, cleared by a
   walk that finds none). **A new reader of the clause list skips
-  `coco_pred_dead`** (listing, the backends' sync, clause/2 by live ordinal
-  through `coco_pred_live_at`, predicate_property/2's counts), **a new writer
+  `coco_pred_dead`** (listing, the backends' sync, predicate_property/2's
+  counts; retract/1's and clause/2's walk through `coco_frame_next`, which
+  tries a dead clause only where the walk lived through its death), **a new writer
   of `nclauses` or `ntomb` calls `coco_pred_nprobe`**, and **a new push of a
   clause frame sets `cend` and `framed`**. A freeze writes a frame's next
   clause and its end as counts of LIVE clauses (`C`, `L`), the knowledge base
@@ -1757,6 +1993,38 @@ cocolint index offers no import of it.
   bound at the restore, member/2's frames saw an empty store).
   `test/files/update_view.pl` holds 34 cases to swipl, `test/engine.pl`'s
   last section the freeze and a second process.
+* **retract/1 and clause/2 are constructs that walk the clauses that stood
+  when they began** (3.28.0, swipl's pl_retract and clause/2;
+  `coco_db_walk` and `coco_db_retry` in lib/solve-db.cicili; `'$retractall'/1`
+  keeps the C half, `coco_bi_retract`): keyed as a call of the predicate is
+  (`coco_trace_kpos`, the JIT index's argument), each candidate copied from
+  the store and its head and body unified. A second candidate pushes a DB
+  frame (`COCO_CH_DB`) whose `pred`, `clause_ix`, `cend`, `fera` and
+  `ixpos` are a clause frame's, so `coco_frames_on` keeps its view and a
+  retract under it kills the clause in place; the last candidate pops it
+  (no choice point, as swipl's). An answer on a clause retracted since is an
+  answer and takes nothing (swipl's retry succeeds on a clause erased
+  since); retract/1 takes no single-sided rule nor the `'$ssu_none'` clause,
+  as swipl 9.0.4's takes no rule, and clause/2 shows a rule as
+  `coco_ssu_body` does. One step and one inference each, as the builtin
+  was; the errors are the goal's own row's (`kcall`, `*error-contexts*`'s
+  `("clause" 2)`), the ports a traced builtin's (PRINTR 2 hidden). **A new
+  reader of a choice frame reads a DB frame as a clause frame where the
+  view or the place is asked** (`coco_backtrack`, which retries it through
+  `coco_db_retry`; `coco_frames_on`; the freeze's `C` and `L` and the
+  restore) **and as a `;`'s GOAL frame where the printer's Redo is**
+  (`coco_trace_redo_at`): its shadow frame holds its context, never a
+  call's depth. **A walk sweeps its predicate's dead as it begins**, where
+  no frame is open on them (`coco_tomb_try_sweep`, as clause/2's
+  `'$pred_count'/3` did): a retract under the walk's own frame leaves the
+  clause dead in place, and a drain by `once(retract(q(_)))` that swept
+  none counted nothing dead and never compacted the store (test/gc.pl's
+  thousand of 1 500 wide clauses), though it ran 38 % faster. `'$clause'/3`
+  and `'$pred_count'/3`, clause/2's halves through 3.27.0, are gone, and
+  cocolint's card row R1 with them (27 rows):
+  library/flow reads both as builtins (`flow_kind`'s construct row) and
+  offers them as near names (`flow_lib_pred`). test/files/retract_view.pl
+  holds 110 lines to swipl, test/engine.pl's update-view section the freeze.
 * **A global is found by a hash of its name (1.9.4), copied AS ITS BLOCK,
   and a GROUND one's copy handed out shared while it lives (1.12.1)**
   (`nb_getval/2`, `b_getval/2`, `nb_current/2`; `coco_b_global_term`).
@@ -1854,7 +2122,14 @@ cocolint index offers no import of it.
   root it must be taught. The atom table is never reclaimed.
 * **The atom, functor and predicate tables are hashed** (open addressing, an
   entry its id plus one, kept under half full -- checked BEFORE the probe, so
-  a failed rehash still leaves an empty slot). Ids stay in order of first
+  a failed rehash still leaves an empty slot). **A name's hash is spread
+  before its mask** (3.30.0, `coco_hash`: djb2 times the FNV prime, the
+  high bits folded down, as `coco_name_arity_hash` spreads its word): djb2
+  alone kept short names apart in its high bits only, so the one-character
+  atoms past ASCII fell into runs of neighbouring slots that the linear
+  probe walked at each new one -- 131 072 of them by char_code/2 took 18 s
+  where they take 0.05, and char_type/2's walk did not end in ten
+  minutes (test/engine.pl's `atom_table`). Ids stay in order of first
   use, which a frozen machine relies on; `coco_name_arity_hash` serves the
   functors (`lib/term.cicili`) and the predicates (`lib/kb-pred.cicili`). Each
   table has exactly one writer (`coco_functor_id`, `coco_pred_make`); keep
@@ -2060,7 +2335,12 @@ cocolint index offers no import of it.
     term (and `test/trace.pl`'s `env_late`, from inside a traced body).
   - **The collector keeps an environment whole from any position** (the
     POS rule in `coco_gc_mark`) and every retired code a live environment
-    names (`coco_gc_codes`). A clause that dies while an environment is
+    names (`coco_gc_codes`) -- and on a store another machine shares, every
+    retired code (3.28.0): a green task's mark sees its own heap's
+    environments alone, and through 3.27.0 its collection, or any task's
+    query start (`coco_code_retired_free`), freed a code another task's
+    environment was part way through (memcheck: twelve invalid reads and
+    writes; test/async.pl runs it under valgrind where there is one). A clause that dies while an environment is
     part way through its body goes on running that code -- the logical
     update view -- so the code is retired, not freed (`coco_code_retire`),
     and a compaction keys kept codes again.
@@ -2073,7 +2353,14 @@ cocolint index offers no import of it.
     settled, 6.5 % cheaper.
   - **`ex` is what entering a clause takes**: 0 plain, 1 guards, 2 an
     environment, 3 both, so `coco_try_clause` asks a plain clause one
-    question. Guards and an environment have their own executor
+    question; and since 3.21.0 4, a body that holds `$/0`, built whole
+    and closed by its frame's exit marker (no guard run, no environment),
+    entered by `coco_try_clause_det`. A last goal swipl compiles in place
+    is the code's `dlast` (3.21.1), hidden from a guard by a step
+    (`'$det_hide'`): a field of its own, so a clause ending so enters
+    by the plain path while no guard is on -- as 3.21.0's bit 8 of `ex`
+    it went the det entry's way every time, about 90 instructions an
+    entry, and a loop over two such clauses ran 8 % more. Guards and an environment have their own executor
     (`coco_clause_run_ge`) and their own copy of the guards' runner
     (`cc-guards-body`); guards that stop short build the body from the one
     they stopped at and make no environment, as 1.9.2 built it.
@@ -2214,14 +2501,62 @@ cocolint index offers no import of it.
   `coco_trace_cut`): the Fail port is printed from the call's frame, and
   through 1.10.22 the cut took it, so a clause that cut and then failed
   printed no Fail (and a window's call never ended, `fate="open"`). A
-  frame's kind is asked in six places -- `coco_backtrack`'s drop test,
+  frame's kind is asked in ten places -- `coco_backtrack`'s drop test,
   the `$trace_exit` marker's search, the `;` Redo's search,
-  `coco_trace_reopen`, `$catch_exit`'s scan and `coco_frames_on`'s walk
-  (the update view's) -- and a new kind goes to all six. **A frame is a
+  `coco_trace_reopen`, `$catch_exit`'s scan, `coco_frames_on`'s walk
+  (the update view's), since 3.20.0 `$det_exit`'s scan (`coco_det_exit`),
+  since 3.21.0 a guard's (`coco_det_live`) and since 3.27.0 the printer's
+  region walk and its search for a `;`'s call (`coco_trace_region`,
+  `coco_trace_redo_at`) -- and a new kind goes to all ten (3.28.0's DB
+  frame, retract/1's and clause/2's walk, is a choice point to each, a
+  clause frame's view and place, and no call's; 3.29.0's WALK frame, arg/3's
+  walk and since 3.30.0 char_type/2's and code_type/2's, a choice point to
+  each and no call's, and a `;`'s GOAL frame where the printer's Redo is). **A frame is a
   call's by its depth (> 0), never by its goal**:
   a goal can be heap cell 0, and `--trace run F t` printed no Fail for an
   atom goal written first. A Redo reopens only the calls it is inside
   (the nearest shallower frame, then the next), not every shallower one.
+* **The printer hides what swipl's hides** (3.27.0, swipl's isDebugFrame
+  and dbgRedoFrame; TRACING.md's "A library's calls", the functions under
+  "what the printer hides" in lib/solve-control.cicili): a call is no port
+  where its predicate hides its children and so does the call whose body
+  it is in (`trace_goal`; a builtin's search, its `kcall`). Hiding is
+  asked in the step's dispatch order (`coco_trace_hc`): a builtin's row, a
+  compiled-in module's C (`coco_sysclaims_hook`: the tier-1 rows and
+  green's, NOT the load's claims, so no take-over moves), then the store's
+  `pattrs` 32 -- after the modules, because a fact a program asserts under
+  a module's C name is no predicate the call reaches. A predicate's 32
+  is decided by its FIRST clause in a read (`coco_assert_from`, swipl's
+  assert_term): set where the machine's `nodbg` is 1 -- generate_debug_info
+  false, by the directive (`coco_directive`) or the goal (`lb_set_flag`),
+  saved and put back by each read (`coco_consult_oid`), and 0 at the start
+  of a compiled-in module's text or a preloaded library's (lib/module.cicili)
+  -- and cleared where it is 0; 64 marks a library's (its first clause a
+  `noexp` read's), which each later clause decides again: one namespace for
+  swipl's separate user predicate (card row N1). A hidden call's frame has
+  PRINTR 2, and it has no Exit or Fail port (the `'$trace_exit'` marker,
+  the builtin's sites, `coco_trace_fail`, `_nomatch`, `_spent`). **The
+  step's `tport` is that PRINTR** (0 untraced, 1 shown, 2 hidden), which
+  `coco_trace_call` answers, out of line and `(weak) (cold)`: a flag of its
+  own beside `tport` took `tport` out of its register and cost queens'
+  every call six instructions, the flag folded into `tport` with the
+  question and the port as two calls in the loop four, and the one cold
+  call none (`tools/flow/zero.sh`, all three under 3.26.1's); a retry
+  inside one is the Redo of the outermost call of its region whose caller
+  does not hide (`coco_trace_region`), printed as the retry begins, before
+  the selection (`coco_trace_paint`), once that call has exited. **A new
+  engine starter hands the tracer on through `coco_trace_inner`**, its
+  QUERY 0 where swipl's builtin is a clause (findall/3, forall/2,
+  call_limited/3: the builtin's context) and 1 where it is C running a
+  query (with_output_to/2: no context), one deeper and a boundary no Redo
+  crosses (`trace_bhc`); **a new system library says
+  `:- set_prolog_flag(generate_debug_info, false).` at its head**, as the
+  compiled-in halves, library/print_message.pl and library/async.pl do;
+  **a new reader of `pattrs` masks the bits it means** (listing/1's guard
+  reads 31). The recorder (2) and the quiet trace (3) keep 3.26's every
+  call. test/trace.pl holds 32 queries of test/trace-library.pl to swipl,
+  a second file after one that ends under false, and eight lines swipl has
+  none of to cocolog's own; COMPAT.md has what is not swipl's.
 * **The journal** (1.10.15; TRACING.md, DESIGN-flow.md 9.2):
   `'$trace_window'/4` with `journal(record(F))` writes a line for each
   PORTAL call -- a module call that reaches the world -- and with
@@ -2435,8 +2770,9 @@ cocolint index offers no import of it.
   made an integer outside them raises it too (a NaN or an infinity is
   handed back, as swipl's is, since 2.2.0). The reader counts a literal in u64
   (`coco_mag_digit`, `iwide`): past 2^63-1, or 2^63 for a negative one, is
-  `integer out of range`, and atom_number/2 and number_codes/2 fail for
-  such a numeral. **The guards stop where they cannot decide** -- a result
+  `integer out of range`; atom_number/2 fails for such a numeral, and
+  number_codes/2 and number_chars/2 raise `syntax_error(illegal_number)`
+  (`coco_read_number_text`, below). **The guards stop where they cannot decide** -- a result
   past 64 bits, the least integer // -1, its negation, a shift that loses
   a bit, a BIG operand -- and AG_ISF/AG_ISV hand a result past the cell's
   60 bits to the step, which boxes it; GUARDX (`coco_env_guardx`) works on
@@ -2512,6 +2848,48 @@ cocolint index offers no import of it.
   `syntax_error(illegal_number)`. `test/rationals.pl` and
   `test/files/rationals.pl` hold the new surface (the second runs under
   both systems).
+* **A search past the stack limit raises resource_error(stack)** (3.32.0,
+  swipl's `stack_limit` flag): the bytes a machine's heap, trail and choice
+  frames -- with their shadow frames, of every engine on the chain -- may
+  hold (`coco_stack_used`), 1 GB by default, COCOLOG_STACK_LIMIT for the
+  process's default, 0 or less none; the flag's errors are swipl's, a value
+  below what the stacks hold permission_error(limit, stacks, N). Through
+  3.31.0 a search that never ended grew the heap until memory was refused,
+  or the kernel killed the process. **It is asked only where memory grows,
+  never in the step loop** (`tools/flow/zero.sh` moves nothing), and **every
+  array of the stacks grows by the room the limit leaves it** and a
+  sixteenth (`coco-room-cap`, one DEFMACRO for the three): the heap and the
+  trail the limit's cells (`coco_stack_cap`, from `coco_grow_slow`), the
+  choice stack the frames the limit leaves beside the heap, the trail and
+  the other engines' (`coco_eng_grow_slow`, `coco-room-left`) -- through a
+  doubling at 65 536 frames a search leaving a choice point a level ran on
+  to half again the limit before anything asked. What passes the room, and
+  a collection that leaves more than the limit (the end of
+  `coco_heap_collect`, SOVER), stop the running engine at its next step,
+  `halted` 3 -- **a growth's stop is made only once the growth is given**,
+  or a refusal would not be memory's -- and `coco_halted_step` collects
+  where the engine may and SOVER does not say a collection just did, then
+  asks again: past the limit it raises error(resource_error(stack), _), the
+  context unbound where swipl's is a dict (COMPAT.md); under it the run goes
+  on and the step is given back, so the inferences are what they were.
+  After each collection the collector waits for no more heap than the limit
+  leaves beside the trail and the choices (`gc_next`, `coco-room-left`), and
+  from the flag's set on for no more than the limit's cells, so a heap of
+  garbage is collected before the stacks pass the limit -- **and for no less
+  than a sixteenth of the limit's cells**: that room shrinks with every
+  collection by the share of the garbage the search keeps, and choice
+  points beside a heap of garbage took 553 collections and 344 s to be
+  stopped at 1 GB (277 and 112 s with the least; swipl 9.0.4 223 and 86 s).
+  A search stopped at 1 GB peaks at about 1.5 GB of memory, where the
+  first build's doubling took 3.2. A nested engine's collection, a green
+  task's machine (`coco_machine_init_alias`) and a thread's take the limit
+  as the host's do. The uncaught error and print_message/2 say swipl's
+  first line, `Stack limit (1.0Gb) exceeded`, from the flag
+  (`coco_error_text`, library(print_message)'s `'$pm_stack_size'/2`). **A
+  new array that grows with a search takes its growth from the room the
+  limit leaves**, as the three do. test/files/stack_limit.pl holds the flag
+  and the stops to swipl; test/errors.pl's `stack_limit_said` and
+  test/solve.cicili (an engine that never collects) the rest.
 * **A refused allocation raises resource_error(memory)** (1.10.28). A
   doubling refused is tried again with what is needed and a sixteenth
   (`coco_grow_short` for the machine's arrays, `coco_eng_grow` for the
@@ -2592,7 +2970,9 @@ cocolint index offers no import of it.
 * **A window asks where it stopped** (1.10.16, D4): `'$trace_window'/4`'s
   `ask(Cond, Holds)` proves Cond in an engine of its own (ten million
   inferences, no collection) between the run's end and the undo, over the
-  bindings the run left; Cond's cell is a root beside the goal's
+  bindings the run left -- at a failure none (3.22.0: the run is undone
+  first, as a run that failed past its last choice point undid nothing on
+  the way); Cond's cell is a root beside the goal's
   (`hold[1]`), because a collection on the way to the window moves it.
   `flow_when/4` bisects over runs stopped at `to(I)` and asked -- each a
   child process replaying the probe's journal -- and `flow_why/2`
@@ -2653,9 +3033,30 @@ cocolint index offers no import of it.
   prints with stdio of its own; a capture (with_output_to/2) has a column
   of its own from 0 and gives the console's back. A new writer to the
   console goes through `coco_out_puts`/`coco_out_putc` or notes what it
-  wrote, or the next `~N` and the next report guess. `format`'s `~N` writes
-  a newline only where a line is open; a term sink starts at 0; a file of
-  library(stream) answers for itself (`coco_m_sink_open_install`).
+  wrote, or the next `~N` and the next report guess. **`format` keeps
+  swipl's column** (3.33.0, pl-fmt.c's format_state, `coco_fmt_cols` in
+  lib/builtins-format.cicili): it begins where the sink stands
+  (`coco_fmt_start`: the console's `coco_con_lp`, a capture's
+  `coco_cap_lp`, a term sink 0, a file of library(stream) its own column,
+  `coco_m_sink_column_install`, the "line open" hook through 3.32.0), and
+  its `~N` writes a newline unless that column is 0 (after a return, or a
+  stop the text passed back to 0, none). The column directives are
+  swipl's: `~t` a fill point, `~N|` a stop at N, `~N+` one N past the last
+  stop; the text since the first fill point is held (`pb`) and put out at
+  the stop with the room shared from the middle out, and the column is the
+  stop whatever the text reached. **Two rules reckon the column, as
+  swipl's do**: format's own text (`~a`, `~s`, `~c`, the numbers, the
+  format's characters) walks a tab to (COL + 1) | 7 (`coco_col_walk` mode
+  0, `coco-fmt-now`), and a writer (`~w`, `~q`, `~p`, `~k`, `~W`) leaves
+  the stream's linepos where nothing is held and the column is where the
+  sink stands, else the column before it plus the linepos its text reaches
+  from 0 (`coco-fmt-writer`, prepare_sub_format()) -- **a new directive
+  that writes a term goes through `coco-fmt-writer`**, any other writes
+  into `o` and is walked by the first rule. **The column is walked only
+  in a format that asks it**, a fill point, a stop or `~N` among its
+  directives (`coco_fmt_asks_column`, `on`): a format that asks none
+  pays no walk -- so **a new directive that reads the column goes into
+  that function's test too**, or it reads a column nothing walked.
 * **The reader is written ONCE and emitted TWICE** (1.10.7): the bodies of
   `coco_parse_term`, `_primary`, `_named`, `_args` and `_list` are macros at
   the top of `lib/syntax.cicili`, emitted as the family every consult uses

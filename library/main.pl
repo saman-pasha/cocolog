@@ -42,7 +42,9 @@
 %%            conversion is built on SWI's string type, and cocolog has none.
 %%    9 x P1  current_prolog_flag/2 over a flag table cocolog does not keep
 %%    6 x H1  halt/0, which reports no solution here rather than exiting
-%%    2 x F1  ~t and ~| column directives in the usage formatter
+%%    2 x F1  ~t and ~| column directives in the usage formatter (refused
+%%            through 3.32.0, and the row retired when format/2 laid them
+%%            out as swipl's in 3.33.0)
 %%    1 x D2  `:- module_transparent', which is not a prefix operator here,
 %%            so the file does not even READ
 %%    1 x N1  atom//1 collides with the vendored lib/swipl/dcg_basics.pl
@@ -370,9 +372,9 @@ opt_loose(V, V).
 
 %% ---- usage ------------------------------------------------------------
 %%
-%% NO ~t OR ~| -- cocolog refuses the column directives by name (F1 in the
-%% dialect card), so the columns here are computed and written. That is the
-%% documented fix for the trap, and this is what it looks like.
+%% THE COLUMNS ARE COMPUTED AND WRITTEN, as they had to be while cocolog
+%% refused ~t and ~| by name (F1 in the dialect card, through 3.32.0);
+%% format/2 lays them out as swipl's since 3.33.0, and the table is the same.
 argv_usage(_Level) :-
     argv_usage_header,
     findall(row(Left, Help),

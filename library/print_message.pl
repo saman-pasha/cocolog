@@ -93,6 +93,12 @@
 %% The stack of messages in print is a global, set back by hand on every
 %% way out (swipl's setup_call_cleanup/3): a b_setval/2 is an nb_setval/2
 %% here, and undoes nothing on backtracking. print_message/2 never fails.
+%%
+%% swipl's print_message/2 is its system's: the tracer shows a program's
+%% call of it and hides what it calls (3.27.0), but a program's own
+%% message_hook/3 and prolog:message//1.
+:- set_prolog_flag(generate_debug_info, false).
+
 print_message(Kind, Term) :-
     (   '$pm_push'(Term, Stack)
     ->  catch(ignore('$pm_guarded'(Kind, Term)), E,
@@ -361,6 +367,13 @@ message_to_string(Term, Str) :-
 
 '$pm_translate2'(Term) -->
     '$pm_prolog_message'(Term).
+%% A search the stack_limit flag stopped (3.32.0): swipl's first line, the
+%% limit in its own sizes. swipl writes the rest from the dict it makes the
+%% error's context, which cocolog has not got.
+'$pm_translate2'(error(resource_error(stack), _)) -->
+    !,
+    { current_prolog_flag(stack_limit, B), '$pm_stack_size'(B, S) },
+    [ 'Stack limit (~w) exceeded'-[S] ].
 '$pm_translate2'(error(ISO, SWI)) -->
     '$pm_location'(SWI),
     '$pm_term_message'(ISO),
@@ -371,6 +384,16 @@ message_to_string(Term, Str) :-
     '$pm_make_lines'(Lines, L, T).
 '$pm_translate2'(format(Fmt, Args)) -->
     [ Fmt-Args ].
+
+%% swipl's human_stack_size/2 (boot/messages.pl), of the limit in kilobytes
+'$pm_stack_size'(B, S) :-
+    K is B // 1024,
+    (   K < 100
+    ->  format(atom(S), '~dKb', [K])
+    ;   K < 100000
+    ->  V is K / 1024, format(atom(S), '~1fMb', [V])
+    ;   V is K / (1024 * 1024), format(atom(S), '~1fGb', [V])
+    ).
 
 '$pm_make_lines'([], T, T) :- !.
 '$pm_make_lines'([Last0], ['~w'-[Last]|T], T) :-
@@ -666,10 +689,24 @@ message_to_string(Term, Str) :-
 '$pm_swi_message'(initialization_error(Error, Goal, File:Line)) -->
     [ url(File:Line), ': ~p '-[Goal] ],
     '$pm_translate'(Error).
+%% the determinism errors: swipl's three no cocolog goal raises (3.20.0;
+%% with no det/1, no procedure is a deterministic one), then `$(G)''s two
+'$pm_swi_message'(determinism_error(PI, det, Found, property)) -->
+    [ 'Procedure ~p called from a deterministic procedure'-[PI] ],
+    '$pm_det_error'(Found).
+'$pm_swi_message'(determinism_error(PI, det, fail, guard)) -->
+    [ 'Procedure ~p failed after $-guard'-[PI] ].
+'$pm_swi_message'(determinism_error(PI, det, fail, guard_in_caller)) -->
+    [ 'Procedure ~p failed after $-guard in caller'-[PI] ].
 '$pm_swi_message'(determinism_error(Goal, det, fail, goal)) -->
     [ 'Goal ~p failed'-[Goal] ].
 '$pm_swi_message'(determinism_error(Goal, det, nondet, goal)) -->
     [ 'Goal ~p succeeded with a choice point'-[Goal] ].
+
+'$pm_det_error'(nondet) -->
+    [ ' succeeded with a choicepoint'-[] ].
+'$pm_det_error'(fail) -->
+    [ ' failed'-[] ].
 
 %% Where an error was raised, before its text: the context's predicate.
 '$pm_location'(X) -->

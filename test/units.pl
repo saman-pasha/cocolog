@@ -266,7 +266,21 @@ types :-
     %% its strchr over a truncated character -- which is not copied
     answer(findall(K5, ( member(K5, [256, 44032, 1575]), ( code_type(K5, period) ; code_type(K5, quote) ) ), Ks5),
            Ks5, G5),
-    check('period and quote are ASCII\'s alone', G5, []).
+    check('period and quote are ASCII\'s alone', G5, []),
+    %% AN UNBOUND CHARACTER WALKS EVERY CODE POINT (3.30.0), as swipl's
+    %% does -- but char_type/2 hands out a character, and passes the 2048
+    %% surrogates by, where swipl's answers '\uD800' (which its own
+    %% char_code/2 refuses); under bytes a character is a byte, its walk
+    %% ends at 255, and no code past ASCII is of a class
+    answer(aggregate_all(count, char_type(_, to_lower(_)), N6), N6, G6),
+    check('char_type/2 walks every code point but the surrogates', G6, 1112064),
+    answer(aggregate_all(count, code_type(_, to_lower(_)), N7), N7, G7),
+    check('...and code_type/2 every code point', G7, 1114112),
+    answer(( set_prolog_flag(text_units, bytes),
+             aggregate_all(count, char_type(_, to_lower(_)), N8),
+             aggregate_all(count, code_type(_, alpha), A8),
+             set_prolog_flag(text_units, characters) ), N8-A8, G8),
+    check('under bytes char_type/2 walks the 256 bytes, and the letters are ASCII\'s 52', G8, 256-52).
 
 %% ---- bytes that are no UTF-8 --------------------------------------------------
 
