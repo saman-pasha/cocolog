@@ -78,10 +78,21 @@ main :-
               '%% short count here rather than a suite that hangs.',
               'nrecv(_, 0, N, N) :- !.',
               'nrecv(Ch, K, A, N) :- channel_recv(Ch, 5000, _), !, A1 is A + 1, K1 is K - 1, nrecv(Ch, K1, A1, N).',
-              'nrecv(_, _, N, N).' ]),
+              'nrecv(_, _, N, N).',
+              '',
+              '%% ---- what the import section spawns ----',
+              '%% Loads a library N times, each load noting its import, and asks',
+              '%% current_predicate/1 of what it imported after each.',
+              'loads(0) :- !.',
+              'loads(N) :-',
+              '    (   0 =:= N mod 2 -> use_module(library(lists), [append/3])',
+              '    ;   use_module(library(lists))',
+              '    ),',
+              '    current_predicate(append/3),',
+              '    M is N - 1, loads(M).' ]),
     use_module(Work),
-    a_thread, what_it_sees, a_channel, closed, backpressure, helpers, contention, parallel,
-    locks, conditions,
+    a_thread, what_it_sees, a_channel, closed, backpressure, helpers, contention, imports,
+    parallel, locks, conditions,
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -184,6 +195,19 @@ contention :-
     written(( channel_new(Ch1), thread_pool(8, flood(Ch1, w, 100), Ids1),
               th_drain_n(Ch1, 800, 0, N1), thread_join_all(Ids1) ), N1, G1),
     check('eight senders, 800 terms, all 800 arrive', G1, '800').
+
+imports :-
+    section('libraries loaded from eight threads at once'),
+    %% EACH LOAD NOTES ITS IMPORT IN ONE LIST, the process's (current_
+    %% predicate/1's, 3.42.0, swipl's module user), which grows as it goes.
+    %% Through 3.42.1 nothing held it: two threads' loads grew it at once
+    %% and freed it twice, and the process ended on `double free or
+    %% corruption' or `realloc(): invalid old size' -- every run of this on
+    %% the four-core Linux box. A crash ends the case with no verdict line.
+    written(( thread_pool(8, loads(3000), Ids1),
+              findall(S, ( member(I, Ids1), thread_join(I, S) ), Ss1) ), Ss1, G1),
+    check('eight threads load 24 000 times, and each sees its import', G1,
+          '[true,true,true,true,true,true,true,true]').
 
 parallel :-
     section('and it is really parallel, not taking turns'),

@@ -2390,7 +2390,16 @@
   ;; construct, a C row, a library's clauses -- as the hook says of it
   ;; (3.42.0): through 3.41.0 a C row was the system's and a library's
   ;; clauses none, so between/3 was no predicate and aggregate_all/3 one
-  ;; the program had not imported
+  ;; the program had not imported. A NAME COCOLOG DEFINES IN C THAT THE
+  ;; HOOK CALLS CURRENT ANSWERS BEFORE THE STORE IS ASKED (3.42.2), as
+  ;; through 3.41.0 a C row answered: the program's own could only say yes
+  ;; again, and a backend's store is warmed for what it can decide alone.
+  ;; 3.42.0 warmed it first, and library(assoc)'s `:- if(current_predicate(
+  ;; '$btree_find_node'/5))', read at every start, fetched a Zeytun store's
+  ;; predicates before the program's first goal -- a refused certificate
+  ;; said `fetching predicates' and the process ended 3 where it had
+  ;; raised in the goal (test/tunnel.pl). The hook is asked once: of a C
+  ;; row it called no predicate, only the program's own answers yes
   (func coco_pred_current ((coco_store * st) (coco_machine * m) (u64 nid) (u32 n)) (out int)
         ;; a fresh machine's first consult comes before its first step,
         ;; which is where the engine's names are interned otherwise: the
@@ -2399,6 +2408,8 @@
         (let ((int crow . #'(or (>= (coco_builtin_index m nid n) 0)
                                 (and (!= coco_claims_hook nil) (coco_claims_hook (coco_atom_name m nid) n))))
               (int lib . 0))
+          (if (and crow (or (== coco_cp_hook nil) (coco_cp_hook (coco_atom_name m nid) n 1)))
+              (return 1))
           (coco_store_warm st)
           (let ((size_t pi . #'(coco_pred_find st nid n)))
             (if (< pi (-> st npreds))
@@ -2407,9 +2418,9 @@
                       (block
                         (if (or (not (-> p library)) (-> p own)) (return 1))
                         (set lib 1))))))
-          (if (and (not crow) (not lib)) (return 0))
-          (if (== coco_cp_hook nil) (return crow))
-          (return (coco_cp_hook (coco_atom_name m nid) n crow))))
+          (if (or crow (not lib)) (return 0))
+          (if (== coco_cp_hook nil) (return 0))
+          (return (coco_cp_hook (coco_atom_name m nid) n 0))))
 
   (func coco_halt_load ((coco_store * st) (int code) (int keep))
         ;; the program's output first: a failed commit says so on stderr

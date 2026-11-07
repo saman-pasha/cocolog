@@ -1156,7 +1156,11 @@ cocolint index offers no import of it.
   predicates (module system or a `$` one) wherever cocolog defines them,
   between/3 and sub_atom/5 among the library's clauses, and a library
   module's export once the program IMPORTED it (`coco_imp_note`, a
-  process-wide list): a load of library(Name) its read or goal made
+  process-wide list, every reader and writer of it under `cp_imp_mx`
+  since 3.42.2: a library(thread) thread loads with a machine of its own,
+  and through 3.42.1 two threads' loads at once grew the list and freed it
+  twice, test/thread.pl's `imports`): a load of library(Name) its read or
+  goal made
   (use_module/1,2 with the import list or except/1, ensure_loaded/1,
   autoload/2's list, a list of files, consult/1, `[File]`, load_files/2's
   imports(I); `lb_import_note` and `lb_import_lf`, before the load, as
@@ -1166,7 +1170,12 @@ cocolint index offers no import of it.
   define_or_generate/1, but for six properties and a module other than
   user or system). A call imports nothing, where swipl's autoload does
   (COMPAT.md); what the table has no row for answers as a C row says.
-  **library(listing) is carried**, and a carried name loads as a goal
+  **A name cocolog defines in C that the hook calls current answers
+  before the store is asked** (3.42.2): 3.42.0 warmed the store first, and
+  library(assoc)'s `:- if(current_predicate('$btree_find_node'/5))`, read
+  at every start, fetched a Zeytun store's predicates before the program's
+  first goal (test/tunnel.pl: a refused certificate said `fetching
+  predicates` and the process ended 3). **library(listing) is carried**, and a carried name loads as a goal
   too, and through consult/1, `[File]` and load_files/2 (`lb_is_carried`;
   through 3.41.0 each raised existence_error, where the directive loaded).
   The table is looked up by arity and then the name's first byte

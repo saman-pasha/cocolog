@@ -14598,3 +14598,72 @@ in nth0/3 and nth1/3 alone: with the index given, a walk that meets an
 unbound tail fails, where swipl's binds it to `[_, ..., Elem|_]` (the next
 change); and in max_member/3's ball, whose meta-argument swipl qualifies
 (`user:(@<)`), COMPAT.md's row.
+
+
+## Two regressions of 3.42.0: the store warmed at start-up, and the import list freed twice (3.42.2)
+
+CI went red on 3.42.0 (run 42382968541), and on 3.42.1 for the same two
+reasons; neither case was among 3.42.0's narrow ones.
+
+- **test/tunnel.pl, on all three jobs.** A reader behind the stand-in
+  edge, whose certificate does not carry the name it asked for, said
+  `fetching predicates` where it says `fetching clauses`, and the process
+  ended 3 where it ends 2. 3.42.0's `coco_pred_current` warmed the store
+  before it answered a name cocolog defines in C, and library(assoc)'s
+  `:- if(current_predicate('$btree_find_node'/5))`, read at every start,
+  made the Zeytun backend fetch the store's predicate list before the
+  program's first goal: the refusal ended the start, not the goal. A name
+  cocolog defines in C that the hook calls current answers before the
+  store is asked again, as through 3.41.0 a C row did: the program's own
+  could only say yes again. A name the hook calls no predicate of the
+  program's (nth0/3 before an import of library(lists)) still asks the
+  store whether the program defined it, and the hook is asked once.
+- **test/cowork.pl, on the Linux job.** `double free or corruption
+  (!prev)`. What the program imported (3.42.0's `coco_imp_note`) is one
+  list for the process, as swipl's module user is one, and a
+  library(thread) thread or a green world's worker loads with a machine of
+  its own: each load added its row with no lock, and two loads at once
+  grew the array with realloc(3) and freed it twice. The list's four
+  statics are held by one mutex, `cp_imp_mx`, taken by every reader and
+  writer -- `coco_imp_note`, the hook's lookup (`coco_b_cp_current`) and
+  '$pp_autoload'/1's, whose test and add are one step under it.
+
+test/thread.pl's new section `imports`: eight threads load library(lists)
+3 000 times each, use_module/1 and use_module/2 with an import list by
+turns, and ask current_predicate(append/3) after each load. On 3.42.1 a
+program of the same loads ended the process in every one of six runs on
+the four-core Linux box (`realloc(): invalid old size`, `double free or
+corruption (!prev)`, segmentation faults), and the case in two of three;
+on 3.42.2 the program is green in five runs and the case in six. tunnel
+is red on 3.42.1 and green on 3.42.2, and cowork green in six runs.
+
+Arms, a build each, the rule taken out (2), and the arm of no edit green
+in tunnel, thread (three runs) and cowork (three runs):
+
+- the C row answered before the store is asked: red in tunnel alone, with
+  CI's two failures (`a name the certificate does not carry is refused`,
+  `and names the server it was refused by`). Two arms' tunnel cases run
+  at once share the server's `tunnel_test` base, and each failed the
+  other's checks: an arm's tunnel runs alone;
+- the lock: test/thread.pl aborted in six of eight runs, and the program
+  of loads in ten of ten.
+
+The hook asked once is a guard of cost: the first cut asked it again after
+the store, every case green, and current_predicate/1 of a name the hook
+called no predicate (nth0/3 before an import) was 656 instructions a call
+dearer than 3.42.1's.
+
+The cost, callgrind, 3.42.1 to 3.42.2. The step loop is not touched
+(tools/flow/zero.sh, work less padding, the same on both: nrev 65 903 609,
+queens 40 275 120, lookup 48 052 661). A start (`cocolog query
+true`) is 35 053 937 instructions and 35 054 025. A call, 2 000 of each
+less the same loop with none: current_predicate/1 of call_metered/4, a C
+row, 3 084 and 3 042 (the store not asked); of append/3 after an import
+of library(lists) 4 237 and 4 314, and of nth0/3 before one 3 823 and
+3 910 (the lock, taken and given back, and the store asked as before);
+a use_module(library(lists)) goal 878 559 and 878 626 (the lock).
+
+Narrow cases green: lint, engine, files (each agreeing with swipl),
+library, directives, reconsult, errors, repl, kbs, zigurat-lib, async,
+httpd, cowork, tunnel and thread, with a server up, and the solve, module
+and zigurat binaries, which compile lib/kb.cicili. The card's cites hold.

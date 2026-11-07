@@ -1517,6 +1517,13 @@
   (static) (var size_t cp_nimps)
   (static) (var size_t cp_capimps)
   (static) (var size_t cp_grps)
+  ;; THE LIST'S LOCK (3.42.2), held by each reader and writer of the four
+  ;; above: a library(thread) thread, or a green world's worker, loads with
+  ;; a machine of its own, and each load notes its import here. Through
+  ;; 3.42.1 two loads at once grew the array and freed it twice
+  ;; (test/cowork.pl's workers: `double free or corruption' on GitHub's
+  ;; Linux runner)
+  (static) (var pthread_mutex_t cp_imp_mx . PTHREAD_MUTEX_INITIALIZER)
 
   ;; a row added; a growth refused adds none -- one import fewer, never a
   ;; wrong one
@@ -1582,6 +1589,7 @@
         (let ((char mod [256]) (size_t grp . 0))
           (if (coco_imp_module m spec mod (sizeof mod))
               (block
+                (pthread_mutex_lock (aof cp_imp_mx))
                 (set cp_grps (+ cp_grps 1))
                 (set grp cp_grps)
                 (set imports (coco_deref m imports))
@@ -1592,7 +1600,8 @@
                         (== 0 (strcmp (coco_atom_name m (coco_name_of m imports)) "except")))
                    (block (coco_imp_add mod nil 0 2 grp)
                           (coco_imp_pis m mod (coco_arg m imports 0) 3 grp)))
-                  (#t (coco_imp_pis m mod imports 1 grp)))))))
+                  (#t (coco_imp_pis m mod imports 1 grp)))
+                (pthread_mutex_unlock (aof cp_imp_mx))))))
 
   ;; whether NAME/ARITY is in the list group GRP excepted
   (static)
@@ -1631,7 +1640,11 @@
               (int sw . #'(coco_swipl_props name n (aof imp) (aof impl) (aof spec))))
           (if (not sw) (return crow))
           (if (or (== 0 (strcmp impl "system")) (== (nth 0 impl) (cast char 36))) (return 1))
-          (return (coco_imp_has impl name n))))
+          (let ((int r . 0))
+            (pthread_mutex_lock (aof cp_imp_mx))
+            (set r (coco_imp_has impl name n))
+            (pthread_mutex_unlock (aof cp_imp_mx))
+            (return r))))
 
   ;;; '$pp_autoload'(Head), predicate_property/2's of a head it names
   ;;; (3.42.0): a library module's export is the program's from now on, as
@@ -1654,10 +1667,12 @@
                     (u32 ar . #'(coco_arity m h)))
                 ;; once: a loop of predicate_property/2 adds no row
                 (if (and (coco_swipl_props name ar (aof imp) (aof impl) (aof spec))
-                         (!= 0 (strcmp impl "system")) (!= (nth 0 impl) (cast char 36))
-                         (not (coco_imp_has impl name ar)))
-                    (block (set cp_grps (+ cp_grps 1))
-                           (coco_imp_add impl name ar 1 cp_grps)))))
+                         (!= 0 (strcmp impl "system")) (!= (nth 0 impl) (cast char 36)))
+                    (block (pthread_mutex_lock (aof cp_imp_mx))
+                           (if (not (coco_imp_has impl name ar))
+                               (block (set cp_grps (+ cp_grps 1))
+                                      (coco_imp_add impl name ar 1 cp_grps)))
+                           (pthread_mutex_unlock (aof cp_imp_mx))))))
           (return 1)))
 
   ;;; '$ops'(P, T, N, L): THE OPERATORS current_op(P, T, N) CAN ANSWER, as
