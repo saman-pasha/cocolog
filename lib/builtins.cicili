@@ -64,6 +64,7 @@
     ("acyclic_term"            1 coco_b_acyclic_term)
     ("cyclic_term"             1 coco_b_cyclic_term)
     ("term_variables"          2 coco_b_term_variables)
+    ("numbervars"              4 coco_b_numbervars)
     ("unify_with_occurs_check" 2 coco_b_unify_occurs)
     ("subsumes_term"           2 coco_b_subsumes_term)
     ("=@="                     2 coco_b_variant)
@@ -682,6 +683,10 @@
            "'$vars_minus'([H|T], L, R) :- ( '$var_in'(H, L) -> R = R1 ; R = [H|R1] ), '$vars_minus'(T, L, R1)."
 
            "'$witness'(T, G0, G, W) :- '$carets'(G0, G, Ex), term_variables(G, GV), term_variables(T, TV), term_variables(Ex, EV), '$vars_minus'(GV, TV, V1), '$vars_minus'(V1, EV, W)."
+
+           ;; numbervars/3, the clause swipl's boot/syspred.pl writes over
+           ;; its foreign numbervars/4 (3.40.0), whose errors name /4
+           "numbervars(Term, From, To) :- numbervars(Term, From, To, [])."
 
            ;; runs of equal keys become one group. The keys are compared with
            ;; `==' and not `=': unifying them would merge two groups whose
@@ -1979,6 +1984,161 @@
           (set out (coco_m_list e v n))
           (free v)
           (return (coco_m_unify e (coco_m_arg e g 1) out))))
+
+  ;;; ---- numbervars/4 (3.40.0) ----------------------------------------
+  ;;;
+  ;;; SWIPL'S FOREIGN numbervars/4 (pl-prims.c), numbervars/3 the clause over
+  ;;; it in the Prolog half. Each distinct variable of T, in the order
+  ;;; term_variables/2 meets it (`coco_b_collect_vars': a cycle's are swipl's
+  ;;; too), is bound to Functor(N), N counted up from the start; End is the
+  ;;; next N. Through 3.39.0 cocolog had no numbervars/3,4, and a call
+  ;;; raised existence_error.
+  ;;;
+  ;;; THE START is asked first, swipl's order: an integer, or a float with an
+  ;;; integer's value (`1.0', `-0.0'), else type_error(integer, S); within
+  ;;; `min_tagged_integer' and `max_tagged_integer', else
+  ;;; representation_error(tagged_integer). The end may pass the bound.
+  ;;;
+  ;;; THE OPTIONS are swipl's scan_options(): a proper list of Name(Value),
+  ;;; Name = Value or a boolean's bare Name, an unknown name passed by, the
+  ;;; last of a name the one that holds. singletons(Bool) takes true, false,
+  ;;; on, off, 1 and 0; functor_name(Atom) names the term, `$VAR' if none;
+  ;;; attvar(Action) is an atom in the scan and skip, bind or error after it,
+  ;;; else domain_error(numbervar_option, Options). cocolog has no
+  ;;; attributed variable, so the action is only checked.
+  ;;;
+  ;;; UNDER singletons(true) a variable met once in the term's TREE is bound
+  ;;; to Functor('_') and takes no number. A shared subterm counts at each
+  ;;; place, so a DAG is walked as the tree it stands for, as swipl's walk
+  ;;; does (40 levels of it run for ever there too), and a cyclic term marks
+  ;;; none, as swipl's.
+  ;;;
+  ;;; THE ORDER OF THE QUESTIONS is swipl's: the start's type, the options,
+  ;;; the attvar action, the start's range, and then each number as it is
+  ;;; given, the singletons taking none.
+  (static)
+  (func coco_nv_range ((coco_engine * e)) (out int)
+        (return (coco_m_raise e (coco_make1 (coco_m_machine e) "representation_error"
+                                            (coco_new_atom (coco_m_machine e) "tagged_integer")))))
+
+  (func coco_b_numbervars ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t t . #'(coco_m_arg e g 0))
+              (size_t s0 . #'(coco_deref m (coco_m_arg e g 1)))
+              (size_t ol . #'(coco_deref m (coco_m_arg e g 3)))
+              (size_t l . 0) (size_t fn . 0) (size_t av . 0) (int hfn . 0) (int hav . 0)
+              (i64 k . 0) (double f . 0.0) (int sing . 0) (int r . 1)
+              (size_t * v . nil) (size_t vn . 0) (size_t vcap . 0)
+              (coco_varmap vm . '{ nil nil 0 0 0 }) (int taken . 0) (size_t c . 0))
+          (cond
+            ((coco-tag-is REF (nth s0 (-> m heap))) (return (coco_m_instantiation_error e)))
+            ((coco_m_int e s0 (aof k)) (block))
+            ((and (coco-tag-is FLT (nth s0 (-> m heap))) (coco_m_float e s0 (aof f))
+                  (== f (floor f)) (< (fabs f) 9.2e18))
+             (set k (cast i64 f)))
+            (#t (return (coco_m_type_error e "integer" s0))))
+          (set l ol)
+          (while 1
+            (set l (coco_deref m l))
+            (if (coco-tag-is REF (nth l (-> m heap))) (return (coco_m_instantiation_error e)))
+            (if (coco_is_nil m l) break)
+            (if (not (coco_is_cons m l)) (return (coco_m_type_error e "list" l)))
+            (let ((size_t o . #'(coco_deref m (coco_arg m l 0)))
+                  (size_t val . 0) (u64 nm . 0) (int b . -1))
+              (cond
+                ((coco-tag-is REF (nth o (-> m heap))) (return (coco_m_instantiation_error e)))
+                ((coco-tag-is ATOM (nth o (-> m heap)))
+                 (if (== (coco_name_of m o) (coco_intern m "singletons"))
+                     (set sing 1)
+                     (return (coco_m_type_error e "option" o))))
+                ((and (coco-tag-is FUN (nth o (-> m heap))) (== (coco_arity m o) 1))
+                 (block (set nm (coco_name_of m o)) (set val (coco_deref m (coco_arg m o 0)))))
+                ((and (coco_is_compound2 m o "=")
+                      (coco-tag-is ATOM (nth (coco_deref m (coco_arg m o 0)) (-> m heap))))
+                 (block (set nm (coco_name_of m (coco_deref m (coco_arg m o 0))))
+                        (set val (coco_deref m (coco_arg m o 1)))))
+                (#t (return (coco_m_type_error e "option" o))))
+              (cond
+                ((== nm 0) (block))
+                ((== nm (coco_intern m "singletons"))
+                 (block
+                  (if (coco-tag-is ATOM (nth val (-> m heap)))
+                      (let ((u64 id . #'(coco_name_of m val)))
+                        (if (or (== id (coco_intern m "true")) (== id (coco_intern m "on"))) (set b 1))
+                        (if (or (== id (coco_intern m "false")) (== id (coco_intern m "off"))) (set b 0))))
+                  (if (coco-tag-is INT (nth val (-> m heap)))
+                      (let ((i64 iv . #'(coco_int_val m (nth val (-> m heap)))))
+                        (if (== iv 1) (set b 1))
+                        (if (== iv 0) (set b 0))))
+                  (if (< b 0) (return (coco_m_type_error e "bool" val)))
+                  (set sing b)))
+                ((== nm (coco_intern m "functor_name"))
+                 (if (coco-tag-is ATOM (nth val (-> m heap)))
+                     (block (set fn val) (set hfn 1))
+                     (return (coco_m_type_error e "atom" val))))
+                ((== nm (coco_intern m "attvar"))
+                 (if (coco-tag-is ATOM (nth val (-> m heap)))
+                     (block (set av val) (set hav 1))
+                     (return (coco_m_type_error e "atom" val))))
+                (#t (block))))
+            (set l (coco_arg m l 1)))
+          (if (and hav (!= (coco_name_of m av) (coco_intern m "skip"))
+                   (!= (coco_name_of m av) (coco_intern m "bind"))
+                   (!= (coco_name_of m av) (coco_intern m "error")))
+              (return (coco_m_domain_error e "numbervar_option" ol)))
+          ;; the start's range after the options, as swipl's
+          (if (or (> k 576460752303423487) (< k -576460752303423488))
+              (return (coco_nv_range e)))
+          ;; the variables, in term_variables/2's order
+          (set r (coco_b_collect_vars m t 0 (aof v) (aof vn) (aof vcap)))
+          (if (== r 0)
+              (block (set vn 0)
+                     (set r (coco_b_collect_vars m t 1 (aof v) (aof vn) (aof vcap)))))
+          ;; a variable's places in the tree, counted to 2, for singletons
+          (if (and (== r 1) sing (> vn 0) (coco_acyclic m t))
+              (let ((size_t wcap . 0) (size_t * wl . nil) (size_t wlen . 0))
+                (coco_varmap_take m (aof vm))
+                (set taken 1)
+                (for ((size_t i . 0)) (and (== r 1) (< i vn)) ((++ i))
+                  (if (not (coco_varmap_put (aof vm) (nth i v) 0)) (set r -1)))
+                (set wl (coco_wpairs_take m (aof wcap)))
+                (if (and (== r 1) (not (coco_cells_push (aof wl) (aof wlen) (aof wcap) t))) (set r -1))
+                (while (and (== r 1) (> wlen 0))
+                  (set wlen (- wlen 1))
+                  (let ((size_t a . #'(coco_deref m (nth wlen wl))))
+                    (cond
+                      ((coco-tag-is REF (nth a (-> m heap)))
+                       (if (and (coco_varmap_get (aof vm) a (aof c)) (< c 2))
+                           (if (not (coco_varmap_put (aof vm) a (+ c 1))) (set r -1))))
+                      ((coco-tag-is FUN (nth a (-> m heap)))
+                       (for ((u32 i . #'(coco_arity m a))) (> i 0) ((set i (- i 1)))
+                         (let ((size_t x . #'(coco_deref m (coco_arg m a (- i 1)))))
+                           (if (or (coco-tag-is REF (nth x (-> m heap)))
+                                   (coco-tag-is FUN (nth x (-> m heap))))
+                               (if (not (coco_cells_push (aof wl) (aof wlen) (aof wcap) x))
+                                   (set r -1))))))
+                      (#t (block)))))
+                (coco_wpairs_give m wl wcap)))
+          ;; each bound in order: a singleton to Functor('_'), the rest numbered
+          (if (== r 1)
+              (let ((u64 fid . #'(coco_functor_id m (? hfn (coco_name_of m fn) (coco_intern m "$VAR")) 1))
+                    (size_t sv . 0))
+                (for ((size_t i . 0)) (and (== r 1) (< i vn)) ((++ i))
+                  (cond
+                    ((and taken (coco_varmap_get (aof vm) (nth i v) (aof c)) (== c 1))
+                     (set sv (coco_make1_f m fid (coco_new_atom m "_"))))
+                    ;; each number given is held to the bound too; the end
+                    ;; may pass it
+                    ((> k 576460752303423487) (set r 2))
+                    (#t (block (set sv (coco_make1_f m fid (coco_new_int m k)))
+                               (set k (+ k 1)))))
+                  (if (and (== r 1) (not (coco_m_unify e (nth i v) sv))) (set r 0)))))
+          (if taken (coco_varmap_give m (aof vm)))
+          (free v)
+          (if (== r 2) (return (coco_nv_range e)))
+          (if (== r -1) (return (coco_m_resource_error e "memory")))
+          (if (== r 0) (return 0))
+          (return (coco_m_unify e (coco_m_arg e g 2) (coco_new_int m k)))))
 
   ;;; UNIFICATION THAT REFUSES TO BUILD A CYCLE: unify, then ask of each
   ;;; variable the unify bound whether its binding holds it again

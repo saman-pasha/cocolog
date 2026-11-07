@@ -511,7 +511,7 @@
     ("=.." 2) ("functor" 3) ("arg" 3) ("setarg" 3) ("nb_setarg" 3)
     ("$btree_find_node" 5)
     ("copy_term" 2) ("compare" 3) ("term_variables" 2) ("subsumes_term" 2)
-    ("unify_with_occurs_check" 2)
+    ("unify_with_occurs_check" 2) ("numbervars" 4)
     ("abolish" 1) ("abolish" 2) ("assert" 1) ("asserta" 1) ("assertz" 1) ("retract" 1)
     ;; a construct since 3.28.0, as retract/1 is, named as the goal in flight
     ("clause" 2)
@@ -2482,9 +2482,12 @@
                                      (? (== c 70) COCO_REV_FAIL COCO_REV_REDO)))
                              depth g (? (== c 67) (-> e trace_goal) 0))
               (return)))
+        ;; THE GOAL AS print/1 WRITES IT (3.40.0), as swipl's debugger writes
+        ;; it (portray, so numbervars, and quoted): `'$VAR'(0)' is `A' and
+        ;; `'don\'t'' swipl's escape; through 3.39.0 the engine's quoted text
         (let ((coco_strbuf b))
           (coco_sb_init (aof b))
-          (coco_write_term (-> e m) (aof b) g 1 0)
+          (coco_write_print (-> e m) (aof b) g)
           (coco_trace_line port depth ($ b s))
           (coco_sb_free (aof b))))
 

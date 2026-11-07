@@ -90,3 +90,18 @@ ct4(T) :- code_type(0'7, T), T = xdigit(_).
 %% it, and a failure after the cut that passes it by.
 rp(K) :- nb_setval(rpk, 0), repeat, nb_getval(rpk, K0), K is K0 + 1, nb_setval(rpk, K), K >= 2, !.
 rq :- repeat, !, fail.
+
+%% NUMBERVARS/3 is a system predicate's clause over numbervars/4 (3.40.0),
+%% as swipl's boot/syspred.pl writes it: its call a port, numbervars/4 under
+%% it none, and a failure at its end its Fail. A goal is written as print/1
+%% writes it, as swipl's debugger writes it: the numbered variables as
+%% letters, and a quote in an atom swipl's escape.
+nv(T) :- numbervars(T, 0, _).
+nw :- numbervars(f(_), 0, 9).
+nq :- atom_length('don''t', _).
+nr(X) :- member(X, ['don''t', b]), X == b.
+%% and a retry of the program's own predicate: its Redo written as the
+%% retry begins, before the selection binds it (`coco_trace_paint')
+ns(X) :- nt(X, 'don''t'), X == b.
+nt(a, _).
+nt(b, _).

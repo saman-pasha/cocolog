@@ -76,7 +76,7 @@ selftest_main :-
     open('f.txt', read, _Stream),   % cocolint: X2 -- walked into on purpose
 
     %% ---- X3: absent, deliberately, so ported code errors --------------
-    %% (setup_call_cleanup/3 left the row at 3.1.0: it is swipl's now)
+    %% (setup_call_cleanup/3 left the row at 3.1.0, numbervars/3 at 3.40.0)
     predsort(compare, [b, a], _),   % cocolint: X3 -- walked into on purpose
 
     %% ---- P1: ten flags answer, and this is none of them ---------------

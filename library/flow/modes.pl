@@ -58,6 +58,10 @@ flow_mode('=..', 2, ['+', '-'], det).
 flow_mode('=..', 2, ['-', '+'], det).
 flow_mode(copy_term, 2, ['+', '-'], det).
 flow_mode(term_variables, 2, ['+', '-'], det).
+%% swipl's numbervars/4 and the clause numbervars/3 is over it (3.40.0): an
+%% end already given only compares
+flow_mode(numbervars, 3, ['?', '+', '-'], det).
+flow_mode(numbervars, 4, ['?', '+', '-', '+'], det).
 flow_mode(atom_codes, 2, ['+', '-'], det).
 flow_mode(atom_codes, 2, ['-', '+'], det).
 flow_mode(atom_chars, 2, ['+', '-'], det).

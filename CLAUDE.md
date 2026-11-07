@@ -1645,7 +1645,10 @@ cocolint index offers no import of it.
   (split_string/4, string_chars/2, ...) write a cyclic list as its factors
   where SWI raises; term_to_atom/2 names the factors `S_1` where swipl
   writes a variable (`_3586`), and 1.10.18's case pins `S_1` as SWI's;
-  numbervars/3 does not exist. subsumes_term/2, `=@=/2` and `\=@=/2`
+  numbervars/3,4 do since 3.40.0 (swipl's, test/files/numbervars.pl), over
+  term_variables/2's walk and in its order, a cycle's too, its
+  singletons(true) walking an acyclic term as the tree it stands for (a
+  cyclic one marks none, as swipl's). subsumes_term/2, `=@=/2` and `\=@=/2`
   (2.1.0) do, built on the walks above: Specific's variables collected,
   a unify, each variable asked still unbound and none made one (the
   variable map), the unify undone; `=@=/2` asks a COPY of its first term
@@ -2631,7 +2634,14 @@ cocolint index offers no import of it.
   reads 31). The recorder (2) and the quiet trace (3) keep 3.26's every
   call. test/trace.pl holds 32 queries of test/trace-library.pl to swipl,
   a second file after one that ends under false, and eight lines swipl has
-  none of to cocolog's own; COMPAT.md has what is not swipl's.
+  none of to cocolog's own; COMPAT.md has what is not swipl's. **The
+  printer writes a goal as print/1 writes it** (3.40.0, `coco_write_print`
+  in `coco_trace_port` and in the Redo's text, `coco_trace_paint`), as
+  swipl's debugger writes it with portray: `'$VAR'(0)` is `A` and a quote
+  swipl's `\'` escape; through 3.39.0 the engine's own quoted text. A
+  window's recorded text, the journal and a backtrace keep that text
+  (`coco_write_term`: no numbervars, the doubled quote): the recorder's
+  text is matched, not read.
 * **The journal** (1.10.15; TRACING.md, DESIGN-flow.md 9.2):
   `'$trace_window'/4` with `journal(record(F))` writes a line for each
   PORTAL call -- a module call that reaches the world -- and with

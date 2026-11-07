@@ -52,7 +52,10 @@ main :-
                        'ct1(T)', 'ct2(C)', 'ct2(C), fail', ct3, 'ct4(T)',
                        %% repeat/0's answers at every retry, and a cut that
                        %% takes its frame (3.39.0)
-                       'rp(K)', rq, 'repeat, !' ]),
+                       'rp(K)', rq, 'repeat, !',
+                       %% numbervars/3 over numbervars/4, and a goal written as
+                       %% print/1 writes it (3.40.0)
+                       'nv(f(X, _, X))', nw, nq, 'nr(X)', 'ns(X)' ]),
            traced(Swipl, Program, Q)),
     %% LIBRARY CALLS (3.27.0, test/trace-library.pl): a library predicate a
     %% program's clause calls is a port, and what it calls is none -- its

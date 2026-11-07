@@ -1352,9 +1352,10 @@
                          (set (-> tt exited) 0)
                          (coco_trace_reopen e (cast size_t rt) (-> tt depth))))
                    (return nil)))))
+        ;; written as the port line writes it (`coco_trace_port')
         (let ((coco_strbuf tb))
           (coco_sb_init (aof tb))
-          (coco_write_term (-> e m) (aof tb) g 1 0)
+          (coco_write_print (-> e m) (aof tb) g)
           (return ($ tb s))))
 
   ;;; the retry entered a clause: its Redo, printed -- or the Redo recorded

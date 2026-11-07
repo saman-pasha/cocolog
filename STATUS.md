@@ -14062,3 +14062,138 @@ errors, engine, directives, library, reconsult, trace (108 checks),
 flowchart, static, repl, reason, gc, translate, and the solve, module and
 state binaries. Lessons basics/05 and 07, library/04, 37 and 50. The
 card's cites hold (26 rows, 38 cites, three renumbered).
+
+## numbervars/3,4 as swipl's (3.40.0)
+
+swipl's numbervars/4 is foreign (pl-prims.c), and numbervars/3 is the clause
+boot/syspred.pl writes over it, `numbervars(Term, From, To) :-
+numbervars(Term, From, To, [])`, so the errors of both name numbervars/4.
+Through 3.39.0 cocolog had neither, and a call raised existence_error. A
+minor: the builtins are new.
+
+- The row (lib/builtins.cicili, `coco_b_numbervars`) binds each distinct
+  variable of the term to `'$VAR'(N)`, N counted up from the start, in the
+  order term_variables/2 meets them (`coco_b_collect_vars`, a cycle's too),
+  and unifies End with the next N. numbervars/3 is the builtins' Prolog
+  half's clause, and the row of `*error-contexts*` (lib/solve.cicili) names
+  numbervars/4, so both raise with `context(system:numbervars/4, _)`.
+- The start: unbound, an instantiation error; an integer; a float with an
+  integer's value, under 9.2e18 in magnitude (`1.0`, `-2.0`, `-0.0`);
+  anything else type_error(integer, S) -- `1.5`, `1r2`, `'1'`, `1.0e30`,
+  an infinity, a NaN, `f(1)`.
+- The options are swipl's scan_options(): a proper list, a partial one an
+  instantiation error and an improper one type_error(list, Tail); each
+  element Name(Value), Name = Value with an atom for its name, or the bare
+  atom `singletons`, and anything else type_error(option, E), an unbound
+  element an instantiation error; an unknown name is passed by, and the
+  last of a name holds. singletons(B) takes true, false, on, off, 1 and 0,
+  else type_error(bool, B); functor_name(A) an atom, `[]` among them, else
+  type_error(atom, A); attvar(A) an atom in the scan and then skip, bind or
+  error, else domain_error(numbervar_option, Options), the whole list.
+  cocolog has no attributed variable, so the action is only checked.
+- singletons(true): each variable met once in the term's tree is bound to
+  `'$VAR'('_')` and takes no number. A shared subterm counts at each place
+  it stands, so a DAG is walked as the tree it stands for, as swipl's walk
+  counts it (forty levels of one run for ever in both); a cyclic term marks
+  none, as swipl's.
+- The order of the questions is swipl's: the start's type, the options,
+  the attvar action, the start's range against min_tagged_integer and
+  max_tagged_integer (else representation_error(tagged_integer)), and then
+  each number as it is given. So the end may pass the bound by one:
+  `numbervars(f(_), Max, E)` gives E = Max + 1, and `numbervars(f(_, _),
+  Max, _)` raises at the second variable. A singleton takes no number, and
+  raises nothing.
+
+THE TRACER WRITES A GOAL AS print/1 WRITES IT (`coco_write_print` in
+`coco_trace_port`, and in the Redo's text, `coco_trace_paint` in
+lib/solve-control.cicili), as swipl's debugger writes it, with portray, so
+numbervars, and quoted: `'$VAR'(0)` is `A`, and a quote in an atom swipl's
+`'don\'t'`. Through 3.39.0 it wrote the engine's own quoted text
+(`coco_write_term`): no numbervars, and the doubled quote. A window's
+recorded text, the journal and a backtrace keep the engine's quoted text:
+the recorder's text is matched, not read.
+
+test/files/numbervars.pl, new: 144 lines, swipl 9.0.4's byte for byte
+(3.39.0 differs at line 3). It holds:
+- the answers: a plain term, a ground one, a variable, a partial list, the
+  order of first occurrence, depth first; a start other than 0, a negative
+  one, a float with an integer's value and -0.0; a term that already holds
+  `'$VAR'` terms, and a variable inside one; a qualified term and a
+  string; a list of a thousand; End given right, wrong, as an atom, as a
+  compound and as a variable of the term; the bindings undone on
+  backtracking; a cyclic term and a DAG;
+- what the writers make of the result: print/1, writeq/1, write/1 and
+  write_canonical/1, the letters past Z (`Y`, `Z1`, `A2`) and a negative
+  number (`S_1`), a singleton's `_`, a functor name's own terms, format/2's
+  ~w, ~q and ~p, and write_term/2 with numbervars(true) and
+  numbervars(false);
+- the options: singletons in every form (on, off, 1, 0, the bare name,
+  Name = Value) and the last of a name holding, with a start and in the
+  order of first occurrence; functor_name/1; the attvar actions; an
+  unknown option; a DAG and a cyclic term under singletons(true);
+- the errors, each in swipl's order: the start's, the tagged bound (each
+  system's own, read from the flag), the options', and the context both
+  arities name;
+- determinism: neither leaves a choice point; clause/2 shows numbervars/3's
+  clause and raises of numbervars/4, written in C; a failure undoes the
+  bindings.
+
+test/trace.pl: five queries over test/trace-program.pl's `nv/1`, `nw/0`,
+`nq/0`, `nr/1` and `ns/1`, held to swipl's ports (113 checks): numbervars/3's
+call is a port and numbervars/4 under it none, a failure at its end is its
+Fail, and a goal is written as print/1 writes it, at a port and in a retry's
+Redo. library/flow/modes.pl:
+numbervars/3 and /4 are det, and the tables are rebuilt. The dialect card's
+X3 row no longer names numbervars/3, which is there now (its pattern, its
+swipl field, its cite, GUIDE.md and the selftest's comment).
+
+Not swipl's (COMPAT.md): a start between swipl's max_tagged_integer, 2^56-1
+on 64 bits, and cocolog's, 2^59-1, numbers the term, where swipl's raises;
+each system holds the start and every number to its own flag. And
+attvar(Action) is only checked, cocolog having no attributed variable. The
+tracer writes a goal whole, where swipl's cuts it at max_depth(10).
+numbervars/3 is the builtins' library clause, so current_predicate/1 named
+whole does not answer for it, and a program file's clause for it joins it
+where swipl's load refuses it, as for atom_concat/3 and sub_atom/5.
+
+Arms, a build each, the rule taken out (26). Each is red in
+numbervars.pl, test/trace.pl, test/flowchart.pl or the lint of the
+changed files, and the arm of no edit is green in all four:
+
+- the row, numbervars/3's clause, and the error context naming
+  numbervars/4;
+- the start: a float with an integer's value, a float at all, the range
+  taken out, and the range asked before the options;
+- each number held to the bound as it is given;
+- the options: a proper list, the bare `singletons`, Name = Value, on and
+  off, 1 and 0, functor_name/1, the attvar domain, an unbound element;
+- singletons: marked at all, a cyclic term marking none (taken out, the
+  tree walk of a cycle never ends), counted to two, taking no number;
+- the tracer: a port's goal and a retry's Redo written as print/1 writes
+  them, each red in the trace alone. The Redo's arm was green in the first
+  round: the case's retries were inside a library call, whose Redo the port
+  writes. It is red over `ns/1`, written for it: a retry of the program's
+  own predicate, whose Redo is the text painted as the retry begins;
+- numbervars/3,4's lines in library/flow/modes.pl, red in flowchart alone;
+- the card's X3 row naming numbervars/3, red in the lint alone.
+
+The cost, callgrind. zero.sh, work less padding, 3.39.0 to 3.40.0:
+
+| program | 3.39.0 | 3.40.0 |
+|---|---|---|
+| nrev | 65 894 200 | 65 894 116 |
+| queens | 40 277 011 | 40 276 954 |
+| lookup | 48 052 869 | 48 043 458 |
+
+The step loop is not touched; the counts move with the layout. A start
+(`cocolog query true`, the two binaries side by side) is 34 758 516
+instructions and 34 783 278 (+24 762): numbervars/3's clause, read at every
+start, and the builtins table's one row more, which the registry's walks of
+names pass (strcmp(3) +11 268).
+
+Narrow cases green: lint, files (121 cases, each agreeing with swipl),
+errors, engine, directives, library, reconsult, trace (113 checks),
+backtrace, window, cyclic, stream, flowchart, static, repl, reason, gc,
+translate, and the solve, module and state binaries. Lessons basics/05, 07,
+08 and 09, library/04, 37, 50, 51 and 56. The card's cites hold (26 rows,
+38 cites).
