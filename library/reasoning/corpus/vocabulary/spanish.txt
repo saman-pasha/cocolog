@@ -2713,6 +2713,38 @@ The adverb "puede que" means "maybe".
 The verb "viene" marks the passive.
 "goza" takes "de" before the phrase.
 "disfruta" takes "de" before the phrase.
+The masculine noun "carrito" means "trolley".
+"carritos" is the plural of "carrito".
+The feminine noun "apuesta" means "bet".
+The feminine noun "apuesta" means "stake".
+The adverb "de lo habitual" means "than usual".
+The feminine noun "sala de reuniones" means "meeting room".
+"salas de reuniones" is the plural of "sala de reuniones".
+The masculine noun "centro de investigación" means "research centre".
+"centros de investigación" is the plural of "centro de investigación".
+The adverb "bien a la vista" means "in full view".
+The masculine noun "boletín de notas" means "report card".
+"boletines de notas" is the plural of "boletín de notas".
+The masculine noun "gran boletín de notas" means "big report card".
+"grandes boletines de notas" is the plural of "gran boletín de notas".
+The feminine noun "hoja" means "leaf".
+The feminine noun "hoja" means "sheet".
+The verb "da un paso atrás" means "takes a step back".
+"dan un paso atrás" is the plural of "da un paso atrás".
+"doy un paso atrás" is the first person of "da un paso atrás".
+"damos un paso atrás" is the first person of "dan un paso atrás".
+"dar un paso atrás" is the infinitive of "da un paso atrás".
+"dio un paso atrás" is the past of "da un paso atrás".
+"dieron un paso atrás" is the past of "dan un paso atrás".
+"dado un paso atrás" is the participle of "da un paso atrás".
+The adjective "de cincuenta y dos años" means "fifty-two-year-old".
+The masculine adjective "propagandístico" means "propagandistic".
+The feminine adjective "propagandística" means "propagandistic".
+"propagandísticos" is the plural of "propagandístico".
+"propagandísticas" is the plural of "propagandística".
+"esparce" takes "por" before the phrase.
+The feminine noun "especie" means "species".
+The feminine noun "especie" means "sort".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

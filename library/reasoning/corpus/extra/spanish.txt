@@ -4345,3 +4345,50 @@ The verb "viene" marks the passive.
 # ... and `disfrutar', the writer's word for enjoys: `Godranno di qualche boccata d'ossigeno' is `Disfrutarán de
 # alguna bocanada', and with the phrase governed it was written bare
 "disfruta" takes "de" before the phrase.
+# The CNR report (VIT-4883..4900, Italian into Spanish and English): the words the Spanish writer needs. A trolley (the
+# Spanish had no word for one, and every sentence with it was refused)
+The masculine noun "carrito" means "trolley".
+"carritos" is the plural of "carrito".
+# the stake: a bet said again first, so that it stays the noun's meaning, and the stake after it, so that `apuesta' is
+# the word written for it (`participación' was, a share)
+The feminine noun "apuesta" means "bet".
+The feminine noun "apuesta" means "stake".
+# than usual, one adverb
+The adverb "de lo habitual" means "than usual".
+# a meeting room, a research centre
+The feminine noun "sala de reuniones" means "meeting room".
+"salas de reuniones" is the plural of "sala de reuniones".
+The masculine noun "centro de investigación" means "research centre".
+"centros de investigación" is the plural of "centro de investigación".
+# in full view
+The adverb "bien a la vista" means "in full view".
+# a report card, and a big one
+The masculine noun "boletín de notas" means "report card".
+"boletines de notas" is the plural of "boletín de notas".
+The masculine noun "gran boletín de notas" means "big report card".
+"grandes boletines de notas" is the plural of "gran boletín de notas".
+# a sheet: a leaf said first, where the dictionary's first noun is a blade, and the sheet after it (`chapa', a sheet of
+# metal, was the word written for one)
+The feminine noun "hoja" means "leaf".
+The feminine noun "hoja" means "sheet".
+# takes a step back, with its forms
+The verb "da un paso atrás" means "takes a step back".
+"dan un paso atrás" is the plural of "da un paso atrás".
+"doy un paso atrás" is the first person of "da un paso atrás".
+"damos un paso atrás" is the first person of "dan un paso atrás".
+"dar un paso atrás" is the infinitive of "da un paso atrás".
+"dio un paso atrás" is the past of "da un paso atrás".
+"dieron un paso atrás" is the past of "dan un paso atrás".
+"dado un paso atrás" is the participle of "da un paso atrás".
+# fifty-two-year-old, an adjective of several words
+The adjective "de cincuenta y dos años" means "fifty-two-year-old".
+# propagandistic
+The masculine adjective "propagandístico" means "propagandistic".
+The feminine adjective "propagandística" means "propagandistic".
+"propagandísticos" is the plural of "propagandístico".
+"propagandísticas" is the plural of "propagandística".
+# `esparcidos por la península': the phrase the verb governs
+"esparce" takes "por" before the phrase.
+# `una especie de gran boletín de notas': a sort; a species said again first, so that it stays the noun's meaning
+The feminine noun "especie" means "species".
+The feminine noun "especie" means "sort".

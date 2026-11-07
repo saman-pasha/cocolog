@@ -9711,6 +9711,204 @@ read into an English-worded IR and written into any lesson's language),
   suffered' (16: took advantage of the TV interview to apologise to the cyclist, the gold medallist, for the
   helplessness he suffered: `pedir perdón' is an idiom, the doer of the relative clause after its verb is not read, and
   `in Sydney' is `a Sydney'). The next sample's controls take this report in.
+  The CNR report (VIT-4883..4900, 18 sentences: the morning the president of the CNR shares out the year's funds among
+  its bodies, a trolley of report cards on the institutes beside him, Italian into Spanish and English: 18 of 18 and 16
+  of 18 on a fresh store, 17 and 14 with the new store alone, 11 and 11 with the new code on the old store, 10 and 10
+  before; reasoning 1.0.33). The sample was taken on the cocolog 3.33.0 binary, master's a605949 merged as e1f8fe4 (the
+  controls read every sentence alike on 3.19.5 and 3.33.0, 3 462 sentences, 0 differ, +0.056 % of the inferences), and
+  cocolog stays 3.33.0; master's 60fd13c (lesson 51 alone) and d4ad532 (cocolog 3.34.0, format/2's `~@') came during the
+  sample, change nothing under library/reasoning/, and are not merged: the next sample takes them. The article's
+  sentences fall from 85.7 million inferences in each language to 32.8 into Spanish and 32.9 into English. English
+  refuses 17 and 18 for the third person nobody names, on purpose (`Lo aveva fatto con una discreta abilità
+  propagandistica ...', `La nota sulla quale aveva maggiormente insistito era stata quella ...').
+  It needed these SHAPES, each with its arm red (test/translate.pl's `newspaper_cnr': 58 checks, 59 arms, 57 red in the
+  section, one, `wdate-cross', that makes the section raise, and one green, below; an arm is a library directory of
+  symlinks whose reasoning/translate.pl is the edited copy, `COCOLOG_LIBRARY=ARM cocolog query
+  "use_module('test/translate.pl'), newspaper_cnr, checks_done"', under two seconds a run): A PRONOUN OF QUANTITY AND AN
+  ADJECTIVE ARE ONE PHRASE (`C'è qualcosa di nuovo nella sala riunioni' is something new -- `di nuovo' is the lesson's
+  `again', an adverb of two words the reader joins wherever they stand, and English wrote `There is something again':
+  tr_unjoin_pronoun_adj/3 takes the two words apart after a pronoun that takes the word before an adjective, `"qualcosa"
+  takes "di" before the adjective.', and padj/2 carries the pair, crossed and written by each language, `something new',
+  `algo nuevo' -- four arms), and a pronoun that denies by itself takes no `no' (`Non c'è niente di nuovo' is there is
+  nothing new, and Tatoeba's `No hay nada en la nevera' was `There is no nothing in the fridge'); AN HOUR AND THE ADVERB
+  OF A PART OF THE DAY RIGHT AFTER IT (`Alle 9 di mattina' is at 9 in the morning -- `di mattina' is the lesson's `in
+  the mornings', and it came out `At 9 in the mornings' and `A las 9 por las mañanas': it crosses as the part's phrase
+  of `of', as a Spanish hour has it, en_day_part/2), in front of the clause too -- two arms; THE COPULA'S GERUND, A
+  PHRASE AND A PHRASE AFTER IT ARE A SUBJECT AND ITS PREDICATE (`essendo la spartizione dei finanziamenti un momento
+  cruciale' is the sharing out of the funds being a crucial moment -- read with nobody named, the sharing was the
+  copula's object and the moment a time, `is the partition of the fundings a crucial moment': tr_gerund_subject/5, the
+  subject's phrases of `of' with it, the predicate an object or a time, and English's `being' -- four arms); A NAME
+  RIGHT AFTER A SUBJECT SET AFTER ITS VERB, A PERSON'S NOUN, IS THE PERSON'S (`entra il presidente Luigi Rossi Bernardi
+  e saluta ...' is the president, Luigi Rossi Bernardi, entering, and read as the object the president entered him:
+  tr_subject_name_after/5), with the clause's fronts before the verb too -- two arms; a word that is a pronoun and an
+  adjective, right after a phrase, is the phrase's adjective (`non è una giornata qualunque' is not an ordinary day, and
+  read as the pronoun `anybody' it was `It is not a day anybody': tr_pronoun_as_adjective/2); A DAY OF THE WEEK AND THE
+  DATE RIGHT AFTER IT ARE ONE TIME (`È giovedì 6 giugno' is Thursday, June 6, and read as two the copula had a time and
+  an object, `It is on Thursday June 6': tr_weekday_date/3, app(Day, wdate, Date), crossed, English's `on' before it
+  after any other verb and its comma between them -- four arms, the crossing's arm making the section raise); A
+  PARTICIPLE AFTER A PHRASE OF `of' THAT AGREES WITH THE PHRASE BEFORE IT AND NOT WITH THE PHRASE OF `of' IS THAT
+  PHRASE'S (`ai circa 300 organi del Cnr sparsi per la penisola' are the bodies scattered across the peninsula, and hung
+  on the Cnr it was `del Cnr esparcido': tr_of_participle_head/2 and tr_rel_number/5, the participle's own number
+  carried, agrn/1), after a name of several words and after a name (`del San Raffaele', `di Roma'), the phrase the
+  participle's verb governs with it (`"sparge" takes "per" before the phrase.', `scattered ACROSS it', en_governs/2,
+  where the clause's phrase came out `for the peninsula') -- five arms; and A RELATIVE CLAUSE THERE THE SAME (`Un
+  gigantesco carrello carico di documenti che è stato collocato ... alla sinistra del presidente' -- the trolley has
+  been placed, and hung on the documents the clause had them for its object and nobody for its subject, which English
+  refused: tr_rc_of_head/3); THE PARTICIPLE OF A VERB THAT TAKES NO OBJECT, AND A TIME RIGHT AFTER IT, IS A CLAUSE IN
+  THE PAST (`dopo uno "scrutinio" durato mesi' is after an assessment that lasted months, where it was `after a lasted
+  assessment months' and `tras una valoración durada meses': tr_lasting_participle/2, `"dura" is intransitive.'), among
+  the complements of a participle the clause has too -- two arms; a second participle joined to a reduced relative's,
+  with no agent (`i "voti" assegnati e scritti su quei fogli' are the votes assigned and written on those sheets, and
+  the second, a noun too, was a second phrase, `the assigned votes and writings': tr_joined_participle/2, cpart/3); A
+  COUNT OF TIME AND ITS `before' ARE ONE TIME (`La vicenda era nata sei mesi prima, esattamente il 31 ottobre 1984' was
+  born six months before, and apart from the time English wrote it after the date, `six months, exactly October 31, 1984
+  before': tr_ago_phrase/2 takes the lesson's word for `before' as it took the one for `ago', ago/2 keeps which, and
+  each language writes its own word, the lesson's language its `before' after the time where it writes `ago' first,
+  `tres meses antes' -- four arms); A COPULA WITH NOBODY NAMED, A PHRASE OF A PREPOSITION AND A CLAUSE OF `che' WHOSE
+  SUBJECT STANDS AFTER ITS VERB IS A CLEFT (`È proprio su quel carrello che si concentra l'imbarazzato interesse dei
+  presenti' is it is on that trolley that the interest of those present is concentrated -- read as a relative clause on
+  the trolley, its doer after the verb took the trolley for its object, or its reflexive the trolley for its subject,
+  and English refused both: tr_cleft_fix/3 and tr_cleft_clause/5, pp/2 and that/1, the doer after the verb its subject,
+  and a thing after a reflexive the lesson says takes the passive, `"concentra" takes the passive.', the passive's
+  subject with its phrases of `of' -- five arms); an article before a participle and a noun is the noun's (`si concentra
+  l'imbarazzato interesse' is the embarrassed interest, and read as the pronoun `lo' and a predicate it came out
+  `concentrates him embarrassed interest': tr_article_holds/2); the word for `about' after the article is the count's
+  (`ai circa 300 organi' are the about 300 bodies, and `circa' is a preposition too, which ended the phrase at its
+  article: adv_num/2, tr_counting_adverb/3); A RELATIVE CLAUSE AFTER JOINED ADJECTIVES IS THE WHOLE PHRASE'S (`un tema
+  delicato ma importantissimo sul quale aveva assunto una posizione' -- split at `ma', the clause hung on `importante',
+  a person, `pero a importante en el que': tr_conjunction_split/5 and tr_relative_after/2, a relative word or a
+  preposition and one), an adverb among them too, which the tokeniser makes of a superlative (`molto importante') --
+  three arms; a relative with its article is no noun (`La nota sulla quale aveva insistito era stata quella della
+  valutazione' has `la quale' open the relative clause, and read as the noun `who' after `su' the note was on who, `era'
+  an era the insisting took for its object: tr_noun/5), and never an indefinite phrase after a verb that takes an object
+  is the clause's subject (`un tema delicato sul quale aveva assunto una posizione assai decisa' was `on which a
+  position had taked': tr_rel_subject_fix/2 -- a guard, its arm red); an adverb at the head of the rest, set off by its
+  comma, stays there in English (`che è stato collocato, bene in vista, proprio alla sinistra del presidente', where
+  English wrote `placed, to the left of the president in full view': the gap writer of tr_write/4), and an adjective
+  with a phrase of its own after its noun after `there is' too (`ci sono i dati relativi a tutti gli istituti' are the
+  data relative to them, where it was `the relative data to', en_adj_takes/2's `relative') -- three arms; `really'
+  stands with the verb, in a question too (`Davvero i fondi ottantacinque saranno distribuiti ...?' had it written last,
+  `... on those sheets really?': en_mid_adverb/1); the state a verb of posture leaves (`i presidenti dei "comitati",
+  seduti nervosamente intorno al grande tavolo' are SEATED around it, where the participle came out `sat':
+  en_reduced_participle/2); a number the source put after its noun, in words, is the lesson's number word after the noun
+  (`i fondi ottantacinque' are the funds of '85, and the lesson has no adjective for the number, so the sentence was
+  refused: tr_adjective_out/5); an adjective the lesson's language says in several words that open on a preposition
+  stands after its noun and its other adjectives (`Luigi Rossi Bernardi, cinquantaduenne direttore scientifico' is
+  `director científico de cincuenta y dos años', where it was `de cincuenta y dos años director científico': a(postlast,
+  Outs), tr_sides/3 -- two arms); the adjectives English says with `with' after their noun, with their phrase (`un
+  gigantesco carrello carico di documenti' is a trolley loaded with documents, where it was `a gigantic loaded trolley
+  of documents': en_adj_takes/2, en_with_adjective/1 -- two arms); `precisely' before the phrase of a preposition it is
+  said of (`proprio alla sinistra del presidente', which was written last: tr_comps_out/7); `like all the years' is `as
+  every year' (`È una giornata decisiva, come tutti gli anni, ...': tr_comp_out/7); and Italian's `si tratta di' is `it
+  is' where the lesson's first meaning of `tratta' is `deals' (`Si tratta di una sorta di maxipagella della scienza
+  italiana', where it was `One deals of a sort': tr_write/4) -- its arm is green in the section, whose hand lessons give
+  `tratta' `treats' first, which the Inter feature's rule already writes `it is'; the controls show it, three sentences
+  below. THE CONTROLS' FIRST ROUND found three more, each with its arm red: A HEADING'S PHRASE WITH ITS RELATIVE CLAUSE
+  BEFORE A SUBORDINATING WORD (`Un dato confortante del quale non ci si può rallegrare perché l'intensità della povertà
+  sta crescendo, ...' -- with the relative noun's guard above it was refused in both languages, where the old reading
+  took `quale' for the noun `who': tr_join_left/5); `CI SI' AFTER A PREPOSITION'S RELATIVE IS THE IMPERSONAL `si' WITH A
+  REFLEXIVE VERB, as a statement's is (the clause is read for a gap, and `ci' was `us' with nobody named, which English
+  refused: tr_rel_ci_si/3, `del que uno no se puede alegrar', `of which one cannot gladden' -- two checks); and `have
+  to' takes a mid adverb before `have' (`dovrà scegliere davvero' will really have to choose, and the new `really' came
+  out `will have really to': tr_mid_insert/3, which wrote `will have also to' and `will have always to' as well, an
+  older fault).
+  It needed these WORDS in `extra/' (the two readers: a line moves the reader of one language and the writer of the
+  other; the dictionary's own word is said again first where it must stay the one written): Italian `carico' and
+  `carica' (loaded, the adjective; the dictionary has the noun alone, a charge), `qualunque' (ordinary, the adjective,
+  with `ordinario' and `ordinaria' said again first), the participles of `sparge' (scatters; the dictionary gives them
+  to `spare', disappears) and `"sparge" takes "per" before the phrase.', `posta in gioco' (the stake), `del solito'
+  (than usual), `sala riunioni' (a meeting room) and `centro ricerca' (a research centre, `"centro ricerca" is not
+  feminine.'), `bene in vista' (in full view), `minaccioso' (threatening), `pagella' and `maxipagella' (a report card
+  and a big one), `scrutinio' (an assessment), `foglio' (a sheet, where the dictionary's first noun is a blade), `fa un
+  passo indietro' (takes a step back, with its forms), `cinquantaduenne' (fifty-two-year-old), `propagandistico'
+  (propagandistic) and `malcontento' (dissatisfaction), `"qualcosa"', `"niente"' and `"nulla" take "di" before the
+  adjective.', `"dura" is intransitive.', `sorta' (a sort; the dictionary has the participle of `sorge' alone) and
+  `"concentra" takes the passive.'; Spanish `carrito' (a trolley: the Spanish writer had no word for one, and every
+  sentence with it was refused), `apuesta' (a bet said again first, and the stake), `de lo habitual', `sala de
+  reuniones', `centro de investigación', `bien a la vista', `boletín de notas' and `gran boletín de notas', `hoja' (a
+  leaf said first, where the dictionary's first noun is a blade, and a sheet), `da un paso atrás' with its forms, `de
+  cincuenta y dos años', `propagandístico', `"esparce" takes "por" before the phrase.' and `especie' (a species said
+  again first, and a sort). The first meaning moved for 4 Italian words and 1 Spanish one (Italian `carico' and `carica'
+  loaded, `foglio' a sheet, `qualunque' ordinary; Spanish `hoja' a leaf, where it was a blade), the writer's first word
+  for 5 Italian meanings and 3 Spanish ones (Italian assessment `scrutinio', dissatisfaction `malcontento', sheet
+  `foglio', where it was `lenzuolo', a bed sheet, sort `sorta', stake `posta in gioco', where it was `partecipazione';
+  Spanish sheet `hoja', where it was `chapa', a sheet of metal, sort `especie', stake `apuesta'), and none was lost.
+  THE CONTROLS (cocolog 3.33.0, store KB304, 130 count files, 3 462 sentences: the earlier set with the IOC report in,
+  es_20020301-99, both directions; this report is not among them): the last version's translator against this one, on
+  the one store, 20 sentences in 13 files read differently, all better but two that are no worse -- `it is' for `si
+  tratta di' (3: `it is a million of boys in absolute terms', `It is a thought cheque', `That it is a rejected project
+  at birth', where it was `one deals of'), `data' for `datas' (2), `at eight in the evening' and `a las ocho de la
+  noche' (it_10059_10095 7, where it was `in the evening' written last and `por la noche'), `precisely' before its
+  phrase (2: `precisely like the Tuscan ones', `precisely to Spoleto'), `are really in course' (it_9270_9295 9),
+  `however,' with its comma (it_9381_9414 8), `instead,' where the source has it (it_9485_9510 12, `No special case,
+  instead, in Ponza'), `will really have to choose' (it_9605_9636 29, where `davvero' was written last), `There is
+  nobody' and `There is nothing in the fridge' (Tatoeba's 195 and 246, where it was `There is no nothing'), `a
+  comforting data of which one cannot gladden' and `del que uno no se puede alegrar' (it_9637_9672 19, where `quale' was
+  the noun `who', `of who not can gladden us' and `de quién'), and es_19990901-75 7, refused before and read into
+  English now (`The Ministry of Economía has begun to collect information of the effects that can have the fusion ...')
+  -- and the two no worse: `a consortium of international, Arab or Australian operators that are' (it_9605_9636 14,
+  where it was `of international operators, Arabs or Australians that are': the source's `arabi o australiani' are
+  adjectives, and `che siano', whatever they are, is no better either way), and `It seems me precisely of no'
+  (it_9714_9749 24, where `precisely' stood after `of no'). The inferences rise 0.117 % (6 754 175 668 to 6 762 110 579)
+  and 0.068 % outside one sentence (below): every sentence rises but 22, by 362 inferences at the median. Bytes and
+  characters read every sentence alike (0 differ, the bytes 0.011 % more). The DATA COLUMN (the last version's
+  translator on its own store, KB300, against this one on the new): 21 sentences, +0.166 % (6 750 906 884 to 6 762 110
+  579). THE CODE ALONE (this translator on KB300): the 20 of the one store, +0.117 %. THE STORE ALONE (the last
+  version's translator on KB300 and on KB304): 1 sentence, better, `they do it on a sheet to two dimensions'
+  (it_9967_9998 25, where it was `a blade'), +0.048 %, nearly all of it `"dura" is intransitive.' in two sentences of
+  one file, their texts the same (`è durata così poco' +0.48 million inferences of 11.8 in each language, it_9851_9925
+  6, and `Dura 6 mesi' +68 thousand of 49 thousand, 27).
+  THE FIRST ROUND'S REGRESSIONS, found by reading the texts of every column and mended, each with its arm red: the
+  relative's guard (`la quale' is no noun) left `Un dato confortante del quale non ci si può rallegrare perché ...'
+  (it_9637_9672 19) with no reading in either language, where the old one took `quale' for `who' -- the heading's phrase
+  with its relative clause before `perché' read then, and English refused its clause until `ci si' after the
+  preposition's relative was the impersonal (the two rules above); and the new `really' wrote `will have really to
+  choose' (it_9605_9636 29), the place `have to' gave `also' and `always' before, which the same fix mends. The whole
+  case found two more: the islands section's `Nessuna casa, invece, a Roma dove ...' is `No house, instead, in Rome
+  where ...' now, the adverb set off by its commas kept there by this sample's rule (the gap writer's, its arm red in
+  that section too), and the expectation is the new text in test/translate.pl and in lesson 46; and its scan of the
+  vocabularies found `centro ricerca', a masculine noun in `-a' whose denial was missing, which the writer would have
+  written `la centro ricerca': `"centro ricerca" is not feminine.' is in, and KB304 is taught with it (KB303 without it
+  read every sentence of the controls alike, with either translator).
+  THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT: the one store's largest rise is one sentence, the child-cost
+  report's nineteenth (`E un'esigenza sentita da tutti quelli che lavorano alla costruzione di accordi tra ex coniugi
+  (mediatori, avvocati, i genitori stessi) ai quali serve un punto di riferimento oggettivo e uniforme', it_10011_10058
+  19), +1.67 million inferences of 4.2 in each language (+40 %), its text the same: all of it the guard that a relative
+  with its article is no noun (tr_noun/5), which blocks `i quali' as the noun `who' and leaves the reader a longer way
+  to the same reading (shorter, `E un'esigenza sentita dai genitori ai quali serve un punto di riferimento' is the
+  heading and `to whom ... is needed' with the guard, 0.78 million inferences, and `who' and the verb `serves' without
+  it, 0.48). Asking the guard's cheap test first (a word of two or more) moved nothing, and it stays as written. Over
+  twelve sentences of the controls of 0.2 to 0.5 million inferences, six from each language, into English, counted over
+  a copy of the library per rule, the first cut rose 6 378 inferences of 4.38 million (+0.146 %), and the hour's part of
+  the day was 2 906 of it: the clause crossed the first complement again wherever an adverb followed one. An adverb of
+  two words or more and the hour's shape asked first (tr_clock_shape/1, a phrase with its article and no adjectives, or
+  two joined) leave the rule 245, and the twelve +0.085 % -- a guard of cost, its arm green; over the controls the cut
+  is -0.005 %, every text the same. What is left is the word for `about' after an article (916 of the twelve's), the
+  pronoun and its adjective taken apart, a walk of every sentence's words (794), the relative's guard (580) and the
+  joined participles (202), no other rule over 80.
+  THE STATED COSTS: the relative's guard's 1.67 million inferences in one sentence (above); `"dura" is intransitive.'
+  (above); a first meaning that serves the news and not every text -- `foglio' is a sheet (a blade before), Spanish
+  `hoja' a leaf and then a sheet, `carico' and `carica' loaded (the noun, a charge, second), `qualunque' ordinary
+  (anybody, the pronoun, second) -- and the writers' words: Italian `foglio' and Spanish `hoja' for every sheet (a bed
+  sheet was `lenzuolo', a sheet of metal `chapa'), `posta in gioco' and `apuesta' for every stake (a share in a company
+  was `partecipazione' and `participación'), `sorta' and `especie' for a sort, `scrutinio' for an assessment and
+  `malcontento' for dissatisfaction; `si tratta di' as `it is' has no hand lesson that shows it (the arm is green; the
+  controls show three sentences); and the inferences, +0.068 % outside one sentence on the one store, +0.048 % for the
+  store alone.
+  The report LEAVES, of the 18 into Spanish: `en la sala Enrico Fermi' and `the hall Enrico Fermi' (2: the Enrico Fermi
+  hall), English's `the president Luigi Rossi Bernardi enters' and `seated around the big oval table nervously'
+  (`nervously' last); `the destined funds' (4: the funds destined); `la partición de las financiaciones' and `the
+  partition of the fundings' (5: the sharing out of the funds); English `still taller than usual' (7: higher); `Están
+  los datos ... en el carrito' and `There are the data relative to all the institutes ... on the trolley' (11: the
+  phrase set in front written last, `hay', and English's data relating to them); `la ciencia italiana' and `the Italian
+  science' (12: Italian science); `que se concentra' and `the presents' (13: Spanish's cleft wants `donde', English
+  those present); `¿Los fondos ochenta y cinco serán distribuidos ... en esas hojas realmente?' and `Will the
+  eighty-five funds be really distributed' (14: `realmente' written last, the funds of '85, and English's `really be');
+  `Pero damos un paso atrás' and `But we take a step back' (15: `facciamo' is the exhortation, `demos', let us take);
+  `exactly October 31, 1984 when' (16: on), `el hospital mayor de Milán' and `the biggest hospital of Milan' (the
+  Ospedale Maggiore, a name) and `the speech of the crown' (the inaugural speech); `insatisfacción para el estado' (17:
+  `por') and `hacer gritar a la renovación' (`gridare al rinnovamento', to cry out for renewal, an idiom). The next
+  sample's controls take this report in.
 
 ## Tutorials are documentation that runs
 

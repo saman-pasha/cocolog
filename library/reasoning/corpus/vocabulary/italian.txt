@@ -3754,6 +3754,56 @@ The verb "affitta" means "rents".
 The masculine noun "campione" means "champion".
 The masculine noun "campione" means "sample".
 "gode" takes "di" before the phrase.
+The masculine adjective "carico" means "loaded".
+The feminine adjective "carica" means "loaded".
+The masculine adjective "ordinario" means "ordinary".
+The feminine adjective "ordinaria" means "ordinary".
+The adjective "qualunque" means "ordinary".
+"sparso" is the participle of "sparge".
+"sparsa" is the participle of "sparge".
+"sparsi" is the participle of "sparge".
+"sparse" is the participle of "sparge".
+The feminine noun "posta in gioco" means "stake".
+"poste in gioco" is the plural of "posta in gioco".
+The adverb "del solito" means "than usual".
+The feminine noun "sala riunioni" means "meeting room".
+"sale riunioni" is the plural of "sala riunioni".
+The masculine noun "centro ricerca" means "research centre".
+"centri ricerca" is the plural of "centro ricerca".
+"centro ricerca" is not feminine.
+The adverb "bene in vista" means "in full view".
+The masculine adjective "minaccioso" means "threatening".
+The feminine adjective "minacciosa" means "threatening".
+"minacciosi" is the plural of "minaccioso".
+"minacciose" is the plural of "minacciosa".
+The feminine noun "pagella" means "report card".
+"pagelle" is the plural of "pagella".
+The feminine noun "maxipagella" means "big report card".
+"maxipagelle" is the plural of "maxipagella".
+The masculine noun "scrutinio" means "assessment".
+"scrutini" is the plural of "scrutinio".
+The masculine noun "foglio" means "sheet".
+The verb "fa un passo indietro" means "takes a step back".
+"fanno un passo indietro" is the plural of "fa un passo indietro".
+"faccio un passo indietro" is the first person of "fa un passo indietro".
+"facciamo un passo indietro" is the first person of "fanno un passo indietro".
+"fare un passo indietro" is the infinitive of "fa un passo indietro".
+"fece un passo indietro" is the past of "fa un passo indietro".
+"fecero un passo indietro" is the past of "fanno un passo indietro".
+"fatto un passo indietro" is the participle of "fa un passo indietro".
+The adjective "cinquantaduenne" means "fifty-two-year-old".
+The masculine adjective "propagandistico" means "propagandistic".
+The feminine adjective "propagandistica" means "propagandistic".
+"propagandistici" is the plural of "propagandistico".
+"propagandistiche" is the plural of "propagandistica".
+The masculine noun "malcontento" means "dissatisfaction".
+"qualcosa" takes "di" before the adjective.
+"niente" takes "di" before the adjective.
+"nulla" takes "di" before the adjective.
+"sparge" takes "per" before the phrase.
+"dura" is intransitive.
+The feminine noun "sorta" means "sort".
+"concentra" takes the passive.
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".

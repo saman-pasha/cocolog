@@ -5696,3 +5696,78 @@ The verb "affitta" means "rents".
 The masculine noun "campione" means "champion".
 The masculine noun "campione" means "sample".
 "gode" takes "di" before the phrase.
+# The CNR report (VIT-4883..4900, the day the CNR shares out its funds, Italian into Spanish and English): the words
+# it needs. `un gigantesco carrello carico di documenti': loaded with them, the adjective (the dictionary has the noun
+# alone, a charge)
+The masculine adjective "carico" means "loaded".
+The feminine adjective "carica" means "loaded".
+# `una giornata qualunque': an ordinary day, the adjective after its noun (the dictionary has the pronoun, anybody);
+# the dictionary's own word said again first, so that it stays the one written for ordinary
+The masculine adjective "ordinario" means "ordinary".
+The feminine adjective "ordinaria" means "ordinary".
+The adjective "qualunque" means "ordinary".
+# `ai circa 300 organi del Cnr sparsi per la penisola': scattered, the participles of `sparge' (the dictionary gives
+# them to `spare', disappears)
+"sparso" is the participle of "sparge".
+"sparsa" is the participle of "sparge".
+"sparsi" is the participle of "sparge".
+"sparse" is the participle of "sparge".
+# `La posta in gioco è ancora più alta del solito': the stake, one noun of three words, and than usual, one adverb
+The feminine noun "posta in gioco" means "stake".
+"poste in gioco" is the plural of "posta in gioco".
+The adverb "del solito" means "than usual".
+# `nella sala riunioni', `i centri ricerca del Cnr': a meeting room and research centres, nouns of two words
+The feminine noun "sala riunioni" means "meeting room".
+"sale riunioni" is the plural of "sala riunioni".
+The masculine noun "centro ricerca" means "research centre".
+"centri ricerca" is the plural of "centro ricerca".
+"centro ricerca" is not feminine.
+# `bene in vista': in full view
+The adverb "bene in vista" means "in full view".
+# `una presenza minacciosa': threatening
+The masculine adjective "minaccioso" means "threatening".
+The feminine adjective "minacciosa" means "threatening".
+"minacciosi" is the plural of "minaccioso".
+"minacciose" is the plural of "minacciosa".
+# `una sorta di maxipagella della scienza italiana': a report card, and a big one
+The feminine noun "pagella" means "report card".
+"pagelle" is the plural of "pagella".
+The feminine noun "maxipagella" means "big report card".
+"maxipagelle" is the plural of "maxipagella".
+# `dopo uno "scrutinio" durato mesi': an assessment, a school's at the end of a term
+The masculine noun "scrutinio" means "assessment".
+"scrutini" is the plural of "scrutinio".
+# `su quei fogli': sheets, where the dictionary's first noun is a blade
+The masculine noun "foglio" means "sheet".
+# `Ma facciamo un passo indietro': takes a step back, with its forms
+The verb "fa un passo indietro" means "takes a step back".
+"fanno un passo indietro" is the plural of "fa un passo indietro".
+"faccio un passo indietro" is the first person of "fa un passo indietro".
+"facciamo un passo indietro" is the first person of "fanno un passo indietro".
+"fare un passo indietro" is the infinitive of "fa un passo indietro".
+"fece un passo indietro" is the past of "fa un passo indietro".
+"fecero un passo indietro" is the past of "fanno un passo indietro".
+"fatto un passo indietro" is the participle of "fa un passo indietro".
+# `Luigi Rossi Bernardi, cinquantaduenne direttore scientifico': fifty-two-year-old
+The adjective "cinquantaduenne" means "fifty-two-year-old".
+# `con una discreta abilità propagandistica', `dopo anni di malcontento': propagandistic, and dissatisfaction
+The masculine adjective "propagandistico" means "propagandistic".
+The feminine adjective "propagandistica" means "propagandistic".
+"propagandistici" is the plural of "propagandistico".
+"propagandistiche" is the plural of "propagandistica".
+The masculine noun "malcontento" means "dissatisfaction".
+# `C'è qualcosa di nuovo nella sala riunioni': something new -- the word the pronoun takes before an adjective (the
+# reader joins `di nuovo' into the adverb again, and takes it apart after these)
+"qualcosa" takes "di" before the adjective.
+"niente" takes "di" before the adjective.
+"nulla" takes "di" before the adjective.
+# `sparsi per la penisola': scattered across it, the phrase the verb governs
+"sparge" takes "per" before the phrase.
+# `dopo uno "scrutinio" durato mesi': lasts takes no object, and its participle with a time after it is the clause
+# that lasted months
+"dura" is intransitive.
+# `Si tratta di una sorta di maxipagella': a sort, the noun (the dictionary has the participle of `sorge' alone)
+The feminine noun "sorta" means "sort".
+# `È proprio su quel carrello che si concentra l'interesse dei presenti': the interest is concentrated there, a
+# thing's reflexive the passive
+"concentra" takes the passive.
