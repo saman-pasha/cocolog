@@ -978,8 +978,12 @@
 
   ;;; ---- the table a program can add to -----------------------------------
 
+  ;;; A NAME OF ANY LENGTH (3.34.1, swipl's): a copy of its own, made by
+  ;;; `coco_op_define' and freed by `coco_op_dyn_clear'. Through 3.34.0 it
+  ;;; was a `char [64]', and op/3 of a longer name -- 64 bytes, 32 `é' --
+  ;;; raised cocolog_error('that operator name will not fit').
   (struct coco_opdef
-    (member char name [64])
+    (member char * name)
     (member int  prec)
     (member int  type)
     (member int  kind))
@@ -997,8 +1001,9 @@
               (return i)))
         (return coco_ndynops))
 
+  ;;; 1 with NAME defined, 0 when memory was refused (or NAME is nil)
   (func coco_op_define ((const char * name) (int prec) (int type) (int kind)) (out int)
-        (if (or (== name nil) (>= (strlen name) 64)) (return 0))
+        (if (== name nil) (return 0))
         (let ((size_t at . #'(coco_op_dyn_find name kind)))
           (if (< at coco_ndynops)
               (block (set ($ (nth at coco_dynops) prec) prec)
@@ -1012,14 +1017,19 @@
                 (if (== nb nil) (return 0))
                 (set coco_dynops nb)
                 (set coco_dynopcap ncap)))
-          (snprintf ($ (nth coco_ndynops coco_dynops) name) 64 "%s" name)
+          (let ((char * copy . #'(strdup name)))
+            (if (== copy nil) (return 0))
+            (set ($ (nth coco_ndynops coco_dynops) name) copy))
           (set ($ (nth coco_ndynops coco_dynops) prec) prec)
           (set ($ (nth coco_ndynops coco_dynops) type) type)
           (set ($ (nth coco_ndynops coco_dynops) kind) kind)
           (set coco_ndynops (+ coco_ndynops 1))
           (return 1)))
 
-  (func coco_op_dyn_clear () (set coco_ndynops 0))
+  (func coco_op_dyn_clear ()
+        (for ((size_t i . 0)) (< i coco_ndynops) ((++ i))
+          (free ($ (nth i coco_dynops) name)))
+        (set coco_ndynops 0))
 
   (func coco_op_type_of ((const char * name) (int * type) (int * kind)) (out int)
         (set (cof kind) 0)
@@ -1048,7 +1058,8 @@
   ;;; reason and NOTHING defined, so that the directive runs op/3 as a goal
   ;;; and reports swipl's error term the way every raising directive is
   ;;; reported -- a declaration of `,' accepted here broke the reader for
-  ;;; the rest of the run; 0 when a name will not fit.
+  ;;; the rest of the run; 0 when memory is refused for a name (through
+  ;;; 3.34.0 also when it was 64 bytes or more).
   (func coco_op_apply ((coco_machine * m) (size_t t) (char * err) (size_t errlen)) (out int)
         (let ((size_t p . #'(coco_deref m (coco_arg m t 0)))
               (size_t ty . #'(coco_deref m (coco_arg m t 1)))
@@ -1075,9 +1086,7 @@
                          (block (snprintf err errlen "op/3 refuses that name") (return -1)))
                      (if (not (coco_op_define (coco_atom_name m (coco_name_of m nm))
                                             (cast int prec) type kind))
-                         (block (snprintf err errlen "op/3: %s will not fit"
-                                          (coco_atom_name m (coco_name_of m nm)))
-                                (return 0)))
+                         (block (snprintf err errlen "op/3: out of memory") (return 0)))
                      (return 1)))
           (set l nm)
           (while (and (coco_is_cons m l) (> budget 0))
@@ -1091,7 +1100,7 @@
             (let ((size_t h . #'(coco_deref m (coco_arg m nm 0))))
               (if (not (coco_op_define (coco_atom_name m (coco_name_of m h))
                                      (cast int prec) type kind))
-                  (block (snprintf err errlen "op/3: a name will not fit") (return 0))))
+                  (block (snprintf err errlen "op/3: out of memory") (return 0))))
             (set nm (coco_deref m (coco_arg m nm 1))))
           (return 1)))
   (func coco_op_dyn_count () (out size_t) (return coco_ndynops))

@@ -13400,3 +13400,60 @@ cowork was red once, run beside two builds and callgrind on three of the
 four cores (four workers no faster than one), and green alone, twice.
 Lessons basics/09, library/03, 04, 05, 37, 38, 48, 51 and 56. The card's
 cites hold (26 rows, 38 cites; X2 renumbered).
+
+## op/3 takes an operator name of any length, as swipl's (3.34.1)
+
+swipl's op/3 takes any atom for a name. cocolog's table of declared
+operators held a name in 64 bytes -- a `char [64]' in each entry
+(lib/syntax.cicili, `coco_opdef') -- so op/3 of a longer one, 64 letters or
+32 of U+00E9, raised error(cocolog_error('that operator name will not fit:
+...'), _) as a goal, and in a file was reported as a failed directive, the
+clauses after it then unreadable for want of it. A patch: a limit lifted,
+nothing new.
+
+- The entry holds a copy of the name, made by `coco_op_define' (strdup(3))
+  and freed by `coco_op_dyn_clear' (a thaw clears the table before it
+  defines the frozen machine's operators). The table refuses a name only
+  when memory is refused: resource_error(memory) from op/3's goal half
+  (lib/builtins-db.cicili), `op/3: out of memory' from its directive half.
+- A frozen machine carries its operators by name (lib/state.cicili, section
+  `O'), any length already, and a thaw defines each through the same
+  table: a name past 63 bytes no longer leaves a thaw unable to read the
+  machine.
+
+The refusal lesson basics/09 shows is now a module that will not load -- a
+file named `.so' that is no shared object, refused in its loader's own
+words -- and card row C2's why names no operator. The lesson's head still
+named format's column directives as a refusal, which they have not been
+since 3.33.0.
+
+test/files/op_names.pl, new: 18 lines, swipl 9.0.4's byte for byte (3.34.0
+differs at 1): infix, prefix and a list's names of 64, 200 and 5 000
+letters and of 40 U+00E9, current_op/3 of each, the writer's text and the
+reader's term with each ASCII one, a directive's name of 70 letters and the
+clause read with it, a name taken away again, and op/3's errors of a long
+name. test/engine.pl's `op_names_frozen': a machine stepped 25 inferences a
+turn, frozen and thawed at each, declares an operator of 200 letters in its
+first turns and reads and writes a term with it some twenty turns later.
+
+Not swipl's, found here and left for a change of its own: an atom of
+letters past ASCII is quoted by writeq/1 (`'éa'', swipl's `éa'), and
+write/1 puts no space before such an operator (`1éa 2', swipl's `1 éa 2'),
+the reader taking no unquoted letter past ASCII.
+
+Arms, a build each: the name held in 64 bytes again -- the entry's `char
+[64]', the check before it, the copy into it and a clear that frees none
+-- red in op_names.pl and in the engine's freeze check; the arm of no edit
+green in both. The table's refusal for memory has no arm: no case makes
+strdup(3) fail.
+
+zero.sh, work less padding, 3.34.0 to 3.34.1: nrev 65 997 048 to
+65 997 048, queens 40 281 214 to 40 281 259, lookup 48 083 980 to
+48 083 980. A start 35 060 950 instructions to 35 048 949.
+
+Narrow cases green on the final build (27): lint, files, errors, engine,
+directives, library, repl, script, reconsult, stream, units, string,
+serialize, cyclic, static, argv, backtrace, trace, flowchart, translate,
+reason, normalise, and the syntax, state, term, module and solve binaries.
+Lessons basics/09, library/04 and 37. The card's cites hold (26 rows, 38
+cites; H1 renumbered).

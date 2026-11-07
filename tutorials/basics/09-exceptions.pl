@@ -31,8 +31,8 @@
 %% AND THREE THINGS THAT ARE COCOLOG'S, not ISO's, which the second half
 %% of this lesson is about:
 %%
-%%   * a REFUSAL -- cocolog declining what no ISO formal fits: format's
-%%     column directives, a library found and refused, a module's own
+%%   * a REFUSAL -- cocolog declining what no ISO formal fits: a library
+%%     found and refused (a module that will not load), a module's own
 %%     failure -- is `error(cocolog_error(Text), _)', a sentence where
 %%     ISO puts a formal, so a handler that names a formal walks straight
 %%     past it. Card row C2; cocolint has a rule. (A file that is NOT
@@ -122,21 +122,25 @@ main :-
     must('a file that is not there', E4,
          existence_error(source_sink, '/no/such/library.pl')),
     %% A REFUSAL is `error(cocolog_error(Text), _)': cocolog declining
-    %% something no ISO formal fits -- here op/3 of an operator name past
-    %% 63 bytes, which cocolog's table of operators has no room for and
-    %% swipl takes. (Through 3.33.0 the example was format's `~@', and
-    %% through 3.32.0 its column directives: swipl's since.) The first
-    %% argument is a SENTENCE and not one of ISO's formals. It is row C2 of
-    %% the dialect card, and cocolint has a rule for it, because a handler
-    %% written for SWI names a formal and walks past: `type_error(T, C)' is
-    %% the one op/3 raises for a name that is no atom, in both.
-    length(Long, 64), maplist(=(0'a), Long), atom_codes(LongName, Long),
-    catch(op(700, xfx, LongName), error(E7, _), true),
+    %% something no ISO formal fits -- here a module found and refused, a
+    %% file named `.so' that is no shared object, whose loader's own words
+    %% (the system's: `file too short' on Linux) are the sentence. (Through
+    %% 3.34.0 the example was op/3 of an operator name past 63 bytes,
+    %% through 3.33.0 format's `~@', through 3.32.0 its column directives:
+    %% swipl's, each, since.) The first argument is a SENTENCE and not one
+    %% of ISO's formals. It is row C2 of the dialect card, and cocolint has
+    %% a rule for it, because a handler written for SWI names a formal and
+    %% walks past: `existence_error(_, _)' is the one for a file that is not
+    %% there, above.
+    tmp_file(t09, Base), atom_concat(Base, '.so', NotSo),
+    atom_codes('not an object file', NotSoText), write_file_from_codes(NotSo, NotSoText),
+    catch(use_module(NotSo), error(E7, _), true),
     ( E7 = cocolog_error(_) -> Shape = cocolog_error ; Shape = E7 ),
     must('a refusal is cocolog_error/1', Shape, cocolog_error),
-    catch( catch(op(700, xfx, LongName),
-                 error(type_error(_, _), _), Inner2 = caught),
+    catch( catch(use_module(NotSo),
+                 error(existence_error(_, _), _), Inner2 = caught),
            error(cocolog_error(_), _), Outer2 = caught),
+    delete_file(NotSo),
     ( var(Inner2) -> Miss = missed ; Miss = caught ),
     must('a handler naming a FORMAL misses it', Miss, missed),
     must('...and one naming cocolog_error/1 takes it', Outer2, caught),

@@ -37,9 +37,33 @@ main :-
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
     update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), jit_runs(D),
-    btree_places,
+    btree_places, op_names_frozen(D),
     shl(['rm -rf ', D]),
     checks_done.
+
+%% ---- an operator name of any length, frozen and thawed (3.34.1) ----------
+%% A FROZEN MACHINE CARRIES THE OPERATORS ITS PROGRAM DECLARED (lib/state.cicili,
+%% section `O'), and a thaw defines each again through the table op/3 fills.
+%% Through 3.34.0 that table held a name in 64 bytes: op/3 of a longer one
+%% raised, and a thaw meeting one would have refused the whole machine. Here
+%% a machine stepped 25 inferences a turn declares an operator of 200
+%% letters in its first turns, and turns later -- thawed at each -- reads and
+%% writes a term with it.
+op_names_frozen(D) :-
+    section('an operator name of any length, frozen and thawed'),
+    cocolog(C),
+    atom_concat(D, '/op_names.pl', F),
+    fixture(F, [ 'opn :- length(L, 200), maplist(=(0''b), L), atom_codes(B, L), op(700, xfx, B), spin(40),',
+                 '       atomic_list_concat([x, B, y], '' '', T), term_to_atom(R, T), R =.. [_|As],',
+                 '       with_output_to(string(S), writeq(R)), string_length(S, N), print(As-N), nl.',
+                 'spin(0) :- !.',
+                 'spin(N) :- M is N - 1, spin(M).' ]),
+    atom_concat(D, '/op_names_kb', Kb),
+    sh_join([C, ' --embed ', Kb, ' consult ', F, ' >/dev/null 2>&1'], CCons),
+    shl([CCons]),
+    det_turns(C, Kb, opn, E1),
+    check('frozen and thawed at each turn: the 200 letters read and written', E1,
+          '[x,y]-204_').
 
 %% ---- '$btree_find_node'/5 where swipl reads past the term (3.31.0) ------
 %% A place equal to a node's arity passes swipl's check, and its walk then

@@ -1074,7 +1074,8 @@
         (return "fx"))
 
   ;;; One name of op/3, defined as it is met, swipl's checks: an atom,
-  ;;; never `,' and `|' only as an infix of priority 0 or past 1000.
+  ;;; never `,' and `|' only as an infix of priority 0 or past 1000; of any
+  ;;; length (3.34.1), so the table refuses one only when memory is refused.
   (static)
   (func coco_b_op_name ((coco_engine * e) (size_t n) (i64 prec) (int type) (int kind))
         (out int)
@@ -1088,7 +1089,7 @@
                    (or (!= kind 0) (and (!= prec 0) (< prec 1001))))
               (return (coco_m_permission_error e "create" "operator" n)))
           (if (not (coco_op_define one (cast int prec) type kind))
-              (return (coco_m_error e "that operator name will not fit" one)))
+              (return (coco_m_resource_error e "memory")))
           (return 1)))
 
   ;;; `op(+Priority, +Type, +Name)', swipl's checks in its order (3.0.0): the
