@@ -13457,3 +13457,139 @@ serialize, cyclic, static, argv, backtrace, trace, flowchart, translate,
 reason, normalise, and the syntax, state, term, module and solve binaries.
 Lessons basics/09, library/04 and 37. The card's cites hold (26 rows, 38
 cites; H1 renumbered).
+
+## Names past ASCII read and written as swipl's (3.35.0)
+
+swipl's reader takes a letter past ASCII where it takes an ASCII one: `été`
+is an atom, `Été` a variable, `∀` a symbol, `١٢` the integer 12. cocolog's
+took no byte past ASCII outside quotes -- each was
+syntax_error(illegal_character) -- and its writer quoted every atom that
+held one (`'été'`, swipl's `été`), so a term one system wrote did not read
+back in the other as it was, and a file swipl loads stopped at its first
+such name. A minor: text that would not read now reads, and writeq/1
+writes such a name bare.
+
+- The classes: tools/ctype/tables.pl writes a fifth table into
+  lib/swipl-ctype.cicili, `*swipl-read-flags*`, under the REFERENCE swipl:
+  each code point's '$code_class'/2 classes (layout, graphic, id_start,
+  id_continue, upper), whether code_type/2 calls it decimal, whether the
+  reader refuses it (a Latin-1 code no class names but the three quotes;
+  past U+00FF '$code_class'(C, invalid)), and whether a quoted write
+  escapes it (writeq/1 of an atom that holds it asked); 2 099 runs, held to
+  code_type/2's tables (the script stops where they disagree). lib/term.cicili's
+  `coco-ct-emit-read` makes it a two-level table, `coco_rd_flags`.
+- The lexer (lib/syntax.cicili), past ASCII as pl-read.c's get_token(): a
+  code the reader refuses is illegal_character; a name's start begins a
+  name, a variable's when it is a capital; a symbol a run of symbols; a
+  digit of another script a number (`coco_lex_wide_number`, str_number()'s
+  rule: the digits of the first one's block wherever an ASCII number has
+  digits -- groups, a fraction, an exponent, a rational -- never `0'c`, a
+  radix or `0x`, and `1.0Inf` and no NaN); anything else a name of one
+  character, as `!` is. A name and a symbol run go on past ASCII
+  (`coco-lex-run`, a DEFMACRO), a space past it is layout (U+00A0,
+  U+2028, U+3000), a full stop before one ends the clause, and a minus
+  before a number of another script is no sign (`-١` is -(1)), swipl's
+  isDigit() asking for an ASCII digit. The vertical tab and the form feed
+  are layout (`coco_is_space`), where they were illegal_character.
+- The raw walk (`coco_raw_walk`: a load's place, a text's Raw,
+  library(stream)'s clauses): a symbol run past ASCII, layout past it, and
+  the code before `0'` asked as the lexer asks them. library(stream) ends a
+  clause at a full stop before layout past ASCII (`st_wide_stop`), and its
+  layout is 9 to 13 and the space.
+- The places: a load's column counts the characters to the clause's start
+  (`p(α). q(x y).` fails at 10, swipl's; through 3.34.1 11, the bytes) and
+  the bytes from there to the error's token, as swipl's ptr_to_location()
+  counts them (`p(∀0'a).` at 1:5, where a column a character was 1:3).
+- The writer: an atom of codes up to U+00FF by pl-write.c's atomType() --
+  a small letter and letters or digits after it, symbols none begun by
+  `/*`, one solo character (`é`, `¬¡`, `²`) -- and any other by
+  unquoted_atomW(): a name's start that is no capital and its continuation
+  (`αβ`, `éα`), or symbols alone (`∀`, `+∀`), with no exception of `/*`
+  (`/*∀` is written bare by both systems, and reads back as a comment in
+  both); a space between two names or two symbols decided on code points
+  (needSpace(): `1 éa 2`, `- ∀`); in quotes `\xHEX\` for what
+  unicode_quoted_escape() escapes -- a C1 control, a separator, a format
+  character, a code no class names: U+00A0 was written as it is; and
+  `'$VAR'(Name)` bare under numbervars where Name is a capital past ASCII
+  and a name's continuation (atomIsVarName(): `Été`).
+- The singleton warnings (`coco_cw_kind`, atom_is_named_var()): `_` and a
+  capital past ASCII is marked (`_É`), as `_X` is, and `_` and a digit
+  names no warning (`_1`, which cocolog warned of).
+
+The engine's own writes leave such a name bare too -- the store, a channel,
+the journal, a frozen machine -- and a cocolog before 3.35.0 cannot read it
+back: 3.34.0 over an --embed store 3.35.0 wrote `p(été).` into raises
+resource_error(knowledge_base) at p/1 ("the row at ordinal 0 does not read
+as a clause"), and reads every other predicate. A store an older cocolog
+wrote reads as it did. Binaries that share a store are kept in step.
+
+test/files/wide_names.pl, new: 144 lines, swipl 9.0.4's byte for byte
+(3.34.1 differs at 1): Latin-1's and the wider scripts' letters,
+capitals, symbols, solo characters, marks, private use and unassigned
+codes read; digits of other scripts; atoms written, quoted or bare, and
+escaped; the space between tokens; operators of a symbol and of a name past
+ASCII; the raw text an error carries; clauses read from a file of UTF-8
+with their errors' places; and variables named past ASCII.
+test/files/op_names.pl: an operator of U+00E9 written (`éééé 2`) and read
+-- 3.34.1's note of the difference gone. test/directives.pl's `wide_names`:
+a load's singleton warnings and its errors' places. test/errors.pl: three
+expectations write `á` bare. test/files/char_enum.pl's note no longer names
+the writer.
+
+Not swipl's (COMPAT.md, a row): two places swipl's raw read and its
+tokeniser disagree, which the case leaves out -- a full stop before U+202F
+(iswspace() does not call it a space, its tokeniser does): a file of `a.`,
+U+202F and `b.` on one line reads `a` and then `end_of_file` in swipl, `a`
+and `b` here; and a symbol whose UTF-8 ends in the byte 0xA0 right before a
+full stop, which swipl's raw read takes for its Latin-1 no-break space:
+`term_to_atom(T, '፠')` (U+1360) is illegal_character there, the atom
+here. Shared, as swipl's: `/*∀` above. COMPAT.md's row of a syntax error in
+a load no longer names a letter past ASCII.
+
+Arms, a build each, the rule taken out (28), each red in wide_names.pl or in
+directives.pl's section: the lexer's arm past ASCII; a name's and a symbol
+run's continuation past it; layout past it; a full stop before it; a number
+in another script's digits; a minus before one taken for its sign; the
+vertical tab and the form feed; `1.0Inf' before a letter past ASCII; the
+raw walk's symbols, layout, full stop and the code before `0''; the
+writer's quotes past ASCII, a Latin-1 solo character, `/*' in the Latin-1
+table, a name past U+00FF, a Latin-1 word; the escapes; the spacing's
+classes and a buffer's ends on code points; a variable's name under
+numbervars; the singletons' `_' and a digit and `_' and a capital;
+library(stream)'s stop before layout past ASCII and its vertical tab and
+form feed; and the two halves of a load's error column. The lexer, the walk
+and the writer were then rewritten for their cost (below), and the arms of
+the rules that moved were built again on the final code, each red (15):
+the token past ASCII, the two runs, layout, the number; the walk's symbols,
+layout and full stop; the quotes past ASCII and `/*' in the Latin-1 table;
+the spacing's classes and a buffer's ends; and three the first round had
+none for -- a code no class names refused, any other code a name of one
+character, and `/*' asked before a run's first byte past ASCII (`/*∀'
+quoted). The arm of no edit is green in both rounds.
+
+The cost, callgrind. The first cut cost a start 1 027 345 instructions
+more (`cocolog query true', from one path: 35 054 297 to 36 081 642,
++2.9 %): the layout skip, the past-ASCII layout inlined into it, pushed and
+popped six registers at every token (+846 000), and names ran through one
+function that asked its class at each code (+400 000); writes cost 1.75 %
+more (an atom's quotes asked in two passes, the spacing's class tests
+calls) and a stream's read 5.6 % more (the walk called `coco_rd_wide_at'
+for every byte that was no symbol). Every path past ASCII is now out of
+line and cold, the runs are DEFMACROs specialised per class, and the quote
+test is one pass. 3.34.1 to 3.35.0: a start 35 054 297 to 34 754 607
+(-0.85 %: the layout skip is inlined into `coco_next_token' now); writeq/1 of
+3 000 terms five times and term_to_atom/2 of them both ways three times
+561 589 844 to 561 731 669 (+0.025 %); reading
+library/reasoning/translate.pl's 28 368 lines through library(stream),
+4 925 clauses, 555 412 414 to 561 522 129 (+1.1 %), all of it the raw walk
+(85.0 to 92.7 million, +9.0 %; the lexer 61.8 to 60.3): the walk's arms
+are clang's to lay out, and the two other orders tried cost it 26 % and
+16 %. zero.sh, work less padding: nrev 65 997 091 to 65 997 177, queens
+40 281 224 to 40 281 305, lookup 48 083 393 to 48 092 716 (the strcmp
+placement swing of 3.32.0 and 3.33.0) -- the step loop is not touched.
+
+Narrow cases green: lint, files, errors, engine, directives, library, repl,
+script, reconsult, stream, units, string, serialize, cyclic, static, argv,
+backtrace, trace, flowchart, translate, reason, normalise, and the syntax,
+state, term, module and solve binaries. Lessons basics/08, 09 and 13,
+library/04, 37, 43, 44 and 46. The card's cites hold (26 rows, 38 cites).

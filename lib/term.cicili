@@ -377,6 +377,23 @@
                (return (nth (+ (* (cast size_t (nth (>> c 7) ix)) 128) (cast size_t (bitand c 127)))
                             pg)))))))
 
+;;; A CODE'S CLASSES TO THE READER AND THE WRITER (3.35.0): swipl's
+;;; '$code_class'/2 -- layout 1, graphic 2, id_start 4, id_continue 8,
+;;; upper 16 -- decimal 32, the reader's invalid 64 and 128 a character a
+;;; quoted write escapes, from lib/swipl-ctype.cicili's fifth table; a code
+;;; past U+10FFFF or below 0 is invalid and escaped. A code with none of
+;;; 1, 2, 4, 32 and 64 reads as an atom of one character (pl-read.c's
+;;; case_solo).
+(DEFMACRO coco-ct-emit-read (fname)
+  (LET ((v (coco-ct-vector (coco-ct-runs '*swipl-read-flags*))))
+    (DESTRUCTURING-BIND (index vals n) (coco-ct-pages v 7)
+      `(func ,fname ((i64 c)) (out u32)
+             (let ((static) (const ,(coco-ct-index-type n) ix [] . '{ ,@index })
+                   (static) (const u8 pg [] . '{ ,@vals }))
+               (if (or (< c 0) (> c 1114111)) (return 192))
+               (return (nth (+ (* (cast size_t (nth (>> c 7) ix)) 128) (cast size_t (bitand c 127)))
+                            pg)))))))
+
 ;;; C's capital (UP 1) or small letter: C and one of the differences
 ;;; towupper() and towlower() make, a palette of them both share; C itself
 ;;; for a code past U+10FFFF or below 0
@@ -1007,6 +1024,7 @@
   (decl) (func coco_utf8_one ((const char * s)) (out i64))
   (decl) (func coco_uc_case ((i64 c) (int up)) (out i64))
   (decl) (func coco_ct_flags ((i64 c)) (out u32))
+  (decl) (func coco_rd_flags ((i64 c)) (out u32))
   (decl) (func coco_text_case ((const char * s) (size_t n) (int up) (coco_strbuf * o)) (out int))
 
   ;; ---- the two shifts, by any count (1.14.0) ----
@@ -2033,6 +2051,10 @@
 
   ;;; A CODE'S CLASSES (3.30.0): what code_type/2 reads, from the same tables
   (coco-ct-emit-flags coco_ct_flags)
+
+  ;;; A CODE'S CLASSES TO THE READER AND THE WRITER (3.35.0): what pl-read.c's
+  ;;; tokeniser and pl-write.c's quoting ask of a code past ASCII
+  (coco-ct-emit-read coco_rd_flags)
 
   ;;; S's N bytes on the end of O with every letter in the other case (UP 1
   ;;; the capitals), a character at a time: upcase_atom/2 and its kin under

@@ -1814,9 +1814,37 @@
   ;;; text -- a clause the end of the stream cut short as well, whose error
   ;;; the reader gives as a load's -- 0 at a clean end (layout and comments
   ;;; only), -2 when memory ran out.
+  ;;; Layout: the space and tab to return, the vertical tab and the form
+  ;;; feed among them (3.35.0), as the engine's reader takes them
   (static)
   (func st_layout ((int c)) (out int)
-        (return (? (or (== c 32) (or (== c 9) (or (== c 10) (== c 13)))) 1 0)))
+        (return (? (or (== c 32) (and (>= c 9) (<= c 13))) 1 0)))
+
+  ;;; A CODE PAST ASCII AFTER A `.' (3.35.0): its bytes, D its first, read
+  ;;; onto BUF after its N bytes and given back to the stream, and the walk
+  ;;; asked of the text with them -- a space past ASCII (U+00A0, U+3000)
+  ;;; ends a clause as an ASCII one does, which the walk alone knows. 1 when
+  ;;; the clause ends at N; -2 when memory ran out.
+  (static)
+  (func st_wide_stop ((int s) (u8 ** buf) (size_t * cap) (size_t n) (int d)) (out int)
+        (let ((u8 got [4]) (int k . 1) (int want . 1) (size_t end . 0) (int kind . 0))
+          (set (nth 0 got) (cast u8 d))
+          (cond ((== (bitand d 224) 192) (set want 2))
+                ((== (bitand d 240) 224) (set want 3))
+                ((== (bitand d 248) 240) (set want 4)))
+          (while (< k want)
+            (let ((int b . #'(st_getc s)))
+              (if (< b 0) break)
+              (if (!= (bitand b 192) 128) (block (st_ungetc s b) break))
+              (set (nth k got) (cast u8 b))
+              (set k (+ k 1))))
+          (if (not (st_grow buf cap (+ n (+ (cast size_t k) 2))))
+              (block (for ((int j . #'(- k 1))) (>= j 0) ((-- j)) (st_ungetc s (cast int (nth j got))))
+                     (return -2)))
+          (for ((int j . 0)) (< j k) ((++ j)) (set (nth (+ n (cast size_t j)) (cof buf)) (nth j got)))
+          (set kind (coco_m_raw_walk (cast (const char *) (cof buf)) (+ n (cast size_t k)) (aof end)))
+          (for ((int j . #'(- k 1))) (>= j 0) ((-- j)) (st_ungetc s (cast int (nth j got))))
+          (return (? (and (or (== kind 0) (== kind 6)) (== end n)) 1 0))))
 
   (static)
   (func st_read_clause ((int s) (u8 ** out) (size_t * len)) (out int)
@@ -1835,7 +1863,13 @@
                       (block
                         (set kind (coco_m_raw_walk (cast (const char *) buf) n (aof end)))
                         (if (and (or (== kind 0) (== kind 6)) (== end n))
-                            (block (set (cof out) buf) (set (cof len) n) (return 1))))))))
+                            (block (set (cof out) buf) (set (cof len) n) (return 1))))
+                    (if (>= d 128)
+                        (let ((int w . 0))
+                          (st_getc s)
+                          (set w (st_wide_stop s (aof buf) (aof cap) n d))
+                          (if (== w -2) (block (free buf) (return -2)))
+                          (if (== w 1) (block (set (cof out) buf) (set (cof len) n) (return 1)))))))))
           (if (== (coco_m_raw_walk (cast (const char *) buf) n (aof end)) 2)
               (block (free buf) (return 0)))
           (set (cof out) buf)

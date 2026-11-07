@@ -37,6 +37,7 @@ main :-
     init_main(D), nested_main(D), halted_load(D), in_a_module(D), exit_status(D), fresh_line(D),
     reader_level(D), the_program(D),
     taken_later(D),
+    wide_names(D),
     under_swipl(D),
     shl(['rm -rf ', D]),
     checks_done.
@@ -738,6 +739,31 @@ taken_later(D) :-
     %% through the module walk, which passes a taken name by
     check('the program''s is/2, not/1, msort/2 and string_upper/2 answer the clauses run before them',
           Got, '[early(3),early2_ran,[a,b],ABC,my_not]-late(my_is)-e2_ran-mine-mine').
+
+%% NAMES PAST ASCII IN A LOAD (3.35.0, swipl's): a name and a variable read
+%% past ASCII; `_' and a capital past ASCII marks a singleton as `_X' does,
+%% and `_' and a digit is a name no warning names (swipl's
+%% atom_is_named_var(); through 3.34.1 `_É' and `_1' were warned of); and
+%% a clause's column counts the characters before it on its line and the
+%% bytes in it up to the token, as swipl's stream and ptr_to_location()
+%% count them (through 3.34.1 `p(α). q(x y).' failed at 11, swipl's 10,
+%% and `r(∀0'a).' at 3, swipl's 5). test/files/wide_names.pl holds the
+%% reader and the writer to swipl, this the load's own words.
+wide_names(D) :-
+    section('names past ASCII in a load: singletons and columns'),
+    atom_concat(D, '/wide.pl', F),
+    fixture(F, [ 'w(_É).', 'w(_1).', 'w(_é).', 'α(Été) :- Été = β.', 'p(α). q(x y).',
+                 'r(∀0''a).' ]),
+    ran(F, '(α(X), write(X))', Out),
+    has('a name and a variable past ASCII read', 'β', Out),
+    sh_join(['Warning: ', F, ':3:'], W3), has('`_é'' is warned of', W3, Out),
+    has('...by its name', 'Singleton variables: [_é]', Out),
+    findall(x, sub_atom(Out, _, _, _, 'Singleton variables'), Ws), length(Ws, NW),
+    check('and `_É'' and `_1'' are not', NW, 1),
+    sh_join(['ERROR: ', F, ':5:10: Syntax error: Operator expected'], E5),
+    has('a column after a letter past ASCII on its line is swipl''s', E5, Out),
+    sh_join(['ERROR: ', F, ':6:5: Syntax error: Operator expected'], E6),
+    has('and one after a symbol past ASCII in the clause', E6, Out).
 
 under_swipl(D) :-
     section('the same files under swipl'),

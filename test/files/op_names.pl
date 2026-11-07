@@ -40,8 +40,8 @@ main :-
     X1 =.. [A64, 1, 2], w(write_64, X1),
     X2 =.. [B200, z], w(write_200, X2),
     X3 =.. [C5k, p, q], w(write_5000, X3),
-    %  (not the name of 40 U+00E9: an atom of letters past ASCII is quoted
-    %  and spaced as symbols here, its reader taking no unquoted one)
+    %  (and the name of 40 U+00E9, bare and spaced as a name since 3.35.0)
+    X4 =.. [E40, 1, 2], w(write_utf8, X4),
     %  ---- and the reader reads them ----
     atomic_list_concat([u, A64, v], ' ', R1),
     s(read_64, ( term_to_atom(Y1, R1), Y1 =.. [F1|As1], atom_length(F1, N1) ), N1-As1),
@@ -49,6 +49,8 @@ main :-
     s(read_200, ( term_to_atom(Y2, R2), Y2 =.. [F2|As2], atom_length(F2, N2) ), N2-As2),
     atomic_list_concat([m, C5k, n, C5k, o], ' ', R3),
     s(read_5000, ( term_to_atom(Y3, R3), Y3 =.. [_, L3, _], L3 =.. [_|As3] ), As3),
+    atomic_list_concat([g, E40, h], ' ', R4),
+    s(read_utf8, ( term_to_atom(Y4, R4), Y4 =.. [F4|As4], atom_length(F4, N4) ), N4-As4),
     %  ---- the directive's, and the clause read with it ----
     long(70, 0'd, D70),
     s(directive_70, current_op(P6, T6, D70), P6-T6),

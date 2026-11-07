@@ -15,9 +15,8 @@
 %  quote past ASCII -- swipl's strchr() over a truncated code also calls
 %  U+0100 and 17 403 more so -- so no code past 127 whose low byte is 0,
 %  `!', `.', `?', a quote or a backquote is walked for its types; a
-%  character of a surrogate, which char_type/2's walk passes by; the NUL as
-%  a character, '' here; and an atom past ASCII written, which cocolog
-%  quotes where swipl does not.
+%  character of a surrogate, which char_type/2's walk passes by; and the
+%  NUL as a character, '' here.
 
 :- set_prolog_flag(double_quotes, codes).
 :- use_module(library(dcg/basics)).
@@ -147,7 +146,7 @@ ae(T) :- code_type(0'A, T), T = upper(_).
 af(K-T) :- ( K = 0'x ; K = 0'9 ), code_type(K, T), T = xdigit(_).
 qa(C) :- system:char_type(C, newline).
 
-%  a character past ASCII, by its code: cocolog writes the atom quoted
+%  a character past ASCII, by its code, so every line printed is ASCII
 cs(K) :- char_type(C, csymf), char_code(C, K), K > 0x2C2C, K < 0x2C34.
 
 %  library(dcg/basics) generating, its grammar's code_type/2 walked

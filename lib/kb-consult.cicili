@@ -2766,13 +2766,18 @@
         (coco_sb_put b name))
 
   ;;; swipl's atom_is_named_var(): 1 a name its warnings name, -1 one
-  ;;; marked singleton (`_X', `__x'), 0 `_' alone
+  ;;; marked singleton (`_X', `__x', `_É'), 0 `_' alone and `_' and a
+  ;;; digit, which no warning names (3.35.0; through 3.34.1 `_1' was
+  ;;; warned of). The character after the `_' is a code point, a capital
+  ;;; past ASCII among them (`coco_rd_flags' 16, swipl's PlUpperW()).
   (static)
   (func coco_cw_kind ((const char * vn)) (out int)
         (if (!= (nth 0 vn) (cast char 95)) (return 1))
         (if (== (nth 1 vn) (cast char 95)) (return -1))
         (if (== (nth 1 vn) (cast char 0)) (return 0))
-        (if (and (>= (nth 1 vn) (cast char 65)) (<= (nth 1 vn) (cast char 90))) (return -1))
+        (if (and (>= (nth 1 vn) (cast char 48)) (<= (nth 1 vn) (cast char 57))) (return 0))
+        (let ((size_t i . 1) (i64 c . #'(coco_utf8_get vn (strlen vn) (aof i))))
+          (if (!= 0 (bitand (coco_rd_flags c) 16)) (return -1)))
         (return 1))
 
   ;;; THE COUNT'S STATE (swipl's VarDef): per named variable its count, its

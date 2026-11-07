@@ -484,8 +484,9 @@
                 (return (,ARGS r name nf nt out))))
 
      ;; `-1' is the integer; `- 1' is -(1). Only the absence of layout
-     ;; tells them apart.
-     (if (and (== 0 (strcmp name "-")) (== (-> r layout_before) 0))
+     ;; tells them apart -- and the digit's script: `-١' is -(1), as
+     ;; swipl's sign wants an ASCII digit after it (3.35.0)
+     (if (and (== 0 (strcmp name "-")) (and (== (-> r layout_before) 0) (== (-> r wnum) 0)))
          (block
           (if (== (-> r tok) COCO_TK_INT)
               (block (if (> (-> r iwide) 1)
@@ -796,7 +797,10 @@
     ;; `(' as the application is read, and taken by its arguments' read, so
     ;; `[](a)' is named by the list's end and a quoted `'[]'(a)' by the atom
     ;; `'[]'', as swipl 7's
-    (member int          bnil))
+    (member int          bnil)
+    ;; A NUMBER TOKEN IN ANOTHER SCRIPT'S DIGITS (3.35.0,
+    ;; `coco_lex_wide_number'): no minus before it is its sign
+    (member int          wnum))
 
   (decl) (func coco_reader_init ((coco_reader * r) (coco_machine * m) (const char * src)))
 
@@ -1173,8 +1177,58 @@
                  (return (? (or (coco-ch-in c "+-*/^<>=~.?@#&$")
                                 (or (== c 92) (== c 58)))
                             1 0)))
+  ;;; Layout: the space and the five controls swipl's table calls space,
+  ;;; tab to return (3.35.0; through 3.34.1 not the vertical tab or the
+  ;;; form feed, which were `illegal_character').
   (static) (func coco_is_space ((int c)) (out int)
-                 (return (? (or (== c 32) (or (== c 9) (or (== c 10) (== c 13)))) 1 0)))
+                 (return (? (or (== c 32) (and (>= c 9) (<= c 13))) 1 0)))
+
+  ;;; ---- a code point's class (3.35.0) -----------------------------------
+  ;;; PAST ASCII THE READER TAKES WHAT swipl's TAKES, by the code point's
+  ;;; classes (`coco_rd_flags', swipl's '$code_class'/2: pl-read.c's table
+  ;;; up to U+00FF and pl-umap.c's past it): a letter begins or continues a
+  ;;; name, a capital a variable, a symbol a run of symbols, a digit of
+  ;;; another script a number, a space is layout. Through 3.34.1 every byte
+  ;;; past ASCII outside quotes was `illegal_character'. The text is UTF-8
+  ;;; whatever `text_units' says: a byte that is no UTF-8 is U+DC00 plus
+  ;;; it, a code the reader refuses.
+
+  ;;; The code at S[P] (N bytes in S) and its byte count into *W
+  (static) (inline)
+  (func coco_cp_at ((const char * s) (size_t n) (size_t p) (size_t * w)) (out i64)
+        (let ((size_t j . p) (i64 c . #'(coco_utf8_get s n (aof j))))
+          (set (cof w) (- j p))
+          (return c)))
+
+  ;;; The code that ends at S[E - 1], none of it before S[A]: a byte that
+  ;;; ends no character there is U+DC00 plus it
+  (static)
+  (func coco_cp_before ((const char * s) (size_t n) (size_t a) (size_t e)) (out i64)
+        (let ((size_t b . #'(- e 1)) (size_t w . 0) (i64 c . 0))
+          (while (and (> b a) (and (< (- e b) 4) (== (bitand (cast int (nth b s)) 192) 128)))
+            (set b (- b 1)))
+          (set c (coco_cp_at s n b (aof w)))
+          (if (== (+ b w) e) (return c))
+          (return (+ 56320 (bitand (cast int (nth (- e 1) s)) 255)))))
+
+  ;;; Whether code C is of KIND to the reader -- 1 layout, 2 a symbol, 8 a
+  ;;; name's continuation -- ASCII by the lexer's own classes, which are
+  ;;; swipl's table's
+  (static)
+  (func coco_rd_is ((i64 c) (int kind)) (out int)
+        (if (< c 0) (return 0))
+        (if (< c 128)
+            (cond ((== kind 1) (return (coco_is_space (cast int c))))
+                  ((== kind 2) (return (coco_is_symbol (cast int c))))
+                  (#t (return (coco_is_alnum (cast int c))))))
+        (return (!= 0 (bitand (coco_rd_flags c) (cast u32 kind)))))
+
+  ;;; The byte count of a code of KIND at S[P] past ASCII, or 0
+  (static)
+  (func coco_rd_wide_at ((const char * s) (size_t n) (size_t p) (int kind)) (out size_t)
+        (if (or (>= p n) (< (cast int (cast uchar (nth p s))) 128)) (return 0))
+        (let ((size_t w . 0) (i64 c . #'(coco_cp_at s n p (aof w))))
+          (return (? (coco_rd_is c kind) w 0))))
 
   ;;; WHETHER TWO PIECES OF OUTPUT NEED A SPACE BETWEEN THEM, which is the
   ;;; whole of the writer's spacing rule and is the reader's tokeniser read
@@ -1191,24 +1245,49 @@
   ;;; (3.15.1, pl-write.c's PutOpenToken): `x1 'x\'y' 2' and `'A' 'x\'y'
   ;;; 'B'', where `1'x\'y'' read as a character code and `'A''x\'y''' as
   ;;; one atom with a quote in it.
+  ;;;
+  ;;; ON CODE POINTS (3.35.0, pl-write.c's needSpace()): a letter, digit
+  ;;; or `_' past ASCII as one of ASCII's, `1 éa 2', and a symbol past it as
+  ;;; a symbol, `- ∀'; through 3.34.1 the two bytes' classes, `1éa 2'.
+  ;;; The two class rules where A or B is past ASCII (3.35.0): the quote
+  ;;; rules ask two ASCII codes, and so ask neither
+  (weak) (cold)
+  (func coco_needs_gap_wide ((int a) (int b)) (out int)
+        (return (or (and (coco_rd_is a 2) (coco_rd_is b 2))
+                    (and (coco_rd_is a 8) (coco_rd_is b 8)))))
+
   (static) (func coco_needs_gap ((int a) (int b)) (out int)
                  (if (or (== a 0) (== b 0)) (return 0))
+                 (if (or (>= a 128) (>= b 128)) (return (coco_needs_gap_wide a b)))
                  (if (and (coco_is_symbol a) (coco_is_symbol b)) (return 1))
                  (if (and (coco_is_alnum a) (coco_is_alnum b)) (return 1))
                  (if (and (== b 39) (coco_is_digit a)) (return 1))
                  (if (and (== a 39) (== b 39)) (return 1))
                  (return 0))
 
-  ;;; The last character in a buffer, or 0 if it is empty.
-  (static) (func coco_sb_last ((coco_strbuf * b)) (out int)
-                 (if (or (== ($ (cof b) s) nil) (== ($ (cof b) len) 0)) (return 0))
-                 (return (bitand (cast int (nth (- ($ (cof b) len) 1) ($ (cof b) s)))
-                                 255)))
+  ;;; The code a buffer of a byte past ASCII at its end, or at its start,
+  ;;; holds there (3.35.0)
+  (weak) (cold)
+  (func coco_sb_wide_end ((coco_strbuf * b) (int last)) (out int)
+        (let ((size_t w . 0))
+          (if last (return (cast int (coco_cp_before ($ (cof b) s) ($ (cof b) len) 0 ($ (cof b) len)))))
+          (return (cast int (coco_cp_at ($ (cof b) s) ($ (cof b) len) 0 (aof w))))))
 
-  ;;; The first character of a buffer, or 0 if it is empty.
-  (static) (func coco_sb_first ((coco_strbuf * b)) (out int)
+  ;;; The last character in a buffer, a code point (3.35.0), or 0 if it is
+  ;;; empty.
+  (static) (inline) (func coco_sb_last ((coco_strbuf * b)) (out int)
                  (if (or (== ($ (cof b) s) nil) (== ($ (cof b) len) 0)) (return 0))
-                 (return (bitand (cast int (nth 0 ($ (cof b) s))) 255)))
+                 (let ((int c . #'(bitand (cast int (nth (- ($ (cof b) len) 1) ($ (cof b) s))) 255)))
+                   (if (< c 128) (return c))
+                   (return (coco_sb_wide_end b 1))))
+
+  ;;; The first character of a buffer, a code point (3.35.0), or 0 if it
+  ;;; is empty.
+  (static) (inline) (func coco_sb_first ((coco_strbuf * b)) (out int)
+                 (if (or (== ($ (cof b) s) nil) (== ($ (cof b) len) 0)) (return 0))
+                 (let ((int c . #'(bitand (cast int (nth 0 ($ (cof b) s))) 255)))
+                   (if (< c 128) (return c))
+                   (return (coco_sb_wide_end b 0))))
 
   ;;; ---- the character stream -------------------------------------------
 
@@ -1224,6 +1303,8 @@
   ;;; `NaN' does, 0 otherwise (73 110 102 and 78 97 78 are their codes).
   (static) (func coco_float_tag ((coco_reader * r)) (out int)
                  (if (coco_is_alnum (coco_peek_at r 3)) (return 0))
+                 ;; nor a letter past ASCII (3.35.0, float_tag()'s PlIdContW())
+                 (if (!= 0 (coco_rd_wide_at (-> r src) (-> r len) (+ (-> r pos) 3) 8)) (return 0))
                  (if (and (== (coco_peek_at r 0) 73)
                           (and (== (coco_peek_at r 1) 110) (== (coco_peek_at r 2) 102)))
                      (return 1))
@@ -1400,10 +1481,14 @@
              ;; the clamp below makes it that character
              (set at (coco_reader_errat r))
              (set walk (- (coco_raw_chars s at0 at chars) 1))))
+          ;; the column the clause begins at, in characters, as swipl's
+          ;; stream counts its line position (3.35.0; through 3.34.1 in
+          ;; bytes: `p(α). q(x y).' failed at 11, swipl's 10)
           (for ((size_t i . 0)) (< i at0) ((++ i))
             (if (== (nth i s) (cast char 10))
                 (block (set ln (+ ln 1)) (set cl 0))
-              (set cl (+ cl 1))))
+              (if (or (not chars) (!= (bitand (cast int (nth i s)) 192) 128))
+                  (set cl (+ cl 1)))))
           (cond
             ;; a block comment open before anything was read has no place
             ((and (== kind 4) (>= at0 n)) (set ln 0) (set cl 1))
@@ -1423,18 +1508,42 @@
                  (if chars
                      (while (and (< p rn) (== (bitand (cast int (nth p ($ raw s))) 192) 128))
                        (set cl (+ cl 1)) (set p (+ p 1))))
-                 (set k (+ k 1))))))
+                 (set k (+ k 1)))
+               ;; THE CHARACTER RIGHT BEFORE THE ERROR'S TOKEN is its bytes
+               ;; less one more (3.35.0): swipl's ptr_to_location() counts
+               ;; the bytes up to the token, `p(∀0'a).' at 5, where this
+               ;; counted the one column, 3
+               (if (and chars (and (< p rn) (!= (nth p ($ raw s)) (cast char 10))))
+                   (let ((size_t q . #'(+ p 1)))
+                     (while (and (< q rn) (== (bitand (cast int (nth q ($ raw s))) 192) 128))
+                       (set q (+ q 1)))
+                     (set cl (+ cl (cast int (- q (+ p 1))))))))))
           (coco_sb_free (aof raw))
           (set (cof line) ln)
           (set (cof col) cl)
           (return id)))
 
+  (static) (decl) (func coco_skip_layout ((coco_reader * r) (int any)) (out int))
+
+  ;;; Layout past ASCII at the reader's position (3.35.0), swipl's
+  ;;; PlBlankW(): U+00A0, U+2028, U+3000 and their kin, and then the layout
+  ;;; after it. Out of line and cold, and reached by a tail call, so the
+  ;;; skip's own loop saves no register: inlined there, each token's skip
+  ;;; pushed and popped six, a start 846 000 instructions more.
+  (weak) (cold)
+  (func coco_skip_layout_wide ((coco_reader * r) (int any)) (out int)
+        (let ((size_t w . #'(coco_rd_wide_at (-> r src) (-> r len) (-> r pos) 1)))
+          (if (== w 0) (return any))
+          (set (-> r pos) (+ (-> r pos) w))
+          (return (coco_skip_layout r 1))))
+
   ;;; Whitespace, `%' to end of line, and nested-free /* */ blocks. Whether
   ;;; anything was skipped is recorded, because `f(' and `f (' are different
-  ;;; things in Prolog and this is the only place that difference is visible.
+  ;;; things in Prolog and this is the only place that difference is visible:
+  ;;; ANY is 1 where layout went before, else 0.
   (static)
-  (func coco_skip_layout ((coco_reader * r)) (out int)
-        (let ((int any . 0))
+  (func coco_skip_layout ((coco_reader * r) (int any)) (out int)
+        (block
           (while 1
             (let ((int c . #'(coco_peek r)))
               (cond
@@ -1454,7 +1563,9 @@
                      (coco_bump r))
                    (if (!= (coco_peek r) -1) (block (coco_bump r) (coco_bump r))
                      (set (-> r ecomment) (+ cs 1)))))
-                (#t (return any)))))
+                ((< c 128) (return any))
+                ;; a code past ASCII: swipl's layout, or the token's start
+                (#t (return (coco_skip_layout_wide r any))))))
           (return any)))
 
   ;;; ---- tokens ----------------------------------------------------------
@@ -1627,7 +1738,7 @@
           (cond
             ((== (coco_peek r) (coco-ch "_"))
              (coco_bump r)
-             (coco_skip_layout r))
+             (coco_skip_layout r 0))
             ((and (== (coco_peek r) 32) (<= radix 10)) (coco_bump r))
             (#t (return 0)))
           (if (>= (coco_radix_digit (coco_peek r) radix) 0) (return 1))
@@ -1807,12 +1918,118 @@
               (coco_mag_token r v wide))))
         (return 1))
 
+  ;;; A code past ASCII of KIND onto the token's text, the reader moved
+  ;;; past it: 1, or 0 where the code there is none of KIND (3.35.0)
+  (weak) (cold)
+  (func coco_lex_wide_step ((coco_reader * r) (int kind)) (out int)
+        (let ((size_t w . #'(coco_rd_wide_at (-> r src) (-> r len) (-> r pos) kind)))
+          (if (== w 0) (return 0))
+          (coco_sb_put_len (aof (-> r text)) (+ (-> r src) (-> r pos)) w)
+          (set (-> r pos) (+ (-> r pos) w))
+          (return 1)))
+
+  ;;; THE RUN AT THE READER'S POSITION onto the token's text (3.35.0): the
+  ;;; ASCII codes TEST takes -- `coco_is_alnum' a name's (swipl's
+  ;;; SkipAtomIdCont: a letter, a digit or `_'), `coco_is_symbol' a
+  ;;; symbol's (SkipSymbol) -- and past ASCII those of KIND, 8 id_continue
+  ;;; and 2 a symbol, a step out of line. A DEFMACRO, so each site's ASCII
+  ;;; loop is the one 3.34.1 inlined: as one function asking KIND at each
+  ;;; code, a run cost a start 400 000 instructions more.
+  (DEFMACRO coco-lex-run (r test kind)
+    `(while 1
+       (let ((int b . #'(coco_peek ,r)))
+         (cond
+           ((,test b) (coco_sb_putc (aof (-> ,r text)) (cast char b)) (coco_bump ,r))
+           ((< b 128) break)
+           ((not (coco_lex_wide_step ,r ,kind)) break)))))
+
+  ;;; A NUMBER IN ANOTHER SCRIPT'S DIGITS (3.35.0), as swipl's str_number()
+  ;;; reads one: the digits of the block of the first, C0 less its weight
+  ;;; its zero, wherever an ASCII number has digits -- the integer and its
+  ;;; groups, a rational's denominator, a fraction, an exponent -- and
+  ;;; never `0'c', a radix or `0x', which want an ASCII zero, nor 1.5NaN.
+  ;;; The lexer's own over a copy with those digits made ASCII, to the
+  ;;; first code that is neither one of them nor an ASCII character such a
+  ;;; number holds (an ASCII digit is none: the block is the first's), as
+  ;;; swipl's to_double() converts it; the reader is moved on by the bytes
+  ;;; of the codes the copy's number took. `wnum' says so: a minus before
+  ;;; it is no sign (`-١' is -(1)), as swipl's isDigit() asks an ASCII one.
+  (static)
+  (func coco_lex_wide_number ((coco_reader * r) (i64 c0)) (out int)
+        (let ((i64 zero . #'(- c0 (cast i64 (bitand (>> (coco_ct_flags c0) 11) 15))))
+              (coco_strbuf cp) (size_t p . #'(-> r pos)) (size_t from . #'(-> r pos))
+              (coco_reader t) (int ok . 0))
+          (coco_sb_init (aof cp))
+          (while (< p (-> r len))
+            (let ((size_t w . 0) (i64 c . #'(coco_cp_at (-> r src) (-> r len) p (aof w))))
+              (cond
+                ((and (>= c zero) (<= c (+ zero 9)))
+                 (coco_sb_putc (aof cp) (cast char (+ 48 (- c zero)))))
+                ((and (< c 128) (coco-ch-in (cast int c) "eErInf+-._ "))
+                 (coco_sb_putc (aof cp) (cast char c)))
+                ((and (< c 128) (coco_is_space (cast int c)))
+                 (coco_sb_putc (aof cp) (cast char c)))
+                (#t break))
+              (set p (+ p w))))
+          (if (== ($ cp s) nil) (return (coco_fail r "out of memory")))
+          (coco_reader_init (aof t) (-> r m) ($ cp s))
+          ;; the copy's offset K as the source's: one code a byte of it
+          (let ((size_t k . #'(? ($ t failed) ($ t epos) ($ t pos))) (size_t q . from))
+            (while (and (> k 0) (< q (-> r len)))
+              (coco_utf8_get (-> r src) (-> r len) (aof q))
+              (set k (- k 1)))
+            (if ($ t failed)
+                (block (set (-> r pos) q) (coco_fail r ($ t ewhat)) (set (-> r epos) q))
+              (block
+                (set (-> r pos) q)
+                (set (-> r tok) ($ t tok))
+                (set (-> r ival) ($ t ival)) (set (-> r iwide) ($ t iwide))
+                (set (-> r fval) ($ t fval))
+                (set (-> r rval_n) ($ t rval_n)) (set (-> r rval_d) ($ t rval_d))
+                (coco_sb_put_len (aof (-> r text)) (+ (-> r src) from) (- q from))
+                (set (-> r wnum) 1)
+                (set ok 1))))
+          (coco_reader_free (aof t))
+          (coco_sb_free (aof cp))
+          (return ok)))
+
+  ;;; A TOKEN THAT BEGINS PAST ASCII (3.35.0), as pl-read.c's get_token()
+  ;;; takes a code past U+00FF and its Latin-1 table one below it: one the
+  ;;; reader refuses (a control character, a code no class names), a letter
+  ;;; that begins a name -- a variable's when it is a capital, `Été' -- a
+  ;;; symbol, a digit of another script, and anything else a name of one
+  ;;; character, as `!' is. Out of line and cold, so that `coco_next_token'
+  ;;; is the loop 3.34.1 was.
+  (weak) (cold)
+  (func coco_lex_wide_token ((coco_reader * r)) (out int)
+        (let ((size_t w . 0) (i64 cp . #'(coco_cp_at (-> r src) (-> r len) (-> r pos) (aof w)))
+              (u32 f . #'(coco_rd_flags cp)))
+          (cond
+            ((!= 0 (bitand f 64)) (return (coco_fail r "unexpected character")))
+            ((!= 0 (bitand f 4))
+             ;; the letter, whatever follows: a start continues itself
+             (coco_sb_put_len (aof (-> r text)) (+ (-> r src) (-> r pos)) w)
+             (set (-> r pos) (+ (-> r pos) w))
+             (coco-lex-run r coco_is_alnum 8)
+             (set (-> r tok) (? (!= 0 (bitand f 16)) COCO_TK_VAR COCO_TK_NAME))
+             (return 1))
+            ((!= 0 (bitand f 2))
+             (coco-lex-run r coco_is_symbol 2)
+             (set (-> r tok) COCO_TK_NAME)
+             (return 1))
+            ((!= 0 (bitand f 32)) (return (coco_lex_wide_number r cp)))
+            (#t
+             (coco_sb_put_len (aof (-> r text)) (+ (-> r src) (-> r pos)) w)
+             (set (-> r pos) (+ (-> r pos) w))
+             (set (-> r tok) COCO_TK_NAME)
+             (return 1)))))
+
   ;;; One token into the reader. Everything the parser knows about the input is
   ;;; what this leaves behind: the kind, the text, whether layout preceded it,
   ;;; and where it begins.
   (static)
   (func coco_next_token ((coco_reader * r)) (out int)
-        (set (-> r layout_before) (coco_skip_layout r))
+        (set (-> r layout_before) (coco_skip_layout r 0))
         (set (-> r tstart) (-> r pos))
         ;; the text ended in a block comment: the token is that, placed at
         ;; the comment (3.10.0; through 3.9.0 the text ended there quietly)
@@ -1822,6 +2039,7 @@
                    (set (-> r tok) COCO_TK_EOF)
                    (return (coco_fail r "end of file in a block comment"))))
         (set (-> r quoted) 0)
+        (set (-> r wnum) 0)
         (coco_sb_reset (aof (-> r text)))
         (let ((int c . #'(coco_peek r)))
           (cond
@@ -1829,15 +2047,14 @@
 
             ((coco_is_digit c) (return (coco_lex_number r)))
 
+            ;; a name and a variable go on past ASCII (3.35.0): `aé', `Xα'
             ((coco_is_lower c)
-             (while (coco_is_alnum (coco_peek r))
-               (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r))) (coco_bump r))
+             (coco-lex-run r coco_is_alnum 8)
              (set (-> r tok) COCO_TK_NAME)
              (return 1))
 
             ((coco_is_upper c)
-             (while (coco_is_alnum (coco_peek r))
-               (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r))) (coco_bump r))
+             (coco-lex-run r coco_is_alnum 8)
              (set (-> r tok) COCO_TK_VAR)
              (return 1))
 
@@ -1878,15 +2095,21 @@
              (return 1))
 
             ((coco_is_symbol c)
-             (while (coco_is_symbol (coco_peek r))
-               (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r))) (coco_bump r))
-             ;; a lone `.' followed by layout or nothing ends the clause
+             (coco-lex-run r coco_is_symbol 2)
+             ;; a lone `.' followed by layout or nothing ends the clause --
+             ;; layout past ASCII too (3.35.0), as swipl's PlBlankW() asks
              (if (and (== ($ (-> r text) len) 1) (== (nth 0 ($ (-> r text) s)) (cast char 46)))
                  (let ((int nxt . #'(coco_peek r)))
-                   (if (or (== nxt -1) (or (coco_is_space nxt) (== nxt (coco-ch "%"))))
+                   (if (or (== nxt -1)
+                           (or (coco_is_space nxt)
+                               (or (== nxt (coco-ch "%"))
+                                   (!= 0 (coco_rd_wide_at (-> r src) (-> r len) (-> r pos) 1)))))
                        (block (set (-> r tok) COCO_TK_END) (return 1)))))
              (set (-> r tok) COCO_TK_NAME)
              (return 1))
+
+            ;; past ASCII (3.35.0): `coco_lex_wide_token'
+            ((>= c 128) (return (coco_lex_wide_token r)))
 
             (#t (return (coco_fail r "unexpected character")))))
         (return 1))
@@ -2406,6 +2629,48 @@
             (if (or (not chars) (!= (bitand c 192) 128))
                 (coco_raw_add raw nraw lastc (? (== c 10) 10 32))))))
 
+  ;;; A symbol past ASCII at S[P] onto the raw text (3.35.0): its byte
+  ;;; count, or 0 where the code there is no symbol
+  (weak) (cold)
+  (func coco_raw_wide_symbol ((const char * s) (size_t n) (size_t p) (coco_strbuf * raw)
+                              (size_t * nraw) (int * lastc)) (out size_t)
+        (let ((size_t w . #'(coco_rd_wide_at s n p 2)))
+          (for ((size_t k . 0)) (< k w) ((++ k))
+            (coco_raw_add raw nraw lastc (bitand (cast int (nth (+ p k) s)) 255)))
+          (return w)))
+
+  ;;; THE RUN OF SYMBOLS at S[P] onto the raw text, P moved past it
+  ;;; (3.35.0): ASCII's inline, as 3.34.1 had it, and past ASCII a step out
+  ;;; of line -- a DEFMACRO, as `coco-lex-run' is
+  (DEFMACRO coco-raw-symbols (s n p raw nraw lastc)
+    `(while (< ,p ,n)
+       (let ((int sb . #'(bitand (cast int (nth ,p ,s)) 255)))
+         (cond
+           ((coco_is_symbol sb) (coco_raw_add ,raw ,nraw ,lastc sb) (set ,p (+ ,p 1)))
+           ((< sb 128) break)
+           (#t (let ((size_t sw . #'(coco_raw_wide_symbol ,s ,n ,p ,raw ,nraw ,lastc)))
+                 (if (== sw 0) break)
+                 (set ,p (+ ,p sw))))))))
+
+  ;;; A CODE PAST ASCII at S[P] in the raw walk (3.35.0): a run of symbols;
+  ;;; swipl's layout, its bytes kept where ANY says a token was read; or
+  ;;; another code, its bytes. *TOK says whether a token began there; the
+  ;;; answer is the position after it. Out of line and cold, so the walk's
+  ;;; ASCII path is 3.34.1's but for one test.
+  (weak) (cold)
+  (func coco_raw_wide ((const char * s) (size_t n) (size_t p) (coco_strbuf * raw)
+                       (size_t * nraw) (int * lastc) (int any) (int * tok)) (out size_t)
+        (let ((size_t w . 0) (u32 f . #'(coco_rd_flags (coco_cp_at s n p (aof w)))))
+          (if (!= 0 (bitand f 2))
+              (block (set (cof tok) 1)
+                     (coco-raw-symbols s n p raw nraw lastc)
+                     (return p)))
+          (set (cof tok) (== 0 (bitand f 1)))
+          (if (or (cof tok) any)
+              (for ((size_t k . 0)) (< k w) ((++ k))
+                (coco_raw_add raw nraw lastc (bitand (cast int (nth (+ p k) s)) 255))))
+          (return (+ p w))))
+
   (func coco_raw_walk ((const char * s) (size_t n) (size_t from) (coco_strbuf * raw)
                        (int chars) (int * kind) (int * q) (size_t * at0)) (out size_t)
         (let ((size_t p . from) (int any . 0) (size_t nraw . 0) (int lastc . 32))
@@ -2435,6 +2700,16 @@
                 ((coco_is_space c)
                  (if any (coco_raw_add raw (aof nraw) (aof lastc) c))
                  (set p (+ p 1)))
+                ;; past ASCII (3.35.0): `coco_raw_wide', out of line. Here,
+                ;; after the ASCII arms, it costs the walk 9 % (a letter is
+                ;; tested against `/', `%' and the spaces in turn, where
+                ;; 3.34.1's one compare sent a byte past `/' to the token's
+                ;; arm); asked first it cost 26 %, and as a flag set by one
+                ;; range test 16 % (instructions, reading 28 368 lines)
+                ((>= c 128)
+                 (let ((int tk . 0) (size_t p0 . p))
+                   (set p (coco_raw_wide s n p raw (aof nraw) (aof lastc) any (aof tk)))
+                   (if (and tk (not any)) (block (set any 1) (set (cof at0) p0)))))
                 (#t
                  (if (not any) (block (set any 1) (set (cof at0) p)))
                  (cond
@@ -2443,31 +2718,32 @@
                     (coco_raw_add raw (aof nraw) (aof lastc) c)
                     (set p (+ p 1))
                     (if (or (>= p n) (or (coco_is_space (bitand (cast int (nth p s)) 255))
-                                         (== (nth p s) (cast char 37))))
+                                         (or (== (nth p s) (cast char 37))
+                                             (and (>= (bitand (cast int (nth p s)) 255) 128)
+                                                  (!= 0 (coco_rd_wide_at s n p 1))))))
                         (block
                           (if (== nraw 1) (block (set (cof kind) 6) (return p)))
                           (coco_raw_add raw (aof nraw) (aof lastc) 32)
                           (set (cof kind) 0)
                           (return p)))
-                    (while (and (< p n) (coco_is_symbol (bitand (cast int (nth p s)) 255)))
-                      (coco_raw_add raw (aof nraw) (aof lastc) (bitand (cast int (nth p s)) 255))
-                      (set p (+ p 1))))
-                   ;; a run of symbol characters is one token, whatever it holds
+                    (coco-raw-symbols s n p raw (aof nraw) (aof lastc)))
+                   ;; a run of symbol characters is one token, whatever it
+                   ;; holds -- symbols past ASCII among them (3.35.0)
                    ((coco_is_symbol c)
-                    (while (and (< p n) (coco_is_symbol (bitand (cast int (nth p s)) 255)))
-                      (coco_raw_add raw (aof nraw) (aof lastc) (bitand (cast int (nth p s)) 255))
-                      (set p (+ p 1))))
+                    (coco-raw-symbols s n p raw (aof nraw) (aof lastc)))
                    ((or (== c 39) (or (== c 34) (== c 96)))
                     (let ((int quoted . 1))
                       ;; 0'c and R'DIGIT after one or two digits that begin a
                       ;; number: no quoted item
                       (if (and (== c 39) (and (> p (cof at0)) (coco_is_digit (bitand (cast int (nth (- p 1) s)) 255))))
-                          (let ((size_t bs . #'(- p 1)) (int base . 0) (int pc . 32))
+                          (let ((size_t bs . #'(- p 1)) (int base . 0) (i64 pc . 32))
                             (if (and (> bs (cof at0)) (coco_is_digit (bitand (cast int (nth (- bs 1) s)) 255)))
                                 (set bs (- bs 1)))
-                            ;; the character before the digits continues no name
-                            (if (> bs (cof at0)) (set pc (bitand (cast int (nth (- bs 1) s)) 255)))
-                            (if (and (not (coco_is_alnum pc)) (< pc 128))
+                            ;; the character before the digits continues no
+                            ;; name -- a code past ASCII asked as one
+                            ;; (3.35.0), as swipl's PlIdContW(prev_code())
+                            (if (> bs (cof at0)) (set pc (coco_cp_before s n (cof at0) bs)))
+                            (if (not (coco_rd_is pc 8))
                                 (block
                                   (for ((size_t i . bs)) (< i p) ((++ i))
                                     (set base (+ (* base 10) (- (cast int (nth i s)) 48))))
@@ -2663,32 +2939,76 @@
 
   ;;; ---- the writer -------------------------------------------------------
 
+  ;;; Whether NAME, which holds a code past ASCII, needs quotes (3.35.0):
+  ;;; pl-write.c's atomType() for an atom of codes up to U+00FF, its
+  ;;; unquoted_atomW() for any other; `coco_atom_needs_quotes' says more.
+  ;;; The first code's flags, whether each after it continues a name
+  ;;; (`coco_rd_flags' 8), whether every one is a symbol (2), the count.
+  (static)
+  (func coco_wide_needs_quotes ((const char * name)) (out int)
+        (let ((size_t n . #'(strlen name)) (size_t i . 0) (size_t cnt . 0)
+              (u32 f0 . 0) (int wide . 0) (int cont . 1) (int sym . 1))
+          (while (< i n)
+            (let ((i64 c . #'(coco_utf8_get name n (aof i))) (u32 f . #'(coco_rd_flags c)))
+              (if (> c 255) (set wide 1))
+              (if (== cnt 0) (set f0 f) (if (== 0 (bitand f 8)) (set cont 0)))
+              (if (== 0 (bitand f 2)) (set sym 0))
+              (set cnt (+ cnt 1))))
+          (if wide
+              ;; a name's start -- a letter and no capital -- and what
+              ;; continues one after it; or symbols, the first among them
+              (return (? (and (!= 0 (bitand f0 4)) (== 0 (bitand f0 16))) (not cont) (not sym))))
+          ;; the Latin-1 table: a small letter (LC), letters and digits after
+          ;; it; a symbol (SY) and symbols, none begun by `/*'; one solo
+          ;; character (SO: no class)
+          (if (and (!= 0 (bitand f0 4)) (== 0 (bitand f0 16))) (return (not cont)))
+          (if (!= 0 (bitand f0 2))
+              (return (or (not sym) (and (== (cast int (nth 0 name)) (coco-ch "/"))
+                                         (== (cast int (nth 1 name)) (coco-ch "*"))))))
+          (return (not (and (== cnt 1) (== 0 (bitand f0 127)))))))
+
   ;;; An atom needs no quotes when it is a lower-case alphanumeric word, a run
   ;;; of symbol characters, or one of the four names that stand alone. `,' is
   ;;; not among them: written bare it would be read as an argument separator.
   ;;; Nor are two runs of symbol characters, which would not read back as
   ;;; themselves: `.' alone ends a clause, and a run that begins `/*' begins
   ;;; a comment (coco_skip_layout) -- SWI quotes both.
+  ;;;
+  ;;; A NAME PAST ASCII IS ASKED AS swipl's IS (3.35.0; through 3.34.1
+  ;;; every one was quoted, `'é''): one of codes up to U+00FF by its Latin-1
+  ;;; table (atomType()) -- a small letter and letters or digits after it
+  ;;; (`é', `aª'), symbols (`¬¡'), one solo character (`²') -- and any other
+  ;;; by unquoted_atomW(): a name's start, which no capital is, and a name's
+  ;;; continuation after it (`αβ', `éα'), or symbols alone (`∀', `+∀'),
+  ;;; where swipl makes no exception of `/*'. The classes are
+  ;;; `coco_rd_flags''s, the reader's own, so what this leaves bare reads
+  ;;; back as itself. ONE PASS: an ASCII name is decided as through 3.34.1,
+  ;;; and the first byte past ASCII hands the whole name to
+  ;;; `coco_wide_needs_quotes' -- an ASCII byte that breaks a word or a run
+  ;;; of symbols before one breaks it in either table, but the `/*' that
+  ;;; quotes an ASCII run quotes none past U+00FF, so it is asked last.
   (func coco_atom_needs_quotes ((const char * name)) (out int)
         (if (== (nth 0 name) (cast char 0)) (return 1))
         (if (or (== 0 (strcmp name "[]")) (or (== 0 (strcmp name "{}"))
                 (or (== 0 (strcmp name "!")) (== 0 (strcmp name ";")))))
             (return 0))
-        (if (coco_is_lower (cast int (cast uchar (nth 0 name))))
-            (block (for ((size_t i . 1)) (!= (nth i name) (cast char 0)) ((++ i))
-                     (if (not (coco_is_alnum (cast int (cast uchar (nth i name)))))
-                         (return 1)))
-                   (return 0)))
-        (if (coco_is_symbol (cast int (cast uchar (nth 0 name))))
-            (block (if (or (== 0 (strcmp name "."))
-                           (and (== (cast int (nth 0 name)) (coco-ch "/"))
-                                (== (cast int (nth 1 name)) (coco-ch "*"))))
-                       (return 1))
-                   (for ((size_t i . 1)) (!= (nth i name) (cast char 0)) ((++ i))
-                     (if (not (coco_is_symbol (cast int (cast uchar (nth i name)))))
-                         (return 1)))
-                   (return 0)))
-        (return 1))
+        (let ((int c0 . #'(cast int (cast uchar (nth 0 name)))))
+          (if (>= c0 128) (return (coco_wide_needs_quotes name)))
+          (if (coco_is_lower c0)
+              (block (for ((size_t i . 1)) (!= (nth i name) (cast char 0)) ((++ i))
+                       (let ((int c . #'(cast int (cast uchar (nth i name)))))
+                         (if (not (coco_is_alnum c))
+                             (return (? (>= c 128) (coco_wide_needs_quotes name) 1)))))
+                     (return 0)))
+          (if (coco_is_symbol c0)
+              (block (for ((size_t i . 1)) (!= (nth i name) (cast char 0)) ((++ i))
+                       (let ((int c . #'(cast int (cast uchar (nth i name)))))
+                         (if (not (coco_is_symbol c))
+                             (return (? (>= c 128) (coco_wide_needs_quotes name) 1)))))
+                     (return (or (== 0 (strcmp name "."))
+                                 (and (== c0 (coco-ch "/"))
+                                      (== (cast int (nth 1 name)) (coco-ch "*")))))))
+          (return 1)))
 
   ;;; A CONTROL CHARACTER THE READER HAS A LETTER FOR, under swipl's
   ;;; character escapes (2.2.5): 7 `\a', 8 `\b', 11 `\v', 12 `\f' and, for a
@@ -2705,16 +3025,19 @@
 
   ;;; WHETHER A QUOTED WRITE ESCAPES CODE CP (3.1.0, swipl's): a control
   ;;; character with no letter (`coco_escape_letter' and the three the
-  ;;; writers spell themselves are the ones with), DEL, a C1 control and a
+  ;;; writers spell themselves are the ones with), DEL, and past ASCII
+  ;;; what pl-write.c's unicode_quoted_escape() escapes (3.35.0,
+  ;;; `coco_rd_flags' 128): a C1 control, a separator (U+00A0, U+2028), a
+  ;;; format character (U+00AD, U+200B), a code no class names and a
   ;;; surrogate -- U+DC80..U+DCFF among them, a byte that was no UTF-8.
-  ;;; swipl escapes these in every locale; past them its quoted write is the
-  ;;; locale's (a UTF-8 one escapes what is no graph, U+00A0 and U+200B
-  ;;; among them), and this one writes the character.
+  ;;; Through 3.34.1 the controls and the surrogates alone, and U+00A0 was
+  ;;; written as it is, where swipl writes `\xA0\' to a stream that can
+  ;;; hold any character, as with_output_to/2's can.
   (static) (inline)
   (func coco_write_escaped ((i64 cp)) (out int)
+        (if (>= cp 128) (return (!= 0 (bitand (coco_rd_flags cp) 128))))
         (return (or (and (< cp 32) (!= cp 9) (!= cp 10) (!= cp 13) (== 0 (coco_escape_letter (cast int cp))))
-                    (and (>= cp 127) (<= cp 159))
-                    (and (>= cp 55296) (<= cp 57343)))))
+                    (== cp 127))))
 
   ;;; CP as swipl's quoted write escapes it: writeq/1's `\x1\' and `\xD800\',
   ;;; or, UNI (print/1's and write_term/2's, swipl's
@@ -2863,15 +3186,16 @@
                 ;; a rational is no integer and names none here (2.5.0)
                 ((coco-rat-p c) (return 0))
                 ((coco-tag-is BIG c) (set n (nth (cast size_t (coco-payload c)) (-> m bigs))))
+                ;; a name that reads as a variable: a capital or `_' first and
+                ;; a name's continuation after it, past ASCII too (3.35.0,
+                ;; swipl's atomIsVarName(): `'$VAR'('Été')' is Été)
                 ((coco-tag-is ATOM c)
-                 (let ((const char * s . #'(coco_atom_name m (coco_name_of m a))))
-                   (if (not (or (coco-ch-between (nth 0 s) "A" "Z") (== (nth 0 s) (coco-ch "_"))))
-                       (return 0))
-                   (for ((size_t i . 1)) (!= (nth i s) (cast char 0)) ((++ i))
-                     (let ((char ch . #'(nth i s)))
-                       (if (not (or (coco-ch-between ch "a" "z") (coco-ch-between ch "A" "Z")
-                                    (coco-ch-between ch "0" "9") (== ch (coco-ch "_"))))
-                           (return 0))))
+                 (let ((const char * s . #'(coco_atom_name m (coco_name_of m a)))
+                       (size_t n . #'(strlen s)) (size_t i . 0))
+                   (if (== n 0) (return 0))
+                   (if (== 0 (bitand (coco_rd_flags (coco_utf8_get s n (aof i))) 16)) (return 0))
+                   (while (< i n)
+                     (if (== 0 (bitand (coco_rd_flags (coco_utf8_get s n (aof i))) 8)) (return 0)))
                    (coco_sb_put b s)
                    (return 1)))
                 (#t (return 0)))

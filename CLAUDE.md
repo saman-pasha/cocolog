@@ -1850,7 +1850,8 @@ cocolint index offers no import of it.
   came back negative in either unit). A NEW LIBRARY THAT MAKES AN ATOM FROM
   WIRE BYTES, OR WIRE BYTES FROM THE PROGRAM'S TEXT, GOES THROUGH
   string_bytes/3, never atom_codes/2. A binary stream is bytes, the writer
-  still quotes `'dár'` (the reader takes no unquoted letter past ASCII),
+  leaves `dár` bare since 3.35.0 (the reader takes a name past ASCII, in
+  either unit: its text is UTF-8, the bullet on names past ASCII below),
   library(text)'s regexes match bytes, and library(flow)'s widths and
   columns ask the flag past 127 (a code of 128..191 is a continuation byte
   only under bytes). test/units.pl holds it to swipl. Under bytes, build
@@ -1858,7 +1859,8 @@ cocolint index offers no import of it.
   atomic_list_concat/2 and member/2 over a list of the suffixes, as
   tr_stress_stem/2 does. **A syntax error in a load is
   placed** (1.11.9): `ERROR: FILE:LINE:COL: Syntax error: REASON`, the column
-  from 0 in bytes as swipl's, from `run` and `-s` alike -- a module's names
+  from 0 as swipl's (characters to the clause's start and bytes from there,
+  since 3.35.0: the bullet on names past ASCII), from `run` and `-s` alike -- a module's names
   ITS file, through `use_module` and through the load a goal's ask makes
   (`load_err` on the store) -- and since 3.1.0 the load goes on past it.
   Through 1.11.8 `run` said a byte offset and `-s` only `its clauses would
@@ -1866,8 +1868,9 @@ cocolint index offers no import of it.
   (`coco_reader_load_error`, `coco_syntax_sentence` in lib/syntax.cicili):
   messages.pl's sentence for swipl's id, and swipl's place, the clause's
   RAW text walked from one column past its first character for the
-  error's characters less one -- columns in bytes, a comment's character
-  one, so a token on a later line of its clause is a column short
+  error's characters less one -- columns in bytes from the clause's start,
+  the character right before the token counted by its bytes too (3.35.0),
+  a comment's character one, so a token on a later line of its clause is a column short
   (`g(x\n  y).' says 2:1); what the raw read refuses is the first
   character's column plus one, no full stop before the end is
   end_of_file at the last character, and a block comment open before
@@ -3096,6 +3099,57 @@ cocolint index offers no import of it.
   (`coco_sys_goal`) each answered differently without it, the last three
   found after the first cut; `coco_meta_bar` needs none (`coco_part_bar`
   gives a structure's parts the meta-call's word).
+* **A name past ASCII is read and written as swipl's** (3.35.0; through
+  3.34.1 every byte past ASCII outside quotes was `illegal_character`, and
+  writeq/1 quoted every atom that held one, `'é'`). **The reader asks each
+  code point's class of `coco_rd_flags`** (lib/term.cicili, a two-level
+  table of `*swipl-read-flags*`, the fifth table of lib/swipl-ctype.cicili,
+  which tools/ctype/tables.pl writes from the REFERENCE swipl's
+  '$code_class'/2 and holds to code_type/2's tables: run it again, never
+  edit it): 1 layout, 2 a symbol, 4 a name's start, 8 its continuation, 16
+  a capital, 32 a decimal digit, 64 a code the reader refuses, 128 one a
+  quoted write escapes -- swipl's get_token(), its Latin-1 table up to
+  U+00FF and pl-umap.c past it. A letter begins a name and a capital a
+  variable (`Été`), a symbol joins a run of symbols (`+∀`), a space is
+  layout (U+00A0, U+3000), a digit of another script begins a number in
+  its block's digits (`coco_lex_wide_number`: `١٢` is 12, with groups, a
+  fraction, an exponent and a rational, never `0'c`, a radix or `0x`; a
+  minus before it is no sign, `-١` is -(1), the reader's `wnum`), and any
+  other code a name of one character, as `!` is. ASCII keeps the lexer's
+  own classes, which are swipl's table's, and **ASCII's layout is 9 to 13
+  and the space** (`coco_is_space`: the vertical tab and the form feed
+  too). **The raw walk asks the same** (a symbol run past ASCII, layout past
+  it after a full stop, the code before `0'`), and library(stream) ends a
+  clause at a full stop before layout past ASCII (`st_wide_stop`). **The
+  writer asks the same classes** (`coco_wide_needs_quotes`): an atom of
+  codes up to U+00FF by pl-write.c's atomType() (`é`, `¬¡`, one solo `²`),
+  any other by unquoted_atomW() (`αβ`, `∀`; `/*∀` bare, where an ASCII
+  `/*` is quoted, as swipl's: it does not read back in either); a space
+  between two names or two symbols on code points (`coco_needs_gap`, `1 éa
+  2`); in quotes `\xHEX\` for bit 128 (`coco_write_escaped`: U+00A0,
+  U+00AD, U+2028, C1); `'$VAR'('Été')` bare under numbervars. **A load's
+  column counts characters to the clause's start and bytes from there to
+  the error's token** (swipl's stream counts its line position in
+  characters, ptr_to_location() the bytes: `p(∀0'a).` is 1:5), and a
+  singleton's mark is swipl's (`coco_cw_kind`): `_É` marked, `_é` warned,
+  `_1` none. **Every path past ASCII is out of line and cold** (`(weak)
+  (cold)`: `coco_skip_layout_wide`, reached by a tail call,
+  `coco_lex_wide_token`, `coco_lex_wide_step`, `coco_raw_wide`,
+  `coco_raw_wide_symbol`, `coco_needs_gap_wide`, `coco_sb_wide_end`), the
+  runs are DEFMACROs specialised per class (`coco-lex-run`,
+  `coco-raw-symbols`), and `coco_atom_needs_quotes` is one pass that goes
+  wide at the first byte past ASCII: the first cut inlined the wide layout
+  into the layout skip, which then pushed and popped six registers at every
+  token (a start 846 000 instructions more), ran names through one
+  function asking its class at each code (400 000 more), scanned every atom
+  written twice and called the class tests for every space between tokens
+  (writes 1.75 % dearer). A new path past ASCII in the reader or the writer
+  goes out of line the same way. The raw walk is still 9 % dearer (+7.6
+  million instructions reading 28 368 lines, 1.1 % of the read): its arms'
+  order is clang's to lay out, and the two other orders tried cost 26 % and
+  16 %. test/files/wide_names.pl holds 144 lines to swipl,
+  test/directives.pl's `wide_names` a load's warnings and places; COMPAT.md
+  has the two raw-read quirks swipl's reader has and cocolog's not.
 * **Concurrency shares nothing**: a `library(thread)` thread gets its own
   machine, store, engine and database connection; a channel copies terms in
   canonical text. Mutexes and conditions serialise the WORLD (a file, a tcp

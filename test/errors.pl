@@ -592,17 +592,19 @@ long_atom(N, A) :- length(L, N), maplist(=(0'x), L), atom_codes(A, L).
 %% crash was in, so a crash is a red check and not the end of this case. AND
 %% THE TEXT GROWS: through 1.11.7 it went through 4096 bytes, and a longer
 %% list FAILED with no error, a longer atom's chars an instantiation error.
+%% The letter is written bare, as swipl writes it (3.35.0; through 3.34.1
+%% writeq/1 quoted every atom past ASCII, `'á'').
 chars_to_text :-
     section('atom_chars/2 and number_chars/2 name the element that is no character'),
     chars_child('atom_chars(_, [d,\'á\',r])', T1),
     check('a letter of two bytes is no character: SWI\'s error, and no crash', T1,
-          'type_error(character,\'á\')'-0),
+          'type_error(character,á)'-0),
     chars_child('atom_chars(_, [\'á\'])', T2),
     %% a FIRST element that is neither a code nor a character is swipl's
     %% character_code, as `atom_chars(_, [ab])' is (PL_get_text decides the
     %% list's kind by its first element)
     check('and the first element is named as surely as the second', T2,
-          'type_error(character_code,\'á\')'-0),
+          'type_error(character_code,á)'-0),
     chars_child('atom_chars(_, [d,ab,r])', T3),
     check('an atom of two characters is no character', T3, 'type_error(character,ab)'-0),
     chars_child('atom_chars(_, [d,1,r])', T4),
@@ -611,7 +613,7 @@ chars_to_text :-
     check('an unbound element is SWI\'s instantiation_error', T5, instantiation_error-0),
     chars_child('number_chars(_, [\'1\',\'á\'])', T6),
     check('number_chars/2 reads its list the same way: the letter', T6,
-          'type_error(character,\'á\')'-0),
+          'type_error(character,á)'-0),
     chars_child('number_chars(_, [\'1\',23])', T7),
     check('the number', T7, 'type_error(character,23)'-0),
     chars_child('number_chars(_, [\'1\',_])', T8),
