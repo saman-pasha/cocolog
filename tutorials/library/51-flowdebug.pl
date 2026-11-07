@@ -352,8 +352,18 @@ timed(Dir) :-
     ( memberchk(prof(msort/2, MI, MN, _), PRows) -> true ; MI = 0, MN = 0 ),
     must('msort/2 in the profile: one call, one step', MI-MN, 1-1),
     Time = time(_, _, _, TRows),
-    findall(Own-P, member(t(P, _, _, Own, _, _, _), TRows), Owns),
-    max_member(_-Top, Owns),
+    %% THE CLOCK READS WALL TIME, so a step the scheduler stopped is charged
+    %% the pause, and on a busy machine another predicate's own time can
+    %% pass msort/2's in one run (cocolog 3.33.0's CI, GitHub's 3-CPU Mac,
+    %% where this lesson went red in the suite and green alone). A pause only
+    %% adds: each predicate's least over three runs is its own time, as a
+    %% benchmark takes its fastest round (least_top/2, below)
+    flow_debug(job(_), Base, [source(Prog), from(1), time(Time2), svg(false), xml(false)], _),
+    flow_debug(job(_), Base, [source(Prog), from(1), time(Time3), svg(false), xml(false)], _),
+    findall(Owns, ( member(time(_, _, _, TRk), [Time, Time2, Time3]),
+                    findall(P-Own, member(t(P, _, _, Own, _, _, _), TRk), Owns) ),
+            TimeRuns),
+    least_top(TimeRuns, Top),
     must('in time, msort/2''s own is the most of any predicate''s', Top, msort/2),
     %% a GUARD -- the arithmetic and tests a clause begins with, run as the
     %% clause is entered -- is a step no reading separates from its
@@ -396,7 +406,14 @@ timed(Dir) :-
     %% replay, about twice the run's time (profile=run from the shell)
     flow_run_time(job(_), [source(Prog)], RT),
     RT = run_time(_, _, RTRows),
-    ( RTRows = [rt(RTop, _, _, _)|_] -> true ; RTop = none ),
+    %% the rows come the most first, and the most of three runs is each
+    %% predicate's least, as above: its own time and its retries'
+    flow_run_time(job(_), [source(Prog)], run_time(_, _, RTRows2)),
+    flow_run_time(job(_), [source(Prog)], run_time(_, _, RTRows3)),
+    findall(ROs, ( member(RTk, [RTRows, RTRows2, RTRows3]),
+                   findall(RP-RO, ( member(rt(RP, _, RSe, RRe), RTk), RO is RSe + RRe ), ROs) ),
+            RunRuns),
+    least_top(RunRuns, RTop),
     must('over the whole run, msort/2''s own time the most', RTop, msort/2),
     ( memberchk(rt(count/1, CN2, _, _), RTRows) -> true ; CN2 = 0 ),
     ( memberchk(rt(is/2, _, _, _), RTRows) -> IR = row ; IR = none ),
@@ -407,6 +424,17 @@ timed(Dir) :-
     format("~w~n", [RCols]),
     forall(( member(R2, RRows), member(E2, ['  msort/2', '  count/1']), sub_atom(R2, _, _, 0, E2) ),
            format("~w~n", [R2])).
+
+%% THE PREDICATE WHOSE LEAST OWN TIME IS THE MOST, over some runs' P-Own
+%% pairs, `none' for no rows: a pause of the scheduler only ever adds to
+%% the step it lands in, so a predicate's least over the runs is its own
+least_top(Runs, Top) :-
+    Runs = [Run|_],
+    findall(T-P, ( member(P-_, Run),
+                   findall(O, ( member(R, Runs), memberchk(P-O, R) ), Os),
+                   min_list(Os, T) ),
+            TPs),
+    (   max_member(_-Top0, TPs) -> Top = Top0 ; Top = none ).
 
 %% a why tree without its arguments: what failed, and where
 why_shape(L, S) :- is_list(L), !, findall(X, ( member(W, L), why_shape(W, X) ), S).
