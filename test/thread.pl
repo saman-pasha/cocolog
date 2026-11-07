@@ -116,7 +116,25 @@ a_thread :-
     %% (3.43.0, test/files/meta_call_root.pl)
     written(( thread_create((true, call(no_such_pred, a)), I5), thread_join(I5, error(M5)),
               ( sub_atom(M5, _, _, _, 'context(system:call/2,') -> W5 = call2 ; W5 = M5 ) ), W5, G5),
-    check('a call/N in a thread goal''s structure names call/N', G5, call2).
+    check('a call/N in a thread goal''s structure names call/N', G5, call2),
+    %% ...AND THE REST OF IT IS callProlog()'S (3.44.0, as with_output_to/2's,
+    %% test/files/c_call_goals.pl): a plain goal is `'$c_call_prolog'/0''s,
+    %% `\+ G' is the system's (\+)/1, G's qualifier naming what nothing
+    %% defines, `(A, B)' compiled as ','/2 compiles it, each part user's.
+    %% The goal is read into a machine of its own, where its module atom is
+    %% heap cell 0: a qualifier was found by its cell, and lost there
+    written(( thread_create(no_such_pred, I6), thread_join(I6, error(M6)),
+              ( sub_atom(M6, _, _, _, 'context(system:\'$c_call_prolog\'/0,') -> W6 = c ; W6 = M6 ) ),
+            W6, G6),
+    check('a plain goal is named by the C frame that calls it', G6, c),
+    written(( thread_create(lists:(\+ no_such_pred), I7), thread_join(I7, error(M7)),
+              ( sub_atom(M7, _, _, _, 'lists:no_such_pred/0),context(system:(\\+)/1,')
+              -> W7 = not ; W7 = M7 ) ), W7, G7),
+    check('\\+ is the system''s (\\+)/1, and its goal its qualifier''s', G7, not),
+    written(( thread_create((true, 1), I8), thread_join(I8, error(M8)),
+              ( sub_atom(M8, _, _, _, 'type_error(callable,(user:true,user:1)),context(system:(\',\')/2,')
+              -> W8 = and ; W8 = M8 ) ), W8, G8),
+    check('a conjunction is ,/2''s, its parts user''s', G8, and).
 
 what_it_sees :-
     section('what a thread can see, and what it cannot'),

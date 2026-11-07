@@ -741,7 +741,13 @@
     ("$foldl3" 6 "apply" "foldl_") ("$foldl4" 7 "apply" "foldl_")
     ("$scanl" 4 "apply" "scanl_") ("$scanl2" 5 "apply" "scanl_")
     ("$scanl3" 6 "apply" "scanl_") ("$scanl4" 7 "apply" "scanl_")
-    ("apply" 2 "$apply")))
+    ("apply" 2 "$apply")
+    ;; the frames swipl's C and its system predicates call a goal in
+    ;; (3.44.0, lib/builtins.cicili's `'$c_call'/1' and its kin)
+    ("$c_call" 1 "system" "$c_call_prolog" 0) ("$c_call1" 1 "system" "call")
+    ("$scc_run" 1 "system" "setup_call_catcher_cleanup" 4)
+    ("$c_and" 2 "system" ",") ("$c_ite" 2 "system" "->") ("$c_soft" 2 "system" "*->")
+    ("$c_or" 2 "system" ";") ("$c_not" 1 "system" "\\+") ("$c_det" 1 "system" "$")))
 
 (DEFMACRO coco-emit-frame-ctx ()
   `(func coco_frame_ctx ((coco_machine * m) (u64 nid) (u32 n) (size_t * out)) (out int)
@@ -2761,6 +2767,12 @@
              (return r))
             ((and (== n 1) (== s (coco-id m "\\+")))
              (return (coco_unknown_walk m (coco_arg m t 0) g 1 who whoa (+ depth 1))))
+            ;; M:G stands where G does (3.44.0): a meta-call's own goal
+            ;; stripped, a part of a structure compiled in M
+            ((and (== n 2) (== s (coco-id m ":")))
+             (if (not (coco-tag-is ATOM (nth (coco_deref m (coco_arg m t 0)) (-> m heap))))
+                 (return 0))
+             (return (coco_unknown_walk m (coco_arg m t 1) g meta who whoa (+ depth 1))))
             ((or (and (== n 1) (or (or (== s (coco-id m "call")) (== s (coco-id m "once")))
                                    (or (== s (coco-id m "ignore")) (== s (coco-id m "not")))))
                  (and (== n 3) (== s (coco-id m "catch"))))
@@ -2780,7 +2792,10 @@
   ;;; WHERE G STANDS IN THE SEARCH'S OWN GOAL (`query'), as
   ;;; `coco_unknown_walk' answers: 0 nowhere, 1 the root, 2 a part of a
   ;;; control structure, 3 the argument of WHO/WHOA. forall/2's search is
-  ;;; `(C, \+ A)', and each half is a root
+  ;;; `(C, \+ A)', and each half is a root. A search C started (`rootn' 4,
+  ;;; 3.44.0) calls a root `\+ X' or `$(X)' as swipl's callProlog() calls
+  ;;; the system's (\+)/1 and ($)/1, X their meta-call's own: X itself
+  ;;; theirs, 3, and its parts as any meta-call's
   (weak) (cold)
   (func coco_query_walk ((coco_engine * e) (size_t g) (const char ** who) (u32 * whoa)) (out int)
         (let ((coco_machine * m . #'(-> e m)) (size_t q . #'(-> e query)) (int r . 0))
@@ -2788,15 +2803,31 @@
           ;; E, true)' -- so 0 is no test of it here: the loop set it
           (if (>= q (-> m heap_len)) (return 0))
           (set g (coco_deref m g))
-          (if (== (-> e rootn) 2)
-              (let ((size_t qd . #'(coco_deref m q)))
-                (if (coco_is_compound2 m qd ",")
-                    (block
-                     (set r (coco_unknown_walk m (coco_arg m qd 0) g 0 who whoa 0))
-                     (if (== r 0)
-                         (set r (coco_unknown_walk m (coco_arg m (coco_deref m (coco_arg m qd 1)) 0)
-                                                   g 0 who whoa 0))))))
-            (set r (coco_unknown_walk m q g 0 who whoa 0)))
+          (cond
+            ((== (-> e rootn) 2)
+             (let ((size_t qd . #'(coco_deref m q)))
+               (if (coco_is_compound2 m qd ",")
+                   (block
+                    (set r (coco_unknown_walk m (coco_arg m qd 0) g 0 who whoa 0))
+                    (if (== r 0)
+                        (set r (coco_unknown_walk m (coco_arg m (coco_deref m (coco_arg m qd 1)) 0)
+                                                  g 0 who whoa 0)))))))
+            ((== (-> e rootn) 4)
+             (let ((size_t qd . #'(coco_deref m q)))
+               (while (and (coco_is_compound2 m qd ":") (!= qd g)
+                           (coco-tag-is ATOM (nth (coco_deref m (coco_arg m qd 0)) (-> m heap))))
+                 (set qd (coco_deref m (coco_arg m qd 1))))
+               (if (and (!= qd g) (coco-tag-is FUN (nth qd (-> m heap))) (== (coco_arity m qd) 1)
+                        (or (== (coco_name_of m qd) (coco-id m "\\+"))
+                            (== (coco_name_of m qd) (coco-id m "$"))))
+                   (block
+                    (if (coco_unknown_same m (coco_arg m qd 0) g)
+                        (block (set (cof who) (coco_atom_name m (coco_name_of m qd)))
+                               (set (cof whoa) 1)
+                               (return 3)))
+                    (set r (coco_unknown_walk m (coco_arg m qd 0) g 0 who whoa 0)))
+                   (set r (coco_unknown_walk m q g 0 who whoa 0)))))
+            (#t (set r (coco_unknown_walk m q g 0 who whoa 0))))
           (return r)))
 
   ;;; the context of the unknown procedure in flight (`kcall')

@@ -14847,3 +14847,183 @@ trace, window, flowdebug, gc, backtrace, library, async, cyclic, static,
 cowork, directives and thread. library/reasoning/ matches no error's
 context: reasoning stays at its number. The card's cites hold (two of H1's
 corrected; 15 accepted as moved, 16 on master).
+
+
+## The goals swipl's C calls, and the qualifier a meta-call strips, as swipl's (3.44.0)
+
+swipl 9.0.4 calls some goals from C: with_output_to/2's, format/2's `~@`,
+a thread's, sig_atomic/1's (setup_call_cleanup/3's setup) and the cleanup
+handler's. callProlog() takes the goal's qualifiers off, calls a plain goal
+in the frame `'$c_call_prolog'/0` names, and a control construct as the
+system's predicate boot/init.pl defines for it -- `(G1, G2) :- call((G1,
+G2))`, `\+ Goal :- \+ Goal`, `$(Goal) :- $(Goal)` -- with each argument
+qualified by the caller's module. setup_call_cleanup/3's goal runs in
+setup_call_catcher_cleanup/4's own frame (I_CALLCLEANUP). Through 3.43.0
+cocolog called a plain goal of with_output_to/2's and `~@`'s so, but ran a
+structure as a meta-call does: `with_output_to(S, (true, 1))` was
+type_error(callable, (true, 1)) named with_output_to/2 where swipl's is
+type_error(callable, (user:true, user:1)) named ','/2, `\+ foo` was named
+`'<meta-call>'/1` where swipl's is (\+)/1, and `(fail ; call(foo))` named
+call/1 where swipl's (;)/2 compiles call/N in place. setup_call_cleanup/3's
+setup ran under once/1, its goal under catch/3 and its cleanup in
+`'$cleanup_call'/3`, whose names their errors said, and a thread's goal
+was a query's: a plain goal's error named nothing. A meta-call kept the
+qualifier swipl strips: `call(lists:(\+ foo))` raised
+existence_error(procedure, foo/0) where swipl's names `lists:foo/0`,
+`call(lists:'$cut'(1))` succeeded, `findall(x, 1:foo, _)` named
+`'<meta-call>'/1` where swipl's findall_loop/4 refuses it before it runs,
+and `lists:call(foo)` written in a clause ran call/1 in place, its error
+the clause's, where swipl's calls call/1, a frame of its own. When a goal
+and its cleanup both raised, the goal's ball was raised and the cleanup's
+dropped; swipl's raises the cleanup's where it is more urgent. Found going
+on from 3.43.0's setup goal, left out there. A minor: a caught error's
+context, and a ball, change.
+
+- THE GOAL SWIPL'S C CALLS (`coco_c_root`, lib/solve-control.cicili): the
+  qualifiers off; ','/2, (->)/2 and (*->)/2 called again as `(M:A, M:B)`,
+  M the innermost module (user where none) and an argument qualified
+  already its own; (;)/2 as `M:(A ; B)` where its arguments share M, else
+  `M:(A ; N:B)`; `\+ M:X` and `$(M:X)` for M not user. A part is said of
+  user only where that changes how it runs (`coco_c_arg`): a call/N, a
+  control structure, a variable, what is no goal -- a plain goal under
+  `user:` runs as it would bare, for a step of the `:` construct more.
+  Its faults before it runs (`coco_c_root_fault`): an unbound or
+  non-callable goal the starter's, named with_output_to/2 or format/3; a
+  structure that is no goal the construct's own, its formal with every
+  part said of its module (`coco_c_root_q`'s FULL),
+  `type_error(callable, (user:true, user:1))` named ','/2.
+  with_output_to/2, `~@`, a thread and an isolated run start their search
+  there (`rootn` 4), and the walk an unknown procedure's context makes
+  takes a root `\+ X` or `$(X)`'s X as theirs.
+- `$/1` AT SUCH A ROOT (`coco_det_c_root`): G runs in ($)/1's frame, and
+  its determinism error shows the goal that clause compiled,
+  `determinism_error(call(user:fail), det, fail, goal)`, named
+  `system:($)/1`.
+- SETUP_CALL_CLEANUP/3 (the builtins' Prolog half): the setup through
+  `'$c_goal'(S, 0, S1)`, a C half that makes a construct its system
+  predicate's helper -- `'$c_and'/2`, `'$c_ite'/2`, `'$c_soft'/2`,
+  `'$c_or'/2`, `'$c_not'/1`, `'$c_det'/1`, a part said of user as
+  `coco_c_arg` says, every part where the structure is no goal -- and
+  raises sig_atomic/1's error first for a setup unbound or no goal; the
+  setup called in `'$c_call'/1`, once; the goal and the cleanup asked the
+  same, setup_call_catcher_cleanup/4's errors (`'$c_goal'/3` kind 3); the
+  goal in `'$scc_run'/1`; the cleanup through `'$c_goal'(C, 1, C1)`, a
+  structure call/1's to compile (`'$c_call1'/1`). Each helper has a row of
+  `*frame-contexts*` with swipl's name for its frame (`'$c_call_prolog'/0`,
+  call/1, setup_call_catcher_cleanup/4, ','/2, ...). The checks were two
+  clauses of the Prolog half through 3.43.0, each its own if-then-else.
+- THE CLEANUP'S BALL REPLACES THE GOAL'S ONLY WHEN MORE URGENT
+  (`'$scc_urgency'/2`): time_limit_exceeded over error(_, _) over any
+  other ball, as swipl 9.0.4 ranks them (resource_error among the errors);
+  the goal's where they are as urgent; never a ball raised after the goal
+  exited (external_exception).
+- A QUALIFIER ON CALL/N OR A STRUCTURE (`coco_colon_written`,
+  lib/solve-loop.cicili, asked by the `:` construct, which tells `user` by
+  its name, `coco_atom_is_user`). A meta-call's own goal -- its word META,
+  a frame of swipl's own (call/N's goal, once/1's, catch/3's), a variable
+  bound as it ran, a search's own goal -- is stripped, as I_USERCALL0
+  strips it: MO said of each goal of the structure (`coco_colon_qualify`),
+  call/N left in place with its goal MO's (`call(lists:foo)`), so what
+  nothing defines is named `lists:foo/0`. Written in code that runs -- a
+  clause, a part of a structure a meta-call compiled -- `M:call(G)` is
+  call/N's own frame, `call(M:G)`, and a structure has M said of each
+  goal. A variable goal is `call(M:X)`, as swipl compiles one; `$(G)` is
+  never qualified inside, as its determinism error shows G as written
+  (COMPAT.md).
+- THE META-CALL'S CHECK (`coco_goal_check`, `coco_goal_leaves`) takes the
+  root's qualifiers off -- `findall(x, 1:foo, _)` type_error(atom, 1) and
+  `findall(x, _:foo, _)` an instantiation error, named by findall_loop/4
+  before the goal runs -- and walks `M:G` in a structure:
+  `call(lists:(true, 1:foo))` type_error(module, 1). So does the clause
+  compiler's (`cc_bad_leaf`, lib/kb-compile.cicili), which keeps
+  `once(lists:(true, 1))` written in a clause a term, for once/1 to raise
+  type_error(callable, (true, 1)), as swipl's compile of the goal does.
+- A CONSTRUCT'S NAME OF AN ARITY NO CONSTRUCT HAS is no construct under a
+  qualifier (`coco_construct_pi`, emitted from `*callable-constructs*`):
+  `lists:true(1)` is existence_error(procedure, lists:true/1), and
+  `lists:'$cut'(1)`, a marker of the engine's, `lists:'$cut'/1`.
+- A QUALIFIER MET IS A FLAG, NEVER A CELL (`qual`): a thread's goal is read
+  into a machine of its own, where its module atom is heap cell 0, and the
+  first cut, which tested the cell, lost `lists:` there
+  (`thread_create(lists:(\+ foo), _)` named `'<meta-call>'/1`).
+
+test/files/c_call_goals.pl, new: 246 lines, swipl 9.0.4's byte for byte
+(3.43.0 differs at 142 of them): with_output_to/2's goals plain,
+structured, qualified and `$`'s; `~@`'s; setup_call_cleanup/3's setup,
+goal and cleanup; the balls of a goal and its cleanup; a meta-call's
+stripped qualifier; a qualifier written in code; and once/1's, ignore/1's
+and not/1's goal written in a clause. test/thread.pl: three
+checks of a thread's goal (3.43.0 red in all three). Not swipl's
+(COMPAT.md): a C-called goal whose qualifier is unbound or no atom, or that
+is `A|B`, which swipl calls as (:)/2 or ('|')/2; `user:call(G)` in a
+clause, stored as call(G); a goal nothing defines inside `$/1` under a
+stripped qualifier, and a determinism error's goal under a qualifier, which
+swipl shows decompiled.
+
+Arms, a build each, the rule taken out (35), each red in c_call_goals.pl,
+meta_call_root.pl or test/thread.pl's three new checks, the arm of no edit
+green in all three (most built before the cost work below, which changed
+no answer):
+
+- the meta-call's check: `M:G` among a structure's leaves (c_call_goals,
+  thread), the root's qualifiers off, type_error(atom, M) of a root's
+  qualifier, and the clause compiler's walk of `M:G` (c_call_goals; this
+  one was green in all three until the case held once/1's, ignore/1's and
+  not/1's goal written in a clause, which no probe had);
+- the walk an unknown procedure's context makes: through `M:G`
+  (c_call_goals), a C root's `\+` or `$` argument (all three);
+- the C root: ','/2 called as `(M:A, M:B)` (all three), (;)/2 as `M:(A ;
+  B)` (c_call_goals), `\+ M:G` and `$(M:G)` (c_call_goals, thread), the
+  qualifier a flag and never a cell (thread alone), the starter's fault
+  (c_call_goals), the construct's (c_call_goals, thread) and its formal
+  with every part said of its module (c_call_goals, thread);
+  with_output_to/2's root (c_call_goals), `~@`'s (c_call_goals,
+  meta_call_root), a thread's and an isolated run's `rootn` (thread), call/N
+  placed as a part of a C root's structure (c_call_goals);
+- setup_call_cleanup/3: the setup a construct's system predicate, its
+  formal with every part said of user (green until the case held a
+  setup of user's that is no goal), the cleanup's structure call/1's, the
+  goal in `'$scc_run'/1`, the rows of `'$c_call'/1` and `'$c_call1'/1`, of
+  `'$scc_run'/1` and of the constructs' helpers; the cleanup's ball where
+  more urgent, time_limit_exceeded's rank and error(_, _)'s (each
+  c_call_goals);
+- a qualifier on call/N or a structure: written call/N its own frame (all
+  three); a written structure with M said of each goal, the meta-call's
+  strip naming the module, a variable `call(M:X)`, `$` not qualified
+  inside, `$` at a C root in ($)/1's frame, its culprit `call(user:G)`, a
+  construct's name of another arity (each c_call_goals).
+
+The cost, callgrind, 3.43.0 to 3.44.0. The step loop is not touched
+(tools/flow/zero.sh, work less padding: nrev 65 903 595 and 66 134 270,
+queens 40 275 144 and 40 275 290, lookup 48 052 701 and 48 031 686):
+nrev's 230 675 more is one copy (memcpy) as its heap first grows over a
+start that leaves more cells -- twenty more reps cost 69 285 866 and
+69 285 806, lookup's 48 009 003 and 48 009 043. A start is 35 050 521
+instructions and 35 183 873 (+0.38 %, the Prolog half's new clauses). A
+call, 2 000 of each less the same loop with none:
+
+- with_output_to/2 of a plain goal, `ok(1)`: +72, the root's rewrite and
+  its check; format/2's `~@` +23.
+- with_output_to/2 of `(true, ok(1))`: +421, the root's rewrite of the
+  conjunction, no part said of user (`coco_c_arg`). The first cut said
+  `user:` of each part, and the `:` construct interned "system", walked
+  the libraries' names and interned "user" twice for every qualified goal:
+  +4 212 a call. With `user` told by its name first (`coco_atom_is_user`)
+  and nothing more asked of a plain qualified goal (`coco_colon_written`'s
+  tests deferred), +2 298; the rest was the parts' `:` steps.
+- setup_call_cleanup/3 of `true`, `ok(1)` and `true`: -2 200 (12 250
+  where 3.43.0's was 14 450), the checks in C. The first cut asked each
+  goal through a clause of three with a choice point (`'$c_strip'/2`) and
+  an if-then-else: +6 538. With structures for the setup and the cleanup,
+  `(true, true)`, +1 163.
+- a qualified goal in a clause, `lists:ok(1)`: -29 (the first cut +161,
+  its user test interned before anything returned).
+- call/1 +2, once/1 -6, call/N in a clause -1, `$(ok(1))` in a clause +11.
+
+Narrow cases green: lint, files (each agreeing with swipl), errors, engine,
+directives, library, cyclic, static, backtrace, trace, gc, reconsult, repl,
+async, cowork, flowdebug, flowchart, module, solve, state, window, thread,
+and with a server up zigurat and shared; lint rerun alone after the card's
+X3 cite moved a second time. library/reasoning/ calls with_output_to/2
+over forall/2 alone and matches no error's context: reasoning stays at its
+number. The card's cites hold (X3's moved).

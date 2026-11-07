@@ -60,6 +60,20 @@
                    rows)
          (#t (return 0))))))
 
+;;; WHETHER NID/N IS A CONTROL CONSTRUCT A PROGRAM CALLS, by name AND arity
+;;; (3.44.0, `*callable-constructs*' of lib/builtins.cicili), which a
+;;; qualified goal asks: `lists:true(1)' is lists:true/1, nothing defines it.
+;;; A build that reads no such table -- a test binary -- answers by the name
+(DEFMACRO coco-construct-pi-body (m nid n)
+  (LET ((rows (IF (BOUNDP '*callable-constructs*) (SYMBOL-VALUE '*callable-constructs*) NIL)))
+    (IF (NULL rows)
+        `(return 1)
+        `(cond
+           ,@(MAPCAR (LAMBDA (row)
+                       `((and (== ,n ,(SECOND row)) (== ,nid (coco_intern ,m ,(FIRST row)))) (return 1)))
+                     rows)
+           (#t (return 0))))))
+
 (generic impl-solve-loop
   ()
 
@@ -752,13 +766,18 @@
   ;;; compiled-in module's, and a predicate of the store with no clause that
   ;;; was read, no dynamic or other declaration -- asked of the backend once
   ;;; before it is believed, as the step asks (`warmed'). A loadable
-  ;;; module's name is one, until its seam is asked.
+  ;;; module's name is one, until its seam is asked. A construct's name of
+  ;;; an arity no construct has is no construct (3.44.0).
+  (weak) (cold)
+  (func coco_construct_pi ((coco_machine * m) (u64 nid) (u32 n)) (out int)
+        (if (not (coco_is_construct m nid)) (return 0))
+        (coco-construct-pi-body m nid n))
   (weak) (cold)
   (func coco_colon_undefined ((coco_engine * e) (size_t gl) (u64 nid) (u32 n)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st))
               (size_t pi . 0))
-          (if (coco_is_construct m nid) (return 0))
+          (if (coco_construct_pi m nid n) (return 0))
           (if (!= (coco_claim_kind m nid n) 0) (return 0))
           (set pi (coco_pred_of st m gl))
           (if (>= pi (-> st npreds)) (return 0))
@@ -773,6 +792,102 @@
   ;;; the constructs, below: `system:not(G)' runs one (`coco_colon')
   (static) (decl) (func coco_construct ((coco_engine * e) (u64 nid) (u32 n) (size_t g) (size_t k)
                                         (size_t b) (int * ok) (int * ret)) (out int))
+
+  ;;; call(MO:G, A...) for the call/N goal GL of N arguments, G no
+  ;;; qualified goal (else GL): its goal MO's, call/N where it stood
+  (weak) (cold)
+  (func coco_colon_qcall ((coco_machine * m) (size_t mo) (size_t gl) (u32 n)) (out size_t)
+        (let ((size_t a0 . #'(coco_deref m (coco_arg m gl 0))))
+          (if (coco_is_compound2 m a0 ":") (return gl))
+          (let ((size_t qa . #'(coco_make2 m ":" mo a0))
+                (size_t h . #'(coco_open_struct m "call" n)))
+            (coco_push m (coco-cell REF qa))
+            (for ((u32 i . 1)) (< i n) ((++ i))
+              (coco_push m (coco-cell REF (coco_deref m (coco_arg m gl i)))))
+            (return h))))
+
+  ;;; G with MO said of each goal of its control structure, as swipl's
+  ;;; compile of MO:G calls them: a goal qualified already is its own, a
+  ;;; variable is call(MO:X), as swipl compiles one, and `$(G)' is G as
+  ;;; written -- the goal its determinism error shows, which swipl
+  ;;; decompiles with no module for the system's predicates (COMPAT.md).
+  ;;; INQ for a G stripped of MO (a meta-call's own goal), whose call/N
+  ;;; stays where it stands, its goal MO's (`coco_colon_qcall')
+  (weak) (cold)
+  (func coco_colon_qualify ((coco_machine * m) (size_t mo) (size_t g) (int depth) (int inq))
+        (out size_t)
+        (set g (coco_deref m g))
+        (if (coco-tag-is REF (nth g (-> m heap))) (return (coco_make1 m "call" (coco_make2 m ":" mo g))))
+        (if (and (< depth 256) (coco-tag-is FUN (nth g (-> m heap))))
+            (let ((u64 f . #'(cast u64 (coco-payload (nth g (-> m heap)))))
+                  (u64 nm . #'(coco_name_of m g))
+                  (u32 n . #'(coco_arity m g)))
+              (if (coco_is_compound2 m g ":") (return g))
+              (if (and (== n 1) (== nm (coco-id m "$"))) (return g))
+              (if (coco_colon_ctl m nm n)
+                  (let ((size_t a . #'(coco_colon_qualify m mo (coco_arg m g 0) (+ depth 1) inq)))
+                    (if (== n 1) (return (coco_make1_f m f a)))
+                    (return (coco_make2_f m f a (coco_colon_qualify m mo (coco_arg m g 1)
+                                                                   (+ depth 1) inq)))))
+              (if (and inq (>= n 1) (== nm (coco-id m "call")))
+                  (return (coco_colon_qcall m mo g n)))))
+        (return (coco_make2 m ":" mo g)))
+
+  ;;; A QUALIFIER ON A CALL/N OR A CONTROL STRUCTURE (3.44.0) -- G the
+  ;;; qualified goal MO:GL, K what follows it, B its word. WRITTEN IN THE
+  ;;; CODE THAT RUNS -- a clause's body, a structure compiled into a
+  ;;; `'<meta-call>'/1', a part of a search's own goal -- swipl's compile
+  ;;; calls GL in MO: a call/N there is no I_USERCALL but a call of call/N,
+  ;;; a frame of its own, its goal MO's (`user:call(G)' and `lists:call(G)'
+  ;;; in a structure, `lists:call(G)' in a clause), and a control structure
+  ;;; has MO said of each of its goals, each call/N in it one so, run under
+  ;;; B, or for a part of a search's own goal under `'<meta-call>'/1''s
+  ;;; word. A META-CALL'S OWN GOAL -- its word META, a frame of swipl's own
+  ;;; but `'<meta-call>'/1' (call/N's goal, once/1's), a variable of the
+  ;;; structure bound as it ran, a search's own goal -- swipl's I_USERCALL0
+  ;;; strips of MO and compiles GL in MO, where MO says nothing of a call/N
+  ;;; that stays where it stands: GL as it is for user, else with MO said of
+  ;;; each goal of the structure and of each call/N's goal, which names
+  ;;; what nothing defines MO's (`lists:foo/0'). The rewritten structure,
+  ;;; no cell of a search's own goal, runs under `'<meta-call>'/1''s word
+  ;;; where its word has no owner. 1 with the goal pushed, 0 where there is
+  ;;; nothing to do. USER says MO is user (`coco_atom_is_user'); a goal of
+  ;;; neither kind is told first, and pays nothing more.
+  (weak) (cold)
+  (func coco_colon_written ((coco_engine * e) (size_t g) (size_t mo) (size_t gl) (size_t k)
+                            (size_t b) (int user)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (size_t mc . 0)
+              (u32 n . 0) (int call . 0) (int strip . 0))
+          (if (not (coco-tag-is FUN (nth gl (-> m heap)))) (return 0))
+          (set n (coco_arity m gl))
+          (set call (and (>= n 1) (== (coco_name_of m gl) (coco-id m "call"))))
+          (if (and (not call) (not (coco_colon_ctl m (coco_name_of m gl) n))) (return 0))
+          (set mc (coco_mc_tag m))
+          (cond ((coco-bar-meta b) (set strip 1))
+                ((and (coco-bar-sys b) (!= (coco-bar-tag b) mc)) (set strip 1))
+                ((coco_goal_was_var e k) (set strip 1))
+                ((== (coco-bar-tag b) 0)
+                 (let ((const char * who . nil) (u32 whoa . 0))
+                   (set strip (!= (coco_query_walk e g (aof who) (aof whoa)) 2)))))
+          (if (and strip user) (return 0))
+          (set (-> e frees) (+ (-> e frees) 1))
+          (cond
+            (strip
+             (set (-> e goals)
+                  (coco_k_push e (? call (coco_colon_qcall m mo gl n) (coco_colon_qualify m mo gl 0 1))
+                               (? (and (not call) (== (coco-bar-tag b) 0)) (bitor (coco-bar-low b) mc) b)
+                               k)))
+            (call
+             (let ((size_t h . #'(? user gl (coco_colon_qcall m mo gl n))))
+               (set (-> e goals)
+                    (coco_k_push e h (bitor (bitor (coco-bar-low b) (coco-bar-sysbit))
+                                            (coco-bar-of (cast u64 (coco-payload (nth h (-> m heap))))))
+                                 k))))
+            (#t
+             (set (-> e goals) (coco_k_push e (coco_colon_qualify m mo gl 0 0)
+                                            (? (== (coco-bar-tag b) 0) (bitor (coco-bar-low b) mc) b)
+                                            k))))
+          (return 1)))
 
   ;;; M:G, A GOAL (3.1.0; through 3.0.4 `Unknown procedure: (:)/2'). One
   ;;; namespace has no module to run G in, so G runs as it is -- past every
@@ -826,10 +941,15 @@
           (let ((u64 mid . #'(coco_name_of m mo))
                 (u64 nid . #'(coco_name_of m gl))
                 (u32 n . #'(coco_arity m gl))
+                ;; user's, told first by its name (3.44.0): a goal swipl's C
+                ;; calls is said of user, and through 3.43.0 each qualified
+                ;; goal interned "system" and walked the libraries' names
+                (int user . #'(coco_atom_is_user m (coco_name_of m mo)))
                 ;; the system's, or a loaded library's (`coco_extern_library')
-                (int sys . #'(or (== (coco_name_of m mo) (coco_intern m "system"))
-                                 (and (!= coco_extern_library nil)
-                                      (coco_extern_library (coco_atom_name m (coco_name_of m mo))))))
+                (int sys . #'(and (not user)
+                                  (or (== (coco_name_of m mo) (coco_intern m "system"))
+                                      (and (!= coco_extern_library nil)
+                                           (coco_extern_library (coco_atom_name m (coco_name_of m mo)))))))
                 (int rc . 0))
             (if (and sys (!= (-> st ntaken) 0))
                 (block
@@ -850,8 +970,11 @@
                             ;; program's, the library's own clauses being gone
                             (if (!= rc 3) (return rc)))))
                   (set gl (coco_sys_goal m st gl 0))))
+            ;; a call/N or a control structure the qualifier is written on
+            ;; (3.44.0)
+            (if (coco_colon_written e g mo gl k b user) (return 1))
             ;; nothing defines G: a loadable module's, or the qualified error
-            (if (and (!= mid (coco_intern m "user")) (coco_colon_undefined e gl nid n))
+            (if (and (not user) (coco_colon_undefined e gl nid n))
                 (block
                   (set rc (coco_colon_run e gl k 0 ok ret))
                   (if (!= rc 3) (return rc))
@@ -882,6 +1005,13 @@
   ;;; Not swipl's: a variable of G its clause names nowhere else is bound in
   ;;; the error's G, where swipl's decompiled goal has a fresh one (COMPAT.md).
 
+  ;;; whether `$(G)', G, is the root of a search C started (3.44.0)
+  (weak) (cold)
+  (func coco_det_c_root ((coco_engine * e) (size_t g)) (out int)
+        (let ((const char * who . nil) (u32 whoa . 0))
+          (if (!= (-> e rootn) 4) (return 0))
+          (return (== (coco_query_walk e g (aof who) (aof whoa)) 1))))
+
   ;;; determinism_error(G, det, WHAT, goal), D the `$(G)'
   (weak) (cold)
   (func coco_det_error ((coco_machine * m) (size_t d) (const char * what)) (out size_t)
@@ -897,15 +1027,27 @@
         (let ((coco_machine * m . #'(-> e m)))
           (coco-with-parts (sb)
             (let ((size_t ci . #'(-> e nchoices))
-                  (size_t ctx . 0) (size_t alt . 0) (size_t ex . 0)
+                  (size_t ctx . 0) (size_t alt . 0) (size_t ex . 0) (size_t d . g)
                   (size_t args [3]))
               ;; a search's own goal, or the host's, is compiled into a
-              ;; `'<meta-call>'/1' too: G's errors and its own name it
-              (if (== (coco-bar-pred sb) 0) (set sb (bitor (coco-bar-low sb) (coco_mc_tag m))))
+              ;; `'<meta-call>'/1' too: G's errors and its own name it --
+              ;; but the root of a search C started (3.44.0), which swipl's
+              ;; callProlog() calls as the system's ($)/1, `$(G) :- $(G)':
+              ;; G runs in that frame, and its error shows the goal that
+              ;; clause compiled, `call(M:G)', M the innermost module
+              (if (== (coco-bar-pred sb) 0)
+                  (if (coco_det_c_root e g)
+                      (let ((size_t a . #'(coco_deref m (coco_arg m g 0))))
+                        (set sb (coco-sys-bar b g))
+                        (if (not (coco_is_compound2 m a ":"))
+                            (set a (coco_make2 m ":" (coco_new_atom m "user") a)))
+                        (set d (coco_make1_f m (cast u64 (coco-payload (nth g (-> m heap))))
+                                             (coco_make1 m "call" a))))
+                      (set sb (bitor (coco-bar-low sb) (coco_mc_tag m)))))
               (set ctx (coco_owner_ctx e sb))
-              (set alt (coco_make2_f m (coco-fid m "$det_fail" 2) g ctx))
+              (set alt (coco_make2_f m (coco-fid m "$det_fail" 2) d ctx))
               (set (nth 0 args) (coco_new_int m (cast i64 ci)))
-              (set (nth 1 args) g)
+              (set (nth 1 args) d)
               (set (nth 2 args) ctx)
               (set ex (coco_make_f m (coco-fid m "$det_exit" 3) 3 args))
               (if (not (coco_push_choice e COCO_CH_GOAL alt k sb))

@@ -1449,8 +1449,9 @@ cocolint index offers no import of it.
   goal asked where it stands in the search's goal (`coco_root_part`, a
   walk by the names' ids): its errors name `'<meta-call>'/1`, as swipl's
   clause compiles that goal into one. A search C starts (with_output_to/2,
-  `~@`: 4) and a query, a thread or an isolated run (0) keep call/N a frame
-  of its own, as swipl's C does (test/files/meta_call_root.pl). **A new
+  `~@`, and since 3.44.0 a thread and an isolated run: 4) runs the goal
+  swipl's callProlog() runs (the next bullet), and a query (0) keeps
+  call/N a frame of its own (test/files/meta_call_root.pl). **A new
   starter of a search sets `rootn`**, or its goal's call/N is named as a
   query's. The answer is kept per search for a cell of its goal (`rpg`,
   `rpc` on the engine), and the root case is `coco_meta_bar`'s FIRST test,
@@ -1458,6 +1459,41 @@ cocolint index offers no import of it.
   call of `coco_goal_was_var`, its arguments were live across that call,
   and `coco_meta_bar` saved six registers where it saved three -- nine
   instructions on every call/N of a clause, maplist/N's.
+* **A goal swipl's C calls is the goal its callProlog() calls** (3.44.0;
+  `coco_c_root` and `coco_c_goal` in lib/solve-control.cicili,
+  test/files/c_call_goals.pl): with_output_to/2's, `~@`'s, a thread's and
+  an isolated run's (`rootn` 4), and setup_call_cleanup/3's setup and
+  cleanup (`'$c_goal'/3` in the builtins' Prolog half): the qualifiers
+  off, a plain goal in `'$c_call_prolog'/0`'s frame, a control construct
+  the system's predicate boot/init.pl defines -- `(M:A, M:B)` called again
+  for ','/2, (->)/2 and (*->)/2, `M:(A ; B)` for (;)/2, `\+ M:X` and
+  `$(M:X)` meta-calling their argument in their own frame (`$`'s error
+  shows `call(user:G)`, `coco_det_c_root`); setup_call_cleanup/3's goal
+  runs in its own frame (`'$scc_run'/1`), and `'$c_goal'/3` raises a
+  setup's and a goal's faults itself (kinds 0 and 3). **A part of a
+  construct is said of user only where that changes how it runs**
+  (`coco_c_arg`: a call/N, a control structure, a variable, what is no
+  goal), and every part where the construct is no goal and its error's
+  formal shows them (`(user:true, user:1)`, `coco_c_root_q`'s FULL): a
+  plain goal under `user:` runs as it would bare, for a `:` step more. **A qualifier met is a flag,
+  never a cell** (`qual`): a thread's goal is read into a machine of its
+  own, where its module atom is heap cell 0, and the first cut lost it
+  there. **`user` is told by its name** (`coco_atom_is_user`, a strcmp),
+  never by interning "user" to compare ids: the `:` construct runs each
+  `user:G` a C-called structure is made of, and in the first cut every
+  qualified goal interned "system", walked the libraries' names and
+  interned "user" twice -- with_output_to/2 of `(true, ok(1))` cost 4 200
+  instructions more than 3.43.0's. **A qualifier on call/N or a structure** (`coco_colon_written`):
+  a meta-call's own goal is stripped -- what nothing defines named by the
+  module (`lists:foo/0`), call/N left in place with its goal the module's
+  -- and one written in code that runs is compiled: `M:call(G)` call/N's
+  own frame, M said of each goal of a structure. `$(G)` is never qualified
+  inside, as its determinism error shows G as written; a construct's name
+  of an arity no construct has is no construct under a qualifier
+  (`coco_construct_pi`, from `*callable-constructs*`). **A cleanup's ball
+  replaces the goal's only when it is more urgent** (`'$scc_urgency'/2`,
+  swipl 9.0.4's ranks: time_limit_exceeded over error(_, _) over any
+  other), and never one raised after the goal exited.
 * **`$/1` and `@/2` are swipl's control constructs** (3.20.0; `coco_det`,
   `coco_det_exit`, `coco_det_fail` and `coco_at` in lib/solve-loop.cicili):
   `$(G)` pushes a GOAL frame whose alternative is `'$det_fail'($(G), Ctx)`,

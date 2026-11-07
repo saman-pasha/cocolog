@@ -55,6 +55,8 @@
     ("call_limited"            3 coco_b_call_limited)
     ("call_metered"            4 coco_b_call_metered)
     ("$trace_window"           4 coco_b_trace_window)
+    ;; the goal a setup or a cleanup calls, as swipl's C (3.44.0)
+    ("$c_goal"                 3 coco_b_c_goal)
 
     ("succ"                    2 coco_b_succ)
     ("plus"                    3 coco_b_plus)
@@ -251,16 +253,46 @@
            ;; (lib/solve-control.cicili, `coco_cleanup_cut').
            "setup_call_cleanup(S, G, C) :- setup_call_catcher_cleanup(S, G, _, C)."
            "call_cleanup(G, C) :- setup_call_catcher_cleanup(true, G, _, C)."
-           "setup_call_catcher_cleanup(S, G, Ca, C) :- '$scc_setup'(S), '$scc_goal'(G), '$scc_goal'(C), '$scc_push'(Ca, C, F), catch(G, E, '$scc_raised'(F, E, Ca, C)), '$scc_exit'(F, D), ( D == true -> '$cleanup_call'(exit, Ca, C) ; true )."
-           ;; the setup's errors are sig_atomic/1's and the goals' this
-           ;; predicate's, as swipl names them
-           "'$scc_setup'(S) :- ( var(S) -> throw(error(instantiation_error, context(system:sig_atomic/1, _))) ; callable(S) -> once(S) ; throw(error(type_error(callable, S), context(system:sig_atomic/1, _))) )."
-           "'$scc_goal'(G) :- ( var(G) -> throw(error(instantiation_error, context(system:setup_call_catcher_cleanup/4, _))) ; callable(G) -> true ; throw(error(type_error(callable, G), context(system:setup_call_catcher_cleanup/4, _))) )."
-           "'$cleanup_call'(W, Ca, C) :- ( Ca = W -> ( call(C) -> true ; true ) ; true )."
+           ;; THE THREE GOALS RUN WHERE SWIPL'S RUN (3.44.0): the setup as
+           ;; sig_atomic/1's C calls it (`'$c_goal'/3' kind 0), the goal in
+           ;; this predicate's own frame, as its I_CALLCLEANUP meta-calls it
+           ;; there (`'$scc_run'/1'), and the cleanup as its cleanup handler
+           ;; calls it (kind 1). Through 3.43.0 the setup ran under once/1,
+           ;; the goal under catch/3 and the cleanup in `'$cleanup_call'/3',
+           ;; whose names their errors said. The setup runs once, its
+           ;; choice points cut; a goal that is no goal, its qualifiers off,
+           ;; raises before it runs -- the setup sig_atomic/1's error, the
+           ;; goal and the cleanup this predicate's, as swipl names them
+           ;; (`'$c_goal'/3' kinds 0 and 3)
+           "setup_call_catcher_cleanup(S, G, Ca, C) :- '$c_goal'(S, 0, S1), '$c_call'(S1), !, '$c_goal'(G, 3, _), '$c_goal'(C, 3, _), '$scc_push'(Ca, C, F), catch('$scc_run'(G), E, '$scc_raised'(F, E, Ca, C)), '$scc_exit'(F, D), ( D == true -> '$cleanup_call'(exit, Ca, C) ; true )."
+           "'$cleanup_call'(W, Ca, C) :- ( Ca = W -> ( '$c_goal'(C, 1, C1), '$c_call'(C1) -> true ; true ) ; true )."
+           ;; THE FRAMES SWIPL'S C AND ITS SYSTEM PREDICATES CALL A GOAL IN,
+           ;; named as the system's by rows of *frame-contexts*
+           ;; (lib/solve.cicili): `'$c_call'/1' the C frame,
+           ;; system:'$c_call_prolog'/0; `'$c_call1'/1' call/1;
+           ;; `'$scc_run'/1' setup_call_catcher_cleanup/4; and the control
+           ;; constructs' predicates of boot/init.pl, each argument
+           ;; qualified by its caller (`coco_c_goal'): `'$c_and'/2' ','/2,
+           ;; `'$c_ite'/2' (->)/2, `'$c_soft'/2' (*->)/2, `'$c_or'/2' (;)/2,
+           ;; `'$c_not'/1' (\+)/1 and `'$c_det'/1' ($)/1
+           "'$c_call'(G) :- call(G)."
+           "'$c_call1'(G) :- call(G)."
+           "'$scc_run'(G) :- call(G)."
+           "'$c_and'(A, B) :- call((A, B))."
+           "'$c_ite'(A, B) :- call((A -> B))."
+           "'$c_soft'(A, B) :- call((A *-> B))."
+           "'$c_or'(M:A, M:B) :- !, call(M:(A ; B))."
+           "'$c_or'(M:A, B) :- call(M:(A ; B))."
+           "'$c_not'(G) :- \\+ call(G)."
+           "'$c_det'(G) :- $(call(G))."
            ;; the frame failed into: the goal has failed
            "'$scc_fail'(Ca, C) :- '$scc_gone', '$cleanup_call'(fail, Ca, C), fail."
-           ;; the goal's own ball: its cleanup's ball goes, the goal's wins
-           "'$scc_raised'(F, E, Ca, C) :- '$scc_pop'(F), catch('$cleanup_call'(exception(E), Ca, C), _, true), '$scc_rethrow'(E)."
+           ;; the goal's own ball: the goal's wins, but for a cleanup's ball
+           ;; that is more urgent, as swipl 9.0.4 ranks them (3.44.0; through
+           ;; 3.43.0 the cleanup's went): time_limit_exceeded over error(_,
+           ;; _) over any other
+           "'$scc_raised'(F, E, Ca, C) :- '$scc_pop'(F), catch('$cleanup_call'(exception(E), Ca, C), E2, true), ( nonvar(E2), '$scc_urgency'(E2, U2), '$scc_urgency'(E, U), U2 > U -> '$scc_rethrow'(E2) ; '$scc_rethrow'(E) )."
+           "'$scc_urgency'(B, U) :- ( B == '$aborted' -> U = 3 ; B == time_limit_exceeded -> U = 2 ; compound(B), functor(B, error, 2) -> U = 1 ; U = 0 )."
            ;; a ball raised after the goal exited, passing the frame
            "'$scc_unwind'(B, Ca, C) :- catch('$cleanup_call'(external_exception(B), Ca, C), _, true), '$scc_rethrow'(B)."
 
@@ -1548,6 +1580,33 @@
                  (free v)
                  (if (not (coco_m_unify e (coco_m_arg e o 0) rtv)) (return 0)))))
           (return (coco_m_unify e (coco_m_arg e g 3) end))))
+
+  ;;; `'$c_goal'(G, Kind, G1)' (3.44.0): what a setup goal (KIND 0) or a
+  ;;; cleanup (1) G calls, as swipl's C calls it (`coco_c_goal'), for
+  ;;; `'$c_call'/1' to call; or G with its qualifiers off (2). What the
+  ;;; qualifiers leave of a setup goal is asked first, and a variable raises
+  ;;; instantiation_error, anything else no goal type_error(callable, G),
+  ;;; sig_atomic/1's; KIND 3 asks the same of setup_call_catcher_cleanup/4's
+  ;;; goal and cleanup, its own, and binds nothing. One builtin step a goal,
+  ;;; where a clause of each asked through an if-then-else
+  (func coco_b_c_goal ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 k . 0) (coco_machine * m . #'(coco_m_machine e)) (size_t s . 0))
+          (if (not (coco_m_int e (coco_m_arg e g 1) (aof k))) (return 0))
+          (if (or (== k 0) (== k 3))
+              (block
+                (set s (coco_c_goal m (coco_m_arg e g 0) 2))
+                (if (coco_m_is_var e s)
+                    (return (coco_m_raise_pi e (coco_new_atom m "instantiation_error") "system"
+                                             (? (== k 0) "sig_atomic" "setup_call_catcher_cleanup")
+                                             (? (== k 0) 1 4))))
+                (if (not (coco_is_callable m s))
+                    (return (coco_m_raise_pi e (coco_make2 m "type_error" (coco_new_atom m "callable") s)
+                                             "system"
+                                             (? (== k 0) "sig_atomic" "setup_call_catcher_cleanup")
+                                             (? (== k 0) 1 4))))
+                (if (== k 3) (return 1))))
+          (return (coco_m_unify e (coco_m_arg e g 2)
+                                (coco_c_goal m (coco_m_arg e g 0) (cast int k))))))
 
   ;;; `forall(C, A)' is `\+ (C, \+ A)': the search for a counterexample stops
   ;;; at the first (rootn 2, `coco_engine_findall'), so no action after it runs.

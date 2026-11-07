@@ -289,6 +289,9 @@ flow_mode('$pred_impl', 2, ['+', '-'], semidet).
 %% define_or_generate/1): a library module's export the program's from
 %% then on, for current_predicate/1; always true
 flow_mode('$pp_autoload', 1, ['+'], det).
+%% the goal a setup or a cleanup calls, as swipl's C calls it (3.44.0):
+%% fails for a kind that is no integer
+flow_mode('$c_goal', 3, ['+', '+', '-'], semidet).
 flow_mode(print_message, 2, ['+', '+'], det).
 flow_mode(print_message_lines, 3, ['+', '+', '+'], det).
 flow_mode(message_to_string, 2, ['+', '-'], det).

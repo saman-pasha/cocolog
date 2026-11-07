@@ -3240,12 +3240,25 @@
                           (or (not (coco-tag-is ATOM (nth mo (-> m heap)))) (coco_is_nil m mo)))
                      (block (set (cof mc) mo) (return 3))))
                (set g (coco_arg m g 0)))
+              ;; M:G (3.44.0): G compiled in M, its leaves walked -- an M
+              ;; bound and no atom the compile's type_error(module, M), an
+              ;; unbound one the goal's to raise as it runs
+              ((and (== n 2) (== nm (coco-id m ":")))
+               (let ((size_t mo . #'(coco_deref m (coco_arg m g 0))))
+                 (if (coco-tag-is REF (nth mo (-> m heap))) (return 1))
+                 (if (or (not (coco-tag-is ATOM (nth mo (-> m heap)))) (coco_is_nil m mo))
+                     (block (set (cof mc) mo) (return 3))))
+               (set g (coco_arg m g 1)))
               (#t (return 1)))))
         (return 1))
 
   ;;; WHAT A META-CALL'S GOAL G IS BEFORE IT RUNS, as swipl's call/1 finds
   ;;; it: 1 a goal; 0 not one, type_error(callable, G) of the whole; 2 an
-  ;;; instantiation_error; 3 type_error(module, *MC). A G@M called is
+  ;;; instantiation_error; 3 type_error(module, *MC); 4 type_error(atom,
+  ;;; *MC). Its qualifiers come off first, as swipl's I_USERCALL0 strips
+  ;;; them and compiles G in the innermost module (3.44.0; through 3.43.0
+  ;;; `M:G' was a goal and G was not looked at): one unbound is 2, one that
+  ;;; is no atom 4, and what is left the goal. A G@M called is
   ;;; asked first (3.20.0): its module and its goal unbound, its module no
   ;;; atom, and the qualifiers of its goal the same, then its goal as any
   ;;; goal, whose fault is G@M's whole -- swipl's call/1 takes the two
@@ -3256,6 +3269,13 @@
         (let ((u32 budget . 1000000))
           (if (not (-> m ids_ready)) (coco_ids_fill m))
           (set g (coco_deref m g))
+          (while (coco_is_compound2 m g ":")
+            (let ((size_t mo . #'(coco_deref m (coco_arg m g 0))))
+              (if (coco-tag-is REF (nth mo (-> m heap))) (return 2))
+              (if (or (not (coco-tag-is ATOM (nth mo (-> m heap)))) (coco_is_nil m mo))
+                  (block (set (cof mc) mo) (return 4)))
+              (set g (coco_deref m (coco_arg m g 1)))
+              (if (coco-tag-is REF (nth g (-> m heap))) (return 2))))
           (if (not (coco_is_callable m g)) (return 0))
           (if (and (coco-tag-is FUN (nth g (-> m heap))) (== (coco_arity m g) 2)
                    (== (coco_name_of m g) (coco-id m "@")))
@@ -3281,7 +3301,8 @@
 
   ;;; THE FORMAL OF A META-CALL'S GOAL THAT IS NO GOAL (`coco_goal_check'):
   ;;; instantiation_error for a variable or an unbound part of a G@M,
-  ;;; type_error(module, M), else type_error(callable, G) of the whole.
+  ;;; type_error(module, M), type_error(atom, M) of a qualifier, else
+  ;;; type_error(callable, G) of the whole, its qualifiers off (3.44.0).
   ;;; Asked where a raise is due, and built then (`coco_goal_bad' and its
   ;;; kin, declared in lib/solve.cicili).
   (func coco_goal_formal ((coco_machine * m) (size_t g)) (out size_t)
@@ -3291,7 +3312,206 @@
           (set r (coco_goal_check m g (aof mc)))
           (if (== r 2) (return (coco_new_atom m "instantiation_error")))
           (if (== r 3) (return (coco_make2 m "type_error" (coco_new_atom m "module") mc)))
+          (if (== r 4) (return (coco_make2 m "type_error" (coco_new_atom m "atom") mc)))
+          (while (coco_is_compound2 m g ":") (set g (coco_deref m (coco_arg m g 1))))
           (return (coco_make2 m "type_error" (coco_new_atom m "callable") g))))
+
+  ;;; NAME/N a control structure swipl compiles in place: `,', `;', `|',
+  ;;; `->', `*->', `\+', `$'
+  (static) (inline)
+  (func coco_colon_ctl ((coco_machine * m) (u64 nm) (u32 n)) (out int)
+        (if (== n 2)
+            (return (or (or (== nm (coco-id m ",")) (== nm (coco-id m ";")))
+                        (or (== nm (coco-id m "->")) (== nm (coco-id m "*->")))
+                        (== nm (coco-id m "|")))))
+        (return (and (== n 1) (or (== nm (coco-id m "\\+")) (== nm (coco-id m "$"))))))
+
+  ;;; WHETHER THE ATOM NM IS `user', told by its name: interning "user" to
+  ;;; compare ids is a hash and a probe a call, which every qualified goal
+  ;;; paid (3.44.0)
+  (static) (inline)
+  (func coco_atom_is_user ((coco_machine * m) (u64 nm)) (out int)
+        (return (== (strcmp (coco_atom_name m nm) "user") 0)))
+
+  ;;; THE GOAL A CLAUSE OF THE BUILTINS' PROLOG HALF RUNS WHERE SWIPL'S C
+  ;;; RUNS ONE (3.44.0, `'$c_goal'/3') -- KIND 0 a setup goal, which
+  ;;; sig_atomic/1 calls by callProlog(): its qualifiers off, the innermost
+  ;;; module M (user where none) the context, and a control construct the
+  ;;; system's predicate of it, as boot/init.pl defines each, here a helper
+  ;;; a row of *frame-contexts* names as the system's: ','/2, (->)/2 and
+  ;;; (*->)/2 call their arguments again qualified by M, `'$c_and'(M:A,
+  ;;; M:B)' (an argument qualified already its own), (;)/2 strips a module
+  ;;; the two share, (\+)/1 and ($)/1 meta-call theirs. KIND 1 a cleanup,
+  ;;; which swipl's cleanup handler calls: a control construct is call/1's
+  ;;; to compile, `'$c_call1'(G)'. Any other goal is G as it came, for
+  ;;; `'$c_call'/1', swipl's `'$c_call_prolog'/0', to call. KIND 2 is G's
+  ;;; qualifiers off, as far as the first that is no atom, which the checks
+  ;;; of setup_call_catcher_cleanup/4 ask of each goal: one builtin step,
+  ;;; where a clause walked them with a choice point a call.
+  ;;; ARGUMENT A OF A CONSTRUCT SWIPL'S C CALLS, as it runs there: `MO:A'
+  ;;; (MO the module's cell where QUAL says one was met, else user's, made
+  ;;; here) where the qualifier changes how A runs -- a call/N, a control
+  ;;; structure, a variable, what is no goal, any goal under a module but
+  ;;; user (USER no), and every A where FULL asks for the term swipl's error
+  ;;; shows. A plain goal of user's runs as it is, as it would under `user:'
+  ;;; but for the `:' step and the cells; one qualified already is its own.
+  (func coco_c_arg ((coco_machine * m) (size_t mo) (int qual) (int user) (size_t a) (int full))
+        (out size_t)
+        (set a (coco_deref m a))
+        (if (coco_is_compound2 m a ":") (return a))
+        (if (and user (not full))
+            (cond
+              ((coco-tag-is ATOM (nth a (-> m heap))) (return a))
+              ((coco-tag-is FUN (nth a (-> m heap)))
+               (let ((u64 nm . #'(coco_name_of m a)) (u32 n . #'(coco_arity m a)))
+                 (if (not (or (or (coco_colon_ctl m nm n) (and (== n 2) (== nm (coco-id m "@"))))
+                              (and (>= n 1) (== nm (coco-id m "call")))))
+                     (return a))))))
+        (return (coco_make2 m ":" (? qual mo (coco_new_atom m "user")) a)))
+
+  (func coco_c_goal ((coco_machine * m) (size_t g) (int kind)) (out size_t)
+        (let ((size_t s . #'(coco_deref m g)) (size_t mo . 0) (int qual . 0) (u64 nm . 0) (u32 n . 0)
+              (const char * h . nil))
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
+          ;; QUAL says a qualifier was met, never MO's cell: in a machine
+          ;; made for the goal its module atom is heap cell 0
+          (while (coco_is_compound2 m s ":")
+            (set mo (coco_deref m (coco_arg m s 0)))
+            (if (or (not (coco-tag-is ATOM (nth mo (-> m heap)))) (coco_is_nil m mo))
+                (return (? (== kind 2) s g)))
+            (set qual 1)
+            (set s (coco_deref m (coco_arg m s 1))))
+          (if (== kind 2) (return s))
+          (if (not (coco-tag-is FUN (nth s (-> m heap)))) (return g))
+          (set nm (coco_name_of m s))
+          (set n (coco_arity m s))
+          (if (== kind 1)
+              (return (? (or (coco_colon_ctl m nm n) (and (== n 2) (== nm (coco-id m "@"))))
+                         (coco_make1 m "$c_call1" g) g)))
+          (cond
+            ((== n 2)
+             (cond ((== nm (coco-id m ",")) (set h "$c_and"))
+                   ((== nm (coco-id m "->")) (set h "$c_ite"))
+                   ((== nm (coco-id m "*->")) (set h "$c_soft"))
+                   ((== nm (coco-id m ";")) (set h "$c_or"))))
+            ((== n 1)
+             (cond ((== nm (coco-id m "\\+")) (set h "$c_not"))
+                   ((== nm (coco-id m "$")) (set h "$c_det")))))
+          (if (== h nil) (return g))
+          ;; ','/2, (->)/2 and (*->)/2: a part said of user only where that
+          ;; changes how it runs (`coco_c_arg'), each where the structure is
+          ;; no goal, which the error shows so
+          (if (and (== n 2) (!= nm (coco-id m ";")))
+              (let ((int user . #'(or (not qual) (coco_atom_is_user m (coco_name_of m mo))))
+                    (int full . #'(not (coco_goal_ok m s))))
+                (return (coco_make2 m h (coco_c_arg m mo qual user (coco_arg m s 0) full)
+                                    (coco_c_arg m mo qual user (coco_arg m s 1) full)))))
+          (if (not qual) (set mo (coco_new_atom m "user")))
+          (let ((size_t a . #'(coco_deref m (coco_arg m s 0))))
+            (if (not (coco_is_compound2 m a ":")) (set a (coco_make2 m ":" mo a)))
+            (if (== n 1) (return (coco_make1 m h a)))
+            (let ((size_t c . #'(coco_deref m (coco_arg m s 1))))
+              (if (not (coco_is_compound2 m c ":")) (set c (coco_make2 m ":" mo c)))
+              (return (coco_make2 m h a c))))))
+
+  ;;; THE GOAL A SEARCH C STARTS RUNS (3.44.0, `rootn' 4: with_output_to/2,
+  ;;; format/2's `~@', a thread, an isolated run), as swipl's callProlog()
+  ;;; calls the system's predicate of a control construct with no frame of
+  ;;; it to show: ','/2, (->)/2 and (*->)/2 call `(M:A, M:B)' again, M the
+  ;;; innermost module of G's qualifiers (user where none) and an argument
+  ;;; qualified already its own -- each call/N written under a qualifier a
+  ;;; frame of its own (`coco_colon_written'); (;)/2 calls `M:(A ; B)' where
+  ;;; its arguments share M, else `M:(A ; N:B)', which strips M; (\+)/1 and
+  ;;; ($)/1 meta-call their argument, which the walk takes as theirs
+  ;;; (`coco_query_walk'), qualified by M where M is not user: `\+ M:X'.
+  ;;; Any other goal, and G with a qualifier that is no atom, is G. A part
+  ;;; of ','/2's, (->)/2's or (*->)/2's is said of user only where that
+  ;;; changes how it runs (`coco_c_arg'), or every part where FULL asks for
+  ;;; the term the construct's error shows (`coco_c_root_fault').
+  (func coco_c_root_q ((coco_machine * m) (size_t g) (int full)) (out size_t)
+        (let ((size_t s . #'(coco_deref m g)) (size_t mo . 0) (int qual . 0) (u64 nm . 0))
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
+          ;; QUAL as `coco_c_goal''s: a thread's goal is read into a machine
+          ;; of its own, its module atom heap cell 0
+          (while (coco_is_compound2 m s ":")
+            (set mo (coco_deref m (coco_arg m s 0)))
+            (if (or (not (coco-tag-is ATOM (nth mo (-> m heap)))) (coco_is_nil m mo)) (return g))
+            (set qual 1)
+            (set s (coco_deref m (coco_arg m s 1))))
+          (if (not (coco-tag-is FUN (nth s (-> m heap)))) (return g))
+          (set nm (coco_name_of m s))
+          (if (and (== (coco_arity m s) 1) qual
+                   (or (== nm (coco-id m "\\+")) (== nm (coco-id m "$")))
+                   (not (coco_atom_is_user m (coco_name_of m mo))))
+              (let ((size_t a . #'(coco_deref m (coco_arg m s 0))))
+                (return (coco_make1_f m (cast u64 (coco-payload (nth s (-> m heap))))
+                                      (? (coco_is_compound2 m a ":") a (coco_make2 m ":" mo a))))))
+          (if (!= (coco_arity m s) 2) (return g))
+          (if (not (or (or (== nm (coco-id m ",")) (== nm (coco-id m "->")))
+                       (or (== nm (coco-id m "*->")) (== nm (coco-id m ";")))))
+              (return g))
+          (let ((size_t a . #'(coco_deref m (coco_arg m s 0)))
+                (size_t c . #'(coco_deref m (coco_arg m s 1)))
+                (u64 f . #'(cast u64 (coco-payload (nth s (-> m heap)))))
+                (int qa . 0) (int qc . 0))
+            (if (!= nm (coco-id m ";"))
+                (let ((int user . #'(or (not qual) (coco_atom_is_user m (coco_name_of m mo))))
+                      (size_t a2 . 0) (size_t c2 . 0))
+                  (set a2 (coco_c_arg m mo qual user a full))
+                  (set c2 (coco_c_arg m mo qual user c full))
+                  ;; nothing said of either part: the structure as it is
+                  (return (? (and (== a2 a) (== c2 c)) s (coco_make2_f m f a2 c2)))))
+            (set qa (coco_is_compound2 m a ":"))
+            (set qc (coco_is_compound2 m c ":"))
+            (if (and (not qa) (not qc)) (return g))
+            (if (not qual) (set mo (coco_new_atom m "user")))
+            (let ((size_t ma . #'(? qa (coco_deref m (coco_arg m a 0)) mo))
+                  (size_t aa . #'(? qa (coco_deref m (coco_arg m a 1)) a))
+                  (size_t mc . #'(? qc (coco_deref m (coco_arg m c 0)) mo)))
+              (if (and (coco-tag-is ATOM (nth ma (-> m heap)))
+                       (== (nth ma (-> m heap)) (nth mc (-> m heap))))
+                  (return (coco_make2 m ":" ma
+                                      (coco_make2_f m f aa (? qc (coco_deref m (coco_arg m c 1)) c)))))
+              (return (coco_make2 m ":" ma (coco_make2_f m f aa (? qc c (coco_make2 m ":" mo c)))))))))
+
+  (func coco_c_root ((coco_machine * m) (size_t g)) (out size_t)
+        (return (coco_c_root_q m g 0)))
+
+  ;;; WHAT A SEARCH C STARTS FINDS WRONG WITH ITS GOAL G BEFORE IT RUNS
+  ;;; (3.44.0), R being `coco_c_root''s: 1 the starter's -- G, its
+  ;;; qualifiers off, unbound or no callable term, *FORMAL the
+  ;;; instantiation_error or type_error(callable, G); 2 the construct's
+  ;;; whose system predicate swipl calls, *OP/*OPN -- R's compile for
+  ;;; ','/2, (->)/2, (*->)/2 and (;)/2, the argument's for (\+)/1 and
+  ;;; ($)/1, *FORMAL its error (`coco_goal_formal'); 0 nothing.
+  (func coco_c_root_fault ((coco_machine * m) (size_t g) (size_t r) (size_t * formal)
+                           (const char ** op) (u32 * opn)) (out int)
+        (let ((size_t s . #'(coco_deref m g)) (u64 nm . 0) (u32 n . 0))
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
+          (while (and (coco_is_compound2 m s ":")
+                      (coco-tag-is ATOM (nth (coco_deref m (coco_arg m s 0)) (-> m heap)))
+                      (not (coco_is_nil m (coco_deref m (coco_arg m s 0)))))
+            (set s (coco_deref m (coco_arg m s 1))))
+          (if (coco-tag-is REF (nth s (-> m heap)))
+              (block (set (cof formal) (coco_new_atom m "instantiation_error")) (return 1)))
+          (if (not (coco_is_callable m s))
+              (block (set (cof formal) (coco_make2 m "type_error" (coco_new_atom m "callable") s))
+                     (return 1)))
+          (if (not (coco-tag-is FUN (nth s (-> m heap)))) (return 0))
+          (set nm (coco_name_of m s))
+          (set n (coco_arity m s))
+          (set (cof op) (coco_atom_name m nm))
+          (set (cof opn) n)
+          (if (and (== n 2) (or (or (== nm (coco-id m ",")) (== nm (coco-id m "->")))
+                                (or (== nm (coco-id m "*->")) (== nm (coco-id m ";")))))
+              (block (if (coco_goal_ok m r) (return 0))
+                     (set (cof formal) (coco_goal_formal m (coco_c_root_q m g 1)))
+                     (return 2)))
+          (if (and (== n 1) (or (== nm (coco-id m "\\+")) (== nm (coco-id m "$"))))
+              (block (if (coco_goal_ok m (coco_arg m s 0)) (return 0))
+                     (set (cof formal) (coco_goal_formal m (coco_arg m s 0)))
+                     (return 2)))
+          (return 0)))
 
   ;;; THE OWNER A CONTROL STRUCTURE'S PARTS RUN UNDER, B its own word, G the
   ;;; structure and K what follows it: B itself for one written in its
@@ -3339,9 +3559,11 @@
   ;;; initialization goal's (6) -- where it stands, as `coco_query_walk'
   ;;; answers it, 2. Not the root itself, which swipl calls as call/N, a
   ;;; frame of its own, nor the argument of once/1 and its kin, each
-  ;;; meta-called afresh; nor a search C starts (4, with_output_to/2 and
-  ;;; `~@') or a query, a thread or an isolated run (0), whose structure
-  ;;; swipl's C calls with call/N a frame of its own. Asked only of a
+  ;;; meta-called afresh; nor a query (0), as swipl's toplevel would not.
+  ;;; A search C starts (4, with_output_to/2, `~@', a thread, 3.44.0) is
+  ;;; walked too: its root was made the goal swipl's C calls
+  ;;; (`coco_c_root'), whose call/N written under a qualifier is a frame of
+  ;;; its own, and whose `;' and `\+' meta-call theirs inline. Asked only of a
   ;;; call/N whose word has no owner, at a search's root, inside
   ;;; `coco_meta_bar_root'. The answer is kept for a cell of the goal itself
   ;;; (`rpg' on the engine), so a call/N a loop of the search runs again
@@ -3354,9 +3576,7 @@
   (static) (inline)
   (func coco_root_part ((coco_engine * e) (size_t cg)) (out int)
         (let ((int k . #'(-> e rootn)) (coco_machine * m . #'(-> e m)))
-          (if (or (== cg (cast size_t -1))
-                  (not (or (and (>= k 1) (<= k 3)) (== k 5) (== k 6))))
-              (return 0))
+          (if (or (== cg (cast size_t -1)) (< k 1) (> k 6)) (return 0))
           (set cg (coco_deref m cg))
           (if (and (== cg (>> (-> e rpg) 1)) (== (cast u32 (-> m gc_count)) (-> e rpc)))
               (return (cast int (bitand (-> e rpg) 1))))
@@ -3387,9 +3607,7 @@
   ;;; `coco_meta_bar' calls it last, a tail call that leaves nothing of it
   ;;; live across a call, so that function saves no more registers than
   ;;; through 3.42.3 and a clause's call/N pays nothing for the rule; and
-  ;;; `coco_call_bad' asks its META bit. A search C starts
-  ;;; (with_output_to/2, format/2's `~@') runs call/N as a frame of its
-  ;;; own, as swipl's does
+  ;;; `coco_call_bad' asks its META bit
   (weak) (cold)
   (func coco_meta_bar_root ((coco_engine * e) (size_t k) (u64 f) (size_t cg)) (out size_t)
         (let ((size_t h . #'(-> e nchoices)))

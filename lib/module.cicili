@@ -1417,7 +1417,23 @@
                (if (!= err nil) (snprintf err errlen "the goal would not read"))
                (set out -1))
             (block
+             ;; THE GOAL SWIPL'S C CALLS (3.44.0): a thread's goal is
+             ;; callProlog()'s, a control construct its system predicate
+             ;; (`coco_c_root'), whose raise before it runs -- a goal that is
+             ;; no goal in its structure -- is the run's ball; and the root
+             ;; is a search C started (`rootn' 4), an unknown procedure
+             ;; there swipl's `'$c_call_prolog'/0''s
+             (let ((size_t r . #'(coco_c_root (aof m) g)) (size_t fm . 0)
+                   (const char * op . nil) (u32 opn . 0))
+               (if (== (coco_c_root_fault (aof m) g r (aof fm) (aof op) (aof opn)) 2)
+                   (set g (coco_make1 (aof m) "throw"
+                                      (coco_make2 (aof m) "error" fm
+                                                  (coco_ectx_pi (aof m) "system"
+                                                                (coco_new_atom (aof m) op) opn
+                                                                (coco_new_var (aof m))))))
+                   (set g r)))
              (coco_engine_ask (aof e) g)
+             (set ($ e rootn) 4)
              ;; THE FIRST SOLUTION AND NO MORE. A thread is not a query: it
              ;; runs a goal for its effect, and backtracking into it after it
              ;; has succeeded is not a thing anyone can ask for from outside.

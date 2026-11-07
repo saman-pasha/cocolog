@@ -17,9 +17,8 @@
 %% is context(system:'<meta-call>'/1, _).
 %%
 %% Each probe is called under catch/3 and printed as the goal, then yes,
-%% no or the ball, every variable written `_'. Left out: setup_call_cleanup/3
-%% with a structure for its setup goal, whose call/N swipl names
-%% differently again ('$c_call_prolog'/0's frame).
+%% no or the ball, every variable written `_'. Left out: setup_call_cleanup/3's
+%% setup goal and the rest swipl calls from C (test/files/c_call_goals.pl).
 
 e(G) :-
     (   catch(( G -> R = yes ; R = no ), E, R = E) -> true ; R = failed ),
