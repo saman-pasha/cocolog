@@ -119,6 +119,24 @@ a_ball(D) :-
     %% '$run_init_goal'/1 run the structure in (3.43.0; through 3.42.3 its
     %% own frame, `call/2:'); call/N as the goal itself is call/N's own.
     %% under_swipl/1 holds the whole of it to swipl's
+    %% A META_PREDICATE SPEC meta_predicate/1 WOULD REFUSE is the goal's
+    %% (3.46.0): its error where it stands and the directive failed, as
+    %% swipl's, the heads before the fault declared. Through 3.45.0 any
+    %% spec was taken in silence. under_swipl/1 holds the file to swipl's
+    atom_concat(D, '/emetad.pl', F7),
+    fixture(F7, [ ':- meta_predicate baz(x).', ':- meta_predicate qux(0), quux(x).',
+                  ':- meta_predicate atom_length(0, ?).', ':- meta_predicate _.',
+                  ':- meta_predicate 1.', ':- meta_predicate ok(0).',
+                  'qux(G) :- call(G).', 'ok(G) :- call(G).' ]),
+    ran(F7, '(predicate_property(qux(_), meta_predicate(S)), write(spec(S)))', Out7),
+    sh_join(['ERROR: ', F7, ':1:\nERROR:    meta_predicate/1: Domain error: ',
+             '`meta_argument_specifier'' expected, found `x'' (0..9)'], P1),
+    has('a specifier that is none is meta_predicate/1''s error', P1, Out7),
+    sh_join(['Warning: ', F7, ':1:\nWarning:    Goal (directive) failed: user:(meta_predicate baz(x))'], P2),
+    has('...and the directive failed', P2, Out7),
+    sh_join(['ERROR: ', F7, ':3:\nERROR:    meta_predicate/1: No permission to modify static procedure `atom_length/2'''], P3),
+    has('an ISO predicate is refused', P3, Out7),
+    has('...the heads before the fault declared', 'spec(qux(0))', Out7),
     atom_concat(D, '/emeta.pl', F5),
     fixture(F5, [ ':- (true, call(foo_undef, a)).', ':- call(foo_undef, b).',
                   ':- (true ; call(foo_undef, c)), fail.',
@@ -817,7 +835,7 @@ under_swipl(D) :-
         %% and an error was no failed directive. m1 and m1v run swipl
         %% without -q, whose `silent' is m1v's own flag.
         forall(member(W-Q, [ bad-'-q ', missing-'-q ', ithrow-'-q ', ifail-'-q ', now2-'-q ',
-                             eball-'-q ', efail-'-q ', emeta-'-q ', m1-'', m2-'-q ', m1v-'',
+                             eball-'-q ', efail-'-q ', emeta-'-q ', emetad-'-q ', m1-'', m2-'-q ', m1v-'',
                              synendif-'-q ', synnoend-'-q ', synnotcl-'-q ' ]),
                ( sh_join([D, '/', W, '.pl'], WPl),
                  sh_join([C, ' --no-backtrace --local run ', WPl, ' true 2>&1 >/dev/null; printf ''rc=%s'' $?'], Ca6),

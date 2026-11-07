@@ -2966,8 +2966,8 @@
                              ;; and its arguments are said of the module the
                              ;; call is made in (`coco_step_meta'). Every
                              ;; predicate called is noted so (128): a
-                             ;; declaration after a call qualifies nothing, as
-                             ;; swipl's (`coco_pred_meta_note')
+                             ;; declaration after a call changes nothing a call
+                             ;; does, as swipl's (`coco_pred_meta_note')
                              (if (< pi ($ (cof st) npreds))
                                  (block
                                   (set ($ (nth pi ($ (cof st) preds)) pattrs)

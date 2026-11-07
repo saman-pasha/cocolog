@@ -1199,7 +1199,8 @@ cocolint index offers no import of it.
   edit the table); `foreign` is cocolog's own model, what listing/1 writes
   as `%   Foreign:`. What the table has no row for answers what its
   declarations said: the meta_predicate spec (`pmeta`, noted by the
-  directive, `coco_pred_meta_note`), the module/2 read's module (`pmod`),
+  directive and since 3.46.0 the goal, `coco_pred_meta_note`, the latest
+  declaration's however the calls qualify), the module/2 read's module (`pmod`),
   `pattrs`, and file(F) and line_count(L) of the first clause a file read
   (`pfile`, `pline`, noted at a read's first sight of the predicate in
   `coco_reload_for`, the path interned once a file; a library's too,
@@ -1499,7 +1500,16 @@ cocolint index offers no import of it.
   `coco_meta_ctx` and `coco_meta_colon` in lib/solve-control.cicili,
   test/files/meta_args.pl): each argument a meta_predicate/1 declaration
   marks `0` to `9`, `:`, `^` or `//` becomes `M:A` unless it is a term
-  `_:_` already. M is the module/2 read's that defined the clause the call
+  `_:_` already. **meta_predicate/1 is a goal too** (3.46.0,
+  `'$declare'(7, Spec)`, `coco_bi_meta_decl` in lib/solve-db.cicili over
+  `coco_pred_meta_check` in lib/kb-pred.cicili, test/files/meta_goal.pl;
+  through 3.45.0 an unknown procedure): a conjunction walked left to
+  right, each head's atom qualifiers off, an ISO predicate refused before
+  its arguments, each argument in order a 0 to 9 within a C int or one of
+  `? + - * : ^ //`, the heads before a fault declared, the fault swipl's
+  ball named system:(meta_predicate)/1, a specifier's with `0..9`. A head
+  of no arguments is noted too (`meta_predicate zero`, the atom). M is
+  the module/2 read's that defined the clause the call
   is written in (`pmod`; user for a program's clause, a meta-predicate's
   own clause its own module's, as swipl's), the read under way's
   (`ssu_mod`) where no clause is the goal's -- a directive's, a search's
@@ -1517,9 +1527,16 @@ cocolint index offers no import of it.
   and naive reverse paid an instruction an inference (nrev +0.16 %,
   lookup up to +0.79 %, tools/flow/zero.sh); on its own branch the three
   run as 3.44.0's. **Every predicate the slow path resolves is noted
-  called** (`pattrs` 128), and a declaration after a call qualifies
-  nothing (256), as swipl's first call built the code that calls it; a
-  declaration made again is the one that stands. library(lists)'
+  called** (`pattrs` 128), and **the step qualifies as the declaration
+  stood at that first call** (3.46.0, `pmq`, a copy of `pmeta`), as
+  swipl's first call built the code that calls it and keeps it till
+  abolish/1: a declaration after a call is predicate_property/2's alone,
+  so one called before it was declared qualifies nothing and one that
+  qualified goes on through `meta_predicate p(?)` (3.45.0 read the spec
+  at each call, and that ended it); before the first call a declaration
+  made again is the one that stands. **A declaration that sets 512 clears
+  its functor's stamp** (`fgen` 0): a call after abolish/1 stamped it
+  plain, and a stamped goal never reaches the slow path. library(lists)'
   max_member/3 and min_member/3 are declared, as swipl's; library(apply)'s
   are not, and no answer of theirs would move. **What it costs is the
   call's own**: `:`/2 and user/0 are interned once a machine beside the
@@ -1853,7 +1870,10 @@ cocolint index offers no import of it.
   `module_transparent/1` when their spec is plain (kinds 3 to 5 of
   `coco_decl_kind`; `thread_local/1`, kind 6, is always the goal's, which
   refuses a predicate with clauses), `module/2`, `use_module/1,2`,
-  `autoload/1,2`, `ensure_loaded/1`, `meta_predicate/1`,
+  `autoload/1,2`, `ensure_loaded/1`, `meta_predicate/1` (a spec the goal
+  would refuse is the goal's since 3.46.0, as op/3's: its error and the
+  failed directive, swipl's two reports, the heads before the fault
+  declared; through 3.45.0 any spec was taken in silence),
   `if/elif/else/endif` -- an `if` decided below the engine,
   `coco_cond_eval`: `true`, `fail`, `false`, `\+` and
   `current_predicate(Name/Arity)`, which answers as the goal does since

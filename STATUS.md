@@ -15172,3 +15172,106 @@ errors, gc, meter, thread, async, flowchart, flowdebug, directives,
 static, cowork, string, units, solve, module and state, and lessons 01,
 02, 06, 09, 37 and 51. The card's cites hold (I1's range corrected).
 
+
+## meta_predicate/1 as a goal, and a predicate's calls qualified as its declaration stood at its first call, as swipl's (3.46.0)
+
+swipl 9.0.4's meta_predicate/1 is a predicate: `meta_predicate(p(0))`
+declares p as the directive does, a conjunction left to right, and
+refuses what it cannot take with the balls pl-proc.c's meta_declaration()
+raises. Through 3.45.0 cocolog had the directive alone: the goal was an
+unknown procedure, and the directive took any spec in silence --
+`:- meta_predicate baz(x).` declared nothing and said nothing, where
+swipl says `x' is no meta-argument specifier and that the directive
+failed. And swipl's first call of a predicate builds the code that calls
+it -- its supervisor, an S_MQUAL for each argument the declaration then
+marked -- and keeps it till abolish/1, so a declaration made after a call
+changes predicate_property/2's answer and nothing a call does: 3.45.0
+read the spec at each call, and `meta_predicate p(?)` after a call of
+`p(0)`'s ended the qualification, where swipl's goes on. Found writing
+the goal's case.
+
+- THE GOAL (`meta_predicate(S) :- '$declare'(7, S).`, the builtins'
+  Prolog half, over `coco_bi_meta_decl` in lib/solve-db.cicili): the spec
+  walked by `coco_pred_meta_check` (lib/kb-pred.cicili) -- a conjunction
+  at its top left to right, never one under a qualifier; each head's
+  qualifiers taken off where an atom names the module (`_:p(0)` is a
+  head of (:)/2, as PL_strip_module leaves it); the head a callable term
+  and no ISO predicate's, asked before its arguments; each argument in
+  order an integer 0 to 9 within a C int, or `?`, `+`, `-`, `*`, `:`,
+  `^` or `//`. The heads before a fault are declared, as swipl's stand.
+  The fault is swipl's ball, named system:(meta_predicate)/1:
+  instantiation_error, type_error(callable, H), permission_error(modify,
+  static_procedure, PI), domain_error(meta_argument_specifier, A) of an
+  integer or an atom that is none, type_error(meta_argument_specifier, A)
+  of anything else, representation_error(int) past a C int; a
+  specifier's with `0..9` in its context, as swipl's.
+- THE DIRECTIVE: a spec the goal would refuse is the goal's, as op/3's
+  is (`coco_directive`): its error where it stands and the failed
+  directive, swipl's two reports. A head of no arguments is noted too
+  (`meta_predicate zero`, its spec the atom).
+- THE FIRST CALL (`pmq`, appended to the predicate): `pmeta` as it stood
+  when a step first called the predicate (`pattrs` 128), the spec the
+  step and `M:G` qualify by, and whether they do (512); after that call a
+  declaration is predicate_property/2's alone. 3.45.0's `pattrs` 256
+  (declared after a call) is gone: a predicate called before its
+  declaration has no spec to qualify by. abolish/1 forgets the call
+  (`coco_pred_undeclare`: `pattrs` 0, `pmq` freed), as swipl's drops the
+  supervisor; and a declaration that sets 512 clears its functor's stamp
+  (`fgen` 0): a call after abolish/1 stamped it a plain predicate, and a
+  stamped goal never reaches the slow path that qualifies it -- 3.45.0
+  had the hole too, found by the case's abolish/1 lines.
+
+test/files/meta_goal.pl, new: 86 lines, swipl 9.0.4's byte for byte
+(3.45.0 differs at 70 of them). test/directives.pl: a file of
+meta_predicate directives swipl refuses, its stderr word for word
+(`emetad`), and the heads before the fault declared. Not swipl's
+(COMPAT.md): a head a module qualifies is user's, one namespace; and
+meta_predicate/1 of a system predicate that is not ISO's is taken
+whatever user has called, where swipl's makes a predicate of user's
+before user has called the system's and refuses it after
+(permission_error(redefine, built_in_procedure, PI)).
+
+THE ARMS, one build each on the code as it stands, the rule taken out,
+each red in meta_goal.pl or in test/directives.pl's new checks (19 of
+19; the arm of no edit green in all three cases): the goal (G01), the
+conjunction's walk (G02, meta_args.pl red too: its module's directive is
+a conjunction), a head's atom qualifiers off (G03), an ISO predicate
+refused (G04) and before its arguments (G05), a C int (G06), 0 to 9
+(G07), the atoms that are specifiers (G08), a type error for anything
+else (G09), an instantiation error for an unbound argument (G10), `0..9`
+in a specifier's context (G11), the heads before a fault declared (G12),
+a refused directive the goal's (G13, red in directives alone), a head of
+no arguments noted (G14) and its spec the atom (G15), the step's spec
+decided before the first call alone (G16, meta_args.pl red too: 3.45.0's
+late declaration), the step reading it (G17), abolish/1 forgetting the
+call (G18) and the stamp cleared (G19). Under the runner's 2.5 GB
+`ulimit -v`, test/directives.pl's seven checks of a halt under an
+embedded store fail in every arm and in the binary as committed alike;
+each arm is read by the checks it fails past those seven. A check the
+first arms showed weak was made strong: `qux(0)` stands in the failed
+directive's text too, so the declared spec is written with a marker.
+
+THE COST, callgrind, 3.45.0 to 3.46.0. The step loop is not touched
+(tools/flow/zero.sh, work less padding: nrev 66 132 257 and 66 132 353,
+queens 40 254 061 and 40 254 198, lookup 48 031 815 and 48 041 363):
+lookup's 9 548 more are memcmp in `coco_intern_len` (+9 023), the same
+1 011 interns of its sweeps comparing more bytes -- the start interns one
+atom more (`meta_predicate`, the goal's clause), and the table's probes
+fall otherwise. A start is
+35 173 990 instructions and 35 246 069 (+72 079, +0.20 %): the libraries'
+32 meta_predicate heads now checked as swipl's directive checks them
+(`coco_pred_meta_head` 14 342, its ISO question 12 996 with the strcmp
+chain under it), each spec copied for the step (`pmq`, malloc and free
+some 20 000), the goal's clause read.
+
+Narrow cases green, each alone on the binary as committed: lint, reason,
+translate and normalise (library/reasoning/ calls no meta_predicate/1
+goal and declares no meta-predicate: reasoning stays 1.0.27), files
+(each case agreeing with swipl), trace, backtrace, window, journal, repl,
+script, reconsult, library, engine, errors, gc, meter, thread, async,
+flowchart (library(flow/chart)'s tables gain meta_predicate/1, a library
+predicate of the builtins' half, and cocolint's blocklist a tier-1 one),
+flowdebug, directives, static, cowork, string, units, cyclic, solve,
+module and state, and lessons 01, 37 and 51. The card's cites hold (I1's
+two and X3's ranges corrected).
+

@@ -620,6 +620,8 @@
   (static)
   (func coco_b_meta_term ((coco_machine * m) (u64 nid) (const char * spec)) (out size_t)
         (let ((size_t k . #'(strlen spec)) (size_t * a . nil) (size_t t . 0))
+          ;; a head of no arguments, `meta_predicate zero' (3.46.0)
+          (if (== k 0) (return (coco_new_atom_id m nid)))
           (set a (cast (size_t *) (malloc (* (+ k 1) (sizeof size_t)))))
           (if (== a nil) (return (coco_new_atom_id m nid)))
           (for ((size_t i . 0)) (< i k) ((++ i))

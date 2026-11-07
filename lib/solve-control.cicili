@@ -3183,7 +3183,7 @@
               (set pi ($ (nth fi (-> m functors)) pidx))
               (set pi (coco_pred_find st (coco_name_of m g) (coco_arity m g))))
           (if (or (>= pi (-> st npreds)) (not (coco_pred_meta_q st pi))) (return g))
-          (return (coco_meta_qualify m g ($ (nth pi (-> st preds)) pmeta) (coco_name_of m mo)))))
+          (return (coco_meta_qualify m g ($ (nth pi (-> st preds)) pmq) (coco_name_of m mo)))))
 
   ;;; A META-CALL'S GOAL D, user:G, AS G WHERE G IS KNOWN A PLAIN PREDICATE
   ;;; (3.45.0): its functor stamped for the store as the step's fast path
@@ -3223,7 +3223,7 @@
   ;;; whatever it took
   (weak) (cold)
   (func coco_step_meta ((coco_engine * e) (size_t pi) (size_t g) (size_t b)) (out size_t)
-        (return (coco_meta_qualify (-> e m) g ($ (nth pi (-> (-> e st) preds)) pmeta)
+        (return (coco_meta_qualify (-> e m) g ($ (nth pi (-> (-> e st) preds)) pmq)
                                    (coco_meta_ctx e b))))
 
   ;;; the frame a search was asked from: a frame of its goal with no owner

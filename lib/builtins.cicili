@@ -319,6 +319,8 @@
            "volatile(S) :- '$declare'(4, S)."
            "module_transparent(S) :- '$declare'(5, S)."
            "thread_local(S) :- '$declare'(6, S)."
+           ;; meta_predicate/1 as a goal (3.46.0, swipl's), kind 7 of it
+           "meta_predicate(S) :- '$declare'(7, S)."
            "'$decl_one'((public), P) :- public(P)."
            "'$decl_one'((volatile), P) :- volatile(P)."
            "'$decl_one'((module_transparent), P) :- module_transparent(P)."

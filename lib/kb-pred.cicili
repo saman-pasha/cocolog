@@ -704,9 +704,14 @@
           (set (-> p dynamic) 0)
           (set (-> p declared) 0)
           (set (-> p pattrs) 0)
-          ;; and what predicate_property/2 told of it (3.41.0)
+          ;; and what predicate_property/2 told of it (3.41.0), and the
+          ;; spec its calls were qualified by (3.46.0): `pattrs' 0 above
+          ;; forgets the call, so the next declaration is the step's again,
+          ;; as swipl's abolish/1 drops the code its first call built
           (free (-> p pmeta))
           (set (-> p pmeta) nil)
+          (free (-> p pmq))
+          (set (-> p pmq) nil)
           (set (-> p pfile) 0)
           (set (-> p pline) 0)
           (if (!= (-> st name_m) nil)
@@ -916,9 +921,9 @@
 
   ;;; WHETHER THE META_PREDICATE DECLARATION OF PREDICATE PI MARKS AN
   ;;; ARGUMENT SWIPL QUALIFIES WITH A MODULE (3.45.0): `0' to `9', `:',
-  ;;; `^' or `//' (written `/') -- and the predicate was not called before
-  ;;; it was declared (`pattrs' 256). Decided by the declaration, which
-  ;;; sets `pattrs' 512 (`coco_pred_meta_note'), so the step asks a bit
+  ;;; `^' or `//' (written `/') -- as the declaration stood at the
+  ;;; predicate's first call (3.46.0, `pmq'). Decided by the declaration,
+  ;;; which sets `pattrs' 512 (`coco_pred_meta_note'), so the step asks a bit
   (static) (inline)
   (func coco_pred_meta_q ((coco_store * st) (size_t pi)) (out int)
         (return (!= (bitand ($ (nth pi (-> st preds)) pattrs) 512) 0)))
@@ -929,7 +934,8 @@
   ;;; arguments a character each as lib/swipl-props.cicili writes them, on
   ;;; the predicate Name/Arity (`pmeta'). A spec holding what is no meta
   ;;; argument -- swipl's domain_error(meta_argument_specifier, X) -- is
-  ;;; passed by, and so is one of no arguments.
+  ;;; passed by; one of no arguments is noted, as swipl's (3.46.0: through
+  ;;; 3.45.0 passed by), its spec the empty string.
   (static)
   (func coco_pred_meta_note ((coco_store * st) (coco_machine * m) (size_t t))
         (set t (coco_deref m t))
@@ -939,9 +945,8 @@
              (coco_pred_meta_note st m (coco_arg m t 1))
              (return)))
         (while (coco_is_compound2 m t ":") (set t (coco_deref m (coco_arg m t 1))))
-        (if (not (coco-tag-is FUN (nth t (-> m heap)))) (return))
+        (if (not (coco_is_callable m t)) (return))
         (let ((u32 k . #'(coco_arity m t)) (char * s . nil) (size_t pi . 0))
-          (if (== k 0) (return))
           (set s (cast (char *) (malloc (+ k 1))))
           (if (== s nil) (return))
           (for ((u32 i . 0)) (< i k) ((++ i))
@@ -965,24 +970,87 @@
           (set (nth k s) (cast char 0))
           (set pi (coco_pred_make st (coco_name_of m t) k))
           (if (>= pi (-> st npreds)) (block (free s) (return)))
-          ;; A PREDICATE CALLED BEFORE ITS DECLARATION never qualifies its
-          ;; arguments (3.45.0, `pattrs' 256), as swipl 9.0.4's, whose
-          ;; first call built the code that calls it: a step called it
-          ;; (`pattrs' 128) and no declaration of its had marked an argument
-          ;; to qualify. One that qualified already goes on, as a re-read
-          ;; declares it again
-          (if (and (!= (bitand ($ (nth pi (-> st preds)) pattrs) 128) 0)
-                   (not (coco_pred_meta_q st pi)))
-              (set ($ (nth pi (-> st preds)) pattrs) (bitor ($ (nth pi (-> st preds)) pattrs) 256)))
           (free ($ (nth pi (-> st preds)) pmeta))
           (set ($ (nth pi (-> st preds)) pmeta) s)
-          ;; and whether the step qualifies its arguments (512), as the
-          ;; declaration now stands
-          (set ($ (nth pi (-> st preds)) pattrs)
-               (- ($ (nth pi (-> st preds)) pattrs) (bitand ($ (nth pi (-> st preds)) pattrs) 512)))
-          (if (and (== (bitand ($ (nth pi (-> st preds)) pattrs) 256) 0)
-                   (!= (strpbrk s "0123456789:^/") nil))
-              (set ($ (nth pi (-> st preds)) pattrs) (bitor ($ (nth pi (-> st preds)) pattrs) 512)))))
+          ;; THE STEP QUALIFIES AS THE DECLARATION STOOD AT THE PREDICATE'S
+          ;; FIRST CALL (3.46.0), as swipl 9.0.4's, whose first call builds
+          ;; the code that calls it and keeps it till abolish/1: before a
+          ;; step called it (`pattrs' 128) the declaration is the step's
+          ;; too (`pmq'), and whether it qualifies (512); after, it is
+          ;; predicate_property/2's alone. So a predicate called before its
+          ;; declaration never qualifies (3.45.0's `pattrs' 256), and one
+          ;; that qualified goes on through `meta_predicate p(?)' -- which
+          ;; through 3.45.0 ended it, the spec read at each call
+          (if (== (bitand ($ (nth pi (-> st preds)) pattrs) 128) 0)
+              (let ((char * q . #'(strdup s)))
+                (free ($ (nth pi (-> st preds)) pmq))
+                (set ($ (nth pi (-> st preds)) pmq) q)
+                (set ($ (nth pi (-> st preds)) pattrs)
+                     (- ($ (nth pi (-> st preds)) pattrs) (bitand ($ (nth pi (-> st preds)) pattrs) 512)))
+                (if (and (!= q nil) (!= (strpbrk q "0123456789:^/") nil))
+                    (block
+                      (set ($ (nth pi (-> st preds)) pattrs) (bitor ($ (nth pi (-> st preds)) pattrs) 512))
+                      ;; AND THE STAMP ITS FUNCTOR TOOK WHILE IT WAS PLAIN
+                      ;; IS STALE (3.46.0): a call after abolish/1 stamped
+                      ;; it (`fgen', 0 no generation), and a stamped goal
+                      ;; never reaches the slow path that qualifies it
+                      (if (coco-tag-is FUN (nth t (-> m heap)))
+                          (set ($ (nth (cast size_t (coco-payload (nth t (-> m heap)))) (-> m functors)) fgen)
+                               0))))))))
+
+  ;;; ONE HEAD OF A META_PREDICATE SPEC, H, AS SWIPL'S meta_declaration()
+  ;;; CHECKS IT (3.46.0, pl-proc.c): its qualifiers taken off where an atom
+  ;;; names the module, as PL_strip_module takes them (`_:p(0)' is a head
+  ;;; of (:)/2), the head a callable term, no ISO predicate's -- asked
+  ;;; before its arguments -- and each argument in order an integer 0 to 9
+  ;;; within a C int, or ?, +, -, *, :, ^ or //. 0 when all of it holds,
+  ;;; and with NOTE the head declared; else the fault, *BAD its culprit: 1
+  ;;; an unbound head, 2 one that is no callable term, 3 an ISO
+  ;;; predicate's, 4 an unbound argument, 5 an integer or an atom that is
+  ;;; no specifier, 6 any other argument, 7 an integer past a C int
+  (static)
+  (func coco_pred_meta_head ((coco_store * st) (coco_machine * m) (size_t h) (int note)
+                             (size_t * bad)) (out int)
+        (set h (coco_deref m h))
+        (while (and (coco_is_compound2 m h ":")
+                    (coco-tag-is ATOM (nth (coco_deref m (coco_arg m h 0)) (-> m heap))))
+          (set h (coco_deref m (coco_arg m h 1))))
+        (set (cof bad) h)
+        (if (coco-tag-is REF (nth h (-> m heap))) (return 1))
+        (if (not (coco_is_callable m h)) (return 2))
+        (if (coco_iso_predicate (coco_atom_name m (coco_name_of m h)) (coco_arity m h)) (return 3))
+        (for ((u32 i . 0)) (< i (coco_arity m h)) ((++ i))
+          (let ((size_t a . #'(coco_deref m (coco_arg m h i))) (u64 c . 0))
+            (set c (nth a (-> m heap)))
+            (set (cof bad) a)
+            (cond
+              ((coco-tag-is REF c) (return 4))
+              ((coco-is-int c)
+               (let ((i64 v . #'(coco_int_val m c)))
+                 (if (or (< v -2147483648) (> v 2147483647)) (return 7))
+                 (if (or (< v 0) (> v 9)) (return 5))))
+              ((or (coco-tag-is ATOM c) (coco_is_nil m a))
+               (let ((const char * an . #'(coco_atom_name m (coco_name_of m a))))
+                 (if (not (or (== 0 (strcmp an "//"))
+                              (and (== (strlen an) 1) (!= (strchr ":^?+-*" (nth 0 an)) nil))))
+                     (return 5))))
+              (#t (return 6)))))
+        (if note (coco_pred_meta_note st m h))
+        (return 0))
+
+  ;;; A META_PREDICATE SPEC T CHECKED AS SWIPL'S meta_predicate/1 CHECKS
+  ;;; IT (3.46.0): a conjunction at its top walked left to right, never one
+  ;;; under a qualifier or on the left, which is a head of ','/2 and an ISO
+  ;;; predicate's; each part a head (`coco_pred_meta_head'). With NOTE the
+  ;;; heads before a fault are declared, as swipl's stand
+  (func coco_pred_meta_check ((coco_store * st) (coco_machine * m) (size_t t) (int note)
+                              (size_t * bad)) (out int)
+        (set t (coco_deref m t))
+        (while (coco_is_compound2 m t ",")
+          (let ((int r . #'(coco_pred_meta_head st m (coco_arg m t 0) note bad)))
+            (if (!= r 0) (return r))
+            (set t (coco_deref m (coco_arg m t 1)))))
+        (return (coco_pred_meta_head st m t note bad)))
 
   ;;; Is F one of the three flags a directive answers itself, the ones that
   ;;; act on what the rest of the file reads (2.2.2)? Every other
@@ -1137,10 +1205,18 @@
               (block (if (!= coco_import_hook nil) (coco_import_hook st m g))
                      (return 1)))
           ;; its specs noted for predicate_property/2 (3.41.0) and for the
-          ;; step, which qualifies the arguments they mark (3.45.0)
+          ;; step, which qualifies the arguments they mark (3.45.0). ONE
+          ;; THAT meta_predicate/1 WOULD REFUSE IS LEFT TO THE GOAL BELOW
+          ;; (3.46.0), as op/3's is: the goal declares the heads before the
+          ;; fault and raises swipl's error, reported as every raising
+          ;; directive's is (through 3.45.0 such a spec was taken in
+          ;; silence, a list's heads declared and a fault's passed by)
           (if (and (== n 1) (== 0 (strcmp name "meta_predicate")))
-              (block (coco_pred_meta_note st m (coco_arg m g 0))
-                     (set (-> m ldefs) (+ (-> m ldefs) 1)) (return 1)))
+              (let ((size_t bad . 0))
+                (if (or (== coco_goal_hook nil)
+                        (== (coco_pred_meta_check st m (coco_arg m g 0) 0 (aof bad)) 0))
+                    (block (coco_pred_meta_note st m (coco_arg m g 0))
+                           (set (-> m ldefs) (+ (-> m ldefs) 1)) (return 1)))))
 
           ;; `:- set_prolog_flag(double_quotes, V)'. ACCEPTED, for all four of
           ;; SWI's values -- codes, chars, atom, string -- and it really
