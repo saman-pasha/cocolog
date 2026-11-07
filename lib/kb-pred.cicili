@@ -704,6 +704,11 @@
           (set (-> p dynamic) 0)
           (set (-> p declared) 0)
           (set (-> p pattrs) 0)
+          ;; and what predicate_property/2 told of it (3.41.0)
+          (free (-> p pmeta))
+          (set (-> p pmeta) nil)
+          (set (-> p pfile) 0)
+          (set (-> p pline) 0)
           (if (!= (-> st name_m) nil)
               (coco_dynamic_forget (coco_atom_name (cast (coco_machine *) (-> st name_m)) (-> p name))
                                    (-> p arity)))
@@ -909,6 +914,51 @@
                          (return 0))))
             (return 1))))
 
+  ;;; A META_PREDICATE DECLARATION'S SPECS NOTED (3.41.0), for
+  ;;; predicate_property/2's meta_predicate(Spec) and transparent: each
+  ;;; Name(Arg, ...) of a conjunction or a list, under its qualifiers, its
+  ;;; arguments a character each as lib/swipl-props.cicili writes them, on
+  ;;; the predicate Name/Arity (`pmeta'). A spec holding what is no meta
+  ;;; argument -- swipl's domain_error(meta_argument_specifier, X) -- is
+  ;;; passed by, and so is one of no arguments.
+  (static)
+  (func coco_pred_meta_note ((coco_store * st) (coco_machine * m) (size_t t))
+        (set t (coco_deref m t))
+        (if (or (coco_is_compound2 m t ",") (coco_is_cons m t))
+            (block
+             (coco_pred_meta_note st m (coco_arg m t 0))
+             (coco_pred_meta_note st m (coco_arg m t 1))
+             (return)))
+        (while (coco_is_compound2 m t ":") (set t (coco_deref m (coco_arg m t 1))))
+        (if (not (coco-tag-is FUN (nth t (-> m heap)))) (return))
+        (let ((u32 k . #'(coco_arity m t)) (char * s . nil) (size_t pi . 0))
+          (if (== k 0) (return))
+          (set s (cast (char *) (malloc (+ k 1))))
+          (if (== s nil) (return))
+          (for ((u32 i . 0)) (< i k) ((++ i))
+            (let ((size_t a . #'(coco_deref m (coco_arg m t i))) (int ch . 0))
+              (cond
+                ((coco-tag-is INT (nth a (-> m heap)))
+                 (let ((i64 iv . #'(coco_int_val m (nth a (-> m heap)))))
+                   ;; a digit, `0' to `9'
+                   (if (and (>= iv 0) (<= iv 9)) (set ch (+ 48 (cast int iv))))))
+                ((coco-tag-is ATOM (nth a (-> m heap)))
+                 (let ((const char * an . #'(coco_atom_name m (coco_name_of m a))))
+                   (cond
+                     ;; `//' is `/'
+                     ((== 0 (strcmp an "//")) (set ch 47))
+                     ((and (== (strlen an) 1) (!= (strchr ":^?+-*" (nth 0 an)) nil))
+                      (set ch (nth 0 an)))
+                     (#t (block)))))
+                (#t (block)))
+              (if (== ch 0) (block (free s) (return)))
+              (set (nth i s) (cast char ch))))
+          (set (nth k s) (cast char 0))
+          (set pi (coco_pred_make st (coco_name_of m t) k))
+          (if (>= pi (-> st npreds)) (block (free s) (return)))
+          (free ($ (nth pi (-> st preds)) pmeta))
+          (set ($ (nth pi (-> st preds)) pmeta) s)))
+
   ;;; Is F one of the three flags a directive answers itself, the ones that
   ;;; act on what the rest of the file reads (2.2.2)? Every other
   ;;; `:- set_prolog_flag(F, V)' is a goal.
@@ -1055,8 +1105,10 @@
                  (return 3))))
           ;; `autoload/1,2' is use_module that loads lazily; same answer here
           (if (and (<= n 2) (== 0 (strcmp name "autoload"))) (return 1))
+          ;; its specs noted for predicate_property/2 (3.41.0)
           (if (and (== n 1) (== 0 (strcmp name "meta_predicate")))
-              (block (set (-> m ldefs) (+ (-> m ldefs) 1)) (return 1)))
+              (block (coco_pred_meta_note st m (coco_arg m g 0))
+                     (set (-> m ldefs) (+ (-> m ldefs) 1)) (return 1)))
 
           ;; `:- set_prolog_flag(double_quotes, V)'. ACCEPTED, for all four of
           ;; SWI's values -- codes, chars, atom, string -- and it really
@@ -2045,6 +2097,10 @@
                    (set (nth 0 (-> p muted)) muted)
                    (set (nth 0 (-> p codes)) nil)
                    (if (!= (-> p tomb) nil) (set (nth 0 (-> p tomb)) 0))
+                   ;; a first clause no file read: predicate_property/2's
+                   ;; file(F) and line_count(L) are gone (3.41.0), as swipl's,
+                   ;; which names the file of the first clause in its chain
+                   (if (== origin 0) (block (set (-> p pfile) 0) (set (-> p pline) 0)))
                    (coco_pred_unindex p)))
           (set (-> p nclauses) (+ (-> p nclauses) 1))
           (coco_pred_nprobe p)

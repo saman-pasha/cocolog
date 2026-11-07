@@ -997,7 +997,17 @@
     ;; assoc:gen_assoc_/3 (`coco_pred_note_mod', `coco_frame_pi'). One
     ;; namespace: a second module's clauses join the first one's predicate
     ;; and keep its name. Appended.
-    (member u64      pmod))
+    (member u64      pmod)
+    ;; WHAT predicate_property/2 SAYS OF WHAT THE TABLE HAS NO ROW FOR
+    ;; (3.41.0): its meta_predicate declaration's arguments, a character an
+    ;; argument as lib/swipl-props.cicili writes them (a digit, `:', `^',
+    ;; `?', `+', `-', `*', `/' for `//'), malloc'd, nil for none
+    ;; (`coco_pred_meta_note'); and, of any predicate, the file its first
+    ;; clause a file read came from, an atom plus one, and that clause's line
+    ;; (`coco_reload_for'). Kept by the process only. Appended.
+    (member char *   pmeta)
+    (member u64      pfile)
+    (member u64      pline))
 
   ;;; Forward-declared, because the two hooks below are members of the store
   ;;; and take a pointer to it -- the typedef has to exist before the struct
@@ -1814,7 +1824,12 @@
     (member coco_reload ** rls)
     (member size_t   rcap)
     (member int      again)
-    (member size_t   last))
+    (member size_t   last)
+    ;; THE PATH predicate_property/2's file(F) names (3.41.0), interned once
+    ;; a file: PPATH the read's path it was made of (an included file's is
+    ;; a path of its own), PFID its atom plus one. Appended.
+    (member const char * ppath)
+    (member u64      pfid))
 
   ;;; `coco_assert' with a PROVENANCE. ORIGIN is the interned real path of
   ;;; the file the clause was read from plus one, 0 for none. With SEEN given and an
@@ -2549,6 +2564,7 @@
           (free ($ (nth i (-> st preds)) muted))
           (free (cast (void *) ($ (nth i (-> st preds)) codes)))
           (free (cast (void *) ($ (nth i (-> st preds)) tomb)))
+          (free ($ (nth i (-> st preds)) pmeta))
           ;; the index's three arrays go with the clause list they describe,
           ;; and so do the other arguments' tables
           (free ($ (nth i (-> st preds)) keys))

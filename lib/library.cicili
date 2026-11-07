@@ -740,6 +740,8 @@
                    (return 0)))))
           (return 1)))
 
+  (static) (decl) (func lb_absolute ((const char * found) (char * out) (size_t cap)))
+
   ;;; A Prolog library: the file's text registered as a clauses-only
   ;;; module under NAME, so reset-and-reload and never-twice come free.
   (static)
@@ -757,8 +759,13 @@
                        (snprintf err errlen "cannot register %s" path)
                        (return 0)))
             ;; the file it came from, which its load names (1.11.9): the
-            ;; registry keeps the copy, as it keeps the name and the text
-            (coco_module_set_file nm (strdup path))
+            ;; registry keeps the copy, as it keeps the name and the text --
+            ;; by its absolute path (3.41.0), as every load names a file and
+            ;; as predicate_property/2's file(F) names its predicates', where
+            ;; `./library' on the path found it as `library/async.pl'
+            (let ((char abs [4096]))
+              (lb_absolute path abs (sizeof abs))
+              (coco_module_set_file nm (strdup abs)))
             (coco_module_set_text nm text t))
           (return 1)))
 

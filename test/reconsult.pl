@@ -180,7 +180,19 @@ abolished(D) :-
     sh_join(['--kb abolished --embed ', S,
              ' query "( member(foo, [a]) -> R = yes ; R = no ), write(answer(R)), nl"'], A5),
     cocolog_answer(A5, G5),
-    check('and the clause is out of the knowledge base', G5, answer(no)).
+    check('and the clause is out of the knowledge base', G5, answer(no)),
+    %% what predicate_property/2 said of the file's clause goes with it
+    %% (3.41.0): swipl's names that file until its clause collector reclaims
+    %% the clause abolish/1 took (COMPAT.md), cocolog's none
+    atom_concat(D, '/abfile.pl', AF),
+    fixture(AF, [':- meta_predicate am(0).', 'am(G) :- call(G).']),
+    sh_join(['--local query "consult(''', AF, '''), abolish(am/1), assertz(am(x)), ',
+             'findall(P, ( predicate_property(am(_), P), ',
+             'memberchk(P, [file(_), line_count(_), meta_predicate(_)]) ), Ps), ',
+             'writeq(answer(Ps)), nl"'], A6),
+    cocolog_answer(A6, G6),
+    check('abolish/1 takes the file and the meta arguments predicate_property/2 told of', G6,
+          answer([])).
 
 %% LISTING/1 READS WHAT IT LISTS FROM THE KNOWLEDGE BASE (3.37.0): a second
 %% process that consulted nothing names a consulted predicate, by

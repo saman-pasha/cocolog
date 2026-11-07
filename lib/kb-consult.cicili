@@ -484,6 +484,18 @@
           (set (-> s n) (+ (-> s n) 1))
           (set (-> s last) (-> s n))
           (coco_pred_forget_from st m pi origin)
+          ;; THE PREDICATE'S FIRST CLAUSE A FILE READ, what predicate_property/2
+          ;; says as file(F) and line_count(L) (3.41.0), a library's too, as
+          ;; swipl's: its first file's, and that file's again when it is read
+          ;; again
+          (if (!= origin_path nil)
+              (let ((coco_pred * fp . #'(aof (nth pi (-> st preds)))))
+                (if (!= (-> s ppath) origin_path)
+                    (block (set (-> s ppath) origin_path)
+                           (set (-> s pfid) (+ (coco_intern m origin_path) 1))))
+                (if (or (== (-> fp pfile) 0) (== (-> fp pfile) (-> s pfid)))
+                    (block (set (-> fp pfile) (-> s pfid))
+                           (set (-> fp pline) (cast u64 at))))))
           (set (cof rl) r)
           (return 1)))
 

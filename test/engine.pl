@@ -37,9 +37,33 @@ main :-
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
     update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), repeat_runs(D), jit_runs(D),
-    btree_places, op_names_frozen(D),
+    btree_places, op_names_frozen(D), own_properties,
     shl(['rm -rf ', D]),
     checks_done.
+
+%% ---- predicate_property/2 of a builtin swipl has none of (3.41.0) --------
+%% swipl's table (lib/swipl-props.cicili) answers for what swipl has, and
+%% test/files/predicate_property.pl holds those answers to swipl's. A C row
+%% of cocolog's own answers what the engine knows of it: built_in and
+%% nodebug, and foreign, as listing/1 writes it.
+own_properties :-
+    section('predicate_property/2 of a builtin swipl has none of'),
+    findall(P, predicate_property(call_metered(_, _, _, _), P), Ps),
+    check('call_metered/4 is built_in, foreign, static and nodebug', Ps,
+          [visible, built_in, foreign, static, nodebug, defined]),
+    ( predicate_property(call_metered(_, _, _, _), implementation_module(M1)) -> true ; M1 = none ),
+    ( predicate_property(insert(_, _, _, _, _), implementation_module(M2)) -> true ; M2 = none ),
+    check('a C row of cocolog''s own is system''s, and a library''s helper its module''s', M1-M2,
+          system-assoc),
+    %% a library the path's `library' found is named by its absolute path,
+    %% as every load names a file and swipl's file(F) names one
+    cocolog(C),
+    sh_join(['COCOLOG_LIBRARY=library ', C, ' query "predicate_property(go(_), file(F)), ',
+             '( is_absolute_file_name(F) -> R = absolute ; R = F ), writeq(answer(R)), nl" 2>&1'], Cmd),
+    proc_run(Cmd, 120000, Out, _),
+    ( re_first_atom('answer\\([^\n]*\\)', Out, A) -> term_to_atom(G, A) ; G = none ),
+    check('library(async), found through a relative library path, names its absolute file', G,
+          answer(absolute)).
 
 %% ---- an operator name of any length, frozen and thawed (3.34.1) ----------
 %% A FROZEN MACHINE CARRIES THE OPERATORS ITS PROGRAM DECLARED (lib/state.cicili,

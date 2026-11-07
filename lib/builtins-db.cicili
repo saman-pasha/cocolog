@@ -16,6 +16,11 @@
 
 (IN-PACKAGE :cocolog)
 
+;;; One property more in predicate_property/2's list V (3.41.0,
+;;; `coco_b_pred_props')
+(DEFMACRO coco-pp-add (atom)
+  `(block (set (nth n v) (coco_new_atom m ,atom)) (++ n)))
+
 (generic impl-builtins-db
   ()
 
@@ -259,6 +264,8 @@
                     *zigurat-predicates*)
   (coco-emit-claims coco_b_construct_claims *callable-constructs*)
   (coco-emit-claims coco_b_green_claims *green-predicates*)
+  ;; swipl's properties of a system or library predicate (3.41.0)
+  (coco-emit-swipl-props coco_swipl_props)
 
   ;;; WHAT THE TRACER TAKES FOR THE SYSTEM'S C (3.27.0, installed as
   ;;; `coco_sysclaims_hook'): the rows above and green's, library(async)'s C
@@ -576,28 +583,80 @@
           (free ($ a v))
           (return (coco_m_unify e (coco_m_arg e g 1) out))))
 
-  ;;; PREDICATE_PROPERTY/2'S C HALF (1.10.28): '$pred_props'(Head, Props),
-  ;;; the properties of the predicate Head names, or a failure where
-  ;;; nothing defines it -- SWI's answer for an unknown one. Module:Head
-  ;;; names Head: there is one namespace. A control construct is visible,
-  ;;; built_in, static and defined (`coco_b_construct_claims', by name and
-  ;;; arity), and a C predicate of the engine's table or of a compiled-in
-  ;;; module (`coco_b_tier1_claims') foreign too; a
-  ;;; predicate of the store with a clause or a dynamic declaration is
-  ;;; visible, dynamic or static, defined, with number_of_clauses(N) and
-  ;;; number_of_rules(R). Where SWI says a library's predicate is built_in
-  ;;; or imported_from(Lib), this does not: a library's clauses are
-  ;;; consulted muted and carry no file (`coco_consult'). A module loaded
-  ;;; from a `.so' is not answered: its dispatcher is all that knows its
-  ;;; names, and asking it is calling it.
+  ;;; ---- predicate_property/2 (1.10.28; swipl 9.0.4's since 3.41.0) --------
+  ;;;
+  ;;; '$pred_props'(Head, Props): the properties of the predicate Head names,
+  ;;; in the order swipl's boot/syspred.pl lists them ('$predicate_property'/2),
+  ;;; or a failure where nothing defines it or Head is no callable term, as
+  ;;; swipl's. Module:Head names Head: there is one namespace.
+  ;;;
+  ;;; A PREDICATE OF THE SYSTEM'S OR A LIBRARY'S -- a construct, a C row of
+  ;;; the engine or of a compiled-in module, or a library's clauses the
+  ;;; program gave none of its own -- answers what swipl answers of it, from
+  ;;; lib/swipl-props.cicili's table (`coco_swipl_props'): built_in,
+  ;;; imported_from(M), transparent, meta_predicate(Spec), notrace, nodebug,
+  ;;; noprofile, ssu and iso. What describes how swipl
+  ;;; stores one is none of cocolog's: its file/1 and line_count/1, size/1,
+  ;;; last_modified_generation/1, indexed/1. FOREIGN is cocolog's own: what
+  ;;; clause/2 refuses to show and listing/1 writes as `%   Foreign:' -- a
+  ;;; construct, a C row, a library's clauses where swipl writes the
+  ;;; predicate in C (`coco_det_foreign_name') -- has no clauses to count;
+  ;;; the rest is interpreted, with its counts.
+  ;;;
+  ;;; ONE THE TABLE HAS NO ROW FOR -- the program's own, or cocolog's --
+  ;;; answers what its file and its declarations said: built_in for a
+  ;;; construct or a C row, public, non_terminal, dynamic or static,
+  ;;; volatile, thread_local, multifile, discontiguous, imported_from(M) for
+  ;;; a module/2 file's, transparent (module_transparent/1, or a meta argument
+  ;;; a module is given to), meta_predicate(Spec) (`pmeta'), file(F) and
+  ;;; line_count(L) of its first clause a file read (`pfile', `pline'),
+  ;;; nodebug for a construct, a C row or one read under generate_debug_info
+  ;;; false, its counts, ssu for a single-sided one. A module loaded from a
+  ;;; `.so' is not answered: its dispatcher is all that knows its names, and
+  ;;; asking it is calling it.
+
+  ;;; META_PREDICATE(Spec)'s Spec: NID of the arguments SPEC writes, a
+  ;;; character each (a digit, `/' for `//', or the atom of the character)
+  (static)
+  (func coco_b_meta_term ((coco_machine * m) (u64 nid) (const char * spec)) (out size_t)
+        (let ((size_t k . #'(strlen spec)) (size_t * a . nil) (size_t t . 0))
+          (set a (cast (size_t *) (malloc (* (+ k 1) (sizeof size_t)))))
+          (if (== a nil) (return (coco_new_atom_id m nid)))
+          (for ((size_t i . 0)) (< i k) ((++ i))
+            (let ((int ch . #'(cast int (nth i spec))) (char one [2]))
+              (cond
+                ((and (>= ch 48) (<= ch 57)) (set (nth i a) (coco_new_int m (cast i64 (- ch 48)))))
+                ((== ch 47) (set (nth i a) (coco_new_atom m "//")))
+                (#t (block (set (nth 0 one) (cast char ch)) (set (nth 1 one) (cast char 0))
+                           (set (nth i a) (coco_new_atom m one)))))))
+          (set t (coco_make m (coco_atom_name m nid) (cast u32 k) a))
+          (free a)
+          (return t)))
+
+  ;;; Whether a meta argument of SPEC is one a module is given to: a digit,
+  ;;; `:', `^' or `//', the declaration making the predicate transparent
+  (static)
+  (func coco_b_meta_module ((const char * spec)) (out int)
+        (if (== spec nil) (return 0))
+        (for ((size_t i . 0)) (!= (nth i spec) (cast char 0)) ((++ i))
+          (let ((int ch . #'(cast int (nth i spec))))
+            (if (or (and (>= ch 48) (<= ch 57)) (or (== ch 58) (or (== ch 94) (== ch 47))))
+                (return 1))))
+        (return 0))
+
   (func coco_b_pred_props ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (coco_store * st . #'(-> e st))
               (size_t h . #'(coco_m_arg e g 0))
-              (size_t v [14]) (size_t n . 0) (u64 nid . 0) (u32 ar . 0) (int c . 0) (int con . 0))
+              (size_t v [32]) (size_t n . 0) (u64 nid . 0) (u32 ar . 0)
+              (int c . 0) (int con . 0) (int sys . 0) (int fgn . 0) (int sw . 0) (int fl . 0)
+              (const char * imp . "") (const char * impl . "") (const char * spec . "")
+              (coco_pred * p . nil) (size_t rules . 0) (size_t lasts . 0) (size_t live . 0))
           (if (coco_is_compound2 m h ":") (set h (coco_deref m (coco_arg m h 1))))
           (if (coco_m_is_var e h) (return (coco_m_instantiation_error e)))
-          (if (not (coco_is_callable m h)) (return (coco_m_type_error e "callable" h)))
+          ;; no callable term names a predicate: swipl's fails (3.41.0;
+          ;; through 3.40.0 type_error(callable, H))
+          (if (not (coco_is_callable m h)) (return 0))
           (set nid (coco_name_of m h))
           (set ar (coco_arity m h))
           (set c (or (>= (coco_builtin_index m nid ar) 0)
@@ -606,62 +665,134 @@
           ;; one a program file took over is the program's (3.1.0)
           (if (coco_pred_taken st nid ar) (block (set c 0) (set con 0)))
           (if (or c con)
-              (block
-                (set (nth n v) (coco_new_atom m "visible")) (++ n)
-                (set (nth n v) (coco_new_atom m "built_in")) (++ n)
-                (if c (block (set (nth n v) (coco_new_atom m "foreign")) (++ n)))
-                (set (nth n v) (coco_new_atom m "static")) (++ n)
-                (set (nth n v) (coco_new_atom m "defined")) (++ n)
-                (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_list e v n)))))
-          (let ((size_t pi . #'(coco_pred_intern st nid ar)))
-            (if (>= pi ($ (cof st) npreds)) (return 0))
-            (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
-            (let ((coco_pred * p . #'(aof (nth pi ($ (cof st) preds))))
-                  (size_t rules . 0) (size_t lasts . 0) (size_t mark . #'($ (cof m) heap_len))
-                  (u64 tid . #'(coco_intern m "true")))
+              (block (set sys 1) (set fgn 1))
+            (let ((size_t pi . #'(coco_pred_intern st nid ar)))
+              (if (>= pi ($ (cof st) npreds)) (return 0))
+              (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
+              (set p (aof (nth pi ($ (cof st) preds))))
               (if (and (== (coco_pred_live p) 0) (not (-> p dynamic)) (not (-> p declared)))
                   (return 0))
-              ;; a rule is a clause whose body is not `true'; the predicate
-              ;; read through its index each time round, as after. A clause
-              ;; retracted while a call on it is open is none of them.
-              (for ((size_t i . 0)) (< i ($ (nth pi ($ (cof st) preds)) nclauses)) ((++ i))
-                (if (coco_pred_dead (aof (nth pi ($ (cof st) preds))) i) continue)
-                (let ((size_t t . #'(coco_store_get m st (nth i ($ (nth pi ($ (cof st) preds)) clauses))))
-                      (size_t ch . 0) (size_t cb . 0))
-                  (coco_clause_parts m t (aof ch) (aof cb))
-                  ;; a single-sided predicate's last clause is none of them (3.19.0)
-                  (if (and (!= cb 0) (== (coco_ssu_body m cb) (cast size_t -1)))
-                      (block (set lasts (+ lasts 1)) (set cb 0)))
-                  (if (and (!= cb 0)
-                           (not (and (coco-tag-is ATOM (nth (coco_deref m cb) (-> m heap)))
-                                     (== (coco_name_of m (coco_deref m cb)) tid))))
-                      (set rules (+ rules 1)))
-                  (set (-> m heap_len) mark)))
+              (let ((size_t mark . #'($ (cof m) heap_len)) (u64 tid . #'(coco_intern m "true")))
+                ;; a rule is a clause whose body is not `true'; the predicate
+                ;; read through its index each time round, as after. A
+                ;; clause retracted while a call on it is open is none of
+                ;; them.
+                (for ((size_t i . 0)) (< i ($ (nth pi ($ (cof st) preds)) nclauses)) ((++ i))
+                  (if (coco_pred_dead (aof (nth pi ($ (cof st) preds))) i) continue)
+                  (let ((size_t t . #'(coco_store_get m st (nth i ($ (nth pi ($ (cof st) preds)) clauses))))
+                        (size_t ch . 0) (size_t cb . 0))
+                    (coco_clause_parts m t (aof ch) (aof cb))
+                    ;; a single-sided predicate's last clause is none of them (3.19.0)
+                    (if (and (!= cb 0) (== (coco_ssu_body m cb) (cast size_t -1)))
+                        (block (set lasts (+ lasts 1)) (set cb 0)))
+                    (if (and (!= cb 0)
+                             (not (and (coco-tag-is ATOM (nth (coco_deref m cb) (-> m heap)))
+                                       (== (coco_name_of m (coco_deref m cb)) tid))))
+                        (set rules (+ rules 1)))
+                    (set (-> m heap_len) mark))))
               ;; the store may have moved under the reads: read P again
               (set p (aof (nth pi ($ (cof st) preds))))
-              ;; a predicate of clauses, as swipl calls every one not foreign
-              (set (nth n v) (coco_new_atom m "interpreted")) (++ n)
-              (set (nth n v) (coco_new_atom m "visible")) (++ n)
-              ;; what a declaration said (3.1.0; public/1, volatile/1,
-              ;; thread_local/1 and module_transparent/1 since 3.2.0), in
-              ;; swipl's order
-              (if (bitand (-> p pattrs) 1) (block (set (nth n v) (coco_new_atom m "public")) (++ n)))
-              ;; and a non-terminal (3.14.0, `coco_pred_nt_mark')
-              (if (bitand (-> p pattrs) 16) (block (set (nth n v) (coco_new_atom m "non_terminal")) (++ n)))
-              (set (nth n v) (coco_new_atom m (? (-> p dynamic) "dynamic" "static"))) (++ n)
-              (if (bitand (-> p pattrs) 2) (block (set (nth n v) (coco_new_atom m "volatile")) (++ n)))
-              (if (bitand (-> p pattrs) 8) (block (set (nth n v) (coco_new_atom m "thread_local")) (++ n)))
-              (if (bitand (-> p declared) 2) (block (set (nth n v) (coco_new_atom m "multifile")) (++ n)))
-              (if (bitand (-> p declared) 1) (block (set (nth n v) (coco_new_atom m "discontiguous")) (++ n)))
-              (if (bitand (-> p pattrs) 4) (block (set (nth n v) (coco_new_atom m "transparent")) (++ n)))
-              ;; swipl counts the clauses of a predicate that has some, and
-              ;; of one declared dynamic
-              (if (or (> (coco_pred_live p) 0) (-> p dynamic))
-                  (block
-                    (set (nth n v) (coco_make1 m "number_of_clauses" (coco_new_int m (cast i64 (- (coco_pred_live p) lasts))))) (++ n)
-                    (set (nth n v) (coco_make1 m "number_of_rules" (coco_new_int m (cast i64 rules)))) (++ n)))
-              (set (nth n v) (coco_new_atom m "defined")) (++ n)
-              (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_list e v n)))))))
+              (set live (coco_pred_live p))
+              (set sys (and (-> p library) (not (-> p own))))
+              (set fgn (and sys (coco_det_foreign_name (coco_atom_name m nid) ar)))))
+          (if sys
+              (block
+                (set sw (coco_swipl_props (coco_atom_name m nid) ar (aof imp) (aof impl) (aof spec)))
+                (if sw (set fl (- sw 1)))))
+          ;; swipl's order
+          (if (not fgn) (coco-pp-add "interpreted"))
+          (coco-pp-add "visible")
+          (if (? sw (bitand fl 1) (or c con)) (coco-pp-add "built_in"))
+          (if (and (!= p nil) (bitand (-> p pattrs) 1)) (coco-pp-add "public"))
+          ;; a library's grammar rules too: swipl's non-terminals of the
+          ;; system and the libraries are those of the two DCG libraries,
+          ;; which cocolog reads from swipl's own files
+          (if (and (!= p nil) (bitand (-> p pattrs) 16)) (coco-pp-add "non_terminal"))
+          (if fgn (coco-pp-add "foreign"))
+          (coco-pp-add (? (and (!= p nil) (-> p dynamic)) "dynamic" "static"))
+          (if (!= p nil)
+              (block
+                (if (bitand (-> p pattrs) 2) (coco-pp-add "volatile"))
+                (if (bitand (-> p pattrs) 8) (coco-pp-add "thread_local"))
+                (if (bitand (-> p declared) 2) (coco-pp-add "multifile"))
+                (if (bitand (-> p declared) 1) (coco-pp-add "discontiguous"))))
+          ;; the module it is imported from: the table's, or a module/2 read's
+          (if (and sw (!= (nth 0 imp) (cast char 0)))
+              (block (set (nth n v) (coco_make1 m "imported_from" (coco_new_atom m imp))) (++ n))
+            (if (and (not sw) (!= p nil) (!= (-> p pmod) 0))
+                (block (set (nth n v) (coco_make1 m "imported_from" (coco_new_atom_id m (- (-> p pmod) 1))))
+                       (++ n))))
+          ;; what the table says, else what the declarations said
+          (if (? sw (bitand fl 4)
+                 (and (!= p nil) (or (bitand (-> p pattrs) 4) (coco_b_meta_module (-> p pmeta)))))
+              (coco-pp-add "transparent"))
+          (if (and sw (!= (nth 0 spec) (cast char 0)))
+              (block (set (nth n v) (coco_make1 m "meta_predicate" (coco_b_meta_term m nid spec))) (++ n))
+            (if (and (not sw) (!= p nil) (!= (-> p pmeta) nil))
+                (block (set (nth n v) (coco_make1 m "meta_predicate" (coco_b_meta_term m nid (-> p pmeta))))
+                       (++ n))))
+          ;; where its first clause a file read stands: none for a library
+          ;; compiled into cocolog, whose text was read from no file
+          (if (and (!= p nil) (!= (-> p pfile) 0))
+              (block
+                (set (nth n v) (coco_make1 m "file" (coco_new_atom_id m (- (-> p pfile) 1)))) (++ n)
+                (set (nth n v) (coco_make1 m "line_count" (coco_new_int m (cast i64 (-> p pline))))) (++ n)))
+          (if (bitand fl 128) (coco-pp-add "notrace"))
+          (if (? sw (bitand fl 8) (or c con (and (!= p nil) (bitand (-> p pattrs) 32))))
+              (coco-pp-add "nodebug"))
+          ;; swipl counts the clauses of a predicate that has some, and of
+          ;; one declared dynamic; what is foreign has none
+          (if (and (not fgn) (!= p nil) (or (> live 0) (-> p dynamic)))
+              (block
+                (set (nth n v) (coco_make1 m "number_of_clauses" (coco_new_int m (cast i64 (- live lasts))))) (++ n)
+                (set (nth n v) (coco_make1 m "number_of_rules" (coco_new_int m (cast i64 rules)))) (++ n)))
+          (if (bitand fl 16) (coco-pp-add "noprofile"))
+          (if (? sw (bitand fl 64) (> lasts 0)) (coco-pp-add "ssu"))
+          ;; every ISO predicate is swipl's, so the table says which
+          (if (and sw (bitand fl 32)) (coco-pp-add "iso"))
+          (coco-pp-add "defined")
+          (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_list e v n)))))
+
+  ;;; '$pred_impl'(Head, Module), implementation_module(M) of
+  ;;; predicate_property/2 (3.41.0, swipl's property_predicate/2): the
+  ;;; module that defines it. The program's own is user's, or a module/2
+  ;;; read's; the system's and a library's the table's, else the system's,
+  ;;; or a module/2 read's for a library's clauses; a name nothing defines
+  ;;; is user's, where the head was looked for.
+  (func coco_b_pred_impl ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (coco_store * st . #'(-> e st))
+              (size_t h . #'(coco_m_arg e g 0))
+              (u64 nid . 0) (u32 ar . 0) (int sys . 0) (int sw . 0) (u64 pm . 0)
+              (const char * imp . "") (const char * impl . "") (const char * spec . ""))
+          (while (coco_is_compound2 m h ":") (set h (coco_deref m (coco_arg m h 1))))
+          (if (not (coco_is_callable m h)) (return 0))
+          (set nid (coco_name_of m h))
+          (set ar (coco_arity m h))
+          (set sys (or (>= (coco_builtin_index m nid ar) 0)
+                       (or (coco_b_tier1_claims (coco_atom_name m nid) ar)
+                           (coco_b_construct_claims (coco_atom_name m nid) ar))))
+          (if (coco_pred_taken st nid ar) (set sys 0))
+          (if (not sys)
+              (let ((size_t pi . #'(coco_pred_intern st nid ar)))
+                (if (< pi ($ (cof st) npreds))
+                    (block
+                      (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
+                      (let ((coco_pred * p . #'(aof (nth pi ($ (cof st) preds)))))
+                        (if (or (> (coco_pred_live p) 0) (or (-> p dynamic) (-> p declared)))
+                            (block (set pm (-> p pmod))
+                                   (set sys (? (and (-> p library) (not (-> p own))) 2 3)))))))))
+          (if (or (== sys 1) (== sys 2))
+              (set sw (coco_swipl_props (coco_atom_name m nid) ar (aof imp) (aof impl) (aof spec))))
+          (let ((const char * mod . "user"))
+            (cond
+              ((or (== sys 1) (== sys 2))
+               (if (and sw (!= (nth 0 impl) (cast char 0)))
+                   (set mod impl)
+                 (set mod (? (!= pm 0) (coco_atom_name m (- pm 1)) "system"))))
+              ((and (== sys 3) (!= pm 0)) (set mod (coco_atom_name m (- pm 1))))
+              (#t (block)))
+            (return (coco_m_unify e (coco_m_arg e g 1) (coco_new_atom m mod))))))
 
   ;;; ---- abolish/1,2 (3.36.0, swipl 9.0.4's pl_abolish) -------------------
   ;;;

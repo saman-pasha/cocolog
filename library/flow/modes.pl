@@ -282,6 +282,9 @@ flow_mode(source_location, 2, ['-', '-'], semidet).
 %% the term's place while a hook or a directive of it runs; fails anywhere
 %% else
 flow_mode('$load_context', 2, ['+', '-'], semidet).
+%% predicate_property/2's implementation_module(M) of a head named (3.41.0,
+%% swipl's property_predicate/2): fails for a head that is no callable term
+flow_mode('$pred_impl', 2, ['+', '-'], semidet).
 flow_mode(print_message, 2, ['+', '+'], det).
 flow_mode(print_message_lines, 3, ['+', '+', '+'], det).
 flow_mode(message_to_string, 2, ['+', '-'], det).

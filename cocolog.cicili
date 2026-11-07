@@ -215,6 +215,8 @@
   (import "./lib/apply.cicili")
   ;; swipl's system predicates, a table builtins.cicili's dwim reads
   (import "./lib/swipl-system.cicili")
+  ;; swipl's predicate properties, a table predicate_property/2 reads (3.41.0)
+  (import "./lib/swipl-props.cicili")
   (import "./lib/builtins.cicili")
   (import "./lib/builtins-format.cicili")
   (import "./lib/builtins-db.cicili")
@@ -416,7 +418,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.40.0"))
+  (func coco_version_text () (out const char *) (return "3.41.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"

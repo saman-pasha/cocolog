@@ -197,6 +197,21 @@ fixtures(listing_spec, Sandbox) :- !,
                 'mp(1).', 'mp(2) :- md(2).']),
     atom_concat(Sandbox, '/lsn.pl', N),
     fixture(N, [':- module(lsn, [np/1]).', 'np(1).']).
+%% a module of the program's; a multifile predicate's two files; a file read
+%% again in each of its versions (pc.v2.pl moves the first clause down,
+%% pc.v3.pl defines it no more), which the case renames in its place; and
+%% a file the case includes
+fixtures(predicate_property, Sandbox) :- !,
+    forall(member(F-Lines,
+                  [ 'ppm.pl'-[':- module(ppm, [ppm_a/1, ppm_g//0]).', ':- meta_predicate ppm_a(0).',
+                              'ppm_a(G) :- call(G).', 'ppm_g --> [x], ppm_h.', 'ppm_h --> [y].'],
+                    'pa.pl'-[':- multifile pm/1.', ':- dynamic pm/1.', 'pm(a1).', 'pm(a2).'],
+                    'pb.pl'-[':- multifile pm/1.', ':- dynamic pm/1.', 'pm(b1).'],
+                    'pc.pl'-['pc(1).', 'pc(2).'],
+                    'pc.v2.pl'-['', '', '', 'pc(1).'],
+                    'pc.v3.pl'-['px(1).'],
+                    'pinc.pl'-['', 'pi_inc(1).', 'pi_inc(2).'] ]),
+           ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
 fixtures(vendored, Sandbox) :- !,
     forall(member(F-Lines, [ 'vs.pl'-['vs(a) => true.', ':- ensure_loaded(vsub).', 'vs(b) => true.'],
                              'vsub.pl'-['vsub(x) => true.'],

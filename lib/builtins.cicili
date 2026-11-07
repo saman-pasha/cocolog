@@ -95,6 +95,7 @@
     ("$cp_spec"                2 coco_b_cp_spec)
     ("$cp_defined"             1 coco_b_cp_defined)
     ("$pred_props"             2 coco_b_pred_props)
+    ("$pred_impl"              2 coco_b_pred_impl)
     ("$dwim_predicates"        2 coco_b_dwim_predicates)
     ("abolish"                 1 coco_b_abolish)
     ("abolish"                 2 coco_b_abolish2)
@@ -156,6 +157,31 @@
   `(func ,fname ((coco_dwim_acc * a))
      ,@(MAPCAR (LAMBDA (row) `(coco_dwim_offer a ,(FIRST row) ,(SECOND row)))
                *swipl-system-predicates*)))
+
+;;; SWIPL'S PROPERTIES OF A SYSTEM OR LIBRARY PREDICATE (3.41.0), a row of
+;;; lib/swipl-props.cicili's table: its flags plus one, 0 where swipl has
+;;; no such predicate, and the module it is imported from, its
+;;; implementation module and its meta arguments in IMP, IMPL and SPEC.
+;;; A function of a cond an arity and a strcmp a row, as the ISO table's.
+(DEFMACRO coco-emit-swipl-props (fname)
+  (LET ((arities (SORT (REMOVE-DUPLICATES (MAPCAR #'SECOND *swipl-props*)) #'<)))
+    `(func ,fname ((const char * name) (u32 arity) (const char ** imp)
+                   (const char ** impl) (const char ** spec)) (out int)
+       (cond
+         ,@(MAPCAR
+            (LAMBDA (n)
+              `((== arity ,n)
+                (cond
+                  ,@(LOOP FOR row IN *swipl-props*
+                          WHEN (= (SECOND row) n)
+                          COLLECT `((== 0 (strcmp name ,(FIRST row)))
+                                    (block (set (cof imp) ,(THIRD row))
+                                           (set (cof impl) ,(FOURTH row))
+                                           (set (cof spec) ,(SIXTH row))
+                                           (return ,(+ (FIFTH row) 1)))))
+                  (#t (return 0)))))
+            arities)
+         (#t (return 0))))))
 
 ;;; THE CONTROL CONSTRUCTS A PROGRAM CALLS, by name AND arity, as SWI
 ;;; lists them: `*construct-names*' holds the engine's own markers too
@@ -541,6 +567,9 @@
            ;; an unbound head walks current_predicate/1's, the program's.
            ;; M:H is H (one namespace), so user:H walks them too.
            "predicate_property(H, P) :- nonvar(H), H = _:G, !, predicate_property(G, P)."
+           ;; implementation_module(M) is no property the walk lists: swipl's
+           ;; property_predicate/2 answers it of a head named (3.41.0)
+           "predicate_property(H, P) :- nonvar(P), P = implementation_module(M), !, nonvar(H), '$pred_impl'(H, M)."
            ;; a property named is a check, and of none the last one leaves
            ;; no choice point, as swipl's (3.25.0)
            "predicate_property(H, P) :- nonvar(H), !, '$pred_props'(H, Ps), ( nonvar(P) -> memberchk(P, Ps) ; '$cp_in'(P, Ps) )."
