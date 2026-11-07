@@ -3320,6 +3320,48 @@
                (set (cof sb) (bitor (coco-bar-low b) mc))))
           (return 1)))
 
+  ;;; THE WALK OF `coco_root_part' where its answer is not kept, which
+  ;;; keeps it for a cell of the goal itself
+  (weak) (cold)
+  (func coco_root_walk ((coco_engine * e) (size_t cg)) (out int)
+        (let ((const char * who . nil) (u32 whoa . 0)
+              (int r . #'(== (coco_query_walk e cg (aof who) (aof whoa)) 2)))
+          (if (< cg (-> e pheap))
+              (block (set (-> e rpg) (bitor (<< cg 1) (cast size_t r)))
+                     (set (-> e rpc) (cast u32 (-> (-> e m) gc_count)))))
+          (return r)))
+
+  ;;; WHETHER THE call/N GOAL CG IS A PART OF A CONTROL STRUCTURE IN THE
+  ;;; GOAL OF A SEARCH A CLAUSE STARTED (3.43.0), which swipl's clause
+  ;;; meta-calls into a `'<meta-call>'/1': findall/3's and its kin's,
+  ;;; forall/2's and aggregate_all/3's (`rootn' 1 to 3), a directive's and
+  ;;; `run FILE GOAL''s, which swipl runs under catch/3 (5), and an
+  ;;; initialization goal's (6) -- where it stands, as `coco_query_walk'
+  ;;; answers it, 2. Not the root itself, which swipl calls as call/N, a
+  ;;; frame of its own, nor the argument of once/1 and its kin, each
+  ;;; meta-called afresh; nor a search C starts (4, with_output_to/2 and
+  ;;; `~@') or a query, a thread or an isolated run (0), whose structure
+  ;;; swipl's C calls with call/N a frame of its own. Asked only of a
+  ;;; call/N whose word has no owner, at a search's root, inside
+  ;;; `coco_meta_bar_root'. The answer is kept for a cell of the goal itself
+  ;;; (`rpg' on the engine), so a call/N a loop of the search runs again
+  ;;; walks the goal once: such a cell stands below the search's start
+  ;;; (`pheap'), which no backtracking in it winds back, and a collection,
+  ;;; which moves it, asks again. A goal the search built, a variable of its
+  ;;; goal bound to it, is walked each time
+  ;;; -- and a cell kept is below `pheap', which only a freeze raises and
+  ;;; only a collection, which RPC tells, lowers: the hit asks no more
+  (static) (inline)
+  (func coco_root_part ((coco_engine * e) (size_t cg)) (out int)
+        (let ((int k . #'(-> e rootn)) (coco_machine * m . #'(-> e m)))
+          (if (or (== cg (cast size_t -1))
+                  (not (or (and (>= k 1) (<= k 3)) (== k 5) (== k 6))))
+              (return 0))
+          (set cg (coco_deref m cg))
+          (if (and (== cg (>> (-> e rpg) 1)) (== (cast u32 (-> m gc_count)) (-> e rpc)))
+              (return (cast int (bitand (-> e rpg) 1))))
+          (return (coco_root_walk e cg))))
+
   ;;; WHETHER call/N RUNS IN THE FRAME ITS WORD B NAMES: a clause's, where
   ;;; call/N is written in it, or a `'<meta-call>'/1''s, where it is
   ;;; written in the structure swipl compiled into one -- both compile it
@@ -3336,6 +3378,26 @@
             (return (or (== k (-> e goals)) (not (coco_goal_was_var e k)))))
         (return 0))
 
+  ;;; AND IN A PART OF A CONTROL STRUCTURE IN THE GOAL OF A SEARCH A CLAUSE
+  ;;; STARTED (3.43.0), which swipl's clause meta-calls into a
+  ;;; `'<meta-call>'/1': the word of a call/N whose own word B has no owner
+  ;;; there, its tag 0 -- CG, the call/N goal, asked where it stands in the
+  ;;; search's goal (`coco_root_part'), and the rule of a variable bound as
+  ;;; it ran holding as above: `'<meta-call>'/1''s word, META, or F's frame.
+  ;;; `coco_meta_bar' calls it last, a tail call that leaves nothing of it
+  ;;; live across a call, so that function saves no more registers than
+  ;;; through 3.42.3 and a clause's call/N pays nothing for the rule; and
+  ;;; `coco_call_bad' asks its META bit. A search C starts
+  ;;; (with_output_to/2, format/2's `~@') runs call/N as a frame of its
+  ;;; own, as swipl's does
+  (weak) (cold)
+  (func coco_meta_bar_root ((coco_engine * e) (size_t k) (u64 f) (size_t cg)) (out size_t)
+        (let ((size_t h . #'(-> e nchoices)))
+          (if (and (coco_root_part e cg)
+                   (or (== k (-> e goals)) (not (coco_goal_was_var e k))))
+              (return (bitor (bitor h (coco_mc_tag (-> e m))) (coco-bar-metabit))))
+          (return (bitor (bitor h (coco-bar-sysbit)) (coco-bar-of f)))))
+
   ;;; THE WORD A META-CALL'S GOAL G RUNS UNDER, B the call's own, K what
   ;;; follows and F the functor of swipl's frame for the call (call/N,
   ;;; catch/3): a structure is compiled into a `'<meta-call>'/1'; a goal
@@ -3345,9 +3407,12 @@
   ;;; catch's own: swipl's catch/3 is a frame wherever it is called.
   ;;; `$(G)' and G@M are no structure here (3.20.0): a `$(G)' called runs
   ;;; its parts in a `'<meta-call>'/1' by `coco_part_bar''s rule for a word
-  ;;; META or SYS, and a G@M its G by `coco_at''s.
+  ;;; META or SYS, and a G@M its G by `coco_at''s. CG is the call/N goal
+  ;;; (-1 for catch/3's), and a call/N in the structure of a search's goal
+  ;;; runs inline in the `'<meta-call>'/1' swipl compiles it into (3.43.0)
   (static)
-  (func coco_meta_bar ((coco_engine * e) (size_t g) (size_t b) (size_t k) (u64 f)) (out size_t)
+  (func coco_meta_bar ((coco_engine * e) (size_t g) (size_t b) (size_t k) (u64 f) (size_t cg))
+        (out size_t)
         (let ((coco_machine * m . #'(-> e m)) (size_t h . #'(-> e nchoices))
               (size_t d . #'(coco_deref (-> e m) g)))
           (if (and (coco-tag-is FUN (nth d (-> m heap)))
@@ -3358,6 +3423,10 @@
                                 (== (coco_name_of m d) (coco-id m "*->"))))
                        (and (== (coco_arity m d) 1) (== (coco_name_of m d) (coco-id m "\\+")))))
               (return (bitor h (coco_mc_tag m))))
+          ;; a word with no owner, which `coco_call_inline' would refuse,
+          ;; asked first: past its call of `coco_goal_was_var' K and CG
+          ;; would be live, and the function would save four more registers
+          (if (== (coco-bar-tag b) 0) (return (coco_meta_bar_root e k f cg)))
           (if (coco_call_inline e b k)
               (return (bitor (bitor h (coco-bar-tag b)) (coco-bar-metabit))))
           (return (bitor (bitor h (coco-bar-sysbit)) (coco-bar-of f)))))

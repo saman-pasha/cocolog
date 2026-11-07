@@ -1440,7 +1440,24 @@ cocolint index offers no import of it.
   of a body's goals ORs the clause's `ptag` in** (the plain path, the
   guards' and the environment's in `coco_try_clause`, the units' link,
   `cc_ulink`), or its goals' errors name the caller. One OR an entry: nrev
-  +0.44 % of zero.sh's work, +0.15 % less its padding.
+  +0.44 % of zero.sh's work, +0.15 % less its padding. **call/N runs in the
+  frame its word names** (`coco_call_inline`, swipl's I_USERCALL): in its
+  clause, in a `'<meta-call>'/1`, and since 3.43.0 in the structure of the
+  goal of a search a clause starts, a word with no owner there --
+  findall/3 and its kin, forall/2, aggregate_all/3, a directive and `run
+  FILE GOAL`, an initialization goal (`rootn` 1 to 3, 5 and 6), the call/N
+  goal asked where it stands in the search's goal (`coco_root_part`, a
+  walk by the names' ids): its errors name `'<meta-call>'/1`, as swipl's
+  clause compiles that goal into one. A search C starts (with_output_to/2,
+  `~@`: 4) and a query, a thread or an isolated run (0) keep call/N a frame
+  of its own, as swipl's C does (test/files/meta_call_root.pl). **A new
+  starter of a search sets `rootn`**, or its goal's call/N is named as a
+  query's. The answer is kept per search for a cell of its goal (`rpg`,
+  `rpc` on the engine), and the root case is `coco_meta_bar`'s FIRST test,
+  a tail call to `coco_meta_bar_root`: asked after `coco_call_inline`'s
+  call of `coco_goal_was_var`, its arguments were live across that call,
+  and `coco_meta_bar` saved six registers where it saved three -- nine
+  instructions on every call/N of a clause, maplist/N's.
 * **`$/1` and `@/2` are swipl's control constructs** (3.20.0; `coco_det`,
   `coco_det_exit`, `coco_det_fail` and `coco_at` in lib/solve-loop.cicili):
   `$(G)` pushes a GOAL frame whose alternative is `'$det_fail'($(G), Ctx)`,

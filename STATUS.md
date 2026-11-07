@@ -14749,3 +14749,101 @@ No test binary compiles lib/lists.cicili. library/reasoning/ calls nth0/3
 and nth1/3 of proper lists, and nth0/4, which is not touched: reasoning
 stays at its number. The card's cites hold.
 
+
+## call/N in the structure of a search's goal is `'<meta-call>'/1`'s, as swipl's (3.43.0)
+
+swipl 9.0.4's findall/3, findall/4, bagof/3, setof/3, forall/2 and
+aggregate_all/3 are clauses that meta-call their goal, as
+'$execute_directive_3' runs a directive and `swipl -g` its goal under
+catch/3, and '$run_init_goal'/1 an initialization goal: a goal that is a
+control structure is compiled into a `'<meta-call>'/1` frame, and call/N in
+it is compiled in place (I_USERCALL), so what call/N's goal raises -- an
+unknown procedure, a goal that is no goal -- names `'<meta-call>'/1`.
+Through 3.42.3 cocolog ran every call/N at a search's root as a frame of
+its own: `findall(x, (true, call(foo, a)), _)` raised
+`context(system:call/2, _)` where swipl's is
+`context(system:'<meta-call>'/1, _)`. Found by the scan of the vendored
+libraries' exports against swipl, in the shapes library(yall) and
+library(aggregate) hand findall/3. A minor: a caught error's context
+changes.
+
+- WHERE A call/N STANDS IN ITS SEARCH'S GOAL (`coco_root_part`,
+  lib/solve-control.cicili): a call/N whose word has no owner -- a part of
+  a structure at a search's root -- is asked where it stands in the goal by
+  the walk the unknown procedure's context makes (`coco_query_walk`, by the
+  names' ids since: it compared each name with strcmp(3)). A part of a
+  structure is compiled in place; the goal itself is call/N's own frame,
+  and the argument of once/1, ignore/1, not/1 or catch/3 is meta-called
+  afresh, as swipl's are; and a call/N a variable of the structure was
+  bound to as it ran is call/N's own (`coco_goal_was_var`), as swipl's
+  compile met the variable.
+- WHICH SEARCHES: findall/3 and its kin, forall/2, aggregate_all/3, a
+  directive and `run FILE GOAL`, an initialization goal (`rootn` 1 to 3, 5
+  and 6). A search C starts -- with_output_to/2, format/2's `~@` (4) -- and
+  a query, a thread or an isolated run (0) keep call/N a frame of its own,
+  as swipl's C starts a goal: with_output_to/2's structure is a
+  `'<meta-call>'/1` for a plain goal and names call/N for call/N's, and
+  swipl's thread_create/3 the same.
+- THE ANSWER IS KEPT PER SEARCH for a cell of its goal, which stands below
+  the search's start and no backtracking in it winds back: the engine's
+  `rpg`, the cell over the answer's bit, and `rpc`, the heap's collections
+  when it was asked, as a collection moves the cells -- so a call/N a loop
+  of the search runs again walks the goal once. A goal the search built is
+  walked each time.
+
+test/files/meta_call_root.pl, new: 77 lines, swipl 9.0.4's byte for byte
+(3.42.3 differs at 35 of them): call/N in each structure of findall/3's,
+findall/4's, bagof/3's, setof/3's, aggregate_all/3's and forall/2's goal,
+its goal no goal and qualified; call/N as the goal itself, under once/1,
+ignore/1, not/1, catch/3 and a variable, and a plain goal under catch/3;
+with_output_to/2's; and the cut, `$` and the answers that do not move.
+test/directives.pl: a directive's, an initialization goal's and `run FILE
+GOAL`'s structure, and swipl's stderr over the same file word for word
+(`emeta.pl`). test/thread.pl: a thread goal's structure keeps call/N its
+own frame. Not swipl's (COMPAT.md): a query's root (`cocolog query`, the
+REPL), which swipl's toplevel compiles in place, and setup_call_cleanup/3's
+setup goal, which swipl runs from C.
+
+Arms, a build each, the rule taken out (10), each red in meta_call_root.pl,
+test/directives.pl's new checks or test/thread.pl's, the arm of no edit
+green in all three (the cases run three builds at once, and thread's
+timing check, "four times the work in well under four times the time",
+failed in two arms under that load, the new check green in both):
+
+- the root case asked at all (meta_call_root, directives); its word
+  `'<meta-call>'/1`'s (both: with no owner it named nothing); the
+  variable's rule (meta_call_root);
+- the searches it holds for: a directive's and an initialization goal's
+  (directives), with_output_to/2's left out (meta_call_root), a query's and
+  a thread's left out (thread);
+- each call site's goal: call/1's, call/N's (meta_call_root, and call/N's
+  in directives), a goal that is no goal (meta_call_root), and catch/3's
+  none, whose plain goal names catch/3 (meta_call_root).
+
+The cost, callgrind, 3.42.3 to 3.43.0. The step loop is not touched
+(tools/flow/zero.sh, work less padding: nrev 65 903 609 and 65 903 595,
+queens 40 275 127 and 40 275 144, lookup 48 052 979 on both). A start is
+35 068 455 instructions and 35 066 831. A call, 2 000 of each less the
+same loop with none:
+
+- call/N in a clause, `cl(X) :- call(ok, X)`, maplist/N's case: the same.
+  The first cut asked the root case after `coco_call_inline`, whose call of
+  `coco_goal_was_var` it then outlived, and `coco_meta_bar` saved six
+  registers where it saved three: 12 instructions on every such call (9
+  with the root case out of line). Asked first, a tail call to
+  `coco_meta_bar_root`, it costs nothing there.
+- a findall/3 with no call/N, `findall(x, (true, ok(1)), _)`: +20, the
+  engine a word longer and memset twice (callgrind counts `rep stosb` a
+  byte an instruction) and a padding no-op.
+- `findall(x, (true, call(ok, 1)), _)`: +334 (the walk, once); the goal
+  `call(ok, 1)` itself +165; behind ten conjunctions +1 486; forall/2's
+  `(true, call(ok, 1))` +490; with_output_to/2's +37.
+- `findall(x, (between(1, 50, X), call(ok, X)), _)`: +75 a call/N past
+  the first, 32 of them `coco_goal_was_var`, the variable's rule. Without
+  the kept answer it was the walk's 300 a call; the first cut's +112.
+
+Narrow cases green: lint, files (each agreeing with swipl), engine, errors,
+trace, window, flowdebug, gc, backtrace, library, async, cyclic, static,
+cowork, directives and thread. library/reasoning/ matches no error's
+context: reasoning stays at its number. The card's cites hold (two of H1's
+corrected; 15 accepted as moved, 16 on master).

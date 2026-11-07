@@ -113,7 +113,28 @@ a_ball(D) :-
                   ':- mk(3, L), L == [3, 2, 9].' ]),
     ran(F4, true, Out4),
     has('a failed directive is written as it was asked, too',
-        'Goal (directive) failed: user:(mk(3,_G', Out4).
+        'Goal (directive) failed: user:(mk(3,_G', Out4),
+    %% call/N IN A STRUCTURE OF A DIRECTIVE OR AN INITIALIZATION GOAL is
+    %% compiled in place in the `'<meta-call>'/1' swipl's catch/3 and
+    %% '$run_init_goal'/1 run the structure in (3.43.0; through 3.42.3 its
+    %% own frame, `call/2:'); call/N as the goal itself is call/N's own.
+    %% under_swipl/1 holds the whole of it to swipl's
+    atom_concat(D, '/emeta.pl', F5),
+    fixture(F5, [ ':- (true, call(foo_undef, a)).', ':- call(foo_undef, b).',
+                  ':- (true ; call(foo_undef, c)), fail.',
+                  ':- initialization((true, call(foo_undef, d))).',
+                  ':- initialization(call(foo_undef, e)).' ]),
+    ran(F5, true, Out5),
+    sh_join(['ERROR: ', F5, ':1:\nERROR:    ''<meta-call>''/1: Unknown procedure: foo_undef/1'], M1),
+    has('call/N in a directive''s structure names ''<meta-call>''/1', M1, Out5),
+    sh_join(['ERROR: ', F5, ':2:\nERROR:    call/2: Unknown procedure: foo_undef/1'], M2),
+    has('...and call/N as the directive itself, call/N', M2, Out5),
+    sh_join(['ERROR: ', F5, ':4: Initialization goal raised exception:\n',
+             'ERROR: ''<meta-call>''/1: Unknown procedure: foo_undef/1'], M4),
+    has('...and in an initialization goal''s structure', M4, Out5),
+    ran(F5, '(true, call(foo_undef, z))', Out6),
+    has('...and in the structure of run''s goal, as of swipl''s -g',
+        '-g (true, call(foo_undef, z)): ''<meta-call>''/1: Unknown procedure: foo_undef/1', Out6).
 
 loads_nothing(D) :-
     section('a load directive that loads nothing says so'),
@@ -796,7 +817,7 @@ under_swipl(D) :-
         %% and an error was no failed directive. m1 and m1v run swipl
         %% without -q, whose `silent' is m1v's own flag.
         forall(member(W-Q, [ bad-'-q ', missing-'-q ', ithrow-'-q ', ifail-'-q ', now2-'-q ',
-                             eball-'-q ', efail-'-q ', m1-'', m2-'-q ', m1v-'',
+                             eball-'-q ', efail-'-q ', emeta-'-q ', m1-'', m2-'-q ', m1v-'',
                              synendif-'-q ', synnoend-'-q ', synnotcl-'-q ' ]),
                ( sh_join([D, '/', W, '.pl'], WPl),
                  sh_join([C, ' --no-backtrace --local run ', WPl, ' true 2>&1 >/dev/null; printf ''rc=%s'' $?'], Ca6),

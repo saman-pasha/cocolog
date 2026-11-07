@@ -135,6 +135,8 @@
         (set (-> e ball_st) nil)
         (set (nth 0 (-> e err)) (cast char 0))
         (set (-> e query) goal)
+        ;; and nothing known of where a call/N stands in it (3.43.0)
+        (set (-> e rpg) (cast size_t -1))
         (set (-> e trace_depth) 0)
         (set (-> e trace_goal) 0)
         (set (-> e trace_bhc) 0)
@@ -687,7 +689,8 @@
                        (int * ret)) (out int)
         (let ((int rc . 0))
           (set (-> e kcall) g)
-          (if (coco_call_inline e b k)
+          (if (or (coco_call_inline e b k)
+                  (and (== (coco-bar-tag b) 0) (coco-bar-meta (coco_meta_bar_root e k 0 g))))
               (set rc (coco_goal_bad_at e c b))
               (set rc (coco_goal_bad e c "system" "call" arity)))
           (if (== rc 2) (return 1))
@@ -1802,7 +1805,7 @@
                    ;; and its goal no last call of the frame (I_USERCALL),
                    ;; a $/0 in it its own frame's (3.21.0, `coco_det_kq')
                    (let ((size_t mb . #'(coco_meta_bar e (coco_arg m g 0) b k
-                                                       (cast u64 (coco-payload (nth g (-> m heap)))))))
+                                                       (cast u64 (coco-payload (nth g (-> m heap)))) g)))
                      (set (-> e goals) (coco_k_push e (coco_arg m g 0) mb
                                                     (coco_det_kq e (coco_arg m g 0) mb k)))))
 
@@ -1863,7 +1866,8 @@
                      (if (not (coco_push_choice e COCO_CH_CATCH cr kr cb))
                          (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
                      (set mb (coco_meta_bar e (coco_arg m g 0) 0 k
-                                            (cast u64 (coco-payload (nth g (-> m heap))))))
+                                            (cast u64 (coco-payload (nth g (-> m heap))))
+                                            (cast size_t -1)))
                      (set (-> e goals)
                           (coco_k_push e (coco_arg m g 0) mb (coco_det_kq e (coco_arg m g 0) mb kx)))
                      (if (not (coco_goal_ok m (coco_arg m g 0)))
@@ -1945,7 +1949,8 @@
                          ;; the frame call/1's would be (3.1.0), no last call
                          ;; of a guarded frame (3.21.0)
                          (let ((size_t mb . #'(coco_meta_bar e built b k
-                                                             (cast u64 (coco-payload (nth g (-> m heap)))))))
+                                                             (cast u64 (coco-payload (nth g (-> m heap))))
+                                                             g)))
                            (set (-> e goals)
                                 (coco_k_push e built mb (coco_det_kq e built mb k))))))))
 

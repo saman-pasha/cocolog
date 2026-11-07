@@ -109,7 +109,14 @@ a_thread :-
     check('a goal that raises reports error(Message)', G3, tagged),
     written(( thread_create((X4 is 1/0, write(X4)), I4), thread_join(I4, error(M4)),
               ( sub_atom(M4, _, _, _, zero_divisor) -> W4 = named ; W4 = vague ) ), W4, G4),
-    check('and the message names the fault', G4, named).
+    check('and the message names the fault', G4, named),
+    %% A THREAD'S GOAL IS STARTED FROM C, as swipl's thread_create/3 starts
+    %% it: a structure's call/N is a frame of its own, `call/2', where a
+    %% findall/3's would be compiled in place in its `'<meta-call>'/1'
+    %% (3.43.0, test/files/meta_call_root.pl)
+    written(( thread_create((true, call(no_such_pred, a)), I5), thread_join(I5, error(M5)),
+              ( sub_atom(M5, _, _, _, 'context(system:call/2,') -> W5 = call2 ; W5 = M5 ) ), W5, G5),
+    check('a call/N in a thread goal''s structure names call/N', G5, call2).
 
 what_it_sees :-
     section('what a thread can see, and what it cannot'),
