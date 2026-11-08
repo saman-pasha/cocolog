@@ -23,7 +23,7 @@
 
 main :-
     scratch(D),
-    green(D), red(D), thrown(D), missing(D), options_first(D),
+    green(D), red(D), thrown(D), missing(D), options_first(D), hooked(D),
     binary_verdicts,
     shl(['rm -rf ', D]),
     checks_done.
@@ -88,6 +88,37 @@ missing(D) :-
     check('a missing file exits 1', Rc1, 1),
     cocolog_run('-s >/dev/null 2>&1', _, Rc2),
     check('-s with no file exits 1', Rc2, 1).
+
+%% A SCRIPT'S OWN EXPANSION HOOKS ARE ASKED OF ITS CLAUSES (3.49.1), as
+%% `swipl script.pl' asks them: the clauses after a goal_expansion/2 clause
+%% are read with their goals rewritten, and term_expansion/2's terms are
+%% read in the term's place. Through 3.49.0 the script's goal_expansion/2
+%% was never asked: library(yall)'s clause, read at start-up, made the
+%% predicate a library's, and the script, read as a module, gave it only
+%% muted clauses, which counted where a program file gave the first. So
+%% `t :- foo(1).' called foo/1, an unknown procedure, and the run threw.
+hooked(D) :-
+    section('a script''s goal_expansion/2 and term_expansion/2 are asked of it'),
+    atom_concat(D, '/hooked.pl', F),
+    fixture(F, ['goal_expansion(foo(X), bar(X)).',
+                'term_expansion(gen(N), [num(N), num2(N)]).',
+                'bar(X) :- write(bar(X)), nl.',
+                'gen(7).',
+                't :- foo(1).',
+                'main :- t, num(N), num2(M), write(N-M), nl, clause(t, B), write(B), nl.']),
+    sh_join(['-s ', F, ' 2>&1'], Args),
+    cocolog_run(Args, Got, Rc),
+    check('the script proves main', Rc, 0),
+    check('foo(1) was read as bar(1), and gen(7) as its two facts', Got,
+          'bar(1)\n7-7\nbar(1)'),
+    %% and library(yall)'s clause of goal_expansion/2, read at start-up, is
+    %% no hook: counted, every load would ask goal_expansion/2 of every goal
+    atom_concat(D, '/nohook.pl', F2),
+    fixture(F2, ['main :- predicate_property(goal_expansion(_, _), number_of_clauses(N)),',
+                 '        \'$xhooks\'(T, G), write(N-T-G), nl.']),
+    sh_join(['-s ', F2, ' 2>&1'], Args2),
+    cocolog_run(Args2, Got2, _),
+    check('yall''s clause is there, and a script with no hook has none', Got2, '1-0-0').
 
 options_first(D) :-
     section('options before the flag still parse'),

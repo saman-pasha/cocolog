@@ -15801,3 +15801,51 @@ binary's layout.
 
 Narrow cases green: lint, files, string, units, engine, errors, repl,
 trace, library, directives and syntax. Reasoning stays 1.0.27.
+
+## An -s script's and a module's goal_expansion/2, asked of them (3.49.1)
+
+`cocolog -s FILE` did not ask FILE's own goal_expansion/2 of FILE's
+clauses, where `swipl FILE` does, and a file read as a module did not ask
+its own of its clauses either. library(yall)'s clause of goal_expansion/2
+(swipl's `system:goal_expansion/2`, its lambda compiler) is read at
+start-up into the one namespace, so the predicate's first clause was a
+library's; a module's read gave it a muted clause after that, and a muted
+clause counted as a hook only where the predicate's first clause was a
+program file's (`own`). So `t :- foo(1).` after `goal_expansion(foo(X),
+bar(X)).` in a script called foo/1, an unknown procedure, where swipl calls
+bar/1. A consulted file's hook counted, unmuted, and term_expansion/2
+counted any live clause, so `cocolog run` of a file with its hook in it was
+right, and a module read after a consulted hook met it.
+
+- A clause of goal_expansion/2 counts as a hook unless a library's own
+  text gave it: a read under `noexp` (a compiled-in module's text, a
+  preloaded library's) that stores one notes its origin on the store
+  (`xlib`, in `coco_assert_from`), and `coco_xhook_bits` passes over a
+  muted clause of such an origin. yall's clause stays no hook: counted,
+  every load after it would ask goal_expansion/2 of every goal.
+- A module's own hook is asked of its clauses, as swipl's. One
+  namespace's, it is asked of every file read after it too, where swipl
+  asks it of that module's clauses alone (COMPAT.md).
+
+test/files/expand_module.pl, new, holds 4 lines to swipl, byte for byte:
+a module whose own hook rewrites its clauses, read before the program has
+a hook of its own (3.49.0 raises existence_error at its first call), and
+one read after the program's hook, which rewrites it in both. test/
+script.pl's `hooked` section holds the `-s` script: its goal_expansion/2
+and term_expansion/2 asked of it, and a script with no hook asking none
+while yall's clause is there (`'$xhooks'(0, 0)`, three checks).
+
+The arms, one build each over expand_module, expand and script: the clause
+test back to the predicate's `own` red in expand_module and in the script's
+first two checks, and the note left out red in the third (`1-0-1`, yall's
+clause a hook); expand green in both, and the arm of no edit green in all
+three.
+
+The cost: a clause asserted pays one instruction more, `coco_assert_from`
+1 488 over the 1 455 clauses of a start, which counts 14 551 more of
+35 741 877 (+0.04 %), the rest libc's strcmp, memcmp and memset, which move
+with a binary's layout. tools/flow/zero.sh against 3.49.0, the binaries at
+like paths, work less padding: nrev +0, queens +160, lookup +0.
+
+Narrow cases green: lint, files, library, directives, script, reconsult,
+engine, errors, repl, trace, syntax and string. Reasoning stays 1.0.27.

@@ -494,15 +494,19 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   that never settles loops), through the control constructs and the
   system's meta-arguments (`'$expand_meta'`), never of a yall lambda. The
   hooks are asked again after a directive and after a clause of one
-  (`xbits`, `coco_xhook_load`); goal_expansion/2 counts only the program's
-  clauses (`own` or unmuted), so library(yall)'s `system:` clause is no
-  hook. **The expansion's terms live above `mark`**, which moves over
-  them and back after them (`omark`) only where nothing raised it since --
-  a directive's read of a global raises it over the copy (the gcache's
-  fill), and a plain directive's copy outlives its term that way, as it
-  always has: **never set the consult's `mark` back to a value saved
-  before a goal ran** (the first cut did, and `:- nb_getval(K, _).` left
-  the next read a wound-back copy, `nl` where `f([1,2,3,4,5])` stood).
+  (`xbits`, `coco_xhook_load`); goal_expansion/2 counts every clause but
+  those a library's own text gave it (3.49.1, the store's `xlib`, the
+  reads under `noexp` noted by `coco_assert_from`), so library(yall)'s
+  `system:` clause is no hook and an `-s` file's or a module's is --
+  through 3.49.0 a muted clause counted only where the predicate's first
+  was a program file's, and yall's is first. **The expansion's terms
+  live above `mark`**, which moves over them and back after them
+  (`omark`) only where nothing raised it since -- a directive's read of
+  a global raises it over the copy (the gcache's fill), and a plain
+  directive's copy outlives its term that way, as it always has: **never
+  set the consult's `mark` back to a value saved before a goal ran**
+  (the first cut did, and `:- nb_getval(K, _).` left the next read a
+  wound-back copy, `nl` where `f([1,2,3,4,5])` stood).
   The hook's trail entries are dropped to its mark (a global's sentinel
   among them, which would name cells the term's end winds back), and no
   goal of theirs collects (`vouch` 0). **The program's hooks never reach

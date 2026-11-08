@@ -1403,6 +1403,23 @@
                 (set gd (coco_make2 m "," (nth i gs) gd)))
               (return (coco_make2 m "=>" (coco_make2 m "," h gd) body))))))
 
+  ;;; THE READS WHOSE CLAUSES OF goal_expansion/2 ARE NO HOOK (3.49.1,
+  ;;; `xlib' on the store): ORIGIN noted, once, by a library's own text
+  ;;; (`noexp'), and asked of each muted clause by `coco_xhook_bits'
+  (static)
+  (func coco_xlib_note ((coco_store * st) (u64 origin))
+        (for ((int i . 0)) (< i (-> st nxlib)) ((++ i))
+          (if (== (nth i (-> st xlib)) origin) (return)))
+        (if (< (-> st nxlib) 4)
+            (block (set (nth (-> st nxlib) (-> st xlib)) origin)
+                   (set (-> st nxlib) (+ (-> st nxlib) 1)))))
+
+  (static)
+  (func coco_xlib_has ((coco_store * st) (u64 origin)) (out int)
+        (for ((int i . 0)) (< i (-> st nxlib)) ((++ i))
+          (if (== (nth i (-> st xlib)) origin) (return 1)))
+        (return 0))
+
   (func coco_assert_from ((coco_store * st) (coco_machine * m) (size_t clause)
                           (int at_end) (u64 origin) (const char * origin_path)
                           (int at) (coco_origin_seen * seen)) (out int)
@@ -1598,8 +1615,15 @@
             (if (and (or (== 0 (strcmp (coco_atom_name m (coco_name_of m head)) "term_expansion"))
                          (== 0 (strcmp (coco_atom_name m (coco_name_of m head)) "goal_expansion")))
                      (or (== (coco_arity m head) 2) (== (coco_arity m head) 4)))
-                (set ($ (nth pi (-> st preds)) declared)
-                     (bitor ($ (nth pi (-> st preds)) declared) 2)))
+                (block
+                  (set ($ (nth pi (-> st preds)) declared)
+                       (bitor ($ (nth pi (-> st preds)) declared) 2))
+                  ;; a library's own text that gives goal_expansion/2 a
+                  ;; clause gives no hook of the program's (`xlib')
+                  (if (and (-> st noexp)
+                           (and (== (coco_arity m head) 2)
+                                (== 0 (strcmp (coco_atom_name m (coco_name_of m head)) "goal_expansion"))))
+                      (coco_xlib_note st origin))))
             ;; THE PREDICATE IS FETCHED BEFORE THE CLAUSE IS ADDED, and that is
             ;; not an optimisation -- it is what makes `assertz' mean append
             ;; when the predicate lives in a shared store. Marking it loaded
@@ -2607,13 +2631,15 @@
 
   ;;; THE PROGRAM'S EXPANSION HOOKS (3.14.0), what a load and expand_term/2
   ;;; ask before they call one: 1 when term_expansion/2 has a live clause,
-  ;;; 2 when goal_expansion/2 has one of the program's own -- read from a
-  ;;; file of the program (the predicate `own'), or consulted or asserted
-  ;;; unmuted. library(yall)'s `system:goal_expansion/2', in the one
-  ;;; namespace beside a program's, is neither: it is swipl's lambda
-  ;;; expansion, which a plain swipl file never meets (there yall is
-  ;;; autoloaded, not loaded), and it calls prolog_load_context/2, which
-  ;;; cocolog does not have.
+  ;;; 2 when goal_expansion/2 has one no library's own text gave it --
+  ;;; consulted or asserted, or read from any file a load reads, an `-s'
+  ;;; file's and a module's among them (3.49.1: through 3.49.0 a muted
+  ;;; clause counted only where the predicate's first clause was a program
+  ;;; file's, and library(yall)'s comes first, so neither was ever asked).
+  ;;; library(yall)'s `system:goal_expansion/2', in the one namespace beside
+  ;;; a program's, is no hook (`xlib'): it is swipl's lambda expansion,
+  ;;; which a plain swipl file never meets (there yall is autoloaded, not
+  ;;; loaded), and counted, every load after it would ask it of every goal.
   (func coco_xhook_bits ((coco_store * st) (coco_machine * m)) (out int)
         (let ((int bits . 0) (size_t pi . 0) (size_t n . 0) (size_t i . 0))
           (set pi (coco_pred_find st (coco_intern m "term_expansion") 2))
@@ -2631,7 +2657,8 @@
                 (set i 0)
                 (while (< i n)
                   (if (and (not (coco_pred_dead p i))
-                           (or (-> p own) (== (nth i (-> p muted)) 0)))
+                           (or (== (nth i (-> p muted)) 0)
+                               (not (coco_xlib_has st (nth i (-> p origins))))))
                       (block (set bits (bitor bits 2)) break))
                   (set i (+ i 1)))))
           (return bits)))

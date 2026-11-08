@@ -253,6 +253,19 @@ fixtures(vendored, Sandbox) :- !,
                              'vsub.pl'-['vsub(x) => true.'],
                              'vs2.pl'-[':- catch(vs(z), E, print_message(error, E)).'] ]),
            ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
+%% a module whose own goal_expansion/2 rewrites its clauses, and one whose
+%% clause the program's hook rewrites (3.49.1)
+fixtures(expand_module, Sandbox) :- !,
+    forall(member(F-Lines,
+                  [ 'xm.pl'-[':- module(xm, [xm_t/0, xm_body/1]).',
+                             'goal_expansion(xfoo(X), xbar(X)).',
+                             'xbar(X) :- X > 0, format("xbar ~w~n", [X]).',
+                             'xm_t :- xfoo(1), \\+ xfoo(0).',
+                             'xm_body(B) :- clause(xm_t, B).'],
+                    'xu.pl'-[':- module(xu, [xu_t/0, xu_body/1]).',
+                             'xu_t :- ufoo(2).',
+                             'xu_body(B) :- clause(xu_t, B).'] ]),
+           ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
 fixtures(_, _).
 
 %% what makes a file read once a source file, as swipl's, and what leaves it

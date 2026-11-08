@@ -1348,7 +1348,19 @@
     ;; `coco_assert_stored'): it was stored as the compiler kept it, and a
     ;; predicate read whose dynamic declaration comes after its rows would
     ;; have its first row's unifications moved into the head a second time.
-    (member int       nomove))
+    (member int       nomove)
+    ;; THE ORIGINS OF THE CLAUSES OF goal_expansion/2 A LIBRARY'S OWN TEXT
+    ;; GAVE (3.49.1): each read under `noexp' that gave it one --
+    ;; library(yall)'s, swipl's lambda expansion -- noted by
+    ;; `coco_assert_from', so that `coco_xhook_bits' counts every other
+    ;; clause, whoever gave the predicate its first: through 3.49.0 a muted
+    ;; clause counted only where the predicate's first clause was a
+    ;; program file's, and yall's came first, so an `-s' file's hook or a
+    ;; module's was never asked. Four at most; past them a clause counts,
+    ;; which costs each later load its expansion pass and moves no answer.
+    ;; Appended.
+    (member u64       xlib [4])
+    (member int       nxlib))
 
   (decl) (func coco_store_init ((coco_store * st)))
   (decl) (func coco_store_free ((coco_store * st)))
