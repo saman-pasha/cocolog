@@ -3157,8 +3157,11 @@
                                           (== (-> f pserial) (-> st serial)))
                                      (-> f pidx)
                                      (coco_pred_find st (-> f name) (-> f arity)))))
+                ;; a predicate whose meta spec names a module keeps its
+                ;; own, a module_transparent/1 after the spec too (3.48.2)
                 (if (and (< i (-> st npreds))
-                         (== (bitand ($ (nth i (-> st preds)) pattrs) 4) 0))
+                         (or (== (bitand ($ (nth i (-> st preds)) pattrs) 4) 0)
+                             (coco_meta_spec_module ($ (nth i (-> st preds)) pmeta))))
                     (return (? (!= ($ (nth i (-> st preds)) pmod) 0)
                                (- ($ (nth i (-> st preds)) pmod) 1)
                                user)))))

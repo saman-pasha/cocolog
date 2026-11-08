@@ -15629,3 +15629,65 @@ library, flowchart (library(flow/chart)'s tables name `'$sub_string_same'/2`
 and lose the two), engine, repl, directives, errors, trace, reason,
 normalise and translate, and lesson library 46, which calls sub_string/5.
 The card's cites hold (X3's moved a line).
+
+## listing/1's meta_predicate lines, and transparency as the spec says (3.48.2)
+
+listing/1 wrote no `:- meta_predicate` declaration through 3.48.1: a
+listing of a meta-predicate, read back, lost what made it one. It writes
+swipl 9.0.4's library(listing) declarations now (`coco_listing_pred` in
+lib/solve-db.cicili): after the thread_local, dynamic, volatile, multifile
+and public lines, the spec predicate_property/2 answers
+(`coco_meta_spec_term`, moved there from lib/builtins-db.cicili), with the
+predicate's module before it where the listing is not that module's
+(`:- meta_predicate lmq:lmq_p(0).` from user, `lmq_p(0)` from lmq), then a
+module_transparent line unless the spec names a module (an argument 0 to
+9, `:`, `^` or `//`: swipl's meta_implies_transparent/1), and the blank
+line after a declaration that stands alone. A predicate a
+meta_predicate/1 or a module_transparent/1 alone declared is none to
+listing/1, as swipl's (existence_error).
+
+The spec is kept as swipl's meta_declaration() keeps it
+(`coco_pred_meta_note` in lib/kb-pred.cicili): `*` is `?`
+(`meta_predicate mq2(+,-,?)`, where 3.48.1 answered `*`), and the
+predicate is transparent as its spec says, a module_transparent/1 before
+the spec taken away, one after it standing (through 3.48.1 kept, so
+`:- module_transparent b2/1. :- meta_predicate b2(?).` was transparent,
+which swipl's is not). Every reader of transparency asks the spec as
+predicate_property/2's transparent did (`coco_meta_spec_module`, moved to
+lib/kb-pred.cicili): a last call under `$/0` drops its guard into a
+predicate whose spec names a module (`coco_det_transparent`, as swipl's
+I_DEPART: through 3.48.1 `meta_predicate dg_p(0)` carried the guard into
+dg_p and `g_p :- $, dg_p(member(_, [1, 2])).` raised
+determinism_error(dg_p/1, det, nondet, guard_in_caller), where swipl's
+succeeds); and such a predicate's clauses make their meta calls in its own
+module, a module_transparent/1 after the spec notwithstanding
+(`coco_meta_ctx`, as swipl's frame keeps its definition's module: through
+3.48.1 the caller's, user's, which a predicate module_transparent/1 alone
+made transparent still takes). The first cut, which took the earlier
+module_transparent/1 away and asked the bit alone, carried the guard into
+`:- module_transparent dg_b/1. :- meta_predicate dg_b(0).`, which 3.48.1
+dropped: found by a probe of each reader of the bit (`pattrs` 4) against
+swipl before the case was done.
+
+test/files/listing_meta.pl, new: 176 lines, swipl 9.0.4's byte for byte
+(3.48.1 differs at 47), its module lmq.pl the runner's fixture. THE ARMS,
+one build each, red in it and green in listing_spec, meta_args, meta_goal,
+predicate_property and det_guard: the meta line (C01), its module (C02),
+the module_transparent line it hides (C03), the blank line after it
+(C04), `*` as `?` (C05), the earlier module_transparent/1 taken away
+(C06), the meta call's module kept by a spec that names one (C07), the
+guard a last call drops (C08); the arm of no edit green, on the first code
+and on the last. tools/flow/zero.sh against 3.48.1, work less padding:
+nrev 66 132 203 and 66 132 331, queens 40 253 916 and 40 254 111, lookup
+48 028 375 and 48 040 066 -- all of lookup's +11 691 libc's memcmp
+(+9 036) and memset (+2 048), no function of cocolog's moving by 200. A
+start (`cocolog query true`, each binary from the checkout root) is
+35 736 535 instructions and 35 738 696 (+2 161: the `*` test's strcmp for
+each atom argument of the preloaded libraries' meta specs, less the
+strpbrk the loop replaced; from the scratchpad, through its symlinks, the
+3.48.1 copy counted 30 949 more, realpath's and strcmp's). The card's I1
+cite, whose anchor repeats, and five moved anchors are brought to their
+lines. Narrow cases green, each alone on the binary as committed: lint,
+files (132 cases), repl, engine, errors, reconsult, directives, trace,
+library, reason, normalise and translate, and the lessons that list or
+declare, basics 10 and 11 and library 03 and 37.

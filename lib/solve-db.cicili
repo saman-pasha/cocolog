@@ -1495,6 +1495,31 @@
 
   ;;; ---- listing ------------------------------------------------------------
 
+  ;;; META_PREDICATE(Spec)'s Spec: NID of the arguments SPEC writes, a
+  ;;; character each (a digit, `/' for `//', or the atom of the character)
+  ;;; -- predicate_property/2's (lib/builtins-db.cicili) and listing/1's
+  (static)
+  (func coco_meta_spec_term ((coco_machine * m) (u64 nid) (const char * spec)) (out size_t)
+        (let ((size_t k . #'(strlen spec)) (size_t * a . nil) (size_t t . 0))
+          ;; a head of no arguments, `meta_predicate zero' (3.46.0)
+          (if (== k 0) (return (coco_new_atom_id m nid)))
+          (set a (cast (size_t *) (malloc (* (+ k 1) (sizeof size_t)))))
+          (if (== a nil) (return (coco_new_atom_id m nid)))
+          (for ((size_t i . 0)) (< i k) ((++ i))
+            (let ((int ch . #'(cast int (nth i spec))) (char one [2]))
+              (cond
+                ((and (>= ch 48) (<= ch 57)) (set (nth i a) (coco_new_int m (cast i64 (- ch 48)))))
+                ((== ch 47) (set (nth i a) (coco_new_atom m "//")))
+                (#t (block (set (nth 0 one) (cast char ch)) (set (nth 1 one) (cast char 0))
+                           (set (nth i a) (coco_new_atom m one)))))))
+          (set t (coco_make m (coco_atom_name m nid) (cast u32 k) a))
+          (free a)
+          (return t)))
+
+  ;;; (Whether the spec makes the predicate transparent is
+  ;;; `coco_meta_spec_module' in lib/kb-pred.cicili, which the step's
+  ;;; readers of transparency ask too.)
+
   ;;; A DECLARATION'S LINE, as swipl's write_declarations/2 writes it,
   ;;; `format(':- ~q.~n', [Decl])' (3.37.0): the indicator quoted as
   ;;; writeq/1 quotes it, so `:- dynamic'z q'/1.' and `:- dynamic
@@ -1576,8 +1601,10 @@
 
             ;; THE DECLARATIONS FIRST, one line each and a blank line after
             ;; them, in swipl's order: thread_local, dynamic, volatile,
-            ;; multifile, public, then module_transparent. A discontiguous
-            ;; declaration it never writes.
+            ;; multifile, public, meta_predicate (3.48.2: through 3.48.1
+            ;; none), then module_transparent, which a meta spec that makes
+            ;; the predicate transparent hides, as swipl's declaration/3
+            ;; does. A discontiguous declaration it never writes.
             (set pit (coco_make2 m "/" (coco_new_atom_id m (-> p name))
                                  (coco_new_int m (cast i64 (-> p arity)))))
             (if mod (set pit (coco_make2 m ":" (coco_new_atom_id m (- mod 1)) pit)))
@@ -1597,8 +1624,15 @@
             (if (bitand pat 2) (coco_listing_decl m "volatile" pit))
             (if (bitand dcl 2) (coco_listing_decl m "multifile" pit))
             (if (bitand pat 1) (coco_listing_decl m "public" pit))
-            (if (bitand pat 4) (coco_listing_decl m "module_transparent" pit))
-            (if (or dyn (or (bitand dcl 2) (bitand pat 15)))
+            ;; the spec with the predicate's module where its clauses
+            ;; carry one, swipl's `lmm:lp(0)'
+            (if (!= (-> p pmeta) nil)
+                (let ((size_t mh . #'(coco_meta_spec_term m (-> p name) (-> p pmeta))))
+                  (if mod (set mh (coco_make2 m ":" (coco_new_atom_id m (- mod 1)) mh)))
+                  (coco_listing_decl m "meta_predicate" mh)))
+            (if (and (bitand pat 4) (not (coco_meta_spec_module (-> p pmeta))))
+                (coco_listing_decl m "module_transparent" pit))
+            (if (or dyn (or (bitand dcl 2) (or (bitand pat 15) (!= (-> p pmeta) nil))))
                 (coco_out_puts stdout "\n"))
             (set (-> m heap_len) hmark)
 

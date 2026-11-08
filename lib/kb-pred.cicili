@@ -928,6 +928,23 @@
   (func coco_pred_meta_q ((coco_store * st) (size_t pi)) (out int)
         (return (!= (bitand ($ (nth pi (-> st preds)) pattrs) 512) 0)))
 
+  ;;; WHETHER A META ARGUMENT OF SPEC IS ONE A MODULE IS GIVEN TO: a digit,
+  ;;; `:', `^' or `//' (`/'), the declaration making the predicate
+  ;;; transparent, as swipl's meta_declaration() makes it (3.48.2):
+  ;;; predicate_property/2's transparent, listing/1's hidden
+  ;;; `:- module_transparent' line, the `$/0' guard a last call drops
+  ;;; (`coco_det_transparent') -- and its own module the one its clauses'
+  ;;; meta calls are made in, a module_transparent/1 after it
+  ;;; notwithstanding (`coco_meta_ctx'), as swipl's frame keeps it
+  (static)
+  (func coco_meta_spec_module ((const char * spec)) (out int)
+        (if (== spec nil) (return 0))
+        (for ((size_t i . 0)) (!= (nth i spec) (cast char 0)) ((++ i))
+          (let ((int ch . #'(cast int (nth i spec))))
+            (if (or (and (>= ch 48) (<= ch 57)) (or (== ch 58) (or (== ch 94) (== ch 47))))
+                (return 1))))
+        (return 0))
+
   ;;; A META_PREDICATE DECLARATION'S SPECS NOTED (3.41.0), for
   ;;; predicate_property/2's meta_predicate(Spec) and transparent: each
   ;;; Name(Arg, ...) of a conjunction, under its qualifiers, its
@@ -939,6 +956,9 @@
   ;;; list's own predicate's (`[:|+]', 3.48.0), as swipl's meta_predicate/1
   ;;; reads it and as `coco_pred_meta_check' walks it: through 3.47.0 its
   ;;; elements were noted, each a head, and `[:|+]' declared (:)/0 and (+)/0.
+  ;;; As swipl keeps a spec (3.48.2), `*' is `?', and the predicate is
+  ;;; transparent as its arguments say: an earlier module_transparent/1
+  ;;; is taken away (`pattrs' 4), a later one stands.
   (static)
   (func coco_pred_meta_note ((coco_store * st) (coco_machine * m) (size_t t))
         (set t (coco_deref m t))
@@ -964,7 +984,9 @@
                    (cond
                      ;; `//' is `/'
                      ((== 0 (strcmp an "//")) (set ch 47))
-                     ((and (== (strlen an) 1) (!= (strchr ":^?+-*" (nth 0 an)) nil))
+                     ;; `*' is `?', as swipl keeps it (3.48.2)
+                     ((== 0 (strcmp an "*")) (set ch 63))
+                     ((and (== (strlen an) 1) (!= (strchr ":^?+-" (nth 0 an)) nil))
                       (set ch (nth 0 an)))
                      (#t (block)))))
                 (#t (block)))
@@ -975,6 +997,12 @@
           (if (>= pi (-> st npreds)) (block (free s) (return)))
           (free ($ (nth pi (-> st preds)) pmeta))
           (set ($ (nth pi (-> st preds)) pmeta) s)
+          ;; TRANSPARENT AS THE SPEC SAYS (3.48.2), swipl's
+          ;; meta_declaration(), which sets the predicate's transparency
+          ;; from its arguments alone: a module_transparent/1 before it is
+          ;; gone, one after it sets it again (through 3.48.1 kept)
+          (set ($ (nth pi (-> st preds)) pattrs)
+               (- ($ (nth pi (-> st preds)) pattrs) (bitand ($ (nth pi (-> st preds)) pattrs) 4)))
           ;; THE STEP QUALIFIES AS THE DECLARATION STOOD AT THE PREDICATE'S
           ;; FIRST CALL (3.46.0), as swipl 9.0.4's, whose first call builds
           ;; the code that calls it and keeps it till abolish/1: before a
@@ -990,7 +1018,7 @@
                 (set ($ (nth pi (-> st preds)) pmq) q)
                 (set ($ (nth pi (-> st preds)) pattrs)
                      (- ($ (nth pi (-> st preds)) pattrs) (bitand ($ (nth pi (-> st preds)) pattrs) 512)))
-                (if (and (!= q nil) (!= (strpbrk q "0123456789:^/") nil))
+                (if (and (!= q nil) (coco_meta_spec_module q))
                     (block
                       (set ($ (nth pi (-> st preds)) pattrs) (bitor ($ (nth pi (-> st preds)) pattrs) 512))
                       ;; AND THE STAMP ITS FUNCTOR TOOK WHILE IT WAS PLAIN

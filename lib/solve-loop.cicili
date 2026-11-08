@@ -1496,13 +1496,16 @@
   (coco-emit-det-table coco_det_foreign_name *swipl-foreign*)
 
   ;;; whether the predicate NID/N a last call reaches is transparent:
-  ;;; swipl's, or the program's (module_transparent/1, meta_predicate/1:
-  ;;; `pattrs' 4) where PI names it in the store
+  ;;; swipl's, or the program's where PI names it in the store -- its
+  ;;; module_transparent/1 (`pattrs' 4), or a meta spec that names a module,
+  ;;; as swipl's meta_declaration() makes it (3.48.2: through 3.48.1 the
+  ;;; bit alone, and `meta_predicate p(0)' carried the guard into p)
   (weak) (cold)
   (func coco_det_transparent ((coco_engine * e) (u64 nid) (u32 n) (size_t pi)) (out int)
         (if (coco_det_transparent_name (coco_atom_name (-> e m) nid) n) (return 1))
         (if (< pi ($ (cof (-> e st)) npreds))
-            (return (!= (bitand ($ (nth pi ($ (cof (-> e st)) preds)) pattrs) 4) 0)))
+            (return (or (!= (bitand ($ (nth pi ($ (cof (-> e st)) preds)) pattrs) 4) 0)
+                        (coco_meta_spec_module ($ (nth pi ($ (cof (-> e st)) preds)) pmeta)))))
         (return 0))
 
   ;;; A BUILTIN THAT FAILED AS THE INNERMOST GUARDED FRAME'S LAST CALL (K

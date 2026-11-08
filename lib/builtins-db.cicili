@@ -615,36 +615,10 @@
   ;;; `.so' is not answered: its dispatcher is all that knows its names, and
   ;;; asking it is calling it.
 
-  ;;; META_PREDICATE(Spec)'s Spec: NID of the arguments SPEC writes, a
-  ;;; character each (a digit, `/' for `//', or the atom of the character)
-  (static)
-  (func coco_b_meta_term ((coco_machine * m) (u64 nid) (const char * spec)) (out size_t)
-        (let ((size_t k . #'(strlen spec)) (size_t * a . nil) (size_t t . 0))
-          ;; a head of no arguments, `meta_predicate zero' (3.46.0)
-          (if (== k 0) (return (coco_new_atom_id m nid)))
-          (set a (cast (size_t *) (malloc (* (+ k 1) (sizeof size_t)))))
-          (if (== a nil) (return (coco_new_atom_id m nid)))
-          (for ((size_t i . 0)) (< i k) ((++ i))
-            (let ((int ch . #'(cast int (nth i spec))) (char one [2]))
-              (cond
-                ((and (>= ch 48) (<= ch 57)) (set (nth i a) (coco_new_int m (cast i64 (- ch 48)))))
-                ((== ch 47) (set (nth i a) (coco_new_atom m "//")))
-                (#t (block (set (nth 0 one) (cast char ch)) (set (nth 1 one) (cast char 0))
-                           (set (nth i a) (coco_new_atom m one)))))))
-          (set t (coco_make m (coco_atom_name m nid) (cast u32 k) a))
-          (free a)
-          (return t)))
-
-  ;;; Whether a meta argument of SPEC is one a module is given to: a digit,
-  ;;; `:', `^' or `//', the declaration making the predicate transparent
-  (static)
-  (func coco_b_meta_module ((const char * spec)) (out int)
-        (if (== spec nil) (return 0))
-        (for ((size_t i . 0)) (!= (nth i spec) (cast char 0)) ((++ i))
-          (let ((int ch . #'(cast int (nth i spec))))
-            (if (or (and (>= ch 48) (<= ch 57)) (or (== ch 58) (or (== ch 94) (== ch 47))))
-                (return 1))))
-        (return 0))
+  ;;; (META_PREDICATE(Spec)'s Spec and whether it makes the predicate
+  ;;; transparent are the engine's since 3.48.2: `coco_meta_spec_term' in
+  ;;; lib/solve-db.cicili, which listing/1 writes from too, and
+  ;;; `coco_meta_spec_module' in lib/kb-pred.cicili.)
 
   ;;; WHETHER THE PROGRAM GAVE P A CLAUSE OF ITS OWN: a live one no module's
   ;;; read put there (`muted' 0) -- consulted or asserted beside a library's
@@ -752,12 +726,12 @@
                        (++ n))))
           ;; what the table says, else what the declarations said
           (if (? sw (bitand fl 4)
-                 (and (!= p nil) (or (bitand (-> p pattrs) 4) (coco_b_meta_module (-> p pmeta)))))
+                 (and (!= p nil) (or (bitand (-> p pattrs) 4) (coco_meta_spec_module (-> p pmeta)))))
               (coco-pp-add "transparent"))
           (if (and sw (!= (nth 0 spec) (cast char 0)))
-              (block (set (nth n v) (coco_make1 m "meta_predicate" (coco_b_meta_term m nid spec))) (++ n))
+              (block (set (nth n v) (coco_make1 m "meta_predicate" (coco_meta_spec_term m nid spec))) (++ n))
             (if (and (not sw) (!= p nil) (!= (-> p pmeta) nil))
-                (block (set (nth n v) (coco_make1 m "meta_predicate" (coco_b_meta_term m nid (-> p pmeta))))
+                (block (set (nth n v) (coco_make1 m "meta_predicate" (coco_meta_spec_term m nid (-> p pmeta))))
                        (++ n))))
           ;; where its first clause a file read stands: none for a library
           ;; compiled into cocolog, whose text was read from no file

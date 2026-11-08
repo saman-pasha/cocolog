@@ -1543,12 +1543,24 @@ cocolint index offers no import of it.
   predicate's (3.48.0, `coco_pred_meta_note`, as the check walks it):
   through 3.47.0 the note took its elements for heads, and `[:|+]`
   declared (:)/0 and (+)/0. A head
-  of no arguments is noted too (`meta_predicate zero`, the atom). M is
+  of no arguments is noted too (`meta_predicate zero`, the atom). **A
+  spec is kept as swipl's meta_declaration() keeps it** (3.48.2,
+  test/files/listing_meta.pl): `*` is `?`, and the predicate is
+  transparent as its spec says, a module_transparent/1 before it taken
+  away (`pattrs` 4), one after it standing; and **a spec that names a
+  module** (`coco_meta_spec_module` in lib/kb-pred.cicili: 0 to 9, `:`,
+  `^`, `//`) **is a transparent predicate's to every reader of
+  transparency**: predicate_property/2, listing/1, which then writes no
+  `:- module_transparent` line, and a last call under `$/0`, which drops
+  its guard into it (`coco_det_transparent`) -- a new reader of `pattrs` 4
+  as transparency asks the spec too. M is
   the module/2 read's that defined the clause the call
   is written in (`pmod`; user for a program's clause, a meta-predicate's
   own clause its own module's, as swipl's), the read under way's
   (`ssu_mod`) where no clause is the goal's -- a directive's, a search's
-  -- or the clause is a module_transparent/1 predicate's, else user; and
+  -- or the clause is a module_transparent/1 predicate's whose spec names
+  no module (3.48.2: a spec that does keeps its own, as swipl's frame
+  does), else user; and
   `M:G` qualifies with M (`coco_colon`, so call/N of a closure `M:C` too).
   The step qualifies on its slow path, after the Call port, as swipl's
   ports show it (Call `p(foo)`, Exit `p(user:foo)`), out of line
@@ -2315,8 +2327,16 @@ cocolint index offers no import of it.
   the listing's -- `lsm:mp(1).`, and `user:yy(a, b).` where the listing is
   lsm's -- and none under a variable context, the system's `%   Foreign:`
   line's too; a module/2 read's declaration names the module (`coco_decl_pi`
-  notes `pmod` where a first clause would). test/files/listing_spec.pl holds
-  478 lines to swipl, test/repl.pl listing/0's blank line and tty_size/2,
+  notes `pmod` where a first clause would). **The declarations are
+  swipl's, in its order** (`coco_listing_pred`): thread_local, dynamic,
+  volatile, multifile, public, since 3.48.2 meta_predicate -- its spec
+  predicate_property/2's (`coco_meta_spec_term`), the module before it
+  where the listing is not the predicate's (`:- meta_predicate
+  lmq:lmq_p(0).`) -- then module_transparent, which a spec that names a
+  module hides (swipl's meta_implies_transparent/1), and a blank line
+  after them; never discontiguous. test/files/listing_spec.pl holds
+  478 lines to swipl, test/files/listing_meta.pl 176 of the declarations,
+  test/repl.pl listing/0's blank line and tty_size/2,
   test/reconsult.pl's `listed` the second process.
 * **A global is found by a hash of its name (1.9.4), copied AS ITS BLOCK,
   and a GROUND one's copy handed out shared while it lives (1.12.1)**

@@ -212,6 +212,21 @@ fixtures(listing_spec, Sandbox) :- !,
                 'mp(1).', 'mp(2) :- md(2).']),
     atom_concat(Sandbox, '/lsn.pl', N),
     fixture(N, [':- module(lsn, [np/1]).', 'np(1).']).
+%% the module whose meta specs listing/1 writes with its name, and whose
+%% predicates' own meta calls take the module their transparency says (3.48.2)
+fixtures(listing_meta, Sandbox) :- !,
+    atom_concat(Sandbox, '/lmq.pl', M),
+    fixture(M, [':- module(lmq, [lmq_p/1, lmq_s/1, lx_p/1, lx_t/1, lx_b/1, lx_c/1, lx_a/1, lx_d/1, lx_e/1]).',
+                ':- meta_predicate lmq_p(0), lmq_s(+).',
+                'lmq_p(A) :- call(A).', 'lmq_s(_).',
+                ':- meta_predicate lx_show(0).', 'lx_show(A) :- print(A), nl.',
+                ':- meta_predicate lx_p(0).', 'lx_p(_) :- lx_show(here).',
+                ':- module_transparent lx_t/1.', 'lx_t(_) :- lx_show(here).',
+                ':- module_transparent lx_b/1.', ':- meta_predicate lx_b(0).', 'lx_b(_) :- lx_show(here).',
+                ':- meta_predicate lx_c(?).', 'lx_c(_) :- lx_show(here).',
+                ':- module_transparent lx_a/1.', ':- meta_predicate lx_a(?).', 'lx_a(_) :- lx_show(here).',
+                ':- meta_predicate lx_d(?).', ':- module_transparent lx_d/1.', 'lx_d(_) :- lx_show(here).',
+                ':- meta_predicate lx_e(0).', ':- module_transparent lx_e/1.', 'lx_e(_) :- lx_show(here).']).
 %% a module of the program's; a multifile predicate's two files; a file read
 %% again in each of its versions (pc.v2.pl moves the first clause down,
 %% pc.v3.pl defines it no more), which the case renames in its place; and
