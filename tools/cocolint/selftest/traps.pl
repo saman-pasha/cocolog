@@ -92,12 +92,12 @@ selftest_main :-
     %% syntax errors that refused the whole file. The reader takes every
     %% one of them since 3.1.0, as swipl's does, and the row is retired.
 
-    %% ---- H1 IS NOT A PATTERN ANY MORE, and this is where it was --------
+    %% ---- H1 IS GONE, and this is where it was ---------------------------
     %% It fired on every halt, saying a proof that halts reports no solution
     %% and exits 1. The CLI reads a halt as the program's answer, so a halt
-    %% here is SWI's; what is left of the trap is a halt inside a nested
-    %% search, which no textual pattern can see, and the row is a PROMPT,
-    %% carried to the agent rather than matched.
+    %% here was SWI's, and the row became a PROMPT for what was left: a halt
+    %% inside a nested search ended only that search. Since 3.57.0 that
+    %% halt is the process's too, as swipl's, and the row is retired.
     true.
 
 selftest_g(1).

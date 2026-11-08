@@ -225,11 +225,12 @@ t37_where :-
     must('every match, in order', Offsets, [0, 3, 6]),
 
     format("~n   A WORD BOUNDARY IS A CHANGE, not a character. `halt' fires;~n"),
-    format("   `ahalt' and `halted' do not. Card row H1 was this pattern once~n"),
-    format("   and is a row without one now: a halt at the top of a proof is~n"),
-    format("   SWI's, and the halt that misbehaves -- inside a findall or a~n"),
-    format("   forall, where it ends only that search -- is a matter of~n"),
-    format("   NESTING, which no pattern over the text can see.~n"),
+    format("   `ahalt' and `halted' do not. Card row H1 was this pattern once,~n"),
+    format("   then a row without one: a halt at the top of a proof was SWI's,~n"),
+    format("   and one inside a findall or a forall ended only that search --~n"),
+    format("   a matter of NESTING, which no pattern over the text can see.~n"),
+    format("   Since 3.57.0 that halt ends the process too, as SWI's, and the~n"),
+    format("   row is retired.~n"),
     ( cl_match(seq([bstart, lit(halt), bend]), "x halt y", OffH, _)
     -> true ; OffH = none ),
     must('halt, at a boundary', OffH, 2),
@@ -275,12 +276,12 @@ t37_card :-
     read_file_to_codes('tools/cocolint/traps.jsonl', TrapCodes),
     t37_rows(TrapCodes, Rows),
     length(Rows, NRows),
-    must('rows in the card', NRows, 25),
+    must('rows in the card', NRows, 24),
     findall(Id, ( member(R, Rows), t37_field(R, id, Id) ), Ids),
     sort(Ids, SortedIds),
     length(SortedIds, NIds),
-    must('every id distinct', NIds, 25),
-    %% SIX OF THE TWENTY-FIVE CARRY A PATTERN, and the gap is the point
+    must('every id distinct', NIds, 24),
+    %% SIX OF THE TWENTY-FOUR CARRY A PATTERN, and the gap is the point
     %% of the card: a row documents a divergence, and only some divergences
     %% are things a linter can SEE in a source file. `X3' can be matched --
     %% a predicate cocolog leaves out on purpose is right there in the text
@@ -309,7 +310,9 @@ t37_card :-
     %% where it refused the three by name. And twenty-six until 3.52.0, when
     %% G1 went with its pattern: b_setval/2 is swipl's, its value the term
     %% itself and taken back by backtracking, where it was nb_setval/2 under
-    %% another name.)
+    %% another name. And twenty-five until 3.57.0, when H1 went: a halt
+    %% inside a findall/3 or a forall/2 ends the process, as swipl's, where
+    %% it ended only that search.)
     %%
     %% IT WAS SEVENTEEN, AND THE STRING TYPE TOOK TWO OF THEM. Row X1 said
     %% the string predicates did not exist and flagged every call to one;
@@ -326,11 +329,12 @@ t37_card :-
     %% H1 LOST ITS PATTERN BY BEING WRONG ABOUT WHERE THE TRAP WAS. It fired
     %% on every halt, saying a proof that halts exits 1 silently; the CLI
     %% reads a halt as the program's answer, so at the top of a proof it is
-    %% SWI's, and the pattern flagged correct code. What is true is a halt
+    %% SWI's, and the pattern flagged correct code. What was true was a halt
     %% inside a nested search, which no text pattern can see, so the row
     %% stayed and the pattern went -- and H2 came with it: under -s the file
     %% is a module whose load is muted, so SWI's older idiom,
-    %% `:- initialization(main).' with a halt in main, writes nothing.
+    %% `:- initialization(main).' with a halt in main, writes nothing. The
+    %% row went too at 3.57.0, when a halt in a nested search became swipl's.
     findall(P, ( member(R, Rows), t37_field(R, pattern, P) ), Pats),
     length(Pats, NPats),
     must('rows carrying an S1 pattern term', NPats, 6),

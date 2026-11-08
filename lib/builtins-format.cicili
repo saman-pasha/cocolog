@@ -826,9 +826,11 @@
   ;;;
   ;;; Answers 1, the goal succeeded; 0, it failed; 2, it threw, the ball in
   ;;; BL for the caller to raise again; -1, the run ended with no ball; 3,
-  ;;; the capture went wrong, *WHY saying how; 4, memory was refused.
-  ;;; Whatever the goal wrote -- before it failed or threw too -- is put in
-  ;;; OUT, and fd 1 is the console's again whatever the answer.
+  ;;; the capture went wrong, *WHY saying how; 4, memory was refused; 5, the
+  ;;; goal halted, or a cleanup its cut ran did, and E stops at its next
+  ;;; step (3.57.0, `coco_halt_up'). Whatever the goal wrote -- before it
+  ;;; failed, threw or halted too -- is put in OUT, and fd 1 is the
+  ;;; console's again whatever the answer.
   (static)
   (func coco_out_capture_run ((coco_engine * e) (size_t goal) (size_t * hold) (size_t nhold)
                               (int keep) (int nodebug) (coco_strbuf * out) (coco_fmt_ball * bl)
@@ -895,6 +897,8 @@
           ;; one solution, and what the goal left is cut while the output is
           ;; still captured: a cleanup's output goes in the text (3.1.0)
           (if (== rc 1) (coco_engine_cut (aof sub)))
+          ;; a halt in the goal or in that cleanup is the process's (3.57.0)
+          (if (coco_halt_up e (aof sub)) (set ans 5))
           (set tmark ($ sub ptrail))
           (set hmark ($ sub pheap))
           (coco_engine_free (aof sub))
@@ -1019,9 +1023,11 @@
             (coco_sb_free (aof out))
             (if (== rc 1) (return 1))
             (if (== rc 0) (return 0))
-            ;; it threw (1), ended the run with no ball (2), or no capture
-            ;; could be made (3): the write stops here
-            (set (-> m wpstate) (? (== rc 2) 1 (? (== rc -1) 2 3)))
+            ;; it threw (1), ended the run with no ball (2), no capture could
+            ;; be made (3), or it halted (5, 3.57.0, the engine stopping at
+            ;; its next step): the write stops here, its text kept, as
+            ;; swipl's portray goal writes into the write's own stream
+            (set (-> m wpstate) (? (== rc 2) 1 (? (== rc -1) 2 (? (== rc 5) 5 3))))
             (if (== rc 2)
                 (block (set (-> m wpb_cell) ($ bl cell)) (set (-> m wpb_size) ($ bl size))
                        (set (-> m wpb_st) ($ bl st)) (set (-> m wpb_mark) ($ bl mark))))
@@ -1032,8 +1038,8 @@
 
   ;;; What a portrayed write left for its builtin (3.54.0): 0 nothing, 1 a
   ;;; ball (moved to BL, for `coco_fmt_rethrow'), 2 the run ended, 3 no
-  ;;; capture could be made, 4 the goals nested too deep; the machine's
-  ;;; state cleared
+  ;;; capture could be made, 4 the goals nested too deep, 5 a goal halted
+  ;;; (3.57.0); the machine's state cleared
   (static)
   (func coco_portray_take ((coco_machine * m) (coco_fmt_ball * bl)) (out int)
         (let ((int s . #'(-> m wpstate)))
@@ -1044,24 +1050,28 @@
           (return s)))
 
   ;;; ... AND FORMAT'S END FOR IT (3.54.0): a ball raised again as a `~@'
-  ;;; goal's is (kind 10), a run that ended as one that ended (11), and no
-  ;;; capture as no capture (12), each with what came before put out
+  ;;; goal's is (kind 10), a run that ended as one that ended (11), no
+  ;;; capture as no capture (12), and a halt as a `~@' goal's (14, 3.57.0),
+  ;;; each with what came before put out
   (static)
   (func coco_fmt_portray_fail ((coco_machine * m) (coco_fmt_ball * ball) (char * err)
                                (size_t errlen) (int * fkind)) (out int)
         (let ((int s . #'(coco_portray_take m ball)))
-          (return (coco_fmt_fail err errlen fkind (? (== s 1) 10 (? (== s 2) 11 (? (== s 4) 13 12)))
+          (return (coco_fmt_fail err errlen fkind
+                                 (? (== s 1) 10 (? (== s 2) 11 (? (== s 4) 13 (? (== s 5) 14 12))))
                                  (? (== s 3) "cannot capture a portray goal's output" "")))))
 
   ;;; ... AND A WRITE BUILTIN'S, print/1's and write_term/2's (3.54.0), once
   ;;; it has put out what came before: the ball raised again in its engine,
-  ;;; where the catch frames are, a run that ended ended
+  ;;; where the catch frames are, a run that ended ended, a halt the
+  ;;; engine's to stop at (3.57.0)
   (static)
   (func coco_portray_after ((coco_engine * e)) (out int)
         (let ((coco_fmt_ball bl) (int s . #'(coco_portray_take (coco_m_machine e) (aof bl))))
           (if (== s 0) (return 1))
           (if (== s 1) (return (coco_fmt_rethrow e (aof bl))))
           (if (== s 2) (return -1))
+          (if (== s 5) (return 2))
           (if (== s 4) (return (coco_m_resource_error e "portray_nesting")))
           (return (coco_m_error e "print/1" "cannot capture a portray goal's output"))))
 
@@ -1251,7 +1261,11 @@
                     (if (not wdirect)
                         (block (set (-> o len) wfrom)
                                (if (!= (-> o s) nil) (set (nth wfrom (-> o s)) (cast char 0)))))
-                    (return (coco_fmt_fail err errlen fkind (? (== grc 0) 9 (? (== grc 2) 10 11)) ""))))
+                    ;; a goal that halted (3.57.0) leaves the text a failure
+                    ;; leaves, as swipl's does, and the format ends there
+                    (return (coco_fmt_fail err errlen fkind
+                                           (? (== grc 0) 9 (? (== grc 2) 10 (? (== grc 5) 14 11)))
+                                           ""))))
               ;; 87 `~W': write_term/2 of two arguments
               (if (== d 87)
                   (let ((size_t a . 0) (size_t opts . 0))
@@ -1668,6 +1682,9 @@
                (if (== fkind 9) (return 0))
                (if (== fkind 10) (return (coco_fmt_rethrow e (aof ball))))
                (if (== fkind 11) (return -1))
+               ;; a `~@' or portray goal halted (3.57.0): the engine stops
+               ;; at its next step, the continuation standing
+               (if (== fkind 14) (return 2))
                (return (coco_fmt_raise e fkind fdir fbad err))))
 
           (let ((int rc . #'(coco_sink_deliver e sink (? (== ($ b s) nil) "" ($ b s)))))
@@ -1712,6 +1729,9 @@
           (set rc (coco_out_capture_run e goal hold 1 1 0 (aof tb) (aof ball) (aof why)))
           (if (!= rc 1)
               (block (coco_sb_free (aof tb))
+                     ;; the goal halted (3.57.0): its text goes with it, as
+                     ;; swipl's capture does, and the engine stops
+                     (if (== rc 5) (return 2))
                      (if (== rc 2) (return (coco_fmt_rethrow e (aof ball))))
                      (if (== rc 3) (return (coco_m_error e "with_output_to/2" why)))
                      (if (== rc 4) (return (coco_m_resource_error e "memory")))

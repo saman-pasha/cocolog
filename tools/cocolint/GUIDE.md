@@ -164,11 +164,12 @@ a `pattern`. `tool.sh card --patterns` prints the terms.
 | X3 | `predsort/3` `freeze/2` `dif/2` `when/2` … | write it out; `call_limited/3` | deliberately absent so ported code errors instead of differing |
 | P1 | `current_prolog_flag(occurs_check, B)` | do not branch on a flag | twenty flags answer — `executable`, `argv`, `os_argv`, `double_quotes`, `text_units`, since 2.0.0 `bounded`, `max_integer`, `min_integer`, `max_tagged_integer`, `min_tagged_integer`, since 2.2.2 the four float flags and `float_min`, `float_max`, `float_max_integer`, since 2.16.0 `verbose`, since 3.15.0 `optimise_unify` and since 3.32.0 `stack_limit` — and every other one FAILS |
 
-The card has nineteen more rows that inform the prompt rather than the
+The card has eighteen more rows that inform the prompt rather than the
 linter — row T1 on probing a library as a goal, Z1 on the page budget, the
-PROMPT rows on determinism, `**` staying an integer, a halt inside a
-`findall` or a `forall` (H1), what a load-time goal writes under `-s` (H2),
-and the like. `tool.sh card --card` prints the card whole.
+PROMPT rows on determinism, `**` staying an integer, what a load-time goal
+writes under `-s` (H2), and the like. `tool.sh card --card` prints the card
+whole. (Row H1, a halt inside a `findall` or a `forall`, is retired: since
+3.57.0 that halt ends the process, as swipl's.)
 
 ### C2 and the manifest
 

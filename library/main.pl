@@ -41,7 +41,10 @@
 %%            number_string/2, term_string/2 ... argv_options/3's whole type
 %%            conversion is built on SWI's string type, and cocolog has none.
 %%    9 x P1  current_prolog_flag/2 over a flag table cocolog does not keep
-%%    6 x H1  halt/0, which reports no solution here rather than exiting
+%%    6 x H1  halt/0, which reported no solution here rather than exiting
+%%            (the pattern went once a halt at the top was swipl's, and
+%%            the row was retired when a halt in a nested search ended the
+%%            process as swipl's, in 3.57.0)
 %%    2 x F1  ~t and ~| column directives in the usage formatter (refused
 %%            through 3.32.0, and the row retired when format/2 laid them
 %%            out as swipl's in 3.33.0)

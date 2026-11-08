@@ -24,6 +24,7 @@
 main :-
     scratch(D),
     green(D), red(D), thrown(D), missing(D), options_first(D), hooked(D),
+    halted(D), halted_own(D), halted_swipl(D),
     binary_verdicts,
     shl(['rm -rf ', D]),
     checks_done.
@@ -127,3 +128,128 @@ options_first(D) :-
     cocolog_run(Args, Got, Rc),
     sh_join([Rc, '-', Got], Both),
     check('--local -s parses: the dash verb ends the options', Both, '0-hello').
+
+%% A HALT IN A NESTED SEARCH IS THE PROCESS'S (3.57.0), as swipl's halt/1
+%% ends the process from whatever C called Prolog: findall/3, forall/2,
+%% aggregate_all/3 and what is built on them, with_output_to/2, `~@', a
+%% portray goal, a cleanup a cut ran, a directive's search. Through 3.56.0
+%% the halt ended the search alone -- findall/3 went on with the answers it
+%% had, and the program exited 0 -- and failed with_output_to/2's and
+%% `~@''s goal, exit 1. What swipl has put out before the end is put out:
+%% the text a write or a format made before its goal halted, a portray
+%% goal's own, a `~@' goal's where format holds no text for a column, and
+%% never a capture's. Each check is a child, `run FILE "h(N)"' with its
+%% stderr in its stdout, and what it wants is swipl 9.0.4's, under `swipl
+%% -q -g "h(N)" -t halt FILE', which the last section asks of the reference
+%% swipl where there is one.
+halt_prog(['h(1) :- findall(X, (member(X, [1,2,3]), X >= 2, write(x(X)), nl, halt(3)), L), write(L), nl.',
+           'h(2) :- forall(member(X, [1,2]), (write(X), nl, halt(4))), write(after), nl.',
+           'h(3) :- aggregate_all(count, (member(_, [1,2]), halt(5)), C), write(C), nl.',
+           'h(4) :- findall(Y, findall(X, (X = 1, halt(12)), Y), L), write(L), nl.',
+           'h(5) :- catch(findall(_, halt(26), _), E, (write(caught(E)), nl)), write(after), nl.',
+           'h(6) :- setup_call_cleanup(true, findall(_, halt(25), _), (write(cleanup), nl)), write(after), nl.',
+           'h(7) :- setof(X, (member(X, [b,a]), halt(30)), L), write(L), nl.',
+           'h(8) :- findall(_, setup_call_cleanup(true, member(_, [1,2]), (write(cl), halt(9))), _), write(after), nl.',
+           'h(9) :- write(out1), with_output_to(string(_), (write(in), halt(28))).',
+           'h(10) :- with_output_to(string(S), findall(_, (write(in), halt(27)), _)), write(S), nl.',
+           'h(11) :- format("a~@b~n", [halt(7)]), write(after), nl.',
+           'h(12) :- format("x~@y~n", [(write(in), halt(3))]).',
+           'h(13) :- format("~a~t~@~10|~w~n", [ab, (write(in), halt(13)), cd]).',
+           'h(14) :- format(atom(_), "~a~@", [ab, halt(14)]), write(after), nl.',
+           'h(15) :- assertz((portray(x) :- halt(4))), print(f(a, x, b)), write(after), nl.',
+           'h(16) :- assertz((portray(x) :- write(px), halt(5))), print([a, x]), write(after), nl.',
+           'h(17) :- assertz((portray(x) :- print(g(y)))), assertz((portray(y) :- halt(6))), print(f(x)), write(after), nl.',
+           'h(18) :- write(w1), assertz((portray(x) :- halt(6))), format("~w ~p ~w~n", [a, x, b]), write(after), nl.',
+           'h(19) :- assertz((portray(x) :- write(px), halt(11))), print_message(error, format("~p", [x])), write(after), nl.',
+           'h(20) :- with_output_to(string(S), setup_call_cleanup(true, member(_, [1,2]), (write(cl), halt(4)))), write(S), nl.',
+           'h(21) :- setup_call_cleanup(true, member(_, [1,2]), (write(cl), halt(5))).',
+           'h(22) :- setup_call_cleanup(true, setup_call_cleanup(true, member(_, [1,2]), (write(c1), halt(5))), (write(c2), halt(6))).',
+           'c(1) :- call_limited((write(a), halt(5)), 100, R), write(R), nl.',
+           'c(2) :- call_metered((write(b), halt(6)), 100, U, R), write(U-R), nl.']).
+
+%% halt_want(N, What, Text, Status): h(N)'s, swipl 9.0.4's
+halt_want(1, 'findall/3 ends at the halt, its answers unmade', 'x(2)', 3).
+halt_want(2, 'forall/2''s action halts', '1', 4).
+halt_want(3, 'aggregate_all/3''s count halts', '', 5).
+halt_want(4, 'findall/3 inside findall/3', '', 12).
+halt_want(5, 'catch/3 takes no halt from a findall/3', '', 26).
+halt_want(6, 'and no cleanup runs for one', '', 25).
+halt_want(7, 'setof/3, over findall/3', '', 30).
+halt_want(8, 'a cleanup findall/3''s search ran halts', 'cl', 9).
+halt_want(9, 'with_output_to/2''s goal halts: its text goes with it', 'out1', 28).
+halt_want(10, 'a findall/3 in with_output_to/2''s goal', '', 27).
+halt_want(11, '`~@'' halts: format''s text before it is out', 'a', 7).
+halt_want(12, 'and the goal''s own, held for no column', 'xin', 3).
+halt_want(13, 'a fill point holds both, and only format''s comes out', 'ab', 13).
+halt_want(14, 'a term sink gets nothing', '', 14).
+halt_want(15, 'a portray goal halts: print/1''s text before it is out', 'f(a,', 4).
+halt_want(16, 'and the goal''s own', '[a,px', 5).
+halt_want(17, 'a portray goal''s print/1 whose portray goal halts', 'f(g(', 6).
+halt_want(18, 'format''s `~p'' of a portray goal that halts', 'w1a ', 6).
+halt_want(19, 'print_message/2''s, its line on stderr', 'ERROR: px', 11).
+halt_want(20, 'with_output_to/2''s cut runs a cleanup that halts', '', 4).
+halt_want(21, 'the host''s cut of a goal that left a choice runs one', 'cl', 5).
+halt_want(22, 'the first of two that halts ends it: the one below runs no more', 'c1', 5).
+
+halt_file(D, F) :-
+    atom_concat(D, '/halt.pl', F),
+    halt_prog(Lines),
+    fixture(F, [':- dynamic portray/1.'|Lines]).
+
+halt_coco(F, Goal, Text, Status) :-
+    sh_join(['--local run ', F, ' "', Goal, '" 2>&1'], Args),
+    cocolog_run(Args, Text, Status).
+
+halted(D) :-
+    section('a halt in a nested search ends the process, as swipl''s'),
+    halt_file(D, F),
+    forall(halt_want(N, What, Want, Rc),
+           ( format(atom(Goal), 'h(~w)', [N]),
+             halt_coco(F, Goal, Got, GotRc),
+             format(atom(Label), 'h(~w): ~w', [N, What]),
+             check(Label, Got-GotRc, Want-Rc) )).
+
+%% cocolog's own: call_limited/3 and call_metered/4, which swipl has not,
+%% and the toplevel, whose cut of an answer taken runs a cleanup; and a
+%% directive's findall/3, which ends the load and its process
+halted_own(D) :-
+    section('call_limited/3, call_metered/4, the toplevel and a load'),
+    halt_file(D, F),
+    halt_coco(F, 'c(1)', Got1, Rc1),
+    check('call_limited/3''s goal halts', Got1-Rc1, a-5),
+    halt_coco(F, 'c(2)', Got2, Rc2),
+    check('call_metered/4''s goal halts', Got2-Rc2, b-6),
+    cocolog(C),
+    sh_join(['printf ''setup_call_cleanup(true, member(_, [1,2]), (write(cl), halt(5))).\\nwrite(next).\\n'' | ',
+             C, ' --local 2>&1'], Repl),
+    shell(Repl, Got3, Rc3),
+    check('the toplevel''s cut of an answer runs a cleanup that halts: the session ends with its code',
+          Got3-Rc3, 'true .\ncl'-5),
+    atom_concat(D, '/halt_load.pl', L),
+    fixture(L, [':- findall(_, halt(3), _).', 'never :- true.']),
+    halt_coco(L, 'write(ran)', Got4, Rc4),
+    check('a directive''s findall/3 halts: the load ends, and the process', Got4-Rc4, ''-3).
+
+%% THE WANTS ARE THE REFERENCE'S: each h(N) asked of swipl 9.0.4, where
+%% there is one (`SWIPL' may name it), as test/files.pl asks it
+halted_swipl(D) :-
+    section('... and the wants are swipl 9.0.4''s'),
+    (   halt_swipl(Swi)
+    ->  halt_file(D, F),
+        forall(halt_want(N, What, Want, Rc),
+               ( format(atom(Cmd), '~w -q -g "h(~w)" -t halt ~w 2>&1', [Swi, N, F]),
+                 shell(Cmd, Got, GotRc),
+                 format(atom(Label), 'swipl''s h(~w): ~w', [N, What]),
+                 check(Label, Got-GotRc, Want-Rc) )),
+        atom_concat(D, '/halt_load.pl', L),
+        format(atom(Cmd5), '~w -q -g "write(ran)" -t halt ~w 2>&1', [Swi, L]),
+        shell(Cmd5, Got5, Rc5),
+        check('swipl''s load of the directive', Got5-Rc5, ''-3)
+    ;   format("   SKIP (no reference swipl 9.0.4 here)~n", [])
+    ).
+
+halt_swipl(Swi) :-
+    ( getenv('SWIPL', Swi) -> true ; Swi = swipl ),
+    sh_join([Swi, ' --version 2>/dev/null'], Cmd),
+    shell(Cmd, Ver, 0),
+    sub_atom(Ver, _, _, _, ' version 9.0.4 ').

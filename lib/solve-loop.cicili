@@ -217,13 +217,24 @@
                   (set ($ sub trace) (-> e trace))
                   (coco_engine_next (aof sub))
                   (coco_engine_cut (aof sub))
-                  (coco_engine_free (aof sub))))
+                  ;; a halt in the cleanup, or in one its own cut ran, is the
+                  ;; process's (3.57.0): E stops, and no cleanup below it runs,
+                  ;; as swipl's halt/1 runs none
+                  (let ((int h . #'(coco_halt_up e (aof sub))))
+                    (coco_engine_free (aof sub))
+                    (if h (set ci 0)))))
             (set ci (- ci 1)))
           (set (-> e nchoices) 0)
           (set (-> e ncleanup) 0)))
 
   (func coco_engine_cut ((coco_engine * e))
         (if (and (-> e ncleanup) (== (-> e halted) 0)) (coco_engine_cut_slow e)))
+
+  (func coco_halt_up ((coco_engine * e) (coco_engine * sub)) (out int)
+        (if (!= (-> sub halted) 1) (return 0))
+        (set (-> e halted) 1)
+        (set (-> e halt_code) (-> sub halt_code))
+        (return 1))
 
   ;;; A SEARCH A BUILTIN STARTS COLLECTS ONLY ONCE IT HAS GROWN BY THE FLOOR
   ;;; ITSELF (1.9.4): most are short, and what a findall built goes when it
@@ -261,7 +272,7 @@
               (size_t * kept . nil) (size_t n . 0) (size_t cap . 0)
               (int ok . 1) (int rc . 0) (int threw . 0) (size_t ball_cell . 0)
               (size_t ball_size . 0) (void * ball_store . nil) (size_t ball_mark . 0)
-              (int nomem . 0)
+              (int nomem . 0) (int halt . 0)
               ;; WHAT THIS FRAME HOLDS ON THE HEAP, told to the collector for
               ;; the search (1.9.4): the template, the goal, and the caller's
               ;; own goal cell (GP, nil when it keeps none), each read back
@@ -378,7 +389,19 @@
           (set hmark ($ sub pheap))
           (if held (coco_heap_root_pop m))
           (if (!= gp nil) (set (cof gp) (nth 2 hold)))
+          ;; A HALT IN THE SEARCH IS THE PROCESS'S (3.57.0): findall/3,
+          ;; forall/2 and aggregate_all/3 end where it stood, with no answer
+          ;; made of the search -- through 3.56.0 it ended the search alone,
+          ;; and the program went on with the answers found before it
+          (set halt (coco_halt_up e (aof sub)))
           (coco_engine_free (aof sub))
+          (if halt
+              (block (coco_undo_to m tmark)
+                     (set ($ (cof m) heap_len) hmark)
+                     (free kept)
+                     (set (-> fst len) pstart)
+                     (coco_store_shrink_empty fst)
+                     (return 2)))
 
           ;; AND NOW THROW IT AGAIN, IN THE OUTER ENGINE. The sub-engine is a
           ;; whole engine with a choice stack of its own, so a `throw' inside
@@ -496,6 +519,10 @@
                    (set out -1))))
             ;; one solution kept: what the goal left is cut (3.1.0)
             (if (== out 1) (coco_engine_cut (aof sub)))
+            ;; a halt in the goal, or in a cleanup its cut ran, is the
+            ;; process's (3.57.0): answered as a ball caught, the
+            ;; continuation standing
+            (if (coco_halt_up e (aof sub)) (set out 3))
             (coco_engine_free (aof sub))
             ;; BINDINGS SURVIVE ONLY A SUCCESS, and on success the heap is NOT
             ;; truncated -- findall can truncate because it copied every
@@ -755,7 +782,8 @@
           (if (== rc -1) (block (set (cof ret) -1) (return 2)))
           (cond ((== rc 2) (block))
                 ((== rc 1)
-                 (if (> td 0) (coco_trace_port e "Exit" td gl))
+                 ;; none for halt/0,1 (3.57.0), as the step's own
+                 (if (and (> td 0) (!= (-> e halted) 1)) (coco_trace_port e "Exit" td gl))
                  (set (-> e goals) k))
                 (#t
                  (if (> td 0) (coco_trace_port e "Fail" td gl))
@@ -2927,7 +2955,10 @@
                           ;; nothing had been raised.
                           (cond ((== rc 2) (block))
                                 ((== rc 1)
-                                 (if (== tport 1) (coco_trace_port e "Exit" tD g))
+                                 ;; halt/0,1 has no Exit port: the process
+                                 ;; ends at its Call, as swipl's (3.57.0)
+                                 (if (and (== tport 1) (!= (-> e halted) 1))
+                                     (coco_trace_port e "Exit" tD g))
                                  (set (-> e goals) k))
                                 (#t
                                  (if (== tport 1) (coco_trace_port e "Fail" tD g))

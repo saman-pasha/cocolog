@@ -37,7 +37,7 @@ cocolog -s test/lint.pl                            # the suite case
 | `tool.sh` | one driver for `build`, `card`, `index` and `assemble` |
 | `selftest/reader.pl` `.expected` | every shape that has ever fooled a clause reader |
 | `build.pl` | the reserved-name blocklist, from five registration shapes |
-| `traps.jsonl` | the dialect card as data: 25 rows, 37 checked citations |
+| `traps.jsonl` | the dialect card as data: 24 rows, 34 checked citations |
 | `card.pl` | the anchor checker, and the generator of `traps.pl` |
 | `lint.sh` | the human wrapper; rebuilds the index first, always |
 | `oracle.pl` / `.sh` | G2+G3: which predicates the store calls the program's own |
@@ -305,10 +305,10 @@ the same list.
 
 ## The dialect card is data, and its citations are checked
 
-`traps.jsonl` is section 4 of the design doc as 25 rows of
+`traps.jsonl` is section 4 of the design doc as 24 rows of
 `{id, swi, cocolog, why, cite, anchor, rule, severity}`. Each cite is a
 `path:A-B` line range and each anchor a literal substring that must appear
-inside it. `card --check` verifies all 37, and when one has moved it says
+inside it. `card --check` verifies all 34, and when one has moved it says
 where it is now, so the repair is a single number:
 
 ```
@@ -376,8 +376,9 @@ Writing the trap file caught two bugs in the linter itself:
 
 * **`"\x41\"` ends a string with a backslash**, which cocolog forbids and
   which no scanner can read: the literal ran to end of file, and every rule
-  after it found its match inside a quote and skipped it. H1 and L1 both went
-  missing that way — the trap file trapping its own author.
+  after it found its match inside a quote and skipped it. H1 (a pattern
+  then, and the row retired at 3.57.0) and L1 both went missing that way —
+  the trap file trapping its own author.
 * **`'[|]'` is a quoted atom by construction**, so L1 needed the same
   `scan: text` that F1's format directives had (until format/2 laid them out
   as swipl's and the row was retired at 3.33.0), and E1's escapes had (until

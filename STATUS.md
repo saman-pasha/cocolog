@@ -16565,3 +16565,112 @@ calls, the literals' addresses having moved; a start 36 144 570 to
 Narrow cases green: lint, files, syntax, cyclic, string, units, errors,
 repl, trace, backtrace, directives, engine, library, journal, reconsult,
 window, flowdebug, flowchart and stream. Reasoning stays 1.0.27.
+
+## halt/0,1 in a nested search ends the process, as swipl's (3.57.0)
+
+swipl 9.0.4's halt/1 ends the process from whatever C called Prolog: a
+findall/3's search, with_output_to/2's goal, a `~@' goal, a portray goal, a
+cleanup a cut runs, a directive's search. cocolog's halt stopped the engine
+it ran in and nothing more, so a nested search ended where it stood and the
+program went on: `findall(X, (member(X, [1,2,3]), X >= 2, write(x(X)), nl,
+halt(3)), L), write(L)' wrote `x(2)' and `[]' and exited 0, forall/2 went on
+to the goal after it, and with_output_to/2's and `~@''s goal failed, exit 1.
+Now the halt is the process's, with its code. A minor, as what a program
+does moves.
+
+- **A search hands its halt up** (`coco_halt_up' in lib/solve-loop.cicili):
+  a sub engine stopped by halt/0,1 gives its `halted' and its code to the
+  engine that started it, which stops at its next step, every engine out to
+  the host's in turn. The builtin answers 2, having bound nothing -- the
+  continuation stands, and the step loop's own test of `halted' does the
+  rest, so the loop pays nothing.
+- **findall/3 makes no answer of the search** (`coco_engine_findall', and so
+  forall/2, aggregate_all/3, bagof/3 and setof/3): the trail and the heap
+  wound back, the results dropped from the store.
+- **call_limited/3 and call_metered/4 answer as for a ball caught** (3 to
+  `coco_engine_call_limited''s callers), cocolog's own: swipl has neither.
+- **A capture's goal that halts answers 5** (`coco_out_capture_run'):
+  with_output_to/2 answers 2, its text dropped, as swipl's capture is never
+  put out; `~@' ends the format there, kind 14, with what a failure leaves
+  -- format's text before it put out, the goal's own where format holds no
+  text for a column, nothing to a term sink; a portray goal stops the write
+  (`wpstate' 5), its text and the write's before it kept, and the builtin
+  answers 2 once they are out (print/1, write_term/2, `~p',
+  print_message/2's line).
+- **A cleanup that halts ends the cut that ran it** (`coco_engine_cut_slow'):
+  no cleanup below it runs, as swipl's halt/1 runs none -- the host's cut of
+  a goal that left a choice, with_output_to/2's, findall/3's search's.
+  catch/3 takes no halt, as swipl's does not.
+- **The toplevel's cut of an answer** runs a cleanup that may halt: the
+  session ends with its code (cocolog.cicili's REPL, `quit').
+- **A directive's search that halts ends the load and the process**: the
+  load's goal hook already ended a load whose goal halted; a findall/3 in a
+  directive's goal now halts that goal.
+- **Under trace halt/0,1 has no Exit port**, as swipl's: the process ends at
+  its Call. Through 3.56.0 the tracer printed `Exit: halt(28)`. The step's
+  call of a builtin row and the `:' construct's print no Exit where the call
+  set `halted' to 1; and a builtin whose search halted answers 2, so it has
+  no Fail port either -- nothing failed.
+- **'$trace_window'/4's run keeps its halt**: library(flow/debug) reports
+  it as how the run ended, `halt(Code)', as it always has -- the one
+  starter of a nested search that does not hand a halt up.
+
+test/script.pl's three new sections. The first runs 22 programs, each a
+child `run FILE "h(N)"' with its stderr in its stdout, and holds each text
+and status to swipl 9.0.4's -- findall/3, forall/2, aggregate_all/3, nested
+findall/3, catch/3 around one, setup_call_cleanup/3 around one, setof/3, a
+cleanup a findall/3's search ran, with_output_to/2 and a findall/3 in it,
+`~@' three ways and to a term sink, portray goals four ways and
+print_message/2's, with_output_to/2's cut, the host's cut, two cleanups --
+and 3.56.0 fails all 22. The second holds cocolog's own four:
+call_limited/3, call_metered/4, the toplevel's cut and a directive's
+findall/3 (3.56.0 fails those too, 26 in all). The third asks each of the 22
+and the directive of the reference swipl 9.0.4 where there is one (`SWIPL'
+may name it), so the wants are swipl's, and skips by name where there is
+none. test/trace.pl's own lines hold the tracer's five: halt/1's Call
+printed and no Exit for it; the system's halt/0 called as `system:halt'
+over a program's own (`redefine_system_predicate(halt)', the `:'
+construct's own call of the row), its Call printed and no Exit; and no Fail
+port for with_output_to/2 whose goal halts. 3.56.0 prints both Exits, and
+with_output_to/2's Fail and its clause's after it.
+
+cocolint's card row H1 ("halt(N) inside a search ... ends only that
+search") is retired: 24 rows, 34 cites, six patterns. Lesson 37 (its row
+count and the row's history), the card's selftest, GUIDE.md, README.md and
+library/main.pl's header follow; the token benchmark's card arm carries a
+row fewer.
+
+COMPAT.md had no row for a halt in a nested search; it has none now. Not
+done (task 51, of its own): a name a program file took over that a
+compiled-in module answers -- halt/1 after redefine_system_predicate/1,
+msort/2 -- called through `system:' prints no port at all under trace,
+where swipl prints its Call and Exit; the `:' construct traces an engine
+row alone, so halt/0's case above is the one the rule reaches.
+
+The arms, one build each, every rule taken out alone, over test/script.pl
+and test/trace.pl. The arm of no edit is green in both, three times over
+(the first round's, the tracer's and the last). Red in test/script.pl:
+findall/3's hand-up at 10 checks (h(1) to h(8), h(10) and the directive),
+call_limited/3's at 2, the capture's at 12 (h(9) to h(20)), `~@''s kind 14
+at 4, format's answer for it at 5, the portray state at 4, print/1's
+answer at 3, `~p''s kind at 1, the cut's hand-up at 4 (h(20) to h(22) and
+the toplevel), the cut's stop at 1 (h(22)) and the toplevel's end at 1.
+with_output_to/2's answer of 2 is green there -- the halt is handed up
+before the builtin answers, and the engine stops at its next step whatever
+it answered -- and red in test/trace.pl, its failure printing a Fail port.
+The two Exits are red in test/trace.pl, the step's at halt/1 and the `:'
+construct's at halt/0 taken over; a first check of `system:halt(29)' went
+the step's way, which the construct's arm showed by staying green, and the
+check is the taken-over halt/0 now.
+
+The cost. tools/flow/zero.sh against 3.56.0 at like paths, work less
+padding: nrev +77 instructions, queens +89, lookup +114, of 40 to 66
+million; by function the engine's own are -3, -6 (and findall/3's -171,
+its padding) and -2, and the rest is strcmp, +77, +77 and +132, at the
+literals' new addresses. A start 36 031 056 to 35 789 177 instructions
+(-241 879), strcmp -241 707 of it at the same 74 006 calls.
+
+Narrow cases green: lint, files, syntax, cyclic, string, units, errors,
+repl, directives, library, reconsult, stream, journal, engine, backtrace,
+meter, window, flowdebug, flowchart, async, trace and script, and lesson
+library/37 alone. Reasoning stays 1.0.27.

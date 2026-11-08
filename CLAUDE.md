@@ -559,7 +559,26 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   below), as a goal since 2.2.2, and refuses every other flag in swipl's
   words. `library(main)` parses the tail.
 * **Exit status is SWI's**: 0 proved, 1 failed silently, 2 threw; `halt(N)`
-  is N from `-s`, `run` and `query` alike.
+  is N from `-s`, `run` and `query` alike -- **and from a nested search**
+  (3.57.0, as swipl's halt/1 ends the process from whatever C called
+  Prolog): findall/3 and what is built on it (forall/2, aggregate_all/3,
+  bagof/3, setof/3), with_output_to/2, `~@`, a portray goal,
+  call_limited/3 and call_metered/4, a cleanup a cut ran (the host's, the
+  REPL's, with_output_to/2's) and a directive's search. The search hands
+  its `halted` and its code up (`coco_halt_up`), the builtin answers 2
+  having bound nothing, and the outer engine stops at its next step, each
+  engine out to the host's in turn; catch/3 takes no halt and no cleanup
+  runs for one, as swipl 9.0.4's (test/script.pl's three halt sections,
+  22 checks held to swipl). What was put out stays out: the text a write
+  made before its portray goal halted, a `~@` goal's where format holds
+  none for a column, never a capture's. Under trace halt/0,1 has no Exit
+  port, and the builtin whose search halted no Fail port (test/trace.pl's
+  own lines). Through 3.56.0 the halt ended the search alone: findall/3
+  went on with the answers it had, and with_output_to/2's goal failed
+  (cocolint's card row H1 said so, retired with it: 24 rows). **A
+  new starter of a nested search hands a halt up through `coco_halt_up`**,
+  or the program goes on past it -- all but `'$trace_window'/4`'s run,
+  which reports it as how the run ended, `halt(Code)` (library(flow/debug)).
 * **An error nothing caught is followed on stderr by its backtrace**
   (1.10.17; TRACING.md): `ERROR: In:`, the goal that raised, then each
   engine's goals left to run -- or, under `--backtrace` (trace 3, which
@@ -2001,9 +2020,10 @@ cocolint index offers no import of it.
   print/1 is the builtins module's (`coco_print_hook`), and **the tracer
   writes a goal as print/1 does** (`coco_trace_text`, `coco_b_trace_text`:
   `print(f(zz))` where portray/1 writes `zz`, swipl's), a ball its goal
-  threw given back unraised (COMPAT.md). Not swipl's: the REPL's answers
-  ask no portray/1 (COMPAT.md); halt/0 in a goal is the goal's failure,
-  as in any nested search.
+  threw given back unraised (COMPAT.md). A goal that halts ends the
+  process, the write's text before it put out (3.57.0, `wpstate` 5: the
+  bullet on exit status). Not swipl's: the REPL's answers ask no
+  portray/1 (COMPAT.md).
 * **A load warns in swipl's two blocks** (3.17.0, 3.19.1, 3.19.5;
   `coco_consult_singletons`, `coco_cw_clause` in lib/kb-consult.cicili):
   the reader's `Singleton variables: [X]` as the term is read (`_X` and

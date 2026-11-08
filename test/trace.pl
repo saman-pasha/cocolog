@@ -242,6 +242,26 @@ own_lines :-
     own(D, tz2, [ 'portray(pz) :- throw(oops).', 'tz :- atom(pz), write_term(ok, []).' ], tz,
         p('Exit', 2, 'write_term(ok,[])'), printed,
         'and its ball is given back: the program goes on'),
+    %% A HALT HAS NO EXIT PORT (3.57.0): the process ends at its Call, as
+    %% swipl's; and a builtin whose search halted (with_output_to/2's goal)
+    %% has no Fail port, as nothing failed -- the process ended in it
+    own(D, ht, [ 'ht :- halt(28).' ], ht,
+        p('Call', _, 'halt(28)'), printed,
+        'halt/1''s Call is printed'),
+    own(D, ht2, [ 'ht :- halt(28).' ], ht,
+        p('Exit', _, 'halt(28)'), hidden,
+        'and it has no Exit port: the process ends at its Call, as swipl''s'),
+    %% a name a program file took over, called through `system:', is run
+    %% by the `:' construct's own call of its row (`coco_colon_run')
+    own(D, hc, [ ':- redefine_system_predicate(halt).', 'halt :- write(mine).', 'hc :- system:halt.' ], hc,
+        p('Call', _, halt), printed,
+        'the system''s halt/0, called through a qualifier over a program''s, has its Call'),
+    own(D, hc2, [ ':- redefine_system_predicate(halt).', 'halt :- write(mine).', 'hc :- system:halt.' ], hc,
+        p('Exit', _, halt), hidden,
+        'and no Exit either: the `:'' construct''s call of the row'),
+    own(D, hw, [ 'hw :- with_output_to(string(_), halt(28)).' ], hw,
+        p('Fail', _, _), hidden,
+        'with_output_to/2 whose goal halts has no Fail port'),
     shl(['rm -rf ', D]).
 
 own(D, Base, Lines, Q, Line, Expect, Name) :-

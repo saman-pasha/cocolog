@@ -418,7 +418,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.56.0"))
+  (func coco_version_text () (out const char *) (return "3.57.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -1555,8 +1555,13 @@
                                           (block (if (not tty) (printf ";\n")))
                                         (block (printf ".\n") (set stop 1))))))))))
                           ;; an answer taken: the rest of the goal is cut,
-                          ;; a cleanup run with `!' (3.1.0)
-                          (if (== grc 1) (coco_engine_cut (aof e)))
+                          ;; a cleanup run with `!' (3.1.0) -- one that halts
+                          ;; ends the session with its code (3.57.0)
+                          (if (== grc 1)
+                              (block (coco_engine_cut (aof e))
+                                     (if ($ e halted)
+                                         (block (set quit 1)
+                                                (set session_rc ($ e halt_code))))))
                           (coco_heap_root_pop (aof m))
                        ;; one goal, one transaction -- as `query' has it
                        (if (!= db nil)

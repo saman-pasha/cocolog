@@ -1554,6 +1554,15 @@
   ;;; a setup_call_cleanup/3 frame's cleanup run with `!' (3.1.0)
   (decl) (func coco_engine_cut ((coco_engine * e)))
 
+  ;;; A HALT IN A SEARCH SOMETHING STARTED IS THE PROCESS'S (3.57.0), as
+  ;;; swipl's halt/1 ends the process from whatever C called Prolog: SUB,
+  ;;; stopped by halt/0,1 -- or by one in a cleanup its cut ran -- hands its
+  ;;; `halted' and its code to E, which stops at its next step with nothing
+  ;;; after the builtin run, every engine out to the host's in turn. Answers
+  ;;; 1 when SUB halted, and the caller answers 2 (the continuation stands)
+  ;;; having bound nothing; 0 when it did not.
+  (decl) (func coco_halt_up ((coco_engine * e) (coco_engine * sub)) (out int))
+
   ;;; Reads GOAL as text and asks it. Answers 1, or 0 with `e->err' set.
   (decl) (func coco_engine_ask_text ((coco_engine * e) (const char * text)) (out int))
 
@@ -1710,7 +1719,8 @@
   ;;;
   ;;; Answers 1 (succeeded, and its BINDINGS ARE KEPT), 0 (failed), 2 (the
   ;;; ceiling was reached), 3 (it threw and an outer `catch/3' took it, so the
-  ;;; caller must answer 2 -- "the continuation is already set"), or -1 (it
+  ;;; caller must answer 2 -- "the continuation is already set" -- or it
+  ;;; halted, and E stops at its next step: `coco_halt_up', 3.57.0), or -1 (it
   ;;; threw and nothing caught it, `e->err' set). Everything but 1 puts the
   ;;; machine back exactly as it was. GP is the caller's goal cell, as for
   ;;; findall: the goal may collect the heap.
