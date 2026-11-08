@@ -311,7 +311,11 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   `library(main)`'s `main/0` first where `run` puts the file's.
 * **`consult/1`, `load_files/2` and `[File]` as goals CONSULT** (2.13.0,
   SWI's; `lib/library.cicili`, a Coco half over `'$lf_file'/2`), as `run`
-  does: written through, the file's clauses from last time replaced. Their
+  does: written through, the file's clauses from last time replaced. A
+  module the files are loaded into is passed by (3.48.0, one namespace:
+  `consult(user:F)` reads F), and `[File]` is swipl's two clauses over
+  consult/1 with their meta_predicate, `[user:a, b]` consult/1 of
+  `user:[a, b]`. Their
   `if(not_loaded)` and `must_be_module(true)` are the module loader's, as
   are `library(X)`. **The store keeps the files read into it** (`loads`,
   their real path and `time_file/2`, noted before the read by every host's
@@ -1213,6 +1217,24 @@ cocolint index offers no import of it.
   callable term fails, as swipl's (through 3.40.0 type_error(callable,
   H)), and implementation_module(M) of a head named is
   `'$pred_impl'/2`'s. A `.so` module's predicates are not answered.
+  **What user does not see is no predicate of user's** (3.48.0,
+  `coco_pp_unseen`, test/files/user_view.pl): the table holds a row,
+  flag 4096, of every predicate a carried library's file defines that
+  swipl's user does not see -- a helper (`gen_assoc_/3`, ugraphs'
+  `before/2`), a hook it defines in another module
+  (`sandbox:safe_meta/2`) -- and flags 8192 an export swipl's autoloader
+  does not reach (library(dcg/basics)'s and (dcg/high_order)'s), which
+  answers once the program loaded its library (`coco_imp_has`); neither
+  answers where the program gave the name a clause of its own (`muted`
+  0), and current_predicate/1 says the same (`coco_pred_current`). The
+  list's predicate is swipl's `'[|]'/2` (the props lookup asks '.'/2 as
+  it), its two clauses and `:- meta_predicate([:|+])` swipl's, and the
+  hooks swipl declares in user are rows of `user` -- current, and
+  answered from the row, so file_search_path/2 is no nodebug predicate
+  though the files half reads it under generate_debug_info false. The
+  table also rows what swipl's autoloader brings from a library cocolog
+  does not carry (`also/1` in the generator: random/1,
+  make_directory_path/1, string_to_atom/2, sumlist/2).
 * **Register modules before spawning threads**: the registry is
   process-wide and unguarded.
 * `cocolint`'s index picks `modules/NAME/NAME.cicili` by name; a header
@@ -1517,7 +1539,10 @@ cocolint index offers no import of it.
   its arguments, each argument in order a 0 to 9 within a C int or one of
   `? + - * : ^ //`, the heads before a fault declared, the fault swipl's
   ball named system:(meta_predicate)/1, a specifier's with `0..9`, and the
-  list's end a failure (3.47.0). A head
+  list's end a failure (3.47.0). **A list is a head**, the list's own
+  predicate's (3.48.0, `coco_pred_meta_note`, as the check walks it):
+  through 3.47.0 the note took its elements for heads, and `[:|+]`
+  declared (:)/0 and (+)/0. A head
   of no arguments is noted too (`meta_predicate zero`, the atom). M is
   the module/2 read's that defined the clause the call
   is written in (`pmod`; user for a program's clause, a meta-predicate's

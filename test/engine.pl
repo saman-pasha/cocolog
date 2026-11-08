@@ -96,9 +96,11 @@ own_properties :-
     check('call_metered/4 is built_in, foreign, static and nodebug', Ps,
           [visible, built_in, foreign, static, nodebug, defined]),
     ( predicate_property(call_metered(_, _, _, _), implementation_module(M1)) -> true ; M1 = none ),
+    %% a library's helper user does not see is user's, no predicate of
+    %% its own, as swipl's (3.48.0: through 3.47.0 assoc's)
     ( predicate_property(insert(_, _, _, _, _), implementation_module(M2)) -> true ; M2 = none ),
-    check('a C row of cocolog''s own is system''s, and a library''s helper its module''s', M1-M2,
-          system-assoc),
+    check('a C row of cocolog''s own is system''s, and a library''s helper user''s', M1-M2,
+          system-user),
     %% a library the path's `library' found is named by its absolute path,
     %% as every load names a file and swipl's file(F) names one
     cocolog(C),

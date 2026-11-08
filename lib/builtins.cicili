@@ -170,12 +170,15 @@
 ;;; 158 of them on average for a name of two arguments, some 1 300
 ;;; instructions a lookup -- which current_predicate/1 named whole makes
 ;;; of every predicate the system or a library defines. The largest group
-;;; is 36 rows (arity 2, `t').
+;;; is 36 rows (arity 2, `t'). cocolog's LIST is '.'/2 where swipl's is
+;;; '[|]'/2 (COMPAT.md), one predicate under two names: '.'/2 is asked
+;;; as '[|]'/2 (3.48.0).
 (DEFMACRO coco-emit-swipl-props (fname)
   (LET* ((arities (SORT (REMOVE-DUPLICATES (MAPCAR #'SECOND *swipl-props*)) #'<))
          (lead (LAMBDA (s) (IF (PLUSP (LENGTH s)) (CHAR-CODE (CHAR s 0)) 0))))
     `(func ,fname ((const char * name) (u32 arity) (const char ** imp)
                    (const char ** impl) (const char ** spec)) (out int)
+       (if (and (== arity 2) (== 0 (strcmp name "."))) (set name "[|]"))
        (let ((int lead0 . #'(bitand (cast int (nth 0 name)) 255)))
          (cond
            ,@(MAPCAR
@@ -920,6 +923,9 @@
   (static) (decl) (func coco_b_ops_push ((coco_engine * e) (size_t ** v) (size_t * n)
                                        (size_t * cap) (int dyn) (int kf) (const char * nf)
                                        (i64 pf) (const char * tf)))
+  ;; predicate_property/2 asks the import table, defined with
+  ;; current_predicate/1's after it (3.48.0)
+  (static) (decl) (func coco_imp_has_locked ((const char * mod) (const char * name) (u32 arity)) (out int))
 
   ;;; ---- all solutions ---------------------------------------------------
 

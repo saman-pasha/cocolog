@@ -2432,6 +2432,14 @@
                   (if (or (> (coco_pred_live p) 0) (or (-> p dynamic) (-> p declared)))
                       (block
                         (if (or (not (-> p library)) (-> p own)) (return 1))
+                        ;; A LIBRARY'S NAME THE PROGRAM GAVE A CLAUSE OF ITS
+                        ;; OWN is the program's (3.48.0), as user's own
+                        ;; definition is in swipl -- consulted or asserted, no
+                        ;; module's read put it there (`muted' 0) -- however
+                        ;; the library's clauses beside it (one namespace)
+                        (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
+                          (if (and (not (coco_pred_dead p i)) (== (nth i (-> p muted)) 0))
+                              (return 1)))
                         (set lib 1))))))
           (if (or crow (not lib)) (return 0))
           (if (== coco_cp_hook nil) (return 0))

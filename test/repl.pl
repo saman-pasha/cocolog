@@ -96,11 +96,12 @@ local(D) :-
     check('what one goal asserts the next goal sees', G14, 'true.\ntrue.\nX = one ;\nX = two.'),
     %% `listing.' WRITES A BLANK LINE BEFORE EACH PREDICATE (3.37.0), as
     %% swipl's list_module/2 does, where through 3.36.0 it wrote one after;
-    %% the program's first is cocolog's own library_directory/1, declared
-    %% as swipl's is
+    %% the program's first are the hooks cocolog declares in user, as
+    %% swipl declares them (3.48.0): library_directory/1, message_hook/3
+    %% and term_expansion/2
     piped('assertz(lq(1)).\\nlisting.\\n', G20),
     check('listing. writes a blank line before each predicate, as swipl''s', G20,
-          'true.\n\n:- dynamic library_directory/1.\n\n\n:- dynamic lq/1.\n\nlq(1).\ntrue.'),
+          'true.\n\n:- dynamic library_directory/1.\n:- multifile library_directory/1.\n\n\n:- dynamic message_hook/3.\n:- multifile message_hook/3.\n\n\n:- dynamic term_expansion/2.\n:- multifile term_expansion/2.\n\n\n:- dynamic lq/1.\n\nlq(1).\ntrue.'),
     %% a predicate swipl defines in C and cocolog does not define at all is
     %% no system predicate of cocolog's: listing/1 names it unknown where
     %% swipl's writes `%   Foreign: system:tty_size/2' (COMPAT.md)

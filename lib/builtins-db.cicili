@@ -646,6 +646,28 @@
                 (return 1))))
         (return 0))
 
+  ;;; WHETHER THE PROGRAM GAVE P A CLAUSE OF ITS OWN: a live one no module's
+  ;;; read put there (`muted' 0) -- consulted or asserted beside a library's
+  (static)
+  (func coco_pred_prog_clause ((coco_pred * p)) (out int)
+        (if (== (-> p muted) nil) (return 0))
+        (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
+          (if (and (not (coco_pred_dead p i)) (== (nth i (-> p muted)) 0)) (return 1)))
+        (return 0))
+
+  ;;; WHAT USER DOES NOT SEE OF A LIBRARY'S PREDICATE (3.48.0), the row's
+  ;;; FL (its flags) of NAME/ARITY: a carried library's own predicate (4096:
+  ;;; a helper, `sandbox:safe_meta/2'), and an export swipl's autoloader
+  ;;; does not reach (8192: library(dcg/basics)'s and (dcg/high_order)'s)
+  ;;; the program has not loaded. Neither where the program gave it a
+  ;;; clause of its own (PROG).
+  (static)
+  (func coco_pp_unseen ((int fl) (int prog) (const char * impl) (const char * name) (u32 ar)) (out int)
+        (if prog (return 0))
+        (if (bitand fl 4096) (return 1))
+        (if (not (bitand fl 8192)) (return 0))
+        (return (not (coco_imp_has_locked impl name ar))))
+
   (func coco_b_pred_props ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (coco_store * st . #'(-> e st))
@@ -701,6 +723,10 @@
               (block
                 (set sw (coco_swipl_props (coco_atom_name m nid) ar (aof imp) (aof impl) (aof spec)))
                 (if sw (set fl (- sw 1)))))
+          ;; what user does not see is no predicate of user's (3.48.0)
+          (if (and sw (!= p nil)
+                   (coco_pp_unseen fl (coco_pred_prog_clause p) impl (coco_atom_name m nid) ar))
+              (return 0))
           ;; swipl's order
           (if (not fgn) (coco-pp-add "interpreted"))
           (coco-pp-add "visible")
@@ -765,7 +791,7 @@
         (let ((coco_machine * m . #'(coco_m_machine e))
               (coco_store * st . #'(-> e st))
               (size_t h . #'(coco_m_arg e g 0))
-              (u64 nid . 0) (u32 ar . 0) (int sys . 0) (int sw . 0) (u64 pm . 0)
+              (u64 nid . 0) (u32 ar . 0) (int sys . 0) (int sw . 0) (u64 pm . 0) (int prog . 0)
               (const char * imp . "") (const char * impl . "") (const char * spec . ""))
           (while (coco_is_compound2 m h ":") (set h (coco_deref m (coco_arg m h 1))))
           (if (not (coco_is_callable m h)) (return 0))
@@ -783,9 +809,15 @@
                       (let ((coco_pred * p . #'(aof (nth pi ($ (cof st) preds)))))
                         (if (or (> (coco_pred_live p) 0) (or (-> p dynamic) (-> p declared)))
                             (block (set pm (-> p pmod))
+                                   (set prog (coco_pred_prog_clause p))
                                    (set sys (? (and (-> p library) (not (-> p own))) 2 3)))))))))
           (if (or (== sys 1) (== sys 2))
               (set sw (coco_swipl_props (coco_atom_name m nid) ar (aof imp) (aof impl) (aof spec))))
+          ;; what user does not see of a library's is user's, where it was
+          ;; looked for, as of a name nothing defines (3.48.0)
+          (if (and (== sys 2) sw
+                   (coco_pp_unseen (- sw 1) prog impl (coco_atom_name m nid) ar))
+              (set sys 0))
           (let ((const char * mod . "user"))
             (cond
               ((or (== sys 1) (== sys 2))
@@ -1630,19 +1662,33 @@
                   (#t (block))))))
         (return 0))
 
+  ;; the same, the table's lock held around it: predicate_property/2's
+  (static)
+  (func coco_imp_has_locked ((const char * mod) (const char * name) (u32 arity)) (out int)
+        (let ((int r . 0))
+          (pthread_mutex_lock (aof cp_imp_mx))
+          (set r (coco_imp_has mod name arity))
+          (pthread_mutex_unlock (aof cp_imp_mx))
+          (return r)))
+
   ;;; current_predicate/1's answer of NAME/ARITY the system or a library
   ;;; defines (3.42.0, installed as `coco_cp_hook'): a predicate of swipl's
   ;;; system -- module system's or a `$' module's, whether cocolog writes it
   ;;; in C or as a library's clauses (between/3, sub_atom/5, bagof/3) -- is
-  ;;; user's; any other module's (a library's, or user's own hooks,
-  ;;; term_expansion/2) once the program imported it; one the table has no
-  ;;; row for -- cocolog's own -- what a construct or a C row of it says
-  ;;; (CROW), as through 3.41.0.
+  ;;; user's, and so is a hook swipl declares in user (3.48.0: a library's
+  ;;; file_search_path/2 and prolog_file_type/2); a carried library's own
+  ;;; predicate user does not see (a helper) none; any other module's once
+  ;;; the program imported it; one the table has no row for -- cocolog's
+  ;;; own -- what a construct or a C row of it says (CROW), as through
+  ;;; 3.41.0.
   (func coco_b_cp_current ((const char * name) (u32 n) (int crow)) (out int)
         (let ((const char * imp . "") (const char * impl . "") (const char * spec . "")
               (int sw . #'(coco_swipl_props name n (aof imp) (aof impl) (aof spec))))
           (if (not sw) (return crow))
-          (if (or (== 0 (strcmp impl "system")) (== (nth 0 impl) (cast char 36))) (return 1))
+          (if (bitand (- sw 1) 4096) (return 0))
+          (if (or (== 0 (strcmp impl "system")) (== 0 (strcmp impl "user"))
+                  (== (nth 0 impl) (cast char 36)))
+              (return 1))
           (let ((int r . 0))
             (pthread_mutex_lock (aof cp_imp_mx))
             (set r (coco_imp_has impl name n))
@@ -1654,7 +1700,8 @@
   ;;; swipl's define_or_generate/1 autoloads it into the module asked --
   ;;; user's, the head unqualified or qualified user: or system: last, and no
   ;;; other module's (lists:nth0(_, _, _) leaves nth0/3 none of user's).
-  ;;; Always true.
+  ;;; Not what swipl's autoloader does not reach: a library's helper,
+  ;;; library(dcg/basics)'s exports (3.48.0). Always true.
   (func coco_b_pp_autoload ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t h . #'(coco_deref m (coco_m_arg e g 0))) (int ours . 1))
@@ -1667,9 +1714,10 @@
           (if (and ours (coco_is_callable m h))
               (let ((const char * imp . "") (const char * impl . "") (const char * spec . "")
                     (const char * name . #'(coco_atom_name m (coco_name_of m h)))
-                    (u32 ar . #'(coco_arity m h)))
+                    (u32 ar . #'(coco_arity m h))
+                    (int sw . #'(coco_swipl_props name ar (aof imp) (aof impl) (aof spec))))
                 ;; once: a loop of predicate_property/2 adds no row
-                (if (and (coco_swipl_props name ar (aof imp) (aof impl) (aof spec))
+                (if (and sw (not (bitand (- sw 1) 12288))
                          (!= 0 (strcmp impl "system")) (!= (nth 0 impl) (cast char 36)))
                     (block (pthread_mutex_lock (aof cp_imp_mx))
                            (if (not (coco_imp_has impl name ar))

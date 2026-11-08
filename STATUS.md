@@ -15444,3 +15444,161 @@ missed its window beside three arm builds, 3.46.0's in two runs of eight
 there too, and both binaries answer in eight of eight once the box is
 quiet) and lessons basics 09 and library 05. The card's cites hold (X2's
 moved).
+
+## What user sees of the system's and the libraries' predicates, as swipl's (3.48.0)
+
+The owner's ask: finish predicate_property/2, importing no predicate from
+swipl that cocolog does not define. 3.41.0 gave predicate_property/2
+swipl 9.0.4's answers for the system's predicates and the carried
+libraries' exports, and 3.42.0 gave current_predicate/1 named whole its
+view of them. A scan of every predicate the two define, each asked of
+both in a fresh process, still differed where swipl's user sees what is
+neither -- the list's own predicate, the hooks swipl declares in user,
+four predicates its autoloader brings from libraries cocolog does not
+carry -- and where it sees nothing at all: a carried library's own
+predicates, and the exports no autoloading reaches. It agrees now but for
+what COMPAT.md says (a predicate the two write differently, the counts of
+the clauses each holds, a library's file); what only cocolog defines --
+library(async), the store, call_limited/3 -- answers what it did.
+
+- THE LIST'S PREDICATE IS SWIPL'S `'[|]'/2` (`coco-emit-swipl-props`,
+  lib/builtins.cicili): cocolog's list functor is '.'/2 (COMPAT.md) and the
+  table's row is `'[|]'/2`'s, so the lookup asks '.'/2 as it.
+  `predicate_property([_|_], P)` answers built_in, imported_from(system),
+  transparent, `(meta_predicate[:|+])` and nodebug, as swipl's, where
+  3.47.0 answered `[interpreted,visible,static,nodebug,...]`. Its clauses
+  are swipl's two (lib/library.cicili), `[X] :- !, consult(X).` and `[M:F|R]
+  :- consult(M:[F|R]).`, under `:- meta_predicate([:|+])`, where 3.47.0's
+  were over `'$lf_load'/2`: so `[user:a, b]` is consult/1 of `user:[a,
+  b]`, and clause/2 and listing/1 show what swipl's show.
+- META_PREDICATE/1 OF A LIST DECLARES THE LIST'S PREDICATE
+  (`coco_pred_meta_note`, lib/kb-pred.cicili), as swipl's meta_declaration()
+  reads a list and as `coco_pred_meta_check` walks it: through 3.47.0 the
+  note took the list's elements for heads, and `[:|+]` declared (:)/0 and
+  (+)/0. `meta_predicate([m(0)])` stays swipl's
+  type_error(meta_argument_specifier, m(0)).
+- CONSULT/1 OF M:F READS F (`'$lf_load'/2`): one namespace, so the module
+  a file is loaded into is passed by -- `consult(user:a)`,
+  `load_files(user:a, [])` and the list's `consult(user:[a, b])` -- where
+  3.47.0 raised existence_error(source_sink, user:a).
+- THE FOUR PREDICATES SWIPL'S AUTOLOADER BRINGS FROM A LIBRARY COCOLOG
+  DOES NOT CARRY are rows of their libraries (`also/1` in
+  tools/props/tables.pl): random/1 (library(random)), make_directory_path/1
+  (files_ex), string_to_atom/2 and sumlist/2 (backward_compatibility), each
+  of which cocolog defines. imported_from(M) is swipl's module, and
+  current_predicate/1 is false until predicate_property/2 named the head,
+  as swipl's autoload makes it user's, and true after. Through 3.47.0
+  imported_from answered nothing, string_to_atom/2 was current from the
+  start and the other three never.
+- WHAT USER DOES NOT SEE IS NO PREDICATE OF USER'S (`coco_pp_unseen`,
+  lib/builtins-db.cicili; flags 4096 and 8192 of lib/swipl-props.cicili).
+  The generator rows each predicate a carried library's file defines that
+  swipl's user does not see, flag 4096: 291 of them, a library's helper
+  (assoc's gen_assoc_/3, aggregate's add_existential_vars/3, ugraphs'
+  before/2) and what a library defines in another module
+  (error:has_type/2, sandbox:safe_meta_predicate/1,
+  prolog_colour:goal_colours/2, prolog:called_by/4). predicate_property/2
+  answers no property of one but implementation_module(user), and
+  current_predicate/1 is false, as swipl's; through 3.47.0 each was the
+  store's predicate, the module of the library that defined it: has_type/2
+  the 38 clauses library(error) and library(assoc) give it,
+  imported_from(assoc), and the three hooks library(yall) defines for
+  sandbox, prolog_colour and prolog imported_from(yall).
+  Flag 8192 marks the 29 exports of library(dcg/basics) and
+  library(dcg/high_order), which swipl's autoloader does not reach:
+  digits//1, string_without//2, sequence//2, optional//2 and the rest are no
+  predicates of user's until the program loads their library
+  (`coco_imp_has`), and swipl's properties after; predicate_property/2 of
+  one no longer imports it (`'$pp_autoload'/1`). Through 3.47.0 the two
+  libraries, read at every start, were user's from the start, each export
+  current and its library's module its implementation_module. Neither flag
+  answers where the program gave the name a clause of its own
+  (`coco_pred_prog_clause`, `muted` 0): a clause consulted or asserted
+  makes the predicate user's own, as a definition in user is in swipl,
+  however the library's clauses beside it in the one namespace (card row
+  N1) -- `before(uv, x).` is `[interpreted,visible,static,defined]` and
+  current (`coco_pred_current`, lib/kb.cicili, the same rule), where
+  ugraphs' before/2 is hidden; through 3.47.0 it was not current.
+- THE HOOKS SWIPL DECLARES IN USER ARE ROWS OF USER'S (17, the generator's
+  user clause of `pred/2`): term_expansion/2,4, goal_expansion/2,4,
+  message_hook/3, library_directory/1, file_search_path/2,
+  prolog_file_type/2, portray/1, prolog_load_file/2, resource/2,3,
+  expand_query/4 and expand_answer/2 dynamic and multifile, exception/3
+  notrace too, message_property/2 and prolog_list_goal/1 multifile --
+  answered from the row, so file_search_path/2 is no nodebug predicate
+  though the files half reads it under generate_debug_info false, and
+  current_predicate/1 is true of each the store holds
+  (`coco_b_cp_current`'s `user`). The hooks cocolog's libraries ask are
+  declared where they are asked, dynamic and multifile: term_expansion/2
+  (lib/dcg.cicili), message_hook/3 (library/print_message.pl),
+  library_directory/1, file_search_path/2 and prolog_file_type/2
+  (lib/files.cicili) -- current from the start, a program's clauses join
+  them, and an assert or a retract changes them. Through 3.47.0
+  term_expansion/2 and message_hook/3 were no predicates before a clause of
+  the program's, goal_expansion/2 not current, library_directory/1 not
+  multifile, and file_search_path/2 and prolog_file_type/2 static, nodebug
+  and not current. listing/0 writes the three with no clause of the
+  libraries' (`:- dynamic library_directory/1.` and its `:- multifile`,
+  message_hook/3's and term_expansion/2's), as swipl's writes its hooks
+  (test/repl.pl). A hook cocolog asks of no program (portray/1,
+  exception/3, ...) is no predicate before a clause of the program's
+  (COMPAT.md).
+
+test/files/user_view.pl, new: 101 lines, swipl 9.0.4's byte for byte
+(3.47.0 differs at 61 of them).
+
+THE ARMS, one build each on the code as it stands, the rule taken out,
+each red in user_view.pl, run with test/files' predicate_property.pl and
+current_library.pl beside it (23 of 23; the arm of no edit green in all
+three): '.'/2 asked as '[|]'/2 (A01), swipl's two clauses (A02) and their
+declaration (A03), a list a head to the note (A04), consult/1 of M:F (A05,
+current_library.pl red too), the four rows of the autoloaded libraries
+(A06), user's hooks' rows (A07), a hook of user's current (A08), a
+library's own predicate not current (A09) nor predicate_property/2's
+(A10), an export no autoloading reaches until its library is loaded (A11),
+the program's own clause (A12), implementation_module(user) of what user
+does not see (A13), predicate_property/2 importing no such export (A14),
+current_predicate/1 of a library's name the program gave a clause (A15),
+file_search_path/2 dynamic (A16), prolog_file_type/2 dynamic (A17),
+library_directory/1 multifile (A18), term_expansion/2 declared (A19),
+message_hook/3 declared (A20), the hidden rows (A21), the flag of an
+export no autoloading reaches (A22) and the generator's guard that a `$`
+module's export is no library's (A23, red in predicate_property.pl alone:
+with flag 8192 on the 128 rows a `$` module exports -- findall/3's
+`$bags`, forall/2's `$apply`, format/1's `$syspreds` -- the system's
+predicates answered nothing). A08 was green in the first round: the case
+asked predicate_property/2 of file_search_path/2 and prolog_file_type/2
+before current_predicate/1, and that ask imports the head
+(`'$pp_autoload'/1`), which made it current whatever the row said; the
+case asks current_predicate/1 of the two first now, as swipl answers it
+from the start, and the arm is red.
+
+THE COST, callgrind, 3.47.0 to 3.48.0, each binary in its own tree. The
+step loop is not touched (tools/flow/zero.sh, work less padding: nrev
+66 132 433 and 66 132 217, queens 40 254 079 and 40 254 095, lookup
+48 034 850 and 48 044 684): lookup's 9 834 more are memcmp in
+`coco_intern_len` (+9 032: the same 1 011 interns of the run, each probe
+meeting other names, the start having interned others) and memset
+(+1 633). A start (`cocolog query true`, from the checkout root) is
+35 772 307 instructions and 35 746 055 (-26 252): 8 251 and 8 258 calls of
+strcmp in `coco_assert_from` cost 81 963 fewer (where the names lie),
+against the reader's +11 970 and `coco_functor_id`'s +14 815 for the
+declarations and clauses the halves gained, and `coco_pred_make`'s +5 391
+for the predicates they make. 3.47.0's section counted a start of a binary
+copied away from its tree, which found library/ by COCOLOG_LIBRARY and none
+of the eight libraries of lib/swipl (20 252 514 there, 35 772 307 here):
+its +327 453 stands, +0.92 % of a start that reads them.
+
+Narrow cases green, each alone on the binary as committed: lint, files
+(131 cases, each agreeing with swipl), repl (listing/0 writes the three
+declarations), library, directives, errors, reconsult, trace, backtrace,
+engine (a library's helper is user's to implementation_module/1 now, as
+swipl's), flowchart (library(flow/chart)'s tables unchanged), static,
+cyclic, gc, string, stream, serialize, template, text, units, script,
+journal, meter, argv, rationals, process, os, hex, astar, regex, bigint,
+crypto, store-lock, window, flowdebug, thread, cowork, async, signal, tcp,
+httpd, websocket, curl, reason, normalise and translate (library/reasoning/
+asks none of what moved: reasoning stays 1.0.27), and lessons library 04,
+20, 36 and 56, which ask current_predicate/1 or define message_hook/3. The
+database cases want a server, which CI raises: a library's declarations are
+made muted, so no backend hears them. The card's cites hold.

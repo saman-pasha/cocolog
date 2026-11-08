@@ -99,6 +99,11 @@
 %% message_hook/3 and prolog:message//1.
 :- set_prolog_flag(generate_debug_info, false).
 
+%% message_hook/3 IS DECLARED IN USER, dynamic and multifile, as swipl's is
+%% (3.48.0): a predicate with no clause until the program gives it some.
+:- dynamic(message_hook/3).
+:- multifile(message_hook/3).
+
 print_message(Kind, Term) :-
     (   '$pm_push'(Term, Stack)
     ->  catch(ignore('$pm_guarded'(Kind, Term)), E,

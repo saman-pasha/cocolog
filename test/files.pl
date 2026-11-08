@@ -216,6 +216,12 @@ fixtures(listing_spec, Sandbox) :- !,
 %% again in each of its versions (pc.v2.pl moves the first clause down,
 %% pc.v3.pl defines it no more), which the case renames in its place; and
 %% a file the case includes
+%% five files to consult, one a fact (3.48.0)
+fixtures(user_view, Sandbox) :- !,
+    forall(member(N, [1, 2, 3, 4, 5]),
+           ( atomic_list_concat([Sandbox, '/uv', N, '.pl'], P),
+             atomic_list_concat([uv, N, '(', N, ').'], Fact),
+             fixture(P, [Fact]) )).
 fixtures(predicate_property, Sandbox) :- !,
     forall(member(F-Lines,
                   [ 'ppm.pl'-[':- module(ppm, [ppm_a/1, ppm_g//0]).', ':- meta_predicate ppm_a(0).',

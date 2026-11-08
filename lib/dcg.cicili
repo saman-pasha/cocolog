@@ -73,7 +73,13 @@
            ;; non_terminal/1 declaration first -- then asks
            ;; goal_expansion/2 of each clause's body. `'$xhooks'/2' says
            ;; which hooks the program has (`coco_xhook_bits'); a load asks
-           ;; the same two through `'$expand_clause'/3'.
+           ;; the same two through `'$expand_clause'/3'. term_expansion/2
+           ;; IS DECLARED IN USER, dynamic and multifile, as swipl's is
+           ;; (3.48.0): a predicate with no clause until the program gives
+           ;; it some, current from the start (goal_expansion/2 is so by
+           ;; library(yall)'s declarations of system's, one namespace).
+           ":- dynamic(term_expansion/2)."
+           ":- multifile(term_expansion/2)."
            "expand_term(T, X) :- var(T), !, X = T."
            "expand_term(T, X) :- '$xhooks'(TE, GE), '$expand_term'(TE, GE, T, X)."
            "'$expand_term'(1, GE, T, X) :- term_expansion(T, X0), !, '$expand_terms'(X0, GE, X)."

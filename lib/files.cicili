@@ -312,10 +312,16 @@
            ;; same, where the .so modules are, `swi' the binary's directory
            ;; and `path' $PATH. The Prolog files are pl, prolog and qlf and an
            ;; executable a .so, cocolog's modules on Linux and macOS alike
-           ;; (swipl's is .dylib on a Mac). The two are multifile, as
-           ;; swipl's are: a program's clauses join these.
+           ;; (swipl's is .dylib on a Mac). The three are dynamic and
+           ;; multifile (3.48.0; through 3.47.0 the two static and
+           ;; library_directory/1 no multifile), user's own hooks in swipl:
+           ;; a program's clauses join these, and an assert or a retract
+           ;; changes them.
            ":- dynamic(library_directory/1)."
+           ":- multifile(library_directory/1)."
+           ":- dynamic(file_search_path/2)."
            ":- multifile(file_search_path/2)."
+           ":- dynamic(prolog_file_type/2)."
            ":- multifile(prolog_file_type/2)."
            "file_search_path(library, Dir) :- library_directory(Dir)."
            "file_search_path(swi, Home) :- current_prolog_flag(executable, E), file_directory_name(E, Home)."

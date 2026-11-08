@@ -930,16 +930,19 @@
 
   ;;; A META_PREDICATE DECLARATION'S SPECS NOTED (3.41.0), for
   ;;; predicate_property/2's meta_predicate(Spec) and transparent: each
-  ;;; Name(Arg, ...) of a conjunction or a list, under its qualifiers, its
+  ;;; Name(Arg, ...) of a conjunction, under its qualifiers, its
   ;;; arguments a character each as lib/swipl-props.cicili writes them, on
   ;;; the predicate Name/Arity (`pmeta'). A spec holding what is no meta
   ;;; argument -- swipl's domain_error(meta_argument_specifier, X) -- is
   ;;; passed by; one of no arguments is noted, as swipl's (3.46.0: through
-  ;;; 3.45.0 passed by), its spec the empty string.
+  ;;; 3.45.0 passed by), its spec the empty string. A LIST IS A HEAD, the
+  ;;; list's own predicate's (`[:|+]', 3.48.0), as swipl's meta_predicate/1
+  ;;; reads it and as `coco_pred_meta_check' walks it: through 3.47.0 its
+  ;;; elements were noted, each a head, and `[:|+]' declared (:)/0 and (+)/0.
   (static)
   (func coco_pred_meta_note ((coco_store * st) (coco_machine * m) (size_t t))
         (set t (coco_deref m t))
-        (if (or (coco_is_compound2 m t ",") (coco_is_cons m t))
+        (if (coco_is_compound2 m t ",")
             (block
              (coco_pred_meta_note st m (coco_arg m t 0))
              (coco_pred_meta_note st m (coco_arg m t 1))
