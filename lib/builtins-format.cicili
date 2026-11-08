@@ -202,9 +202,14 @@
                   (block
                     (if (coco_m_is_var e v) (return (coco_m_instantiation_error e)))
                     (if (and (== k 1) (< (coco_wt_truth e v) 0)) (return (coco_m_type_error e "bool" v)))
+                    ;; an int's range (3.49.0, swipl's OPT_INT): max_depth(D)
+                    ;; and priority(P) past it are representation_error(int)
                     (if (== k 2)
                         (let ((i64 iv . 0))
-                          (if (not (coco_m_int e v (aof iv))) (return (coco_m_type_error e "integer" v)))))
+                          (if (not (coco_m_int e v (aof iv))) (return (coco_m_type_error e "integer" v)))
+                          (if (or (< iv -2147483648) (> iv 2147483647))
+                              (return (coco_m_raise e (coco_make1 m "representation_error"
+                                                                  (coco_new_atom m "int")))))))
                     (if (and (or (== k 3) (== k 4)) (not (coco_m_is_atom e v)))
                         (return (coco_m_type_error e "atom" v)))
                     (if (and (== k 4) (and (!= 0 (strcmp (coco_m_atom e v) "standard"))
@@ -237,7 +242,7 @@
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t * v . nil) (size_t n . 0)
               (int quoted . 0) (int ignore_ops . 0) (int numbervars . 0)
-              (int spacing . 0) (i64 prio . -1) (size_t vno . #'(cast size_t -1))
+              (int spacing . 0) (i64 prio . -1) (i64 maxd . 0) (size_t vno . #'(cast size_t -1))
               (size_t * nv . nil) (size_t nn . 0) (size_t k . 0)
               (size_t * cells . nil) (u64 * names . nil))
           (if (coco_m_list_array e opts (aof v) (aof n))
@@ -259,6 +264,10 @@
                                                  (== 0 (strcmp (coco_m_atom e ov) "next_argument"))) 1 0)))
                         (if (and (== 0 (strcmp nm "priority")) (!= ov (cast size_t -1)))
                             (if (not (coco_m_int e ov (aof prio))) (set prio -1)))
+                        ;; max_depth(D) (3.49.0, swipl's; through 3.48.3
+                        ;; checked and read past), 0 no limit
+                        (if (and (== 0 (strcmp nm "max_depth")) (!= ov (cast size_t -1)))
+                            (if (not (coco_m_int e ov (aof maxd))) (set maxd 0)))
                         (if (and (== 0 (strcmp nm "variable_names")) (!= ov (cast size_t -1)))
                             (set vno ov)))))))
           (free v)
@@ -286,9 +295,14 @@
           ;; quoted(true) writes a character to escape as swipl's
           ;; write_term/2 does, `\u0001' (64, character_escapes_unicode)
           (if (and (>= prio 0) (<= prio 1200)) (set (-> m wprec) (+ (cast int prio) 1)))
+          ;; a depth limit is the machine's WMAX and the mode's 1024, which
+          ;; the writer tests before it reads WMAX
+          (set (-> m wmax) maxd)
           (coco_write_mode m b t (bitor (? quoted 81 0) (bitor (? ignore_ops 2 0)
-                                 (bitor (? numbervars 8 0) (? spacing 512 0)))) 1)
+                                 (bitor (? numbervars 8 0) (bitor (? spacing 512 0)
+                                 (? (!= maxd 0) 1024 0))))) 1)
           (set (-> m wprec) 0)
+          (set (-> m wmax) 0)
           (set (-> m wcells) nil) (set (-> m wnames) nil) (set (-> m nwnames) 0)
           (free cells) (free names)
           (return 1)))

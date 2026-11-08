@@ -3136,11 +3136,39 @@
   ;;; 1024th, the 2048th after that, and so on -- a cycle of any length is
   ;;; met within twice it, past the first thousand, for a compare and a
   ;;; count a cell. Through 1.10.17 `X = [a|X]' wrote until memory ran out.
+  ;;; A LIST UNDER A DEPTH LIMIT (3.49.0, swipl's writeList()): its K-th
+  ;;; element one deeper than the K-1-th, the first one deeper than the
+  ;;; list, and a list that would go past the limit ends `|...]' -- so the
+  ;;; limit ends the walk, and no cycle needs looking for. Out of line: a
+  ;;; write with no limit never comes here.
+  (weak)
+  (func coco_write_list_cut ((coco_machine * m) (coco_strbuf * b) (size_t t)
+                             (int mode) (u32 depth)) (out int)
+        (coco_sb_putc b (cast char (coco-ch "[")))
+        (let ((int kids . #'(bitand mode 2011)) (u32 k . 0))
+          (while 1
+            (set t (coco_deref m t))
+            (if (> k 0)
+                (block (coco_sb_putc b (cast char (coco-ch ",")))
+                       (if (!= 0 (bitand mode 512)) (coco_sb_putc b (cast char 32)))))
+            (set k (+ k 1))
+            (coco_write_rec m b (coco_arg m t 0) kids 999 (+ depth k))
+            (set t (coco_deref m (coco_arg m t 1)))
+            (if (and (coco-tag-is ATOM (nth t (-> m heap))) (coco_is_nil m t)) break)
+            (if (>= (+ (cast i64 depth) (+ (cast i64 k) 1)) (-> m wmax))
+                (return (coco_sb_put b "|...]")))
+            (if (not (coco_is_cons m t))
+                (block (coco_sb_putc b (cast char (coco-ch "|")))
+                       (coco_write_rec m b t kids 999 (+ depth (+ k 1)))
+                       break)))
+          (return (coco_sb_putc b (cast char (coco-ch "]"))))))
+
   (static)
   (func coco_write_list ((coco_machine * m) (coco_strbuf * b) (size_t t)
                        (int mode) (u32 depth)) (out int)
+        (if (!= 0 (bitand mode 1024)) (return (coco_write_list_cut m b t mode depth)))
         (coco_sb_putc b (cast char (coco-ch "[")))
-        (let ((int first . 1) (int kids . #'(bitand mode 987))
+        (let ((int first . 1) (int kids . #'(bitand mode 2011))
               (size_t kept . #'(cast size_t -1)) (size_t lam . 0) (size_t power . 1024))
           (while 1
             (set t (coco_deref m t))
@@ -3227,8 +3255,9 @@
               ;; what this write's operands and arguments carry down:
               ;; quoted 1, ignore_ops 2, numbervars 8, escapes 16 and 64,
               ;; write_canonical/1's braces 128, next_argument's comma
-              ;; spaces 512 (the operand's 4 is each operand's own)
-              (int kids . #'(bitand mode 987)))
+              ;; spaces 512, max_depth's limit 1024 (the operand's 4 is each
+              ;; operand's own)
+              (int kids . #'(bitand mode 2011)))
 
           ;; THE ATOM `'[]'' AS AN OPERATOR IS WRITTEN QUOTED, and the list's
           ;; end is none (3.15.1, swipl's): op/3 of `'[]'' declares the atom,
@@ -3420,6 +3449,14 @@
 
   (func coco_write_rec ((coco_machine * m) (coco_strbuf * b) (size_t t)
                       (int mode) (int maxprec) (u32 depth)) (out int)
+        ;; WRITE_TERM/2'S MAX_DEPTH(D) (3.49.0, swipl's writeTerm()): a term
+        ;; past D is `...', a token of symbol characters, whose spaces the
+        ;; writer of its operator gives it as it gives an atom's. DEPTH is
+        ;; swipl's less one. A write with no limit pays the one test of its
+        ;; mode (1024 is on only while WMAX is set, `coco_wt_put')
+        (if (!= 0 (bitand mode 1024))
+            (if (>= (cast i64 depth) (-> m wmax))
+                (return (coco_sb_put b "..."))))
         (set t (coco_deref m t))
         (let ((u64 c . #'(nth t (-> m heap))))
           (cond
@@ -3593,7 +3630,10 @@
   ;;; pays a load and a branch for it. MODE is the writer's word without the
   ;;; operand's 4: quoted 1, ignore_ops 2, numbervars 8, character escapes 16,
   ;;; their unicode form 64, write_canonical/1's curly terms 128, a control
-  ;;; character as it is 256 (term_to_atom/2's, 3.15.1).
+  ;;; character as it is 256 (term_to_atom/2's, 3.15.1), a space after each
+  ;;; comma 512 (3.18.0), and a depth limit 1024 (3.49.0, the machine's
+  ;;; WMAX). Under a limit of 1024 or less a cyclic term meets the limit
+  ;;; before the guard, and is written to it, as swipl's.
   (static) (inline)
   (func coco_write_top ((coco_machine * m) (coco_strbuf * b) (size_t t)
                         (int mode) (int named)) (out int)

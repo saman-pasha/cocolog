@@ -963,7 +963,12 @@
     ;; collection that leaves more than it, with SOVER set, so the step asks
     ;; without collecting a second time (`coco_halted_step'). Appended.
     (member i64        slimit)
-    (member int        sover))
+    (member int        sover)
+    ;; THE DEPTH A WRITE IS CUT AT (3.49.0, write_term/2's max_depth(D),
+    ;; swipl's pl-write.c): D, set around one write by `coco_wt_put' with
+    ;; the write's mode 1024, and read only where that bit is on
+    ;; (`coco_write_rec', `coco_write_list_cut'). Appended.
+    (member i64        wmax))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends

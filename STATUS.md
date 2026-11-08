@@ -15744,3 +15744,60 @@ test of `=/2`'s two sides and the count's walk, asked of the libraries'
 clauses as they are stored. Narrow cases: lint, files, repl, engine,
 errors, reconsult, directives, trace, library, reason, normalise and
 translate green. Reasoning stays 1.0.27.
+
+## write_term/2's max_depth(D), as swipl's pl-write.c applies it (3.49.0)
+
+write_term/2, write_term/3 and format's `~W` checked `max_depth(D)` and
+read it past: every term was written whole. A minor, as what a program
+writes moves.
+
+- A term past D is `...` (swipl's writeTerm(), `++depth > max_depth`).
+  The term written is at depth 1 and each argument one deeper -- a
+  compound's, an operator's operands, a curly term's -- so `f(g(h))` at 2
+  is `f(g(...))` and `1+2+3` at 1 `... + ...`.
+- A list's elements go one deeper each (swipl's writeList()): the K-th of
+  a list at depth L is at L + K, a list that would go past D ends
+  `|...]`, and an improper tail is one deeper than the element before it.
+  `[1,2,3,4]` at 3 is `[1,2|...]`.
+- `...` takes the spaces an atom of symbol characters would, as swipl's
+  needSpace() gives them: `... + ...`, `- ...`, `a: ... : ...`,
+  `x is ... + ...`, and none beside a letter, `...mod...`, `dynamic...`.
+- D of 0 is no limit, a negative D elides the term itself, and the last
+  max_depth/1 of the options counts. D past an int is
+  representation_error(int), and so is priority(P), as swipl's OPT_INT;
+  through 3.48.3 any integer was taken for either.
+- A cyclic term under a limit is written to it, `f(f(f(f(...))))`, where
+  with none it is written as its factors. Past 1 024 the writer's cycle
+  guard meets it first (COMPAT.md).
+
+The limit is the machine's `wmax` and the write's mode bit 1024, both set
+by `coco_wt_put` around one write. `coco_write_rec` tests the bit first
+and reads `wmax` only under it, and a list under it is
+`coco_write_list_cut`'s, out of line. A compound and a list hand on
+`mode & 2011`, where they handed on `mode & 987`.
+
+test/files/write_depth.pl, new, holds 438 lines to swipl, byte for byte
+(3.48.3 differs at the 42nd).
+
+The arms, one build each over the writer's four cases (write_depth,
+write, print, escapes): the arm of no edit green in all four, and each of
+the ten rules red in write_depth -- a term past the limit `...`, a list
+under a limit the cut writer's, its `|...]`, its K-th element K deeper
+than the list, a compound's children carrying the limit, the option read,
+D of 0 no limit, the option's range, an improper tail one deeper than
+the element before it, and spacing(next_argument) in a cut list. Each is
+green in the other three but D of 0, which is red in write and escapes
+too: with the bit set for every write, each write_term/2 writes `...`.
+
+The cost where no limit is set is one instruction a term written. A run
+that writes a term of 2 019 subterms ninety times (write/1, writeq/1 and
+print/1, 181 710 terms) counts `coco_write_rec` 184 884 instructions
+more, +0.10 % of its 177.5 million. tools/flow/zero.sh against 3.48.3,
+the binaries at like paths, work less padding: nrev +11 instructions,
+queens +0, lookup +0. A start (`cocolog query true`, each binary at the
+checkout's path) counts 14 693 more of 35 745 106, the writer's own 47
+of them and the rest libc's memcmp and strcmp, which move with a
+binary's layout.
+
+Narrow cases green: lint, files, string, units, engine, errors, repl,
+trace, library, directives and syntax. Reasoning stays 1.0.27.
