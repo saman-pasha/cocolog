@@ -39,8 +39,15 @@ t(G) :-
 len3(L-N) :- system:length(L, N), ( N >= 2 -> ! ; true ).
 last3(L-X) :- L = [a|_], system:last(L, X), system:length(L, N), ( N >= 3 -> ! ; true ).
 %% a guarded frame's last call takes the guard on, and the system's clause
-%% hands it to its own last call
+%% hands it to its own last call -- as it does for the name not taken.
+%% swipl's first call of a library predicate it autoloads keeps the guard
+%% on the caller (COMPAT.md), so main calls each of these once before
 dl(L) :- $, system:length(L, _).
+gq :- $, system:aggregate_all(r(count), member(_, [a]), r(5)).
+gn :- $, system:nth0(_, [], _).
+gn2 :- $, system:nth0(_, [a, b], c).
+gl :- $, system:last([a|_], _).
+gr :- $, system:reverse(_, [a|b]).
 
 main :-
     %% the program's own
@@ -59,4 +66,4 @@ main :-
     t(system:aggregate_all(bag(Y)-max(Y), member(Y, [c, a, b]), _)),
     %% and with no answer
     t(system:nth0(_, [], _)), t(system:reverse(_, [a|b])),
-    t(dl(_)).
+    t(dl(_)), t(gq), t(gn), t(gn2), t(gl), t(gr).

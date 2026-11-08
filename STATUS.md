@@ -16911,27 +16911,29 @@ of `'$system:length'(L, N)' runs it, and predicate_property/2 of the head
 named answers. Nothing that walks the program shows it: current_predicate/1,
 predicate_property/2 with the head unbound, listing/0,1.
 
-test/files/system_kept.pl holds 27 lines to swipl, the guard among them.
+test/files/system_kept.pl holds 32 lines to swipl. Six of them are guarded
+`system:G' goals of taken names, each answering as the name not taken does,
+each predicate called once before, as swipl's first call of a library
+predicate it autoloads keeps the guard on the caller (COMPAT.md).
 test/trace.pl holds nine queries of test/trace-taken.pl to swipl's ports,
 and two lines of its own. One is a qualified goal nothing defines, in a
 clause that hides its children: swipl's catch/3 is a frame of its own, a
 depth apart. The other is a kept frame's retry, the next clause's calls
 hidden: swipl hides them too, but both show what aggregate_list/3's
 maplist/4 calls, and swipl names its helper apply:maplist_/4.
-test/engine.pl's `kept_guard' holds nine guarded `system:G' goals of taken
-names to the same goals with the names not taken, and not to swipl
-(below).
 
-Found and not fixed (3.58.0's too), task 168:
+What looked like two more differences is swipl's autoloader, COMPAT.md's
+row of a library predicate's first call:
 
-- `$/0''s guard handed to a qualified last call into library(lists) names
-  the callee (`lists:nth0/3', `lists:last_/3') where swipl names the
-  guarded clause (`gn/0'), the callee in the context. A last call into the
-  system module agrees ('$length3'/3).
-- A guarded last call into a transparent library predicate that then fails
-  -- maplist/2, aggregate_all/3 of a template of templates -- fails, where
-  swipl raises determinism_error(Clause, det, fail, guard_in_caller), the
-  frame that failed in the context (`apply:maplist_/2').
+- swipl's first guarded call of a library predicate it has not loaded
+  names the guarded clause (`gn/0', `dp/1'), where later ones name the
+  callee (`lists:nth0/3', `lists:nth_gen/5');
+- a guarded last call into a transparent library predicate that fails
+  (maplist/2, aggregate_all/3 of a template of templates) raises on that
+  first call alone.
+
+Each later call answers as cocolog's, guarded `system:G' of a taken name
+too. The first commit of these notes listed the two as not fixed.
 
 Arms, one build each, 13. The arm of no edit is green. Eight rules are each
 red in the files case or the trace case:
@@ -16948,8 +16950,9 @@ red in the files case or the trace case:
 
 Two were green, and each has a case now. The retry's context is held by the
 trace case's line (without it the kept clause's three calls print). The
-guard taken on by the kept call is held by `kept_guard' (without it `gq' and
-`gn' raise what the names not taken do not).
+guard taken on by the kept call is held by system_kept's guarded lines
+(without it `gq' raises and `gn' names its clause, where swipl and the
+names not taken do neither).
 
 Two were green and are gone:
 
