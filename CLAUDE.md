@@ -1931,6 +1931,16 @@ cocolint index offers no import of it.
   lib/builtins-format.cicili, swipl's with each option's kind): its row is
   found once (`coco_wt_opt`, made by a macro) and `coco_wt_put` takes it in
   a switch, so a new option is a row and a case, never a strcmp;
+  **partial(true) begins after the last character where the write goes**
+  (3.56.0, swipl's PutOpenToken() of the stream's lastc; test/files/
+  write_partial.pl): `coco_wt_put`'s PREV, put before the term and taken
+  off after it, the gap asked where the portray mark is still the write's
+  own (`wpgapb`) -- the console's user_output and user_error each keep
+  theirs and a capture its own from none (`coco_out_lastc`, noted by
+  `coco_out_note`), a library(stream) file its own, format's own text
+  before `~W` and none after a fill point (-2: swipl's text is a
+  sub-format's there), so **a new writer that puts text where a write may
+  go next notes its last character**, as `coco_out_note` and `st_wrote` do;
   write_term/2's priority(P) is the machine's `wprec`, P plus one,
   read by `coco_write_top` alone, and its max_depth(D) the machine's
   `wmax`, read only under 1024 -- by `coco_write_rec`'s first test, one
@@ -1973,7 +1983,9 @@ cocolint index offers no import of it.
   failed having written leaves its text and the term after it, a space
   between where the two would read as one token (`coco_write_gap_at`,
   `partial w`), none where that term's first text is a goal's too
-  (`wpgapb`, 3.55.0: `pgpg a`, where 3.54.0 wrote `pg pg a`). **A goal that
+  (`wpgapb`, 3.55.0: `pgpg a`, where 3.54.0 wrote `pg pg a`) or a string's
+  unquoted text (3.56.0: `pgs`, as swipl's PutString asks no token).
+  **A goal that
   threw stops the write**: nothing more is
   written (`wpstop`), and what a parent wrote after the stop is taken back
   (`wpcut`): **an operand written into a buffer of its own carries the stop
@@ -3018,7 +3030,9 @@ cocolint index offers no import of it.
   `journal(replay(F))` answers each from its line and runs none. A portal
   is decided by module (`coco_jr_whole`: zigurat, os, process, stream,
   thread, tcp, tls, curl, ray, opencv, torch, tensorflow, numpy, aes, x509
-  -- every C predicate of one), by name for the modules that are not
+  -- every C predicate of one but what sets the engine's own state alone,
+  `coco_jr_none`, which a replay must run: library(stream)'s
+  `'$stream_lastc_set'/1`, 3.56.0), by name for the modules that are not
   (`coco_jr_named`: files' twenty, getenv/setenv/unsetenv, statistics/2,
   current_prolog_flag/2, sha_file/3, the green world's size
   `'$async_workers'/1`, and format/3 unless its sink is a term), and by
@@ -3494,7 +3508,11 @@ cocolint index offers no import of it.
   prints with stdio of its own; a capture (with_output_to/2) has a column
   of its own from 0 and gives the console's back. A new writer to the
   console goes through `coco_out_puts`/`coco_out_putc` or notes what it
-  wrote, or the next `~N` and the next report guess. **`format` keeps
+  wrote, or the next `~N` and the next report guess -- and since 3.56.0 the
+  next partial(true) write, which begins after the last character the note
+  keeps, stdout's, stderr's and a capture's apart (`coco_out_lc`,
+  `coco_err_lc`, `coco_cap_lc`: a capture's from none at its start, the
+  outer one's put back at its end in the word the start saved). **`format` keeps
   swipl's column** (3.33.0, pl-fmt.c's format_state, `coco_fmt_cols` in
   lib/builtins-format.cicili): it begins where the sink stands
   (`coco_fmt_start`: the console's `coco_con_lp`, a capture's
@@ -3633,7 +3651,15 @@ cocolint index offers no import of it.
   the line, SWI's column), so `read_term/3` answers `term_position` and
   `subterm_positions` on a pipe too; a seek or a write to an update stream
   leaves the counters behind `ftell`, and `st_pos_sync` counts again from
-  the start. **Its errors are swipl's** (3.16.0, test/files/stream_errors.pl):
+  the start. **Every write notes its last character** (3.56.0, `st_lc1`,
+  plus one, 0 at the open), in `st_wrote` and `st_wrote_wide`, which every
+  put and write passes -- a byte a character in a stream of one byte a
+  character -- where write_term/3's partial(true) begins: its write runs in
+  a capture, so `'$stream_lastc'/2` reads the stream's before the capture
+  begins (user_output's then still the console's) and
+  `'$stream_lastc_set'/1` sets the capture's inside it -- no portal of the
+  journal, which a replay runs (`coco_jr_none`). **Its errors are swipl's**
+  (3.16.0, test/files/stream_errors.pl):
   a C half shared by several predicates takes the caller's indicator as its
   last argument and names it (`:PI` rows of `*error-contexts*`,
   `coco_ectx_named`), so `get_char/2` raises with

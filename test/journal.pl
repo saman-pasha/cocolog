@@ -23,6 +23,7 @@
 main :-
     scratch(D), nb_setval(j_dir, D),
     record(D), replay(D), diverged(D), raised(D), processes(D), refusals(D), sized(D),
+    partial(D),
     checks_done.
 
 %% the journal's entries as terms: j(I, Module, Name/Arity, CallText, Outcome)
@@ -254,3 +255,33 @@ sized(D) :-
     ( E2 == E1 -> End2 = same ; End2 = E2 ),
     check('replayed with the variable changed: the run''s end, and the recorded count',
           End2-N2, same-N1).
+
+%% ---- a write's last character ----------------------------------------------------------
+
+%% write_term/3 of a stream with partial(true) begins after the stream's last
+%% character (3.56.0): '$stream_lastc'/2 reads it, a portal, the stream being
+%% the run's, and '$stream_lastc_set'/1 hands it to the capture the text is
+%% written in -- the engine's own state, which a replay sets as the record
+%% did, or the text it writes is another and the replay diverges at the write
+j_partial :-
+    nb_getval(j_dir, D), atom_concat(D, '/partial.txt', F),
+    open(F, write, S), write(S, a), write_term(S, b, [partial(true)]), close(S).
+
+partial(D) :-
+    section('a write''s last character: read from the journal, and handed to the capture as the record did'),
+    atom_concat(D, '/partial.jrnl', J1), atom_concat(D, '/partial.txt', F1),
+    '$trace_window'(j_partial, [journal(record(J1))], _, E1),
+    ( E1 = end(answer, _, _) -> End1 = answer ; End1 = E1 ),
+    text_of(F1, T1),
+    check('recorded: the run''s answer, and the file holds a b, the gap partial(true) wrote',
+          End1-T1, answer-'a b'),
+    entries(J1, Es2),
+    ( memberchk(j(_, stream, '$stream_lastc'/2, _, exit(_)), Es2) -> R2 = journalled ; R2 = absent ),
+    ( memberchk(j(_, stream, '$stream_lastc_set'/1, _, _), Es2) -> S2 = journalled ; S2 = absent ),
+    check('the stream''s last character journalled, and the capture''s set left out: no portal',
+          R2-S2, journalled-absent),
+    delete_file(F1),
+    '$trace_window'(j_partial, [from(1), journal(replay(J1))], _, E3),
+    ( exists_file(F1) -> W3 = written ; W3 = absent ),
+    check('replayed: the record''s end, no divergence at the write, and the file not written again',
+          E3-W3, E1-absent).

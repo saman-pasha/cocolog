@@ -41,6 +41,13 @@
                 . '{"zigurat" "os" "process" "stream" "thread" "tcp" "tls" "curl"
                     "ray" "opencv" "torch" "tensorflow" "numpy" "aes" "x509"})
 
+  ;;; BUT THE PREDICATES OF THOSE MODULES THAT SET THE ENGINE'S OWN STATE
+  ;;; ALONE (3.56.0), which a replay must set as the run did: library(stream)'s
+  ;;; write_term/3 hands the capture it writes in the stream's last character,
+  ;;; and the text the capture holds -- what the next portal writes -- begins
+  ;;; after it. The stream's character itself, '$stream_lastc'/2, stays one.
+  (static) (var const char * coco_jr_none [] . '{"stream:$stream_lastc_set/1"})
+
   ;;; AND THE PORTALS OF THE MODULES THAT DO NOT: the files module's but the
   ;;; four that take a name apart; the environment, the clock and the
   ;;; statistics; format/3 to a stream (its three term sinks are no portal,
@@ -120,9 +127,11 @@
         (let ((char key [320]))
           (set (cof varies) 0)
           (if (or (== mod nil) (== name nil)) (return 0))
+          (snprintf key (sizeof key) "%s:%s/%u" mod name arity)
+          (for ((size_t i . 0)) (< i (/ (sizeof coco_jr_none) (sizeof (nth 0 coco_jr_none)))) ((++ i))
+            (if (== 0 (strcmp key (nth i coco_jr_none))) (return 0)))
           (for ((size_t i . 0)) (< i (/ (sizeof coco_jr_whole) (sizeof (nth 0 coco_jr_whole)))) ((++ i))
             (if (== 0 (strcmp mod (nth i coco_jr_whole))) (return 1)))
-          (snprintf key (sizeof key) "%s:%s/%u" mod name arity)
           (for ((size_t i . 0)) (< i (/ (sizeof coco_jr_named) (sizeof (nth 0 coco_jr_named)))) ((++ i))
             (if (== 0 (strcmp key (nth i coco_jr_named)))
                 (block

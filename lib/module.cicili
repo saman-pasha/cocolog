@@ -485,6 +485,16 @@
   (decl) (func coco_m_out_column ((int fd)) (out i64))
   (decl) (func coco_m_out_where ((i64 * nc) (i64 * nl) (i64 * lp) (i64 * nb)))
   (decl) (func coco_m_out_set_column ((i64 lp)))
+  ;;; AND THE LAST CHARACTER (3.56.0), where write_term/2's partial(true)
+  ;;; begins, as swipl's begins at the stream's lastc: a module's own sink
+  ;;; answers the code it wrote last there (-1 none yet, -2 not mine), and
+  ;;; a module asks the console's (FD 1, a capture's while with_output_to/2
+  ;;; runs, or FD 2) and sets it, as library(stream)'s write_term/3 begins
+  ;;; the capture its write runs in where its stream stands.
+  (decl) (func coco_m_sink_lastc_install ((func hook ((coco_engine * e) (size_t sink)) (out i64))))
+  (decl) (func coco_m_sink_lastc_call ((coco_engine * e) (size_t sink)) (out i64))
+  (decl) (func coco_m_out_lastc ((int fd)) (out i64))
+  (decl) (func coco_m_out_lastc_set ((int fd) (i64 c)))
 
   ;;; ---- a goal on a machine of its own ---------------------------------
   ;;;
@@ -1382,6 +1392,24 @@
 
   (func coco_m_out_set_column ((i64 lp))
         (coco_out_set_column lp))
+
+  ;;; the last character (3.56.0): a replay's stream wrote nothing
+  (static) (var func coco_m_sink_lastc_hook ((coco_engine * e) (size_t sink)) (out i64) . nil)
+
+  (func coco_m_sink_lastc_install ((func hook ((coco_engine * e) (size_t sink)) (out i64)))
+        (set coco_m_sink_lastc_hook hook))
+
+  (func coco_m_sink_lastc_call ((coco_engine * e) (size_t sink)) (out i64)
+        (if (!= ($ (cof (-> e m)) rec) nil)
+            (if (coco_m_replay_sink e sink) (return -1)))
+        (if (== coco_m_sink_lastc_hook nil) (return -2))
+        (return (coco_m_sink_lastc_hook e sink)))
+
+  (func coco_m_out_lastc ((int fd)) (out i64)
+        (return (coco_out_lastc (? (== fd 2) stderr stdout))))
+
+  (func coco_m_out_lastc_set ((int fd) (i64 c))
+        (coco_out_lastc_set (? (== fd 2) stderr stdout) c))
 
   ;;; Filled in by the composition root; null until it is, which is what
   ;;; every out-of-tree embedder and every test binary leaves them.

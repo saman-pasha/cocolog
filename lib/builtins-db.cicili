@@ -45,7 +45,9 @@
         (let ((coco_strbuf b) (int r . #'(coco_wt_check e (coco_m_arg e g 1) (coco_m_arg e g 0))))
           (if (!= r 1) (return r))
           (coco_sb_init (aof b))
-          (coco_wt_put e (aof b) (coco_m_arg e g 0) (coco_m_arg e g 1))
+          ;; partial(true) begins at the last character the output holds
+          ;; (3.56.0): the console's, or a capture's
+          (coco_wt_put e (aof b) (coco_m_arg e g 0) (coco_m_arg e g 1) (coco_out_lastc stdout))
           (if (!= ($ b s) nil) (coco_out_puts stdout ($ b s)))
           (coco_sb_free (aof b))
           (return (coco_portray_after e))))

@@ -64,6 +64,16 @@
              COLLECT `(case ,i (return ,(SECOND row))))
      (default (return 0))))
 
+;;; WRITE_TERM/2'S TERM WRITTEN (3.56.0, out of `coco_wt_put'): a portray
+;;; goal asked where one is, the writer's own otherwise -- in a write and in
+;;; partial(true)'s, which puts the last character before it
+(DEFMACRO coco-wt-write (m b t mode numbervars asks pgoal opts)
+  `(if ,asks
+       (block (set (-> ,m wpgoal) ,pgoal) (set (-> ,m wpopts) ,opts)
+              (coco_write_portrayed ,m ,b ,t (bitor ,mode 8192) ,numbervars)
+              (set (-> ,m wpgoal) 0) (set (-> ,m wpopts) 0))
+       (coco_write_mode ,m ,b ,t ,mode ,numbervars)))
+
 ;;; FORMAT'S OWN TEXT WALKED (3.33.0): what was put in S since `cdone', up
 ;;; to TO, by pl-fmt.c's update_column() -- `coco_col_walk' mode 0, a tab
 ;;; to (COL + 1) | 7. `~a', `~s', `~c', the numbers and the format's
@@ -293,6 +303,33 @@
           (if (>= pi (-> st npreds)) (return 0))
           (return (> (coco_pred_count st pi) ($ (nth pi (-> st preds)) ntomb)))))
 
+  ;;; WRITE_TERM/2'S PARTIAL(TRUE) (3.56.0, swipl's): the write begins
+  ;;; where its stream stands -- after PREV, the last character there (-1
+  ;;; none), put before the term and taken off after it, or after the text
+  ;;; B already holds, format's before `~W' -- and its first token takes a
+  ;;; space where the two would read as one, as swipl's PutOpenToken() asks
+  ;;; the stream's lastc: asked where the portray gap mark is still the
+  ;;; write's own (`wpgapb'), which a failed goal's text and a string's
+  ;;; clear. Out of line, so that a write with no partial(true) keeps the
+  ;;; registers it had: in line, coco_wt_put paid 33 instructions a call
+  (static)
+  (func coco_wt_partial ((coco_machine * m) (coco_strbuf * b) (size_t t) (int mode)
+                         (int numbervars) (int asks) (size_t pgoal) (size_t opts) (i64 prev))
+        (let ((size_t q0 . #'(-> b len)) (size_t pre . 0)
+              (void * sgb . #'(-> m wpgapb)) (size_t sgq . #'(-> m wpgapq)))
+          (if (and (== q0 0) (>= prev 0))
+              (let ((char u [8]) (int k . #'(coco_utf8_enc u prev)))
+                (for ((int i . 0)) (< i k) ((++ i)) (coco_sb_putc b (nth i u)))
+                (set pre (cast size_t k))))
+          (set (-> m wpgapb) (cast (void *) b)) (set (-> m wpgapq) (+ q0 pre))
+          (coco-wt-write m b t mode numbervars asks pgoal opts)
+          (if (== (-> m wpgapb) (cast (void *) b)) (coco_write_gap_at b (+ q0 pre)))
+          (set (-> m wpgapb) sgb) (set (-> m wpgapq) sgq)
+          ;; and the character it began after taken off again
+          (if (> pre 0)
+              (block (memmove (-> b s) (+ (-> b s) pre) (+ (- (-> b len) pre) 1))
+                     (set (-> b len) (- (-> b len) pre))))))
+
   ;;; T written into B as OPTS say, for write_term/2 (lib/builtins-db.cicili)
   ;;; and format's `~W' (3.0.0). `quoted(true)', `ignore_ops(true)',
   ;;; `numbervars(true)' and `variable_names(['X'=V, ...])' are the ones the
@@ -320,15 +357,19 @@
   ;;; `é'); and brace_terms(false), a curly term `{}(T)' (128). A cycle's
   ;;; factors are S_1, S_2, ... under numbervars alone, as swipl binds them
   ;;; to `'$VAR'('S_1')' only then (`coco_write_cyclic'); through 3.54.0
-  ;;; under every write_term/2.
+  ;;; under every write_term/2. And partial(true) since 3.56.0, swipl's:
+  ;;; the write begins after PREV, the last character where it goes (-1
+  ;;; none: the console's, a stream's, the format's text before `~W'), and
+  ;;; its first token takes a space where the two would read as one.
   (static)
-  (func coco_wt_put ((coco_engine * e) (coco_strbuf * b) (size_t t) (size_t opts)) (out int)
+  (func coco_wt_put ((coco_engine * e) (coco_strbuf * b) (size_t t) (size_t opts) (i64 prev)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t * v . nil) (size_t n . 0)
               (int quoted . 0) (int ignore_ops . 0) (int numbervars . 0) (int nvset . 0)
               (int portray . 0) (size_t pgoal . 0) (int asks . 0)
               (int fullstop . 0) (int nl . 0) (int dotlists . 0) (int nolists . 0)
               (int escapes . 1) (int unicode . 1) (int nonascii . 0) (int braces . 1)
+              (int partial . 0)
               (int spacing . 0) (i64 prio . -1) (i64 maxd . 0) (size_t vno . #'(cast size_t -1))
               (size_t * nv . nil) (size_t nn . 0) (size_t k . 0)
               (size_t * cells . nil) (u64 * names . nil))
@@ -369,6 +410,9 @@
                           (case (coco-wt-opt "character_escapes_unicode") (set unicode on) break)
                           (case (coco-wt-opt "quote_non_ascii") (set nonascii on) break)
                           (case (coco-wt-opt "brace_terms") (set braces on) break)
+                          ;; partial(B) (3.56.0, swipl's; through 3.55.0
+                          ;; checked and read past)
+                          (case (coco-wt-opt "partial") (set partial on) break)
                           ;; spacing(next_argument) and priority(P) (3.19.0,
                           ;; swipl's; through 3.18.0 checked and read past)
                           (case (coco-wt-opt "spacing")
@@ -387,6 +431,9 @@
                           (case (coco-wt-opt "variable_names") (if given (set vno ov)) break)
                           (default break)))))))
           (free v)
+          ;; a write that begins at no character whatever B holds (-2,
+          ;; format's after a fill point) is a write partial(false) makes
+          (if (< prev -1) (set partial 0))
           ;; the variable names the last variable_names/1 gave, each
           ;; `Name = V' of an atom and a variable still unbound
           (if (and (!= vno (cast size_t -1)) (coco_m_list_array e vno (aof nv) (aof nn)))
@@ -427,12 +474,11 @@
                                  (bitor (? numbervars 8 0) (bitor (? spacing 512 0)
                                  (bitor (? (!= maxd 0) 1024 0)
                                  (bitor (? dotlists 2048 0) (? nolists 4096 0)))))))))))
-            ;; a cycle's factors named S_1, ... under numbervars alone
-            (if asks
-                (block (set (-> m wpgoal) pgoal) (set (-> m wpopts) opts)
-                       (coco_write_portrayed m b t (bitor mode 8192) numbervars)
-                       (set (-> m wpgoal) 0) (set (-> m wpopts) 0))
-              (coco_write_mode m b t mode numbervars)))
+            ;; a cycle's factors named S_1, ... under numbervars alone;
+            ;; partial(true) begins after PREV (3.56.0)
+            (if partial
+                (coco_wt_partial m b t mode numbervars asks pgoal opts prev)
+              (coco-wt-write m b t mode numbervars asks pgoal opts)))
           ;; and the full stop after it and the newline, as swipl's
           ;; pl_write_term3() puts them (3.53.0), unless a portray goal
           ;; stopped the write
@@ -1050,7 +1096,8 @@
   (static)
   (func coco_fmt_build ((coco_engine * e) (const char * f) (const size_t * items)
                         (size_t n) (coco_strbuf * b) (char * err) (size_t errlen) (i64 start)
-                        (int * fkind) (int * fdir) (size_t * fbad) (coco_fmt_ball * ball))
+                        (int * fkind) (int * fdir) (size_t * fbad) (coco_fmt_ball * ball)
+                        (i64 slc))
         (out int)
         (let ((coco_machine * m . #'(coco_m_machine e)) (size_t ai . 0) (size_t i . 0)
               (size_t flen . #'(strlen f))
@@ -1221,7 +1268,11 @@
                       (if (!= rc 1)
                           (block (set (cof fdir) rc)
                                  (return (coco_fmt_fail err errlen fkind 5 "")))))
-                    (coco-fmt-writer cs b o (coco_wt_put e o a opts))
+                    ;; partial(true) begins at the last character before
+                    ;; it, the format's text or the sink's, SLC (3.56.0) --
+                    ;; or at none after a fill point, where swipl's text is
+                    ;; a sub-format's, each directive's its own (-2)
+                    (coco-fmt-writer cs b o (coco_wt_put e o a opts (? (== o b) slc -2)))
                     (if (-> m wpstate) (return (coco_fmt_portray_fail m ball err errlen fkind)))
                     continue))
 
@@ -1546,6 +1597,25 @@
                 (if (== 0 (strcmp nm "user_error")) (return (coco_out_column stderr)))))
           (return 0)))
 
+  ;;; AND THE LAST CHARACTER WRITTEN THERE (3.56.0), where a `~W' of
+  ;;; partial(true) begins when the format has put nothing before it, as
+  ;;; swipl's write begins at the stream's lastc: stdout's and stderr's the
+  ;;; console's (a capture's own), a module's sink as the module answers
+  ;;; (`coco_m_sink_lastc_call'), and a term sink none, as swipl begins each
+  ;;; of those afresh. -1 is none.
+  (static)
+  (func coco_fmt_lastc ((coco_engine * e) (size_t sink)) (out i64)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t d . 0) (i64 h . 0))
+          (if (== sink (cast size_t -1)) (return (coco_out_lastc stdout)))
+          (set h (coco_m_sink_lastc_call e sink))
+          (if (>= h -1) (return h))
+          (set d (coco_deref m sink))
+          (if (and (coco_is_callable m d) (== (coco_arity m d) 0))
+              (let ((const char * nm . #'(coco_atom_name m (coco_name_of m d))))
+                (if (== 0 (strcmp nm "user_output")) (return (coco_out_lastc stdout)))
+                (if (== 0 (strcmp nm "user_error")) (return (coco_out_lastc stderr)))))
+          (return -1)))
+
   ;;; Shared by all three arities. SINK is `(cast size_t -1)' for stdout.
   (static)
   (func coco_fmt_do ((coco_engine * e) (size_t sink) (size_t fmt) (size_t argt))
@@ -1576,7 +1646,7 @@
           (set (nth 0 err) (cast char 0))
           (set ok (coco_fmt_build e (coco_tx_s (aof fb)) items n (aof b) err (sizeof err)
                                   (coco_fmt_start e sink) (aof fkind) (aof fdir) (aof fbad)
-                                  (aof ball)))
+                                  (aof ball) (coco_fmt_lastc e sink)))
           (coco_sb_free (aof fb))
           (if owned (free items))
 

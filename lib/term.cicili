@@ -1116,6 +1116,8 @@
   (decl) (func coco_out_open ((FILE * f)) (out int))
   (decl) (func coco_out_column ((FILE * f)) (out i64))
   (decl) (func coco_out_fresh ((FILE * f)))
+  (decl) (func coco_out_lastc ((FILE * f)) (out i64))
+  (decl) (func coco_out_lastc_set ((FILE * f) (i64 c)))
   (decl) (func coco_out_capture_begin () (out i64))
   (decl) (func coco_out_capture_end ((i64 saved)))
   (decl) (func coco_col_walk ((const char * s) (size_t from) (size_t to) (i64 col) (int mode)) (out i64))
@@ -1941,12 +1943,40 @@
   (static) (var i64 coco_con_lp . 0)
   (static) (var i64 coco_con_nb . 0)
 
+  ;;; AND EACH ONE'S LAST CHARACTER (3.56.0), where write_term/2's
+  ;;; partial(true) begins, as swipl's begins at the stream's lastc: one
+  ;;; for user_output, one for user_error -- two streams in swipl, each its
+  ;;; own lastc, though they share a position -- and a capture's, from none
+  ;;; at its start as swipl's memory stream begins. -1 is none written yet.
+  (static) (var i64 coco_out_lc . -1)
+  (static) (var i64 coco_err_lc . -1)
+  (static) (var i64 coco_cap_lc . -1)
+
+  ;;; F's last character, the code that ends S[0..N), N > 0, whose last byte
+  ;;; is past ASCII (3.56.0): a byte that ends no UTF-8 character is U+DC00
+  ;;; plus it, as the reader takes one. Out of line and cold, the note's
+  ;;; tail call: asked before its walks, the call made every note save five
+  ;;; registers (17 instructions a write, where the tail call leaves 7)
+  (weak) (cold)
+  (func coco_out_note_wide ((FILE * f) (const char * s) (size_t n))
+        (let ((size_t b . #'(- n 1)) (size_t j . 0) (i64 c . 0))
+          (while (and (> b 0) (and (< (- n b) 4) (== (bitand (cast int (nth b s)) 192) 128)))
+            (set b (- b 1)))
+          (set j b)
+          (set c (coco_utf8_get s n (aof j)))
+          (if (!= j n) (set c (+ 56320 (bitand (cast int (nth (- n 1) s)) 255))))
+          (coco_out_lastc_set f c)))
+
   (func coco_out_note ((FILE * f) (const char * s) (size_t n))
         (if (or (== s nil) (== n 0)) (return))
-        (let ((int mid . #'(? (== (nth (- n 1) s) (cast char 10)) 0 1)))
+        (let ((int mid . #'(? (== (nth (- n 1) s) (cast char 10)) 0 1))
+              (i64 lc . #'(bitand (cast i64 (nth (- n 1) s)) 255)))
+          ;; and its last character, where partial(true) begins (3.56.0)
           (cond
-            ((== f stdout) (set coco_out_mid mid) (if (not coco_out_cap) (set coco_err_mid mid)))
-            ((== f stderr) (set coco_err_mid mid) (if (not coco_out_cap) (set coco_out_mid mid))))
+            ((== f stdout) (set coco_out_mid mid) (if (not coco_out_cap) (set coco_err_mid mid))
+             (if coco_out_cap (set coco_cap_lc lc) (set coco_out_lc lc)))
+            ((== f stderr) (set coco_err_mid mid) (if (not coco_out_cap) (set coco_out_mid mid))
+             (set coco_err_lc lc)))
           (if (and (== f stdout) coco_out_cap)
               (set coco_cap_lp (coco_col_walk s 0 n coco_cap_lp 1)))
           (if (or (== f stderr) (and (== f stdout) (not coco_out_cap)))
@@ -1962,7 +1992,10 @@
                                 ((== c 13) (set coco_con_lp 0))
                                 ((== c 9) (set coco_con_lp (+ (bitor coco_con_lp 7) 1)))
                                 ((== c 8) (if (> coco_con_lp 0) (set coco_con_lp (- coco_con_lp 1))))
-                                (#t (set coco_con_lp (+ coco_con_lp 1))))))))))))
+                                (#t (set coco_con_lp (+ coco_con_lp 1))))))))))
+          ;; a last byte past ASCII ends a character read whole, the note's
+          ;; last act
+          (if (< (nth (- n 1) s) 0) (coco_out_note_wide f s n))))
 
   ;;; the console's position: characters, the line, the column and bytes
   (func coco_out_where ((i64 * nc) (i64 * nl) (i64 * lp) (i64 * nb))
@@ -2004,21 +2037,41 @@
   (func coco_out_fresh ((FILE * f))
         (if (coco_out_open f) (coco_out_putc f 10)))
 
+  ;;; the last character written to F (stdout, a capture's while one runs,
+  ;;; or stderr), -1 none, and set: library(stream)'s write_term/3 begins
+  ;;; its capture where its stream stands (3.56.0)
+  (func coco_out_lastc ((FILE * f)) (out i64)
+        (if (and (== f stdout) coco_out_cap) (return coco_cap_lc))
+        (if (== f stdout) (return coco_out_lc))
+        (if (== f stderr) (return coco_err_lc))
+        (return -1))
+
+  (func coco_out_lastc_set ((FILE * f) (i64 c))
+        (cond ((and (== f stdout) coco_out_cap) (set coco_cap_lc c))
+              ((== f stdout) (set coco_out_lc c))
+              ((== f stderr) (set coco_err_lc c))))
+
   ;;; with_output_to/2's capture of fd 1: stdout's column starts at 0 and is
   ;;; its own until the end, which gives back what the capture's start saved
-  ;;; -- an outer capture's column, or the console's as stderr left it
+  ;;; -- an outer capture's column, or the console's as stderr left it --
+  ;;; and its last character starts at none (3.56.0): bit 0 the line open,
+  ;;; bit 1 an outer capture, bits 2 to 23 the outer last character plus
+  ;;; one, from bit 24 the column
   (func coco_out_capture_begin () (out i64)
         (let ((i64 saved . #'(bitor (cast i64 (bitor coco_out_mid (<< coco_out_cap 1)))
-                                    (<< coco_cap_lp 2))))
+                                    (bitor (<< (bitand (+ coco_cap_lc 1) 4194303) 2)
+                                           (<< coco_cap_lp 24)))))
           (set coco_out_cap 1)
           (set coco_out_mid 0)
           (set coco_cap_lp 0)
+          (set coco_cap_lc -1)
           (return saved)))
 
   (func coco_out_capture_end ((i64 saved))
         (set coco_out_cap (cast int (bitand (>> saved 1) 1)))
         (set coco_out_mid (? coco_out_cap (cast int (bitand saved 1)) coco_err_mid))
-        (set coco_cap_lp (>> saved 2)))
+        (set coco_cap_lc (- (bitand (>> saved 2) 4194303) 1))
+        (set coco_cap_lp (>> saved 24)))
 
   ;;; THE COLUMN AFTER TEXT (3.33.0): S[FROM..TO) walked from COL, swipl's
   ;;; rules -- a character a column and a byte that continues one none, a

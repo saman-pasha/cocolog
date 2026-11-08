@@ -16463,3 +16463,105 @@ string section.
 Narrow cases green: lint, files, syntax, cyclic, string, units, errors,
 repl, trace, backtrace, directives, engine, library, journal, reconsult,
 window, flowdebug, flowchart and stream. Reasoning stays 1.0.27.
+
+## write_term/2's partial(true), as swipl's (3.56.0)
+
+partial(B) was the last of write_term/2's options checked and read past
+(3.55.0's entry): every write began at no character, so `write(a),
+write_term(b, [partial(true)])` wrote `ab` where swipl 9.0.4 writes `a b`.
+swipl's pl-write.c begins a write after the last character written where
+it goes, as PutOpenToken() asks the stream's lastc, which partial(false)
+sets to none first: the write's first token takes a space where the two
+would read as one -- `a b`, `1 2`, `- -a`, `+ -`. cocolog does the same
+now, wherever the write goes. A minor, as what a program writes moves.
+
+- **The write begins after PREV, the last character where it goes**:
+  `coco_wt_put`'s new argument, put on the buffer before the term and taken
+  off after it, the gap asked (`coco_write_gap_at`) where the portray mark
+  is still the write's own -- what a portray goal wrote first owns its gap,
+  as a goal's write is a write of its own in swipl. The partial write is a
+  function of its own (`coco_wt_partial`) and the plain write a macro both
+  use (`coco-wt-write`), so a write with no partial(true) pays the test of
+  its option.
+- **The console's user_output and user_error keep a last character each**
+  (`coco_out_lc`, `coco_err_lc`), which `coco_out_note` notes from what the
+  engine writes itself, where through 3.55.0 it kept only whether a line
+  was open. A last byte past ASCII is decoded from its character's bytes
+  (`coco_out_note_wide`, cold), a tail call at the note's end.
+- **A capture keeps its own, from none at its start** (`coco_cap_lc`:
+  with_output_to/2 and `~@`), and the outer capture's or the console's is
+  put back at its end, in the word the start saved.
+- **A file of library(stream) keeps its own** (`st_lc1`, 0 at the open),
+  noted by `st_wrote` and `st_wrote_wide`, which every put and write passes:
+  a byte a character in a stream of one byte a character (latin-1, octet,
+  ascii), a code point decoded from the UTF-8 text in any other. Its
+  write_term/3 writes into a capture, so `'$stream_lastc'/2` reads the
+  stream's character before the capture begins -- user_output's and
+  user_error's then still the console's (`coco_m_out_lastc`) -- and
+  `'$stream_lastc_set'/1` hands it to the capture inside it.
+- **format/3's `~W` begins after format's own text**, and at no character
+  after a fill point (`~t`), where swipl's text is a sub-format's (-2,
+  which turns partial(true) off); with nothing before it, after the
+  sink's last character (`coco_fmt_lastc`: the console's, user_output's and
+  user_error's, a stream of library(stream)'s through the module's hook,
+  `coco_m_sink_lastc_install`, and a term sink none, as swipl begins each
+  of those afresh).
+- **A string's unquoted text clears the gap mark** a failed portray goal's
+  text leaves (`pgs`, where 3.55.0 wrote `pg s`), as swipl's PutString
+  makes no token check.
+- **The journal runs `'$stream_lastc_set'/1`**: library(stream) is one of
+  the modules whose every C predicate is a portal, which a replay answers
+  from its line and does not run, and this one sets the engine's own state
+  alone. Answered from the journal it left the capture at no character, so
+  the text the next portal wrote was another, and the replay diverged
+  there (`coco_jr_none`, the predicates of those modules that are none).
+- **The SDK has three new calls** (lib/sdk.cicili, needing 3.56.0):
+  `coco_m_sink_lastc_install`, `coco_m_out_lastc` and `coco_m_out_lastc_set`.
+
+COMPAT.md's row for partial(true) is gone. Row 64, a write to user_output
+by name inside a capture, which cocolog captures with the current output,
+says what follows from it: a write_term/3 of user_output with partial(true)
+there begins at the capture's last character, where swipl's begins at the
+console's.
+
+test/files/write_partial.pl, new, holds 151 lines to swipl, byte for byte
+-- the console, stderr, captures nested and after, files in UTF-8,
+ISO-Latin-1, UTF-16 both ways and binary, a slot reused, format's fill
+points and stops, and portray goals' gaps -- and 3.55.0 differs at 77 of
+them. test/journal.pl's new section records and replays a partial(true)
+write to a stream: the stream's character journalled, the capture's set
+not, and the replay ending where the record did.
+
+The arms, one build each, every rule taken out alone, over
+write_partial.pl, write_escapes.pl, portray.pl and write_options.pl. On the
+first cut the arm of no edit is green in all four, and all 29 rules are red
+in write_partial.pl alone: the option, the prefix, the gap's test and its
+owner, the fill point's none and its switch, format's current output, its
+hook, user_output and user_error by name, write_term/2's console character,
+the notes of stdout, stderr and a capture, the capture's start and end, the
+UTF-8 decode, the string's clearing, and library(stream)'s eleven (the
+note, the wide note, the octet class, the open, the ask, the set,
+user_output's and user_error's names, slots 1 and 2, the hook and its UTF-8
+decode). The cheaper note and the out-of-line write moved eleven of them,
+armed again on the final code: all eleven red, the arm of no edit green.
+The journal's exemption taken out: test/journal.pl red at the new
+section's two checks, diverged at `'$stream_write_text'/4` with `" b"`
+recorded and `"b"` made.
+
+The cost. The first cut counted 1.37 % more instructions on the
+write-heavy run of 3.55.0's entry: the note called the wide decode in its
+body, which made it save five registers, 17 instructions a write, and
+write_term/2's write paid 33 a call for the partial branch inline. The note
+calls the decode as its last act, out of line, reading the last byte again
+(7 instructions a write), and the partial write went out of line (5 a
+call). Final, against 3.55.0 at like paths: tools/flow/zero.sh nrev +22
+instructions, queens -145, lookup -86, the padding the same; the
+write-heavy run (20 000 rounds of four writes and four nl/0) 607 209 835
+to 606 874 946 (-0.06 %), of which coco_out_note is +1 120 000 -- 7 for
+each of the 160 000 notes -- and strcmp -1 609 559 at the same 1 529 586
+calls, the literals' addresses having moved; a start 36 144 570 to
+36 062 992, strcmp -75 995 of it.
+
+Narrow cases green: lint, files, syntax, cyclic, string, units, errors,
+repl, trace, backtrace, directives, engine, library, journal, reconsult,
+window, flowdebug, flowchart and stream. Reasoning stays 1.0.27.

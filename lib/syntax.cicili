@@ -3727,7 +3727,14 @@
              (let ((const char * sp . nil) (size_t sn . 0))
                (if (not (coco_string_text m t (aof sp) (aof sn))) (return 0))
                (if (== 0 (bitand mode 1))
-                   (block (for ((size_t i . 0)) (< i sn) ((++ i))
+                   (block ;; its text goes out with no token's check, as
+                          ;; swipl's PutString() puts it: no gap before it
+                          ;; where a failed goal's text or partial(true)'s
+                          ;; last character stands (3.56.0, `pgs', `as')
+                          (if (and (> sn 0) (and (== (-> m wpgapb) (cast (void *) b))
+                                                 (== (-> m wpgapq) (-> b len))))
+                              (set (-> m wpgapb) nil))
+                          (for ((size_t i . 0)) (< i sn) ((++ i))
                                 (coco_sb_putc b (nth i sp)))
                           (return 1)))
                (coco_sb_putc b (cast char 34))

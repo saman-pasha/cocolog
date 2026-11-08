@@ -261,6 +261,8 @@
     ("$stream_set_pos"       7 st_p_set_pos)
     ("$stream_where"         6 st_p_where)
     ("$stream_out"           3 st_p_out)
+    ("$stream_lastc"         2 st_p_lastc)
+    ("$stream_lastc_set"     1 st_p_lastc_set)
     ("$stream_char"          3 st_p_char)
     ("$stream_get_byte"      4 st_p_get_byte)
     ("$stream_peek_byte"     4 st_p_peek_byte)
@@ -511,7 +513,7 @@
            ;; write_term/2's options are checked before the stream, as swipl's are
            ;; (3.16.0; through 3.15.2 after the stream's name): the term written to a string first;
            ;; a cyclic term under cycles(false) after it, as swipl's writeTopTerm() asks (3.55.0)
-           "stream_wt(S, T, O, PI) :- catch(with_output_to(string(X), write_term(T, O)), error(E, context(system:write_term/2, M)), stream_wt_err(E, S, PI, M)), stream_slot(S, N, PI), '$stream_out'(S, N, PI), '$stream_write_text'(S, N, X, PI)."
+           "stream_wt(S, T, O, PI) :- '$stream_lastc'(S, C), catch(with_output_to(string(X), ('$stream_lastc_set'(C), write_term(T, O))), error(E, context(system:write_term/2, M)), stream_wt_err(E, S, PI, M)), stream_slot(S, N, PI), '$stream_out'(S, N, PI), '$stream_write_text'(S, N, X, PI)."
            "stream_wt_err(domain_error(cyclic_term, C), S, PI, M) :- !, stream_slot(S, N, PI), '$stream_out'(S, N, PI), stream_err(domain_error(cyclic_term, C), PI, M)."
            "stream_wt_err(E, _, PI, M) :- stream_err(E, PI, M)."
            "stream_with_output(S, G) :- stream_out(S, stream_with_output/2), with_output_to(S, G)."
@@ -684,6 +686,23 @@
   (static) (var i64 st_lp [256])
   (static) (var i64 st_hp [256][8])
   (static) (var int st_hi [256])
+  ;;; AND THE LAST CHARACTER A WRITE PUT IN IT, plus one, 0 none (3.56.0):
+  ;;; where write_term/3's partial(true) begins, as swipl's begins at the
+  ;;; stream's lastc. user_output and user_error take the console's.
+  (static) (var i64 st_lc1 [256])
+
+  ;;; the code that ends TEXT[0..N), -1 for no text, U+DC00 plus a byte
+  ;;; that ends no UTF-8 character
+  (static)
+  (func st_text_lastc ((const char * text) (size_t n)) (out i64)
+        (if (== n 0) (return -1))
+        (let ((size_t b . #'(- n 1)) (size_t j . 0) (i64 c . 0))
+          (while (and (> b 0) (and (< (- n b) 4) (== (bitand (cast int (nth b text)) 192) 128)))
+            (set b (- b 1)))
+          (set j b)
+          (set c (coco_m_utf8_get text n (aof j)))
+          (if (== j n) (return c))
+          (return (+ 56320 (bitand (cast int (nth (- n 1) text)) 255)))))
 
   ;;; THE CURRENT INPUT AND OUTPUT. Input is only the module's: get_char/1,
   ;;; read/1 and the rest read slot `st_cur_in'. Output is not only the
@@ -770,6 +789,12 @@
         (if (or (== s 1) (== s 2)) (block (coco_m_out_note s buf n) (return)))
         (if (>= s 3)
             (block
+              ;; its last character plus one, where partial(true) begins
+              ;; (3.56.0): a byte of a stream of one byte a character, and of
+              ;; any stream where it is ASCII
+              (let ((i64 lc . #'(bitand (cast i64 (nth (- n 1) buf)) 255)))
+                (if (and (> lc 127) (!= (nth s st_cls) 1)) (set lc (st_text_lastc buf n)))
+                (set (nth s st_lc1) (+ lc 1)))
               (set (nth s st_nb) (+ (nth s st_nb) (cast i64 n)))
               (st_pos_walk (cast (const u8 *) buf) n (== (nth s st_cls) 1)
                            (aof (nth s st_nc)) (aof (nth s st_nl)) (aof (nth s st_lp))))))
@@ -782,6 +807,7 @@
         (if (or (== s 1) (== s 2)) (block (coco_m_out_note s text n) (return)))
         (if (>= s 3)
             (block
+              (set (nth s st_lc1) (+ (st_text_lastc text n) 1))
               (set (nth s st_nb) (+ (nth s st_nb) (cast i64 raw)))
               (st_pos_walk (cast (const u8 *) text) n 0
                            (aof (nth s st_nc)) (aof (nth s st_nl)) (aof (nth s st_lp))))))
@@ -1246,6 +1272,7 @@
           (set (nth s st_npush) 0)
           (set (nth s st_bom) 0)
           (set (nth s st_bomlen) 0)
+          (set (nth s st_lc1) 0)
           (st_set_enc s (cast int enc))
           (st_pos_reset s)
           (if (and (== kind 1) (and (!= bom 0) (st_bom_enc (cast int enc))))
@@ -2146,13 +2173,11 @@
           ;; through 3.15.2), and every stream in its encoding (3.19.0)
           (return (st_emit e sink s text len))))
 
-  ;;; The column a sink of this table stands at (2.16.0 whether a line was
-  ;;; open, for `~N'; 3.33.0 the column, for its column stops too), or -1
-  ;;; not one of its own -- the sinks st_sink takes, user_output and
-  ;;; user_error by the console's column, a file by its own. A slot that is
-  ;;; no stream answers 0, and format raises after.
+  ;;; The slot of a sink of this table (3.56.0, out of st_sink_column):
+  ;;; '$stream'(N) or an alias, 256 for a '$stream'(N) past the table,
+  ;;; -1 none of its own
   (static)
-  (func st_sink_column ((coco_engine * e) (size_t sink)) (out int)
+  (func st_sink_slot ((coco_engine * e) (size_t sink)) (out int)
         (let ((u32 ar . 0) (const char * nm . nil) (int s . -1))
           (st_setup)
           (set nm (coco_m_functor e sink (aof ar)))
@@ -2160,16 +2185,61 @@
           (if (and (== ar 1) (== 0 (strcmp nm "$stream")))
               (let ((i64 v . 0))
                 (if (not (coco_m_int e (coco_m_arg e sink 0) (aof v))) (return -1))
-                (if (or (< v 0) (>= v 256)) (return 0))
+                (if (or (< v 0) (>= v 256)) (return 256))
                 (set s (cast int v))))
           (if (and (== ar 0) (< s 0))
               (for ((int i . 3)) (< i 256) ((++ i))
                    (if (and (!= (nth i st_alias) nil) (== 0 (strcmp (nth i st_alias) nm)))
                        (block (set s i) break))))
+          (return s)))
+
+  ;;; Slot S's last character (3.56.0), -1 none: the console's for
+  ;;; user_output and user_error, a file's its own
+  (static)
+  (func st_slot_lastc ((int s)) (out i64)
+        (if (or (== s 1) (== s 2)) (return (coco_m_out_lastc s)))
+        (if (or (< s 0) (or (>= s 256) (== (nth s st_kind) 0))) (return -1))
+        (return (- (nth s st_lc1) 1)))
+
+  ;;; The column a sink of this table stands at (2.16.0 whether a line was
+  ;;; open, for `~N'; 3.33.0 the column, for its column stops too), or -1
+  ;;; not one of its own -- the sinks st_sink takes, user_output and
+  ;;; user_error by the console's column, a file by its own. A slot that is
+  ;;; no stream answers 0, and format raises after.
+  (static)
+  (func st_sink_column ((coco_engine * e) (size_t sink)) (out int)
+        (let ((int s . #'(st_sink_slot e sink)))
           (if (< s 0) (return -1))
           (if (or (== s 1) (== s 2)) (return (cast int (coco_m_out_column s))))
-          (if (== (nth s st_kind) 0) (return 0))
+          (if (or (>= s 256) (== (nth s st_kind) 0)) (return 0))
           (return (cast int (nth s st_lp)))))
+
+  ;;; And the last character written there (3.56.0), where a format's `~W'
+  ;;; of partial(true) begins: -1 none, -2 no sink of this table's
+  (static)
+  (func st_sink_lastc ((coco_engine * e) (size_t sink)) (out i64)
+        (let ((int s . #'(st_sink_slot e sink)))
+          (if (< s 0) (return -2))
+          (return (st_slot_lastc s))))
+
+  ;;; '$stream_lastc'(S, C) (3.56.0): C is the last character written to S,
+  ;;; -1 none or no stream of this table -- whose error is the write's to
+  ;;; raise. write_term/3 asks it before its capture begins, where
+  ;;; user_output's is still the console's, and its write begins there by
+  ;;; '$stream_lastc_set'(C), so that partial(true) begins at S's last
+  ;;; character, as swipl's begins at the stream's lastc
+  (func st_p_lastc ((coco_engine * e) (size_t g)) (out int)
+        (let ((size_t a . #'(coco_m_arg e g 0)) (int s . #'(st_sink_slot e a))
+              (const char * nm . #'(coco_m_atom e a)))
+          (if (and (< s 0) (!= nm nil))
+              (block (if (== 0 (strcmp nm "user_output")) (set s 1))
+                     (if (== 0 (strcmp nm "user_error")) (set s 2))))
+          (return (coco_m_unify_int e (coco_m_arg e g 1) (? (and (>= s 0) (< s 256)) (st_slot_lastc s) -1)))))
+
+  (func st_p_lastc_set ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 c . -1))
+          (if (coco_m_int e (coco_m_arg e g 0) (aof c)) (coco_m_out_lastc_set 1 c))
+          (return 1)))
 
   ;;; Loaded: the standard slots, and the hooks installed. Idempotent, since
   ;;; a module's init runs once for every store that loads it.
@@ -2178,6 +2248,7 @@
         (st_setup)
         (coco_m_sink_install st_sink)
         (coco_m_sink_column_install st_sink_column)
+        (coco_m_sink_lastc_install st_sink_lastc)
         (return 1))
 
   (static) (coco-emit-module-dispatch st_dispatch *stream-predicates*)
