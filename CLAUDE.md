@@ -423,6 +423,34 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   linted inside that unit. Not swipl's: an include of a library cocolog
   compiles in (`library(lists)`) is existence_error, where swipl reads its
   source.
+* **A load reads its file in swipl's encodings** (3.58.0;
+  `coco_source_text` in lib/term.cicili, test/files/encoding.pl): a BOM at
+  the file's start (UTF-8, UTF-16 either way round) names its encoding and
+  is taken off, else UTF-8; load_files/2's encoding(E) reads it in E
+  whatever the BOM says -- `bom` the BOM's, and nothing of a file with
+  none, `default` nothing, as swipl's --
+  checked once the file is found and is to be read (`lb_enc_option`, the
+  machine's `lenc`); `:- encoding(E)` reads the rest of its file in E from
+  the byte after its full stop (the reader's `fend`, `coco_reader_retext`),
+  `bom` changing nothing there, a name that is none ending the load with
+  set_stream/2's error; an included file is read in the encoding of the file
+  that includes it. The names are swipl's (`*coco-encodings*`: its MIME
+  ones too, `text` UTF-8 where swipl's is the locale's). **The text a consult
+  reads is UTF-8 whatever the file was**: `coco_text_cook` decodes the bytes,
+  a NUL as C0 80 so the text stays a C string (the lexer reads it as the code
+  0 inside quotes and after `0'`, and a syntax error's column counts it as
+  one byte, `coco_raw_col_byte`), and a consult starts in the class its text
+  was decoded from (`lcls`; a module's registered text keeps it, `cls` in
+  lib/module.cicili), so a switch writes the rest back in that class and
+  decodes it in the new one (`coco_consult_recode`). **Only a text that
+  holds a NUL asks for one inside quotes**: `coco_text_cook` says so, the
+  class's bit 16 carries it to the consult and `coco_reader_init_nul` to the
+  reader (`nul`; an include's reader always asks), and the quoted loop is
+  two copies of one DEFMACRO, `coco-lex-quoted-loop`, its NUL tested with
+  EQL as it expands -- Lisp's 0 is true, and `(IF NUL ...)` gave both copies
+  the test, 96 514 instructions a start. **A new reader of a
+  source file goes through `coco_source_text`** and hands its class to the
+  consult, or a BOM is its first clause's bytes and a switch decodes twice.
 * **A load directive's load runs AT THE DIRECTIVE** (3.6.0, swipl's;
   `lb_directive_one` in lib/library.cicili gives `coco_library_load` an
   engine of its own for a module's init): `:- use_module(F)`, `:-
@@ -3699,7 +3727,10 @@ cocolint index offers no import of it.
   hands it, and a UTF-16 or UCS-4 read decodes a character into the
   pushback (`st_decode1`), its first byte standing for the bytes it took
   (`st_praw`, `st_rawd`) -- **a new reader or writer of a file goes through
-  them**, or it is UTF-8 whatever the stream says. `''/7`
+  them**, or it is UTF-8 whatever the stream says. Since 3.58.0 swipl's
+  MIME names (`'UTF-8'`, `'ISO-8859-1'`, `'UTF-16BE'`, `'UTF-16LE'`) open
+  and set a stream, and stream_property/2 answers swipl's own name for an
+  alias (`utf16be` for `unicode_be`, `stream_enc_name`). `''/7`
   takes the encoding and the BOM; `set_stream/2` is `''/5`
   (`:PI` rows, both); the console's position is the engine's
   (`coco_out_note` counts user_output and user_error as one, read by

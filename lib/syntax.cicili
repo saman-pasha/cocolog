@@ -60,6 +60,39 @@
         0
         `(or ,@(MAPCAR (LAMBDA (k) `(== ,c ,k)) codes)))))
 
+;;; A QUOTED ITEM'S LOOP (`coco_lex_quoted', over its R and QUOTE), emitted
+;;; twice (3.58.0). NUL 1 is the copy for a text that may hold a NUL the file
+;;; held, C0 80 there (`coco_text_cook'), which it reads as the code 0, as
+;;; `\0\' is; NUL 0 the copy every other text reads by, which asks a byte
+;;; nothing 3.57.0's loop did not. One loop that asked every byte of every
+;;; quoted item for the C0 cost a start 91 840 instructions. NUL is tested
+;;; with EQL as the copy is expanded: Lisp takes 0 for true, and a first cut
+;;; that asked (IF NUL ...) gave both copies the C0's test.
+(DEFMACRO coco-lex-quoted-loop (NUL)
+  `(while 1
+     (let ((int c . #'(coco_peek r)))
+       (cond
+         ((== c -1) (return (coco_fail r "unterminated quoted item")))
+         ((== c quote)
+          (coco_bump r)
+          (if (== (coco_peek r) quote)
+              (block (coco_sb_putc (aof (-> r text)) (cast char quote)) (coco_bump r))
+            (return 1)))
+         ((== c 92)
+          (coco_bump r)
+          (let ((i64 e . 0) (int k . #'(coco_lex_escape r (aof e))))
+            (if (== k 0) (return 0))
+            (if (== k 1)
+                (if (or (< e 128) (and (not (-> (-> r m) text_chars)) (< e 256)))
+                    (coco_sb_putc (aof (-> r text)) (cast char e))
+                    (coco_utf8_put (aof (-> r text)) e)))))
+         ,@(COPY-TREE
+            (IF (EQL NUL 1)
+                '(((and (== c 192) (== 128 (coco_peek_at r 1)))
+                   (coco_sb_putc (aof (-> r text)) (cast char 0)) (coco_bump r) (coco_bump r)))
+                '()))
+         (#t (coco_sb_putc (aof (-> r text)) (cast char c)) (coco_bump r))))))
+
 ;;;; ------------------------------------------------------------------
 ;;;; The operator table
 ;;;; ------------------------------------------------------------------
@@ -800,9 +833,20 @@
     (member int          bnil)
     ;; A NUMBER TOKEN IN ANOTHER SCRIPT'S DIGITS (3.35.0,
     ;; `coco_lex_wide_number'): no minus before it is its sign
-    (member int          wnum))
+    (member int          wnum)
+    ;; THE BYTE AFTER THE FULL STOP of the clause read last (3.58.0): where
+    ;; a `:- encoding(E)' reads the text again from, as swipl switches a
+    ;; stream's encoding there -- the layout after it is read in the new
+    ;; one (`coco_reader_retext')
+    (member size_t       fend)
+    ;; THE TEXT MAY HOLD A NUL THE FILE HELD (3.58.0), as C0 80
+    ;; (`coco_text_cook'): a quoted item reads it as the code 0
+    ;; (`coco-lex-quoted-loop'). Set by `coco_reader_init_nul', before the
+    ;; first token, and by a switch
+    (member int          nul))
 
   (decl) (func coco_reader_init ((coco_reader * r) (coco_machine * m) (const char * src)))
+  (decl) (func coco_reader_init_nul ((coco_reader * r) (coco_machine * m) (const char * src) (int nul)))
 
   ;;; WHAT A LOAD SAYS OF A CLAUSE THAT WOULD NOT READ, AND WHERE (3.10.0),
   ;;; as swipl's raw read of a stream and its parse say it: the id (A1, A2 as
@@ -826,6 +870,11 @@
   (decl) (func coco_syntax_id_term ((coco_machine * m) (const char * id) (int a1) (int a2))
                 (out size_t))
   (decl) (func coco_reader_free ((coco_reader * r)))
+  ;;; THE READER MOVED ON TO ANOTHER TEXT (3.58.0), SRC, at byte AT -- the
+  ;;; same bytes as its own up to there, a `:- encoding(E)' decoding what
+  ;;; follows again: the token in hand read anew from AT, and what the old
+  ;;; text's next token said of it (a failure, a place) forgotten
+  (decl) (func coco_reader_retext ((coco_reader * r) (const char * src) (size_t at)))
 
   ;;; Reads one clause, up to and including its terminating `.'. Answers 1 and
   ;;; sets OUT, 0 at clean end of input, -1 on a syntax error -- in which case
@@ -1472,6 +1521,15 @@
             (if (or (not chars) (!= (bitand (cast int (nth i s)) 192) 128)) (set k (+ k 1))))
           (return k)))
 
+  ;;; A CONTINUATION BYTE AT P OF RAW TEXT S IS A COLUMN MORE, swipl's
+  ;;; ptr_to_location() counting its buffer's bytes -- but the 80 of a NUL
+  ;;; the file held (3.58.0), which the text holds as C0 80 and swipl's
+  ;;; buffer as the one byte: 1 or 0
+  (static) (inline)
+  (func coco_raw_col_byte ((const char * s) (size_t p)) (out int)
+        (return (not (and (== 128 (bitand (cast int (nth p s)) 255))
+                          (== 192 (bitand (cast int (nth (- p 1) s)) 255))))))
+
   (func coco_reader_load_error ((coco_reader * r) (int * line) (int * col)
                                 (int * a1) (int * a2)) (out const char *)
         (let ((const char * s . #'(-> r src)) (size_t n . #'(-> r len))
@@ -1522,7 +1580,7 @@
                  (set p (+ p 1))
                  (if chars
                      (while (and (< p rn) (== (bitand (cast int (nth p ($ raw s))) 192) 128))
-                       (set cl (+ cl 1)) (set p (+ p 1))))
+                       (set cl (+ cl (coco_raw_col_byte ($ raw s) p))) (set p (+ p 1))))
                  (set k (+ k 1)))
                ;; THE CHARACTER RIGHT BEFORE THE ERROR'S TOKEN is its bytes
                ;; less one more (3.35.0): swipl's ptr_to_location() counts
@@ -1531,8 +1589,7 @@
                (if (and chars (and (< p rn) (!= (nth p ($ raw s)) (cast char 10))))
                    (let ((size_t q . #'(+ p 1)))
                      (while (and (< q rn) (== (bitand (cast int (nth q ($ raw s))) 192) 128))
-                       (set q (+ q 1)))
-                     (set cl (+ cl (cast int (- q (+ p 1))))))))))
+                       (set cl (+ cl (coco_raw_col_byte ($ raw s) q))) (set q (+ q 1))))))))
           (coco_sb_free (aof raw))
           (set (cof line) ln)
           (set (cof col) cl)
@@ -1686,28 +1743,15 @@
   ;;; A quoted item, ending at QUOTE. Doubling the quote is how a quote is
   ;;; written inside one -- 'it''s' -- and backslash escapes are accepted
   ;;; too (`coco_lex_escape'): a code past 127 is put as its character's
-  ;;; UTF-8, or under `text_units = bytes' as the byte below 256.
+  ;;; UTF-8, or under `text_units = bytes' as the byte below 256. A NUL the
+  ;;; file held is C0 80 in the text (`coco_text_cook', 3.58.0) and is the
+  ;;; code 0 here, as `\0\' is: swipl reads a NUL byte inside quotes as one.
+  ;;; Only a text that may hold one asks (the reader's `nul',
+  ;;; `coco-lex-quoted-loop').
   (static)
   (func coco_lex_quoted ((coco_reader * r) (int quote)) (out int)
         (coco_bump r)
-        (while 1
-          (let ((int c . #'(coco_peek r)))
-            (cond
-              ((== c -1) (return (coco_fail r "unterminated quoted item")))
-              ((== c quote)
-               (coco_bump r)
-               (if (== (coco_peek r) quote)
-                   (block (coco_sb_putc (aof (-> r text)) (cast char quote)) (coco_bump r))
-                 (return 1)))
-              ((== c 92)
-               (coco_bump r)
-               (let ((i64 e . 0) (int k . #'(coco_lex_escape r (aof e))))
-                 (if (== k 0) (return 0))
-                 (if (== k 1)
-                     (if (or (< e 128) (and (not (-> (-> r m) text_chars)) (< e 256)))
-                         (coco_sb_putc (aof (-> r text)) (cast char e))
-                         (coco_utf8_put (aof (-> r text)) e)))))
-              (#t (coco_sb_putc (aof (-> r text)) (cast char c)) (coco_bump r)))))
+        (if (-> r nul) (coco-lex-quoted-loop 1) (coco-lex-quoted-loop 0))
         (return 1))
 
   ;;; ONE DIGIT D MORE OF A LITERAL'S MAGNITUDE (2.0.0): V becomes V * BASE
@@ -1791,6 +1835,10 @@
             (block (coco_bump r) (coco_bump r)
                    (let ((int c . #'(coco_peek r)))
                      (if (== c -1) (return (coco_fail r "unterminated character code")))
+                     ;; a NUL the file held, C0 80 in the text (3.58.0): 0
+                     (if (and (== c 192) (== 128 (coco_peek_at r 1)))
+                         (block (coco_bump r) (coco_bump r) (set (-> r ival) 0) (set (-> r iwide) 0)
+                                (set (-> r tok) COCO_TK_INT) (return 1)))
                      ;; ONE CHARACTER of however many bytes under `text_units
                      ;; = characters' (1.13.0): 0'á is 225, where bytes read
                      ;; its first byte and stop at its second
@@ -2579,19 +2627,39 @@
 
   ;;; ---- the reader's own surface -----------------------------------------
 
-  (func coco_reader_init ((coco_reader * r) (coco_machine * m) (const char * src))
+  (func coco_reader_init_nul ((coco_reader * r) (coco_machine * m) (const char * src) (int nul))
         (memset r 0 (sizeof coco_reader))
         (set (-> r m) m)
         (set (-> r src) src)
         (set (-> r len) (strlen src))
+        (set (-> r nul) nul)
         (coco_sb_init (aof (-> r text)))
         (coco_next_token r))
+
+  (func coco_reader_init ((coco_reader * r) (coco_machine * m) (const char * src))
+        (coco_reader_init_nul r m src 0))
 
   (static)
   (func coco_reader_clear_vars ((coco_reader * r))
         (for ((size_t i . 0)) (< i (-> r nvars)) ((++ i))
           (free (nth i (-> r var_names))))
         (set (-> r nvars) 0))
+
+  (func coco_reader_retext ((coco_reader * r) (const char * src) (size_t at))
+        (set (-> r src) src)
+        (set (-> r len) (strlen src))
+        (set (-> r pos) (? (> at (-> r len)) (-> r len) at))
+        (free (-> r cidx))
+        (set (-> r cidx) nil)
+        (set (-> r cscan) 0)
+        (set (-> r failed) 0)
+        (set (nth 0 (-> r err)) (cast char 0))
+        (set (-> r ewhat) nil)
+        (set (-> r esyn) nil)
+        (set (-> r ecomment) 0)
+        (set (-> r clash_set) 0)
+        (set (-> r stop) 0)
+        (coco_next_token r))
 
   (func coco_reader_free ((coco_reader * r))
         (coco_reader_clear_vars r)
@@ -2622,6 +2690,7 @@
           ;; after it that will not read is the NEXT clause's error, which
           ;; the next call answers -- through 3.0.4 it took this clause
           ;; with it (`p(1). "a\q".' lost `p(1)'), as swipl's does not
+          (set (-> r fend) (-> r pos))
           (coco_next_token r)
           (set (cof out) t)
           (return 1)))

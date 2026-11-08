@@ -2638,6 +2638,72 @@
             (set (-> m lball_size) (- (-> st len) c)))
           (set (-> m heap_len) mark)))
 
+  ;;; THE CLASS `:- encoding(E)' NAMES (3.58.0), as swipl's set_stream/2
+  ;;; checks E: -1 unbound, -2 no atom, -3 an atom that names no encoding
+  ;;; swipl has, else `coco_enc_class''s (5 for `bom')
+  (static)
+  (func coco_consult_enc ((coco_machine * m) (size_t e)) (out int)
+        (let ((int c . 0))
+          (set e (coco_deref m e))
+          (if (coco-tag-is REF (nth e (-> m heap))) (return -1))
+          (if (not (coco-tag-is ATOM (nth e (-> m heap)))) (return -2))
+          (set c (coco_enc_class (coco_atom_name m (coco_name_of m e))))
+          (return (? (< c 0) -3 c))))
+
+  ;;; AND THE BALL THAT ENDS THE LOAD for E that names none, swipl's
+  ;;; set_stream/2 error -- instantiation_error, type_error(atom, E) or
+  ;;; domain_error(encoding, E), context(system:set_stream/2, _) -- put
+  ;;; on the machine (`lball') as an include's is, its text in ERR
+  (static)
+  (func coco_consult_enc_refused ((coco_store * st) (coco_machine * m) (size_t e) (int why)
+                                  (char * err) (size_t errlen))
+        (let ((size_t mark . #'(-> m heap_len)) (coco_strbuf b) (size_t f . 0) (size_t ball . 0)
+              (char msg [1024]))
+          (set e (coco_deref m e))
+          (cond
+            ((== why -1)
+             (set f (coco_new_atom m "instantiation_error"))
+             (snprintf msg (sizeof msg) "Arguments are not sufficiently instantiated"))
+            ((== why -2)
+             (set f (coco_make2 m "type_error" (coco_new_atom m "atom") e))
+             (coco_consult_type_text m "atom" e msg (sizeof msg)))
+            (#t
+             (set f (coco_make2 m "domain_error" (coco_new_atom m "encoding") e))
+             (coco_sb_init (aof b))
+             (coco_write_term m (aof b) e 1 0)
+             (snprintf msg (sizeof msg) "Domain error: `encoding' expected, found `%s'"
+                       (? (== ($ b s) nil) "?" ($ b s)))
+             (coco_sb_free (aof b))))
+          (set ball (coco_make2 m "error" f
+                                (coco_make2 m "context"
+                                            (coco_make2 m ":" (coco_new_atom m "system")
+                                                        (coco_make2 m "/" (coco_new_atom m "set_stream")
+                                                                    (coco_new_int m 2)))
+                                            (coco_new_var m))))
+          (snprintf err errlen "Prolog initialisation failed:\nERROR: set_stream/2: %s" msg)
+          (let ((size_t c . #'(coco_store_put st m ball)))
+            (set (-> m lball) (+ c 1))
+            (set (-> m lball_size) (- (-> st len) c)))
+          (set (-> m heap_len) mark)))
+
+  ;;; THE TEXT READ AGAIN FROM AT (3.58.0), `:- encoding(E)''s: TEXT's
+  ;;; bytes up to AT as they are, and the rest written back in the class
+  ;;; CLS it was decoded from (`coco_text_raw') and decoded in TO's -- the
+  ;;; same bytes before AT, so every place the load counted stands.
+  ;;; Malloc'd, or nil for no room.
+  (static)
+  (func coco_consult_recode ((const char * text) (size_t at) (int cls) (int to)) (out char *)
+        (let ((coco_strbuf raw) (coco_strbuf out) (int ok . 0))
+          (coco_sb_init (aof raw))
+          (coco_sb_init (aof out))
+          (set ok (and (coco_sb_put_len (aof out) text at)
+                       (coco_text_raw (+ text at) cls (aof raw))))
+          (if ok (set ok (coco_text_cook (? (== ($ raw s) nil) "" ($ raw s)) ($ raw len) to (aof out))))
+          (if (and ok (== ($ out s) nil)) (set ok (coco_sb_putc (aof out) (cast char 0))))
+          (coco_sb_free (aof raw))
+          (if (not ok) (block (coco_sb_free (aof out)) (return nil)))
+          (return ($ out s))))
+
   ;;; THE PROGRAM'S EXPANSION HOOKS (3.14.0), what a load and expand_term/2
   ;;; ask before they call one: 1 when term_expansion/2 has a live clause,
   ;;; 2 when goal_expansion/2 has one no library's own text gave it --
@@ -3470,8 +3536,17 @@
               ;; there are (`coco_xhook_load'), asked again after anything
               ;; that may define one, and the names they are asked by
               (int xbits . 0) (u64 te_id . 0) (u64 ge_id . 0) (u64 eof_id . 0) (int ateof . 0)
-              (int atbof . 0))
+              (int atbof . 0)
+              ;; THE CLASS THE TEXT WAS DECODED FROM (3.58.0,
+              ;; `coco_enc_class'), as whoever read the file left it
+              ;; (`lcls'), which a `:- encoding(E)' writes the rest back in;
+              ;; and the text such a directive decoded again, freed at any
+              ;; exit. Its bit 16 says the text may hold a NUL the file held
+              ;; (`coco_source_text'), which the reader is told of (`nul')
+              (int cls . #'(bitand (-> m lcls) 15)) (int lnul . #'(bitand (-> m lcls) 16))
+              (defer () coco_cw_cleanup) (char * tbuf . nil))
           (set (-> m dgc) 0)
+          (set (-> m lcls) 0)
           ;; a backtrace no report took (a window's, whose ball it handed
           ;; back) is not this load's: only a goal run from here writes one
           ;; to report
@@ -3508,7 +3583,7 @@
           ;; asked before the first read or never: a hook the file defines
           ;; is no hook at its start
           (set atbof (? (and (== up nil) (bitand xbits 1)) 0 1))
-          (coco_reader_init (aof r) m text)
+          (coco_reader_init_nul (aof r) m text lnul)
           (while (== rc 1)
             ;; each clause is read on to the heap, copied into the store, and
             ;; the heap wound back -- so consulting a large file does not leave
@@ -3691,6 +3766,39 @@
                             (if (== csp 0)
                                 (coco_load_message "ERROR" origin at ":- endif without :- if")
                               (set csp (- csp 1)))))
+                       ;; `:- encoding(E).' READS THE REST OF THE FILE IN E
+                       ;; (3.58.0), swipl's: from the byte after its full
+                       ;; stop, the rest of the text written back in the
+                       ;; class it was decoded from and decoded again in E's
+                       ;; (`coco_consult_recode'), the reader taken up there;
+                       ;; `bom' changes nothing where it stands. An E that
+                       ;; is no atom, or no name of swipl's, ENDS THE LOAD
+                       ;; with set_stream/2's error, as an include of nothing
+                       ;; does. Through 3.57.0 an unknown procedure, reported,
+                       ;; and the file read on as UTF-8.
+                       (if (and active (and (== da 1) (== 0 (strcmp dn "encoding"))))
+                           (let ((int ec . #'(coco_consult_enc m (coco_arg m d 0))))
+                             (set handled 1)
+                             (if (< ec 0)
+                                 (block
+                                  (coco_consult_enc_refused st m (coco_arg m d 0) ec err errlen)
+                                  (set (-> m heap_len) mark)
+                                  (if (== up nil) (coco_inits_free ip))
+                                  (coco_reader_free (aof r))
+                                  (return -1)))
+                             (if (and (< ec 5) (!= ec cls))
+                                 (let ((size_t at . #'($ r fend))
+                                       (char * nt . #'(coco_consult_recode text ($ r fend) cls ec)))
+                                   (if (!= nt nil)
+                                       (block (free tbuf)
+                                              (set tbuf nt)
+                                              (set text nt)
+                                              (set cls ec)
+                                              ;; the reader's `nul' stands:
+                                              ;; a NUL in any encoding is a
+                                              ;; zero byte, which the first
+                                              ;; read found (`coco_source_text')
+                                              (coco_reader_retext (aof r) nt at)))))))
                        ;; `:- include(File).' READS FILE WHERE IT STANDS
                        ;; (3.5.0), as swipl's: found as a load finds a file,
                        ;; beside this one first (`coco_include_hook'), and
@@ -3714,8 +3822,14 @@
                              ;; looked for where this file is
                              (set (-> m sloc_file) origin)
                              (set (-> m sloc_line) at)
+                             ;; AND READ IN THE ENCODING THIS FILE IS IN
+                             ;; THERE (3.58.0), swipl's: its BOM taken off
+                             ;; and its class this one's, whatever the BOM
+                             ;; said (`coco_source_text')
+                             (set (-> m lenc) (+ cls 1))
                              (set ir (coco_include_hook st m (coco_arg m d 0) ipath (sizeof ipath)
                                                         (aof itext) err errlen))
+                             (set (-> m lenc) 0)
                              (set (-> m sloc_file) sfile)
                              (set (-> m sloc_line) sline)
                              (if (and (== ir 1) (coco_include_open incs ninc ipath))
@@ -3739,6 +3853,10 @@
                                    (set pushed (coco_heap_pos_push m (aof mp) (aof ml)))
                                    (set (-> m dgc) (? pushed vouch 0))
                                    (let ((size_t lfl . #'(-> m lfloor)))
+                                     ;; its class, and a text that may
+                                     ;; hold a NUL: an include is no start
+                                     ;; read, and asking costs it little
+                                     (set (-> m lcls) (bitor cls 16))
                                      (set k (coco_consult_owned st m itext ipath oid seen err errlen
                                                                 ip incs (+ ninc 1)))
                                      (set (-> m lfloor) lfl))

@@ -442,6 +442,38 @@
                                         lpg)
                                    pal)))))))))
 
+;;; SWIPL'S ENCODING NAMES (3.58.0), 9.0.4's pl-file.c table with its MIME
+;;; names: each the class its bytes are read in, as library(stream)'s
+;;; `st_cls' classes them -- 0 UTF-8, 1 a byte a character, 2 UTF-16
+;;; big-endian, 3 UTF-16 little-endian, 4 UCS-4 in the machine's order --
+;;; and 5 `bom', which `:- encoding(E)' and load_files/2's encoding(E)
+;;; take. `text' is the locale's in swipl and UTF-8 here (COMPAT.md). A
+;;; strcmp a row (`coco_enc_class'): a load asks it once.
+(DEFPARAMETER *coco-encodings*
+  '(("utf8" 0) ("text" 0) ("UTF-8" 0) ("iso_latin_1" 1) ("octet" 1) ("ascii" 1)
+    ("ISO-8859-1" 1) ("utf16be" 2) ("unicode_be" 2) ("UTF-16BE" 2) ("utf16le" 3)
+    ("unicode_le" 3) ("UTF-16LE" 3) ("wchar_t" 4) ("bom" 5)))
+
+(DEFMACRO coco-enc-class-body (nm)
+  `(block
+     ,@(MAPCAR (LAMBDA (row) `(if (== 0 (strcmp ,nm ,(FIRST row))) (return ,(SECOND row))))
+               *coco-encodings*)
+     (return -1)))
+
+;;; ONE UTF-16 UNIT of U at I, in class CLS's order (2 big-endian, 3 little)
+(DEFMACRO coco-u16-at (u i cls)
+  `(? (== ,cls 2)
+      (bitor (<< (cast i64 (nth ,i ,u)) 8) (cast i64 (nth (+ ,i 1) ,u)))
+      (bitor (cast i64 (nth ,i ,u)) (<< (cast i64 (nth (+ ,i 1) ,u)) 8))))
+
+;;; ONE UTF-16 UNIT W onto OUT in class CLS's order, 0 for no room
+(DEFMACRO coco-u16-put (out w cls)
+  `(? (== ,cls 2)
+      (and (coco_sb_putc ,out (cast char (bitand (>> ,w 8) 255)))
+           (coco_sb_putc ,out (cast char (bitand ,w 255))))
+      (and (coco_sb_putc ,out (cast char (bitand ,w 255)))
+           (coco_sb_putc ,out (cast char (bitand (>> ,w 8) 255))))))
+
 ;;;; ------------------------------------------------------------------
 ;;;; Declarations
 ;;;; ------------------------------------------------------------------
@@ -1067,7 +1099,17 @@
     ;; swipl's (`pgpg a', swipl's text, where 3.54.0 wrote `pg pg a').
     ;; Appended.
     (member void *     wpgapb)
-    (member size_t     wpgapq))
+    (member size_t     wpgapq)
+    ;; A SOURCE FILE'S ENCODING (3.58.0, swipl's `:- encoding(E)', a BOM
+    ;; and load_files/2's encoding(E)): LENC is what the next read of a
+    ;; file asks -- 0 nothing (its BOM's, else UTF-8), a class plus one
+    ;; (`coco_enc_class'), 6 `bom', 7 `default' -- set by a load around that read and
+    ;; cleared by it; LCLS the class the text the next consult reads was
+    ;; decoded from, which its `:- encoding(E)' writes the rest back in,
+    ;; set by whoever read the file right before the consult, which takes
+    ;; it as it begins. Appended.
+    (member int        lenc)
+    (member int        lcls))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -1124,6 +1166,11 @@
   (decl) (func coco_utf8_get ((const char * s) (size_t n) (size_t * i)) (out i64))
   (decl) (func coco_utf8_enc ((char * u) (i64 cp)) (out int))
   (decl) (func coco_utf8_put ((coco_strbuf * b) (i64 cp)) (out int))
+  ;; ---- a source file's encoding (3.58.0) ----
+  (decl) (func coco_enc_class ((const char * name)) (out int))
+  (decl) (func coco_text_raw ((const char * s) (int cls) (coco_strbuf * out)) (out int))
+  (decl) (func coco_text_cook ((const char * raw) (size_t n) (int cls) (coco_strbuf * out)) (out int))
+  (decl) (func coco_source_text ((const char * path) (int ask) (int * cls)) (out char *))
   (decl) (func coco_text_list ((coco_machine * m) (const char * s) (size_t n) (int as_chars) (size_t tail)) (out size_t))
   (decl) (func coco_utf8_count ((const char * s) (size_t n)) (out size_t))
   (decl) (func coco_utf8_at ((const char * s) (size_t n) (size_t k)) (out size_t))
@@ -2150,6 +2197,155 @@
         (let ((char u [4]) (int k . #'(coco_utf8_enc u cp)))
           (if (== k 0) (return 0))
           (return (coco_sb_put_len b u (cast size_t k)))))
+
+  ;;; ---- a source file's encoding (3.58.0) ---------------------------------
+  ;;;
+  ;;; THE READER READS UTF-8, and a file in another of swipl's encodings is
+  ;;; decoded into it as it is read: its BOM (`coco_source_text'), the
+  ;;; encoding a load names (load_files/2's encoding(E)), and from where it
+  ;;; stands the encoding a `:- encoding(E)' directive names, the rest of
+  ;;; the text written back in the class it was read in (`coco_text_raw')
+  ;;; and decoded again in E's (`coco_text_cook'). A NUL in a file is C0 80
+  ;;; in the text, so the text is a C string still and a NUL byte no end of
+  ;;; it -- the bytes after a UTF-16 directive hold one each other byte.
+
+  ;;; THE CLASS OF AN ENCODING'S NAME (`*coco-encodings*'), -1 for a name
+  ;;; swipl has not
+  (func coco_enc_class ((const char * name)) (out int)
+        (coco-enc-class-body name))
+
+  ;;; A CHARACTER C onto OUT as the reader reads text: UTF-8, a NUL C0 80.
+  ;;; 0 for no room.
+  (static) (inline)
+  (func coco_text_put_cp ((coco_strbuf * out) (i64 c)) (out int)
+        (if (== c 0)
+            (return (and (coco_sb_putc out (cast char 192)) (coco_sb_putc out (cast char 128)))))
+        (return (coco_utf8_put out c)))
+
+  ;;; RAW'S N BYTES DECODED IN CLASS CLS onto OUT, as the reader reads text.
+  ;;; Class 0 keeps the bytes as they are (a byte that is no UTF-8 is read
+  ;;; as U+DC00 plus it, `coco_utf8_get'); 1 makes each byte its character;
+  ;;; 2 and 3 read UTF-16, a surrogate pair one character and a lone
+  ;;; surrogate U+FFFD; 4 four bytes least first, past U+10FFFF or a
+  ;;; surrogate U+FFFD. What is left at the end that makes no unit is
+  ;;; dropped. 1, or 2 when it wrote a NUL (the reader's `nul'); 0 for no
+  ;;; room.
+  (func coco_text_cook ((const char * raw) (size_t n) (int cls) (coco_strbuf * out)) (out int)
+        (let ((const uchar * u . #'(cast (const uchar *) raw)) (size_t i . 0) (i64 c . 0) (int z . 1))
+          (while (< i n)
+            (cond
+              ((== cls 0)
+               (set c (cast i64 (nth i u)))
+               (set i (+ i 1))
+               (if (!= c 0)
+                   (block (if (not (coco_sb_putc out (cast char c))) (return 0))
+                          continue)))
+              ((== cls 1) (set c (cast i64 (nth i u))) (set i (+ i 1)))
+              ((< cls 4)
+               (if (> (+ i 2) n) break)
+               (set c (coco-u16-at u i cls))
+               (set i (+ i 2))
+               (if (and (>= c 55296) (<= c 57343))
+                   (let ((i64 lo . -1))
+                     (if (and (<= c 56319) (<= (+ i 2) n)) (set lo (coco-u16-at u i cls)))
+                     (if (and (>= lo 56320) (<= lo 57343))
+                         (block (set c (+ 65536 (+ (<< (- c 55296) 10) (- lo 56320))))
+                                (set i (+ i 2)))
+                       (set c 65533)))))
+              (#t
+               (if (> (+ i 4) n) break)
+               (set c (bitor (bitor (cast i64 (nth i u)) (<< (cast i64 (nth (+ i 1) u)) 8))
+                             (bitor (<< (cast i64 (nth (+ i 2) u)) 16) (<< (cast i64 (nth (+ i 3) u)) 24))))
+               (set i (+ i 4))
+               (if (or (> c 1114111) (and (>= c 55296) (<= c 57343))) (set c 65533))))
+            (if (== c 0) (set z 2))
+            (if (not (coco_text_put_cp out c)) (return 0)))
+          (return z)))
+
+  ;;; THE BYTES A TEXT WAS DECODED FROM: S, as `coco_text_cook' made it in
+  ;;; class CLS, written back in that class onto OUT -- what a later
+  ;;; `:- encoding(E)' decodes again in its own. Class 0 is S's bytes, a C0
+  ;;; 80 a NUL; 1 a byte a character (each such a text holds is one); 2 and
+  ;;; 3 UTF-16, a character past U+FFFF its two surrogates; 4 four bytes a
+  ;;; character, least first. 0 for no room.
+  (func coco_text_raw ((const char * s) (int cls) (coco_strbuf * out)) (out int)
+        (let ((size_t n . #'(strlen s)) (size_t i . 0) (i64 c . 0) (int ok . 1))
+          (while (and ok (< i n))
+            (if (and (== (cast uchar (nth i s)) 192)
+                     (and (< (+ i 1) n) (== (cast uchar (nth (+ i 1) s)) 128)))
+                (block (set c 0) (set i (+ i 2)))
+              (if (== cls 0)
+                  (block (set c (cast i64 (cast uchar (nth i s)))) (set i (+ i 1)))
+                (set c (coco_utf8_get s n (aof i)))))
+            (cond
+              ((< cls 2) (set ok (coco_sb_putc out (cast char (bitand c 255)))))
+              ((< cls 4)
+               (if (> c 65535)
+                   (let ((i64 v . #'(- c 65536)))
+                     (set ok (and (coco-u16-put out (+ 55296 (>> v 10)) cls)
+                                  (coco-u16-put out (+ 56320 (bitand v 1023)) cls))))
+                 (set ok (coco-u16-put out c cls))))
+              (#t
+               (set ok (and (and (coco_sb_putc out (cast char (bitand c 255)))
+                                 (coco_sb_putc out (cast char (bitand (>> c 8) 255))))
+                            (and (coco_sb_putc out (cast char (bitand (>> c 16) 255)))
+                                 (coco_sb_putc out (cast char (bitand (>> c 24) 255)))))))))
+          (return ok)))
+
+  ;;; A SOURCE FILE'S TEXT, as swipl's load opens one: its bytes, malloc'd,
+  ;;; as the reader reads text (`coco_text_cook'), or nil when it cannot be
+  ;;; read. A BOM is taken off -- EF BB BF UTF-8's, FE FF UTF-16
+  ;;; big-endian's, FF FE little-endian's -- and names the class the file
+  ;;; is read in, else UTF-8. ASK is what the load asks (a machine's
+  ;;; `lenc'): 0 nothing, a class plus one -- the file read in that class
+  ;;; whatever its BOM said, as swipl sets a stream's encoding after the
+  ;;; open took the BOM off -- 6 `bom', which reads nothing of a file that
+  ;;; has none (swipl's: that load's set_stream/2 fails), and 7 `default',
+  ;;; which reads nothing (swipl's '$set_encoding' fails on it). *CLS is
+  ;;; set to the class the text was decoded from, and 16 more where the
+  ;;; text holds a NUL the file held (C0 80, which only such a text's
+  ;;; reader asks of a quoted item, `coco-lex-quoted-loop'). UTF-8 with no
+  ;;; NUL in it is the file's bytes as they are, the BOM moved off: no copy,
+  ;;; and what every start reads its libraries by.
+  (func coco_source_text ((const char * path) (int ask) (int * cls)) (out char *)
+        (let ((FILE * f . #'(fopen path "rb")) (char * buf . nil) (long n . 0)
+              (size_t skip . 0) (int bc . -1) (int c . 0) (coco_strbuf b))
+          (set (cof cls) 0)
+          (if (== f nil) (return nil))
+          (fseek f 0 SEEK_END)
+          (set n (ftell f))
+          (fseek f 0 SEEK_SET)
+          (if (< n 0) (block (fclose f) (return nil)))
+          (set buf (cast (char *) (malloc (+ (cast size_t n) 1))))
+          (if (== buf nil) (block (fclose f) (return nil)))
+          (if (and (> n 0) (!= (cast size_t n) (fread buf 1 (cast size_t n) f)))
+              (block (free buf) (fclose f) (return nil)))
+          (set (nth (cast size_t n) buf) (cast char 0))
+          (fclose f)
+          (let ((const uchar * u . #'(cast (const uchar *) buf)))
+            (cond
+              ((and (>= n 3) (and (== (nth 0 u) 239) (and (== (nth 1 u) 187) (== (nth 2 u) 191))))
+               (set bc 0) (set skip 3))
+              ((and (>= n 2) (and (== (nth 0 u) 254) (== (nth 1 u) 255))) (set bc 2) (set skip 2))
+              ((and (>= n 2) (and (== (nth 0 u) 255) (== (nth 1 u) 254))) (set bc 3) (set skip 2))))
+          (cond
+            ((== ask 7) (set c -1))
+            ((== ask 6) (set c (? (< bc 0) -1 bc)))
+            ((> ask 0) (set c (- ask 1)))
+            (#t (set c (? (< bc 0) 0 bc))))
+          ;; `bom' and no BOM, or `default': nothing
+          (if (< c 0) (block (set (nth 0 buf) (cast char 0)) (return buf)))
+          (set (cof cls) c)
+          (if (and (== c 0) (== nil (memchr (+ buf skip) 0 (- (cast size_t n) skip))))
+              (block (if (> skip 0) (memmove buf (+ buf skip) (+ (- (cast size_t n) skip) 1)))
+                     (return buf)))
+          (coco_sb_init (aof b))
+          (let ((int k . #'(coco_text_cook (+ buf skip) (- (cast size_t n) skip) c (aof b))))
+            (if (or (not k) (and (== ($ b s) nil) (not (coco_sb_putc (aof b) (cast char 0)))))
+                (block (coco_sb_free (aof b)) (free buf) (return nil)))
+            (if (== k 2) (set (cof cls) (bitor c 16))))
+          (free buf)
+          (return ($ b s))))
 
   ;;; TEXT AS A LIST, IN CHARACTERS (1.13.0): S's N bytes decoded, each
   ;;; character its code point -- or, AS_CHARS 1, the one-character atom of

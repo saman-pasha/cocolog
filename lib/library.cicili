@@ -709,22 +709,18 @@
 
   ;;; ---- the two loaders -------------------------------------------------
 
-  ;;; A whole file as malloc'd text, or null.
+  ;;; A whole file as malloc'd text, or null: read as a load reads a source
+  ;;; file (3.58.0, `coco_source_text'), its BOM taken off, in the class
+  ;;; the load asks (M's `lenc', taken here) or the BOM says, else UTF-8;
+  ;;; *CLS, when asked, the class it was decoded from, which the consult
+  ;;; that reads it takes (`lcls')
   (static)
-  (func lb_slurp ((const char * path)) (out char *)
-        (let ((FILE * f . #'(fopen path "rb")) (char * buf . nil) (long n . 0))
-          (if (== f nil) (return nil))
-          (fseek f 0 SEEK_END)
-          (set n (ftell f))
-          (fseek f 0 SEEK_SET)
-          (if (< n 0) (block (fclose f) (return nil)))
-          (set buf (cast (char *) (malloc (+ (cast size_t n) 1))))
-          (if (== buf nil) (block (fclose f) (return nil)))
-          (if (and (> n 0) (!= (cast size_t n) (fread buf 1 (cast size_t n) f)))
-              (block (free buf) (fclose f) (return nil)))
-          (set (nth (cast size_t n) buf) (cast char 0))
-          (fclose f)
-          (return buf)))
+  (func lb_slurp ((coco_machine * m) (const char * path) (int * cls)) (out char *)
+        (let ((int c . 0) (int ask . #'(-> m lenc)) (char * t . nil))
+          (set (-> m lenc) 0)
+          (set t (coco_source_text path ask (aof c)))
+          (if (!= cls nil) (set (cof cls) c))
+          (return t)))
 
   ;;; A compiled module: dlopen, check the ABI, let it register itself.
   ;;; The handle is deliberately never closed -- the registry holds
@@ -759,11 +755,14 @@
   (static) (decl) (func lb_absolute ((const char * found) (char * out) (size_t cap)))
 
   ;;; A Prolog library: the file's text registered as a clauses-only
-  ;;; module under NAME, so reset-and-reload and never-twice come free.
+  ;;; module under NAME, so reset-and-reload and never-twice come free. ASK
+  ;;; is the encoding the load asks (a machine's `lenc', 0 none): the text
+  ;;; is registered decoded (3.58.0), and every store's read of it takes it
+  ;;; as UTF-8.
   (static)
-  (func lb_load_pl ((const char * path) (const char * name)
-                    (char * err) (size_t errlen)) (out int)
-        (let ((char * text . #'(lb_slurp path)) (double t . 0.0))
+  (func lb_load_pl_as ((const char * path) (const char * name) (int ask)
+                       (char * err) (size_t errlen)) (out int)
+        (let ((int cls . 0) (char * text . #'(coco_source_text path ask (aof cls))) (double t . 0.0))
           (if (== text nil)
               (block (snprintf err errlen "cannot read %s" path) (return 0)))
           ;; the time the text was read at, which if(changed) asks (2.14.0)
@@ -782,8 +781,13 @@
             (let ((char abs [4096]))
               (lb_absolute path abs (sizeof abs))
               (coco_module_set_file nm (strdup abs)))
-            (coco_module_set_text nm text t))
+            (coco_module_set_text nm text t cls))
           (return 1)))
+
+  (static)
+  (func lb_load_pl ((const char * path) (const char * name)
+                    (char * err) (size_t errlen)) (out int)
+        (return (lb_load_pl_as path name 0 err errlen)))
 
   ;;; ---- lending the operators -------------------------------------------
   ;;;
@@ -1045,7 +1049,7 @@
   (static)
   (func lb_load_again ((coco_store * st) (coco_machine * m) (const coco_module * mod)
                        (const char * path) (double now) (char * err) (size_t errlen)) (out int)
-        (let ((char * text . #'(lb_slurp path)) (int r . 0)
+        (let ((int cls . 0) (char * text . #'(lb_slurp m path (aof cls))) (int r . 0)
               (int dq . #'(-> m double_quotes)) (int own . #'(-> st ownload))
               ;; read before the consult, whose directives may register a
               ;; module and move the registry MOD points into
@@ -1054,12 +1058,13 @@
               (const char * real . #'(-> mod real))
               (int mown . #'(-> mod own)) (u64 outer . #'(-> m ldefs)))
           (if (== text nil) (return -1))
-          (coco_module_set_text name text now)
+          (coco_module_set_text name text now cls)
           (coco_module_read_begin name)
           (set (-> m ldefs) 0)
           (coco_store_mute st)
           (set (-> m double_quotes) 0)
           (set (-> st ownload) mown)
+          (set (-> m lcls) cls)
           (set r (coco_consult_owner st m text file real 1 err errlen))
           (set (-> st ownload) own)
           (set (-> m double_quotes) dq)
@@ -1124,7 +1129,7 @@
   (static)
   (func lb_consult_file ((coco_store * st) (coco_machine * m) (const char * path)
                          (const char * full) (double now) (char * err) (size_t errlen)) (out int)
-        (let ((char * text . #'(lb_slurp path)) (int again . 0) (int r . 0)
+        (let ((int cls . 0) (char * text . #'(lb_slurp m path (aof cls))) (int again . 0) (int r . 0)
               (int muted . #'(-> st muted)) (int own . #'(-> st ownload))
               (u64 outer . #'(-> m ldefs)))
           (if (== text nil) (return -9))
@@ -1133,6 +1138,7 @@
           (coco_store_note_load st full now)
           (set (-> st muted) 0)
           (set (-> st ownload) 0)
+          (set (-> m lcls) cls)
           (set r (coco_consult_again st m text path again err errlen))
           (set (-> st muted) muted)
           (set (-> st ownload) own)
@@ -1184,7 +1190,9 @@
             (lb_absolute path abs (sizeof abs))
             (if (== kind 1)
                 (block (if (not (lb_load_so abs err errlen)) (return 0)))
-              (block (if (not (lb_load_pl abs name err errlen)) (return 0))
+              (block (if (not (lb_load_pl_as abs name (-> m lenc) err errlen))
+                         (block (set (-> m lenc) 0) (return 0)))
+                     (set (-> m lenc) 0)
                      ;; a file named by its path is the program's own, not a
                      ;; library: its predicates are counted as the program's
                      ;; (1.10.28, `own' in lib/kb.cicili)
@@ -1441,7 +1449,7 @@
             ((lb_resolve_dir m name dir (sizeof dir))
              (block (set ball (lb_directory_ball m spec dir)) (set why 2))))
           (if (== why 0)
-              (block (set (cof text) (lb_slurp path))
+              (block (set (cof text) (lb_slurp m path nil))
                      (if (!= (cof text) nil) (return 1))
                      (set why 1)))
           (if (== why 1)
@@ -1615,6 +1623,43 @@
               (set opts (coco_deref m (coco_arg m opts 1)))))
         (coco_imp_note m spec 0 0))
 
+  ;;; LOAD_FILES/2'S encoding(E) (3.58.0), as swipl's '$set_encoding' sets
+  ;;; it on the stream its load opened: the first encoding(_) of OPTS, as
+  ;;; memberchk/2 finds it, and nothing of a call with no options (LF 0);
+  ;;; checked as set_stream/2 checks it, once the file is found and is to
+  ;;; be read, its error raised as that predicate's; and set on the machine
+  ;;; (`lenc') for the read -- `default' a read of nothing, as swipl's,
+  ;;; whose '$set_encoding' then fails and loads no file. Answers 1, or the
+  ;;; raise's answer.
+  (static)
+  (func lb_enc_option ((coco_engine * e) (int lf) (size_t opts)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (set (-> m lenc) 0)
+          (if (not lf) (return 1))
+          (set opts (coco_deref m opts))
+          (while (coco_is_cons m opts)
+            (let ((size_t o . #'(coco_deref m (coco_arg m opts 0))))
+              (if (and (coco_is_callable m o)
+                       (and (== (coco_arity m o) 1)
+                            (== 0 (strcmp (coco_atom_name m (coco_name_of m o)) "encoding"))))
+                  (let ((size_t a . #'(coco_deref m (coco_arg m o 0))) (int c . 0))
+                    (if (coco-tag-is REF (nth a (-> m heap)))
+                        (return (coco_m_raise_pi e (coco_new_atom m "instantiation_error")
+                                                 "system" "set_stream" 2)))
+                    (if (not (coco-tag-is ATOM (nth a (-> m heap))))
+                        (return (coco_m_raise_pi e (coco_make2 m "type_error" (coco_new_atom m "atom") a)
+                                                 "system" "set_stream" 2)))
+                    (if (== 0 (strcmp (coco_atom_name m (coco_name_of m a)) "default"))
+                        (block (set (-> m lenc) 7) (return 1)))
+                    (set c (coco_enc_class (coco_atom_name m (coco_name_of m a))))
+                    (if (< c 0)
+                        (return (coco_m_raise_pi e (coco_make2 m "domain_error" (coco_new_atom m "encoding") a)
+                                                 "system" "set_stream" 2)))
+                    (set (-> m lenc) (? (== c 5) 6 (+ c 1)))
+                    (return 1))))
+            (set opts (coco_deref m (coco_arg m opts 1))))
+          (return 1)))
+
   (static)
   (func lb_load_file ((coco_engine * e) (size_t g)) (out int)
         (coco-mod-args e g ((spec 0) (how 1))
@@ -1709,7 +1754,10 @@
                             (return 1))
                         (if (and (or (== 0 (strcmp mode "changed")) exists) (<= now (-> mod time)))
                             (return 1))))
-                   (let ((int rr . #'(lb_reread e mod path now)))
+                   (let ((int eo . #'(lb_enc_option e lf opts)) (int rr . 0))
+                     (if (!= eo 1) (return eo))
+                     (set rr (lb_reread e mod path now))
+                     (set (-> m lenc) 0)
                      (if (== rr 0)
                          (return (coco_m_existence_error e "source_sink" culprit)))
                      (return rr)))))
@@ -1720,11 +1768,14 @@
                  (if (coco_store_load_done st full nil) (return 1))
                  (if (not (coco_store_loaded st full nil))
                      (block
+                      (let ((int eo . #'(lb_enc_option e lf opts)))
+                        (if (!= eo 1) (return eo)))
                       (set was (-> m dgc))
                       (set (-> m dgc) (? (-> e gc) 1 0))
                       ;; the path found, loaded as itself: a spec looked for
                       ;; again would be looked for where this load stands
                       (set r (lb_load_path st m e path err (sizeof err)))
+                      (set (-> m lenc) 0)
                       (set (-> m dgc) was)
                       (if (!= r 1)
                           (let ((int t . #'(lb_ball_again e)))
@@ -1742,9 +1793,12 @@
                 (return 1))
             ;; ITS DIRECTIVES MAY COLLECT when this engine may (`dgc'): the
             ;; spec is read before the consult and nothing of the heap after
+            (let ((int eo . #'(lb_enc_option e lf opts)))
+              (if (!= eo 1) (return eo)))
             (set was (-> m dgc))
             (set (-> m dgc) (? (-> e gc) 1 0))
             (set r (lb_consult_file st m path full now err (sizeof err)))
+            (set (-> m lenc) 0)
             (set (-> m dgc) was)
             (if (== r -9) (return (coco_m_existence_error e "source_sink" culprit)))
             ;; WHAT ITS DIRECTIVES REGISTERED IS IN THIS STORE ALREADY: since

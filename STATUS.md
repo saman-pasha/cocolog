@@ -16674,3 +16674,177 @@ Narrow cases green: lint, files, syntax, cyclic, string, units, errors,
 repl, directives, library, reconsult, stream, journal, engine, backtrace,
 meter, window, flowdebug, flowchart, async, trace and script, and lesson
 library/37 alone. Reasoning stays 1.0.27.
+
+
+## A load's source encodings, as swipl's (3.58.0)
+
+swipl 9.0.4 reads a source file in an encoding: the one a BOM at its start
+names, else the locale's; `:- encoding(E)' reads the rest of the file in E;
+load_files/2's encoding(E) names it for the whole file; and an included file
+is read in the encoding of the file that includes it. cocolog read every
+file as UTF-8. A BOM's bytes were its first clause's, so the file began with
+`illegal_character'. `:- encoding(utf8)' was an unknown procedure, reported.
+A Latin-1 or UTF-16 file read as junk, and load_files/2 read past
+encoding(E). Now each is swipl's. A minor, as what a program reads moves.
+
+- **A BOM names the encoding and is taken off** (`coco_source_text' in
+  lib/term.cicili): EF BB BF is UTF-8, FE FF UTF-16 big-endian and FF FE
+  little-endian, swipl's ScanBOM() three. With none the file is UTF-8, where
+  swipl's is the locale's (`text'). The function is the one reader of a
+  source file: the hosts' `run FILE' and `consult FILE', a module's read,
+  consult/1 and load_files/2, and an include.
+- **The text a consult reads is UTF-8 whatever the file was**
+  (`coco_text_cook'):
+  - octet, ascii and iso_latin_1 are a byte a character;
+  - UTF-16 is read either way round, a surrogate pair one character and a
+    lone surrogate U+FFFD;
+  - wchar_t is UCS-4 little-endian;
+  - a NUL is C0 80, so the text stays a C string.
+  A UTF-8 file with no NUL is read as it is, its BOM moved off; the cost is
+  one memchr().
+- **`:- encoding(E)' reads the rest of its file in E** (`coco_consult_owned'
+  in lib/kb-consult.cicili, as swipl's '$source_term' sets the stream's
+  encoding once the directive's term is read). The switch starts at the
+  byte after its full stop (the reader's `fend'). The rest is written back
+  in the class it was decoded from (`coco_text_raw') and decoded in E's
+  (`coco_consult_recode'). The reader takes up the new text where it stood
+  (`coco_reader_retext'), so every offset before it stands, a clause's place
+  and a syntax error's alike. As in swipl, the full stop needs layout or a
+  `%' after it in the encoding in force, so a switch to big-endian UTF-16
+  cannot end its own directive.
+  - `bom' changes nothing where it stands.
+  - A name that is none ends the load with set_stream/2's error, as swipl's
+    does: unbound, no atom, no encoding, or `'Utf-8''. The error is
+    `instantiation_error', `type_error(atom, E)' or `domain_error(encoding,
+    E)', in context system:set_stream/2; consult/1 raises it, and an `-s'
+    script says `Prolog initialisation failed:' and exits 1.
+  - A directive that `:- if(fail)' skips is no switch.
+- **The names are swipl's** (`*coco-encodings*', one table, which a
+  DEFMACRO makes into `coco_enc_class'): octet, ascii, iso_latin_1, text,
+  utf8, unicode_be, unicode_le, utf16be, utf16le and wchar_t; the MIME names
+  'UTF-8', 'ISO-8859-1', 'UTF-16BE' and 'UTF-16LE'; and bom. Case matters,
+  as in swipl.
+- **load_files/2's encoding(E) reads the file in E** (`lb_enc_option' in
+  lib/library.cicili, swipl's '$set_encoding'):
+  - The first encoding(_) of the options counts, whatever the BOM says.
+  - `bom' takes the BOM's encoding, and a file with none reads nothing, as
+    swipl's.
+  - `default' reads nothing, as swipl's '$set_encoding' then fails.
+  - It is checked as set_stream/2 checks it, once the file is found and is
+    to be read: a missing file's existence error comes first, and an
+    `if(not_loaded)' of a file loaded already checks nothing. Its errors are
+    set_stream/2's.
+- **An included file is read in the encoding of the file that includes it**
+  (the include branch's `lenc'), as swipl's '$load_include' gives it the
+  stream's encoding. Its BOM is taken off, and its own `:- encoding(E)'
+  switches it.
+- **A consult starts in the class its text was decoded from** (the machine's
+  `lcls', taken at the consult's entry). That holds for the hosts' consults,
+  consult/1's, a module read again, and a module's registered text, which
+  keeps its class for every store's read of it (`cls' in lib/module.cicili).
+  So a UTF-16 module's `:- encoding(utf16le)' changes nothing, and neither
+  does a `:- encoding(iso_latin_1)' in a file loaded with that option.
+- **A NUL byte is no end of the file.** Outside quotes it is
+  `illegal_character', reported where it stands, and the load goes on, as in
+  swipl. Inside a code list or a string it is the code 0, as it is after
+  `0'': the lexer reads C0 80 as the NUL. In a comment it is nothing. A
+  syntax error after it is placed as swipl places it, the NUL one column
+  (`coco_raw_col_byte'). An atom ends at it, as an atom does at an escaped
+  NUL (COMPAT.md). Through 3.57.0 the file ended at the NUL, unsaid.
+- **Only a text that holds a NUL asks for one inside quotes.**
+  `coco_text_cook' says whether it wrote one. The class's bit 16 carries
+  that to the consult (`lcls'), and `coco_reader_init_nul' carries it to the
+  reader (`nul'). An include's reader always asks, as its text is read
+  after the consult began. The quoted loop is two copies of one DEFMACRO,
+  `coco-lex-quoted-loop': the one a text with no NUL reads by asks nothing
+  3.57.0's loop did not.
+- **library(stream) takes the MIME names** (`stream_enc_id'), and
+  stream_property/2 answers swipl's own name for an alias
+  (`stream_enc_name'): utf16be for unicode_be, utf16le for unicode_le, utf8
+  for 'UTF-8' and iso_latin_1 for 'ISO-8859-1'. The encodings of a stream
+  itself have been swipl's since 3.19.0.
+
+Five fields are appended: the machine gains `lenc' and `lcls', the reader
+`fend' and `nul', and the module registry's entry `cls'. The SDK is
+unchanged; `make modules' rebuilds library/stream.so.
+
+test/files/encoding.pl is new: 186 lines held to swipl 9.0.4's, byte for
+byte, and swipl's are the same in the C locale and under C.UTF-8. 3.57.0's
+output misses 81 of them. The case writes every file it loads byte by byte,
+and each file that holds a byte past ASCII names its encoding -- by a
+directive, a BOM or the load's option -- because swipl's default is the
+locale's. It prints codes. Its sections:
+
+- the directive's names and refusals;
+- switches within one file;
+- the BOMs;
+- the option;
+- includes;
+- modules;
+- the NUL byte;
+- library(stream)'s names.
+
+Not compared, and in COMPAT.md: a byte that is no UTF-8, ascii's warning,
+and `text' past ASCII.
+
+The arms: one build each, every rule taken out alone, over the case. The arm
+of no edit is green, on the first state and on the final one. Each of the 29
+rules is red:
+
+- the directive read at all, and a name that is none ending the load;
+- `bom' changing nothing, and `[]' a name, to the directive and to the
+  option;
+- the switch from the byte after the full stop, the rest written back in
+  its class, and the reader taking up the new text;
+- each of the three BOMs;
+- the option read, `default' reading nothing, `bom' of a file with none,
+  and the option checked once the file is found;
+- an include's encoding and its class;
+- a module's file read in the option's encoding, a consult starting in its
+  file's class, and a module's text keeping its class;
+- the NUL no end of the text, the NUL inside quotes and after `0'', and the
+  NUL one column;
+- the decoder saying the text holds a NUL, the reader taking that flag, and
+  an include's reader asking for a NUL in quotes;
+- stream_property/2's names and library(stream)'s MIME names.
+
+The first edit of the UTF-16LE BOM's arm compared a byte with 999. Clang
+warned that the comparison was always false, and Cicili stops at that; the
+arm's second edit, 253, is red.
+
+The three NUL-flag rules were first armed on a build whose two loop copies
+both asked for the C0, and their arms were green there: the macro tested
+its NUL with IF, to which Lisp's 0 is true. It tests it with EQL now.
+
+The cost. tools/flow/zero.sh against 3.57.0 at like paths, work less
+padding: nrev -8 instructions, queens +255, lookup -5 930, of 40 to 66
+million. By function, the engine's step code runs as before: no function
+outside the load, libc and the module seam's name lookup
+(`coco_module_call_resolving', 138 to 177) moves by more than 100.
+
+The start (`cocolog query true', each binary at the checkout's path) is
+106 651 instructions more than 3.57.0's 35.80 million, 0.30 %. The padding
+is 2 599 of it. By function:
+
+- strcmp, 76 946: 33 more calls (the directive's name asked), and 8 599
+  more times down glibc's page-cross path, as the literals the same calls
+  compare moved;
+- memchr, 16 705: each source text scanned for a NUL, its whole length;
+- the reader, 15 361: coco_next_token 5 611, coco_read_clause 5 076, and
+  coco_lex_quoted 4 674, the reader's `nul' asked once a quoted item;
+- the rest, -2 361 together: lb_load_pl_as, coco_source_text, strncmp,
+  memcmp and malloc's up, and coco_consult_owned, lb_load_pl and lb_slurp
+  down.
+
+The first cut asked every byte of every quoted item for the C0, +91 840 a
+start. Two copies of the loop take it away, a text with no NUL reading by
+the copy that does not ask. The first build of them also asked in both, as
+above, +96 514.
+
+COMPAT.md has a new row, a loaded file's text past what its encoding reads.
+Row 66 (an atom holding the code 0) and row 82 (a syntax error in a loaded
+file) say what a NUL byte does now.
+
+Narrow cases green: lint, files, syntax, term, module, solve, directives,
+script, library, reconsult, errors, stream, units, string and argv.
+Reasoning stays 1.0.27.

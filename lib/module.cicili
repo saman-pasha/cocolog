@@ -215,7 +215,14 @@
     ;; expansion hook of the program's asked, as a compiled-in module's own
     ;; text is (`noexp' on the store) -- swipl's boot libraries are read
     ;; before any program is
-    (member int noexp))
+    (member int noexp)
+    ;; THE CLASS ITS TEXT WAS DECODED FROM (3.58.0, `coco_source_text'): 0
+    ;; UTF-8, else the one a load's encoding(E) or the file's BOM named.
+    ;; The text held is UTF-8 whatever it was; a read of it starts in this
+    ;; class (the machine's `lcls'), so that a `:- encoding(E)' in it
+    ;; switches from the encoding the file was read in, as swipl's stream
+    ;; does
+    (member int cls))
 
   ;;; Empties the registry and fills in solve.cicili's two hooks. A target that
   ;;; wants modules calls this once and then registers each one.
@@ -263,7 +270,7 @@
   ;;; module from next, and what `lb_lend_ops' lends. The text it replaces
   ;;; is KEPT, never freed: the registry is the process's and unguarded,
   ;;; and another thread may be consulting it into a store of its own.
-  (decl) (func coco_module_set_text ((const char * name) (const char * text) (double time)))
+  (decl) (func coco_module_set_text ((const char * name) (const char * text) (double time) (int cls)))
 
   ;;; Marks every module registered at index FROM and after as a loaded
   ;;; object's (`foreign', 3.0.2): what the loader does once a `.so''s entry
@@ -853,6 +860,7 @@
                          (let ((int nx . #'(-> st noexp)) (int nd . #'(-> m nodbg)))
                            (set (-> st noexp) (? (or (== (-> mod file) nil) (-> mod noexp)) 1 0))
                            (if (or (== (-> mod file) nil) (-> mod noexp)) (set (-> m nodbg) 0))
+                           (set (-> m lcls) (-> mod cls))
                            (set cr (coco_consult_owner st m (-> mod prolog)
                                                        (? (== (-> mod file) nil) (-> mod name) (-> mod file))
                                                        (-> mod real) 0 err (sizeof err)))
@@ -971,12 +979,13 @@
                 (if (!= nil (realpath file rp))
                     (set ($ (nth i coco_modules) real) (strdup rp)))))))
 
-  (func coco_module_set_text ((const char * name) (const char * text) (double time))
+  (func coco_module_set_text ((const char * name) (const char * text) (double time) (int cls))
         (if (or (== name nil) (== text nil)) (return))
         (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
           (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
               (block (set ($ (nth i coco_modules) prolog) text)
-                     (set ($ (nth i coco_modules) time) time)))))
+                     (set ($ (nth i coco_modules) time) time)
+                     (set ($ (nth i coco_modules) cls) cls)))))
 
   (func coco_module_set_foreign ((size_t from))
         (for ((size_t i . from)) (< i coco_nmodules) ((++ i))

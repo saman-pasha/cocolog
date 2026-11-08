@@ -418,7 +418,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.57.0"))
+  (func coco_version_text () (out const char *) (return "3.58.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -485,22 +485,14 @@
         (fprintf stderr "  --no-backtrace  the error's message alone\n")
         (fprintf stderr "  --version     the version, on stdout, and nothing else\n"))
 
-  ;;; Reads a whole file. Answers nil if it cannot, with the reason printed.
-  (func slurp ((const char * path)) (out char *)
-        (let ((FILE * f . #'(fopen path "rb")) (char * buf . nil) (long n . 0)
-              (size_t got . 0))
-          (if (== f nil)
-              (block (fprintf stderr "cocolog: cannot read %s\n" path) (return nil)))
-          (fseek f 0 SEEK_END)
-          (set n (ftell f))
-          (fseek f 0 SEEK_SET)
-          (set buf (cast (char *) (malloc (cast size_t (+ n 1)))))
-          (if (== buf nil) (block (fclose f) (return nil)))
-          ;; a short read terminates at what actually arrived
-          (set got (fread buf 1 (cast size_t n) f))
-          (set (nth got buf) (cast char 0))
-          (fclose f)
-          (return buf)))
+  ;;; Reads a whole file as a load reads a source file (3.58.0,
+  ;;; `coco_source_text'): its BOM taken off, and the class it was decoded
+  ;;; in, the BOM's or else UTF-8, in *CLS for the consult (`lcls'). Answers
+  ;;; nil if it cannot, with the reason printed.
+  (func slurp ((const char * path) (int * cls)) (out char *)
+        (let ((char * t . #'(coco_source_text path 0 cls)))
+          (if (== t nil) (fprintf stderr "cocolog: cannot read %s\n" path))
+          (return t)))
 
   ;;; The query as it now stands -- which is the answer. Writing the query
   ;;; rather than a list of variable bindings is deliberate: a machine that has
@@ -659,7 +651,7 @@
           ;; quadratic, and 61 measured seconds for one 150-clause file
           (if (!= db nil) (coco_zg_batch (aof z) 1))
           (for ((int i . from)) (< i argc) ((++ i))
-            (let ((char * text . #'(slurp (nth i argv))) (int n))
+            (let ((int cls . 0) (char * text . #'(slurp (nth i argv) (aof cls))) (int n))
               (if (== text nil) (block (coco_store_free (aof st)) (coco_machine_free (aof m))
                                        (return 1)))
               ;; a directive's goal may collect the heap: this host holds no
@@ -676,9 +668,9 @@
                 ;; the way does not move, nor the file read before it. The
                 ;; host is the outermost read: nothing to put back
                 (set ($ m ldefs) 0)
-                (set n (coco_consult_again (aof st) (aof m) text shown
-                                           (coco_library_note_load (aof st) (nth i argv))
-                                           err (sizeof err)))
+                (let ((int again . #'(coco_library_note_load (aof st) (nth i argv))))
+                  (set ($ m lcls) cls)
+                  (set n (coco_consult_again (aof st) (aof m) text shown again err (sizeof err))))
                 (coco_library_note_read (aof st) (nth i argv) (!= ($ m ldefs) 0)))
               (set ($ m dgc) 0)
               (free text)
@@ -2457,7 +2449,7 @@
           ;; first (zigurat-kb.cicili), so nothing in here can see a stale row.
           (set batched (batch_open (aof z)))
           (for ((int i . from)) (< i argc) ((++ i))
-            (let ((char * text . #'(slurp (nth i argv))) (int n . 0))
+            (let ((int cls . 0) (char * text . #'(slurp (nth i argv) (aof cls))) (int n . 0))
               (if (== text nil)
                   (block (coco_engine_free (aof e)) (coco_store_free (aof st))
                          (coco_machine_free (aof m)) (return 1)))
@@ -2478,9 +2470,9 @@
                 ;; the way does not move, nor the file read before it. The
                 ;; host is the outermost read: nothing to put back
                 (set ($ m ldefs) 0)
-                (set n (coco_consult_again (aof st) (aof m) text shown
-                                           (coco_library_note_load (aof st) (nth i argv))
-                                           err (sizeof err)))
+                (let ((int again . #'(coco_library_note_load (aof st) (nth i argv))))
+                  (set ($ m lcls) cls)
+                  (set n (coco_consult_again (aof st) (aof m) text shown again err (sizeof err))))
                 (coco_library_note_read (aof st) (nth i argv) (!= ($ m ldefs) 0)))
               (set ($ m dgc) 0)
               ;; a load a syntax error stopped, or one a directive's ball

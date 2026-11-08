@@ -352,7 +352,13 @@
            "stream_bom_of(_, 0)."
            "stream_enc_id(utf8, 0). stream_enc_id(octet, 1). stream_enc_id(ascii, 2). stream_enc_id(iso_latin_1, 3). stream_enc_id(text, 4)."
            "stream_enc_id(unicode_be, 5). stream_enc_id(unicode_le, 6). stream_enc_id(utf16be, 7). stream_enc_id(utf16le, 8). stream_enc_id(wchar_t, 9)."
-           "stream_enc_names([octet, ascii, iso_latin_1, text, utf8, unicode_be, unicode_le, utf16be, utf16le, wchar_t])."
+           ;; swipl's MIME names (3.58.0), each the encoding it names
+           "stream_enc_id('UTF-8', 0). stream_enc_id('ISO-8859-1', 3). stream_enc_id('UTF-16BE', 7). stream_enc_id('UTF-16LE', 8)."
+           "stream_enc_names([octet, ascii, iso_latin_1, text, utf8, unicode_be, unicode_le, utf16be, utf16le, wchar_t, 'UTF-8', 'ISO-8859-1', 'UTF-16BE', 'UTF-16LE'])."
+           ;; and the name stream_property/2 answers (3.58.0), swipl 9.0.4's:
+           ;; unicode_be is utf16be and unicode_le utf16le there
+           "stream_enc_name(0, utf8). stream_enc_name(1, octet). stream_enc_name(2, ascii). stream_enc_name(3, iso_latin_1). stream_enc_name(4, text)."
+           "stream_enc_name(5, utf16be). stream_enc_name(6, utf16le). stream_enc_name(7, utf16be). stream_enc_name(8, utf16le). stream_enc_name(9, wchar_t)."
            "stream_bind(S, N, A, _) :- nonvar(A), !, ( S = A -> '$stream_set_alias'(N, A) ; '$stream_close'('$stream'(N), N), fail )."
            "stream_bind(S, N, _, _) :- var(S), !, S = '$stream'(N)."
            "stream_bind(S, N, _, PI) :- '$stream_close'('$stream'(N), N), stream_err(uninstantiation_error(S), PI, 'stream-argument')."
@@ -465,7 +471,7 @@
            "stream_prop(S, N, type(Type)) :- '$stream_info'(S, N, _, _, K), stream_type_name(K, Type)."
            ;; the encoding, by swipl's name, and bom(true) where a BOM was read
            ;; or written (3.19.0); a stream with none has no bom property
-           "stream_prop(S, N, encoding(E)) :- '$stream_enc'(S, N, I, _), stream_enc_id(E, I)."
+           "stream_prop(S, N, encoding(E)) :- '$stream_enc'(S, N, I, _), stream_enc_name(I, E)."
            "stream_prop(S, N, bom(true)) :- '$stream_enc'(S, N, _, 1)."
            "stream_prop(S, N, input) :- '$stream_info'(S, N, _, M, _), ( M =:= 1 ; M =:= 4 )."
            "stream_prop(S, N, output) :- '$stream_info'(S, N, _, M, _), M >= 2."
