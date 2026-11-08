@@ -936,12 +936,19 @@
   ;;; A WRITE IN THE MODE A PROGRAM'S WRITER ASKS FOR (2.2.5), the mode word
   ;;; whole: quoted 1, ignore_ops 2, numbervars 8, character escapes 16, a
   ;;; code escaped as `\u0001' 64 (3.1.0) and a curly term written `{}(x)' 128
-  ;;; (3.1.0). NAMED writes a cyclic term's variables S_1, S_2, ...
-  ;;; (`coco_write_cyclic'). write/1 is 8, writeq/1 25, print/1 89,
-  ;;; write_term/2 what its options say; write_canonical/1 is
-  ;;; `coco_write_canon''s 147.
+  ;;; (3.1.0), and since 3.53.0 a list written as the compounds it is,
+  ;;; `.(1,[])' 2048 (dotlists) and `'[|]'(1,[])' 4096 (no_lists). NAMED
+  ;;; writes a cyclic term's variables S_1, S_2, ... (`coco_write_cyclic').
+  ;;; write/1 is 8, writeq/1 25, print/1 89, write_term/2 what its options
+  ;;; say; write_canonical/1 is `coco_write_canon''s 147.
   (decl) (func coco_write_mode ((coco_machine * m) (coco_strbuf * b) (size_t t)
                               (int mode) (int named)) (out int))
+
+  ;;; WRITE_TERM/2'S FULLSTOP(TRUE) (3.53.0, pl-write.c's PutToken(".")):
+  ;;; the full stop after what B holds, a space before it where the two
+  ;;; would be one token (`- .', `a:- .'), and NL a newline after it, else a
+  ;;; space, so that a read of the text ends there.
+  (decl) (func coco_write_fullstop ((coco_strbuf * b) (int nl)) (out int))
 
   ;;; THE FORM A CLAUSE IS STORED IN, which is quoted and with operators
   ;;; IGNORED -- `rule(===>(a,b))' and not `rule(a ===> b)'.
@@ -3131,6 +3138,48 @@
   ;;; ten-thousand-element list does not need ten thousand stack frames --
   ;;; a list is the one term shape deep enough for that to matter.
   ;;;
+  ;;; A LIST AS THE COMPOUNDS IT IS, under write_term/2's dotlists(true)
+  ;;; (2048) and no_lists(true) (4096): `.(1,.(2,[]))' and
+  ;;; `'[|]'(1,'[|]'(2,[]))', swipl 9.0.4's writeList(), dotlists the
+  ;;; stronger -- its `.' a token of its own (`- .(1,[])'), the other the
+  ;;; atom swipl names its list cells by, quoted as a write quotes. Each
+  ;;; element one deeper than the one before, as the list's own walk counts
+  ;;; them under max_depth (1024), and a tail past the limit `...'; the
+  ;;; tail's cycle asked as the list's walk asks it (Brent's). Out of line:
+  ;;; no other write comes here.
+  (weak)
+  (func coco_write_list_dots ((coco_machine * m) (coco_strbuf * b) (size_t t)
+                              (int mode) (u32 depth)) (out int)
+        (let ((int kids . #'(bitand mode 8155)) (int cut . #'(!= 0 (bitand mode 1024)))
+              (u32 k . 0) (size_t kept . #'(cast size_t -1)) (size_t lam . 0) (size_t power . 1024))
+          (while 1
+            (set t (coco_deref m t))
+            (if (== t kept) (block (coco_write_stop m) break))
+            (set lam (+ lam 1))
+            (if (== lam power)
+                (block (if (-> m wcyc) break)
+                       (set kept t) (set power (* power 2)) (set lam 0)))
+            (if (!= 0 (bitand mode 2048))
+                (coco_sb_putc b (cast char (coco-ch ".")))
+              (coco_write_atom b "[|]" (bitand mode 337)))
+            (coco_sb_putc b (cast char (coco-ch "(")))
+            (set k (+ k 1))
+            (coco_write_rec m b (coco_arg m t 0) kids 999 (? cut (+ depth k) (+ depth 1)))
+            (coco_sb_putc b (cast char (coco-ch ",")))
+            (if (!= 0 (bitand mode 512)) (coco_sb_putc b (cast char 32)))
+            (set t (coco_deref m (coco_arg m t 1)))
+            (if (and (coco-tag-is ATOM (nth t (-> m heap))) (coco_is_nil m t))
+                (block (coco_sb_put b "[]") break))
+            (if (and cut (>= (+ (cast i64 depth) (+ (cast i64 k) 1)) (-> m wmax)))
+                (block (coco_sb_put b "...") break))
+            (if (not (coco_is_cons m t))
+                (block (coco_write_rec m b t kids 999 (? cut (+ depth (+ k 1)) (+ depth 1)))
+                       break)))
+          (while (> k 0)
+            (coco_sb_putc b (cast char (coco-ch ")")))
+            (set k (- k 1)))
+          (return 1)))
+
   ;;; A TAIL THAT COMES BACK ON ITSELF is found by Brent's method (1.10.18):
   ;;; a cell kept, compared with each cell after it, and kept again at the
   ;;; 1024th, the 2048th after that, and so on -- a cycle of any length is
@@ -3140,12 +3189,16 @@
   ;;; element one deeper than the K-1-th, the first one deeper than the
   ;;; list, and a list that would go past the limit ends `|...]' -- so the
   ;;; limit ends the walk, and no cycle needs looking for. Out of line: a
-  ;;; write with no limit never comes here.
+  ;;; write with no limit and no dotlists(true) or no_lists(true) never
+  ;;; comes here.
   (weak)
   (func coco_write_list_cut ((coco_machine * m) (coco_strbuf * b) (size_t t)
                              (int mode) (u32 depth)) (out int)
+        ;; dotlists(true) and no_lists(true) come by here too (3.53.0): the
+        ;; list writer asks one test for the three
+        (if (!= 0 (bitand mode 6144)) (return (coco_write_list_dots m b t mode depth)))
         (coco_sb_putc b (cast char (coco-ch "[")))
-        (let ((int kids . #'(bitand mode 2011)) (u32 k . 0))
+        (let ((int kids . #'(bitand mode 8155)) (u32 k . 0))
           (while 1
             (set t (coco_deref m t))
             (if (> k 0)
@@ -3166,9 +3219,11 @@
   (static)
   (func coco_write_list ((coco_machine * m) (coco_strbuf * b) (size_t t)
                        (int mode) (u32 depth)) (out int)
-        (if (!= 0 (bitand mode 1024)) (return (coco_write_list_cut m b t mode depth)))
+        ;; a depth limit (1024), dotlists(true) or no_lists(true) (2048,
+        ;; 4096): one test, and the rest out of line
+        (if (!= 0 (bitand mode 7168)) (return (coco_write_list_cut m b t mode depth)))
         (coco_sb_putc b (cast char (coco-ch "[")))
-        (let ((int first . 1) (int kids . #'(bitand mode 2011))
+        (let ((int first . 1) (int kids . #'(bitand mode 8155))
               (size_t kept . #'(cast size_t -1)) (size_t lam . 0) (size_t power . 1024))
           (while 1
             (set t (coco_deref m t))
@@ -3255,9 +3310,9 @@
               ;; what this write's operands and arguments carry down:
               ;; quoted 1, ignore_ops 2, numbervars 8, escapes 16 and 64,
               ;; write_canonical/1's braces 128, next_argument's comma
-              ;; spaces 512, max_depth's limit 1024 (the operand's 4 is each
-              ;; operand's own)
-              (int kids . #'(bitand mode 2011)))
+              ;; spaces 512, max_depth's limit 1024, dotlists 2048 and
+              ;; no_lists 4096 (the operand's 4 is each operand's own)
+              (int kids . #'(bitand mode 8155)))
 
           ;; THE ATOM `'[]'' AS AN OPERATOR IS WRITTEN QUOTED, and the list's
           ;; end is none (3.15.1, swipl's): op/3 of `'[]'' declares the atom,
@@ -3735,6 +3790,11 @@
   (func coco_write_mode ((coco_machine * m) (coco_strbuf * b) (size_t t)
                          (int mode) (int named)) (out int)
         (return (coco_write_top m b t mode named)))
+
+  (func coco_write_fullstop ((coco_strbuf * b) (int nl)) (out int)
+        (if (coco_needs_gap (coco_sb_last b) (coco-ch ".")) (coco_sb_putc b (cast char 32)))
+        (coco_sb_putc b (cast char (coco-ch ".")))
+        (return (coco_sb_putc b (cast char (? nl 10 32)))))
 
   ;;; write/1 and writeln/1: numbervars (8, 2.2.5; through 2.2.4 none, and
   ;;; `write('$VAR'(1))' was `$VAR(1)' where swipl writes `B')

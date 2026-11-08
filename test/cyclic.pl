@@ -148,7 +148,12 @@ long_and_deep(D) :-
       '  deep(2000, a, T4), with_output_to(atom(A4), writeq(T4)),',
       '  atom_length(A4, N4), count(A4, ''@'', At4), writeq(N4-At4), nl,',
       '  numlist(1, 100000, L5), with_output_to(atom(A5), writeq(L5)),',
-      '  atom_length(A5, N5), writeq(N5), nl.']),
+      '  atom_length(A5, N5), writeq(N5), nl,',
+      '  numlist(1, 3000, L6), append(L6, T6, C6), T6 = C6,',
+      '  with_output_to(atom(A6), write_term(C6, [dotlists(true)])), atom_length(A6, N6),',
+      '  sub_atom(A6, 0, 18, _, P6), sub_atom(A6, _, 12, 0, S6), writeq(N6-P6-S6), nl,',
+      '  with_output_to(atom(A7), write_term(C6, [no_lists(true), quoted(true)])),',
+      '  atom_length(A7, N7), sub_atom(A7, 0, 22, _, P7), writeq(N7-P7), nl.']),
     sh_join(['-s ', F], A), child(A, Out, Rc),
     atomic_list_concat(Got, '\n', Out),
     each_line([
@@ -156,7 +161,12 @@ long_and_deep(D) :-
       'a cycle at the end of a list of 2000' - '''2000|S_1],[S_1=[x,y|S_1]])''',
       'a cycle 3000 levels down, every level written once' - '3000-''@(g(g(''-'')))))))),[S_1=f(S_1)])''',
       'a tree 2000 deep is no cycle' - '6001-0',
-      'a list of 100000 is written whole' - '588896'
+      'a list of 100000 is written whole' - '588896',
+      %% and written as the compounds it is (3.53.0): the tail's cycle found
+      %% as the list's own walk finds it
+      'a list of 3000 its own tail, dotlists(true)' -
+          '22914-''@(S_1,.(S_1= .(1,.''-''))))))),[]))''',
+      'and no_lists(true)' - '34917-''@(S_1,\\''[|]\\''(S_1=\\''[|]\\''('''
     ], Got),
     check('...and the program ends', Rc, 0).
 

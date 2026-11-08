@@ -16169,3 +16169,70 @@ flowdebug, journal, reason and translate; async went red once in the
 round, its foreign write's 100 ms window on a box that ran two arm builds
 beside it, and is green alone and in 30 runs of 30. Reasoning stays
 1.0.27.
+
+## write_term/2's fullstop(B), nl(B), dotlists(B) and no_lists(B), as swipl's (3.53.0)
+
+write_term/2, write_term/3 and format's `~W` took the four options and wrote
+as if none had been given: a term under fullstop(true) ended with no full
+stop, a list under dotlists(true) came out a list. swipl 9.0.4's pl-write.c
+writes each of them, and so does cocolog now. A minor, as what a program
+writes moves.
+
+- **fullstop(true)** ends the term with `.`, a space before it where the
+  term's last token and the stop would read as one (`- .`, `:- .`, `\ .`,
+  `# .`, `1- - 1.` stays as it is), then a space, or with nl(true) a
+  newline; **nl(true)** alone ends it with a newline (swipl's
+  `PutToken(".")`, then `nl ? '\n' : ' '`). The last of each in the list
+  counts, and `fullstop` with no argument is `fullstop(true)`, as an
+  option list says. `coco_write_fullstop` asks `coco_needs_gap` of the
+  last byte written and the stop, the test each token's space comes from.
+- **dotlists(true)** writes a list as the compounds it is, `.(H,T)`, the
+  `.` a token of its own (`- .(1,[])`, `a- .(1,[])`), and **no_lists(true)**
+  as `'[|]'(H,T)`, the atom swipl names its cells by, quoted as a quoted
+  write quotes it (`[|](1,[])` unquoted). dotlists(true) wins where both are
+  given. Under max_depth(D) each element is one deeper than the one before,
+  as the list's own walk counts them, and a tail past the limit is `...`
+  (`.(1,.(2,...))`); spacing(next_argument) puts its space after each
+  comma; a tail that is no list is written as itself (`.(a,b)`); and a
+  tail that comes back on itself is found as the list's walk finds it
+  (Brent's), the write taken back and the term's factors written. The
+  list's end and a list inside an argument or a curly term are written so
+  too, a string under `codes` among them (`.(97,.(98,[]))`), and `[](x)` is
+  no list. `coco_write_list` asks one test of the two bits and the depth
+  limit's (`mode & 7168`), where it asked one of the limit's alone, and
+  the cut writer, out of line, hands a list under 2048 or 4096 on to
+  `coco_write_list_dots`, out of line and weak; a compound and a list hand
+  the two bits on (`mode & 8155`, where they handed on `mode & 2011`).
+- **A boolean option is true, false, on, off, 1 or 0** (swipl's OPT_BOOL),
+  every one write_term/2 takes: `quoted(1)` quotes, `quoted(2)` is
+  type_error(bool, 2), as swipl's; through 3.52.0 the integers were
+  type errors too.
+
+test/files/write_options.pl, new, holds 100 lines to swipl, byte for byte
+(3.52.0 differs at 84 of them). test/cyclic.pl's long and deep section
+writes a list of 3 000 that is its own tail under each of the two.
+
+The arms, one build each, every rule taken out alone, each over
+write_options.pl and test/cyclic.pl: the arm of no edit green in both, and
+each of the fifteen rules red. Six are red in both -- dotlists(true) and
+no_lists(true) asked for, the two bits carried down to the arguments, a
+tail that is no list written as itself, the list writer's one test and the
+cut writer's hand-on; eight in write_options.pl alone -- the integer
+booleans, the full stop, its gap and its newline, nl(true) alone, dotlists
+the stronger, a tail past the limit and next_argument's space; and one in
+cyclic.pl alone, the tail that comes back on itself.
+
+The cost is none where neither option is asked. A run that writes 36 540
+lists (a term of 406, ninety times by write/1, writeq/1 and print/1)
+counts `coco_write_list` the same to the instruction as 3.52.0, the run
++24 000 of 101.7 million (+0.024 %), all of it libc's strcmp and memcmp
+and the loader at the strings' new addresses. The first cut asked a test
+of its own for the two bits ahead of the depth limit's: the list writer
+kept its mode on the stack for it, a padding no-op stood after the test,
+and each list written cost nine instructions more (+327 690, +0.32 % of
+the run). tools/flow/zero.sh against 3.52.0 at like paths, work less
+padding: nrev +11 instructions, queens +0, lookup +0.
+
+Narrow cases green: lint, files, syntax, cyclic, string, units, errors,
+repl, trace, backtrace, directives, engine, library, journal, reconsult,
+window, flowdebug and flowchart. Reasoning stays 1.0.27.

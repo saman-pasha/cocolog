@@ -113,10 +113,13 @@
         (return 0))
 
   ;;; Whether V is a boolean as swipl's PL_get_bool reads one; 1 true, 0
-  ;;; false, -1 neither.
+  ;;; false, -1 neither: true, on and the integer 1, false, off and 0 (the
+  ;;; integers since 3.53.0, `quoted(1)'; through 3.52.0 type_error(bool, 1)).
   (static)
   (func coco_wt_truth ((coco_engine * e) (size_t v)) (out int)
-        (let ((const char * s . #'(coco_m_atom e v)))
+        (let ((const char * s . #'(coco_m_atom e v)) (i64 iv . 0))
+          (if (and (== s nil) (coco_m_int e v (aof iv)))
+              (return (? (== iv 1) 1 (? (== iv 0) 0 -1))))
           (if (== s nil) (return -1))
           (if (or (== 0 (strcmp s "true")) (== 0 (strcmp s "on"))) (return 1))
           (if (or (== 0 (strcmp s "false")) (== 0 (strcmp s "off"))) (return 0))
@@ -236,12 +239,15 @@
   ;;; TWICE IS ITS LAST (3.47.0, swipl's scan_options()): `[quoted(true),
   ;;; quoted(false)]' writes unquoted and the second variable_names/1 names
   ;;; the variables; through 3.46.0 a boolean was on if any said true, and
-  ;;; the first variable_names/1 named them.
+  ;;; the first variable_names/1 named them. fullstop(true), nl(true),
+  ;;; dotlists(true) and no_lists(true) are swipl's since 3.53.0
+  ;;; (`coco_write_fullstop', `coco_write_list_dots').
   (static)
   (func coco_wt_put ((coco_engine * e) (coco_strbuf * b) (size_t t) (size_t opts)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t * v . nil) (size_t n . 0)
               (int quoted . 0) (int ignore_ops . 0) (int numbervars . 0)
+              (int fullstop . 0) (int nl . 0) (int dotlists . 0) (int nolists . 0)
               (int spacing . 0) (i64 prio . -1) (i64 maxd . 0) (size_t vno . #'(cast size_t -1))
               (size_t * nv . nil) (size_t nn . 0) (size_t k . 0)
               (size_t * cells . nil) (u64 * names . nil))
@@ -257,6 +263,13 @@
                         (if (== 0 (strcmp nm "quoted")) (set quoted on))
                         (if (== 0 (strcmp nm "ignore_ops")) (set ignore_ops on))
                         (if (== 0 (strcmp nm "numbervars")) (set numbervars on))
+                        ;; fullstop(B), nl(B), dotlists(B) and no_lists(B)
+                        ;; (3.53.0, swipl's; through 3.52.0 checked and read
+                        ;; past)
+                        (if (== 0 (strcmp nm "fullstop")) (set fullstop on))
+                        (if (== 0 (strcmp nm "nl")) (set nl on))
+                        (if (== 0 (strcmp nm "dotlists")) (set dotlists on))
+                        (if (== 0 (strcmp nm "no_lists")) (set nolists on))
                         ;; spacing(next_argument) and priority(P) (3.19.0,
                         ;; swipl's; through 3.18.0 checked and read past)
                         (if (and (== 0 (strcmp nm "spacing")) (!= ov (cast size_t -1)))
@@ -300,7 +313,12 @@
           (set (-> m wmax) maxd)
           (coco_write_mode m b t (bitor (? quoted 81 0) (bitor (? ignore_ops 2 0)
                                  (bitor (? numbervars 8 0) (bitor (? spacing 512 0)
-                                 (? (!= maxd 0) 1024 0))))) 1)
+                                 (bitor (? (!= maxd 0) 1024 0)
+                                 (bitor (? dotlists 2048 0) (? nolists 4096 0))))))) 1)
+          ;; and the full stop after it and the newline, as swipl's
+          ;; pl_write_term3() puts them (3.53.0)
+          (if fullstop (coco_write_fullstop b nl)
+            (if nl (coco_sb_putc b (cast char 10))))
           (set (-> m wprec) 0)
           (set (-> m wmax) 0)
           (set (-> m wcells) nil) (set (-> m wnames) nil) (set (-> m nwnames) 0)

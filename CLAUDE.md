@@ -1917,7 +1917,8 @@ cocolint index offers no import of it.
   control character as it is, term_to_atom/2's and term_string/2's, and,
   3.18.0, 512 a space after each comma (spacing(next_argument), the
   listing's and since 3.19.0 write_term/2's), and, 3.49.0, 1024 a depth
-  limit, so a compound and a list hand on `mode & 2011` and an atom reads
+  limit, and, 3.53.0, 2048 dotlists(true) and 4096 no_lists(true), so a
+  compound and a list hand on `mode & 8155` and an atom reads
   `mode & 337`: a new bit goes into both masks where an atom needs it;
   write_term/2's priority(P) is the machine's `wprec`, P plus one,
   read by `coco_write_top` alone, and its max_depth(D) the machine's
@@ -1925,7 +1926,12 @@ cocolint index offers no import of it.
   term past D `...`, and by `coco_write_list_cut`, out of line, where the
   K-th element is K deeper than its list and a list past D ends `|...]`,
   swipl's writeTerm() and writeList(); one instruction a term written
-  where no limit is set), and a compound
+  where no limit is set; **the list writer asks ONE test of the three
+  bits, 7168**, and the cut writer hands 2048 and 4096 on to
+  `coco_write_list_dots`, `.(H,T)` or `'[|]'(H,T)`: with a test of its
+  own for them in `coco_write_list`, the list writer kept its mode on the
+  stack and paid nine instructions a list written, +0.32 % of a
+  write-heavy run, where one test pays none), and a compound
   is `coco_write_fun`, always inlined, so the
   guard's slow path returns rather than rejoining -- rejoined, every
   compound read its tag and functor again (21 instructions each).
