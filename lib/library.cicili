@@ -1973,8 +1973,16 @@
   (func lb_goal_hook ((coco_store * st) (coco_machine * m) (size_t goal) (int kind)
                       (char * err) (size_t errlen)) (out int)
         (let ((coco_engine e) (int rc . 0) (int halted . 0) (int code . 0)
-              (int dgc . #'(-> m dgc)) (int gc . 0) (size_t gsaved . 0) (int ends . 0))
+              (int dgc . #'(-> m dgc)) (int gc . 0) (size_t gsaved . 0) (int ends . 0)
+              ;; b_setval/2's clock where the goal begins, and the clock of
+              ;; the goal around it (3.52.0)
+              (u64 gvc0 . #'(-> m gvb_clock)) (u64 gvh0 . #'(-> m gvb_hook0))
+              ;; whether the goal is an expansion hook's, which a load it
+              ;; runs asks no more (3.52.0)
+              (int xhook . #'(-> m lhook)))
+          (set (-> m lhook) 0)
           (set (-> m dgc) 0)
+          (set (-> m gvb_hook0) gvc0)
           (coco_engine_init (aof e) m st)
           (set ($ e max_steps) 0)
           (set ($ e rootn) (? (== kind 1) 6 5))
@@ -1997,6 +2005,28 @@
           (if (== rc 1) (coco_engine_cut (aof e)))
           (if gc (coco_gc_nested_end m gsaved))
           (set (-> m dgc) dgc)
+          ;; A DIRECTIVE'S AND AN INITIALIZATION GOAL'S WORK ENDS WITH IT
+          ;; WHEN IT SUCCEEDS TOO (3.52.0), as `\+ \+ G' would end it: swipl
+          ;; fails back over each, a directive an expansion gave before the
+          ;; next term it gave (`o_done(_)'). What it bound, a b_setval/2
+          ;; into a box made before it, a setarg/3 on a term in one, is put
+          ;; back -- where it pointed into the heap the load winds back,
+          ;; which a box made before the load reached. A copy its read of a
+          ;; ground global made stays, the consult's mark raised over it at
+          ;; the fill, and so does its sentinel. A hook's output is read
+          ;; after it, so its work is its caller's to undo
+          ;; (`coco_consult_xcall')
+          (if (and (== rc 1) (not xhook)) (coco_undo_older m ($ e ptrail) (cast size_t -1) 1))
+          ;; WHAT ITS b_setval/2s MADE ENDS WITH IT (3.52.0), as swipl's
+          ;; load loop fails back over each term it reads: a box made since
+          ;; the goal began is its key's no more, wherever the heap stands --
+          ;; a collection in the goal drops the trail entry that made a box
+          ;; newer than its barrier, so no undo above puts its dead mark
+          ;; back, and a hook's entries above its term's floor are dropped
+          (set (-> m gvb_hook0) gvh0)
+          (if (!= (-> m gvb_clock) gvc0)
+              (for ((size_t i . 0)) (< i (-> m gvb_len)) ((++ i))
+                (if (> ($ (nth i (-> m gvb)) serial) gvc0) (set ($ (nth i (-> m gvb)) box) -1))))
           (set halted ($ e halted))
           (set code ($ e halt_code))
           (if (== rc -1)

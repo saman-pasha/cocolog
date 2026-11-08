@@ -14,8 +14,11 @@
 %% naming every global with its key unbound. A GROUND value is handed out
 %% as one term every read shares, as SWI's is, so `nb_setarg/3' on it
 %% changes the global; a value with a variable in it is a fresh copy at
-%% each read (SWI shares that too). In cocolog `b_setval/2' and
-%% `b_getval/2' are the same pair: neither is undone by backtracking.
+%% each read (SWI shares that too). `b_setval(Key, Value)' is the other
+%% kind, SWI's backtrackable global: the value is the term itself, not a
+%% copy -- a binding made after it is seen -- and backtracking takes it
+%% back, to whatever the key held before; `b_getval/2' and `nb_getval/2'
+%% read either kind.
 %%
 %% A MUTABLE TERM is a compound whose argument you overwrite in place.
 %% `setarg(N, T, V)' writes argument N of T, and backtracking puts the old
@@ -47,6 +50,16 @@ main :-
     ( member(F, [pear, plum, fig]), nb_getval(lesson_seen, S0), nb_setval(lesson_seen, [F|S0]), fail ; true ),
     nb_getval(lesson_seen, Seen2),
     must('after the loop', Seen2, [fig, plum, pear, apple]),
+
+    format("~n-- b_setval/2 keeps the term itself, and backtracking takes it back~n"),
+    b_setval(lesson_link, f(X6)), X6 = 1, b_getval(lesson_link, V6),
+    must('a binding made after b_setval', V6, f(1)),
+    nb_setval(lesson_level, 1),
+    findall(L7, ( b_setval(lesson_level, 2), b_getval(lesson_level, L7) ), In7),
+    must('b_getval inside the search that set it', In7, [2]),
+    ( b_setval(lesson_level, 3), fail ; true ),
+    nb_getval(lesson_level, After7),
+    must('after that search and a failure, the value before them', After7, 1),
 
     format("~n-- setarg/3 is taken back by backtracking, nb_setarg/3 is not~n"),
     T1 = box(empty),

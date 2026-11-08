@@ -558,6 +558,14 @@
                       (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
                                             (aof nmarkers) ($ (nth i (-> m gcache)) root)))
                     (set ($ (nth i (-> m gcache)) ver) 0)))))
+          ;; THE BOXES OF b_setval/2's KEYS (3.52.0), each a root while the
+          ;; heap holds it; one it no longer holds is forgotten here
+          (for ((size_t i . 0)) (and ok (< i (-> m gvb_len))) ((++ i))
+            (let ((coco_gvbox * x . #'(aof (nth i (-> m gvb)))))
+              (if (coco-gvb-live m x)
+                  (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
+                                        (aof nmarkers) (cast size_t (-> x box))))
+                (set (-> x box) -1))))
           ;; THE OLD VALUES `setarg/3' SAVED (1.12.0): a value entry's first
           ;; word names a cell only the trail knows, put back where it came
           ;; from if backtracking comes back past the entry. A global's
@@ -696,6 +704,10 @@
                   (size_t lim . #'(? ($ (nth r (-> m hroots)) pos) (+ n 1) n)))
               (for ((size_t i . 0)) (< i alen) ((++ i))
                 (set (nth i arr) (coco_gc_moved bits pre lim (nth i arr))))))
+          (for ((size_t i . 0)) (< i (-> m gvb_len)) ((++ i))
+            (if (>= ($ (nth i (-> m gvb)) box) 0)
+                (set ($ (nth i (-> m gvb)) box)
+                     (cast i64 (coco_gc_moved bits pre n (cast size_t ($ (nth i (-> m gvb)) box)))))))
           ;; a copy's cells were made together and nothing else among them,
           ;; so the ones still reachable are together still, from the rank
           ;; of its root, the first, to the rank of its end; the span of the

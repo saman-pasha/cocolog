@@ -37,6 +37,7 @@ main :-
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
     update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), repeat_runs(D), jit_runs(D),
+    gvars_runs(D),
     btree_places, op_names_frozen(D), own_properties, own_current, own_too_long,
     shl(['rm -rf ', D]),
     checks_done.
@@ -2213,6 +2214,64 @@ repeat_runs(D) :-
     shl([CCons]),
     det_turns(C, Kb, rg, E1),
     check('frozen and thawed each 25 inferences: an answer at each retry', E1, '8_').
+
+%% b_setval/2's boxes (3.52.0) under trace and under a collector that runs
+%% every 2000 cells: test/files/global_vars.pl holds swipl's answers
+%% untraced; here the same file's, the box of a live key a root of every
+%% collection and its place moved with the slide (`coco_heap_collect'),
+%% and with each collection a freeze's materialisation, kept and put back.
+%% The case writes the files it loads, so each run has a sandbox of its own.
+gvars_runs(D) :-
+    section('b_setval/2 under trace and a collector'),
+    cocolog(C),
+    absolute_file_name('test/files/global_vars.pl', F),
+    findall(Tag-Out,
+            ( member(Tag-Pre-Opt, [ plain-''-'', trace-''-'--trace ',
+                                    gc-'COCOLOG_GC_CELLS=2000 '-'',
+                                    kmat1-'COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=1 '-'',
+                                    kmat2-'COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 '-'' ]),
+              atomic_list_concat([D, '/gvars_', Tag], SB),
+              sh_join(['mkdir -p ', SB, ' && cd ', SB, ' && ', Pre, C, ' ', Opt,
+                       '--local run ', F, ' main 2>/dev/null'], Cmd),
+              proc_run(Cmd, 120000, O, _), atom_codes(Out, O) ),
+            [_-U, _-T, _-G, _-K1, _-K2]),
+    ( sub_atom(U, _, _, _, '-- a load''s hooks') -> H = yes ; H = no ),
+    check('untraced: the case answers', H, yes),
+    check('traced: the same answers', T, U),
+    check('a collection every 2000 cells: the same answers', G, U),
+    check('each collection a freeze''s materialisation put back: the same answers', K1, U),
+    check('each collection a freeze''s materialisation kept: the same answers', K2, U),
+    %% A DEAD BOX'S PLACE WRITTEN OVER IS NO BOX: a term built where it
+    %% stood, each argument written the process's first box's serial, 1,
+    %% holds its serial and a value that is no dead mark, and its header
+    %% tells it apart
+    atom_concat(D, '/gvars_header.pl', HF),
+    fixture(HF, [ 'wide(_, I, N) :- I > N, !.',
+                  'wide(T, I, N) :- setarg(I, T, 1), I1 is I + 1, wide(T, I1, N).',
+                  'main :- ( b_setval(k, x), fail ; true ), functor(T, f, 30), wide(T, 1, 30),',
+                  '        ( nb_current(k, V) -> write(V) ; write(unset) ), nl.' ]),
+    sh_join([C, ' --local run ', HF, ' main 2>&1'], HCmd),
+    shell(HCmd, HOut, HExit),
+    check('a dead box''s place written over: no box', HOut-HExit, unset-0),
+    %% A DIRECTIVE'S COPY OF A GROUND GLOBAL OUTLIVES IT: what the directive
+    %% did ends with it, and the copy's sentinel stays, so the directives
+    %% after it share the one copy. Undone with the rest, each directive
+    %% copied the global again, 100 of them a list of 600 each; and each
+    %% binds a variable of its own first -- the one that copies it too --
+    %% so the undo moves the sentinel down over the binding's entry, and
+    %% the copy is told where it went
+    atom_concat(D, '/gvars_copies.pl', CF),
+    findall(':- X = a, nb_getval(big, _), X == a.', between(1, 98, _), Mid),
+    append([ [ ':- numlist(1, 600, L), nb_setval(big, L).',
+               ':- X = a, nb_getval(big, _), X == a, statistics(globalused, U), nb_setval(u1, U).' ],
+             Mid,
+             [ ':- X = a, nb_getval(big, _), X == a, statistics(globalused, U), nb_setval(u2, U).',
+               'main :- nb_getval(u1, A), nb_getval(u2, B), Dif is B - A,',
+               '        ( Dif < 10000 -> write(shared) ; write(Dif) ), nl.' ] ], CLs),
+    fixture(CF, CLs),
+    sh_join(['COCOLOG_GC_CELLS=100000000 ', C, ' --local run ', CF, ' main 2>&1'], CCmd),
+    shell(CCmd, COut, CExit),
+    check('a directive''s copy of a ground global, shared by the directives after it', COut-CExit, shared-0).
 
 %% SWIPL'S JIT INDEX ANSWERS AS IT DOES UNDER TRACE, UNDER A COLLECTOR THAT
 %% RUNS EVERY 2000 CELLS, AND AFTER THE CLAUSES CHANGE (3.24.0).

@@ -71,6 +71,51 @@
                 (set (nth (coco-trail-cell v) (-> m heap))
                      (nth s (-> m heap))))))))
 
+  ;;; THE WORK SINCE MARK ON CELLS UNDER FLOOR, UNDONE NEWEST FIRST, and the
+  ;;; rest dropped (3.52.0): a binding of such a cell unbound, a value
+  ;;; entry's cell put back (a b_setval/2 into an older box, a setarg/3 on
+  ;;; an older term), and what names the cells above FLOOR -- the term in
+  ;;; hand's and the hook's own -- left as it is, the term's end taking
+  ;;; them. A ground global's sentinel undoes nothing and is dropped -- or
+  ;;; with KEEP, while its copy stands by it (`coco_gcache_ok'), kept from
+  ;;; MARK in its order, its copy told where it stands now: a directive's
+  ;;; read of the global raised the consult's mark over the copy at the
+  ;;; fill, so the copy outlives the directive, as it did through 3.51.0,
+  ;;; and a wind-back that takes its cells undoes the trail past where the
+  ;;; sentinel stood, so past where it stands. Undone with it, every such
+  ;;; directive copied the global again: 500 of them over a list of 2 000
+  ;;; ran 105 million instructions where 3.51.0 ran 50.
+  (func coco_undo_older ((coco_machine * m) (size_t mark) (size_t floor) (int keep))
+        (let ((size_t i . #'(-> m trail_len)) (int sents . 0) (size_t j . mark))
+          (while (> i mark)
+            (set i (- i 1))
+            (let ((u64 v . #'(nth i (-> m trail))))
+              (if (== (bitand v (coco-trail-pair)) 0)
+                  (if (< v floor) (set (nth v (-> m heap)) (coco-cell REF v)))
+                (block
+                 (set i (- i 1))
+                 (if (!= (coco-trail-tag v) 0)
+                     (set sents 1)
+                   (if (< (coco-trail-cell v) floor)
+                       (set (nth (coco-trail-cell v) (-> m heap))
+                            (nth (coco-trail-cell (nth i (-> m trail))) (-> m heap)))))))))
+          (if (and keep sents)
+              (for ((size_t p . mark)) (< p (-> m trail_len)) ((++ p))
+                (let ((u64 v . #'(nth p (-> m trail))))
+                  (if (!= (bitand v (coco-trail-pair)) 0)
+                      (let ((size_t gi . #'(coco-trail-tag v)))
+                        (if (and (> gi 0) (<= gi (-> m gcache_cap))
+                                 (!= ($ (nth (- gi 1) (-> m gcache)) ver) 0)
+                                 (== ($ (nth (- gi 1) (-> m gcache)) tpos) p)
+                                 (coco_gcache_ok m (- gi 1)))
+                            (block
+                             (set ($ (nth (- gi 1) (-> m gcache)) tpos) j)
+                             (set (nth j (-> m trail)) v)
+                             (set (nth (+ j 1) (-> m trail)) (nth (+ p 1) (-> m trail)))
+                             (set j (+ j 2))))
+                        (set p (+ p 1)))))))
+          (set (-> m trail_len) j)))
+
   ;;; ---- the heap collector's host roots -------------------------------
 
   (func coco_heap_root_push ((coco_machine * m) (size_t ** cells) (size_t * len)) (out int)

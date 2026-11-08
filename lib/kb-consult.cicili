@@ -1928,8 +1928,12 @@
             ;; a nested one hands it (`ltop', which every outermost read
             ;; sets as it begins: no read but a nested one reads it)
             (set (-> m lreads) (+ (-> m lreads) 1))
-            (set n (coco_consult_owned st m text origin oid (aof seen) err errlen
-                                       nil nil 0))
+            ;; a read sets the floor of each term it holds, and the term
+            ;; around it has its own back (3.52.0, `lfloor')
+            (let ((size_t lfl . #'(-> m lfloor)))
+              (set n (coco_consult_owned st m text origin oid (aof seen) err errlen
+                                         nil nil 0))
+              (set (-> m lfloor) lfl))
             ;; its end puts the last clause after each of its predicates'
             ;; rules, a read's own as the rules are
             (if (>= n 0)
@@ -2699,7 +2703,11 @@
   ;;; other ball, which ends the load as a directive's does (the hook kept
   ;;; it, `lball'). X's binding is kept and its trail
   ;;; entries dropped: every cell it names is above the mark the load winds
-  ;;; the heap back to, which takes them all. TP is the term as read,
+  ;;; the heap back to, which takes them all -- and what the hook did to a
+  ;;; cell under that mark, the term's floor (`lfloor', 3.52.0), is undone:
+  ;;; it is older than the term, reached through a box b_setval/2 made
+  ;;; before it, and the term's end would leave it pointing at heap given
+  ;;; back (swipl undoes it as the term ends; COMPAT.md). TP is the term as read,
   ;;; prolog_load_context/2's `term' while the hook runs (3.51.0), and RR
   ;;; the reader and RC what it read, 1 a term, 2 the end and 3 the start:
   ;;; `variable_names' is a term's names, `[]' at the end, and at the start
@@ -2713,7 +2721,7 @@
                             (size_t * tp) (coco_reader * rr) (int rc)
                             (char * err) (size_t errlen)) (out int)
         (let ((size_t x . #'(coco_new_var m)) (size_t g . 0) (size_t tl . #'(-> m trail_len))
-              (int r . 0)
+              (int r . 0) (size_t floor . #'(-> m lfloor))
               ;; source_location/2 and prolog_load_context/2 answer the
               ;; term's place while the hook runs, as swipl's do
               (const char * sfile . #'(-> m sloc_file)) (int sline . #'(-> m sloc_line))
@@ -2729,12 +2737,19 @@
           (set (-> m sloc_text) text) (set (-> m sloc_off) off)
           (set (-> m sloc_tp) tp)
           (set (-> m sloc_rd) (? (== rc 1) (cast (void *) rr) (? (== rc 3) srd nil)))
+          (set (-> m lhook) 1)
           (set r (coco_goal_hook st m g 0 err errlen))
+          (set (-> m lhook) 0)
           (set (-> m sloc_file) sfile) (set (-> m sloc_line) sline) (set (-> m sloc_src) ssrc)
           (set (-> m sloc_text) stext) (set (-> m sloc_off) soff)
           (set (-> m sloc_tp) stp) (set (-> m sloc_rd) srd)
+          ;; WHAT IT DID TO WHAT IS OLDER THAN THE TERM ENDS WITH IT (3.52.0):
+          ;; a b_setval/2 into a box made before the term, a binding or a
+          ;; setarg/3 of a term in one, as swipl's load loop fails back over
+          ;; the term -- where it points into this term's heap, which the
+          ;; term's end winds back, and a global's copy read with it
           (if (== r 1)
-              (block (set (-> m trail_len) tl)
+              (block (coco_undo_older m tl floor 0)
                      (set (cof out) (coco_deref m x))
                      (return 1)))
           (if (== r 0) (return 0))
@@ -3499,6 +3514,9 @@
             ;; the heap wound back -- so consulting a large file does not leave
             ;; a copy of it in the machine as well as in the store
             (set mark (-> m heap_len))
+            ;; and the cells under it are older than the term, which an
+            ;; expansion hook's work on ends with it (3.52.0)
+            (set (-> m lfloor) mark)
             (while (< scanned ($ r pos))
               (if (== (nth scanned text) (cast char 10)) (set line (+ line 1)))
               (set scanned (+ scanned 1)))
@@ -3720,8 +3738,10 @@
                                    (set mp (aof mark))
                                    (set pushed (coco_heap_pos_push m (aof mp) (aof ml)))
                                    (set (-> m dgc) (? pushed vouch 0))
-                                   (set k (coco_consult_owned st m itext ipath oid seen err errlen
-                                                              ip incs (+ ninc 1)))
+                                   (let ((size_t lfl . #'(-> m lfloor)))
+                                     (set k (coco_consult_owned st m itext ipath oid seen err errlen
+                                                                ip incs (+ ninc 1)))
+                                     (set (-> m lfloor) lfl))
                                    (set (-> m dgc) 0)
                                    (if pushed (coco_heap_root_pop m))
                                    (set (-> ip file) was)

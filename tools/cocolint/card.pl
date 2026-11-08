@@ -19,8 +19,9 @@
 %%
 %% THE ANCHOR IS CODE, NEVER PROSE NEAR IT. Comments are the part of a file
 %% that gets rewritten without the behaviour changing, so anchoring on one
-%% gives a check that passes while the claim quietly stops being true. Row G1
-%% anchors on the row `("b_setval"' and not on the word "backtrackable"; row I1 on
+%% gives a check that passes while the claim quietly stops being true. Row L1
+%% anchors on the call `(coco_intern m ".")' and not on the comment that names
+%% the list cell's functor; row I1 on
 %% `coco_arg_key' and not on the declaration's shouted comment above it. P1
 %% anchored on a comment for a while and the rule caught it the hard way: a
 %% rewrite of that comment deleted the anchor, and the check said GONE.

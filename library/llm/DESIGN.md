@@ -198,7 +198,7 @@ a gate for free.
 | ~~**A2**~~ | ~~`X is 1 << 62`, 64-bit ids~~ | **retired** | Integers are 64 bits since 2.0.0 (a value past a cell's 61 is boxed in a table, as a float is) and a result past them raises `evaluation_error(int_overflow)`: loud, not silent. The row and its linter rule A1 went with the wrap. |
 | ~~**A3**~~ | ~~`X is 2 ** 10` → `1024.0`~~ | **retired** | That float is ISO's answer, not swipl's: swipl 9's `2 ** 10` is the integer `1024`, as cocolog's is, and since 2.2.0 the power is swipl's `ar_pow()` in every case (`X ** 0` the integer 1, `1 ** Y` 1, a NaN or an infinity raised). The row went in 2.2.0. |
 | ~~**O1**~~ | ~~`sort/2` / `==` / `compare/3` over large integers~~ | **retired** | Since 2.0.0 the standard order compares two integers exactly (`coco_num_order`); an integer and a float are compared as doubles, the float first when equal, as swipl 9.0.4 orders them. |
-| **G1** | `b_setval/2` for a backtrackable scope | thread an accumulator argument | `b_setval` **is** `nb_setval` — same C function (`lib/builtins.cicili:76-79`); the table is a file-scope static outside the machine. |
+| ~~**G1**~~ | ~~`b_setval/2` for a backtrackable scope~~ | **retired** | Since 3.52.0 `b_setval/2` is swipl's: its value is the term itself, not a copy, and backtracking takes it back — as it does at the end of the goal a load ran it in, as swipl's failure-driven load loop does. The row and its S1 pattern went when the divergence did; `test/files/global_vars.pl` holds the new behaviour to swipl. |
 | **F1** | `~t ~\| ~+` for alignment | pad by hand | Refused by name (`lib/builtins.cicili:1015-1018`). |
 | **W1** | `write_canonical(T)` for portable text | `write_term(T,[quoted(true),ignore_ops(true)])` | cocolog's `write_canonical/1` **keeps** operators — identical to `writeq/1` (`lib/syntax.cicili:1414-1415`). |
 | **W2** | `write_term(T,[max_depth(5),portray(true)])` | there is no depth limit and no portray | Only `quoted(true)` and `ignore_ops(true)` are read; every other option is silently ignored (`lib/builtins.cicili:1617-1636`). |
@@ -865,7 +865,7 @@ lives in `.cocoindex/impossible.json`, generated from `traps.jsonl` rows marked 
 | ~~`strings`~~ | **retired.** There is a string type, and `double_quotes` takes all four of SWI's values | `lib/term.cicili:250-276`, `lib/kb.cicili:782-816` |
 | `tabling` | `:- table` does not parse — `table` is not a prefix operator | `lib/syntax.cicili:97-100` |
 | `coroutining` | no `freeze/2`, `dif/2`, `when/2`, `setup_call_cleanup/3` | grep of `lib/` |
-| `bt_global` | `b_setval` **is** `nb_setval` | `lib/builtins.cicili:76-79` |
+| ~~`bt_global`~~ | **retired.** `b_setval/2` is backtrackable and links its term (3.52.0) | `coco_b_bsetval` in `lib/builtins-db.cicili` |
 | `bignum` | integers are 64 bits (2.0.0; 61 through 1.15.0, wrapping silently at 2^60), and a result past them raises `evaluation_error(int_overflow)`; `library(bigint)` is tier 2 and needs a built ZiguratIP | `coco_new_int`, `coco_add_ovf` in `lib/term.cicili` |
 | `modules` | `:- module/2` accepted and **ignored**; one flat namespace | `lib/kb.cicili:721` |
 | `random` | no `random/1`, `random_float/0`, and reaching for one is **uncatchably** fatal | `lib/solve.cicili:1691, :545-548` |

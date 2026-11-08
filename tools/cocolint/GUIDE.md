@@ -92,9 +92,9 @@ runs only when `DIR` is this checkout.
 ### A finding
 
 ```
-prog.pl:2:5 HARD S1 [G1] b_setval IS nb_setval -- the same C function -- and the table is a file-scope static outside the machine, so nothing about it is backtrackable.
-    fix: pass the value as an argument
-    see: lib/builtins.cicili:108
+prog.pl:2:5 HARD S1 [X3] Deliberately absent so ported code errors instead of silently differing: SWI's call_with_inference_limit leaves the goal's choice points alive and call_limited/3 commits to the first solution, and a predicate that agrees with SWI until it does not is worse than one that never claimed to.
+    fix: write it out, or call_limited/3
+    see: lib/builtins.cicili:973-975
 ```
 
 `path:line:col`, the severity, the rule, the card row in brackets when the
@@ -116,18 +116,18 @@ it left alone (`8 vendored and not read`).
 
 ### Acknowledging a finding
 
-Some code trips a rule on purpose — a lesson that shows `b_setval/2` keeping
-its value past backtracking, a case pinning what `write_canonical/2` writes.
+Some code trips a rule on purpose — a lesson that shows `dif/2` raising an
+unknown procedure, a case pinning what `write_canonical/2` writes.
 Say so where it stands, with a line comment that opens on the marker:
 
 ```prolog
-    ( b_setval(k, 1), fail ; nb_getval(k, V) ),   % cocolint: G1 -- the lesson: V is 1
+    catch(dif(a, b), error(E, _), true),   % cocolint: X3 -- the lesson: E is existence_error(procedure, dif/2)
 % cocolint: T1 -- swipl runs this file too, and the import is its portable form
 :- use_module(library(aggregate)).
 ```
 
 After code, the comment covers its own line; alone on its line, the next
-one. The IDs are what the finding renders — the card row for S1 (`G1`,
+one. The IDs are what the finding renders — the card row for S1 (`X3`,
 `X2`), the rule for the rest (`T1`, `N1`, `Z1`) — and several go in one
 comment, apart by blanks or commas. The reason after `--` is required. An
 acknowledged finding is not printed and the count line says how many there
@@ -146,20 +146,19 @@ and so is one with no reason.
 | **N1** | HARD | a head that collides with a clause-defined tier-1 name; the two sets of clauses MERGE, and which is tried first depends on how the file is run | prefix the head with the program's own name — a DCG head too (row N4): `digit//1` is `digit/3` in the store |
 | **N2** | HARD | a head that collides with a C name of a module the file loads (`tcp_connect/2` after `use_module(library(tcp))`); its dispatcher answers before the store, so the clauses are DEAD CODE and `listing/1` will still show them. Not a name of the engine's or a compiled-in module's since 3.1.0: a program file's clauses take a non-ISO one over, as swipl's do, and the load refuses an ISO one's, loudly | prefix the head |
 | **N3** | HARD | a head that is a control construct the step runs in place, at an arity it runs it at (`*->/2`, the engine's `$` markers at any): its clauses load and nothing calls them. Not an ISO one (`once/1`, `call/N`, `catch/3`: refused at load since 3.1.0), not `not/1`, `ignore/1`, `trace/0` or `notrace/0` (a program file takes them over), not another arity (`once/2` is anybody's) | prefix the head |
-| **S1** | HARD | one of the nine banned forms below, matched as a term with comments and quotes masked | the row's own fix |
+| **S1** | HARD | one of the six banned forms below, matched as a term with comments and quotes masked | the row's own fix |
 | **T1** | WARN | `use_module` of a tier-1 library, compiled in or preloaded; the directive succeeds and does nothing | delete it |
 | **Z1** | WARN | a clause over 7,800 bytes stored (a row must fit a page; the store's own budget is `page - 190 - len(kb) - len(name)` and it refuses there with `resource_error(clause_length)`; this warns a little below the budget of an 8192-byte page, the default before 1.10.0 and the page every store made before it keeps, on purpose), or a term over 65,535 bytes (the wire refuses it) | chunk it |
 | **C2** | HARD | one name defined in two of the files named, when they are declared one program; off by default, see below | one definition |
 | **U1** | WARN | an acknowledgement that excuses nothing: its finding has gone from the line it covers, or it gives no reason | delete it, or say why after `--` |
 
-S1's seven forms are rows of the dialect card, `traps.jsonl`, each with
+S1's six forms are rows of the dialect card, `traps.jsonl`, each with
 a `pattern`. `tool.sh card --patterns` prints the terms.
 
 | row | the SWI reflex | cocolog | why |
 |---|---|---|---|
 | D2 | `:- table p/2.` | delete it, and write `p/2` to end untabled | there is no tabling: the directive parses, as swipl's, and `table/1` is an unknown procedure, reported as the load goes on |
 | C2 | `error(T, context(_,_))` | `error(T, _)` | a refusal (a library found and refused, a module's own failure) is `error(cocolog_error(Text), _)`, a missing file swipl's `existence_error(source_sink, Spec)` since 3.4.0, both with the context unbound, and the house style puts a bare `Name/Arity` second |
-| G1 | `b_setval/2` | thread an accumulator | `b_setval` IS `nb_setval`; nothing about it backtracks |
 | L1 | `'[|]'` | `'.'/2` or `[_|_]` | a list cell is `'.'/2` |
 | X2 | `open/3` `close/1` `read/1` `nl/1` `write/2` … | `read_file_to_codes/2` and a DCG; `format/3` with a sink | there is no stream layer in the engine; a file that loads `library(stream)`, or `library(websocket)`, which loads it — by a directive or as a goal — is not flagged |
 | X3 | `predsort/3` `freeze/2` `dif/2` `when/2` … | write it out; `call_limited/3` | deliberately absent so ported code errors instead of differing |

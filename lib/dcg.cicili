@@ -80,8 +80,11 @@
            ;; library(yall)'s declarations of system's, one namespace).
            ":- dynamic(term_expansion/2)."
            ":- multifile(term_expansion/2)."
+           ;; and the term is '$term' while its hooks run, and `[]' after
+           ;; (3.52.0, b_setval/2's, which backtracking undoes), as swipl's:
+           ;; prolog_load_context/2's `term'
            "expand_term(T, X) :- var(T), !, X = T."
-           "expand_term(T, X) :- '$xhooks'(TE, GE), '$expand_term'(TE, GE, T, X)."
+           "expand_term(T, X) :- b_setval('$term', T), '$xhooks'(TE, GE), '$expand_term'(TE, GE, T, X), b_setval('$term', [])."
            "'$expand_term'(1, GE, T, X) :- term_expansion(T, X0), !, '$expand_terms'(X0, GE, X)."
            "'$expand_term'(_, GE, T, X) :- '$expand_terms'(T, GE, X)."
            ;; WHAT term_expansion/2 GAVE, OR THE TERM, IS swipl's

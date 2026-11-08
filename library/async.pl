@@ -50,10 +50,11 @@
 %%
 %% THE LIMITS: 1024 threads and 64 channels a world; a task is preempted
 %% at a 10,000-step quantum (a foreign call holds its worker); a consult or
-%% load, b_setval/2, a backend's fetch and a module's own C state belong to
-%% the worker that ran them; the world reports a deadlock when every task
-%% is blocked and the main one has not ended; and a goal is read in the
-%% new machine's module, so a module-qualified goal is not carried as one.
+%% load, a backend's fetch and a module's own C state belong to the worker
+%% that ran them, and a b_setval/2 to its task, whose machine keeps it;
+%% the world reports a deadlock when every task is blocked and the main
+%% one has not ended; and a goal is read in the new machine's module, so
+%% a module-qualified goal is not carried as one.
 %%
 %% library/async/README.md has the model, the benchmark against OS threads,
 %% Go goroutines and asyncio, and the shared-heap design note.

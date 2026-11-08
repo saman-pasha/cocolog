@@ -521,7 +521,10 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   `sloc_text` and `sloc_off`, `source` from `sloc_src` (the loaded file
   where an include stands), `directory` the file's, and since 3.51.0
   `module` from the read's `ssu_mod`, `term` from `sloc_tp` (the term as
-  read, while a hook runs; `[]` in a directive's goal), `variable_names`
+  read, while a hook runs; `[]` in a directive's goal) -- or since 3.52.0
+  from '$term''s box, which expand_term/2 sets, where it was written in
+  the goal in hand (its `wclock` past `gvb_hook0`, the clock where that
+  goal began: a box set before is no term of this goal's) --, `variable_names`
   from the reader `sloc_rd` names, built when asked (a directive's goal,
   which may collect, holds the reader's variables as a root; a file's
   start keeps the reader around the load, swipl's begin_of_file setting no
@@ -2404,6 +2407,38 @@ cocolint index offers no import of it.
   copy alive -- it backtracks past nearly every one -- so its gain is the
   block. A memberchk/2 of 300 entries already on the heap is 4.7 us: the
   translator's table of a common word (`è`, `di`) holds 300 entries.
+* **b_setval/2 is swipl's backtrackable global** (3.52.0, `coco_b_bsetval`
+  in lib/builtins-db.cicili; test/files/global_vars.pl; through 3.51.0 it
+  was nb_setval/2 under another name). The machine's `gvb` table holds an
+  entry per key it ever named (never removed), each naming the key's BOX,
+  `'$gv'(Serial, Value)` on the heap, its value cell written as setarg/3
+  writes it (a trail pair) and made a reference to itself, the dead mark:
+  **a box is live while its header, its serial and a value cell that is
+  no dead mark stand where it was put, inside the heap** (`coco-gvb-live`),
+  so backtracking past its making kills it whether the heap goes back or
+  a freeze kept it -- and a collection that dropped its making's trail
+  entry, as a cell newer than its barrier's is, left it past the heap.
+  The value is the term itself, linked: a later binding of it is seen, and
+  setarg/3 on it writes the global. nb_getval/2, b_getval/2 and
+  nb_current/2 read a live box before the store's global; nb_setval/2
+  detaches it (`box` -1); the collector marks every live box and moves
+  it. **A load's goal ends what it did** (`lb_goal_hook`, swipl's
+  failure-driven load): a directive's and an initialization goal's
+  success undoes its trail (`\+ \+ G`) **but the sentinels of the ground
+  globals' copies it read** (`coco_undo_older`'s KEEP: the consult's mark
+  was raised over each at the fill; undone with the rest, every directive
+  read the global again, a load of 500 such 2.1 times the instructions),
+  a box made since it began is dead (its serial past the goal's clock,
+  `gvb_clock`: what a collection dropped no undo puts back), and an expansion
+  hook keeps its output and its bindings of the term in hand while what
+  it did to a cell under the term's floor is undone as it returns
+  (`coco_undo_older`; `lfloor`, the consult's mark for the term, set as
+  each term begins and put back around a nested read) -- the first cut
+  left a directive's write into a box made before the load pointing at
+  heap the consult gave back. **A new goal a load runs goes through
+  `lb_goal_hook`, or its b_setval/2s outlive it.** A machine of its own
+  has its own table (a thread, a green task, run_isolated/2); a frozen
+  machine keeps none.
 * **The six term walks borrow the machine's stacks** (copy, store-put,
   store-get, store-unify, unify, compare: `coco_wframes_take`/`_give`,
   `coco_wpairs_take`/`_give` in `lib/term-walk.cicili`), and the three that

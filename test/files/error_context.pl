@@ -107,8 +107,8 @@ p(atomics_to_string(f(x),f(x),f(x))).
 p(atomics_to_string(_,_,_)).
 p(b_getval(f(x),f(x))).
 p(b_getval(_,_)).
-p(b_setval(f(x),f(x))).   % cocolint: G1 -- the case asks its error, not what it keeps
-p(b_setval(_,_)).   % cocolint: G1 -- the case asks its error, not what it keeps
+p(b_setval(f(x),f(x))).
+p(b_setval(_,_)).
 p(callable(f(x))).
 p(callable(_)).
 p(char_code(f(x),f(x))).

@@ -109,6 +109,14 @@
                                        (coco_new_nil m)))))
           (if (== 0 (strcmp kn "term"))
               (block
+                ;; swipl's '$term', which expand_term/2 sets (3.52.0): its
+                ;; box where it was written in the goal a load runs, or
+                ;; where no load runs one -- a box from before is no term
+                ;; of this goal's, as swipl's load sets its own
+                (if (!= (-> m gvb_term) 0)
+                    (let ((coco_gvbox * x . #'(aof (nth (- (-> m gvb_term) 1) (-> m gvb)))))
+                      (if (and (coco-gvb-live m x) (> (-> x wclock) (-> m gvb_hook0)))
+                          (return (coco_m_unify e (coco_m_arg e g 1) (+ (cast size_t (-> x box)) 2))))))
                 (if (!= (-> m sloc_tp) nil)
                     (return (coco_m_unify e (coco_m_arg e g 1) (cof (-> m sloc_tp)))))
                 (if (== (-> m sloc_file) nil) (return 0))
@@ -929,15 +937,13 @@
 
   ;;; ---- global variables -------------------------------------------------
   ;;;
-  ;;; `nb_' and `b_' are the same thing here. SWI's differ on backtracking --
-  ;;; a `b_setval' is undone and an `nb_setval' is not -- and undoing one would
-  ;;; need a trail entry that is not a variable binding, which the trail
-  ;;; carries only for a heap cell (setarg/3's value entry, 1.12.0): a global
-  ;;; lives in the store. They are documented as the non-backtrackable pair.
+  ;;; nb_setval/2's value is a copy and outlives backtracking; b_setval/2's is
+  ;;; the term itself and backtracking takes it back (3.52.0, swipl's; the
+  ;;; section on b_setval/2 below). Through 3.51.0 the two were one C half.
   ;;;
-  ;;; THE VALUE GOES IN THE STORE, not the heap: a global that a query set has
-  ;;; to survive the query's heap being wound back, and the store is the only
-  ;;; thing here that does not shrink.
+  ;;; nb_setval/2'S VALUE GOES IN THE STORE, not the heap: a global that a
+  ;;; query set has to survive the query's heap being wound back, and the
+  ;;; store is the only thing here that does not shrink.
 
   ;;; AND THE TABLE IS THE STORE'S, which is `coco_global' and the three
   ;;; members beside `cells' in lib/kb.cicili -- that header carries the
@@ -1027,10 +1033,103 @@
         (coco_global_place st i)
         (return 1))
 
+  ;;; ---- b_setval/2's globals (3.52.0) --------------------------------
+  ;;;
+  ;;; swipl's b_setval/2 LINKS its term -- a later binding of it is seen,
+  ;;; setarg/3 on it writes the global -- and is undone as a binding is: by
+  ;;; backtracking, by a throw past it, by the end of \+'s, findall/3's or
+  ;;; forall/2's search, and by the end of the goal a load ran it in (a
+  ;;; directive's, an initialization goal's, a hook's), as swipl's load loop
+  ;;; fails back over every term; nb_setval/2 replaces it, its copy
+  ;;; outliving all of that. Here a key's value is a box on this machine's
+  ;;; heap, '$gv'(Serial, Value), found by the key's entry (`coco_gvbox' in
+  ;;; lib/term.cicili): made with its value cell marked dead (the cell
+  ;;; itself) and every value written over it as setarg/3 writes, so the
+  ;;; trail puts back what a write found, the mark where it made the box;
+  ;;; and gone where the heap is wound back past it (`coco-gvb-live'). A
+  ;;; key with no live box reads the store's global, nb_setval/2's, which
+  ;;; takes the box away from its key. Each machine has its own: a thread's,
+  ;;; a green task's and run_isolated/2's start with none, as each swipl
+  ;;; thread has its own. A frozen machine keeps none (nor the store's).
+
+  ;;; The entry of NAME, or -1
+  (func coco_gvb_find ((coco_machine * m) (u64 name)) (out i64)
+        (for ((size_t i . 0)) (< i (-> m gvb_len)) ((++ i))
+          (if (== ($ (nth i (-> m gvb)) name) name) (return (cast i64 i))))
+        (return -1))
+
+  ;;; NAME's value cell while its box is live, else 0: no box's value cell,
+  ;;; the third cell of one at the least
+  (static)
+  (func coco_gvb_value ((coco_machine * m) (u64 name)) (out size_t)
+        (let ((i64 i . #'(coco_gvb_find m name)))
+          (if (< i 0) (return 0))
+          (let ((coco_gvbox * x . #'(aof (nth (cast size_t i) (-> m gvb)))))
+            (return (? (coco-gvb-live m x) (+ (cast size_t (-> x box)) 2) 0)))))
+
+  ;;; `b_setval(+Key, +Value)': Value written into Key's box, a box made
+  ;;; where Key has no live one. Written as setarg/3 writes: the cell's old
+  ;;; word kept in a cell of its own and the trail's value entry put back
+  ;;; (`coco_trail_pair'), the new one the value's (`coco_setarg_word').
+  (func coco_b_bsetval ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t k . #'(coco_m_arg e g 0)))
+          (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
+          (let ((u64 name . #'(coco_name_of m k))
+                (i64 at . #'(coco_gvb_find m name))
+                (size_t v . #'(coco_deref m (coco_m_arg e g 1))))
+            ;; a key's first: an entry of its own, kept for good
+            (if (< at 0)
+                (block
+                 (if (>= (-> m gvb_len) (-> m gvb_cap))
+                     (let ((size_t nc . #'(? (== (-> m gvb_cap) 0) 8 (* (-> m gvb_cap) 2)))
+                           (coco_gvbox * grown . #'(cast (coco_gvbox *)
+                                                         (realloc (-> m gvb) (* nc (sizeof coco_gvbox))))))
+                       (if (== grown nil) (return (coco_mem_error e)))
+                       (set (-> m gvb) grown)
+                       (set (-> m gvb_cap) nc)))
+                 (set at (cast i64 (-> m gvb_len)))
+                 (set ($ (nth (-> m gvb_len) (-> m gvb)) name) name)
+                 (set ($ (nth (-> m gvb_len) (-> m gvb)) box) -1)
+                 (set ($ (nth (-> m gvb_len) (-> m gvb)) serial) 0)
+                 (set ($ (nth (-> m gvb_len) (-> m gvb)) wclock) 0)
+                 (set (-> m gvb_len) (+ (-> m gvb_len) 1))
+                 ;; expand_term/2's, which prolog_load_context/2 reads
+                 (if (== 0 (strcmp (coco_atom_name m name) "$term"))
+                     (set (-> m gvb_term) (+ (cast size_t at) 1)))))
+            (set (-> m gvb_clock) (+ (-> m gvb_clock) 1))
+            (let ((coco_gvbox * x . #'(aof (nth (cast size_t at) (-> m gvb)))))
+              (if (not (coco-gvb-live m x))
+                  (let ((size_t b . 0))
+                    (if (== (-> m gvb_fid) 0)
+                        (block
+                         (set (-> m gvb_fid) (+ (coco_functor_id m (coco_intern m "$gv") 2) 1))
+                         (if (-> m oom) (block (set (-> m gvb_fid) 0) (return 0)))))
+                    (set b (coco_push m (coco-cell FUN (- (-> m gvb_fid) 1))))
+                    (coco_push m (coco-int-cell (-> m gvb_clock)))
+                    (coco_push m (coco-cell REF (+ b 2)))
+                    (if (-> m oom) (return 0))
+                    (set (-> x box) (cast i64 b))
+                    (set (-> x serial) (-> m gvb_clock))))
+              (set (-> x wclock) (-> m gvb_clock))
+              (let ((size_t a . #'(+ (cast size_t (-> x box)) 2))
+                    (u64 old . #'(nth a (-> m heap)))
+                    (u64 nw . #'(coco_setarg_word m v))
+                    (size_t s . #'(-> m heap_len)))
+                (if (or (!= (coco_push m old) s) (not (coco_trail_pair m s a)))
+                    (return (coco_mem_error e)))
+                (set (nth a (-> m heap)) nw)
+                (return 1))))))
+
   (func coco_b_setval ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t k . #'(coco_m_arg e g 0)))
           (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
+          ;; nb_setval/2 takes the key from its box: the store's value is
+          ;; read now, and a box made after it shadows it again (3.52.0)
+          (if (-> m gvb_len)
+              (let ((i64 bi . #'(coco_gvb_find m (coco_name_of m k))))
+                (if (>= bi 0) (set ($ (nth (cast size_t bi) (-> m gvb)) box) -1))))
           (with-green-write e
           (let ((coco_store * st . #'(-> e st))
                 (u64 name . #'(coco_name_of m k))
@@ -1132,12 +1231,19 @@
           (if (> (-> m heap_len) (-> m gspan_hi)) (set (-> m gspan_hi) (-> m heap_len)))
           (return r)))
 
+  ;;; `nb_getval(+Key, -Value)' and `b_getval(+Key, -Value)', swipl's two
+  ;;; names of one read: a key's live box first, the term itself
+  ;;; (b_setval/2's, 3.52.0), and else the store's global
   (func coco_b_getval ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t k . #'(coco_m_arg e g 0)))
           (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
           (let ((coco_store * st . #'(-> e st))
-                (i64 at . #'(coco_global_find st (coco_name_of m k))))
+                (u64 name . #'(coco_name_of m k))
+                (size_t bv . #'(? (!= (-> m gvb_len) 0) (coco_gvb_value m name) 0))
+                (i64 at . -1))
+            (if (!= bv 0) (return (coco_m_unify e (coco_m_arg e g 1) bv)))
+            (set at (coco_global_find st name))
             (if (>= at 0)
                 (return (coco_m_unify e (coco_m_arg e g 1) (coco_b_global_term e (cast size_t at)))))
             (return (coco_m_existence_error e "variable" (coco_m_arg e g 0))))))
@@ -1158,16 +1264,27 @@
               (block (coco_m_decline e) (set (cof found) 0) (return 0)))
           (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
           (let ((coco_store * st . #'(-> e st))
-                (i64 at . #'(coco_global_find st (coco_name_of m k))))
+                (u64 name . #'(coco_name_of m k))
+                (size_t bv . #'(? (!= (-> m gvb_len) 0) (coco_gvb_value m name) 0))
+                (i64 at . -1))
+            (if (!= bv 0) (return (coco_m_unify e (coco_m_arg e g 1) bv)))
+            (set at (coco_global_find st name))
             (if (< at 0) (return 0))
             (return (coco_m_unify e (coco_m_arg e g 1) (coco_b_global_term e (cast size_t at)))))))
 
-  ;;; `'$nb_keys'(-Keys)': every global's name, in the order made
+  ;;; `'$nb_keys'(-Keys)': every global's name, the store's in the order
+  ;;; made, then each key of a live box the store has none of (3.52.0)
   (func coco_b_nb_keys ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (coco_store * st . #'(-> e st))
               (size_t l . #'(coco_m_nil e))
-              (size_t i . #'(-> st nglobals)))
+              (size_t i . #'(-> m gvb_len)))
+          (while (> i 0)
+            (set i (- i 1))
+            (let ((coco_gvbox * x . #'(aof (nth i (-> m gvb)))))
+              (if (and (coco-gvb-live m x) (< (coco_global_find st (-> x name)) 0))
+                  (set l (coco_m_cons e (coco_new_atom_id m (-> x name)) l)))))
+          (set i (-> st nglobals))
           (while (> i 0)
             (set i (- i 1))
             (set l (coco_m_cons e (coco_new_atom_id m ($ (nth i (-> st globals)) name)) l)))

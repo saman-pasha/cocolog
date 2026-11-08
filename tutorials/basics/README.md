@@ -21,7 +21,7 @@ cocolog binary on its own runs every one of them:
 | 09-exceptions | failure is not an error; `catch/3`, `throw/1`, ISO error terms — and the four that are cocolog's: `cocolog_error/1`, a builtin's context and the loader's unbound one that matches anyway, cleanup by hand, a ball whose text is codes |
 | 10-grammars | `-->`, `phrase/2,3`, pushback, and a parser that also generates |
 | 11-the-knowledge-base | what makes THIS Prolog different: the store outlives the process |
-| 12-globals-and-mutable-terms | state by name and terms written in place: `nb_setval/2`, `nb_current/2`, `setarg/3` (backtracking takes it back) and `nb_setarg/3` (it does not) |
+| 12-globals-and-mutable-terms | state by name and terms written in place: `nb_setval/2`, `nb_current/2` and `nb_setarg/3`, which backtracking leaves, and `b_setval/2` and `setarg/3`, which it takes back |
 | 13-characters | text counted in characters, SWI's way and the default since 2.0.0 -- codes are code points, a char is one character of however many bytes -- and in bytes where a program asks: `:- set_prolog_flag(text_units, bytes).` |
 
 Read them in order — each leans on the one before, and 11 is the one

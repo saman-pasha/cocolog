@@ -37,7 +37,7 @@ cocolog -s test/lint.pl                            # the suite case
 | `tool.sh` | one driver for `build`, `card`, `index` and `assemble` |
 | `selftest/reader.pl` `.expected` | every shape that has ever fooled a clause reader |
 | `build.pl` | the reserved-name blocklist, from five registration shapes |
-| `traps.jsonl` | the dialect card as data: 27 rows, 39 checked citations |
+| `traps.jsonl` | the dialect card as data: 25 rows, 37 checked citations |
 | `card.pl` | the anchor checker, and the generator of `traps.pl` |
 | `lint.sh` | the human wrapper; rebuilds the index first, always |
 | `oracle.pl` / `.sh` | G2+G3: which predicates the store calls the program's own |
@@ -305,21 +305,22 @@ the same list.
 
 ## The dialect card is data, and its citations are checked
 
-`traps.jsonl` is section 4 of the design doc as 26 rows of
+`traps.jsonl` is section 4 of the design doc as 25 rows of
 `{id, swi, cocolog, why, cite, anchor, rule, severity}`. Each cite is a
 `path:A-B` line range and each anchor a literal substring that must appear
-inside it. `card --check` verifies all 38, and when one has moved it says
+inside it. `card --check` verifies all 37, and when one has moved it says
 where it is now, so the repair is a single number:
 
 ```
-traps: G1: anchor not in lib/builtins.cicili:100-104 (it is at line 109)
-             '("b_setval"'
+traps: L1: anchor not in lib/term.cicili:2898 (it is at line 2913)
+             '(coco_intern m ".")'
 ```
 
 **The anchor is code, never prose near it.** A comment is the part of a file
 that gets rewritten without the behaviour changing, so anchoring on one buys a
-check that passes while the claim quietly stops being true. Row G1 anchors on
-the table row `("b_setval"` rather than on the word "backtrackable"; row I1 on `coco_arg_key` rather
+check that passes while the claim quietly stops being true. Row L1 anchors on
+the call `(coco_intern m ".")` rather than on the comment that names the list
+cell's functor; row I1 on `coco_arg_key` rather
 than on the shouted comment above the declaration, true though that comment is.
 Two rows anchor on a comment anyway and say so in the file: `Z1`'s page limit
 lives in `parsi/01-schema.parsi` as a paragraph of measured numbers with no

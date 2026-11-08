@@ -112,7 +112,7 @@
     ("statistics"              2 coco_b_statistics)
     ("$store_mute"             0 coco_b_store_mute)
     ("$store_unmute"           0 coco_b_store_unmute)
-    ("b_setval"                2 coco_b_setval)
+    ("b_setval"                2 coco_b_bsetval)
     ("b_getval"                2 coco_b_getval)
 
     ("with_output_to"          2 coco_b_with_output_to)

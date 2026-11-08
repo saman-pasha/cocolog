@@ -15,11 +15,10 @@
 %% compile, and far enough that they will be wrong. Every rule cocolint has
 %% exists because the failure it catches is SILENT or nearly so -- a loud
 %% failure needs no linter, because the interpreter already names it. A
-%% program that scopes a value with `b_setval/2' finds it still set after
-%% backtracking; one that defines `step/4' merges its clauses into a
-%% library's; one that branches on `current_prolog_flag(occurs_check, B)'
-%% takes the other branch, the flag being none here. None of the three says
-%% so.
+%% program that writes `"abc"' for a string is handed a list of codes; one
+%% that defines `step/4' merges its clauses into a library's; one that
+%% branches on `current_prolog_flag(occurs_check, B)' takes the other
+%% branch, the flag being none here. None of the three says so.
 %%
 %% WHAT THIS LESSON CLAIMS. Nine sections, every claim a must/3:
 %%
@@ -162,12 +161,12 @@ t37_rules :-
     %% alone, and the reason is required. cl_acks/3 reads them out of a
     %% file's codes and its comment regions; the text below is a quoted
     %% string, so it is no acknowledgement of anything in THIS file.
-    AckSrc = "p :- q.   % cocolint: G1 -- shown on purpose\n% cocolint: L1, X3 -- the next line\nr.\n",
+    AckSrc = "p :- q.   % cocolint: X2 -- shown on purpose\n% cocolint: L1, X3 -- the next line\nr.\n",
     cc_regions(AckSrc, AckRegs),
     cl_acks(AckSrc, AckRegs, Acks),
     findall(Ln-Cov-Ids, member(ack(_, Ln, Cov, Ids, _), Acks), AckLines),
     must('after code it covers its line; alone, the next', AckLines,
-         [1-1-['G1'], 2-3-['L1', 'X3']]),
+         [1-1-['X2'], 2-3-['L1', 'X3']]),
     ( memberchk(u1-warn, Sevs) -> U1 = warn ; U1 = other ),
     %% U1 keeps them honest: one whose finding has gone would excuse the
     %% next thing to land on its line, so it is a finding itself, and so
@@ -276,12 +275,12 @@ t37_card :-
     read_file_to_codes('tools/cocolint/traps.jsonl', TrapCodes),
     t37_rows(TrapCodes, Rows),
     length(Rows, NRows),
-    must('rows in the card', NRows, 26),
+    must('rows in the card', NRows, 25),
     findall(Id, ( member(R, Rows), t37_field(R, id, Id) ), Ids),
     sort(Ids, SortedIds),
     length(SortedIds, NIds),
-    must('every id distinct', NIds, 26),
-    %% SEVEN OF THE TWENTY-SIX CARRY A PATTERN, and the gap is the point
+    must('every id distinct', NIds, 25),
+    %% SIX OF THE TWENTY-FIVE CARRY A PATTERN, and the gap is the point
     %% of the card: a row documents a divergence, and only some divergences
     %% are things a linter can SEE in a source file. `X3' can be matched --
     %% a predicate cocolog leaves out on purpose is right there in the text
@@ -307,7 +306,10 @@ t37_card :-
     %% answers again on backtracking, as swipl's, so the `retract(X), fail'
     %% loop it flagged takes every clause. And twenty-seven until 3.33.0, when
     %% F1 went with its pattern: format/2 lays out ~t, ~| and ~+ as swipl's,
-    %% where it refused the three by name.)
+    %% where it refused the three by name. And twenty-six until 3.52.0, when
+    %% G1 went with its pattern: b_setval/2 is swipl's, its value the term
+    %% itself and taken back by backtracking, where it was nb_setval/2 under
+    %% another name.)
     %%
     %% IT WAS SEVENTEEN, AND THE STRING TYPE TOOK TWO OF THEM. Row X1 said
     %% the string predicates did not exist and flagged every call to one;
@@ -331,7 +333,7 @@ t37_card :-
     %% `:- initialization(main).' with a halt in main, writes nothing.
     findall(P, ( member(R, Rows), t37_field(R, pattern, P) ), Pats),
     length(Pats, NPats),
-    must('rows carrying an S1 pattern term', NPats, 7),
+    must('rows carrying an S1 pattern term', NPats, 6),
     findall(x, ( member(R, Rows), t37_field(R, cite, Cites), Cites == [] ), NoCite),
     must('rows with no citation at all', NoCite, []),
 

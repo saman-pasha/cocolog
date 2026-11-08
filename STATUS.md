@@ -15999,3 +15999,173 @@ asks now.
 Narrow cases green: lint, files, gc, library, repl, script, directives,
 reconsult, errors, flowchart, engine, trace and backtrace. Reasoning stays
 1.0.27.
+
+## b_setval/2 and b_getval/2 as swipl's, and expand_term/2's '$term' (3.52.0)
+
+b_setval/2 was nb_setval/2 under another name: it copied its term into
+the store and nothing undid it, where swipl 9.0.4's (pl-gvar.c) links the
+term itself and trails the assignment, so backtracking puts back what the
+key held before. A minor, as the global now answers what it did not.
+
+- **The box.** A key b_setval/2 names gets an entry in the machine's table
+  (`gvb`, never removed), and each b_setval/2 a BOX on the heap,
+  `'$gv'(Serial, Value)`, made with its value cell a reference to itself
+  -- the dead mark -- and the value written into it as setarg/3 writes
+  (`coco_trail_pair`), so backtracking past the write puts the old word
+  back and backtracking past the making puts the dead mark back. A box is
+  live while its header, its serial and a value cell that is no dead mark
+  stand where it was put, inside the heap (`coco-gvb-live`): a freeze that
+  keeps the heap (nb_setarg/3 into an older term) still loses the box to
+  the trail, and a box a collection kept past its choice point -- its
+  trail entry dropped there, as a newer cell's is -- is past the heap
+  backtracking leaves. The value is the term itself: a binding made after
+  it is seen, setarg/3 on it writes the global.
+- **Reads.** nb_getval/2, b_getval/2 and nb_current/2 read a live box
+  first and the store's global after; nb_current/2 with its key unbound
+  names the boxes' keys the store lacks. nb_setval/2 takes the key from
+  its box, so a b_setval/2 undone after it brings nothing back.
+- **The collector** marks every live box as a root, forgets a dead one,
+  and moves each box with its cells.
+- **A load's goal ends what it did, as swipl's failure-driven load loop
+  fails back over each term it reads.** A directive's and an
+  initialization goal's work is undone when it succeeds too (`\+ \+ G`:
+  `lb_goal_hook` undoes its trail), a box made since the goal began is
+  dead (its serial past the goal's clock: a collection in the goal drops
+  the trail entry that made a box newer than its barrier, so no undo puts
+  its dead mark back), and an expansion hook keeps its output and its
+  bindings of the term in hand while what it did to a cell older than the
+  term -- a b_setval/2 into a box made before the load, a binding or a
+  setarg/3 of a term in one -- is undone as it returns (`coco_undo_older`,
+  below the term's floor `lfloor`, the consult's mark for the term, set as
+  each term begins and put back around a nested read). A copy of a ground
+  global the goal read stays, and so does its sentinel (`coco_undo_older`'s
+  KEEP): the consult's mark was raised over the copy at the fill. A
+  directive an expansion gave binds nothing the next term it gave sees
+  (`o_done(_)`, swipl's).
+- **expand_term/2 sets '$term'**, the term while its hooks run and `[]`
+  after (lib/dcg.cicili, swipl's expand_term/4), and prolog_load_context/2's
+  `term` reads its box where it was written in the goal in hand, else the
+  load's term: a load's own hooks see the load's term whatever an
+  expand_term/2 before the load left set. COMPAT.md's row 39 keeps
+  `stream` alone.
+
+THE FIRST CUT'S HOLE, found by a probe written for the COMPAT row it was
+going to need: a directive's b_setval/2 into a box made before the load
+wrote a value from the directive's own heap, which the consult winds back
+after the term, so the next directive read it as cells of whatever the
+load read next (`@(S_1,[S_1=next_directive((print(S_1),nl))])`), and a
+hook's binding of a variable in such a box the same (`f(end_of_file)`).
+swipl undoes both as the term ends; cocolog does now, at the goal's end.
+What stays apart (COMPAT.md, a new row): a hook's b_setval/2 -- to a key
+of its own (`hz-1` in swipl, `hz-unset` here) or into an older box -- and
+its work on a term in one are undone as the hook returns, where swipl's
+stand until every term its expansion gave is done, so a directive the
+hook's own expansion gave does not see them (`o6-y` in swipl, `o6-1`
+here). The faithful form is a barrier the collector knows at each term's
+start, as swipl's failure-driven loop has a choice point there, and its
+undo at every way the term's processing ends: a lead.
+
+THE SECOND CUT'S HOLE, found by a count: the undo at a directive's end took
+the sentinel of each ground global's copy the directive read with the rest
+of its work, so every directive that read one copied it again -- a load of
+500 directives each reading a list of 2 000 counted 105 075 129
+instructions where 3.51.0 counts 49 939 240, and kept a copy a directive
+until a collection. The sentinels are kept now, from the goal's trail mark
+in their order, each copy told where its own stands (49 987 594, +0.10 %).
+test/engine.pl's `gvars_runs` holds it: 100 directives over a list of 600
+grow the heap by no copy.
+
+The arms, one build each, every rule taken out alone, each over
+global_vars.pl and test/engine.pl's `gvars_runs`: the arm of no edit green
+in both, and each of the thirty rules red. Twelve are red in both cases --
+the write as setarg/3 writes, its old value kept and the trail's value
+entry; a box live while its value is no dead mark, and made with one; its
+serial; nb_getval/2's and b_getval/2's read of the box first; the
+collector's mark of each live box and its move of the box's place; a
+goal's undo at its end; what a hook did to what is older than its term
+undone as it returns; the term's floor set as it begins; an older cell's
+value entry put back and an older variable unbound. Eleven in
+global_vars.pl alone -- nb_setval/2 taking the key from its box;
+nb_current/2's read of the box and the keys it names; a box made in a goal
+a load ran ended with it; the clock where that goal began, which a '$term'
+written before it is none of, and the clock of the goal around it put
+back; prolog_load_context/2's `term` reading '$term' where this goal wrote
+it; expand_term/2 setting it, and the machine knowing its entry; a hook's
+goal saying it is one. And two in `gvars_runs` alone: the box's bounds,
+where t(40)'s box stands past the heap under trace and under the
+collector, and a directive keeping its copies' sentinels, which the probe
+of the copies counts.
+
+Five were green over the first cut of the cases, and the cases were
+sharpened until each went red: the box's header (`coco-gvb-live`), which
+the serial and the value cover wherever a term built over a dead box
+leaves them unlike the box's -- `first_box` now builds f/30 where main's
+first box stood, each argument the box's serial, 2, and `gvars_runs` the
+same in a file of its own, serial 1 (`unset` in swipl; the box's value
+without the header); the hook's flag cleared as a goal begins, so that a
+load the hook runs has directives of its own -- which matters only where
+no hook of that load clears it first, as each term's own ask of the hooks
+does before the term's goal runs, so the case's last hook takes every hook
+away (`retractall/1`, as swipl's dynamic hooks allow) and then consults a
+file whose second directive reads what its first wrote into a box made
+before the load (`nr1-1`; without the clear, `nr1-nr`, and the directive
+after the load read from heap the consult gave back); and the term's floor
+put back after a nested read and after an include, so that a term an
+expansion gives after a directive that consults a file, or includes one,
+keeps the bindings its goal expansion made (`n4-bound`, `n5-bound`): left
+where the nested read set it, the floor stood above the given term and
+undid them; and the copy told where its sentinel stands once the undo has
+moved it -- each of the copies' directives binds a variable of its own
+before it reads, the one that copies the global among them, so the
+sentinel goes down over the binding's entry, where the first cut's stood
+first on the trail and never moved (without it every directive copies the
+global again, 1 932 664 cells). Through the first cut the probe of the
+header (`f(1, z, _)` by arg/3) bound each argument to a cell of its goal
+and built nothing over the box.
+
+cocolint's card row G1 is retired with its S1 pattern (b_setval/2 "IS
+nb_setval": 25 rows, 37 cites, six patterns); lesson basics/12 teaches the
+backtrackable global, lesson library/37 counts the card again, and
+test/lint.pl's acknowledgements are X3's and P1's.
+
+test/files/global_vars.pl, new, holds 106 lines to swipl, byte for byte:
+the box's write, link, binding, setarg/3, undo by backtracking, a throw,
+\+, findall/3, forall/2, a cut, a recursion, a freeze, a collection, a box
+past the heap a collection kept, a key never set, a bad key, nb_setval/2
+over a box and under one, a term built over a dead box; a directive of its
+own that collects; and the files it writes and loads -- directives,
+initialization goals and hooks that write new keys and keys set before the
+load, a binding and a setarg/3 on terms set before it, a directive an
+expansion gave, a load and an include an expansion gave and the terms
+after them, a goal expansion's bindings of those kept, a load a hook runs
+and its two directives, and one after the hook took every hook away --
+and '$term' through expand_term/2 at a goal, by hand, and in a load's
+hooks. test/engine.pl's `gvars_runs` runs it traced, collecting every 2000
+cells and through both freezes, the same answers each time, and the
+header's and the copies' two probes.
+
+The cost, against 3.51.0 at like paths: a start counts 35 788 692
+instructions where 3.51.0 counts 35 779 190 (+9 502, +0.03 %). A load of
+5 000 clauses and 500 directives, no hook: +103 140 (+0.06 %), of which
+coco_undo_older is 18 000 and lb_goal_hook +9 000 (the directive's undo,
+36 and 18 instructions a directive), and libc's memcmp +47 049 and strcmp
++13 907 on the same calls at the strings' new addresses. The same load
+with a term_expansion/2 asked of every term: +435 443 (+0.16 %), of which
+coco_consult_xcall is +197 510 (40 instructions a hook: the walk of what
+it trailed, where the trail was cut back unread) and lb_goal_hook +80 024
+(15 a goal), strcmp +74 610 and memcmp +46 263. The translator's load
+(library(reasoning/translate)): +219 358 of 413.7 million (+0.05 %), of
+which coco_functor_id is +115 287 on the same 149 204 calls within 4, each
+0.8 instructions dearer at the names' new ids (expand_term/2's clause
+interns b_setval at the start), strcmp +137 205 and memcmp -57 220.
+tools/flow/zero.sh, work less padding: nrev 0, queens -14, lookup +957.
+A b_getval/2, nb_getval/2 or nb_current/2 asks the box table only once a
+key has one, and a key's box is found by a walk of the table: the keys a
+program gives b_setval/2 are few, where nb_setval/2's globals are hashed.
+
+Narrow cases green: lint, files, directives, gc, library, reconsult,
+errors, script, repl, engine, trace, backtrace, thread, flowchart, window,
+flowdebug, journal, reason and translate; async went red once in the
+round, its foreign write's 100 ms window on a box that ran two arm builds
+beside it, and is green alone and in 30 runs of 30. Reasoning stays
+1.0.27.

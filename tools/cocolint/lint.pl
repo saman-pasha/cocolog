@@ -29,10 +29,10 @@
 %%     U1  an acknowledgement that acknowledges nothing, or gives no reason
 %%
 %% A FINDING THE CODE MEANS IS ACKNOWLEDGED WHERE IT STANDS, by a comment
-%% that names it and says why -- a lesson that shows b_setval/2 keeping its
-%% value past backtracking commits the trap on purpose:
+%% that names it and says why -- a lesson that shows dif/2 missing commits
+%% the trap on purpose:
 %%
-%%     ( b_setval(k, 1), fail ; nb_getval(k, V) ),   % cocolint: G1 -- the lesson
+%%     catch(dif(a, b), error(E, _), true),   % cocolint: X3 -- the lesson
 %%
 %% See cl_acks/3 below for the whole of the rule.
 %% WHY THIS IS CLAUSES AND NOT PYTHON. A lint rule IS a clause -- a head that

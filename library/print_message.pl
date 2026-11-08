@@ -91,8 +91,8 @@
 %% A message printed while the same message is printed -- a message_hook/3
 %% that prints its own term -- is said to be recursive, once, as swipl's.
 %% The stack of messages in print is a global, set back by hand on every
-%% way out (swipl's setup_call_cleanup/3): a b_setval/2 is an nb_setval/2
-%% here, and undoes nothing on backtracking. print_message/2 never fails.
+%% way out (swipl's setup_call_cleanup/3): an nb_setval/2's, which
+%% backtracking leaves as it is. print_message/2 never fails.
 %%
 %% swipl's print_message/2 is its system's: the tracer shows a program's
 %% call of it and hides what it calls (3.27.0), but a program's own

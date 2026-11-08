@@ -45,8 +45,10 @@ selftest_main :-
     %% 3.1.0 it is swipl's -- operators ignored, variables `A' and `_' --
     %% and the row is retired.
 
-    %% ---- G1: b_setval IS nb_setval ------------------------------------
-    b_setval(k, 1),   % cocolint: G1 -- walked into on purpose
+    %% ---- G1 IS GONE, and this is where it was -------------------------
+    %% b_setval/2 was nb_setval/2 under another name, a copy nothing undid.
+    %% Since 3.52.0 it is swipl's -- the term itself, taken back by
+    %% backtracking -- and the row is retired.
 
     %% ---- R1 IS GONE, and this is where it was -------------------------
     %% retract/1 answered once, so `retract(X), fail' removed one clause.
