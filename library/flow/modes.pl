@@ -221,6 +221,9 @@ flow_mode(atomics_to_string, 2, ['+', '-'], det).
 flow_mode(atomics_to_string, 2, ['+', '+'], semidet).
 flow_mode(atomics_to_string, 3, ['+', '+', '-'], det).
 flow_mode(atomics_to_string, 3, ['+', '+', '+'], semidet).
+%% an unbound tail splits the string at the separator (3.50.0), the parts
+%% atoms, as atomic_list_concat/3's
+flow_mode(atomics_to_string, 3, ['-', '+', '+'], det).
 flow_mode(atomic_concat, 3, ['+', '+', '-'], det).
 flow_mode(atomic_concat, 3, ['+', '+', '+'], semidet).
 flow_mode(get_string_code, 3, ['+', '+', '-'], det).
@@ -355,6 +358,8 @@ flow_sink_binds(chars(X, _), [], X).
 %% term_to_atom/2 reads a term, and the term may hold variables.
 flow_binds_all(atomic_list_concat, 2).
 flow_binds_all(atomic_list_concat, 3).
+flow_binds_all(atomics_to_string, 2).
+flow_binds_all(atomics_to_string, 3).
 flow_binds_all(atom_codes, 2).
 flow_binds_all(atom_chars, 2).
 flow_binds_all(char_code, 2).
@@ -449,6 +454,8 @@ flow_raises_unbound(nb_setarg, 3, [2], nb_setarg(1, _, b)).
 flow_raises_unbound((=..), 2, [1, 2], _ =.. _).
 flow_raises_unbound(atomic_list_concat, 2, [1], atomic_list_concat(_, abc)).
 flow_raises_unbound(atomic_list_concat, 3, [1, 3], atomic_list_concat(_, '-', _)).
+flow_raises_unbound(atomics_to_string, 2, [1], atomics_to_string(_, abc)).
+flow_raises_unbound(atomics_to_string, 3, [1, 3], atomics_to_string(_, '-', _)).
 flow_raises_unbound(msort, 2, [1], msort(_, _)).
 flow_raises_unbound(sort, 2, [1], sort(_, _)).
 flow_raises_unbound(keysort, 2, [1], keysort(_, _)).

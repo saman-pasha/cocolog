@@ -1564,55 +1564,6 @@
           (free out)
           (return rc)))
 
-  ;;; THE SPLIT, swipl's split_atom (3.0.0): the text of AT read with
-  ;;; CVT_ATOMIC and its errors -- type_error(atomic, "a-b") under
-  ;;; `double_quotes = codes', an unbound one instantiation_error -- cut at
-  ;;; each SEP from the left, the parts atoms, and their list unified with
-  ;;; LT. SEP is not empty. Through 2.16.1 the text was written out
-  ;;; whatever it was and the separator went through a buffer of 256 bytes.
-  ;;; Its own copy of the text is cut in place, the last part first, so
-  ;;; each part is an atom with no copy of its own.
-  (static)
-  (func coco_b_split ((coco_engine * e) (size_t at) (coco_strbuf * sep) (size_t lt)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (coco_strbuf a) (int r . 0) (size_t i . 0) (size_t last . 0) (size_t n . 0)
-              (size_t sl . #'($ (cof sep) len)) (char * s . nil) (const char * p . nil)
-              (size_t * cuts . nil) (size_t nc . 0) (size_t cap . 16) (size_t lst . 0))
-          (set r (coco_tx_get e at 23 (aof a)))
-          (if (!= r 1) (return r))
-          (set n ($ a len))
-          (set p (coco_tx_s sep))
-          (set cuts (cast (size_t *) (malloc (* (sizeof size_t) cap))))
-          (if (== cuts nil) (block (coco_sb_free (aof a)) (return (coco_m_resource_error e "memory"))))
-          (set s (cast (char *) (coco_tx_s (aof a))))
-          ;; each part's first byte and the byte after it, left to right
-          (while (<= (+ i sl) n)
-            (if (== 0 (memcmp (+ s i) p sl))
-                (block
-                  (if (>= (+ nc 2) cap)
-                      (let ((size_t * grown . #'(cast (size_t *) (realloc cuts (* (sizeof size_t) (* cap 2))))))
-                        (if (== grown nil)
-                            (block (free cuts) (coco_sb_free (aof a))
-                                   (return (coco_m_resource_error e "memory"))))
-                        (set cuts grown)
-                        (set cap (* cap 2))))
-                  (set (nth nc cuts) last)
-                  (set (nth (+ nc 1) cuts) i)
-                  (set nc (+ nc 2))
-                  (set i (+ i sl))
-                  (set last i))
-                (set i (+ i 1))))
-          ;; the list from its end: the last part, then each before it, cut
-          ;; off where it ends -- in the copy, the parts after it made
-          (set lst (coco_cons m (coco_new_atom m (+ s last)) (coco_m_nil e)))
-          (while (> nc 0)
-            (set nc (- nc 2))
-            (set (nth (nth (+ nc 1) cuts) s) (cast char 0))
-            (set lst (coco_cons m (coco_new_atom m (+ s (nth nc cuts))) lst)))
-          (free cuts)
-          (coco_sb_free (aof a))
-          (return (coco_m_unify e lt lst))))
-
   ;;; `$atom_split(Atom, Sep, Parts)': the split alone, its separator read
   ;;; as atomic_list_concat/3 reads one.
   (func coco_b_atom_split ((coco_engine * e) (size_t g)) (out int)
@@ -1621,7 +1572,7 @@
           (if (not (coco_tx_get e st 7 (aof sep))) (return (coco_m_type_error e "text" st)))
           (if (== ($ sep len) 0)
               (block (coco_sb_free (aof sep)) (return (coco_m_domain_error e "non_empty_atom" st))))
-          (set r (coco_b_split e (coco_m_arg e g 0) (aof sep) (coco_m_arg e g 2)))
+          (set r (coco_tx_split e (coco_m_arg e g 0) (aof sep) (coco_m_arg e g 2)))
           (coco_sb_free (aof sep))
           (return r)))
 
@@ -1635,8 +1586,9 @@
   ;;; joined and unified with AT, as an atom (atomic_list_concat([a,b], -,
   ;;; "a-b") is false); a tail that is no list is type_error(list, T), T
   ;;; that tail. With a separator an unbound element or tail SPLITS
-  ;;; (`coco_b_split'): `atomic_list_concat([A,B], -, 'x-y')', the shape a
-  ;;; caller writes when it knows how many parts it wants, and
+  ;;; (`coco_tx_split', lib/solve-text.cicili, which atomics_to_string/3
+  ;;; shares since 3.50.0): `atomic_list_concat([A,B], -, 'x-y')', the
+  ;;; shape a caller writes when it knows how many parts it wants, and
   ;;; atomic_list_concat(L, -, 'x-y'); without one it is instantiation_error,
   ;;; and an empty separator domain_error(non_empty_atom, ''). A list that
   ;;; is its own tail is no list (1.10.19), past the heap's length.
@@ -1681,7 +1633,7 @@
           (if (== st (cast size_t -1)) (return (coco_m_instantiation_error e)))
           (if (== ($ sep len) 0)
               (block (coco_sb_free (aof sep)) (return (coco_m_domain_error e "non_empty_atom" st))))
-          (set rc (coco_b_split e at (aof sep) lt))
+          (set rc (coco_tx_split e at (aof sep) lt))
           (coco_sb_free (aof sep))
           (return rc)))
 

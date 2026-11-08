@@ -439,53 +439,42 @@
   (func coco_l_sort ((coco_engine * e) (size_t g)) (out int)
         (return (coco_l_sort_common e g 1)))
 
-  ;;; `sort(+Key, +Order, +List, -Sorted)'. Key 0 is the whole term; Key N is
-  ;;; the Nth argument of it. Order is one of @< @=< @> @>= -- the two with the
-  ;;; `=' keep duplicates and the two without remove them, which is the rule
-  ;;; that catches everybody out and is exactly SWI's.
-  ;;;
-  ;;; INSERTION AND NOT qsort, because this one has to be STABLE: two terms
-  ;;; with equal keys and different bodies are distinguishable, so the order
-  ;;; they arrived in is observable and SWI keeps it.
+  ;;; THE KEY OF T BY PATH (3.50.0): the argument PATH[0] of T, then the
+  ;;; argument PATH[1] of that, NP steps -- T itself for none. The steps
+  ;;; were checked on every element before the sort (`coco_l_sort_by').
   (static)
-  (func coco_l_key ((coco_engine * e) (size_t t) (i64 k)) (out size_t)
+  (func coco_l_key ((coco_engine * e) (size_t t) (i64 * path) (int np)) (out size_t)
         (let ((coco_machine * m . #'(coco_m_machine e)))
-          (if (== k 0) (return t))
-          (set t (coco_deref m t))
-          (if (not (coco_is_callable m t)) (return t))
-          (if (> (cast u32 k) (coco_arity m t)) (return t))
-          (return (coco_arg m t (cast u32 (- k 1))))))
+          (for ((int i . 0)) (< i np) ((++ i))
+            (set t (coco_arg m (coco_deref m t) (cast u32 (- (nth i path) 1)))))
+          (return t)))
 
-  (func coco_l_sort4 ((coco_engine * e) (size_t g)) (out int)
-        (let ((i64 key . 0) (const char * order)
-              (size_t * v . nil) (size_t n . 0) (size_t out . 0)
-              (int descending . 0) (int keep . 0))
+  ;;; ONE KEY OF sort/4, swipl's get_key_arg_ex(): 1 with a positive
+  ;;; integer in *K, or 0 where ZERO_OK; 1 and -1 for an atom, a dict key
+  ;;; (`[]' among them, an atom to swipl's C); 0 and
+  ;;; domain_error(not_less_than_one, T) raised for any other integer (*RC
+  ;;; its answer); -1 for anything else. A positive integer past swipl
+  ;;; 9.0.4's tagged ones (its max_tagged_integer on 64 bits, 2^56 - 1) is
+  ;;; 0 with *RC 0, a failure and no error, as swipl's returns FALSE there.
+  (static)
+  (func coco_l_key_arg ((coco_engine * e) (size_t t) (int zero_ok) (i64 * k) (int * rc)) (out int)
+        (if (coco_m_int e t k)
+            (block (if (> (cof k) 72057594037927935) (block (set (cof rc) 0) (return 0)))
+                   (if (or (> (cof k) 0) (and zero_ok (== (cof k) 0))) (return 1))
+                   (set (cof rc) (coco_m_domain_error e "not_less_than_one" t))
+                   (return 0)))
+        (if (coco_m_is_atom e t) (block (set (cof k) -1) (return 1)))
+        (return -1))
 
-          ;; THE KEY, THE ORDER, THE LIST, THE ELEMENTS, in swipl's order
-          ;; and with its errors (3.0.0): an integer under 0 is
-          ;; domain_error(not_less_than_one, K), anything but an integer or
-          ;; an atom type_error(sort_key, K); an atom is a dict key, and as
-          ;; there are no dicts here only the empty list sorts by one. Through
-          ;; 2.16 the key was type_error(integer, K) and an element without
-          ;; the argument sorted by itself.
-          (if (coco_m_is_var e (coco_m_arg e g 0)) (return (coco_m_instantiation_error e)))
-          (if (coco_m_int e (coco_m_arg e g 0) (aof key))
-              (block (if (< key 0) (return (coco_m_domain_error e "not_less_than_one"
-                                                                (coco_m_arg e g 0)))))
-            (if (coco_m_is_atom e (coco_m_arg e g 0))
-                (set key -1)
-              (return (coco_m_type_error e "sort_key" (coco_m_arg e g 0)))))
-          (if (coco_m_is_var e (coco_m_arg e g 1)) (return (coco_m_instantiation_error e)))
-          (set order (coco_m_atom e (coco_m_arg e g 1)))
-          (if (== order nil)
-              (return (coco_m_domain_error e "order" (coco_m_arg e g 1))))
-          (cond
-            ((== 0 (strcmp order "@<"))  (block (set descending 0) (set keep 0)))
-            ((== 0 (strcmp order "@=<")) (block (set descending 0) (set keep 1)))
-            ((== 0 (strcmp order "@>"))  (block (set descending 1) (set keep 0)))
-            ((== 0 (strcmp order "@>=")) (block (set descending 1) (set keep 1)))
-            (#t (return (coco_m_domain_error e "order" (coco_m_arg e g 1)))))
-
+  ;;; THE SORT OF sort/4 BY ITS KEY PATH (3.50.0): the list, then each
+  ;;; element's every step, then a sort -- DESCENDING for @> and @>=, KEEP
+  ;;; the duplicates for @=< and @>=. STABLE, as qsort is not: two terms
+  ;;; with equal keys and different bodies are distinguishable, so the
+  ;;; order they arrived in is observable and SWI keeps it.
+  (static)
+  (func coco_l_sort_by ((coco_engine * e) (size_t g) (i64 * path) (int np)
+                        (int descending) (int keep)) (out int)
+        (let ((size_t * v . nil) (size_t n . 0) (size_t out . 0))
           ;; an order that drops duplicates takes a list that is its own
           ;; tail as its elements, as sort/2 does (1.10.19)
           (if (not (coco_m_list_array e (coco_m_arg e g 2) (aof v) (aof n)))
@@ -493,25 +482,28 @@
                                                               (aof v) (aof n))))
                   (return (coco_l_not_list e (coco_m_arg e g 2)))))
 
-          ;; each element has the key's argument: a compound, of that arity
-          ;; at least -- type_error(compound, E), then the three-argument
-          ;; existence_error(argument, K, E) -- or, by a dict key, a dict
-          (if (!= key 0)
-              (let ((coco_machine * m . #'(coco_m_machine e)))
-                (for ((size_t i . 0)) (< i n) ((++ i))
-                  (let ((size_t t . #'(coco_deref m (nth i v))))
-                    (cond
-                      ((not (coco-tag-is FUN (nth t (-> m heap))))
-                       (block (free v) (return (coco_m_type_error e "compound" t))))
-                      ((< key 0)
-                       (block (free v) (return (coco_m_type_error e "dict" t))))
-                      ((> (cast u32 key) (coco_arity m t))
-                       (let ((size_t args [3]))
-                         (set (nth 0 args) (coco_new_atom m "argument"))
-                         (set (nth 1 args) (coco_new_int m key))
-                         (set (nth 2 args) t)
-                         (free v)
-                         (return (coco_m_raise e (coco_make m "existence_error" 3 args))))))))))
+          ;; each element has each step's argument, swipl's extract_key(): a
+          ;; compound, of that arity at least -- type_error(compound, E), then
+          ;; the three-argument existence_error(argument, K, E) -- or, by a
+          ;; dict key, a dict; E the term the path has reached
+          (let ((coco_machine * m . #'(coco_m_machine e)))
+            (for ((size_t i . 0)) (< i n) ((++ i))
+              (let ((size_t t . #'(nth i v)))
+                (for ((int s . 0)) (< s np) ((++ s))
+                  (set t (coco_deref m t))
+                  (cond
+                    ((not (coco-tag-is FUN (nth t (-> m heap))))
+                     (block (free v) (return (coco_m_type_error e "compound" t))))
+                    ((< (nth s path) 0)
+                     (block (free v) (return (coco_m_type_error e "dict" t))))
+                    ((> (nth s path) (cast i64 (coco_arity m t)))
+                     (let ((size_t args [3]))
+                       (set (nth 0 args) (coco_new_atom m "argument"))
+                       (set (nth 1 args) (coco_new_int m (nth s path)))
+                       (set (nth 2 args) t)
+                       (free v)
+                       (return (coco_m_raise e (coco_make m "existence_error" 3 args)))))
+                    (#t (set t (coco_arg m t (cast u32 (- (nth s path) 1))))))))))
 
           ;; a STABLE merge sort, bottom-up. This was an insertion sort,
           ;; "n is small in every use this has" -- and keysort/2 is this
@@ -539,8 +531,8 @@
                             (if (>= i mid)
                                 (set take_left 0)
                                 (let ((int c . #'(coco_compare (coco_m_machine e)
-                                                             (coco_l_key e (nth i src) key)
-                                                             (coco_l_key e (nth j src) key))))
+                                                             (coco_l_key e (nth i src) path np)
+                                                             (coco_l_key e (nth j src) path np))))
                                   (if descending (set c (- 0 c)))
                                   (set take_left (<= c 0)))))
                         (if take_left
@@ -557,14 +549,76 @@
                 (for ((size_t i . 0)) (< i n) ((++ i))
                   (if (or (== k 0)
                           (!= 0 (coco_compare (coco_m_machine e)
-                                            (coco_l_key e (nth (- k 1) v) key)
-                                            (coco_l_key e (nth i v) key))))
+                                            (coco_l_key e (nth (- k 1) v) path np)
+                                            (coco_l_key e (nth i v) path np))))
                       (block (set (nth k v) (nth i v)) (set k (+ k 1)))))
                 (set n k)))
 
           (set out (coco_m_list e v n))
           (free v)
           (return (coco_m_unify e (coco_m_arg e g 3) out))))
+
+
+  ;;; `sort(+Key, +Order, +List, -Sorted)'. Key 0 is the whole term; Key N is
+  ;;; the Nth argument of it, and a list of keys a path into it. Order is one
+  ;;; of @< @=< @> @>=, or since 3.50.0 one of < =< > >=, swipl's other names
+  ;;; for them -- the ones with the `=' keep duplicates and the ones without
+  ;;; remove them, which is the rule that catches everybody out and is
+  ;;; exactly SWI's.
+  ;;;
+  ;;; THE KEY, THE ORDER, THE LIST, THE ELEMENTS, in swipl's order and with
+  ;;; its errors (3.0.0): an integer under 0 is domain_error(not_less_than_one,
+  ;;; K); an atom is a dict key, and as there are no dicts here only the
+  ;;; empty list sorts by one. Through 2.16 the key was type_error(integer,
+  ;;; K) and an element without the argument sorted by itself. A PROPER LIST
+  ;;; OF KEYS IS A PATH (3.50.0, swipl's sort/4): the key of f(g(1, b)) by
+  ;;; [1, 2] is b, each step a positive integer or an atom -- 0 or a negative
+  ;;; one domain_error(not_less_than_one, K), anything else a failure with no
+  ;;; error, as swipl's returns FALSE -- and any other key type_error(sort_key,
+  ;;; K), an unbound one instantiation_error. Through 3.49.1 a list was
+  ;;; type_error(sort_key, L). The order is an atom as PL_get_atom_ex() reads
+  ;;; one, anything else type_error(atom, O) (3.50.0; through 3.49.1
+  ;;; domain_error(order, O)).
+  (func coco_l_sort4 ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 key . 0) (const char * order . nil) (int rc . 0)
+              (i64 one [1]) (i64 * path . one) (int np . 0)
+              (size_t o . #'(coco_m_arg e g 1)))
+          (let ((int kr . #'(coco_l_key_arg e (coco_m_arg e g 0) 1 (aof key) (aof rc))))
+            (cond
+              ((== kr 0) (return rc))
+              ((== kr 1) (block (set (nth 0 one) key) (set np (? (== key 0) 0 1))))
+              (#t
+               (let ((size_t * ks . nil) (size_t nk . 0))
+                 (if (not (coco_m_list_array e (coco_m_arg e g 0) (aof ks) (aof nk)))
+                     (return (coco_m_type_error e "sort_key" (coco_m_arg e g 0))))
+                 (if (> nk 1)
+                     (block
+                       (set path (cast (i64 *) (malloc (* nk (sizeof i64)))))
+                       (if (== path nil)
+                           (block (free ks) (return (coco_m_resource_error e "memory"))))))
+                 (for ((size_t i . 0)) (< i nk) ((++ i))
+                   (let ((int sr . #'(coco_l_key_arg e (nth i ks) 0 (aof key) (aof rc))))
+                     (if (!= sr 1)
+                         (block (free ks) (if (!= path one) (free path))
+                                (return (? (== sr 0) rc 0))))
+                     (set (nth i path) key)))
+                 (set np (cast int nk))
+                 (free ks)))))
+          (if (not (coco_m_is_var e o)) (set order (coco_m_atom e o)))
+          (cond
+            ((coco_m_is_var e o) (set rc (coco_m_instantiation_error e)))
+            ((== order nil) (set rc (coco_m_type_error e "atom" o)))
+            ((or (== 0 (strcmp order "@<")) (== 0 (strcmp order "<")))
+             (set rc (coco_l_sort_by e g path np 0 0)))
+            ((or (== 0 (strcmp order "@=<")) (== 0 (strcmp order "=<")))
+             (set rc (coco_l_sort_by e g path np 0 1)))
+            ((or (== 0 (strcmp order "@>")) (== 0 (strcmp order ">")))
+             (set rc (coco_l_sort_by e g path np 1 0)))
+            ((or (== 0 (strcmp order "@>=")) (== 0 (strcmp order ">=")))
+             (set rc (coco_l_sort_by e g path np 1 1)))
+            (#t (set rc (coco_m_domain_error e "order" o))))
+          (if (!= path one) (free path))
+          (return rc)))
 
   ;;; keysort/2's body (3.0.0): sort/4 at key 1 with @=<, after swipl's
   ;;; checks -- the list's errors are keysort/2's, by the helper's row, and

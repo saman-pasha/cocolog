@@ -15849,3 +15849,57 @@ like paths, work less padding: nrev +0, queens +160, lookup +0.
 
 Narrow cases green: lint, files, library, directives, script, reconsult,
 engine, errors, repl, trace, syntax and string. Reasoning stays 1.0.27.
+
+## sort/4's key paths and order names, and atomics_to_string/3's split (3.50.0)
+
+sort/4 took an integer or an atom for its key and only @< @=< @> @>= for
+its order, and atomics_to_string/3 raised instantiation_error for an
+unbound list. A minor, as calls that raised now sort and split.
+
+- A PROPER LIST OF KEYS IS A PATH, swipl's sort/4 (pl-list.c,
+  get_key_arg_ex()): `sort([1, 2], @<, L, S)` sorts each `f(g(_, K))` by
+  K, each step a positive integer or an atom (a dict key, `[]` among them,
+  an atom to swipl's C). 0 or a negative step is
+  domain_error(not_less_than_one, K); a step of any other kind -- a
+  string, a float, a compound, a list, an unbound one -- fails with no
+  error, as swipl's returns FALSE. Through 3.49.1 a list was
+  type_error(sort_key, L).
+- Each element is walked step by step, swipl's extract_key():
+  type_error(compound, T), then type_error(dict, T) for an atom's step,
+  then existence_error(argument, K, T), T the term the walk has reached.
+- A positive key past swipl 9.0.4's tagged integers, 2^56 - 1 (its
+  max_tagged_integer on 64 bits), fails, at the top or as a step, as
+  swipl's FALSE there.
+- The order is read after the whole key as PL_get_atom_ex() reads it:
+  anything but an atom type_error(atom, O), where through 3.49.1 it was
+  domain_error(order, O); and swipl's other names, `<`, `=<`, `>` and
+  `>=`, sort as `@<`, `@=<`, `@>` and `@>=`, where each was that
+  domain error too.
+- atomics_to_string/3 splits an unbound tail as atomic_list_concat/3
+  does, swipl's one atomic_list_concat() for PL_STRING: the text of the
+  third argument cut at the separator, the parts ATOMS as split_atom()
+  makes them, and an empty separator domain_error(non_empty_atom, Sep).
+  An unbound element is instantiation_error still, as swipl's: only the
+  atom's version splits there. The split is the engine's now
+  (`coco_tx_split`, lib/solve-text.cicili), which atomic_list_concat/3
+  shares; library(flow)'s table has the new mode and the two text rows.
+
+test/files/sort_keys.pl, new, holds 115 lines to swipl, byte for byte
+(3.49.1 differs at 53 of them).
+
+The arms, one build each over sort_keys: the arm of no edit green, and
+each of the nine rules red -- a list of keys a path, a step of another
+kind a failure, 0 no step, each element walked step by step, the tagged
+bound, the order's other names, the order's type_error(atom, O), the
+split of an unbound tail and its empty separator.
+
+The cost: a comparison reads its key along the path the walk checked,
+with no arity test of its own. Four sorts of 20 000 elements (keysort/2,
+sort/4 by 1, by 0 descending, and by 1 over `f(g(K, N))`) count the
+sort's own instructions 58.1 million where 3.49.1 counts 67.9 (-14.5 %),
+the program 490.3 million where 500.2, coco_compare's 206.7 million the
+same. tools/flow/zero.sh against 3.49.1, the binaries at like paths:
+nrev, queens and lookup the same to the instruction, work and padding.
+
+Narrow cases green: lint, flowchart, files, string, units, engine,
+cyclic, errors, library and lesson 07. Reasoning stays 1.0.27.
