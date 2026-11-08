@@ -145,9 +145,31 @@ last_line(Text, Last) :-
     atom_codes(Text, Cs),
     ( codes_lines(Cs, Ls), Ls \== [], last(Ls, L) -> atom_codes(Last, L) ; Last = '' ).
 
+%% A FAILED CHECK'S DETAIL GOES WITH ITS FAIL LINE: the lines right after
+%% it that begin with a space -- check/3's `got' and `want', and what a
+%% case prints under them (test/tutorials.pl's last four lines of a
+%% lesson, where a must/3 names both answers) -- eight at most a check,
+%% for the first five checks. Through 3.48.2 the FAIL lines alone were
+%% kept: run 42461896352's Intel Mac said `FAIL tutorials/library/54-async'
+%% and nothing of what the lesson said, and the case was green when run
+%% again alone, so nothing was left to find the cause by
 fail_lines(Text) :-
-    atom_codes(Text, Cs), re_lines('^FAIL', Cs, Ls), head_lines(5, Ls, Five),
-    forall(member(L, Five), ( atom_codes(LA, L), format("~w~n", [LA]) )).
+    atom_codes(Text, Cs), codes_lines(Cs, Ls), fail_blocks(Ls, 5, Out),
+    forall(member(L, Out), ( atom_codes(LA, L), format("~w~n", [LA]) )).
+
+fail_blocks(_, 0, []) :- !.
+fail_blocks([], _, []).
+fail_blocks([L|Ls], K, Out) :-
+    (   L = [0'F, 0'A, 0'I, 0'L|_]
+    ->  detail_lines(Ls, 8, Ds, Rest), K1 is K - 1,
+        append([L|Ds], Out1, Out), fail_blocks(Rest, K1, Out1)
+    ;   fail_blocks(Ls, K, Out)
+    ).
+
+%% a line that begins with a space (code 32) is the check's detail
+detail_lines([L|Ls], N, [L|Ds], Rest) :-
+    N > 0, L = [32|_], !, N1 is N - 1, detail_lines(Ls, N1, Ds, Rest).
+detail_lines(Ls, _, [], Ls).
 
 %% A SKIPPED CASE'S REASON, its first SKIP line, under the case's line and
 %% indented (tools/ci/verdict.sh takes a case's line for its verdict and

@@ -687,8 +687,12 @@ line said only `BUILD FAILED`, over a tail ending on clang's command line.
   the Macs files and trace too, as no Mac package is the reference swipl
   9.0.4 and the Macs have none) is red. **A case that may now SKIP on a plain
   install goes into `allowed_skips` in the same commit.** Each red case is
-  run again alone (its whole output: the runner keeps five FAIL lines, the
-  last twenty of a case that did not end on its own RED -- it raised, or a
+  run again alone (its whole output: the runner keeps five FAIL lines, each
+  with the indented lines under it, eight at most -- check/3's `got` and
+  `want`, test/tutorials.pl's last lines of a lesson: `fail_blocks/3`,
+  3.48.3, after run 42461896352's Intel Mac kept `FAIL
+  tutorials/library/54-async` alone and the lesson was green alone again --
+  the last twenty of a case that did not end on its own RED -- it raised, or a
   goal failed: `raised_tail/2`, 2.14.1 -- and a SKIP's first reason line,
   indented under its case's line, `skip_reason/1`, which verdict.sh names in
   the annotation of a SKIP the job does not allow), and the logs
