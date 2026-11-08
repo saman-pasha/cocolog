@@ -16,7 +16,7 @@
 %% (COMPAT.md).
 
 :- set_prolog_flag(double_quotes, codes).
-:- dynamic d/1, n2/1, n3/1.
+:- dynamic d/1, n2/1, n3/1, sd/1.
 
 %% a dynamic predicate's clauses keep their unifications, a file's too
 n3(X) :- X = 1, b.
@@ -239,6 +239,48 @@ g17 --> {a}, !, {b}.
 g18(X) --> [X].
 g19 --> foo:a.
 
+%% a unification of a variable with itself is `true' where the body runs
+%% it (3.48.3, as swipl's compileBodyUnify() makes it I_TRUE): through the
+%% constructs, a qualifier, `$/1' and `@/2', never in a goal's argument
+%% nor of two terms; and the unifications that begin a body move past it
+s1(X) :- X = X.
+s2(X) :- b, X = X, c.
+s3(X, Y) :- X = Y, Y = X.
+s4(X) :- ( X = X ; true ).
+s5(X) :- \+ X = X.
+s6(X) :- X = X, X = a.
+s7(f(X)) :- X = X.
+s8 :- X = X, b(X).
+s9(X) :- ( b -> X = X ; c ).
+s10(X) :- call(X = X).
+s11(X) :- user:(X = X).
+s12(X) :- lists:(X = X).
+s13(M, X) :- M:(X = X).
+s14(X) :- $(X = X).
+s15(X) :- @(X = X, user).
+s16(X) :- X = X, X = X, X = a.
+s17(X, Y) :- X = X, Y = b.
+s18(X) :- forall(X = X, true).
+s19(X) :- X = X, b(X), X = a.
+s20(X, Y) :- X = X, Y = f(X).
+s21(X) :- b(X), X = X, X = a.
+s22(X) :- ( X = X, X = a ; true ).
+s23(X) :- X = X, !, X = a.
+s24(X, Y) :- f(X) = f(X), Y = b.
+s25(X) :- _ = X, X = X.
+s26 :- X = X, X = f(Y), b(Y).
+s27 :- X = X, _Y = X.
+sd(X) :- X = X, X = a.
+s28(X) :- X = a, ( X = X ; true ).
+s29(X) :- X = a, \+ X = X.
+s30(X) :- X = a, lists:(X = X).
+s31(X) :- X = a, $(X = X).
+s32(X) :- X = a, @(X = X, user).
+s33(M, X) :- X = a, M:(X = X).
+s34(X) :- X = a, ( b -> X = X ; c ).
+s35(X) :- X = a, b, c, X = X.
+s36(X) :- X = a, b(X = X).
+
 q.
 t1 :- user:(member(X, [1, 2, 3]), !), write(X), nl, fail.
 t1 :- write(second), nl.
@@ -257,7 +299,7 @@ show(N/A) :-
 t(G) :- catch(( G -> R = yes ; R = no ), E, R = E), pv(R), nl.
 
 main :-
-    forall(member(P, [c1/0,c2/0,c3/0,c4/0,c5/1,c6/1,c7/0,c8/0,c9/0,c10/0,c11/0,c12/0,c13/0,c14/0,c15/0,c16/1,c17/2,c18/1,c19/0,c20/0,c21/0,c22/0,c23/0,c24/0,c25/0,c26/1,c27/1,c28/2,c29/1,c30/0,c31/0,c32/0,c33/1,c34/1,c35/1,c36/0,c37/1,c38/1,c39/1,c40/0,c41/0,c42/0,c43/1,c44/1,c45/1,c46/1,c47/1,c48/0,c49/0,c50/2,u1/2,u3/2,u4/1,u5/2,u9/2,u10/1,u11/1,u12/1,u14/1,u17/1,u18/1,u19/1,u20/1,u21/2,u22/1,u24/1,u26/1,u27/1,u29/2,u33/2,u34/2,u36/1,u37/1,u38/2,u39/1,u40/1,u41/1,u42/1,u43/1,u44/1,u45/1,u46/3,u48/1,u49/1,u50/2,u51/1,u52/1,u53/1,u54/1,u57/2,w1/0,w2/0,w3/1,w4/2,w5/1,w6/1,w7/1,w8/2,w9/1,w10/2,w11/1,w12/2,w13/1,w14/1,w15/0,w16/0,w17/1,w18/1,w19/0,w20/0,w21/1,w22/1,x1/0,x2/0,x3/0,x4/0,x6/1,x7/0,x8/0,x9/0,x11/0,x12/0,x13/0,x14/0,x15/1,x16/0,x17/1,x18/0,x19/0,x20/0,x21/1,x22/1,x23/0,x24/1,x25/2,x26/1,x27/1,x28/1,x29/2,x30/0,x31/0,x32/1,x33/0,x34/0,x35/0,x36/0,x37/0,x38/0,x39/0,x40/0,y1/0,y3/0,y4/1,y5/1,y6/1,y7/0,y8/0,y9/0,y10/0,y12/3,y13/1,y14/2,y15/1,y17/2,y18/0,y19/1,y20/1,y21/1,y22/1,y23/1,y24/0,y25/0,y26/0,y27/0,y28/0,y29/1,y30/1,z1/1,z2/1,z3/1,z5/1,z6/1,z7/1,z8/1,z9/1,z10/2,z11/1,z12/1,z13/2,z14/0,z15/0,z16/1,z17/0,z18/1,k/2,g1/2,g2/2,g3/2,g4/2,g5/2,g6/2,g7/2,g8/2,g9/2,g10/2,g11/2,g12/2,g13/3,g14/2,g15/2,g16/2,g17/2,g18/3,g19/2]),
+    forall(member(P, [c1/0,c2/0,c3/0,c4/0,c5/1,c6/1,c7/0,c8/0,c9/0,c10/0,c11/0,c12/0,c13/0,c14/0,c15/0,c16/1,c17/2,c18/1,c19/0,c20/0,c21/0,c22/0,c23/0,c24/0,c25/0,c26/1,c27/1,c28/2,c29/1,c30/0,c31/0,c32/0,c33/1,c34/1,c35/1,c36/0,c37/1,c38/1,c39/1,c40/0,c41/0,c42/0,c43/1,c44/1,c45/1,c46/1,c47/1,c48/0,c49/0,c50/2,u1/2,u3/2,u4/1,u5/2,u9/2,u10/1,u11/1,u12/1,u14/1,u17/1,u18/1,u19/1,u20/1,u21/2,u22/1,u24/1,u26/1,u27/1,u29/2,u33/2,u34/2,u36/1,u37/1,u38/2,u39/1,u40/1,u41/1,u42/1,u43/1,u44/1,u45/1,u46/3,u48/1,u49/1,u50/2,u51/1,u52/1,u53/1,u54/1,u57/2,w1/0,w2/0,w3/1,w4/2,w5/1,w6/1,w7/1,w8/2,w9/1,w10/2,w11/1,w12/2,w13/1,w14/1,w15/0,w16/0,w17/1,w18/1,w19/0,w20/0,w21/1,w22/1,x1/0,x2/0,x3/0,x4/0,x6/1,x7/0,x8/0,x9/0,x11/0,x12/0,x13/0,x14/0,x15/1,x16/0,x17/1,x18/0,x19/0,x20/0,x21/1,x22/1,x23/0,x24/1,x25/2,x26/1,x27/1,x28/1,x29/2,x30/0,x31/0,x32/1,x33/0,x34/0,x35/0,x36/0,x37/0,x38/0,x39/0,x40/0,y1/0,y3/0,y4/1,y5/1,y6/1,y7/0,y8/0,y9/0,y10/0,y12/3,y13/1,y14/2,y15/1,y17/2,y18/0,y19/1,y20/1,y21/1,y22/1,y23/1,y24/0,y25/0,y26/0,y27/0,y28/0,y29/1,y30/1,z1/1,z2/1,z3/1,z5/1,z6/1,z7/1,z8/1,z9/1,z10/2,z11/1,z12/1,z13/2,z14/0,z15/0,z16/1,z17/0,z18/1,k/2,g1/2,g2/2,g3/2,g4/2,g5/2,g6/2,g7/2,g8/2,g9/2,g10/2,g11/2,g12/2,g13/3,g14/2,g15/2,g16/2,g17/2,g18/3,g19/2,s1/1,s2/1,s3/2,s4/1,s5/1,s6/1,s7/1,s8/0,s9/1,s10/1,s11/1,s12/1,s13/2,s14/1,s15/1,s16/1,s17/2,s18/1,s19/1,s20/2,s21/1,s22/1,s23/1,s24/2,s25/1,s26/0,s27/0,sd/1,s28/1,s29/1,s30/1,s31/1,s32/1,s33/2,s34/1,s35/1,s36/1]),
            show(P)),
     %% asserted clauses are compiled as consulted ones
     assertz((d(X) :- (b, c), X = f(Y), g(Y))), show(d/1),
@@ -266,6 +308,7 @@ main :-
     assertz((v2(X2) :- X2 = f(Y2), g(Y2))), show(v2/1),
     assertz((v3(X3) :- (X3 = 1, b), c)), show(v3/1),
     asserta((v4(X4, Y4) :- X4 = Y4)), show(v4/2),
+    assertz((v6(X13) :- X13 = X13, X13 = a)), show(v6/1),
     assertz((v5(X5) :- X5 = 1)),
     t(clause(v5(2), _)),
     t(clause(u27(f(q)), _)),

@@ -739,7 +739,8 @@
   ;;;   tests (`coco_cbody_inline') -- and under a variable M each goal is
   ;;;   call(M:G).
   ;;; - A UNIFICATION WITH A VARIABLE THE CLAUSE NAMES NOWHERE ELSE is
-  ;;;   `true' (`b, _ = 2, d' is `b, true, d').
+  ;;;   `true' (`b, _ = 2, d' is `b, true, d'). So is one of a variable with
+  ;;;   itself (3.48.3: `X = X'), which names it nowhere.
   ;;; - THE UNIFICATIONS THAT BEGIN THE BODY GO INTO THE HEAD, under swipl's
   ;;;   flag `optimise_unify' (`coco_cbody_scan'): `p(X) :- X = f(Y), q(Y)'
   ;;;   is `p(f(Y)) :- q(Y)', and a body left with nothing is `true'.
@@ -820,11 +821,15 @@
   (func coco_cbody_isvar ((coco_machine * m) (size_t t)) (out int)
         (return (coco-tag-is REF (nth (coco_deref m t) (-> m heap)))))
 
-  ;;; A `=/2' one side of which the clause names nowhere else: `true'.
+  ;;; A `=/2' one side of which the clause names nowhere else: `true'. And
+  ;;; one of a variable with itself (3.48.3, swipl's compileBodyUnify()
+  ;;; makes it I_TRUE: `p(X) :- X = X' is `p(X) :- true'), asked first, so
+  ;;; that it counts nothing.
   (static)
   (func coco_cbody_void ((coco_machine * m) (coco_cbody * cb) (size_t g)) (out int)
         (let ((size_t a . #'(coco_deref m (coco_arg m g 0)))
               (size_t b . #'(coco_deref m (coco_arg m g 1))))
+          (if (and (== a b) (coco_cbody_isvar m a)) (return 1))
           (return (or (and (coco_cbody_isvar m a) (== (coco_cbody_n m cb a) 1))
                       (and (coco_cbody_isvar m b) (== (coco_cbody_n m cb b) 1))))))
 
@@ -1056,11 +1061,49 @@
         (if (coco_cbody_inline (coco_arity m g) (coco_atom_name m (coco_name_of m g))) (return g))
         (return (coco_cbody_wrap m cb g mod)))
 
+  ;;; HOW OFTEN X STANDS IN AN `X = X' WHERE THE BODY RUNS IT (3.48.3), two
+  ;;; a goal, walked as `coco_cbody_goal' walks the constructs and as deep:
+  ;;; such a goal is `true' (`coco_cbody_void') and names X nowhere, so the
+  ;;; head takes a unification of X past it, as swipl's `p(X) :- X = X,
+  ;;; X = a' is `p(a) :- true'. One in a goal's argument still names X.
+  (static)
+  (func coco_cbody_selfeq ((coco_machine * m) (size_t g) (size_t x) (int depth)) (out size_t)
+        (set g (coco_deref m g))
+        (if (or (> depth 256) (not (coco-tag-is FUN (nth g (-> m heap))))) (return 0))
+        (let ((int k . #'(coco_cbody_kind m g)))
+          (cond
+            ;; a conjunction's spine walked, each goal one deeper
+            ((== k 1)
+             (let ((size_t s . 0) (size_t t . g))
+               (while (== (coco_cbody_kind m t) 1)
+                 (set s (+ s (coco_cbody_selfeq m (coco_arg m t 0) x (+ depth 1))))
+                 (set t (coco_deref m (coco_arg m t 1))))
+               (return (+ s (coco_cbody_selfeq m t x (+ depth 1))))))
+            ((and (>= k 2) (<= k 5))
+             (return (+ (coco_cbody_selfeq m (coco_arg m g 0) x (+ depth 1))
+                        (coco_cbody_selfeq m (coco_arg m g 1) x (+ depth 1)))))
+            ((or (== k 6) (or (== k 9) (== k 10)))
+             (return (coco_cbody_selfeq m (coco_arg m g 0) x (+ depth 1))))
+            ;; under a module, or a variable one; an M that is no module
+            ;; keeps the goal as written
+            ((== k 7)
+             (let ((size_t mm . #'(coco_deref m (coco_arg m g 0))))
+               (if (or (coco-tag-is REF (nth mm (-> m heap)))
+                       (and (coco-tag-is ATOM (nth mm (-> m heap))) (not (coco_is_nil m mm))))
+                   (return (coco_cbody_selfeq m (coco_arg m g 1) x (+ depth 1))))
+               (return 0)))
+            ((== k 8)
+             (return (? (and (== (coco_deref m (coco_arg m g 0)) x)
+                             (== (coco_deref m (coco_arg m g 1)) x))
+                        2 0)))
+            (#t (return 0)))))
+
   ;;; THE UNIFICATIONS THAT BEGIN THE BODY (3.15.0), as swipl's compiler
   ;;; takes them into the head: the leading goals walked, a `true' and a
   ;;; `=/2' passed, anything else ending the walk. A `=/2' of a variable
   ;;; and something that is not one, where the variable is an argument of
-  ;;; HEAD and the clause names it nowhere else (twice in all), moves: the
+  ;;; HEAD and the clause names it nowhere else (twice in all, an `X = X'
+  ;;; none: `coco_cbody_selfeq'), moves: the
   ;;; argument becomes the other side (MOVED's I is it, TO the term) and the
   ;;; goal leaves the body. Any other `=/2' stays and the walk goes on, a
   ;;; void one (`coco_cbody_void') becoming `true'. Not swipl's: its
@@ -1089,7 +1132,11 @@
           (if (== av bv) (return 1))
           (set x (? av a b))
           (set t (? av b a))
-          (if (!= (coco_cbody_n m cb x) 2) (return 1))
+          ;; twice in all, its `X = X's left out (3.48.3)
+          (let ((size_t n . #'(coco_cbody_n m cb x)))
+            (if (> n 2)
+                (set n (- n (coco_cbody_selfeq m (coco_arg m (-> cb clause) 1) x 0))))
+            (if (!= n 2) (return 1)))
           (for ((u32 i . 0)) (< i (coco_arity m head)) ((++ i))
             (if (== (coco_deref m (coco_arg m head i)) x)
                 (block

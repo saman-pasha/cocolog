@@ -15579,8 +15579,11 @@ step loop is not touched (tools/flow/zero.sh, work less padding: nrev
 48 034 850 and 48 044 684): lookup's 9 834 more are memcmp in
 `coco_intern_len` (+9 032: the same 1 011 interns of the run, each probe
 meeting other names, the start having interned others) and memset
-(+1 633). A start (`cocolog query true`, from the checkout root) is
-35 772 307 instructions and 35 746 055 (-26 252): 8 251 and 8 258 calls of
+(+1 633). (Corrected at 3.48.3: a binary's path moves lookup's libc
+counts, and the two trees' paths differ. At paths of one length 3.48.0
+counts nrev +70, queens -146 and lookup -634; CLAUDE.md, Measuring.) A
+start (`cocolog query true`, from the checkout root) is 35 772 307
+instructions and 35 746 055 (-26 252): 8 251 and 8 258 calls of
 strcmp in `coco_assert_from` cost 81 963 fewer (where the names lie),
 against the reader's +11 970 and `coco_functor_id`'s +14 815 for the
 declarations and clauses the halves gained, and `coco_pred_make`'s +5 391
@@ -15680,7 +15683,10 @@ guard a last call drops (C08); the arm of no edit green, on the first code
 and on the last. tools/flow/zero.sh against 3.48.1, work less padding:
 nrev 66 132 203 and 66 132 331, queens 40 253 916 and 40 254 111, lookup
 48 028 375 and 48 040 066 -- all of lookup's +11 691 libc's memcmp
-(+9 036) and memset (+2 048), no function of cocolog's moving by 200. A
+(+9 036) and memset (+2 048), no function of cocolog's moving by 200.
+(Corrected at 3.48.3: the 3.48.1 copy stood in the scratchpad and 3.48.2 in
+the checkout. At paths of one length 3.48.2 counts nrev +0, queens +0 and
+lookup +20.) A
 start (`cocolog query true`, each binary from the checkout root) is
 35 736 535 instructions and 35 738 696 (+2 161: the `*` test's strcmp for
 each atom argument of the preloaded libraries' meta specs, less the
@@ -15691,3 +15697,50 @@ lines. Narrow cases green, each alone on the binary as committed: lint,
 files (132 cases), repl, engine, errors, reconsult, directives, trace,
 library, reason, normalise and translate, and the lessons that list or
 declare, basics 10 and 11 and library 03 and 37.
+
+## A body's `X = X` stored as `true`, as swipl's compiler keeps it (3.48.3)
+
+swipl's compileBodyUnify() makes a unification of a variable with itself
+I_TRUE, and its clause/2 and listing/1 give it back as `true`; cocolog kept
+it as written (`p(X) :- X = X` was `p(A) :- A=A`). Found by 3.48.2's
+listing case, where `mq(G, X, M) :- call(G, X), M = M.` lists swipl's
+`call(A, B), true`. It is `true` now wherever the body runs it
+(`coco_cbody_void` in lib/kb-consult.cicili, asked before the clause's
+variables are counted): in a conjunction, in the arms of `;`, `->`, `*->`
+and `\+`, under a qualifier, a variable one too, and in `$/1` and `@/2`.
+In a goal's argument it is data, and stays (`call(X = X)`,
+`forall(X = X, true)`), as two terms stay (`f(X) = f(X)`).
+
+The unifications that begin the body move into the head past it, as
+swipl's do: `p(X) :- X = X, X = a.` is `p(a) :- true`, a file's or a
+first assert's, and `p(X, Y) :- X = X, Y = b.` is `p(A, b) :- true`.
+cocolog moves only a variable the clause names nowhere else, and an
+`X = X` the body runs now names it nowhere: the move's count leaves such
+goals out (`coco_cbody_selfeq`, walking the constructs as
+`coco_cbody_goal` does). The void rule keeps its count, as swipl's void
+variables are counted over the whole clause: `p :- X = X, X = f(Y),
+b(Y)` keeps `A=f(B)`. A `:- dynamic` predicate's clause moves nothing, as
+before (`sd(X) :- X = X, X = a` is `sd(A) :- true, A=a`).
+
+test/files/clause_body.pl holds them: 302 lines, 38 of them new, swipl
+9.0.4's byte for byte (3.48.2 differs at 217). The arms, a build each
+with one rule taken out, each red in it and green in listing_layout,
+listing_spec, warnings_branch and warnings_tests:
+
+| arm | the rule taken out |
+|---|---|
+| D01 | `X = X` of a variable is `true` (`coco_cbody_void`) |
+| D02 | the move's count leaves an `X = X` out (`coco_cbody_scan`) |
+| D03 | the count's walk through a conjunction |
+| D04 | ... the arms of `;`, `\|`, `->` and `*->` |
+| D05 | ... `\+`, `$/1` and `@/2` |
+| D06 | ... a qualifier, a variable one too |
+
+The arm of no edit is green in all five. tools/flow/zero.sh against
+3.48.2, both at paths of one length (the bullet in CLAUDE.md's
+Measuring), work less padding: nrev +22 instructions, queens +90, lookup
++0. A start is 6 410 more of 35 738 696 (+0.018 %): the void rule's
+test of `=/2`'s two sides and the count's walk, asked of the libraries'
+clauses as they are stored. Narrow cases: lint, files, repl, engine,
+errors, reconsult, directives, trace, library, reason, normalise and
+translate green. Reasoning stays 1.0.27.

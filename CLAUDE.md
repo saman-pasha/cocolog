@@ -897,6 +897,17 @@ line said only `BUILD FAILED`, over a tail ending on clang's command line.
   padding apart; a function's own count, per function, is the same parse
   (its header). And a source change in the step loop moves the loop's
   register allocation whatever it says (DESIGN-flow.md 9.1).
+* **zero.sh's binaries stand at paths of one length** (3.48.3): where a
+  binary stands moves lookup's count, all of it libc's memcmp and memset.
+  The same 3.48.2 counted lookup 11 671 instructions more from the
+  checkout than from the scratchpad. 3.48.0's lookup +9 834 and 3.48.2's
+  +11 691 were the checkout against an older copy in the scratchpad: at
+  like paths they are -634 and +20. Copy each binary into a sibling
+  directory, `lib` and `library` linked to the checkout
+  (`DIR/t3482/cocolog`, `DIR/t3483/cocolog`), and count them in one
+  invocation. A start is counted with each binary swapped in at the
+  checkout's own path: from the scratchpad, realpath and strcmp count
+  some 31 000 more.
 * **A process's speed can depend on where the kernel loads it.** 2.14.1's
   counting loop runs about 30 % slower whenever the binary's base has
   address bits 12 and 13 both set -- one load in four, 60 runs of 60 sorted
@@ -2002,7 +2013,12 @@ cocolint index offers no import of it.
   lost by the ones swipl compiles in place (`coco_cbody_inline`: `!`,
   `true`, `fail`, `=`, `==`, `\==`, the type tests), and under a variable
   M each goal call(M:G); a `=/2` with a variable the clause names
-  nowhere else `true`; and under `optimise_unify` the unifications that
+  nowhere else `true`, and since 3.48.3 one of a variable with itself
+  (`X = X`, swipl's compileBodyUnify() I_TRUE, test/files/clause_body.pl),
+  which names its variable nowhere for the move below
+  (`coco_cbody_selfeq`, the walk `coco_cbody_goal` makes, so a new
+  compiled-in-place construct goes into it too); and under
+  `optimise_unify` the unifications that
   begin the body moved into the head (`coco_cbody_scan`: a `true` or a
   `=/2` passed, anything else ending the walk, a qualified one too, read
   from the clause as written) -- **of a static predicate's clause only**,
