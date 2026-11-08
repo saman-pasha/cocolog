@@ -632,24 +632,34 @@ nested_engines_collect(C, D) :-
 %% failed: 4', a term read at a cell the collection had moved.
 directives_collect(C, D) :-
     atom_concat(D, '/dir.pl', F17), atom_concat(D, '/dir_b.pl', F17b),
-    fixture(F17b, [ ':- churn(2000), mk(3, L), L == [3, 2, 9].',
+    %% the first directive of a file a directive loads has junk under it,
+    %% which the directive that loads it made last, and its collection
+    %% moves its variables down over that junk (3.51.0)
+    fixture(F17b, [ ':- X = f(Y), col(vb), mk(2, Y), vn, X == f(Y).',
+                    ':- churn(2000), mk(3, L), L == [3, 2, 9].',
                     ':- col(b).',
                     ':- initialization(col(bi)).' ]),
-    atomic_list_concat([':- churn(300), ( true -> ensure_loaded(''', F17b, ''') ; true ), col(d2).'], Load17),
+    atomic_list_concat([':- churn(300), junk, ( true -> ensure_loaded(''', F17b, ''') ; true ), col(d2).'], Load17),
     fixture(F17, [ 'mk(0, []) :- !.',
                    'mk(N, [N|T]) :- N1 is N - 1, mk(N1, T).',
                    'churn(0) :- !.',
                    'churn(N) :- mk(50, _), N1 is N - 1, churn(N1).',
+                   'junk :- mk(500, _).',
                    'col(Tag) :- statistics(heap_collections, A), churn(2000), statistics(heap_collections, B), ( B > A -> C = collected ; C = kept ), write(Tag-C), nl.',
+                   'vn :- prolog_load_context(variable_names, B), write(B), nl.',
                    ':- initialization(col(i1)).',
                    ':- col(d1).',
                    ':- initialization(col(i2), now).',
                    ':- X = f(Y), churn(2000), mk(4, Y), write(X), nl.',
+                   %% prolog_load_context/2's bindings are the goal's own
+                   %% variables, kept a root while it collects (3.51.0)
+                   ':- X = f(Y), col(vn), mk(2, Y), vn, X == f(Y).',
                    ':- catch((churn(2000), mk(3, L), throw(ball(L))), ball(B), (write(caught(B)), nl)).',
                    Load17,
                    'go :- col(main).' ]),
-    atomic_list_concat([ 'd1-collected\ni2-collected\nf([4,3,2,1])\ncaught([3,2,1])\n',
-                         'Warning: ', F17b, ':1:\n',
+    atomic_list_concat([ 'd1-collected\ni2-collected\nf([4,3,2,1])\nvn-collected\n[X=f([2,1]),Y=[2,1]]\ncaught([3,2,1])\n',
+                         'vb-collected\n[X=f([2,1]),Y=[2,1]]\n',
+                         'Warning: ', F17b, ':2:\n',
                          'Warning:    Goal (directive) failed: user:(churn(2000),mk(3,_G),_G==[3,2,9])\n',
                          'b-collected\nbi-collected\nd2-collected\ni1-collected\nmain-collected' ], Want17),
     sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' run ', F17, ' go 2>&1'], Cmd17),

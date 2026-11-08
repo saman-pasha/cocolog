@@ -15903,3 +15903,99 @@ nrev, queens and lookup the same to the instruction, work and padding.
 
 Narrow cases green: lint, flowchart, files, string, units, engine,
 cyclic, errors, library and lesson 07. Reasoning stays 1.0.27.
+
+
+## prolog_load_context/2's module, variable_names, term and reloading (3.51.0)
+
+prolog_load_context/2 answered `module` as `user` wherever it was asked,
+and `variable_names`, `term` and `reloading` not at all, where swipl
+9.0.4's boot/syspred.pl answers each while a load reads. A minor, as the
+four answer now.
+
+- `module` is the module/2 read's module while a load reads its file (the
+  read's `ssu_mod`), and `user` outside one and where no load reads -- an
+  initialization/1 goal run after its file among them, as swipl's
+  '$current_source_module' is.
+- `variable_names` is the term in hand's bindings, `[Name = Var, ...]` in
+  the order the reader met the names (`_` none, `_X` one), while the load
+  asks term_expansion/2 or goal_expansion/2 of the term and while a
+  directive's goal runs: the term's own variables, bound as the goal binds
+  them. `[]` at a file's end and outside a load. At a file's start, and in
+  a directive the start expands to, they are those of the read around the
+  load -- a nested load's are its directive's -- as swipl's begin_of_file
+  sets no '$variable_names'. They are built when a goal asks, from the
+  reader's names (`coco_consult_vn`): the machine points at the reader
+  (`sloc_rd`), and a directive's goal, which may collect, holds the
+  reader's variables as a root of the collector.
+- `term` is the term as read while a hook runs (`sloc_tp`): the read term
+  still where goal_expansion/2 is asked of a clause term_expansion/2 gave,
+  or of a grammar rule's translation. `[]` while a directive's goal runs,
+  and failing outside a load, as swipl's '$term' reads.
+- `reloading` is true through a read of a file the store read before
+  (`coco_consult_oid`'s AGAIN), a nested read's its own, and fails
+  otherwise.
+
+What stays apart (COMPAT.md's row): `stream` fails, a load reading text;
+and expand_term/2 called as a goal sets no '$term', which swipl's sets to
+the term while its hooks run and to `[]` after. That waits on b_setval/2,
+which here is nb_setval/2 under another name -- it copies its term and
+nothing undoes it -- where swipl's is backtrackable (the next task).
+
+test/files/load_context.pl, new, holds 329 lines to swipl, byte for byte
+(3.50.0 differs at 94 of them): the case writes the files it loads --
+a file with an include, a hook asked of a term with `_X` in it, goal
+expansion of a clause, directives with variables, a nested consult from
+a directive with a variable, a file read again, a first read that reads
+another again, a module and the module read again, the start and the
+end of each, a directive the start expands to -- and reports each key at
+each place. test/gc.pl's directive section binds a directive's variables
+across a collection and prints the bindings after it, in the file run
+and as the first directive of a file a directive loads.
+
+The arms, one build each, every rule taken out alone: the arm of no edit
+green, and each of the sixteen rules red -- fifteen in load_context, and
+the root in test/gc.pl, which holds three of the others to it too. The
+rules: `module` the read's (red), `user` where no load reads (red), the
+bindings asked at all (red in both), the term while a hook runs (red),
+`[]` while a directive's goal runs (red), `reloading` through a read the
+store read before (red) and a nested read's flag put back (red), a
+directive's term and reader put back after its goal (red), a hook's
+(red), a hook's bindings the reader's (red), the bindings around the
+load at a file's start (red) and none at its end (red), a directive's
+bindings the reader's (red in both), a directive the start expands to
+keeping the ones around the load (red), the bindings in the reader's
+order (red in both), and the reader's variables a root of the collector
+while a directive's goal collects (red in gc.pl, the bindings it printed
+`[X=35,Y=[35,34,...]]`, cells of the lists churn made at the places the
+variables had left). Two were green over the first cut of the cases, and
+the cases were sharpened until they went red: the flag put back, green
+while lc_b read the file again before the other and red once it reads it
+after; and the root, green while the directive that prints its bindings
+moved nothing in its collection, and again while it stood third in the
+file a directive loads -- the two directives before it had collected the
+junk under it already -- and red with it first, over the junk the
+directive that loads the file made last.
+
+The cost, against 3.50.0 at like paths: a start counts 35 826 162
+instructions where 3.50.0 counts 35 780 707 (+45 455, +0.13 %), the five
+new clauses of '$plc'/2 and the consult loop over the libraries' terms.
+A load of 5 000 clauses and 500 directives, no hook: +208 829 (+0.12 %);
+the consult loop's own work is +52 007, 5 instructions a term (the term
+as read kept for a hook, and a spill) and 48 a directive (the reader's
+variables pushed as a root, the context saved and put back), and +28 507
+its padding; libc's strcmp is +79 642 on the same calls within 75, each
+0.12 instructions dearer at the strings' new addresses. The same load
+with a term_expansion/2 asked of every term: +318 966 (+0.14 %), the
+hook's call 12 instructions dearer. The translator's load
+(library(reasoning/translate)): +159 113 of 412.3 million (+0.04 %).
+tools/flow/zero.sh: nrev -22 instructions, queens +50, lookup +3 402,
+work less padding. The first cut built the bindings of every term a hook
+was asked of, whether or not a goal asked for them, and the hooked load
+cost 4.7 % more; built when a hook asks but still at every directive,
+0.37 % (500 directives of one variable each interning their names and
+making their `=`/2 terms). Both are built where prolog_load_context/2
+asks now.
+
+Narrow cases green: lint, files, gc, library, repl, script, directives,
+reconsult, errors, flowchart, engine, trace and backtrace. Reasoning stays
+1.0.27.

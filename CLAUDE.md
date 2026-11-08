@@ -519,9 +519,16 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   loaded after a hook is expanded, as swipl's. **prolog_load_context/2**
   answers `file` and `term_position` from the machine's `sloc_file`,
   `sloc_text` and `sloc_off`, `source` from `sloc_src` (the loaded file
-  where an include stands), `directory` the file's: **a new site that sets
-  `sloc_file` for a goal sets the other three too**, as the directive's and
-  the hook's do. A grammar rule a load translates makes its predicate a
+  where an include stands), `directory` the file's, and since 3.51.0
+  `module` from the read's `ssu_mod`, `term` from `sloc_tp` (the term as
+  read, while a hook runs; `[]` in a directive's goal), `variable_names`
+  from the reader `sloc_rd` names, built when asked (a directive's goal,
+  which may collect, holds the reader's variables as a root; a file's
+  start keeps the reader around the load, swipl's begin_of_file setting no
+  '$variable_names') and `reloading` from `sloc_reload`: **a new site
+  that sets `sloc_file` for a goal sets `sloc_src`, `sloc_text`,
+  `sloc_off`, `sloc_tp` and `sloc_rd` too**, as the directive's and the
+  hook's do. A grammar rule a load translates makes its predicate a
   non-terminal (`pattrs` 16, `coco_pred_nt_mark`), as non_terminal/1 does,
   and expand_term/2 gives a rule its `:- non_terminal` only where the
   predicate is none yet, as swipl's (COMPAT.md has what is not swipl's).

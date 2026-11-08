@@ -282,8 +282,10 @@ flow_mode(setenv, 2, ['+', '+'], det).
 flow_mode(unsetenv, 1, ['+'], det).
 flow_mode(source_location, 2, ['-', '-'], semidet).
 %% prolog_load_context/2's C half (3.14.0): the load's file, its source and
-%% the term's place while a hook or a directive of it runs; fails anywhere
-%% else
+%% the term's place while a hook or a directive of it runs, failing
+%% anywhere else; and since 3.51.0 the module, `user' where no load reads,
+%% the term's bindings, `[]' there, the term, `[]' in a directive and
+%% failing outside a load, and whether the load reads a file again
 flow_mode('$load_context', 2, ['+', '-'], semidet).
 %% predicate_property/2's implementation_module(M) of a head named (3.41.0,
 %% swipl's property_predicate/2): fails for a head that is no callable term

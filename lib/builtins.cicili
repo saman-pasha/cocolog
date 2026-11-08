@@ -866,18 +866,22 @@
 
            ;; ---- prolog_load_context/2, swipl's (3.14.0) -------------------
            ;; Its keys in swipl's order, which a variable key walks. Where
-           ;; no load reads, `module', `dialect' and `script' answer and the
-           ;; others fail, as swipl's do; `stream', `variable_names' and
-           ;; `term' answer nothing here (a load reads text, not a stream,
-           ;; and keeps no names)
+           ;; no load reads, `module', `dialect', `script' and
+           ;; `variable_names' answer and the others fail, as swipl's do;
+           ;; `stream' answers nothing here (a load reads text, not a
+           ;; stream). `module', `variable_names', `term' and `reloading'
+           ;; are the load's since 3.51.0
            "prolog_load_context(K, V) :- '$plc'(K, V)."
-           "'$plc'(module, user)."
+           "'$plc'(module, M) :- '$load_context'(module, M)."
            "'$plc'(file, F) :- '$load_context'(file, F)."
            "'$plc'(source, F) :- '$load_context'(source, F)."
            "'$plc'(directory, D) :- '$load_context'(file, F), file_directory_name(F, D)."
            "'$plc'(dialect, swi)."
            "'$plc'(term_position, P) :- '$load_context'(term_position, P)."
-           "'$plc'(script, false).")))
+           "'$plc'(script, false)."
+           "'$plc'(variable_names, B) :- '$load_context'(variable_names, B)."
+           "'$plc'(term, T) :- '$load_context'(term, T)."
+           "'$plc'(reloading, true) :- '$load_context'(reloading, true).")))
 
 (generic decl-builtins
   ()

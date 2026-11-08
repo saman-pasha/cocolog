@@ -1918,8 +1918,12 @@
                 ;; and generate_debug_info, scoped to the read as swipl's
                 ;; file-scoped flags are: what it sets, its end puts back
                 ;; (3.27.0)
-                (int snodbg . #'(-> m nodbg)))
+                (int snodbg . #'(-> m nodbg))
+                ;; and whether the store read the file before, swipl's
+                ;; `reloading' (3.51.0)
+                (int sreload . #'(-> m sloc_reload)))
             (set (-> m ssu_mod) 0)
+            (set (-> m sloc_reload) (!= again 0))
             ;; THE READS UNDER WAY (3.7.0): the outermost runs the main goal
             ;; a nested one hands it (`ltop', which every outermost read
             ;; sets as it begins: no read but a nested one reads it)
@@ -1933,6 +1937,7 @@
                 (set (-> m nssu) sbase))
             (set (-> m ssu_mod) smod)
             (set (-> m nodbg) snodbg)
+            (set (-> m sloc_reload) sreload)
             (set (-> m lreads) (- (-> m lreads) 1))
             (set (-> st nroots) depth)
             (set (-> m nhroots) hdepth)
@@ -2671,6 +2676,21 @@
         (if (or (== coco_goal_hook nil) (-> st noexp)) (return 0))
         (return (coco_xhook_bits st m)))
 
+  ;;; THE BINDINGS OF THE TERM IN HAND (3.51.0), `[Name = Var, ...]' in
+  ;;; the order the reader met the names, as swipl's read_clause/3 hands
+  ;;; them to its load ('$variable_names'): `_' none, `_X' one, each Var
+  ;;; the term's own variable. A term the reader did not read -- the
+  ;;; file's begin_of_file and end_of_file -- has none.
+  (static)
+  (func coco_consult_vn ((coco_machine * m) (coco_reader * r) (int read)) (out size_t)
+        (let ((size_t l . #'(coco_new_nil m)) (size_t n . #'(? read (-> r nvars) 0)))
+          (while (> n 0)
+            (set n (- n 1))
+            (set l (coco_cons m (coco_make2 m "=" (coco_new_atom m (nth n (-> r var_names)))
+                                            (nth n (-> r var_cells)))
+                              l)))
+          (return l)))
+
   ;;; ONE EXPANSION ASKED OF THE PROGRAM AT A LOAD (3.14.0): NAME(A, T, X)
   ;;; -- or NAME(T, X) when A is 0 -- run through the load's goal hook (an
   ;;; engine of its own; no collection), 1 with X in OUT, 0 when it failed,
@@ -2679,12 +2699,18 @@
   ;;; other ball, which ends the load as a directive's does (the hook kept
   ;;; it, `lball'). X's binding is kept and its trail
   ;;; entries dropped: every cell it names is above the mark the load winds
-  ;;; the heap back to, which takes them all.
+  ;;; the heap back to, which takes them all. TP is the term as read,
+  ;;; prolog_load_context/2's `term' while the hook runs (3.51.0), and RR
+  ;;; the reader and RC what it read, 1 a term, 2 the end and 3 the start:
+  ;;; `variable_names' is a term's names, `[]' at the end, and at the start
+  ;;; the bindings of the read around this load, as swipl's begin_of_file
+  ;;; sets no '$variable_names' (a nested load's are its directive's).
   (static)
   (func coco_consult_xcall ((coco_store * st) (coco_machine * m) (const char * name)
                             (size_t a) (size_t t) (size_t * out)
                             (const char * file) (int line) (const char * src)
                             (const char * text) (size_t off)
+                            (size_t * tp) (coco_reader * rr) (int rc)
                             (char * err) (size_t errlen)) (out int)
         (let ((size_t x . #'(coco_new_var m)) (size_t g . 0) (size_t tl . #'(-> m trail_len))
               (int r . 0)
@@ -2692,7 +2718,8 @@
               ;; term's place while the hook runs, as swipl's do
               (const char * sfile . #'(-> m sloc_file)) (int sline . #'(-> m sloc_line))
               (const char * ssrc . #'(-> m sloc_src)) (const char * stext . #'(-> m sloc_text))
-              (size_t soff . #'(-> m sloc_off)))
+              (size_t soff . #'(-> m sloc_off))
+              (size_t * stp . #'(-> m sloc_tp)) (void * srd . #'(-> m sloc_rd)))
           (if (== a 0)
               (set g (coco_make2 m name t x))
             (let ((size_t args [3]))
@@ -2700,9 +2727,12 @@
               (set g (coco_make m name 3 args))))
           (set (-> m sloc_file) file) (set (-> m sloc_line) line) (set (-> m sloc_src) src)
           (set (-> m sloc_text) text) (set (-> m sloc_off) off)
+          (set (-> m sloc_tp) tp)
+          (set (-> m sloc_rd) (? (== rc 1) (cast (void *) rr) (? (== rc 3) srd nil)))
           (set r (coco_goal_hook st m g 0 err errlen))
           (set (-> m sloc_file) sfile) (set (-> m sloc_line) sline) (set (-> m sloc_src) ssrc)
           (set (-> m sloc_text) stext) (set (-> m sloc_off) soff)
+          (set (-> m sloc_tp) stp) (set (-> m sloc_rd) srd)
           (if (== r 1)
               (block (set (-> m trail_len) tl)
                      (set (cof out) (coco_deref m x))
@@ -3528,10 +3558,18 @@
                  (let ((size_t xs . 0) (int xr . 0) (int xlist . 0) (int xgo . 1) (int xstop . 0)
                        (size_t omark . mark) (size_t xmark . #'(cast size_t -1)) (int ovouch . vouch)
                        ;; where the term in hand begins, or the text's end
-                       (size_t toff . #'(? (== rc 2) ($ r len) (? (== rc 3) 0 ($ r cstart)))))
+                       (size_t toff . #'(? (== rc 2) ($ r len) (? (== rc 3) 0 ($ r cstart))))
+                       ;; THE TERM AS READ (3.51.0), what prolog_load_context/2
+                       ;; answers while a hook runs; each hook's call names
+                       ;; the reader itself (nil for a term no reader read),
+                       ;; whose names are its bindings, so a load that asks
+                       ;; no hook pays the copy alone
+                       (size_t t0 . t))
                    (if (and active (and (bitand xbits 1) (not (coco_consult_cond_dir m t))))
                        (block
-                        (set xr (coco_consult_xcall st m "term_expansion" 0 t (aof xs) origin at (nth 0 incs) text toff err errlen))
+                        (set xr (coco_consult_xcall st m "term_expansion" 0 t (aof xs) origin at (nth 0 incs) text toff
+                                                    (aof t0) (aof r) rc
+                                                    err errlen))
                         (cond
                           ((== xr 1)
                            (set mark (-> m heap_len))
@@ -3732,7 +3770,9 @@
                        (if (and (== handled 0) (and active (bitand xbits 2)))
                            (let ((size_t gx . 0) (int gr . 0))
                              (set gr (coco_consult_xcall st m "$expand_clause" (coco_new_int m 1) t (aof gx)
-                                                         origin at (nth 0 incs) text toff err errlen))
+                                                         origin at (nth 0 incs) text toff
+                                                         (aof t0) (aof r) rc
+                                                         err errlen))
                              (cond
                                ((== gr 1) (set t gx))
                                ((== gr -2)
@@ -3752,13 +3792,20 @@
                                  (int sline . #'(-> m sloc_line))
                                  (const char * ssrc . #'(-> m sloc_src))
                                  (const char * stext . #'(-> m sloc_text))
-                                 (size_t soff . #'(-> m sloc_off)))
+                                 (size_t soff . #'(-> m sloc_off))
+                                 (size_t * stp . #'(-> m sloc_tp)) (void * srd . #'(-> m sloc_rd))
+                                 (int vheld . 0))
                              (set mp (aof mark))
                              (set pushed (coco_heap_pos_push m (aof mp) (aof ml)))
                              ;; and the clause, which the Warning after a goal
                              ;; that raised names (3.1.0): the goal may collect
                              (set tp (aof t))
                              (set theld (and pushed (coco_heap_root_push m (aof tp) (aof tl))))
+                             ;; and the reader's variables, whose names make
+                             ;; the bindings prolog_load_context/2 hands the
+                             ;; goal when it asks (3.51.0)
+                             (if (and theld (== rc 1))
+                                 (set vheld (coco_heap_root_push m (aof ($ r var_cells)) (aof ($ r nvars)))))
                              (set (-> m dgc) (? (and pushed theld) vouch 0))
                              ;; source_location/2 answers the directive's file
                              ;; and line while its goal runs (2.16.0)
@@ -3768,13 +3815,25 @@
                              (set (-> m sloc_src) (nth 0 incs))
                              (set (-> m sloc_text) text)
                              (set (-> m sloc_off) toff)
+                             ;; and its term `[]', its bindings the read's
+                             ;; where its variables cannot move unseen: a
+                             ;; root, or no collection; a directive the
+                             ;; file's start gave keeps the ones around this
+                             ;; load, as a hook there does (3.51.0)
+                             (set (-> m sloc_tp) nil)
+                             (set (-> m sloc_rd) (? (== rc 3) srd
+                                                    (? (and (== rc 1) (or vheld (== theld 0)))
+                                                       (cast (void *) (aof r)) nil)))
                              (set dr (coco_directive st m (coco_arg m t 0) ip at err errlen))
                              (set (-> m sloc_file) sfile)
                              (set (-> m sloc_line) sline)
                              (set (-> m sloc_src) ssrc)
                              (set (-> m sloc_text) stext)
                              (set (-> m sloc_off) soff)
+                             (set (-> m sloc_tp) stp)
+                             (set (-> m sloc_rd) srd)
                              (set (-> m dgc) 0)
+                             (if vheld (coco_heap_root_pop m))
                              (if theld (coco_heap_root_pop m))
                              (if pushed (coco_heap_root_pop m))
                              (if (== dr 2) (coco_load_message "Warning" origin at err))
@@ -3850,7 +3909,9 @@
                            (if (and (== dk 0) (and (bitand xbits 2) (coco_is_compound2 m t ":-")))
                                (let ((size_t gx . 0) (int gr . 0))
                                  (set gr (coco_consult_xcall st m "$expand_clause" (coco_new_int m 1) t (aof gx)
-                                                             origin at (nth 0 incs) text toff err errlen))
+                                                             origin at (nth 0 incs) text toff
+                                                             (aof t0) (aof r) rc
+                                                             err errlen))
                                  (cond
                                    ((== gr 1) (set t gx))
                                    ((== gr -2)

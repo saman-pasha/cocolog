@@ -81,7 +81,16 @@
   ;;; by its absolute path as source_location/2 gives it, and
   ;;; `term_position', '$stream_position'(Char, Line, LinePos, Byte) of the
   ;;; term in hand's first character, swipl's -- each failing where no load
-  ;;; is reading, as swipl's do
+  ;;; is reading, as swipl's do. And since 3.51.0 swipl's other four:
+  ;;; `module', the read's module/2 module, `user' outside one and where no
+  ;;; load reads -- an initialization/1 goal run after its file too
+  ;;; ('$current_source_module'); `variable_names', the term in
+  ;;; hand's bindings while a hook or a directive's goal runs, `[]'
+  ;;; elsewhere; `term', the term as read while a hook runs, `[]' while a
+  ;;; directive's goal does, failing where no load is reading; and
+  ;;; `reloading', true through a read of a file the store read before,
+  ;;; failing otherwise (the machine's `sloc_tp', `sloc_rd' and
+  ;;; `sloc_reload', set by lib/kb-consult.cicili)
   (func coco_b_load_context ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t k . #'(coco_deref m (coco_m_arg e g 0)))
@@ -89,6 +98,25 @@
           (if (not (coco_is_callable m k)) (return 0))
           (if (!= (coco_arity m k) 0) (return 0))
           (set kn (coco_atom_name m (coco_name_of m k)))
+          (if (== 0 (strcmp kn "module"))
+              (return (coco_m_unify_atom e (coco_m_arg e g 1)
+                                         (? (or (== (-> m ssu_mod) 0) (== (-> m sloc_file) nil)) "user"
+                                            (coco_atom_name m (- (-> m ssu_mod) 1))))))
+          (if (== 0 (strcmp kn "variable_names"))
+              (return (coco_m_unify e (coco_m_arg e g 1)
+                                    (? (!= (-> m sloc_rd) nil)
+                                       (coco_consult_vn m (cast (coco_reader *) (-> m sloc_rd)) 1)
+                                       (coco_new_nil m)))))
+          (if (== 0 (strcmp kn "term"))
+              (block
+                (if (!= (-> m sloc_tp) nil)
+                    (return (coco_m_unify e (coco_m_arg e g 1) (cof (-> m sloc_tp)))))
+                (if (== (-> m sloc_file) nil) (return 0))
+                (return (coco_m_unify e (coco_m_arg e g 1) (coco_new_nil m)))))
+          (if (== 0 (strcmp kn "reloading"))
+              (block
+                (if (or (== (-> m sloc_file) nil) (== (-> m sloc_reload) 0)) (return 0))
+                (return (coco_m_unify_atom e (coco_m_arg e g 1) "true"))))
           (cond
             ((== 0 (strcmp kn "file")) (set f (-> m sloc_file)))
             ((== 0 (strcmp kn "source")) (set f (-> m sloc_src))))

@@ -968,7 +968,22 @@
     ;; swipl's pl-write.c): D, set around one write by `coco_wt_put' with
     ;; the write's mode 1024, and read only where that bit is on
     ;; (`coco_write_rec', `coco_write_list_cut'). Appended.
-    (member i64        wmax))
+    (member i64        wmax)
+    ;; THE TERM IN HAND AND ITS NAMES (3.51.0), for prolog_load_context/2's
+    ;; `term' and `variable_names', swipl's '$term' and '$variable_names':
+    ;; while a load asks a hook of a term, SLOC_TP points at the term as
+    ;; read; while a hook or a directive's goal runs, SLOC_RD points at
+    ;; the reader that read the term (a `coco_reader *', nil for
+    ;; begin_of_file and end_of_file), whose names the bindings are made of
+    ;; when a goal asks -- a hook collects nothing, and a directive's goal,
+    ;; which may, holds the reader's variables as a root of the collector
+    ;; (the term is `[]' there); nil elsewhere. Each points into the
+    ;; consult's own frame and is set and put back where `sloc_file' is.
+    ;; SLOC_RELOAD is 1 through a read of a file the store read before,
+    ;; `coco_consult_oid''s AGAIN, swipl's `reloading'. Appended.
+    (member size_t *   sloc_tp)
+    (member int        sloc_reload)
+    (member void *     sloc_rd))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
