@@ -741,29 +741,38 @@
   ;;; G RUN BY ITS ROW OR BY A MODULE, in this step, for `coco_colon': the
   ;;; builtin of G's name and arity where there is one, else the first
   ;;; module the seam finds to answer it -- past a program file's take-over
-  ;;; where SYS is set (`systake'). The ports a traced builtin call has, and
-  ;;; the step's answers: 1 or 2 as `coco_construct' answers, the
-  ;;; continuation set and OK said; 3 where nothing answered G.
+  ;;; where SYS is set (`systake'). The ports a traced builtin call has --
+  ;;; and since 3.58.1 a module's, as the step's own module call prints
+  ;;; them -- and the step's answers: 1 or 2 as `coco_construct' answers,
+  ;;; the continuation set and OK said; 3 where nothing answered G, its Call
+  ;;; printed already and the call's port kind and depth in TPO and TDO
+  ;;; (`coco_call_kept' goes on from there)
   (weak)
-  (func coco_colon_run ((coco_engine * e) (size_t gl) (size_t k) (int sys) (int * ok) (int * ret))
+  (func coco_colon_run ((coco_engine * e) (size_t gl) (size_t k) (int sys) (int * ok) (int * ret)
+                        (int * tpo) (int * tdo))
         (out int)
         (let ((coco_machine * m . #'(-> e m))
               (u64 nid . #'(coco_name_of (-> e m) gl))
               (u32 n . #'(coco_arity (-> e m) gl))
               (int row . #'(coco_builtin_index (-> e m) (coco_name_of (-> e m) gl)
                                                (coco_arity (-> e m) gl)))
-              (int rc . 0) (int found . 0) (int td . 0))
+              (int rc . 0) (int found . 0) (int td . 0) (int tport . 0))
+          ;; THE CALL PORT, before anything runs, as the step prints it: 1
+          ;; shown, 2 hidden (a call in a library's clause, 3.27.0), at a
+          ;; depth a hidden call counts too -- the system's G hiding its
+          ;; children, and a G nothing defines asked as the step asks it
+          (if (-> e trace)
+              (block (set td (+ (-> e trace_depth) 1))
+                     (set tport (? (coco_trace_hidden e gl (? sys 1 -1)) 2 1))
+                     (if (== tport 1) (coco_trace_port e "Call" td gl))))
           (if (>= row 0)
               (block
-                ;; (none in a library's clause, 3.27.0: TD stays 0)
-                (if (and (-> e trace) (not (coco_trace_hidden e gl 1)))
-                    (block (set td (+ (-> e trace_depth) 1)) (coco_trace_port e "Call" td gl)))
                 (set rc (coco_builtin_call e row gl))
                 ;; a row that hands its goal over (3.29.0, arg/3's index
                 ;; unbound; 3.30.0, char_type/2's and code_type/2's character
                 ;; or type): walked with this call's continuation
                 (if (== rc -2)
-                    (set rc (coco_walk e k (? (> td 0) 1 (? (-> e trace) 2 0)))))
+                    (set rc (coco_walk e k tport)))
                 (set found 1))
               (if (!= coco_extern_call nil)
                   (block
@@ -778,16 +787,79 @@
                     (set k (-> e kgoal))
                     (set gl (-> e kcall))
                     (set (-> e kmod) 0))))
-          (if (not found) (return 3))
+          (if (not found)
+              (block (set (cof tpo) tport) (set (cof tdo) td) (return 3)))
           (if (== rc -1) (block (set (cof ret) -1) (return 2)))
           (cond ((== rc 2) (block))
                 ((== rc 1)
                  ;; none for halt/0,1 (3.57.0), as the step's own
-                 (if (and (> td 0) (!= (-> e halted) 1)) (coco_trace_port e "Exit" td gl))
+                 (if (and (== tport 1) (!= (-> e halted) 1)) (coco_trace_port e "Exit" td gl))
                  (set (-> e goals) k))
                 (#t
-                 (if (> td 0) (coco_trace_port e "Fail" td gl))
+                 (if (== tport 1) (coco_trace_port e "Fail" td gl))
                  (set (cof ok) 0)))
+          (return 1)))
+
+  ;;; A DECLINED `system:G' RUNS THE SYSTEM'S OWN CLAUSES (3.58.1): G of a
+  ;;; name a program file took over, which its module turned down for these
+  ;;; arguments (`coco_colon_run' answered 3), called in this step as the
+  ;;; step calls a predicate -- SPI the kept predicate (`coco_pred_kept'),
+  ;;; its clauses the library's own under `$system:NAME' -- its frame's call
+  ;;; G's head under that name (`coco_kept_head'), so its clauses match it
+  ;;; and its body's calls are hidden from the printer as a library
+  ;;; predicate's are. What the tracer prints is G as written: its frame's
+  ;;; goal and its exit marker's, the Call printed already at TD (TPORT, 2
+  ;;; hidden), and its Redo, Exit and Fail are G's, as swipl's system
+  ;;; predicate's (the tracer's context of a frame is its call, the goal it
+  ;;; prints its shadow frame's). B the barrier, K the continuation -- a
+  ;;; guarded frame's last call takes the guard on (`coco_det_pcall'), as
+  ;;; the step's. Answers as `coco_construct' does
+  (weak) (cold)
+  (func coco_call_kept ((coco_engine * e) (size_t gl) (size_t k) (size_t b) (size_t spi)
+                        (int tport) (int td) (int * ok) (int * ret)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st))
+              (size_t kh . #'(coco_kept_head (-> e m) gl))
+              (size_t k2 . 0))
+          (if (== kh 0) (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
+          (if (!= (-> e dgk) (coco-det-none))
+              (block
+                (set k (coco_det_pcall e gl k (coco_name_of m gl) (coco_arity m gl) spi))
+                (if (== k (cast size_t -1))
+                    (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))))
+          (set k2 k)
+          ;; the exit marker under the frame's heap mark, as the step's,
+          ;; naming the frame by its call
+          (if tport
+              (let ((size_t margs [3]))
+                (set (nth 0 margs) (coco_new_int m (cast i64 kh)))
+                (set (nth 1 margs) (coco_new_int m (cast i64 td)))
+                (set (nth 2 margs) (coco_new_int m (cast i64 (-> e trace_goal))))
+                (set k2 (coco_k_push e (coco_make_f m (coco-fid m "$trace_exit" 3) 3 margs) b k))))
+          (if (not (coco_push_choice e COCO_CH_CLAUSE kh k2 b))
+              (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
+          (let ((size_t ci . #'(- (-> e nchoices) 1))
+                (coco_pred * cp . #'(aof (nth spi ($ (cof st) preds)))))
+            (set ($ (nth ci (-> e choices)) pred) spi)
+            (set ($ (nth ci (-> e choices)) clause_ix) 0)
+            (set ($ (nth ci (-> e choices)) ixpos) (coco_trace_kpos e cp kh))
+            (set ($ (nth ci (-> e choices)) cend) (cast u32 (-> cp nclauses)))
+            (set (-> cp framed) 1)
+            (if tport
+                (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
+                  (set (-> tc goal) gl)
+                  (set (-> tc depth) td)
+                  (set (-> tc printr) tport)
+                  (set (-> tc exited) 0)
+                  (set (-> tc last) 0)
+                  (coco_rec_hkey e ci)))
+            (if (not (coco_select_clause e ci))
+                (block (if tport (coco_trace_nomatch e ci td gl))
+                       (set (cof ok) 0))
+                (if tport
+                    (block (set (-> e trace_goal) kh)
+                           (set (-> e trace_depth) td)
+                           (coco_rec_heads e ci 0 1)))))
           (return 1)))
 
   ;;; Whether GL, NID/N, is a goal nothing defines: no construct, builtin or
@@ -978,7 +1050,7 @@
                                   (or (== (coco_name_of m mo) (coco_intern m "system"))
                                       (and (!= coco_extern_library nil)
                                            (coco_extern_library (coco_atom_name m (coco_name_of m mo)))))))
-                (int rc . 0))
+                (int rc . 0) (int tport . 0) (int td . 0))
             (if (and sys (!= (-> st ntaken) 0))
                 (block
                   (if (coco_pred_taken st nid n)
@@ -993,10 +1065,22 @@
                             (set (-> e systake) 0)
                             (if (!= rc2 0) (return rc2)))
                           (block
-                            (set rc (coco_colon_run e gl k 1 ok ret))
-                            ;; a module that turned these arguments down: the
-                            ;; program's, the library's own clauses being gone
-                            (if (!= rc 3) (return rc)))))
+                            (set rc (coco_colon_run e gl k 1 ok ret (aof tport) (aof td)))
+                            (if (!= rc 3) (return rc))
+                            ;; A MODULE THAT TURNED THESE ARGUMENTS DOWN
+                            ;; (3.58.1): the clauses of the system's own
+                            ;; half, kept at the take-over (`coco_call_kept')
+                            ;; -- through 3.58.0 G was made `system:G' again
+                            ;; below and run for ever -- else nothing of the
+                            ;; system's answers G: its unknown procedure
+                            (let ((size_t spi . #'(coco_pred_kept st m nid n)))
+                              (if (and (< spi (-> st npreds)) (> (coco_pred_count st spi) 0))
+                                  (return (coco_call_kept e gl k b spi tport td ok ret))))
+                            (set (-> e kcall) g)
+                            (set rc (coco_unknown_error_q e 1 mid nid n b k))
+                            (if (== rc 2) (return 1))
+                            (set (cof ret) rc)
+                            (return 2))))
                   (set gl (coco_sys_goal m st gl 0))))
             ;; a call/N or a control structure the qualifier is written on
             ;; (3.44.0)
@@ -1004,7 +1088,7 @@
             ;; nothing defines G: a loadable module's, or the qualified error
             (if (and (not user) (coco_colon_undefined e gl nid n))
                 (block
-                  (set rc (coco_colon_run e gl k 0 ok ret))
+                  (set rc (coco_colon_run e gl k 0 ok ret (aof tport) (aof td)))
                   (if (!= rc 3) (return rc))
                   (set (-> e kcall) g)
                   (set rc (coco_unknown_error_q e 1 mid nid n b k))
@@ -1803,6 +1887,12 @@
                                         (== ($ (nth (cast size_t fi) (-> e tchoices)) depth) xd))
                                    (block (set ($ (nth (cast size_t fi) (-> e tchoices)) exited) 1)
                                           (set xh (== ($ (nth (cast size_t fi) (-> e tchoices)) printr) 2))
+                                          ;; what it prints is its shadow
+                                          ;; frame's goal: the call's, but for
+                                          ;; `system:G''s kept call (3.58.1,
+                                          ;; `coco_call_kept')
+                                          (if ($ (nth (cast size_t fi) (-> e tchoices)) printr)
+                                              (set xg ($ (nth (cast size_t fi) (-> e tchoices)) goal)))
                                           break)))
                              (set fi (- fi 1)))
                            (if (not xh) (coco_trace_port e "Exit" xd xg)))

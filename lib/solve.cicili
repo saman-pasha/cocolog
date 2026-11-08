@@ -1683,6 +1683,12 @@
   ;;; structure, not in a goal it hands another frame (`coco_det0_in')
   (decl) (func coco_det0_in ((coco_machine * m) (size_t g)) (out int))
   (decl) (func coco_user_plain ((coco_engine * e) (size_t d)) (out size_t))
+  ;;; a guarded frame's last call of predicate PI, goal G of name NID and
+  ;;; arity N, takes the guard on: the continuation its body runs on to, -1
+  ;;; with no memory (`coco_det_pcall'; the `:' construct's kept call too,
+  ;;; `coco_call_kept')
+  (decl) (func coco_det_pcall ((coco_engine * e) (size_t g) (size_t k) (u64 nid) (u32 n) (size_t pi))
+               (out size_t))
 
   ;;; ---- a goal under a ceiling -------------------------------------------
   ;;;

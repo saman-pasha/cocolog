@@ -817,7 +817,8 @@
                           (set head (coco_new_atom_id m nid))
                           (set head (coco_push_struct m (coco-cell FUN (coco_functor_id m nid n)) n)))
                       (if (and (> n 0) (== head 0)) (return 0))
-                      (coco_pred_take_over st m pi head)))))
+                      (coco_pred_take_over st m pi head
+                                           (bitand ($ (nth pi (-> st preds)) pattrs) 96))))))
           ;; dynamic, discontiguous and multifile define (3.6.0, `ldefs'),
           ;; as swipl's; the other four do not
           (if (<= kind 2) (set (-> m ldefs) (+ (-> m ldefs) 1)))

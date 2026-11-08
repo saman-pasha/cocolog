@@ -39,6 +39,7 @@ main :-
     update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), repeat_runs(D), jit_runs(D),
     gvars_runs(D),
     btree_places, op_names_frozen(D), own_properties, own_current, own_too_long,
+    kept_guard(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -85,6 +86,48 @@ own_too_long :-
     ( re_first_atom('answer\\([^\n]*\\)', Out, A) -> term_to_atom(G, A) ; G = none ),
     check('...and with no limit, a count no array can hold raises resource_error(memory)', G,
           answer(resource_error(memory), resource_error(memory), resource_error(memory))).
+
+%% ---- a guarded `system:G' of a taken name (3.58.1) ----------------------
+%% A program file's clause for a name a module answers takes the name over,
+%% and the library's own clauses of it are kept under `$system:NAME', which
+%% a goal the module turns down runs (`coco_call_kept'). As a guarded
+%% frame's last call the kept call takes the guard on as the call of the
+%% name not taken does (`coco_det_pcall'), so a guarded `system:G' answers
+%% and raises alike whether its name is taken or not. Held here and not to
+%% swipl, as a guarded last call's determinism error names the callee where
+%% swipl's names the guarded clause (STATUS.md, 3.58.1: found and not
+%% fixed), the same callee in both runs. Without the guard taken on, the
+%% failure of `gq' named aggregate:finish_result/5 with the name taken, and
+%% `gn''s the guarded clause.
+kept_guard(D) :-
+    section('a guarded system:G of a taken name answers as the untaken one'),
+    Body = [ 'gq :- $, system:aggregate_all(r(count), member(_, [a]), r(5)).',
+             'gn :- $, system:nth0(_, [], _).',
+             'gn2 :- $, system:nth0(_, [a, b], c).',
+             'gl :- $, system:last([a|_], _).',
+             'gl2 :- $, system:last([a, b|T], b), T = [].',
+             'gr :- $, system:reverse(_, [a|b]).',
+             'gr2(X) :- $, system:reverse(X, [a, b]).',
+             'gd(L) :- $, system:length(L, _).',
+             'gd2 :- $, system:length([a|T], 2), T = [_].',
+             't(G) :- catch(( G -> print(yes(G)) ; print(no(G)) ), E, print(raised(E))), nl.',
+             'main :- t(gq), t(gn), t(gn2), t(gl), t(gl2), t(gr), t(gr2(_)), t(gd(_)), t(gd2).' ],
+    atom_concat(D, '/kg_untaken.pl', FU), fixture(FU, Body),
+    append([ 'last(_, mine).', 'reverse(_, mine).', 'nth0(_, _, mine).',
+             ':- redefine_system_predicate(length(_, _)).', 'length(_, mine).',
+             'aggregate_all(_, _, mine).' ], Body, Taken),
+    atom_concat(D, '/kg_taken.pl', FT), fixture(FT, Taken),
+    sh_join(['run ', FU, ' main'], AU), cocolog_out(AU, OU), kg_lines(OU, LU),
+    sh_join(['run ', FT, ' main'], AT), cocolog_out(AT, OT), kg_lines(OT, LT),
+    length(LU, NU),
+    check('the untaken run answers its nine goals', NU, 9),
+    check('...and the taken one answers each as the untaken one does', LT, LU).
+
+%% Out's lines, each heap variable's name `_' (the two runs' heaps differ)
+kg_lines(Out, Ls) :-
+    split_string(Out, "\n", "", Ps),
+    findall(L, ( member(P, Ps), string_length(P, N), N > 0, atom_string(A, P),
+                 re_replace_atom('_G[0-9]+', '_', A, L) ), Ls).
 
 %% ---- predicate_property/2 of a builtin swipl has none of (3.41.0) --------
 %% swipl's table (lib/swipl-props.cicili) answers for what swipl has, and

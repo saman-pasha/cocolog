@@ -1741,7 +1741,17 @@
   (decl) (func coco_pred_meta_check ((coco_store * st) (coco_machine * m) (size_t t) (int note)
                                      (size_t * bad)) (out int))
   (decl) (func coco_bix_fill ((coco_machine * m) (coco_store * st) (u64 nid) (u32 n)) (out u32))
-  (decl) (func coco_pred_take_over ((coco_store * st) (coco_machine * m) (size_t pi) (size_t head)))
+  (decl) (func coco_pred_take_over ((coco_store * st) (coco_machine * m) (size_t pi) (size_t head)
+                                    (u32 kattrs)))
+  ;;; A library's own clauses of a name a program file took over, kept under
+  ;;; a name of their own (3.58.1, lib/kb-consult.cicili): the kept name of
+  ;;; NID, a head under it, the kept predicate of NID/N, and the take-over's
+  ;;; keep of PI's muted clauses
+  (decl) (func coco_kept_name ((coco_machine * m) (u64 nid)) (out u64))
+  (decl) (func coco_kept_head ((coco_machine * m) (size_t head)) (out size_t))
+  (decl) (func coco_pred_kept ((coco_store * st) (coco_machine * m) (u64 nid) (u32 n)) (out size_t))
+  (decl) (func coco_pred_keep_muted ((coco_store * st) (coco_machine * m) (size_t pi) (u32 attrs))
+               (out int))
   ;;; The frame swipl names for NID/N (lib/solve.cicili's *frame-contexts*),
   ;;; which a single-sided rule's last clause names too (3.26.1)
   (decl) (func coco_frame_ctx ((coco_machine * m) (u64 nid) (u32 n) (size_t * out)) (out int))

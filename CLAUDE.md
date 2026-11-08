@@ -1345,7 +1345,24 @@ cocolint index offers no import of it.
   redefine_system_predicate/1 named it (which takes the program's
   definition away first, as abolish/1 does, since 3.47.0 -- swipl's
   abolishProcedure()); a library's calls of a taken name
-  are made `system:` and keep the builtin. The functor keeps the row it
+  are made `system:` and keep the builtin. **The library's own clauses of a
+  taken name are KEPT under `$system:NAME`** (3.58.1, `coco_kept_head`):
+  by the take-over where the library's half was read first
+  (`coco_pred_keep_muted`, with the attributes the predicate had before
+  the program's clause, `lattrs`), by the assert where it is read after (a
+  module's half at a query's start), and a `system:G` its module turns down
+  (`:declines`: length/2 enumerating, nth0/3 with the index unbound) runs
+  them in the `:` step (`coco_call_kept`), its frame's call the kept head
+  and its shadow frame's goal G -- through 3.58.0 the goal was made
+  `system:G` again and ran for ever. **The tracer's context of a clause
+  frame is its call** (`choices[ci].call`: a retry's, the exit marker's
+  match) **and what it prints its shadow frame's goal** -- one cell but for
+  the kept call: a new reader of a frame's context reads the call. (A
+  traced cut still matches the goal printed: no clause a declined goal
+  runs cuts, and an arm that read the call moved nothing.) As a guarded
+  frame's last call the kept call takes the guard on (`coco_det_pcall`),
+  as the call of the name not taken does. A qualified goal has the ports an unqualified one has since
+  3.58.1 (`coco_colon_run`: a module's answer too). The functor keeps the row it
   calls (`bix`: K + 2, 1 none or taken), so **a new way to call a builtin
   by its row asks `bix`, never the table alone**, and a body compiled
   against a row hands its goal over when the row is gone

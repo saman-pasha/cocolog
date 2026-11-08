@@ -2003,7 +2003,11 @@
                          (block (coco_trace_redo e ci rD rtext)
                                 (set ($ (nth ci (-> e tchoices)) exited) 0)
                                 (coco_trace_reopen e ci rD)
-                                (set (-> e trace_goal) rg)
+                                ;; the body's context is the frame's call: the
+                                ;; goal printed (RG) but for `system:G''s kept
+                                ;; call (3.58.1, `coco_call_kept'), read from
+                                ;; the frame a traced call keeps
+                                (set (-> e trace_goal) ($ (nth ci (-> e choices)) call))
                                 (set (-> e trace_depth) rD)))
                      (if (!= rtext nil) (free rtext))
                      (return 1)))

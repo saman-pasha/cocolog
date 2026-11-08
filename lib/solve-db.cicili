@@ -2166,11 +2166,15 @@
   ;;; one (redefine_system_predicate/1) have every clause compiled again
   ;;; (`coco_code_forget_all'), as a body compiled before runs the construct
   ;;; or the guard in place.
-  (func coco_pred_take_over ((coco_store * st) (coco_machine * m) (size_t pi) (size_t head))
+  (func coco_pred_take_over ((coco_store * st) (coco_machine * m) (size_t pi) (size_t head)
+                             (u32 kattrs))
         (set ($ (nth pi (-> st preds)) taken) 1)
         (set (-> st ntaken) (+ (-> st ntaken) 1))
         ;; the library's own clauses of it are the library's module's in
-        ;; swipl, which the program's definition does not see
+        ;; swipl, which the program's definition does not see -- kept under
+        ;; their own name first (3.58.1), for `system:G' (`coco_call_kept'),
+        ;; with the attributes KATTRS the library's clauses gave it
+        (coco_pred_keep_muted st m pi kattrs)
         (coco_pred_forget_muted st m pi)
         (set head (coco_deref m head))
         (if (coco-tag-is FUN (nth head (-> m heap)))

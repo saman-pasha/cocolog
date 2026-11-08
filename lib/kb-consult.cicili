@@ -592,6 +592,90 @@
   (func coco_pred_forget_muted ((coco_store * st) (coco_machine * m) (size_t pi)) (out int)
         (return (coco_pred_forget_where st m pi 0 2)))
 
+  ;;; ---- the system's own clauses of a taken name, kept (3.58.1) -----------
+  ;;;
+  ;;; swipl's `system:G' REACHES THE SYSTEM'S PREDICATE WHATEVER A USER FILE
+  ;;; DEFINES, and so does cocolog's: the `:' construct calls G's C row or
+  ;;; module past the take-over (`coco_colon_run', `systake'). But a module
+  ;;; row that turns some arguments down (`:declines') hands them to its
+  ;;; Prolog half's clause -- length/2 enumerating, last/2 of a partial list,
+  ;;; reverse/2 with its first argument unbound -- and the take-over forgets
+  ;;; that clause (`coco_pred_forget_muted'). Through 3.58.0 the declined
+  ;;; goal was made `system:G' again and pushed, and ran for ever, a
+  ;;; library's call of the name among them (`coco_sys_library'). So the
+  ;;; clauses are KEPT, under `$system:NAME' of the same arity: by the
+  ;;; take-over where the library's half was read before it, and by the
+  ;;; assert where it is read after (a module's half at a query's start),
+  ;;; and a declined `system:G' runs them (`coco_call_kept').
+
+  ;;; THE KEPT NAME OF NID: the atom `$system:NAME', 0 for no memory
+  (func coco_kept_name ((coco_machine * m) (u64 nid)) (out u64)
+        (let ((coco_strbuf b) (u64 kn . 0))
+          (coco_sb_init (aof b))
+          (coco_sb_put (aof b) "$system:")
+          (coco_sb_put (aof b) (coco_atom_name m nid))
+          (if (== ($ b s) nil) (return 0))
+          (set kn (coco_intern m ($ b s)))
+          (coco_sb_free (aof b))
+          (return kn)))
+
+  ;;; HEAD under its kept name, its arguments HEAD's; 0 for no memory
+  (func coco_kept_head ((coco_machine * m) (size_t head)) (out size_t)
+        (set head (coco_deref m head))
+        (let ((u64 kn . #'(coco_kept_name m (coco_name_of m head)))
+              (u32 n . #'(coco_arity m head)))
+          (if (== kn 0) (return 0))
+          (if (== n 0) (return (coco_new_atom_id m kn)))
+          (let ((size_t h . #'(coco_push m (coco-cell FUN (coco_functor_id m kn n)))))
+            (for ((u32 i . 0)) (< i n) ((++ i))
+              (coco_push m (coco-cell REF (coco_deref m (coco_arg m head i)))))
+            (return h))))
+
+  ;;; THE KEPT PREDICATE OF NID/N: its index, NPREDS where none was kept
+  (func coco_pred_kept ((coco_store * st) (coco_machine * m) (u64 nid) (u32 n)) (out size_t)
+        (let ((u64 kn . #'(coco_kept_name m nid)))
+          (if (== kn 0) (return (-> st npreds)))
+          (return (coco_pred_find st kn n))))
+
+  ;;; PI's LIVE MUTED CLAUSES KEPT, as the take-over is about to forget them:
+  ;;; each added to the kept predicate, muted, its origin as it was, its
+  ;;; head under the kept name -- a library's predicate, hiding its children
+  ;;; as PI's did before the program's clause (ATTRS, `pattrs' 32 and 64:
+  ;;; the clause that takes PI over decides PI's own again first), and read,
+  ;;; as no row of it is ever in the knowledge base (`loaded'). Read onto
+  ;;; the heap a clause at a time, the heap wound back after each. Answers
+  ;;; how many were kept.
+  (func coco_pred_keep_muted ((coco_store * st) (coco_machine * m) (size_t pi) (u32 attrs)) (out int)
+        (if (>= pi (-> st npreds)) (return 0))
+        (let ((int kept . 0))
+          (for ((size_t i . 0)) (< i ($ (nth pi (-> st preds)) nclauses)) ((++ i))
+            (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+              (if (and (!= (nth i (-> p muted)) 0) (not (coco_pred_dead p i)))
+                  (let ((size_t mark . #'(-> m heap_len))
+                        (u64 origin . #'(nth i (-> p origins)))
+                        (size_t c . #'(coco_store_get m st (nth i (-> p clauses))))
+                        (size_t h . 0) (size_t bd . 0) (size_t kh . 0) (size_t kpi . 0)
+                        (size_t stored . 0))
+                    (coco_clause_parts m c (aof h) (aof bd))
+                    (set kh (coco_kept_head m h))
+                    (if (!= kh 0)
+                        (block
+                          ;; the table may move: PI's own entry is not read again here
+                          (set kpi (coco_pred_make st (coco_name_of m kh) (coco_arity m kh)))
+                          (if (< kpi (-> st npreds))
+                              (block
+                                (set stored (coco_store_put st m (? (== bd 0) kh (coco_make2 m ":-" kh bd))))
+                                (if (coco_pred_add_clause st m kpi stored 1 (coco_arg_key m kh) origin 1)
+                                    (block
+                                      (set kept (+ kept 1))
+                                      (set ($ (nth kpi (-> st preds)) library) 1)
+                                      (set ($ (nth kpi (-> st preds)) own) 0)
+                                      (set ($ (nth kpi (-> st preds)) loaded) 1)
+                                      (set ($ (nth kpi (-> st preds)) pattrs)
+                                           (bitor ($ (nth kpi (-> st preds)) pattrs) attrs))))))))
+                    (set (-> m heap_len) mark)))))
+          (return kept)))
+
   ;;; A LIBRARY'S CALL OF A NAME A PROGRAM FILE TOOK OVER IS THE SYSTEM'S
   ;;; (3.1.0): G with each goal in it that calls a taken name made
   ;;; `system:G' (`coco_colon'), as swipl's library modules call system's
@@ -1501,14 +1585,18 @@
           ;; swipl's words as a clause too long for a row is -- and takes
           ;; any other over (`coco_pred_take_over', below). A library's
           ;; clause is muted and asks nothing -- but one for a predicate
-          ;; taken over already is kept out, as the take-over put the
-          ;; library's out (a module's half is read at a query's start, which
-          ;; can come after `run' consulted the program); neither does an
-          ;; assert, as the store keeps facts under a builtin's name
-          ;; (`number(dos)').
+          ;; taken over already is the kept predicate's (3.58.1,
+          ;; `coco_kept_head'), as the take-over put the library's there (a
+          ;; module's half is read at a query's start, which can come after
+          ;; `run' consulted the program; through 3.58.0 it was left out);
+          ;; neither does an assert, as the store keeps facts under a
+          ;; builtin's name (`number(dos)').
           (if (and (coco_store_is_muted st) (not (-> st ownload)) (!= (-> st ntaken) 0)
                    (coco_pred_taken st (coco_name_of m head) (coco_arity m head)))
-              (return 1))
+              (let ((size_t kh . #'(coco_kept_head m head)))
+                (if (== kh 0) (return 1))
+                (set clause (? (== head clause) kh (coco_make2 m ":-" kh (coco_arg m clause 1))))
+                (set head kh)))
           ;; and a library's call of a taken name is the system's
           ;; (`coco_sys_goal'): a module's half read at a query's start, a
           ;; library loaded after the program took the name over
@@ -1593,21 +1681,6 @@
                      (== ($ (nth pi (-> st preds)) pmod) 0)
                      (== ($ (nth pi (-> st preds)) nclauses) 0))
                 (coco_pred_note_mod st m pi))
-            ;; A PREDICATE A READ DEFINES UNDER generate_debug_info FALSE
-            ;; HIDES ITS CHILDREN FROM THE TRACER (3.27.0, `pattrs' 32,
-            ;; swipl's HIDE_CHILDS): its first clause decides, as swipl's
-            ;; assert_term decides it -- set under false, cleared under true
-            ;; -- and no clause after it does. A library's predicate (64: its
-            ;; first clause a compiled-in module's text or a preloaded
-            ;; library's, `noexp') is decided again by each clause a read
-            ;; gives it: a program's clause for it would be a predicate of its
-            ;; own in swipl, user's, and here there is one namespace
-            (if (and (> (-> m lreads) 0)
-                     (or (== ($ (nth pi (-> st preds)) nclauses) 0)
-                         (bitand ($ (nth pi (-> st preds)) pattrs) 64)))
-                (set ($ (nth pi (-> st preds)) pattrs)
-                     (bitor (bitand ($ (nth pi (-> st preds)) pattrs) -97)
-                            (bitor (? (-> st noexp) 64 0) (? (-> m nodbg) 32 0)))))
             ;; the two expansion hooks are multifile in swipl, so their
             ;; clauses may stand apart; term_expansion/2,4 is the one the
             ;; system does not otherwise declare here (3.17.0's warning
@@ -1684,9 +1757,30 @@
                       (block
                         (set clause nc)
                         (set head (coco_deref m (coco_arg m clause 0)))))))
-            ;; the program's from here on, ahead of the builtin (3.1.0)
+            ;; the program's from here on, ahead of the builtin (3.1.0), the
+            ;; library's clauses kept with its attributes as they stand
+            ;; (3.58.1, `coco_pred_keep_muted'), which this clause decides
+            ;; again below
             (if (and (== claim 1) (not ($ (nth pi (-> st preds)) taken)))
-                (coco_pred_take_over st m pi head))
+                (coco_pred_take_over st m pi head (bitand ($ (nth pi (-> st preds)) pattrs) 96)))
+            ;; A PREDICATE A READ DEFINES UNDER generate_debug_info FALSE
+            ;; HIDES ITS CHILDREN FROM THE TRACER (3.27.0, `pattrs' 32,
+            ;; swipl's HIDE_CHILDS): its first clause decides, as swipl's
+            ;; assert_term decides it -- set under false, cleared under true
+            ;; -- and no clause after it does. A library's predicate (64: its
+            ;; first clause a compiled-in module's text or a preloaded
+            ;; library's, `noexp') is decided again by each clause a read
+            ;; gives it: a program's clause for it would be a predicate of its
+            ;; own in swipl, user's, and here there is one namespace. Decided
+            ;; once the clause is to be added (3.58.1: through 3.58.0 before
+            ;; the fetch, which may refuse it) and after a take-over, which
+            ;; keeps the library's
+            (if (and (> (-> m lreads) 0)
+                     (or (== ($ (nth pi (-> st preds)) nclauses) 0)
+                         (bitand ($ (nth pi (-> st preds)) pattrs) 64)))
+                (set ($ (nth pi (-> st preds)) pattrs)
+                     (bitor (bitand ($ (nth pi (-> st preds)) pattrs) -97)
+                            (bitor (? (-> st noexp) 64 0) (? (-> m nodbg) 32 0)))))
             ;; THE RECONSULT: the first clause this consult adds to the
             ;; predicate first takes out what the same file put there last
             ;; time -- after the fetch, so the rows are here to be taken out,

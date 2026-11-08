@@ -78,6 +78,16 @@ main :-
                        'rt(X)', 'ct(X)', 'ur(X)', 'at(X)', 'ua(X)', 'uk(C)',
                        'mt1(atom(a))', 'mt2(atom(a))' ]),
            traced_in(Swipl, [Library], Q, Q)),
+    %% `SYSTEM:G' OF A NAME A PROGRAM FILE TOOK OVER (3.58.1,
+    %% test/trace-taken.pl): the system's definition, one call with its
+    %% ports and its Redo on the call itself, and none of what its own
+    %% clauses call -- its C's answer and the clauses the C turns its
+    %% arguments down to alike. Through 3.58.0 a module's answer had no
+    %% port, and a goal it turned down ran for ever
+    atom_concat(Root, '/test/trace-taken.pl', Taken),
+    forall(member(Q, [ 'tk1(X)', 'tk2(P)', 'tk3(X)', 'tk4(P)', 'tk5(P)', 'tk6(N)', 'tk7(X)',
+                       'tk8(X)', 'tk9(P)' ]),
+           traced_in(Swipl, [Taken], Q, Q)),
     %% A META-PREDICATE'S ARGUMENT AS ITS EXIT AND ITS FAIL SHOW IT (3.45.0),
     %% compared with the qualifiers the comparison above takes off: said of
     %% user where the declaration came first, as it was written where a call
@@ -262,6 +272,30 @@ own_lines :-
     own(D, hw, [ 'hw :- with_output_to(string(_), halt(28)).' ], hw,
         p('Fail', _, _), hidden,
         'with_output_to/2 whose goal halts has no Fail port'),
+    %% A QUALIFIED GOAL HAS THE PORTS AN UNQUALIFIED ONE HAS (3.58.1): a name
+    %% nothing defines has its Call, as swipl prints it, in a clause that
+    %% hides its children too -- the system's G hides its children, any
+    %% other is asked as the step asks it (`coco_colon_run'). Through 3.58.0
+    %% it had none. (swipl's catch/3 is a frame of its own, a depth apart, so
+    %% the two traces are not held line for line)
+    own(D, uq, [ ':- set_prolog_flag(generate_debug_info, false).',
+                 'hq :- catch(lists:nosuch_xyz, _, true).',
+                 ':- set_prolog_flag(generate_debug_info, true).' ], hq,
+        p('Call', _, nosuch_xyz), printed,
+        'a qualified goal nothing defines has its Call, in a clause that hides its children'),
+    %% A KEPT FRAME'S RETRY RUNS THE NEXT CLAUSE'S BODY AS THE KEPT FRAME'S
+    %% (3.58.1): aggregate_all/3's first clause tests its spec with var/1,
+    %% and the clause that answers a template of templates calls
+    %% template_to_pattern/6, findall/3 and aggregate_list/3, hidden as the
+    %% kept predicate hides its children -- the retry's context is the
+    %% frame's call, the kept head, where the goal printed names the
+    %% program's aggregate_all/3. swipl hides them too; the two traces are
+    %% not held line for line, as both show what aggregate_list/3's maplist/4
+    %% calls and swipl names its helper apply:maplist_/4
+    own(D, kr, [ 'aggregate_all(_, _, mine).',
+                 'kr(R) :- system:aggregate_all(r(count), member(_, [a]), R).' ], 'kr(R)',
+        p(_, 3, _), hidden,
+        'a kept frame''s retry runs the next clause''s body hidden'),
     shl(['rm -rf ', D]).
 
 own(D, Base, Lines, Q, Line, Expect, Name) :-

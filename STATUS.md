@@ -16848,3 +16848,128 @@ file) say what a NUL byte does now.
 Narrow cases green: lint, files, syntax, term, module, solve, directives,
 script, library, reconsult, errors, stream, units, string and argv.
 Reasoning stays 1.0.27.
+
+## `system:G' of a name a program file took over, as swipl's (3.58.1)
+
+swipl's `system:G' reaches the system's predicate whatever user defines.
+cocolog's `:' construct has called G's C row or module past a program
+file's take-over since 3.1.0, but not all the way:
+
+- A module row that turns some arguments down (`:declines') hands them to
+  its Prolog half's clause, and the take-over had forgotten that clause.
+  These are length/2 enumerating, last/2 of a partial list, reverse/2 with
+  its first list unbound, nth0/3 and nth1/3 with the index unbound, and
+  aggregate_all/3 of a template of templates. The declined goal was made
+  `system:G' again and pushed, and ran for ever. So `system:length(L, N)'
+  with length/2 redefined never answered, nor `system:last([a|_], X)' with
+  last/2 defined, where swipl answers `[]-0' and `[a]-a'.
+- Under trace, a module's answer had no port: `system:last([a, b, c], X)'
+  printed nothing. Nor had a qualified goal nothing defines
+  (`lists:nosuch').
+
+A patch, as both were bugs and nothing new is reachable.
+
+- **The library's own clauses of a taken name are kept** under
+  `$system:NAME' of the same arity (`coco_kept_head' in
+  lib/kb-consult.cicili):
+  - by the take-over, where the library's half was read before it
+    (`coco_pred_keep_muted');
+  - by the assert, where it is read after: a module's half is read at a
+    query's start, which comes after `run' consulted the program. Through
+    3.58.0 the assert left such a clause out.
+  A kept clause keeps the library's attributes, read at the take-over: 32,
+  it hides its children, and 64, a library's. The program's clause decides
+  the predicate's again after the take-over now, where it decided them
+  before it, and before the fetch, which may refuse the clause. The first
+  build copied them at the take-over and lost both, as the program's
+  clause had cleared them.
+- **A declined `system:G' runs them in the `:' step** (`coco_call_kept' in
+  lib/solve-loop.cicili), as the step calls a predicate. Its frame's call is
+  G's head under the kept name, so its clauses match it and their calls are
+  hidden from the printer as a library predicate's are. A guarded frame's
+  last call takes the guard on (`coco_det_pcall'). It is one step and one
+  inference, as the row's answer is. Nothing kept is G's unknown procedure;
+  every module the tree has that declines has its half's clause, so nothing
+  reaches that.
+- **What the tracer prints is G.** The tracer's context of a clause frame is
+  the frame's call: a retry takes it, and the exit marker matches it. What
+  it prints is its shadow frame's goal. These are one cell for every frame
+  but the kept call's. So `system:length(L, N), N >= 1' prints length's
+  Call, Exit, Redo and Exit as swipl's, and none of `'$skip_list'/3' and
+  `'$length3'/3'. A kept frame that tries a clause before the one that
+  answers -- aggregate_all/3's first clause tests its spec with var/1 --
+  runs the next one's body as its own, hidden.
+- **A guarded `system:G' answers alike whether its name is taken or not.**
+  The kept call takes the guard on as the call of the name not taken does.
+- **A qualified goal has the ports an unqualified one has**
+  (`coco_colon_run'): the Call before anything runs, and a module's Exit and
+  Fail too. A name nothing defines has its Call. The system's G hides its
+  children; any other G is asked as the step asks it.
+
+The kept predicate is named as the library's other `$' helpers are: a call
+of `'$system:length'(L, N)' runs it, and predicate_property/2 of the head
+named answers. Nothing that walks the program shows it: current_predicate/1,
+predicate_property/2 with the head unbound, listing/0,1.
+
+test/files/system_kept.pl holds 27 lines to swipl, the guard among them.
+test/trace.pl holds nine queries of test/trace-taken.pl to swipl's ports,
+and two lines of its own. One is a qualified goal nothing defines, in a
+clause that hides its children: swipl's catch/3 is a frame of its own, a
+depth apart. The other is a kept frame's retry, the next clause's calls
+hidden: swipl hides them too, but both show what aggregate_list/3's
+maplist/4 calls, and swipl names its helper apply:maplist_/4.
+test/engine.pl's `kept_guard' holds nine guarded `system:G' goals of taken
+names to the same goals with the names not taken, and not to swipl
+(below).
+
+Found and not fixed (3.58.0's too), task 168:
+
+- `$/0''s guard handed to a qualified last call into library(lists) names
+  the callee (`lists:nth0/3', `lists:last_/3') where swipl names the
+  guarded clause (`gn/0'), the callee in the context. A last call into the
+  system module agrees ('$length3'/3).
+- A guarded last call into a transparent library predicate that then fails
+  -- maplist/2, aggregate_all/3 of a template of templates -- fails, where
+  swipl raises determinism_error(Clause, det, fail, guard_in_caller), the
+  frame that failed in the context (`apply:maplist_/2').
+
+Arms, one build each, 13. The arm of no edit is green. Eight rules are each
+red in the files case or the trace case:
+
+- the take-over keeping the library's clauses;
+- the late read keeping them;
+- the attributes read before the program's clause decides them (the arm
+  read them after it);
+- the kept call;
+- a qualified goal's ports;
+- the system's G hiding its children;
+- the frame's call the kept head;
+- the exit marker printing the goal.
+
+Two were green, and each has a case now. The retry's context is held by the
+trace case's line (without it the kept clause's three calls print). The
+guard taken on by the kept call is held by `kept_guard' (without it `gq' and
+`gn' raise what the names not taken do not).
+
+Two were green and are gone:
+
+- a traced cut matching the frame by its call: no clause a declined goal
+  runs cuts;
+- the clause as written renamed for the unifications moved into its head:
+  the kept head's arguments are the head's own variables, so the move reads
+  the same.
+
+The cost. tools/flow/zero.sh against 3.58.0 at like paths, work less
+padding: nrev 0, queens -3 636, lookup 0, of 40 to 66 million. The kept call
+(`coco_call_kept') is out of line and cold, and the step loop's code is
+3.58.0's. The start (`cocolog query true', each binary at the checkout's
+path) does 248 instructions more work of 35.90 million, the padding 12 638
+less. By function, coco_assert_from is -5 606, coco_cbody_goal -7 166 and
+coco_pred_room +1 458. A first cut read the library's attributes into a
+local before the program's clause decided them again, live across the whole
+assert to the take-over: +14 766 a start, 3.7 instructions an assert, all
+in coco_assert_from. The take-over reads them now, before the rule that
+decides them again, which moved after it.
+
+Narrow cases green: lint, files, engine, directives, library, errors,
+script, window, flowdebug, reconsult and trace. Reasoning stays 1.0.27.
