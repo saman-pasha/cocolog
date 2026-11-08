@@ -1007,7 +1007,8 @@
   ;;; and with NOTE the head declared; else the fault, *BAD its culprit: 1
   ;;; an unbound head, 2 one that is no callable term, 3 an ISO
   ;;; predicate's, 4 an unbound argument, 5 an integer or an atom that is
-  ;;; no specifier, 6 any other argument, 7 an integer past a C int
+  ;;; no specifier, 6 any other argument, 7 an integer past a C int, 8 the
+  ;;; list's end, which the goal fails at (3.47.0)
   (static)
   (func coco_pred_meta_head ((coco_store * st) (coco_machine * m) (size_t h) (int note)
                              (size_t * bad)) (out int)
@@ -1017,6 +1018,9 @@
           (set h (coco_deref m (coco_arg m h 1))))
         (set (cof bad) h)
         (if (coco-tag-is REF (nth h (-> m heap))) (return 1))
+        ;; the list's end names no predicate swipl's meta_declaration() can
+        ;; look up, and fails with no error (3.47.0)
+        (if (coco_is_nil m h) (return 8))
         (if (not (coco_is_callable m h)) (return 2))
         (if (coco_iso_predicate (coco_atom_name m (coco_name_of m h)) (coco_arity m h)) (return 3))
         (for ((u32 i . 0)) (< i (coco_arity m h)) ((++ i))

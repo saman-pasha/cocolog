@@ -3344,10 +3344,15 @@
   ;;; is bound and no atom is the compile's type_error(module, M), 3 with
   ;;; *MC set -- the first fault met, left to right, as swipl's compile
   ;;; meets it; an unbound M is the goal's to raise as it runs. 1 a goal,
-  ;;; 0 a leaf that is none.
+  ;;; 0 a leaf that is none. THE LIST'S END IS NO LEAF (3.47.0): swipl's
+  ;;; compile refuses `[]' wherever a structure holds it -- `(true, [])',
+  ;;; `\+ []', `$([])', `[]@user' -- where call/1 of `[]' alone, its
+  ;;; qualifiers off, runs []/0 and raises existence_error (DEPTH 0, no
+  ;;; construct passed; through 3.46.0 `[]' was a leaf anywhere)
   (weak)
   (func coco_goal_leaves ((coco_machine * m) (size_t g) (int depth) (u32 * budget) (size_t * mc))
         (out int)
+        (let ((int inner . #'(> depth 0)))
         (while 1
           (let ((u64 c . 0) (u64 nm . 0) (u32 n . 0) (int r . 0))
             (if (== (cof budget) 0) (return 1))
@@ -3356,7 +3361,7 @@
             (set c (nth g (-> m heap)))
             (if (coco-tag-is REF c) (return 1))
             (if (not (coco_is_callable m g)) (return 0))
-            (if (not (coco-tag-is FUN c)) (return 1))
+            (if (not (coco-tag-is FUN c)) (return (? (and inner (coco_is_nil m g)) 0 1)))
             (set nm (coco_name_of m g))
             (set n (coco_arity m g))
             (cond
@@ -3366,14 +3371,17 @@
                (if (> depth 256) (return 1))
                (set r (coco_goal_leaves m (coco_arg m g 0) (+ depth 1) budget mc))
                (if (!= r 1) (return r))
+               (set inner 1)
                (set g (coco_arg m g 1)))
               ((and (== n 1) (or (== nm (coco-id m "\\+")) (== nm (coco-id m "$"))))
+               (set inner 1)
                (set g (coco_arg m g 0)))
               ((and (== n 2) (== nm (coco-id m "@")))
                (let ((size_t mo . #'(coco_deref m (coco_arg m g 1))))
                  (if (and (not (coco-tag-is REF (nth mo (-> m heap))))
                           (or (not (coco-tag-is ATOM (nth mo (-> m heap)))) (coco_is_nil m mo)))
                      (block (set (cof mc) mo) (return 3))))
+               (set inner 1)
                (set g (coco_arg m g 0)))
               ;; M:G (3.44.0): G compiled in M, its leaves walked -- an M
               ;; bound and no atom the compile's type_error(module, M), an
@@ -3384,7 +3392,7 @@
                  (if (or (not (coco-tag-is ATOM (nth mo (-> m heap)))) (coco_is_nil m mo))
                      (block (set (cof mc) mo) (return 3))))
                (set g (coco_arg m g 1)))
-              (#t (return 1)))))
+              (#t (return 1))))))
         (return 1))
 
   ;;; WHAT A META-CALL'S GOAL G IS BEFORE IT RUNS, as swipl's call/1 finds
@@ -3427,7 +3435,9 @@
                       (block (set (cof mc) mo) (return 3)))
                   (set gl (coco_deref m (coco_arg m gl 1))))
                 (if (coco-tag-is REF (nth gl (-> m heap))) (return 2))
-                (return (coco_goal_leaves m gl 0 (aof budget) mc))))
+                ;; G@M's goal is compiled, never called alone: its `[]' is
+                ;; no goal (3.47.0)
+                (return (coco_goal_leaves m gl 1 (aof budget) mc))))
           (return (coco_goal_leaves m g 0 (aof budget) mc))))
 
   (func coco_goal_ok ((coco_machine * m) (size_t g)) (out int)

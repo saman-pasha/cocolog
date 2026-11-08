@@ -185,13 +185,16 @@
           ;; and not below 0, and a name with arguments an atom. Through
           ;; 1.10.5 an arity below 0 stopped the query where no catch/3 could
           ;; see it, an unbound name was a type error, and an arity that was
-          ;; bound but not an integer an instantiation error.
+          ;; bound but not an integer an instantiation error. The name is
+          ;; asked before the arity (3.47.0, pl-prims.c's order): a compound
+          ;; name is type_error(atomic, N) whatever the arity, where through
+          ;; 3.46.0 an unbound arity was asked first.
           (let ((size_t nt . #'(coco_a e g 1))
                 (size_t at . #'(coco_a e g 2)))
-            (if (or (coco-tag-is REF (nth nt (-> m heap))) (coco-tag-is REF (nth at (-> m heap))))
-                (return (coco_instantiation_error e)))
+            (if (coco-tag-is REF (nth nt (-> m heap))) (return (coco_instantiation_error e)))
             (if (coco-tag-is FUN (nth nt (-> m heap)))
                 (return (coco_type_error e "atomic" nt)))
+            (if (coco-tag-is REF (nth at (-> m heap))) (return (coco_instantiation_error e)))
             (if (not (coco-is-int (nth at (-> m heap))))
                 (return (coco_type_error e "integer" at)))
             (let ((i64 n . #'(coco_int_val m (nth at (-> m heap)))))
@@ -1418,7 +1421,8 @@
   ;;; whatever the program counts, which is what library(http) and its kin
   ;;; ask at their edge, where the wire is bytes. Read as swipl reads them
   ;;; (3.0.0): Encoding by PL_get_atom_ex, an unbound one instantiation_error
-  ;;; and any other type_error(atom, E); Text with
+  ;;; and any other type_error(atom, E) -- `[]', which PL_get_atom_ex takes,
+  ;;; domain_error(encoding, []) since 3.47.0; Text with
   ;;; CVT_ATOM|CVT_STRING|CVT_LIST and its errors, a number
   ;;; type_error(text, 42) (through 2.16.1 it was text); an unbound or
   ;;; partial Text takes the string of Bytes, a list of codes or of
@@ -1433,7 +1437,7 @@
               (size_t t . #'(coco_a e g 0))
               (size_t l . #'(coco_a e g 1)))
           (if (coco-tag-is REF (nth enc (-> m heap))) (return (coco_instantiation_error e)))
-          (if (or (not (coco-tag-is ATOM (nth enc (-> m heap)))) (coco_is_nil m enc))
+          (if (not (coco-tag-is ATOM (nth enc (-> m heap))))
               (return (coco_type_error e "atom" enc)))
           (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m enc)) "utf8"))
               (return (coco_domain_error e "encoding" enc)))
@@ -2129,16 +2133,23 @@
                 (if (or (not (coco_is_cons m opt)) (== (-- (-> m lbudget)) 0))
                     (block (coco_sb_free (aof b))
                            (return (coco_type_error e "list" (coco_arg m g 2)))))
-                (let ((size_t h . #'(coco_deref m (coco_arg m opt 0))))
+                (let ((size_t h . #'(coco_deref m (coco_arg m opt 0))) (size_t on . 0) (int eqf . 0))
                   (let ((u64 hc . #'(nth h (-> m heap))))
                     (if (coco-tag-is REF hc)
                         (block (coco_sb_free (aof b)) (return (coco_instantiation_error e))))
+                    ;; Name(V), or Name = V of an atom Name (3.47.0, swipl's
+                    ;; scan_options(); through 3.46.0 type_error(option, E))
                     (set bad (or (not (coco-tag-is FUN hc)) (!= (coco_arity m h) 1)))
+                    (if (and bad (coco_is_compound2 m h "="))
+                        (block (set on (coco_deref m (coco_arg m h 0))) (set eqf 1)
+                               (set bad (not (coco-tag-is ATOM (nth on (-> m heap)))))))
                     (if bad
                         (block (coco_sb_free (aof b))
                                (return (coco_type_error e "option" h))))
-                    (if (== 0 (strcmp (coco_atom_name m (coco_name_of m h)) "variable_names"))
-                        (block (set vn (coco_arg m h 0)) (set asked 1)))))
+                    ;; variable_names said twice is its last, as swipl's
+                    (if (== 0 (strcmp (coco_atom_name m (? eqf (coco_name_of m on) (coco_name_of m h)))
+                                      "variable_names"))
+                        (block (set vn (coco_arg m h (? eqf 1 0))) (set asked 1)))))
                 (set opt (coco_arg m opt 1)))))
           (set r (coco_tx_read e (aof b) (aof t) (aof names)))
           (coco_sb_free (aof b))

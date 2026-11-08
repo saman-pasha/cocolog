@@ -862,6 +862,7 @@
         (let ((coco_machine * m . #'(-> e m)) (size_t bad . 0) (size_t f . 0)
               (int r . #'(coco_pred_meta_check (-> e st) (-> e m) spec 1 (aof bad))))
           (if (== r 0) (return 1))
+          (if (== r 8) (return 0))
           (cond
             ((or (== r 1) (== r 4)) (set f (coco_new_atom m "instantiation_error")))
             ((== r 2) (set f (coco_make2 m "type_error" (coco_new_atom m "callable") bad)))
@@ -905,13 +906,28 @@
   ;;; refused; the system's runs until that clause comes. M:Head is Head; a
   ;;; name nothing implements, or a construct but not/1 and ignore/1, is
   ;;; left as it is; a Head that is unbound, or no goal, swipl's error.
+  ;;; USER'S DEFINITION GOES FIRST (3.47.0), as pl-proc.c's
+  ;;; abolishProcedure() takes it before the mark: the program's clauses by
+  ;;; the walk abolish/1 takes, a library's kept, then its declarations;
+  ;;; through 3.46.0 they stood, a dynamic predicate's clauses answering on.
   (func coco_bi_redefine_system ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st))
               (size_t h . #'(coco_deref (-> e m) (coco_arg (-> e m) g 0))))
           (while (coco_is_compound2 m h ":") (set h (coco_deref m (coco_arg m h 1))))
           (if (not (coco_is_callable m h)) (return (coco_type_error e "callable" h)))
-          (let ((u64 nid . #'(coco_name_of m h)) (u32 n . #'(coco_arity m h)))
+          (let ((u64 nid . #'(coco_name_of m h)) (u32 n . #'(coco_arity m h))
+                (size_t ap . #'(coco_pred_find (-> e st) (coco_name_of m h) (coco_arity m h))))
+            (if (< ap (-> st npreds))
+                (with-green-write e
+                 (let ((int lib . 0))
+                  (if (not (coco_pred_ensure st ap)) (return (coco_fetch_error e)))
+                  (set lib (and ($ (nth ap (-> st preds)) library) (not ($ (nth ap (-> st preds)) own))))
+                  (coco_pred_forget_where st m ap 0 (? lib 3 4))
+                  (coco_store_maybe_compact st m)
+                  (if (and (not lib) (< (coco_pred_undeclare st ap) 0))
+                      (return (coco_raise e (coco_make1 m "resource_error"
+                                                        (coco_new_atom m "knowledge_base"))))))))
             (if (and (== (coco_claim_kind m nid n) 2) (not (coco_is_construct m nid)))
                 (let ((size_t pi . #'(coco_pred_make st nid n)))
                   (if (< pi (-> st npreds)) (set ($ (nth pi (-> st preds)) redef) 1))))

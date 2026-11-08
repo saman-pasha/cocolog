@@ -15275,3 +15275,172 @@ flowdebug, directives, static, cowork, string, units, cyclic, solve,
 module and state, and lessons 01, 37 and 51. The card's cites hold (I1's
 two and X3's ranges corrected).
 
+## What the builtins ask of their arguments, and in what order, as swipl's (3.47.0)
+
+A scan of the 211 builtins cocolog and swipl 9.0.4 both define, each
+argument in turn given each of fifteen shapes -- unbound, `a`, `'A b'`,
+`''`, 1, 0, -1, 3.5, a string, `[a,b]`, `[a|_]`, `[a|b]`, `[]`, `f(x)`,
+`f(_,_)` -- the others unbound, and each goal's first four answers or its
+ball set beside swipl's (7 229 goals), differed in 84 places through
+3.46.0. Twelve of them were cocolog asking of an argument what swipl does
+not ask, or asking it in another order; 3.47.0 asks as swipl asks, and
+the scan differs in 59 places, listed at the end. Two more were found
+writing the case: an option said twice, and a read's `Name = Value`.
+
+- THE LIST'S END IS NO LEAF OF A STRUCTURE (`coco_goal_leaves`' `inner`,
+  lib/solve-control.cicili). swipl compiles a meta-call's control
+  structure before it runs any of it, and its compiler refuses `[]` where
+  a goal stands: `call((true, []))`, `([] -> true)`, `\+ []`, `$([])`,
+  `(true ; [])` and `[]@user` are type_error(callable, G) of the whole,
+  where `call([])` alone, its qualifiers off, runs []/0 and raises its
+  existence error. Through 3.46.0 every one of them ran []/0, and `(true ;
+  [])` succeeded by its first branch. G@M's goal is compiled, never called
+  alone (`coco_goal_check` walks it as an inner part), and findall/3,
+  forall/2, aggregate_all/3 and a C-called structure (`(user:true,
+  user:[])`) refuse it in their own names, as swipl's do.
+- SETUP_CALL_CLEANUP/3 ASKS AS I_CALLCLEANUP ASKS (`'$c_goal'/3`'s kind 4,
+  the builtins' Prolog half): the setup run, then the cleanup asked -- an
+  unbound one instantiation_error, one that is no goal type_error(callable,
+  C), `[]` among them -- before its frame is pushed, and the goal asked in
+  that frame (`'$scc_run'/1`), so a goal that is none is an exception the
+  cleanup runs for: `setup_call_cleanup(true, 1, out(c1))` prints c1 and
+  raises type_error(callable, 1). Through 3.46.0 the goal was asked before
+  the cleanup, the cleanup never ran for it, and a cleanup of `[]` ran
+  []/0. call_cleanup/2 and setup_call_catcher_cleanup/4 with it.
+- FORALL/2'S CONDITION RUNS BEFORE ITS ACTION IS ASKED (`coco_b_forall`):
+  swipl's `\+ (call(C), \+ call(A))` asks the action only once the
+  condition has an answer, so `forall(fail, _)` and `forall(fail, 1)`
+  hold, `forall(nope, _)` is nope/0's existence error, and
+  `forall((out(cond2) ; out(cond3)), 1)` prints cond2 and raises
+  type_error(callable, 1). The condition then runs alone as `(C, true)`,
+  to its first answer. Through 3.46.0 the action was asked first.
+- FUNCTOR/3 ASKS THE NAME BEFORE THE ARITY (pl-prims.c's order,
+  lib/solve-text.cicili): with the term unbound, an unbound name is
+  instantiation_error, a compound one type_error(atomic, N) (`f(x)`, `[a|b]`,
+  `"ab"` under codes), and only then an unbound arity instantiation_error;
+  through 3.46.0 the arity was asked first.
+- CURRENT_OP/3'S PRIORITY IS 1 TO 1200 (`coco_b_op_spec`,
+  lib/builtins-db.cicili): `current_op(0, _, _)` is
+  domain_error(operator_priority, 0), as swipl's; 3.46.0 failed.
+- STRING_BYTES/3'S `[]` IS AN ENCODING THAT IS NONE: domain_error(encoding,
+  []), as `'[]'`'s is; through 3.46.0 type_error(atom, []).
+- AGGREGATE_ALL/3'S `[]` IS NO TEMPLATE: type_error(aggregate_template,
+  []), swipl's invalid_template/1's, where an atom that names no aggregate
+  is domain_error(aggregate_template, A); 3.46.0 said the domain error.
+- DCG_TRANSLATE_RULE/2 OF A CLAUSE THAT CAN BE NONE FAILS
+  (`coco_dcg_bi_rule`, lib/dcg.cicili): with the rule unbound, a clause
+  neither unbound nor `_ :- _` (`a`, `[]`, `f(x)`) matches no clause of
+  swipl's and fails; 3.46.0 raised instantiation_error, as it still does
+  where the clause can be one.
+- META_PREDICATE/1 FAILS AT THE LIST'S END (`coco_pred_meta_head`'s 8,
+  lib/kb-pred.cicili): `meta_predicate([])`, `(m1(0), [])` and `([],
+  m2(0))` fail -- swipl's meta_declaration() finds no procedure for `[]`
+  -- the heads before it declared; 3.46.0 succeeded, and declared what
+  came after the `[]` too.
+- REDEFINE_SYSTEM_PREDICATE/1 TAKES USER'S DEFINITION AWAY FIRST
+  (`coco_bi_redefine_system`, lib/solve-db.cicili), as pl-proc.c's
+  abolishProcedure() does before it marks the predicate: the program's
+  clauses by the walk abolish/1 takes (a library's predicate keeps the
+  library's), then its declarations, so after `assertz(rd(1))` and
+  `redefine_system_predicate(rd(_))` a call of rd/1 is an unknown
+  procedure and the predicate no longer dynamic. Through 3.46.0 they
+  stood.
+- EXPAND_TERM/2 IS SWIPL'S EXPAND_TERMS/5 (`'$expand_terms'/3`,
+  lib/dcg.cicili): a list is its terms, each expanded as a term is -- a
+  rule into its declaration and its clause, term_expansion/2 asked of each
+  -- a list among what they give spliced in (`[[a], [], [b, [c]]]` is `[a,
+  [], b, c]`), and a partial or improper list type_error(list, L), the one
+  a hook gives too. Through 3.46.0 a list was one term, no rule in it
+  translated.
+- TERM_STRING/3'S OPTIONS ARE MERGED AS SWIPL MERGES THEM (`'$ts_merge'/3`
+  and its helpers, the builtins' Prolog half): with no quoted(_) in the
+  list, swipl's '$merge_options'/3 is put_dict/3 of `_{quoted:true}` over
+  the list, so each option is a key and a value -- `K=V`, `K-V`, `K:V` or
+  `K(V)`, anything else type_error('key-value', E) -- its key an atom or
+  an integer (else type_error('dict-key', K), an unbound one
+  instantiation_error) and given once (else duplicate_key(K)), each named
+  put_dict/3; the merge's quoted(true) wins over the list's `quoted =
+  false`; and an integer key reaches the write as format/3's
+  type_error(atom, K). Through 3.46.0 the list went to the write as it
+  was. A list that holds quoted(_) goes as it is, as swipl's.
+- A WRITE OPTION SAID TWICE IS ITS LAST (`coco_wt_put`,
+  lib/builtins-format.cicili, swipl's scan_options()):
+  `write_term('A', [quoted(true), quoted(false)])` writes `A`, and the
+  second variable_names/1 names the variables. Through 3.46.0 a boolean
+  was on if any of its options said true (quoted, ignore_ops, numbervars),
+  and the first variable_names/1 named them -- which also hid the merge's
+  quoted(true) above: the first arms found its rule green, and it is red
+  now.
+- A READ TAKES `Name = Value` AS THE WRITE DOES (`coco_bi_read_term_from_atom`,
+  lib/solve-text.cicili): read_term_from_atom/3 and term_string/3's read
+  answer `variable_names = V` and pass `foo = bar` over, the last
+  variable_names said the one answered; a name that is no atom is still
+  type_error(option, E). Through 3.46.0 every `=` was type_error(option,
+  E).
+
+test/files/builtin_checks.pl, new: 181 lines, swipl 9.0.4's byte for byte
+(3.46.0 differs at 85 of them).
+
+THE ARMS, one build each on the code as it stands, the rule taken out,
+each red in builtin_checks.pl, run with test/files' expand.pl,
+c_call_goals.pl, cleanup.pl and meta_call_root.pl beside it (27 of 27;
+the arm of no edit green in all five): the list's end no leaf (B01) and
+G@M's goal compiled (B02), the cleanup asked before the goal (B03) and
+the goal in its frame (B04), `[]` no cleanup (B05), forall/2's condition
+first (B06), functor/3's name first (B07), current_op/3's 0 (B08),
+string_bytes/3's `[]` (B09), aggregate_all/3's `[]` (B10),
+dcg_translate_rule/2's failure (B11), meta_predicate/1's `[]` (B12),
+redefine_system_predicate/1's abolish (B13), expand_term/2's list (B14),
+each element as a term (B15, expand.pl red too), a partial list (B16), a
+list in it spliced (B17), term_string/3's merge (B18), a key given once
+(B19), a key an atom or an integer (B20), an unbound key (B21), an
+integer key format/3's error (B22), the merge's quoted(true) (B23), the
+key-value forms (B24), a write option's last (B25), the last
+variable_names/1 (B26) and a read's `Name = Value` (B27). B23 was green
+in the first round, the writer's any-true hiding it, and is red since the
+last option counts (B25 is that rule).
+
+WHAT THE SCAN STILL FINDS, 59 places, none of them this release's:
+a list of codes as one file's name, where swipl reads a list of files
+(`[97,98]` is `ab`, CLAUDE.md's bullet on where a load looks), and every
+goal that wraps one (`call`, `once`, `\+`, `findall/3`, `catch/3`,
+`forall/2`, the setup of setup_call_cleanup/3); the list as a goal and as
+a head (swipl's `'[|]'/2` is a system predicate over consult/1, which
+clause/2 shows, predicate_property/2 calls built_in, assertz/1 and
+meta_predicate/1 refuse; cocolog's `[X]` is `'$lf_load'/2` and the list's
+functor no system predicate: COMPAT.md); an unbound variable written
+(`_G670` where swipl writes `_1268`); current_op/3, current_predicate/1
+and predicate_property/2 walking their tables in their own order
+(COMPAT.md); `char_code(X, 0)` (COMPAT.md); sig_atomic/1 and
+call_cleanup/3, which cocolog does not define and nothing imports; and
+sort/4 with a list of keys, atomics_to_string/3 that splits and
+prolog_load_context/2's variable_names and term, the next release's.
+
+THE COST, callgrind, 3.46.0 to 3.47.0. The step loop is not touched
+(tools/flow/zero.sh, work less padding: nrev 66 132 465 and 66 132 247,
+queens 40 254 198 and 40 254 067, lookup 48 041 233 and 48 045 495):
+lookup's 4 262 more are memset (+2 822), `coco_clause_code` (+1 063),
+strncmp (+585) and `coco_code_put` (+375), the compiled-code table over a
+store the start leaves twenty clauses larger. A start (`cocolog query
+true`) is 19 925 061 instructions and 20 252 514 (+327 453, +1.64 %): the
+twenty clauses the
+builtins' and the grammar's Prolog halves gained -- term_string/3's
+merge, expand_term/2's walk -- read at every start (the reader's tokens
++62 280, the store's puts +38 503, the parse +29 253, the rest under
+20 000 each).
+
+Narrow cases green, each alone on the binary as committed: files (130
+cases, each agreeing with swipl), string, stream (library(stream)'s
+write_term/3 writes through write_term/2), serialize, template, text,
+units, repl, script, errors, trace, engine, directives, library,
+backtrace, cyclic, gc, reconsult, window, journal, meter, static,
+flowchart (library(flow/chart)'s tables gain the merge's and the walk's
+helpers), flowdebug, thread, cowork, lint, reason, translate and
+normalise (library/reasoning/ calls none of these builtins but forall/2,
+whose goal is 3.46.0's for an action that is a goal, and writes and reads
+with no option list: reasoning stays 1.0.27), async (alone on a quiet
+box: its check that times a write against a foreign call of 100 ms
+missed its window beside three arm builds, 3.46.0's in two runs of eight
+there too, and both binaries answer in eight of eight once the box is
+quiet) and lessons basics 09 and library 05. The card's cites hold (X2's
+moved).

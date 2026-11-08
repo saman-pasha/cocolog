@@ -77,15 +77,24 @@
            "expand_term(T, X) :- var(T), !, X = T."
            "expand_term(T, X) :- '$xhooks'(TE, GE), '$expand_term'(TE, GE, T, X)."
            "'$expand_term'(1, GE, T, X) :- term_expansion(T, X0), !, '$expand_terms'(X0, GE, X)."
-           "'$expand_term'(_, GE, T, X) :- '$expand_term1'(T, GE, X)."
-           ;; what term_expansion/2 gave: a proper list is its terms, each
-           ;; rule translated with no declaration, as swipl's
-           "'$expand_terms'(X0, GE, X) :- is_list(X0), !, '$expand_elems'(X0, GE, X)."
+           "'$expand_term'(_, GE, T, X) :- '$expand_terms'(T, GE, X)."
+           ;; WHAT term_expansion/2 GAVE, OR THE TERM, IS swipl's
+           ;; expand_terms/5's (3.47.0): a list is its terms, each expanded
+           ;; as a term is -- a rule translated, with its declaration where
+           ;; its predicate is no non-terminal yet, a list in it spliced --
+           ;; and a partial or improper one type_error(list, L). Through
+           ;; 3.46.0 the term's own list was a clause, its rules left as
+           ;; they were, and the rules of an expansion's list had no
+           ;; declaration.
+           "'$expand_terms'(X0, _, X) :- var(X0), !, X = X0."
+           "'$expand_terms'(X0, GE, X) :- X0 = [_|_], !, '$expand_list'(X0, GE, X)."
            "'$expand_terms'(X0, GE, X) :- '$expand_term1'(X0, GE, X)."
+           "'$expand_list'(L, GE, X) :- is_list(L), !, '$expand_elems'(L, GE, X)."
+           "'$expand_list'(L, _, _) :- throw(error(type_error(list, L), _))."
            "'$expand_elems'([], _, [])."
-           "'$expand_elems'([E|Es], GE, [X|Xs]) :- '$expand_elem'(E, GE, X), '$expand_elems'(Es, GE, Xs)."
-           "'$expand_elem'(E, GE, X) :- '$dcg_rule_term'(E), !, dcg_translate_rule(E, C), '$expand_clause'(GE, C, X)."
-           "'$expand_elem'(E, GE, X) :- '$expand_clause'(GE, E, X)."
+           "'$expand_elems'([E|Es], GE, X) :- '$expand_terms'(E, GE, X1), '$add_term'(X1, X, T), '$expand_elems'(Es, GE, T)."
+           "'$add_term'(L, X, T) :- nonvar(L), L = [_|_], !, ( is_list(L) -> '$append'(L, T, X) ; throw(error(type_error(list, L), _)) )."
+           "'$add_term'(E, [E|T], T)."
            ;; a rule's declaration names its head as swipl's does, a
            ;; qualified one with its qualifier under `user:', and is given
            ;; only when its predicate is no non-terminal yet (`'$nt_known'/1':
@@ -698,15 +707,22 @@
   ;;; '$dcg_rule'(Rule, Clause) -- dcg_translate_rule/2 (3.13.0): the clause
   ;;; swipl's translation gives, with no terminal lifted into the head; a
   ;;; term that is no grammar rule fails, and a variable is swipl's first
-  ;;; clause taking it for `(LP, MNT) --> RP', whose LP is unbound
+  ;;; clause taking it for `(LP, MNT) --> RP', whose LP is unbound -- where
+  ;;; the clause wanted can be one, `_ :- _' or unbound: swipl's two clause
+  ;;; heads give `H :- B', and a clause given that is none fails before the
+  ;;; rule is looked at (3.47.0; through 3.46.0 instantiation_error)
   (static)
   (func coco_dcg_bi_rule ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t r . #'(coco_deref (coco_m_machine e) (coco_m_arg e g 0)))
+              (size_t cl . #'(coco_deref (coco_m_machine e) (coco_m_arg e g 1)))
               (coco_dcg_err err)
               (size_t built . 0))
           (set ($ err kind) COCO_DCG_OK)
           (set ($ err culprit) 0)
+          (if (and (coco_m_is_var e r)
+                   (not (or (coco_m_is_var e cl) (coco_is_compound2 m cl ":-"))))
+              (return 0))
           (if (coco_m_is_var e r)
               (block (set ($ err kind) COCO_DCG_INST) (return (coco_dcg_raise e (aof err)))))
           (if (not (coco_dcg_is_rule m r)) (return 0))

@@ -227,13 +227,17 @@
   ;;; since 2.2.5, `'$VAR'(N)' as the variable it names, and quoted with
   ;;; swipl's character escapes since then too (`'don\'t''). Anything else
   ;;; in the list is ignored rather than refused, because an option a writer
-  ;;; does not implement is not a reason to fail a program.
+  ;;; does not implement is not a reason to fail a program. AN OPTION SAID
+  ;;; TWICE IS ITS LAST (3.47.0, swipl's scan_options()): `[quoted(true),
+  ;;; quoted(false)]' writes unquoted and the second variable_names/1 names
+  ;;; the variables; through 3.46.0 a boolean was on if any said true, and
+  ;;; the first variable_names/1 named them.
   (static)
   (func coco_wt_put ((coco_engine * e) (coco_strbuf * b) (size_t t) (size_t opts)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t * v . nil) (size_t n . 0)
               (int quoted . 0) (int ignore_ops . 0) (int numbervars . 0)
-              (int spacing . 0) (i64 prio . -1)
+              (int spacing . 0) (i64 prio . -1) (size_t vno . #'(cast size_t -1))
               (size_t * nv . nil) (size_t nn . 0) (size_t k . 0)
               (size_t * cells . nil) (u64 * names . nil))
           (if (coco_m_list_array e opts (aof v) (aof n))
@@ -245,11 +249,9 @@
                   (if (== 1 (coco_wt_parse e o (aof nm) (aof ov)))
                       (let ((int on . #'(? (== ov (cast size_t -1)) 1
                                            (? (== (coco_wt_truth e ov) 1) 1 0))))
-                        (if on
-                            (block
-                             (if (== 0 (strcmp nm "quoted")) (set quoted 1))
-                             (if (== 0 (strcmp nm "ignore_ops")) (set ignore_ops 1))
-                             (if (== 0 (strcmp nm "numbervars")) (set numbervars 1))))
+                        (if (== 0 (strcmp nm "quoted")) (set quoted on))
+                        (if (== 0 (strcmp nm "ignore_ops")) (set ignore_ops on))
+                        (if (== 0 (strcmp nm "numbervars")) (set numbervars on))
                         ;; spacing(next_argument) and priority(P) (3.19.0,
                         ;; swipl's; through 3.18.0 checked and read past)
                         (if (and (== 0 (strcmp nm "spacing")) (!= ov (cast size_t -1)))
@@ -257,26 +259,28 @@
                                                  (== 0 (strcmp (coco_m_atom e ov) "next_argument"))) 1 0)))
                         (if (and (== 0 (strcmp nm "priority")) (!= ov (cast size_t -1)))
                             (if (not (coco_m_int e ov (aof prio))) (set prio -1)))
-                        (if (and (and (== 0 (strcmp nm "variable_names")) (== cells nil))
-                                 (!= ov (cast size_t -1)))
-                            (if (coco_m_list_array e ov (aof nv) (aof nn))
-                                (block
-                                 (set cells (cast (size_t *) (malloc (* (+ nn 1) (sizeof size_t)))))
-                                 (set names (cast (u64 *) (malloc (* (+ nn 1) (sizeof u64)))))
-                                 (if (and (!= cells nil) (!= names nil))
-                                     (for ((size_t j . 0)) (< j nn) ((++ j))
-                                       (let ((size_t p . #'(coco_deref m (nth j nv))))
-                                         (if (and (and (coco_is_callable m p) (== 2 (coco_arity m p)))
-                                                  (== 0 (strcmp (coco_atom_name m (coco_name_of m p)) "=")))
-                                             (let ((size_t nmc . #'(coco_deref m (coco_arg m p 0)))
-                                                   (size_t vc . #'(coco_deref m (coco_arg m p 1))))
-                                               (if (and (coco_m_is_atom e nmc)
-                                                        (coco-tag-is REF (nth vc (-> m heap))))
-                                                   (block (set (nth k cells) vc)
-                                                          (set (nth k names) (coco_name_of m nmc))
-                                                          (set k (+ k 1)))))))))
-                                 (free nv)))))))))
+                        (if (and (== 0 (strcmp nm "variable_names")) (!= ov (cast size_t -1)))
+                            (set vno ov)))))))
           (free v)
+          ;; the variable names the last variable_names/1 gave, each
+          ;; `Name = V' of an atom and a variable still unbound
+          (if (and (!= vno (cast size_t -1)) (coco_m_list_array e vno (aof nv) (aof nn)))
+              (block
+               (set cells (cast (size_t *) (malloc (* (+ nn 1) (sizeof size_t)))))
+               (set names (cast (u64 *) (malloc (* (+ nn 1) (sizeof u64)))))
+               (if (and (!= cells nil) (!= names nil))
+                   (for ((size_t j . 0)) (< j nn) ((++ j))
+                     (let ((size_t p . #'(coco_deref m (nth j nv))))
+                       (if (and (and (coco_is_callable m p) (== 2 (coco_arity m p)))
+                                (== 0 (strcmp (coco_atom_name m (coco_name_of m p)) "=")))
+                           (let ((size_t nmc . #'(coco_deref m (coco_arg m p 0)))
+                                 (size_t vc . #'(coco_deref m (coco_arg m p 1))))
+                             (if (and (coco_m_is_atom e nmc)
+                                      (coco-tag-is REF (nth vc (-> m heap))))
+                                 (block (set (nth k cells) vc)
+                                        (set (nth k names) (coco_name_of m nmc))
+                                        (set k (+ k 1)))))))))
+               (free nv)))
           (if (and (!= cells nil) (!= names nil))
               (block (set (-> m wcells) cells) (set (-> m wnames) names) (set (-> m nwnames) k)))
           ;; quoted(true) writes a character to escape as swipl's

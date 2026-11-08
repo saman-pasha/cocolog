@@ -517,6 +517,10 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   non-terminal (`pattrs` 16, `coco_pred_nt_mark`), as non_terminal/1 does,
   and expand_term/2 gives a rule its `:- non_terminal` only where the
   predicate is none yet, as swipl's (COMPAT.md has what is not swipl's).
+  **expand_term/2's term, or what term_expansion/2 gave, is swipl's
+  expand_terms/5's** (3.47.0, `'$expand_terms'/3`): a list is its terms,
+  each expanded as a term is, a rule with its declaration, a list in it
+  spliced, a partial or improper one type_error(list, L).
 * **A program's own arguments come after `--`**:
   `current_prolog_flag(argv, [Exe|Tail])`; `os_argv` is the literal command
   line; `executable` is the binary's path. Those three, `double_quotes`,
@@ -1240,7 +1244,9 @@ cocolint index offers no import of it.
   `coco_claim_kind` 1, `coco_pred_take_over`): the predicate is called from
   then on, not/1, ignore/1 and the names of no arguments too; an ISO one's
   clause is refused at load (`*iso-predicates*`) unless
-  redefine_system_predicate/1 named it; a library's calls of a taken name
+  redefine_system_predicate/1 named it (which takes the program's
+  definition away first, as abolish/1 does, since 3.47.0 -- swipl's
+  abolishProcedure()); a library's calls of a taken name
   are made `system:` and keep the builtin. The functor keeps the row it
   calls (`bix`: K + 2, 1 none or taken), so **a new way to call a builtin
   by its row asks `bix`, never the table alone**, and a body compiled
@@ -1471,7 +1477,10 @@ cocolint index offers no import of it.
   `$(M:X)` meta-calling their argument in their own frame (`$`'s error
   shows `call(user:G)`, `coco_det_c_root`); setup_call_cleanup/3's goal
   runs in its own frame (`'$scc_run'/1`), and `'$c_goal'/3` raises a
-  setup's and a goal's faults itself (kinds 0 and 3). **A part of a
+  setup's and a goal's faults itself (kinds 0 and 3) -- the cleanup's
+  first, before its frame is pushed (kind 4, `[]` no goal there), and the
+  goal's in its frame after, so the cleanup runs for a goal that is none
+  (3.47.0, I_CALLCLEANUP's order). **A part of a
   construct is said of user only where that changes how it runs**
   (`coco_c_arg`: a call/N, a control structure, a variable, what is no
   goal), and every part where the construct is no goal and its error's
@@ -1507,7 +1516,8 @@ cocolint index offers no import of it.
   right, each head's atom qualifiers off, an ISO predicate refused before
   its arguments, each argument in order a 0 to 9 within a C int or one of
   `? + - * : ^ //`, the heads before a fault declared, the fault swipl's
-  ball named system:(meta_predicate)/1, a specifier's with `0..9`. A head
+  ball named system:(meta_predicate)/1, a specifier's with `0..9`, and the
+  list's end a failure (3.47.0). A head
   of no arguments is noted too (`meta_predicate zero`, the atom). M is
   the module/2 read's that defined the clause the call
   is written in (`pmod`; user for a program's clause, a meta-predicate's
@@ -1565,7 +1575,11 @@ cocolint index offers no import of it.
   untraced. A meta-call asks a G@M's module and goal before it runs
   (`coco_goal_check`: 2 an instantiation error, 3 type_error(module, M);
   `coco_goal_formal` builds the ball), so **a new raiser of a meta-call's
-  goal that is no goal builds its formal there**. The store says G@M of each
+  goal that is no goal builds its formal there**. **The list's end is no
+  leaf of a structure** (3.47.0, `coco_goal_leaves`' `inner`): `(true, [])`,
+  `\+ []`, `$([])` and `[]@user` are type_error(callable, G) of the whole,
+  where `[]` alone, its qualifiers off, runs []/0 -- a new walk of a
+  structure tells the root from a leaf. The store says G@M of each
   goal under it, as a qualifier is (`coco_cbody`'s `at`, `coco_cbody_wrap`),
   and every refusal walk takes `$` and `@` as control (ids 11 and 12 of the
   consult's and the assert's tables). test/files/det_at.pl holds it to
@@ -2005,6 +2019,9 @@ cocolint index offers no import of it.
   search ends at its first counterexample** (3.16.0, `rootn` 2 in
   `coco_engine_findall`, swipl's `\+ (C, \+ A)`): through 3.15.2 it went
   on, and every action after the one that failed ran, its writes with it.
+  **Its condition runs before its action is asked** (3.47.0): an action
+  that is no goal raises once the condition has an answer, never before --
+  `forall(fail, _)` holds -- the condition run alone as `(C, true)`.
 * **Text builtins work on CHARACTERS, SWI's, and on BYTES when a program
   asks** (`text_units`: 1.13.0, and characters the default since 2.0.0;
   bytes were through 1.x). A code is a code point, a char one character of

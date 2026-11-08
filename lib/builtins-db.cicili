@@ -1407,7 +1407,8 @@
 
   ;;; '$op_spec'(P, T, N), current_op/3's checks, swipl's in its order
   ;;; (3.0.0): N unbound or an atom (type_error(atom, N)), P unbound or an
-  ;;; integer (type_error(integer, P)) of 0 to 1200
+  ;;; integer (type_error(integer, P)) of 1 to 1200 (0 since 3.47.0: an
+  ;;; operator a priority of 0 removes is no operator)
   ;;; (domain_error(operator_priority, P)), T unbound or an atom
   ;;; (type_error(atom, T)) that is a specifier, the postfix two among them
   ;;; (domain_error(operator_specifier, T)). Through 2.16 none was asked:
@@ -1419,7 +1420,7 @@
               (return (coco_m_type_error e "atom" n)))
           (if (not (coco_m_is_var e p))
               (block (if (not (coco_m_int e p (aof v))) (return (coco_m_type_error e "integer" p)))
-                     (if (or (< v 0) (> v 1200))
+                     (if (or (< v 1) (> v 1200))
                          (return (coco_m_domain_error e "operator_priority" p)))))
           (if (not (coco_m_is_var e t))
               (block (set ts (coco_m_atom e t))

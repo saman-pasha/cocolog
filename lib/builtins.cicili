@@ -263,8 +263,12 @@
            ;; choice points cut; a goal that is no goal, its qualifiers off,
            ;; raises before it runs -- the setup sig_atomic/1's error, the
            ;; goal and the cleanup this predicate's, as swipl names them
-           ;; (`'$c_goal'/3' kinds 0 and 3)
-           "setup_call_catcher_cleanup(S, G, Ca, C) :- '$c_goal'(S, 0, S1), '$c_call'(S1), !, '$c_goal'(G, 3, _), '$c_goal'(C, 3, _), '$scc_push'(Ca, C, F), catch('$scc_run'(G), E, '$scc_raised'(F, E, Ca, C)), '$scc_exit'(F, D), ( D == true -> '$cleanup_call'(exit, Ca, C) ; true )."
+           ;; (`'$c_goal'/3' kinds 0, 3 and 4). AS I_CALLCLEANUP ASKS THEM
+           ;; (3.47.0): the cleanup before its frame is pushed, `[]' no goal
+           ;; there, and the goal in its own frame after, so a goal that is
+           ;; none is an exception the cleanup runs for; through 3.46.0 the
+           ;; goal was asked first, and the cleanup never ran for it
+           "setup_call_catcher_cleanup(S, G, Ca, C) :- '$c_goal'(S, 0, S1), '$c_call'(S1), !, '$c_goal'(C, 4, _), '$scc_push'(Ca, C, F), catch('$scc_run'(G), E, '$scc_raised'(F, E, Ca, C)), '$scc_exit'(F, D), ( D == true -> '$cleanup_call'(exit, Ca, C) ; true )."
            "'$cleanup_call'(W, Ca, C) :- ( Ca = W -> ( '$c_goal'(C, 1, C1), '$c_call'(C1) -> true ; true ) ; true )."
            ;; THE FRAMES SWIPL'S C AND ITS SYSTEM PREDICATES CALL A GOAL IN,
            ;; named as the system's by rows of *frame-contexts*
@@ -277,7 +281,7 @@
            ;; `'$c_not'/1' (\+)/1 and `'$c_det'/1' ($)/1
            "'$c_call'(G) :- call(G)."
            "'$c_call1'(G) :- call(G)."
-           "'$scc_run'(G) :- call(G)."
+           "'$scc_run'(G) :- '$c_goal'(G, 3, _), call(G)."
            "'$c_and'(A, B) :- call((A, B))."
            "'$c_ite'(A, B) :- call((A -> B))."
            "'$c_soft'(A, B) :- call((A *-> B))."
@@ -827,7 +831,33 @@
            ;; Through 2.16 a C row that read and wrote term_string/2's way
            ;; and ignored every option.
            "term_string(T, S, O) :- nonvar(S), !, read_term_from_atom(S, T, O)."
-           "term_string(T, S, O) :- ( memberchk(quoted(_), O) -> O1 = O ; O1 = [quoted(true)|O] ), format(string(S), '~W', [T, O1])."
+           "term_string(T, S, O) :- ( memberchk(quoted(_), O) -> O1 = O ; '$ts_merge'(O, [], O0), '$ts_ints'(O0), O1 = [quoted(true)|O0] ), format(string(S), '~W', [T, O1])."
+           ;; OPTIONS WITH NO quoted(_) ARE MERGED as swipl's '$merge_options'/3
+           ;; merges them (3.47.0): its put_dict/3 takes the list for a dict,
+           ;; each option Key=Value, Key-Value, Key:Value or Key(Value), a key
+           ;; an atom or an integer and given once -- else
+           ;; type_error('key-value', E), instantiation_error,
+           ;; type_error('dict-key', K) or duplicate_key(K), named
+           ;; put_dict/3 -- and the write sees each as Key(Value), an
+           ;; integer key format/3's type_error(atom, K). Through 3.46.0 the
+           ;; list went to the write as it was, its first that was no option
+           ;; format/3's type_error(option, E).
+           "'$ts_merge'([], _, [])."
+           "'$ts_merge'([E|Es], Ks, [P|Ps]) :- '$ts_pair'(E, K, V), '$ts_key'(K, Ks), '$ts_opt'(K, V, P), '$ts_merge'(Es, [K|Ks], Ps)."
+           "'$ts_pair'(K=V, K, V) :- !."
+           "'$ts_pair'(K-V, K, V) :- !."
+           "'$ts_pair'(K:V, K, V) :- !."
+           "'$ts_pair'(E, K, V) :- compound(E), compound_name_arity(E, K, 1), !, arg(1, E, V)."
+           "'$ts_pair'(E, _, _) :- throw(error(type_error('key-value', E), context(system:put_dict/3, _)))."
+           "'$ts_key'(K, _) :- var(K), !, throw(error(instantiation_error, context(system:put_dict/3, _)))."
+           "'$ts_key'(K, _) :- \\+ atom(K), \\+ integer(K), !, throw(error(type_error('dict-key', K), context(system:put_dict/3, _)))."
+           "'$ts_key'(K, Ks) :- memberchk(K, Ks), !, throw(error(duplicate_key(K), context(system:put_dict/3, _)))."
+           "'$ts_key'(_, _)."
+           "'$ts_opt'(K, _, '$ts_int'(K)) :- integer(K), !."
+           ;; the merge's own quoted:true wins over the list's
+           "'$ts_opt'(quoted, _, quoted(true)) :- !."
+           "'$ts_opt'(K, V, P) :- P =.. [K, V]."
+           "'$ts_ints'(O) :- ( memberchk('$ts_int'(K), O) -> throw(error(type_error(atom, K), context(system:format/3, _))) ; true )."
 
            ;; ---- prolog_load_context/2, swipl's (3.14.0) -------------------
            ;; Its keys in swipl's order, which a variable key walks. Where
@@ -1589,51 +1619,62 @@
   ;;; qualifiers leave of a setup goal is asked first, and a variable raises
   ;;; instantiation_error, anything else no goal type_error(callable, G),
   ;;; sig_atomic/1's; KIND 3 asks the same of setup_call_catcher_cleanup/4's
-  ;;; goal and cleanup, its own, and binds nothing. One builtin step a goal,
-  ;;; where a clause of each asked through an if-then-else
+  ;;; goal, its own, and binds nothing, and KIND 4 of its cleanup, which
+  ;;; I_CALLCLEANUP asks before it calls the goal, and where `[]' is no goal
+  ;;; (3.47.0, swipl's; through 3.46.0 the goal was asked first, and a
+  ;;; cleanup of `[]' ran as []/0). One builtin step a goal, where a clause
+  ;;; of each asked through an if-then-else
   (func coco_b_c_goal ((coco_engine * e) (size_t g)) (out int)
         (let ((i64 k . 0) (coco_machine * m . #'(coco_m_machine e)) (size_t s . 0))
           (if (not (coco_m_int e (coco_m_arg e g 1) (aof k))) (return 0))
-          (if (or (== k 0) (== k 3))
+          (if (or (== k 0) (>= k 3))
               (block
                 (set s (coco_c_goal m (coco_m_arg e g 0) 2))
                 (if (coco_m_is_var e s)
                     (return (coco_m_raise_pi e (coco_new_atom m "instantiation_error") "system"
                                              (? (== k 0) "sig_atomic" "setup_call_catcher_cleanup")
                                              (? (== k 0) 1 4))))
-                (if (not (coco_is_callable m s))
+                (if (or (not (coco_is_callable m s)) (and (== k 4) (coco_is_nil m s)))
                     (return (coco_m_raise_pi e (coco_make2 m "type_error" (coco_new_atom m "callable") s)
                                              "system"
                                              (? (== k 0) "sig_atomic" "setup_call_catcher_cleanup")
                                              (? (== k 0) 1 4))))
-                (if (== k 3) (return 1))))
+                (if (>= k 3) (return 1))))
           (return (coco_m_unify e (coco_m_arg e g 2)
                                 (coco_c_goal m (coco_m_arg e g 0) (cast int k))))))
 
   ;;; `forall(C, A)' is `\+ (C, \+ A)': the search for a counterexample stops
   ;;; at the first (rootn 2, `coco_engine_findall'), so no action after it runs.
-  ;;; each goal that is no goal is `'$apply':forall/2''s error (3.0.0)
+  ;;; each goal that is no goal is `'$apply':forall/2''s error (3.0.0). THE
+  ;;; CONDITION RUNS BEFORE THE ACTION IS ASKED (3.47.0), as swipl's clause
+  ;;; calls each where it stands: an action that is no goal raises once the
+  ;;; condition has an answer, and not at all where it has none --
+  ;;; `forall(fail, _)' holds, `forall(nope, _)' is nope/0's existence
+  ;;; error; through 3.46.0 both raised instantiation_error before the
+  ;;; condition ran. The condition then runs as `(C, true)', a structure's
+  ;;; part as it is beside `\+ A', and stops at its first answer
   (func coco_b_forall ((coco_engine * e) (size_t g)) (out int)
         (let ((int bad . #'(coco_m_goal_bad e (coco_m_arg e g 0) "$apply" "forall" 2)))
-          (if bad (return bad))
-          (set bad (coco_m_goal_bad e (coco_m_arg e g 1) "$apply" "forall" 2))
           (if bad (return bad)))
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t lst . 0)
               (size_t c . #'(coco_m_arg e g 0))
               (size_t a . #'(coco_m_arg e g 1))
-              (size_t goal . 0) (int fr . 0))
+              (size_t goal . 0) (int fr . 0)
+              (int abad . #'(not (coco_goal_ok m (coco_deref m (coco_m_arg e g 1))))))
           ;; EACH OF THE TWO IS A GOAL OF ITS OWN, as swipl's forall/2 calls
           ;; them: one that holds $/0 is called, so that its `$' guards
           ;; its own frame and cuts nothing of the other's (3.21.0)
           (if (coco_det0_in m c) (set c (coco_make1 m "call" c)))
-          (if (coco_det0_in m a) (set a (coco_make1 m "call" a)))
-          (set goal (coco_make2 m "," c (coco_make1 m "\\+" a)))
+          (if (and (not abad) (coco_det0_in m a)) (set a (coco_make1 m "call" a)))
+          (set goal (coco_make2 m "," c (? abad (coco_new_atom m "true") (coco_make1 m "\\+" a))))
           (set fr (coco_engine_findall e (coco_new_atom m "x") goal (aof lst) (aof g) 2))
           (if (== fr 2) (return 2))
           (if (not fr) (return -1))
           ;; no counterexample means the list is empty
-          (return (? (coco_m_is_atom e (coco_deref m lst)) 1 0))))
+          (if (coco_m_is_atom e (coco_deref m lst)) (return 1))
+          (if abad (return (coco_m_goal_bad e (coco_m_arg e g 1) "$apply" "forall" 2)))
+          (return 0)))
 
   ;;; `aggregate_all(Spec, Goal, Result)'. count, count(T), sum(T), max(T),
   ;;; min(T), bag(T) and set(T) -- the seven SWI documents for the form that
@@ -1654,6 +1695,9 @@
           ;; type_error(aggregate_template, S), any other name
           ;; domain_error(aggregate_template, S)
           (if (coco_m_is_var e spec) (return (coco_m_instantiation_error e)))
+          ;; the list's end is no callable term, swipl's invalid_template/1's
+          ;; type error (3.47.0; through 3.46.0 the domain error of a name)
+          (if (coco_is_nil m (coco_deref m spec)) (return (coco_m_type_error e "aggregate_template" spec)))
           ;; a bare `count' collects a constant; everything else collects the
           ;; argument of the spec
           (if (coco_m_is_atom e spec)
