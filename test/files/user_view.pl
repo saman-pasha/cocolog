@@ -5,8 +5,9 @@
 %  cocolog does not carry (random/1, string_to_atom/2); an export no
 %  autoloading reaches (library(dcg/basics)'s, (dcg/high_order)'s) until the
 %  program loads its library; a library's own predicate user does not see
-%  (a helper, a hook it defines in another module); and the hooks swipl
-%  declares in user, dynamic and multifile. Not here (COMPAT.md): where the
+%  (a helper, a hook it defines in another module), and a helper of
+%  cocolog's own, a `$' name since 3.48.1; and the hooks swipl declares in
+%  user, dynamic and multifile. Not here (COMPAT.md): where the
 %  two write a predicate differently (`foreign', the counts of
 %  file_search_path/2), the files of a library compiled into cocolog, and
 %  library(yall)'s `system:goal_expansion/2' clause, which cocolog's one
@@ -63,7 +64,7 @@ unseen :-
     forall(member(H, [gen_assoc_(_, _, _), add_existential_vars(_, _, _), has_type(_, _),
                       safe_meta_predicate(_), goal_colours(_, _), called_by(_, _, _, _),
                       digits(_, _, _), string_without(_, _, _, _), sequence(_, _, _, _),
-                      optional(_, _, _, _)]),
+                      optional(_, _, _, _), sub_string_same(_, _), atom_chars_list(_, _)]),
            ( functor(H, N, A), props(H),
              ( current_predicate(N/A) -> out(N/A-current) ; out(N/A-none) ),
              predicate_property(H, implementation_module(M)), out(M) )),

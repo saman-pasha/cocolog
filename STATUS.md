@@ -15602,3 +15602,30 @@ asks none of what moved: reasoning stays 1.0.27), and lessons library 04,
 20, 36 and 56, which ask current_predicate/1 or define message_hook/3. The
 database cases want a server, which CI raises: a library's declarations are
 made muted, so no backend hears them. The card's cites hold.
+
+## cocolog's own helpers no predicates a program sees (3.48.1)
+
+3.48.0's scan found three plain-named predicates of cocolog's own library
+halves that swipl's user has none of. free_list/2 is library(lists)'s
+documented API (lesson library 01) and stays, as library(async)'s and the
+store's predicates do. sub_string_same/2, the helper `'$sub_string'/5`
+compares sub_string/5's text with, is `'$sub_string_same'/2`
+(lib/builtins.cicili), and atom_chars_list/2, which nothing calls, is gone:
+predicate_property/2 of either answers nothing but
+implementation_module(user), as swipl's (3.48.0 answered the builtins
+half's properties and implementation_module(system)), and a program's own
+clause of either name no longer joins cocolog's.
+
+test/files/user_view.pl holds the two: 107 lines, swipl 9.0.4's byte for
+byte (3.48.0 differs at 4). THE ARMS, one build each, red in it: the plain
+name (B01) and the helper kept (B02), the arm of no edit green.
+tools/flow/zero.sh against 3.48.0, work less padding: nrev 66 132 217 and
+66 132 219, queens 40 254 095 and 40 254 111, lookup 48 044 662 and
+48 040 449; a start (`cocolog query true`, from the checkout root) is
+35 770 462 instructions and 35 740 814 (-29 648: the clause, and the
+predicate, the builtins half no longer makes). Narrow cases green, each alone
+on the binary as committed: lint, files (131 cases), string, units,
+library, flowchart (library(flow/chart)'s tables name `'$sub_string_same'/2`
+and lose the two), engine, repl, directives, errors, trace, reason,
+normalise and translate, and lesson library 46, which calls sub_string/5.
+The card's cites hold (X3's moved a line).

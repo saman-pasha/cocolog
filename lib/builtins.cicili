@@ -719,11 +719,13 @@
            ;; with the escape IN the warning, which cost a second round.
            "sub_string(S, B, L, Aft, Sub) :- nonvar(Sub), !, '$sub_text_length'(S, B, L, Aft, Sub, N, string), '$string_text_length'(Sub, L, string), Max is N - L, between(0, Max, B), '$sub_string'(S, B, L, Aft, Sub)."
            "sub_string(S, B, L, Aft, Sub) :- '$sub_text_length'(S, B, L, Aft, Sub, N, string), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_string'(S, B, L, Aft, Sub)."
-           "'$sub_string'(S, B, L, Aft, Sub) :- string_codes(S, Cs), length(Pre, B), append(Pre, Mid, Cs), length(Mid, ML), MidL is ML, length(SubCs, L), append(SubCs, Post, Mid), length(Post, Aft), string_codes(Sub0, SubCs), sub_string_same(Sub, Sub0), MidL >= L."
-           ;; Sub may arrive as a string, an atom or a number; compare the text.
-           "sub_string_same(Sub, Sub0) :- var(Sub), !, Sub = Sub0."
-           "sub_string_same(Sub, Sub0) :- string(Sub), !, Sub == Sub0."
-           "sub_string_same(Sub, Sub0) :- atom_string(Sub, S1), S1 == Sub0."
+           "'$sub_string'(S, B, L, Aft, Sub) :- string_codes(S, Cs), length(Pre, B), append(Pre, Mid, Cs), length(Mid, ML), MidL is ML, length(SubCs, L), append(SubCs, Post, Mid), length(Post, Aft), string_codes(Sub0, SubCs), '$sub_string_same'(Sub, Sub0), MidL >= L."
+           ;; Sub may arrive as a string, an atom or a number; compare the
+           ;; text. A `$' name (3.48.1): as sub_string_same/2 it was a
+           ;; predicate a program saw, which swipl's user has none of.
+           "'$sub_string_same'(Sub, Sub0) :- var(Sub), !, Sub = Sub0."
+           "'$sub_string_same'(Sub, Sub0) :- string(Sub), !, Sub == Sub0."
+           "'$sub_string_same'(Sub, Sub0) :- atom_string(Sub, S1), S1 == Sub0."
 
            ;; ---- atomic_list_concat/2,3 ARE NOT HERE -----------------------
            ;; They were four clauses around '$atom_join'/3 and
@@ -875,10 +877,7 @@
            "'$plc'(directory, D) :- '$load_context'(file, F), file_directory_name(F, D)."
            "'$plc'(dialect, swi)."
            "'$plc'(term_position, P) :- '$load_context'(term_position, P)."
-           "'$plc'(script, false)."
-
-           ;; ---- atom_string-free helpers the tests lean on -----------------
-           "atom_chars_list(A, L) :- atom_chars(A, L).")))
+           "'$plc'(script, false).")))
 
 (generic decl-builtins
   ()
