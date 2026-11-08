@@ -15,6 +15,55 @@
 
 (IN-PACKAGE :cocolog)
 
+;;; WRITE_TERM/2'S OPTIONS, swipl 9.0.4's pl-write.c table (3.55.0): a name
+;;; and the kind it is checked as, 1 a boolean, 2 an integer, 3 an atom, 4
+;;; spacing, 5 variable_names, 6 any term. An option's row is found once,
+;;; by `coco_wt_opt' -- a cond on the name's first byte, then a strcmp a row
+;;; of that byte's -- which the check and the write each ask an option, and
+;;; `(coco-wt-opt "quoted")' is a row's number, as `(cc-op ...)' is an
+;;; opcode's. Through 3.54.0 the write compared an option with every name
+;;; it applies, 13 strcmp an option, which 3.55.0's four names would have
+;;; made 17. The commonest rows stand first in their byte's group.
+(DEFPARAMETER *wt-options*
+  '(("quoted" 1) ("ignore_ops" 6) ("numbervars" 1) ("portray" 1) ("portray_goal" 6)
+    ("portrayed" 1) ("max_depth" 2) ("priority" 2) ("spacing" 4) ("variable_names" 5)
+    ("fullstop" 1) ("nl" 1) ("dotlists" 1) ("no_lists" 1) ("character_escapes" 1)
+    ("character_escapes_unicode" 1) ("quote_non_ascii" 1) ("brace_terms" 1) ("cycles" 1)
+    ("partial" 1) ("module" 3) ("back_quotes" 3) ("attributes" 3) ("blobs" 3)))
+
+(DEFUN coco-wt-opt-number (name)
+  (LET ((i (POSITION name *wt-options* :KEY #'FIRST :TEST #'STRING=)))
+    (UNLESS i (ERROR "cocolog: no write_term option ~S" name))
+    (1+ i)))
+
+(DEFMACRO coco-wt-opt (name) (coco-wt-opt-number name))
+
+;;; The bodies of the two functions made of the table: NM's row, 0 for a
+;;; name swipl has not, and a row's kind, 0 for no row
+(DEFMACRO coco-wt-opt-body (nm)
+  (LET* ((lead (LAMBDA (s) (CHAR-CODE (CHAR s 0))))
+         (leads (SORT (REMOVE-DUPLICATES (MAPCAR (LAMBDA (row) (FUNCALL lead (FIRST row)))
+                                                 *wt-options*))
+                      #'<)))
+    `(let ((int lead0 . #'(bitand (cast int (nth 0 ,nm)) 255)))
+       (cond
+         ,@(MAPCAR
+            (LAMBDA (k)
+              `((== lead0 ,k)
+                (cond
+                  ,@(LOOP FOR row IN *wt-options* FOR i FROM 1
+                          WHEN (= (FUNCALL lead (FIRST row)) k)
+                          COLLECT `((== 0 (strcmp ,nm ,(FIRST row))) (return ,i)))
+                  (#t (return 0)))))
+            leads)
+         (#t (return 0))))))
+
+(DEFMACRO coco-wt-kind-body (id)
+  `(switch ,id
+     ,@(LOOP FOR row IN *wt-options* FOR i FROM 1
+             COLLECT `(case ,i (return ,(SECOND row))))
+     (default (return 0))))
+
 ;;; FORMAT'S OWN TEXT WALKED (3.33.0): what was put in S since `cdone', up
 ;;; to TO, by pl-fmt.c's update_column() -- `coco_col_walk' mode 0, a tab
 ;;; to (COL + 1) | 7. `~a', `~s', `~c', the numbers and the format's
@@ -91,26 +140,20 @@
   ;;; a name swipl has not is read past, as swipl's is. Through 2.16 every
   ;;; option was read past but the four below, and those only as Name(true).
 
-  ;;; The kind swipl gives an option of NAME: 1 boolean, 2 integer, 3 atom,
-  ;;; 4 spacing, 5 variable_names, 6 any term, 0 none of its own.
+  ;;; An option's row of `*wt-options*' by its NAME, 0 for a name swipl
+  ;;; has not, and the kind swipl gives the row: 1 boolean, 2 integer, 3
+  ;;; atom, 4 spacing, 5 variable_names, 6 any term, 0 none of its own.
+  (static)
+  (func coco_wt_opt ((const char * nm)) (out int)
+        (coco-wt-opt-body nm))
+
+  (static)
+  (func coco_wt_id_kind ((int id)) (out int)
+        (coco-wt-kind-body id))
+
   (static)
   (func coco_wt_kind ((const char * nm)) (out int)
-        (if (or (== 0 (strcmp nm "quoted")) (or (== 0 (strcmp nm "numbervars"))
-            (or (== 0 (strcmp nm "portray")) (or (== 0 (strcmp nm "portrayed"))
-            (or (== 0 (strcmp nm "character_escapes")) (or (== 0 (strcmp nm "character_escapes_unicode"))
-            (or (== 0 (strcmp nm "fullstop")) (or (== 0 (strcmp nm "nl"))
-            (or (== 0 (strcmp nm "dotlists")) (or (== 0 (strcmp nm "brace_terms"))
-            (or (== 0 (strcmp nm "cycles")) (or (== 0 (strcmp nm "no_lists"))
-            (or (== 0 (strcmp nm "quote_non_ascii")) (== 0 (strcmp nm "partial")))))))))))))))
-            (return 1))
-        (if (or (== 0 (strcmp nm "max_depth")) (== 0 (strcmp nm "priority"))) (return 2))
-        (if (or (== 0 (strcmp nm "module")) (or (== 0 (strcmp nm "back_quotes"))
-            (or (== 0 (strcmp nm "attributes")) (== 0 (strcmp nm "blobs")))))
-            (return 3))
-        (if (== 0 (strcmp nm "spacing")) (return 4))
-        (if (== 0 (strcmp nm "variable_names")) (return 5))
-        (if (or (== 0 (strcmp nm "ignore_ops")) (== 0 (strcmp nm "portray_goal"))) (return 6))
-        (return 0))
+        (return (coco_wt_id_kind (coco_wt_opt nm))))
 
   ;;; Whether V is a boolean as swipl's PL_get_bool reads one; 1 true, 0
   ;;; false, -1 neither: true, on and the integer 1, false, off and 0 (the
@@ -191,16 +234,25 @@
         (if (coco_wt_parse e o nm v) (return 1))
         (return (coco_m_type_error e "option" o)))
 
-  ;;; The options checked, as the head of this section says.
+  ;;; The options checked, as the head of this section says, and then the
+  ;;; term TM under cycles(false) (3.55.0, swipl's PL_WRT_NO_CYCLES; through
+  ;;; 3.54.0 checked and read past): a cyclic one is domain_error(cyclic_term,
+  ;;; TM), raised before a character is written, whatever the depth limit --
+  ;;; swipl asks PL_is_acyclic() of the whole term once its options are read.
   (static)
-  (func coco_wt_check ((coco_engine * e) (size_t opts)) (out int)
+  (func coco_wt_check ((coco_engine * e) (size_t opts) (size_t tm)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t t . #'(coco_deref m opts)) (size_t budget . #'(-> m heap_len)) (int r . 0))
+              (size_t t . #'(coco_deref m opts)) (size_t budget . #'(-> m heap_len)) (int r . 0)
+              (int cycles . 1))
           (while (and (coco_is_cons m t) (> budget 0))
-            (let ((const char * nm . nil) (size_t v . 0) (int k . 0))
+            (let ((const char * nm . nil) (size_t v . 0) (int k . 0) (int id . 0))
               (set r (coco_wt_option e (coco_deref m (coco_arg m t 0)) (aof nm) (aof v)))
               (if (!= r 1) (return r))
-              (set k (coco_wt_kind nm))
+              (set id (coco_wt_opt nm))
+              (set k (coco_wt_id_kind id))
+              ;; the last cycles(B) said stands, as every option's does
+              (if (== id (coco-wt-opt "cycles"))
+                  (set cycles (or (== v (cast size_t -1)) (== (coco_wt_truth e v) 1))))
               (if (and (!= v (cast size_t -1)) (and (!= k 0) (!= k 6)))
                   (block
                     (if (coco_m_is_var e v) (return (coco_m_instantiation_error e)))
@@ -222,7 +274,9 @@
                         (block (set r (coco_wt_check_names e v)) (if (!= r 1) (return r)))))))
             (set budget (- budget 1))
             (set t (coco_deref m (coco_arg m t 1))))
-          (if (coco_is_nil m t) (return 1))
+          (if (coco_is_nil m t)
+              (return (? (or cycles (coco_acyclic m tm)) 1
+                         (coco_m_domain_error e "cyclic_term" (coco_deref m tm)))))
           (if (coco_m_is_var e t) (return (coco_m_instantiation_error e)))
           (return (coco_m_type_error e "list" (coco_deref m opts)))))
 
@@ -257,7 +311,16 @@
   ;;; (`coco_write_fullstop', `coco_write_list_dots'), and portray(true) and
   ;;; portray_goal(G) since 3.54.0, each implying numbervars(true) unless
   ;;; numbervars(B) is given: the write asks portray/1 of its terms while it
-  ;;; has a clause, or G, through call/3 (`coco_portray_call').
+  ;;; has a clause, or G, through call/3 (`coco_portray_call'). And since
+  ;;; 3.55.0, swipl's: character_escapes(false), the quoted text as it is
+  ;;; but its quote doubled and its backslash `\\' (256 without 16:
+  ;;; `'a<LF>b'', `'it''s'', `"say ""hi"""'); character_escapes_unicode(false),
+  ;;; a character escaped by its code `\x1\' (no 64; `\u0001' with it);
+  ;;; quote_non_ascii(true), a name past U+00FF quoted (32768: `'∀'', never
+  ;;; `é'); and brace_terms(false), a curly term `{}(T)' (128). A cycle's
+  ;;; factors are S_1, S_2, ... under numbervars alone, as swipl binds them
+  ;;; to `'$VAR'('S_1')' only then (`coco_write_cyclic'); through 3.54.0
+  ;;; under every write_term/2.
   (static)
   (func coco_wt_put ((coco_engine * e) (coco_strbuf * b) (size_t t) (size_t opts)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
@@ -265,6 +328,7 @@
               (int quoted . 0) (int ignore_ops . 0) (int numbervars . 0) (int nvset . 0)
               (int portray . 0) (size_t pgoal . 0) (int asks . 0)
               (int fullstop . 0) (int nl . 0) (int dotlists . 0) (int nolists . 0)
+              (int escapes . 1) (int unicode . 1) (int nonascii . 0) (int braces . 1)
               (int spacing . 0) (i64 prio . -1) (i64 maxd . 0) (size_t vno . #'(cast size_t -1))
               (size_t * nv . nil) (size_t nn . 0) (size_t k . 0)
               (size_t * cells . nil) (u64 * names . nil))
@@ -276,35 +340,52 @@
                   ;; reads it, and true or on for true (3.0.0)
                   (if (== 1 (coco_wt_parse e o (aof nm) (aof ov)))
                       (let ((int on . #'(? (== ov (cast size_t -1)) 1
-                                           (? (== (coco_wt_truth e ov) 1) 1 0))))
-                        (if (== 0 (strcmp nm "quoted")) (set quoted on))
-                        (if (== 0 (strcmp nm "ignore_ops")) (set ignore_ops on))
-                        (if (== 0 (strcmp nm "numbervars")) (block (set numbervars on) (set nvset 1)))
-                        ;; portray(B) and portray_goal(G) (3.54.0, swipl's;
-                        ;; through 3.53.0 checked and read past)
-                        (if (== 0 (strcmp nm "portray")) (set portray on))
-                        (if (and (== 0 (strcmp nm "portray_goal")) (!= ov (cast size_t -1)))
-                            (set pgoal ov))
-                        ;; fullstop(B), nl(B), dotlists(B) and no_lists(B)
-                        ;; (3.53.0, swipl's; through 3.52.0 checked and read
-                        ;; past)
-                        (if (== 0 (strcmp nm "fullstop")) (set fullstop on))
-                        (if (== 0 (strcmp nm "nl")) (set nl on))
-                        (if (== 0 (strcmp nm "dotlists")) (set dotlists on))
-                        (if (== 0 (strcmp nm "no_lists")) (set nolists on))
-                        ;; spacing(next_argument) and priority(P) (3.19.0,
-                        ;; swipl's; through 3.18.0 checked and read past)
-                        (if (and (== 0 (strcmp nm "spacing")) (!= ov (cast size_t -1)))
-                            (set spacing (? (and (coco_m_is_atom e ov)
-                                                 (== 0 (strcmp (coco_m_atom e ov) "next_argument"))) 1 0)))
-                        (if (and (== 0 (strcmp nm "priority")) (!= ov (cast size_t -1)))
-                            (if (not (coco_m_int e ov (aof prio))) (set prio -1)))
-                        ;; max_depth(D) (3.49.0, swipl's; through 3.48.3
-                        ;; checked and read past), 0 no limit
-                        (if (and (== 0 (strcmp nm "max_depth")) (!= ov (cast size_t -1)))
-                            (if (not (coco_m_int e ov (aof maxd))) (set maxd 0)))
-                        (if (and (== 0 (strcmp nm "variable_names")) (!= ov (cast size_t -1)))
-                            (set vno ov)))))))
+                                           (? (== (coco_wt_truth e ov) 1) 1 0)))
+                            (int given . #'(!= ov (cast size_t -1))))
+                        ;; the option's row, found once (3.55.0)
+                        (switch (coco_wt_opt nm)
+                          (case (coco-wt-opt "quoted") (set quoted on) break)
+                          (case (coco-wt-opt "ignore_ops") (set ignore_ops on) break)
+                          (case (coco-wt-opt "numbervars") (set numbervars on) (set nvset 1) break)
+                          ;; portray(B) and portray_goal(G) (3.54.0, swipl's;
+                          ;; through 3.53.0 checked and read past), and
+                          ;; portrayed(B), portray(B) by another name, the
+                          ;; last of the two said standing (3.55.0, swipl's
+                          ;; `portrayed' in pl_write_term3())
+                          (case (coco-wt-opt "portray") (set portray on) break)
+                          (case (coco-wt-opt "portrayed") (set portray on) break)
+                          (case (coco-wt-opt "portray_goal") (if given (set pgoal ov)) break)
+                          ;; fullstop(B), nl(B), dotlists(B) and no_lists(B)
+                          ;; (3.53.0, swipl's; through 3.52.0 checked and read
+                          ;; past)
+                          (case (coco-wt-opt "fullstop") (set fullstop on) break)
+                          (case (coco-wt-opt "nl") (set nl on) break)
+                          (case (coco-wt-opt "dotlists") (set dotlists on) break)
+                          (case (coco-wt-opt "no_lists") (set nolists on) break)
+                          ;; character_escapes(B), character_escapes_unicode(B),
+                          ;; quote_non_ascii(B) and brace_terms(B) (3.55.0,
+                          ;; swipl's; through 3.54.0 checked and read past)
+                          (case (coco-wt-opt "character_escapes") (set escapes on) break)
+                          (case (coco-wt-opt "character_escapes_unicode") (set unicode on) break)
+                          (case (coco-wt-opt "quote_non_ascii") (set nonascii on) break)
+                          (case (coco-wt-opt "brace_terms") (set braces on) break)
+                          ;; spacing(next_argument) and priority(P) (3.19.0,
+                          ;; swipl's; through 3.18.0 checked and read past)
+                          (case (coco-wt-opt "spacing")
+                            (if given
+                                (set spacing (? (and (coco_m_is_atom e ov)
+                                                     (== 0 (strcmp (coco_m_atom e ov) "next_argument"))) 1 0)))
+                            break)
+                          (case (coco-wt-opt "priority")
+                            (if (and given (not (coco_m_int e ov (aof prio)))) (set prio -1))
+                            break)
+                          ;; max_depth(D) (3.49.0, swipl's; through 3.48.3
+                          ;; checked and read past), 0 no limit
+                          (case (coco-wt-opt "max_depth")
+                            (if (and given (not (coco_m_int e ov (aof maxd)))) (set maxd 0))
+                            break)
+                          (case (coco-wt-opt "variable_names") (if given (set vno ov)) break)
+                          (default break)))))))
           (free v)
           ;; the variable names the last variable_names/1 gave, each
           ;; `Name = V' of an atom and a variable still unbound
@@ -338,15 +419,20 @@
           (if (!= pgoal 0) (set portray 1))
           (if (and portray (not nvset)) (set numbervars 1))
           (set asks (or (!= pgoal 0) (and portray (coco_portray_defined e))))
-          (let ((int mode . #'(bitor (? quoted 81 0) (bitor (? ignore_ops 2 0)
+          ;; quoted: swipl's escapes in their unicode form (81), or with
+          ;; neither the text as it is (257); quote_non_ascii's 32768
+          (let ((int mode . #'(bitor (? quoted (? escapes (? unicode 81 17) 257) 0)
+                                 (bitor (? (and quoted nonascii) 32768 0)
+                                 (bitor (? ignore_ops 2 0) (bitor (? braces 0 128)
                                  (bitor (? numbervars 8 0) (bitor (? spacing 512 0)
                                  (bitor (? (!= maxd 0) 1024 0)
-                                 (bitor (? dotlists 2048 0) (? nolists 4096 0)))))))))
+                                 (bitor (? dotlists 2048 0) (? nolists 4096 0)))))))))))
+            ;; a cycle's factors named S_1, ... under numbervars alone
             (if asks
                 (block (set (-> m wpgoal) pgoal) (set (-> m wpopts) opts)
-                       (coco_write_portrayed m b t (bitor mode 8192) 1)
+                       (coco_write_portrayed m b t (bitor mode 8192) numbervars)
                        (set (-> m wpgoal) 0) (set (-> m wpopts) 0))
-              (coco_write_mode m b t mode 1)))
+              (coco_write_mode m b t mode numbervars)))
           ;; and the full stop after it and the newline, as swipl's
           ;; pl_write_term3() puts them (3.53.0), unless a portray goal
           ;; stopped the write
@@ -879,6 +965,10 @@
             (if (<= mark (-> m heap_len)) (set (-> m heap_len) mark))
             (if (and (!= ($ out s) nil) (> ($ out len) 0))
                 (block (if (== (-> b len) 0) (set (-> m wpfirst) (cast (void *) b)))
+                       ;; no gap before it where a goal that failed left its
+                       ;; text (3.55.0)
+                       (if (and (== (-> m wpgapb) (cast (void *) b)) (== (-> m wpgapq) (-> b len)))
+                           (set (-> m wpgapb) nil))
                        (coco_sb_put_len b ($ out s) ($ out len))))
             (coco_sb_free (aof out))
             (if (== rc 1) (return 1))
@@ -1124,8 +1214,10 @@
                     (coco_fmt_arg items n (aof ai) (aof opts))
                     ;; the options checked as write_term/2 checks them, the
                     ;; raise format/3's (3.0.0): `~W' of [quoted(maybe)] is
-                    ;; type_error(bool, maybe), an open list instantiation_error
-                    (let ((int rc . #'(coco_wt_check e opts)))
+                    ;; type_error(bool, maybe), an open list instantiation_error,
+                    ;; and a cyclic term under cycles(false) domain_error(cyclic_term,
+                    ;; T), the text before it put out (3.55.0)
+                    (let ((int rc . #'(coco_wt_check e opts a)))
                       (if (!= rc 1)
                           (block (set (cof fdir) rc)
                                  (return (coco_fmt_fail err errlen fkind 5 "")))))

@@ -509,8 +509,11 @@
            "stream_write_canonical(S, T) :- stream_out(S, stream_write_canonical/2), with_output_to(S, write_canonical(T))."
            "stream_write_term(S, T, O) :- stream_wt(S, T, O, stream_write_term/3)."
            ;; write_term/2's options are checked before the stream, as swipl's are
-           ;; (3.16.0; through 3.15.2 after the stream's name): the term written to a string first
-           "stream_wt(S, T, O, PI) :- catch(with_output_to(string(X), write_term(T, O)), error(E, context(system:write_term/2, M)), stream_err(E, PI, M)), stream_slot(S, N, PI), '$stream_out'(S, N, PI), '$stream_write_text'(S, N, X, PI)."
+           ;; (3.16.0; through 3.15.2 after the stream's name): the term written to a string first;
+           ;; a cyclic term under cycles(false) after it, as swipl's writeTopTerm() asks (3.55.0)
+           "stream_wt(S, T, O, PI) :- catch(with_output_to(string(X), write_term(T, O)), error(E, context(system:write_term/2, M)), stream_wt_err(E, S, PI, M)), stream_slot(S, N, PI), '$stream_out'(S, N, PI), '$stream_write_text'(S, N, X, PI)."
+           "stream_wt_err(domain_error(cyclic_term, C), S, PI, M) :- !, stream_slot(S, N, PI), '$stream_out'(S, N, PI), stream_err(domain_error(cyclic_term, C), PI, M)."
+           "stream_wt_err(E, _, PI, M) :- stream_err(E, PI, M)."
            "stream_with_output(S, G) :- stream_out(S, stream_with_output/2), with_output_to(S, G)."
            "stream_read_term(S, T) :- stream_slot(S, N, stream_read_term/2), stream_rt(S, N, T, [], stream_read_term/2)."
            "stream_read_terms(S, Ts) :- stream_slot(S, N, stream_read_terms/2), stream_rts(S, N, Ts)."

@@ -150,9 +150,9 @@ long_and_deep(D) :-
       '  numlist(1, 100000, L5), with_output_to(atom(A5), writeq(L5)),',
       '  atom_length(A5, N5), writeq(N5), nl,',
       '  numlist(1, 3000, L6), append(L6, T6, C6), T6 = C6,',
-      '  with_output_to(atom(A6), write_term(C6, [dotlists(true)])), atom_length(A6, N6),',
+      '  with_output_to(atom(A6), write_term(C6, [dotlists(true), numbervars(true)])), atom_length(A6, N6),',
       '  sub_atom(A6, 0, 18, _, P6), sub_atom(A6, _, 12, 0, S6), writeq(N6-P6-S6), nl,',
-      '  with_output_to(atom(A7), write_term(C6, [no_lists(true), quoted(true)])),',
+      '  with_output_to(atom(A7), write_term(C6, [no_lists(true), quoted(true), numbervars(true)])),',
       '  atom_length(A7, N7), sub_atom(A7, 0, 22, _, P7), writeq(N7-P7), nl.']),
     sh_join(['-s ', F], A), child(A, Out, Rc),
     atomic_list_concat(Got, '\n', Out),
@@ -163,7 +163,8 @@ long_and_deep(D) :-
       'a tree 2000 deep is no cycle' - '6001-0',
       'a list of 100000 is written whole' - '588896',
       %% and written as the compounds it is (3.53.0): the tail's cycle found
-      %% as the list's own walk finds it
+      %% as the list's own walk finds it, its factor S_1 under numbervars
+      %% (3.55.0: a write with none names it as the variable it is)
       'a list of 3000 its own tail, dotlists(true)' -
           '22914-''@(S_1,.(S_1= .(1,.''-''))))))),[]))''',
       'and no_lists(true)' - '34917-''@(S_1,\\''[|]\\''(S_1=\\''[|]\\''('''
@@ -171,9 +172,10 @@ long_and_deep(D) :-
     check('...and the program ends', Rc, 0).
 
 %% Which writer names the cycles: write/1, print/1, writeq/1, format/2's
-%% ~w ~p ~q, term_to_atom/2, with_output_to/2 -- S_1, S_2, ...;
-%% write_canonical/1, and write_term/2 given names of its own, the
-%% variables as they are
+%% ~w ~p ~q, with_output_to/2 -- S_1, S_2, ..., every write under numbervars,
+%% as swipl binds them to '$VAR'('S_1') only then; write_canonical/1,
+%% term_to_atom/2 (3.55.0: through 3.54.0 S_1) and write_term/2 with no
+%% numbervars, the variables as they are
 entries(D) :-
     section('every writer: S_1 where SWI says S_1, a variable where it says one'),
     atom_concat(D, '/entries.pl', F),
@@ -193,10 +195,10 @@ entries(D) :-
       'write/1' - '@(S_1,[S_1=f(S_1)])',
       'print/1' - '@(S_1,[S_1=f(S_1)])',
       'format/2: ~w, ~q, ~p' - '@(S_1,[S_1=f(S_1)])|@(S_1,[S_1=f(S_1)])|@(S_1,[S_1=f(S_1)])',
-      'term_to_atom/2' - '''@(S_1,[S_1=f(S_1)])''',
+      'term_to_atom/2: the variables as they are, as swipl''s PL_WRT_QUOTED writes them (3.55.0; through 3.54.0 S_1)' - '''@(_G,[_G=f(_G)])''',
       'with_output_to/2' - '"@(S_1,[S_1=f(S_1)])"',
       'write_canonical/1: the variable as it is, `='' as the compound (3.1.0, swipl''s; through 3.0.0 `_G=f(_G)'')' - '@(_G,[=(_G,f(_G))])',
-      'write_term/2 naming variables of its own: no S_1 among them' - '@(g(V,_G),[_G=f(_G)])',
+      'write_term/2 with no numbervars: no S_1 among them' - '@(g(V,_G),[_G=f(_G)])',
       'atom_length/2: no text, a compound, as swipl''s (2.16.1; through 2.16.0 the length of its writing, 19)' - 'text'
     ], Got),
     check('...and the program ends', Rc, 0).

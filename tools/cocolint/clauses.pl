@@ -183,18 +183,45 @@ cc_scan_term(32).
 %% From just after the opening quote to just after the closing one. Three
 %% things end a quoted atom and only one of them is the quote:
 %%
-%%   \x  a backslash escapes whatever follows, the quote included
+%%   \x  a backslash escapes whatever follows, the quote included --
+%%       but a numeric escape is its digits and the backslash closing them
+%%       (cc_escape_len/2)
 %%   ''  a doubled quote is one quote and NOT an end
 %%   '   anything else
 %%
 %% An unterminated quote runs to the end of input rather than failing --
 %% see the header.
-cc_quoted(Q, P, E) --> [92, _], !, { P2 is P + 2 }, cc_quoted(Q, P2, E).
-cc_quoted(_, P, E) --> [92],    !, { E is P + 1 }.
+cc_quoted(Q, P, E, [92|T], S) :- !,
+    cc_escape_len([92|T], K), cc_drop(K, [92|T], S1), P2 is P + K,
+    cc_quoted(Q, P2, E, S1, S).
 cc_quoted(Q, P, E) --> [Q, Q],  !, { P2 is P + 2 }, cc_quoted(Q, P2, E).
 cc_quoted(Q, P, E) --> [Q],     !, { E is P + 1 }.
 cc_quoted(Q, P, E) --> [_],     !, { P1 is P + 1 }, cc_quoted(Q, P1, E).
 cc_quoted(_, P, P) --> [].
+
+%% cc_escape_len(+Codes, -K): how many codes the escape at Codes' backslash
+%% takes. A numeric escape, `\xHEX\' or `\OCT\', is its digits and the
+%% backslash that closes them, as swipl's raw read walks one: through
+%% cocolog 3.54.0 every backslash took one code after it, so the closing
+%% one of `'\x2248\'' took the quote, the atom ran on, and every clause
+%% after it was cut in the wrong place (test/files/write_options.pl's Z1
+%% of 11 153 bytes at an op/3 directive). Anything else is the backslash
+%% and the code after it; one at the end of input, the backslash alone.
+cc_escape_len([92, 0'x|T], K) :- !,
+    cc_digits_of(T, 16, 0, N, R), cc_escape_close(R, C), K is 2 + N + C.
+cc_escape_len([92, D|T], K) :- D >= 0'0, D =< 0'7, !,
+    cc_digits_of(T, 8, 1, N, R), cc_escape_close(R, C), K is 1 + N + C.
+cc_escape_len([92, _|_], 2) :- !.
+cc_escape_len(_, 1).
+
+cc_digits_of([C|T], B, N0, N, R) :- cc_digit_of(C, B), !, N1 is N0 + 1, cc_digits_of(T, B, N1, N, R).
+cc_digits_of(R, _, N, N, R).
+
+cc_digit_of(C, 8) :- C >= 0'0, C =< 0'7.
+cc_digit_of(C, 16) :- ( C >= 0'0, C =< 0'9 -> true ; C >= 0'a, C =< 0'f -> true ; C >= 0'A, C =< 0'F ).
+
+cc_escape_close([92|_], 1) :- !.
+cc_escape_close(_, 0).
 
 %% cc_charlit(+Pos, +Depth, +Start, -Events)//
 %%
@@ -535,13 +562,14 @@ cc_commas([C|T], D, N0, N) :-
     ;   cc_commas(T, D, N0, N)
     ).
 
-% A DOUBLED QUOTE IS NOT AN END and a backslash eats what follows it.
+% A DOUBLED QUOTE IS NOT AN END and a backslash eats what follows it (a
+% numeric escape its digits and its closing backslash, cc_escape_len/2).
 % Running off the end inside a quote is not an error here: the scan simply
 % stops, the way the reader's index does.
 cc_commas_q([], _, _, N, N).
 cc_commas_q([C|T], Q, D, N0, N) :-
     (   C =:= 0'\\
-    ->  cc_drop(2, [C|T], T2), cc_commas_q(T2, Q, D, N0, N)
+    ->  cc_escape_len([C|T], K), cc_drop(K, [C|T], T2), cc_commas_q(T2, Q, D, N0, N)
     ;   C =:= Q
     ->  (   T = [Q|_]
         ->  cc_drop(2, [C|T], T2), cc_commas_q(T2, Q, D, N0, N)
@@ -592,7 +620,8 @@ cc_bal([C|T], D, Cs, After) :-
 
 cc_bal_q([C|T], Q, D, Cs, After) :-
     (   C =:= 0'\\
-    ->  T = [X|T2], Cs = [C,X|Cs1], cc_bal_q(T2, Q, D, Cs1, After)
+    ->  cc_escape_len([C|T], K), length(Esc, K), append(Esc, T2, [C|T]),
+        append(Esc, Cs1, Cs), cc_bal_q(T2, Q, D, Cs1, After)
     ;   C =:= Q
     ->  (   T = [Q|T2]
         ->  Cs = [C,Q|Cs1], cc_bal_q(T2, Q, D, Cs1, After)

@@ -42,7 +42,7 @@
   ;;; portray goal that threw (3.54.0): what came before it put out, then
   ;;; its ball raised (`coco_portray_after').
   (func coco_b_write_term ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_strbuf b) (int r . #'(coco_wt_check e (coco_m_arg e g 1))))
+        (let ((coco_strbuf b) (int r . #'(coco_wt_check e (coco_m_arg e g 1) (coco_m_arg e g 0))))
           (if (!= r 1) (return r))
           (coco_sb_init (aof b))
           (coco_wt_put e (aof b) (coco_m_arg e g 0) (coco_m_arg e g 1))

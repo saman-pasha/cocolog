@@ -3069,6 +3069,19 @@
           (if (not uni) (return (coco_sb_putc b (cast char 92))))
           (return 1)))
 
+  ;;; WHETHER NAME HOLDS A CHARACTER PAST U+00FF (3.55.0): write_term/2's
+  ;;; quote_non_ascii(true) quotes such an atom, as swipl's quotes every
+  ;;; atom it holds as wide text (unquoted_atomW() under
+  ;;; PL_WRT_QUOTE_NON_ASCII: `'αβ'', `'∀'(x)', `a'≈'b') and none it holds
+  ;;; as Latin-1 (atomType(): `é', `¬a', `f(ÿ)'). Such a character's first
+  ;;; byte in UTF-8 is 0xC4 or more; a byte that is no UTF-8 is quoted
+  ;;; anyway, by `coco_wide_needs_quotes'.
+  (static) (inline)
+  (func coco_atom_past_latin1 ((const char * name)) (out int)
+        (for ((size_t i . 0)) (!= (nth i name) (cast char 0)) ((++ i))
+          (if (>= (cast int (cast uchar (nth i name))) 196) (return 1)))
+        (return 0))
+
   ;;; QUOTED is the write's mode word, of which this reads quoted (1) and
   ;;; swipl's character escapes (16, 2.2.5): with them a quote inside is
   ;;; `\'' and a control character with a letter is the letter
@@ -3077,7 +3090,11 @@
   ;;; without, the quote is doubled, `'don''t'', as term_to_atom/2 writes it
   ;;; in swipl too and as the store, a channel and a message always have.
   ;;; And 256 (3.15.1) writes a newline, a tab and a return as they are,
-  ;;; as term_to_atom/2 and term_string/2 write them in swipl.
+  ;;; as term_to_atom/2 and term_string/2 write them in swipl -- 256
+  ;;; without 16 is swipl's PL_WRT_QUOTED alone, write_term/2's
+  ;;; character_escapes(false) too since 3.55.0: every character as it is
+  ;;; but the quote, doubled, and the backslash, `\\'. And 32768
+  ;;; (quote_non_ascii(true), 3.55.0) quotes a name past U+00FF.
   (static)
   (func coco_write_atom ((coco_strbuf * b) (const char * name) (int quoted)) (out int)
         ;; 32 is the functor's force: `{}` and `[]` stand alone unquoted,
@@ -3085,7 +3102,9 @@
         ;; reader takes the brace for the construct and stops. A snapshot
         ;; of SWI's yall library found it (2.6.0).
         (if (or (== 0 (bitand quoted 1))
-                (and (== 0 (bitand quoted 32)) (not (coco_atom_needs_quotes name))))
+                (and (== 0 (bitand quoted 32))
+                     (and (not (coco_atom_needs_quotes name))
+                          (or (== 0 (bitand quoted 32768)) (not (coco_atom_past_latin1 name))))))
             (return (coco_sb_put b name)))
         (if (not (coco_sb_putc b (cast char (coco-ch "'")))) (return 0))
         (let ((int esc . #'(bitand quoted 16)) (int uni . #'(bitand quoted 64)) (size_t n . 0))
@@ -3158,7 +3177,7 @@
   (weak)
   (func coco_write_list_dots ((coco_machine * m) (coco_strbuf * b) (size_t t)
                               (int mode) (u32 depth)) (out int)
-        (let ((int kids . #'(bitand mode 16347)) (int cut . #'(!= 0 (bitand mode 1024)))
+        (let ((int kids . #'(bitand mode 49115)) (int cut . #'(!= 0 (bitand mode 1024)))
               (u32 k . 0) (size_t kept . #'(cast size_t -1)) (size_t lam . 0) (size_t power . 1024))
           (while 1
             (set t (coco_deref m t))
@@ -3206,7 +3225,7 @@
         ;; list writer asks one test for the three
         (if (!= 0 (bitand mode 6144)) (return (coco_write_list_dots m b t mode depth)))
         (coco_sb_putc b (cast char (coco-ch "[")))
-        (let ((int kids . #'(bitand mode 16347)) (u32 k . 0))
+        (let ((int kids . #'(bitand mode 49115)) (u32 k . 0))
           (while 1
             (set t (coco_deref m t))
             (if (> k 0)
@@ -3231,7 +3250,7 @@
         ;; 4096): one test, and the rest out of line
         (if (!= 0 (bitand mode 7168)) (return (coco_write_list_cut m b t mode depth)))
         (coco_sb_putc b (cast char (coco-ch "[")))
-        (let ((int first . 1) (int kids . #'(bitand mode 16347))
+        (let ((int first . 1) (int kids . #'(bitand mode 49115))
               (size_t kept . #'(cast size_t -1)) (size_t lam . 0) (size_t power . 1024))
           (while 1
             (set t (coco_deref m t))
@@ -3333,15 +3352,18 @@
         `(let ((const char * name . #'(coco_atom_name m (coco_name_of m t)))
               (u32 n . #'(coco_arity m t))
               ;; what an atom of it reads: quoted 1, escapes 16 and their
-              ;; form 64 (3.1.0)
-              (int quoted . #'(bitand mode 337))
+              ;; form 64 (3.1.0), the raw text 256 and quote_non_ascii's
+              ;; 32768 (3.55.0)
+              (int quoted . #'(bitand mode 33105))
               ;; what this write's operands and arguments carry down:
               ;; quoted 1, ignore_ops 2, numbervars 8, escapes 16 and 64,
-              ;; write_canonical/1's braces 128, next_argument's comma
+              ;; write_canonical/1's braces 128 (brace_terms(false)'s
+              ;; since 3.55.0), the raw text 256, next_argument's comma
               ;; spaces 512, max_depth's limit 1024, dotlists 2048,
-              ;; no_lists 4096 and portray 8192 (the operand's 4 is each
-              ;; operand's own, and 16384, a portray asked, the term's)
-              (int kids . #'(bitand mode 16347)))
+              ;; no_lists 4096, portray 8192 and quote_non_ascii 32768 (the
+              ;; operand's 4 is each operand's own, and 16384, a portray
+              ;; asked, the term's)
+              (int kids . #'(bitand mode 49115)))
 
           ;; THE ATOM `'[]'' AS AN OPERATOR IS WRITTEN QUOTED, and the list's
           ;; end is none (3.15.1, swipl's): op/3 of `'[]'' declares the atom,
@@ -3357,7 +3379,9 @@
           ;; LISTS AND CURLY TERMS HAVE THEIR OWN SURFACE SYNTAX, with the
           ;; operators ignored too (3.1.0, swipl's: `[a,b|c]', `{x}';
           ;; through 3.0.0 `'.'(a,'.'(b,c))' and `'{}'(x)') -- save a curly
-          ;; term under write_canonical/1 (128), `{}(x)' as swipl writes it
+          ;; term under write_canonical/1 and write_term/2's
+          ;; brace_terms(false) (128, swipl's PL_WRT_BRACETERMS; the option
+          ;; read past through 3.54.0), `{}(x)' as swipl writes it
           (if (coco_is_cons m t)
               (return (coco_write_list m b t mode depth)))
           (if (and (== n 1) (== 0 (bitand mode 128)) (== 0 (strcmp name "{}")))
@@ -3492,13 +3516,14 @@
           ;; the list's end bare, `[](X)', as swipl 7 tells them apart
           ;; (3.12.0; through 3.11.0 both `'[]'(X)', which read back as the
           ;; list's end); and `{}' as swipl writes it, `{}(a,b)', in a write
-          ;; a program asks for (16, 3.1.0: the reader takes it back since);
-          ;; the engine's own quoted text keeps `'{}'(a,b)', which an older
-          ;; reader takes
+          ;; a program asks for (16, 3.1.0: the reader takes it back since,
+          ;; or 256, term_to_atom/2's and character_escapes(false)'s since
+          ;; 3.55.0); the engine's own quoted text keeps `'{}'(a,b)', which
+          ;; an older reader takes
           (if (== (coco_name_of m t) (coco_nil_id m))
               (coco_sb_put b "[]")
             (if (or (== 0 (strcmp name "[]"))
-                    (and (== (bitand mode 17) 1) (== 0 (strcmp name "{}"))))
+                    (and (== (bitand mode 273) 1) (== 0 (strcmp name "{}"))))
                 (coco_write_atom b name (bitor quoted 32))
               (coco_write_atom b name quoted)))
           (coco_sb_putc b (cast char (coco-ch "(")))
@@ -3578,7 +3603,8 @@
   ;;; is written after its text, from Q, with a space between where the two
   ;;; would read as one token, as the next token of swipl's takes one
   ;;; (`partial w', `-9 v'), and before an opening bracket after anything
-  ;;; but a blank or a bracket
+  ;;; but a blank or a bracket -- unless the term's first text is another
+  ;;; goal's (3.55.0, `wpgapb'), before which no space goes
   (static)
   (func coco_write_gap_at ((coco_strbuf * b) (size_t q))
         (if (or (== q 0) (or (>= q (-> b len)) (== (-> b s) nil))) (return))
@@ -3626,9 +3652,14 @@
             (let ((size_t p0 . #'(-> b len)) (int r . #'(coco_portray_hook m b t maxprec)))
               (if (!= r 0) (return 1))
               (if (> (-> b len) p0)
-                  (let ((size_t q . #'(-> b len)))
+                  (let ((size_t q . #'(-> b len))
+                        (void * sb . #'(-> m wpgapb)) (size_t sq . #'(-> m wpgapq)))
+                    ;; the gap at Q is this goal's, until a goal's text
+                    ;; begins there (3.55.0: `pgpg a', swipl's)
+                    (set (-> m wpgapb) (cast (void *) b)) (set (-> m wpgapq) q)
                     (coco_write_rec m b t (bitor mode 16384) maxprec depth)
-                    (coco_write_gap_at b q)
+                    (if (== (-> m wpgapb) (cast (void *) b)) (coco_write_gap_at b q))
+                    (set (-> m wpgapb) sb) (set (-> m wpgapq) sq)
                     (return 1)))))
         (if (coco-tag-is FUN (nth t (-> m heap)))
             (block
@@ -3702,7 +3733,13 @@
                (coco_sb_putc b (cast char 34))
                (for ((size_t i . 0)) (< i sn) ((++ i))
                     (let ((char ch . #'(nth i sp)))
-                      (cond ((== ch (cast char 34))
+                      (cond ;; doubled under 256 without the escapes (3.55.0):
+                            ;; swipl's PL_WRT_QUOTED alone, term_to_atom/2's
+                            ;; `"a""b"' and character_escapes(false)'s
+                            ((and (== ch (cast char 34)) (== (bitand mode 272) 256))
+                             (coco_sb_putc b (cast char 34))
+                             (coco_sb_putc b (cast char 34)))
+                            ((== ch (cast char 34))
                              (coco_sb_putc b (cast char 92))
                              (coco_sb_putc b (cast char 34)))
                             ((== ch (cast char 92))
@@ -3765,9 +3802,9 @@
                    (return (coco_write_atom b name (bitor (bitand mode 81) 32))))
                (if (and (!= 0 (bitand mode 4)) (coco_op_is_any name))
                    (block (coco_sb_putc b (cast char (coco-ch "(")))
-                          (coco_write_atom b name (bitand mode 337))
+                          (coco_write_atom b name (bitand mode 33105))
                           (return (coco_sb_putc b (cast char (coco-ch ")"))))))
-               (return (coco_write_atom b name (bitand mode 337)))))
+               (return (coco_write_atom b name (bitand mode 33105)))))
 
             ;; a compound, unless it is deep enough to be asked whether it is
             ;; a cycle -- or a cycle was found
@@ -3782,9 +3819,13 @@
   ;;; Substitutions)' -- `@(S_1,[S_1=f(S_1)])' for `X = f(X)' -- from
   ;;; `coco_factorize' (lib/term-walk.cicili), its cells wound back after. NAMED
   ;;; writes the variables that stand for the cycles S_1, S_2, ..., as
-  ;;; SWI's write/1, print/1 and writeq/1 do, unless this write names
-  ;;; variables of its own (write_term/2's variable_names); otherwise each
-  ;;; is the variable it is.
+  ;;; SWI's write/1, print/1 and writeq/1 do; otherwise each is the variable
+  ;;; it is. A write under numbervars (8) binds each to `'$VAR'('S_N')', as
+  ;;; swipl's writeTopTerm() binds them (3.55.0): written as the variable
+  ;;; it names, beside any variable_names/1 names (`@(g(S_1,V),...)'), and
+  ;;; asked of portray as a term (`pg S_1'). The engine's own writes,
+  ;;; with no numbervars, name them by the write's names, unless this
+  ;;; write names variables of its own.
   (static)
   (func coco_write_cyclic ((coco_machine * m) (coco_strbuf * b) (size_t t)
                            (int mode) (int named)) (out int)
@@ -3794,6 +3835,14 @@
               (size_t f . #'(coco_factorize m t "@" (aof vars) (aof nv))))
           (if (== f 0)
               (block (free vars) (set (-> m heap_len) mark) (return 0)))
+          (if (and named (!= 0 (bitand mode 8)))
+              (let ((char nm [32]))
+                ;; bound as the factors were, above MARK and off the trail
+                (for ((size_t i . 0)) (< i nv) ((++ i))
+                  (snprintf nm (sizeof nm) "S_%d" (cast int (+ i 1)))
+                  (let ((size_t dv . #'(coco_make1 m "$VAR" (coco_new_atom m nm))))
+                    (set (nth (nth i vars) (-> m heap)) (coco-cell REF dv))))
+                (set named 0)))
           (if (and named (and (== (-> m nwnames) 0) (> nv 0)))
               (block
                (set ids (cast (u64 *) (malloc (* nv (sizeof u64)))))
@@ -3817,11 +3866,14 @@
   ;;; 1024, WCYC 0) and is put back here, so a write that meets no cycle
   ;;; pays a load and a branch for it. MODE is the writer's word without the
   ;;; operand's 4: quoted 1, ignore_ops 2, numbervars 8, character escapes 16,
-  ;;; their unicode form 64, write_canonical/1's curly terms 128, a control
-  ;;; character as it is 256 (term_to_atom/2's, 3.15.1), a space after each
-  ;;; comma 512 (3.18.0), and a depth limit 1024 (3.49.0, the machine's
-  ;;; WMAX). Under a limit of 1024 or less a cyclic term meets the limit
-  ;;; before the guard, and is written to it, as swipl's.
+  ;;; their unicode form 64, write_canonical/1's curly terms 128 (and
+  ;;; brace_terms(false)'s, 3.55.0), a control character as it is 256
+  ;;; (term_to_atom/2's, 3.15.1; without 16, character_escapes(false)'s
+  ;;; text, 3.55.0), a space after each comma 512 (3.18.0), a depth limit
+  ;;; 1024 (3.49.0, the machine's WMAX), dotlists 2048, no_lists 4096,
+  ;;; portray 8192 and quote_non_ascii 32768 (3.55.0). Under a limit of
+  ;;; 1024 or less a cyclic term meets the limit before the guard, and is
+  ;;; written to it, as swipl's.
   (static) (inline)
   (func coco_write_top ((coco_machine * m) (coco_strbuf * b) (size_t t)
                         (int mode) (int named)) (out int)

@@ -1608,8 +1608,12 @@
           (if (coco-tag-is REF (nth x (-> m heap)))
               (block (coco_sb_init (aof b))
                      ;; quoted, a control character as it is (257, 3.15.1:
-                     ;; swipl's PL_WRT_QUOTED, `'a<LF>b'')
-                     (coco_write_mode m (aof b) (coco_arg m g 0) 257 1)
+                     ;; swipl's PL_WRT_QUOTED, `'a<LF>b''), a string's quote
+                     ;; doubled and `{}(a,b)' bare (3.55.0), and a cycle's
+                     ;; factors the variables they are, as swipl's with no
+                     ;; numbervars: `@(_G1,[_G1=f(_G1)])' (through 3.54.0
+                     ;; `S_1')
+                     (coco_write_mode m (aof b) (coco_arg m g 0) 257 0)
                      (set r (? (coco_unify m x (coco_tx_make m (aof b) as_string)) 1 0))
                      (coco_sb_free (aof b))
                      (return r)))

@@ -1828,9 +1828,13 @@ cocolint index offers no import of it.
   (`m->wdeep`; a cycle sets `wcyc` and `wdeep` 0, which stops every compound
   still to be written) and runs Brent's method down a list's tail; the top
   of the write takes back what it wrote and writes `@(S_1,[S_1=f(S_1)])`
-  from `coco_factorize`, swipl's text to the letter -- `S_N` unless the
-  write names variables itself (write_term's `variable_names`) or is
-  write_canonical's or the store's. `is/2` and the comparisons ask at 1024
+  from `coco_factorize`, swipl's text to the letter -- `S_N` under
+  numbervars, each bound to `'$VAR'('S_N')` as swipl's writeTopTerm()
+  binds them, so a portray goal is asked of one (3.55.0: through 3.54.0
+  every write named them but write_term's `variable_names`,
+  write_canonical's and the store's, write_term/2 with no numbervars and
+  term_to_atom/2 among them), the engine's own writes naming them as
+  before. `is/2` and the comparisons ask at 1024
   levels and raise `type_error(expression, E)`, E their whole argument.
   `acyclic_term/1` and `cyclic_term/1` answer. **Every other walk COUNTS,
   and asks or changes course only past its count** -- what it has met
@@ -1893,8 +1897,7 @@ cocolint index offers no import of it.
   cocolog's error for anything not text where SWI says
   `format_argument_type`; the text builtins that write any term
   (split_string/4, string_chars/2, ...) write a cyclic list as its factors
-  where SWI raises; term_to_atom/2 names the factors `S_1` where swipl
-  writes a variable (`_3586`), and 1.10.18's case pins `S_1` as SWI's;
+  where SWI raises;
   numbervars/3,4 do since 3.40.0 (swipl's, test/files/numbervars.pl), over
   term_variables/2's walk and in its order, a cycle's too, its
   singletons(true) walking an acyclic term as the tree it stands for (a
@@ -1919,9 +1922,15 @@ cocolint index offers no import of it.
   listing's and since 3.19.0 write_term/2's), and, 3.49.0, 1024 a depth
   limit, and, 3.53.0, 2048 dotlists(true) and 4096 no_lists(true), and,
   3.54.0, 8192 portray asked (16384, the term asked already, its own and
-  handed on to nothing), so a compound and a list hand on `mode & 16347`
-  and an atom reads `mode & 337`: a new bit goes into both masks where an
-  atom needs it;
+  handed on to nothing), and, 3.55.0, 32768 quote_non_ascii(true) (128 is
+  brace_terms(false) too, and 256 without 16 character_escapes(false):
+  swipl's PL_WRT_QUOTED alone, which term_to_atom/2 writes), so a compound
+  and a list hand on `mode & 49115` and an atom reads `mode & 33105`: a new
+  bit goes into both masks where an atom needs it; **write_term/2's
+  options are a table** (3.55.0, `*wt-options*` in
+  lib/builtins-format.cicili, swipl's with each option's kind): its row is
+  found once (`coco_wt_opt`, made by a macro) and `coco_wt_put` takes it in
+  a switch, so a new option is a row and a case, never a strcmp;
   write_term/2's priority(P) is the machine's `wprec`, P plus one,
   read by `coco_write_top` alone, and its max_depth(D) the machine's
   `wmax`, read only under 1024 -- by `coco_write_rec`'s first test, one
@@ -1963,7 +1972,9 @@ cocolint index offers no import of it.
   nils and compares around its operand: `1+-1`, `--1`), and a goal that
   failed having written leaves its text and the term after it, a space
   between where the two would read as one token (`coco_write_gap_at`,
-  `partial w`). **A goal that threw stops the write**: nothing more is
+  `partial w`), none where that term's first text is a goal's too
+  (`wpgapb`, 3.55.0: `pgpg a`, where 3.54.0 wrote `pg pg a`). **A goal that
+  threw stops the write**: nothing more is
   written (`wpstop`), and what a parent wrote after the stop is taken back
   (`wpcut`): **an operand written into a buffer of its own carries the stop
   up as it is put on its parent's** (`coco_write_cut_up`), so a new writer

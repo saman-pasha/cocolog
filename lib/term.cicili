@@ -1059,7 +1059,15 @@
     ;; and WPNEST the portray goals running, one inside another: no more
     ;; than swipl's MAX_PORTRAY_NESTING, 100, past which the innermost write
     ;; raises resource_error(portray_nesting) (WPSTATE 4). Appended.
-    (member int        wpnest))
+    (member int        wpnest)
+    ;; WPGAPB and WPGAPQ (3.55.0): the buffer and the place where the text
+    ;; of the innermost goal that failed having written ends, where the
+    ;; term after it takes a gap -- unless another goal's text begins
+    ;; there, which clears them, as no space goes before a write of
+    ;; swipl's (`pgpg a', swipl's text, where 3.54.0 wrote `pg pg a').
+    ;; Appended.
+    (member void *     wpgapb)
+    (member size_t     wpgapq))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends

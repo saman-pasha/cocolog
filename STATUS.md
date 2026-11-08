@@ -16361,3 +16361,105 @@ where swipl takes 0.016 s. Making that cheaper is a task of its own.
 Narrow cases green: lint, files, syntax, cyclic, string, units, errors,
 repl, trace, backtrace, directives, engine, library, journal, reconsult,
 window, flowdebug and flowchart. Reasoning stays 1.0.27.
+
+## write_term/2's character_escapes, character_escapes_unicode, quote_non_ascii, brace_terms, cycles and portrayed, as swipl's (3.55.0)
+
+Six of write_term/2's options were checked and read past: a quoted write
+under character_escapes(false) still escaped what it wrote,
+character_escapes_unicode(false) still wrote `\u0001`, quote_non_ascii(true)
+left a name past U+00FF bare, brace_terms(false) wrote `{a}`, cycles(false)
+wrote a cyclic term in its factors, and portrayed(true) asked no portray/1.
+swipl 9.0.4's pl-write.c applies each, and so does cocolog now; with them a
+cycle's factors are named where swipl names them, term_to_atom/2's quoted
+text is swipl's, and a failed portray goal leaves no gap before a goal's
+text. A minor, as what a program writes moves.
+
+- **character_escapes(false)** writes the quoted text as it is, its quote
+  doubled and its backslash `\\` (`'a<LF>b'`, `'it''s'`, `"say ""hi"""`):
+  the mode's 256 without 16, swipl's PL_WRT_QUOTED alone. A string's quote
+  is doubled there as an atom's is; through 3.54.0 a string kept `\"`.
+- **character_escapes_unicode(false)** escapes a character by its code,
+  `\x1\` (no 64), where the default is `\u0001`.
+- **quote_non_ascii(true)** quotes a name that holds a character past
+  U+00FF (`'∀'`, `'αβ'`; never `é`), the mode's 32768, which a compound and
+  a list hand down (`mode & 49115`) and an atom reads (`mode & 33105`).
+- **brace_terms(false)** writes a curly term `{}(T)`, the mode's 128 that
+  write_canonical/1 sets. A compound named `{}` of other arities is
+  quoted, `'{}'(a,b)`, only in the engine's own text, where neither 16
+  nor 256 is set; every quoted write a program asks for writes it bare.
+- **cycles(false)** raises domain_error(cyclic_term, T) of a cyclic term
+  before a character is written, whatever the depth limit, as swipl asks
+  PL_is_acyclic() once its options are read (`coco_wt_check`); write_term/3
+  raises the stream's errors before it (library(stream)'s
+  `stream_wt_err`).
+- **portrayed(B)** is portray(B) by another name, the last of the two said
+  standing.
+- **A cycle's factors are S_1, S_2, ... under numbervars alone**, bound to
+  `'$VAR'('S_N')` as swipl's writeTopTerm() binds them, so a portray goal
+  is asked of one (`coco_write_cyclic`): write_term/2 with no numbervars,
+  write_canonical/1, term_to_atom/2 and term_string/2 write the variables
+  they are (`@(_A,[_A=f(_A)])`). Through 3.54.0 every write named them
+  but write_term's variable_names(L), write_canonical/1's and the store's.
+  The engine's own writes name them as before.
+- **term_to_atom/2 and term_string/2 write swipl's PL_WRT_QUOTED alone**
+  (mode 257): a string's quote doubled, `{}(a,b)` bare.
+- **A failed portray goal's text takes no gap where a goal's text comes
+  next** (`pgpg a`, where 3.54.0 wrote `pg pg a`): the machine's `wpgapb`
+  and `wpgapq` name where the failed goal's text ended, a goal's text put
+  there clears them, and an inner failed goal puts the outer's place back
+  after its own (`pg g(pgzz+y)`).
+- **An option's row is found once**: write_term/2's options are a table,
+  `*wt-options*`, swipl's table with each option's kind, and one function
+  made of it by a macro (`coco_wt_opt`: a cond on the name's first byte,
+  then a strcmp a row of that byte's) serves the check and the write; the
+  write takes the row in a switch. Through 3.54.0 the write compared each
+  option with every name it applies, 13 strcmp an option, which the four
+  names applied here would have made 17.
+
+partial(B) is still checked and read past, where swipl starts the write
+from the stream's last character (COMPAT.md); it is a task of its own.
+
+cocolint's clause walker read a numeric escape's closing backslash before a
+quote, `'\x2248\'`, as an escaped quote, and took test/files/write_escapes.pl
+from its first quoted operator to its end for one clause of 11 914 bytes,
+over the page budget (Z1). It reads the escape's digits and its backslash
+whole now (`cc_escape_len` in tools/cocolint/clauses.pl); with the old
+walker the new file lints with that one false Z1, with the new one clean.
+
+test/files/write_escapes.pl, new, holds 240 lines to swipl, byte for byte;
+3.54.0 differs at 144 of them. test/cyclic.pl's term_to_atom/2 of a cycle
+expects swipl's variables, and its long and deep fixture's dotlists(true)
+and no_lists(true) writes say numbervars(true), whose factors' names the
+lengths it counts depend on. test/files/write_options.pl, 3.53.0's, is as
+it was and green.
+
+The arms, one build each, every rule taken out alone, each over
+write_escapes.pl, write_options.pl, portray.pl, print.pl, write.pl and
+test/cyclic.pl: the arm of no edit green in all six, and all nineteen
+rules red in write_escapes.pl -- character_escapes(false), a string's quote
+doubled, character_escapes_unicode(false), quote_non_ascii's test and its
+bit, the bit handed down to arguments, read by a functor's name and by an
+atom's, brace_terms(false), `{}` bare where only the engine quotes it,
+cycles(false), write_term/2's and term_to_atom/2's factor naming (the
+second red in cyclic.pl too), the factors bound under numbervars,
+write_term/3's order of errors, the gap's test, its clearing by a goal's
+text, the outer place put back, and portrayed(B). The last needed a case
+of its own: a nested failed goal (`pg g(pgzz+y)`, ten lines) is what makes
+the outer place observable.
+
+The cost is the write's alone. tools/flow/zero.sh against 3.54.0 at like
+paths, work less padding: nrev +22 instructions, queens -44, lookup -444,
+the padding the same. A write-heavy run (20 000 rounds of writeq/1,
+print/1, write_term/2 with quoted(true) and write/1 of four small terms)
+counts 8 301 239 fewer instructions (-1.35 %): strcmp 8 305 108 fewer, the
+write's 260 000 calls of it gone and the table's 40 000 in their place,
+and each quoted atom that needs no quotes pays one test more, 440 024 in
+all. A start counts 260 336 more of 35.9 million (+0.73 %), every one of
+them strcmp's, at the same 69 452 calls: the reader's 37 014 compares
+with the operator names cost 18 % more each at the literals' new
+addresses, the table having moved where the option names sit in the
+string section.
+
+Narrow cases green: lint, files, syntax, cyclic, string, units, errors,
+repl, trace, backtrace, directives, engine, library, journal, reconsult,
+window, flowdebug, flowchart and stream. Reasoning stays 1.0.27.
