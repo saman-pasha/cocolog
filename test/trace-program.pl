@@ -112,3 +112,9 @@ nt(b, _).
 :- meta_predicate mp(0).
 mp(G) :- call(G).
 mq :- mp(atom(foo)).
+
+%% A PORTRAY GOAL IS NO PORT (3.54.0, swipl's PL_Q_NODEBUG): print/1 shows its
+%% own Call and Exit, and nothing the hook runs; and the tracer writes a
+%% goal as print/1 does, portray/1 asked (swipl's `~p'): `print(f(zz))'
+portray(pz) :- atom_length(abc, _), write(zz).
+pq :- print(f(pz)), nl.

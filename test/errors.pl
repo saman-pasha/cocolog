@@ -73,6 +73,7 @@ main :-
     qualified_guard_said,
     det_said,
     stack_limit_said,
+    portray_stops,
     checks_done.
 
 %% ---- where a text would not read, uncaught (3.10.0) -------------------------
@@ -1193,3 +1194,18 @@ qualified_guard_said :-
     has('the load says the permission error', 'No permission to modify static procedure `(\',\')/2\'', Out),
     has('and stores nothing', none, Out),
     shl(['rm -rf ', D]).
+
+%% ---- a portray goal that throws ends write_term/2 (3.54.0) -------------------
+%%
+%% Its text kept, its ball raised, and no full stop or newline after it:
+%% swipl 9.0.4's write_term/2 under fullstop(true) says its foreign predicate
+%% `did not clear exception' and the catch around it binds nothing (COMPAT.md),
+%% so this is held to cocolog's own answer
+portray(zq_throw) :- write(before), throw(zq_boom).
+
+portray_stops :-
+    section('a portray goal that throws ends write_term/2'),
+    with_output_to(atom(A1), catch(write_term(f(zq_throw), [portray(true), fullstop(true), nl(true)]),
+                                   E1, true)),
+    check('its text is kept, and no full stop or newline after it', A1, 'f(before'),
+    check('and its ball is raised', E1, zq_boom).

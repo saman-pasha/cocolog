@@ -296,7 +296,11 @@
     ;; name is the module it is said of where no module/2 read is (3.45.0,
     ;; `coco_meta_qualify', `coco_meta_ctx'): interned at each call, the two
     ;; names cost a qualified call some 300 instructions
-    (":" 2) ("user" 0)))
+    (":" 2) ("user" 0)
+    ;; the hook print/1 and `~p' ask for a clause (3.54.0,
+    ;; `coco_portray_defined'): interned at each print/1, the name cost it
+    ;; some 300 instructions
+    ("portray" 1)))
 
 (DEFUN coco-fid-index (name arity)
   (OR (POSITION (LIST name arity) *functor-names* :TEST #'EQUAL)
@@ -2504,6 +2508,22 @@
         (fprintf stderr "   %s: (%d) %s\n" port depth (? (== text nil) "?" text))
         (coco_out_note stderr "\n" 1))
 
+  ;;; THE TRACER'S TEXT OF A GOAL (3.54.0): print/1's, portray/1 asked where
+  ;;; the program has a clause for it, as swipl's debugger writes a frame's
+  ;;; goal with `~p' -- the builtins module's (`coco_b_trace_text' in
+  ;;; lib/builtins-format.cicili); a binary with none writes print/1's own
+  ;;; text, as through 3.53.0
+  (static) (var func coco_trace_text_hook ((coco_engine * e) (coco_strbuf * b) (size_t g))
+                 (out int))
+
+  (func coco_trace_text_install ((func h ((coco_engine * e) (coco_strbuf * b) (size_t g))
+                                        (out int)))
+        (set coco_trace_text_hook h))
+
+  (func coco_trace_text ((coco_engine * e) (coco_strbuf * b) (size_t g)) (out int)
+        (if (!= coco_trace_text_hook nil) (return (coco_trace_text_hook e b g)))
+        (return (coco_write_print (-> e m) b g)))
+
   (static)
   (func coco_trace_port ((coco_engine * e) (const char * port) (int depth) (size_t g))
         ;; QUIET (`trace' 3, `--backtrace'): nothing printed, the markers
@@ -2521,10 +2541,11 @@
               (return)))
         ;; THE GOAL AS print/1 WRITES IT (3.40.0), as swipl's debugger writes
         ;; it (portray, so numbervars, and quoted): `'$VAR'(0)' is `A' and
-        ;; `'don\'t'' swipl's escape; through 3.39.0 the engine's quoted text
+        ;; `'don\'t'' swipl's escape; through 3.39.0 the engine's quoted text,
+        ;; and since 3.54.0 portray/1 asked (`coco_trace_text')
         (let ((coco_strbuf b))
           (coco_sb_init (aof b))
-          (coco_write_print (-> e m) (aof b) g)
+          (coco_trace_text e (aof b) g)
           (coco_trace_line port depth ($ b s))
           (coco_sb_free (aof b))))
 

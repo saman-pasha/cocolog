@@ -1917,13 +1917,20 @@ cocolint index offers no import of it.
   control character as it is, term_to_atom/2's and term_string/2's, and,
   3.18.0, 512 a space after each comma (spacing(next_argument), the
   listing's and since 3.19.0 write_term/2's), and, 3.49.0, 1024 a depth
-  limit, and, 3.53.0, 2048 dotlists(true) and 4096 no_lists(true), so a
-  compound and a list hand on `mode & 8155` and an atom reads
-  `mode & 337`: a new bit goes into both masks where an atom needs it;
+  limit, and, 3.53.0, 2048 dotlists(true) and 4096 no_lists(true), and,
+  3.54.0, 8192 portray asked (16384, the term asked already, its own and
+  handed on to nothing), so a compound and a list hand on `mode & 16347`
+  and an atom reads `mode & 337`: a new bit goes into both masks where an
+  atom needs it;
   write_term/2's priority(P) is the machine's `wprec`, P plus one,
   read by `coco_write_top` alone, and its max_depth(D) the machine's
-  `wmax`, read only under 1024 -- by `coco_write_rec`'s first test, a
-  term past D `...`, and by `coco_write_list_cut`, out of line, where the
+  `wmax`, read only under 1024 -- by `coco_write_rec`'s first test, one
+  test of 9216 that asks the depth limit and portray out of line
+  (`coco_write_ask`, `(weak) (cold)`: unmarked, the zero heuristic gave its
+  `r >= 0` return enough of the main path's share that the compound
+  writer's `(` and `)` became cold call sites, two calls of `coco_sb_putc`
+  a compound, +0.27 % of a write-heavy run), a term past D `...`, and by
+  `coco_write_list_cut`, out of line, where the
   K-th element is K deeper than its list and a list past D ends `|...]`,
   swipl's writeTerm() and writeList(); one instruction a term written
   where no limit is set; **the list writer asks ONE test of the three
@@ -1935,6 +1942,45 @@ cocolint index offers no import of it.
   is `coco_write_fun`, always inlined, so the
   guard's slow path returns rather than rejoining -- rejoined, every
   compound read its tag and functor again (21 instructions each).
+* **print/1, `~p` and write_term/2's portray(true) and portray_goal(G) ask
+  portray/1 as swipl's pl-write.c does** (3.54.0, test/files/portray.pl):
+  each term but a variable, the term first, the depth limit before it --
+  where the program has a clause for it (`coco_portray_defined`, the name
+  interned once a machine, `*functor-names*`), as swipl asks it only then,
+  portray/1 declared in user, dynamic and multifile, by the builtins half
+  as swipl declares it (a call with no clause fails; listing/0 writes the
+  two declarations) -- and portray_goal(G) is `call(G, T, Opts)`, Opts the write's options
+  less every priority(_) and the term's priority(P) last; either implies
+  numbervars(true) unless the options say. **The goal is a search of its
+  own with its output captured**: `coco_portray_call` (the engine's
+  `coco_portray_hook`) runs it through `coco_out_capture_run`, NODEBUG
+  (untraced, as swipl's PL_Q_NODEBUG), its bindings undone, the writer's
+  state of the machine saved around it and its cells given back, no
+  deeper than 100 (`wpnest`, swipl's MAX_PORTRAY_NESTING:
+  resource_error(portray_nesting) in the innermost write's context). Its
+  text is put on the write's buffer: no gap goes before it, as each of
+  swipl's writes starts afresh (`wpfirst`, which an operator's writer saves,
+  nils and compares around its operand: `1+-1`, `--1`), and a goal that
+  failed having written leaves its text and the term after it, a space
+  between where the two would read as one token (`coco_write_gap_at`,
+  `partial w`). **A goal that threw stops the write**: nothing more is
+  written (`wpstop`), and what a parent wrote after the stop is taken back
+  (`wpcut`): **an operand written into a buffer of its own carries the stop
+  up as it is put on its parent's** (`coco_write_cut_up`), so a new writer
+  that renders a part apart calls it too. The ball waits on the machine
+  (`wpstate`) for the builtin to raise once its own text is out
+  (`coco_portray_after`, format's kind 13), and fullstop(true) and nl(true)
+  write nothing after it. A compound under portray is written by
+  `coco_write_fun_p`, the P=1 copy of `coco-write-fun-body` (the plain
+  writer is its P=0 copy, 3.53.0's code but for its mask), and a cyclic term is
+  written in its factors from the first unless a depth limit is set
+  (`coco_write_portrayed`), so no goal is asked of the term unwound.
+  print/1 is the builtins module's (`coco_print_hook`), and **the tracer
+  writes a goal as print/1 does** (`coco_trace_text`, `coco_b_trace_text`:
+  `print(f(zz))` where portray/1 writes `zz`, swipl's), a ball its goal
+  threw given back unraised (COMPAT.md). Not swipl's: the REPL's answers
+  ask no portray/1 (COMPAT.md); halt/0 in a goal is the goal's failure,
+  as in any nested search.
 * **A load warns in swipl's two blocks** (3.17.0, 3.19.1, 3.19.5;
   `coco_consult_singletons`, `coco_cw_clause` in lib/kb-consult.cicili):
   the reader's `Singleton variables: [X]` as the term is read (`_X` and
@@ -3036,9 +3082,7 @@ cocolint index offers no import of it.
   through `coco_write_term`, `coco_write_storable` and
   `coco_write_canonical`, which set no 16: a new writer a PROGRAM calls
   goes through `coco_write_mode` with the 16, one the engine reads back
-  does not. Not swipl's yet: print/1 calls no portray/1 hook; a control
-  character with no letter is written as it is (swipl's `\x1\`; this
-  reader has no `\x..\`); the REPL writes `'don''t'` and `'$VAR'(1)`
+  does not. Not swipl's yet: the REPL writes `'don''t'` and `'$VAR'(1)`
   (swipl's `'don\'t'`, `B`), where listing/1 writes swipl's since its
   layout became portray_clause/1's; and a quoted infix operator after
   an integer takes no space (`1'x\'y'2`, swipl's `1 'x\'y' 2`), which

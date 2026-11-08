@@ -226,6 +226,19 @@
           (if (coco_m_is_var e t) (return (coco_m_instantiation_error e)))
           (return (coco_m_type_error e "list" (coco_deref m opts)))))
 
+  ;;; Whether the program has a clause for portray/1 (3.54.0): swipl asks
+  ;;; it only then, its user:portray/1 being dynamic with none, so print/1
+  ;;; of a program with none writes as writeq/1 and calls nothing. The name
+  ;;; is the machine's own, interned once (`*functor-names*')
+  (static)
+  (func coco_portray_defined ((coco_engine * e)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (coco_store * st . #'(-> e st))
+              (size_t pi . 0))
+          (if (== coco_portray_hook nil) (return 0))
+          (set pi (coco_pred_find st ($ (nth (coco-fid m "portray" 1) (-> m functors)) name) 1))
+          (if (>= pi (-> st npreds)) (return 0))
+          (return (> (coco_pred_count st pi) ($ (nth pi (-> st preds)) ntomb)))))
+
   ;;; T written into B as OPTS say, for write_term/2 (lib/builtins-db.cicili)
   ;;; and format's `~W' (3.0.0). `quoted(true)', `ignore_ops(true)',
   ;;; `numbervars(true)' and `variable_names(['X'=V, ...])' are the ones the
@@ -241,12 +254,16 @@
   ;;; the variables; through 3.46.0 a boolean was on if any said true, and
   ;;; the first variable_names/1 named them. fullstop(true), nl(true),
   ;;; dotlists(true) and no_lists(true) are swipl's since 3.53.0
-  ;;; (`coco_write_fullstop', `coco_write_list_dots').
+  ;;; (`coco_write_fullstop', `coco_write_list_dots'), and portray(true) and
+  ;;; portray_goal(G) since 3.54.0, each implying numbervars(true) unless
+  ;;; numbervars(B) is given: the write asks portray/1 of its terms while it
+  ;;; has a clause, or G, through call/3 (`coco_portray_call').
   (static)
   (func coco_wt_put ((coco_engine * e) (coco_strbuf * b) (size_t t) (size_t opts)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t * v . nil) (size_t n . 0)
-              (int quoted . 0) (int ignore_ops . 0) (int numbervars . 0)
+              (int quoted . 0) (int ignore_ops . 0) (int numbervars . 0) (int nvset . 0)
+              (int portray . 0) (size_t pgoal . 0) (int asks . 0)
               (int fullstop . 0) (int nl . 0) (int dotlists . 0) (int nolists . 0)
               (int spacing . 0) (i64 prio . -1) (i64 maxd . 0) (size_t vno . #'(cast size_t -1))
               (size_t * nv . nil) (size_t nn . 0) (size_t k . 0)
@@ -262,7 +279,12 @@
                                            (? (== (coco_wt_truth e ov) 1) 1 0))))
                         (if (== 0 (strcmp nm "quoted")) (set quoted on))
                         (if (== 0 (strcmp nm "ignore_ops")) (set ignore_ops on))
-                        (if (== 0 (strcmp nm "numbervars")) (set numbervars on))
+                        (if (== 0 (strcmp nm "numbervars")) (block (set numbervars on) (set nvset 1)))
+                        ;; portray(B) and portray_goal(G) (3.54.0, swipl's;
+                        ;; through 3.53.0 checked and read past)
+                        (if (== 0 (strcmp nm "portray")) (set portray on))
+                        (if (and (== 0 (strcmp nm "portray_goal")) (!= ov (cast size_t -1)))
+                            (set pgoal ov))
                         ;; fullstop(B), nl(B), dotlists(B) and no_lists(B)
                         ;; (3.53.0, swipl's; through 3.52.0 checked and read
                         ;; past)
@@ -311,14 +333,26 @@
           ;; a depth limit is the machine's WMAX and the mode's 1024, which
           ;; the writer tests before it reads WMAX
           (set (-> m wmax) maxd)
-          (coco_write_mode m b t (bitor (? quoted 81 0) (bitor (? ignore_ops 2 0)
+          ;; portray_goal(G) is portray(true) calling G, and either is
+          ;; numbervars(true) where numbervars(B) is not said (3.54.0)
+          (if (!= pgoal 0) (set portray 1))
+          (if (and portray (not nvset)) (set numbervars 1))
+          (set asks (or (!= pgoal 0) (and portray (coco_portray_defined e))))
+          (let ((int mode . #'(bitor (? quoted 81 0) (bitor (? ignore_ops 2 0)
                                  (bitor (? numbervars 8 0) (bitor (? spacing 512 0)
                                  (bitor (? (!= maxd 0) 1024 0)
-                                 (bitor (? dotlists 2048 0) (? nolists 4096 0))))))) 1)
+                                 (bitor (? dotlists 2048 0) (? nolists 4096 0)))))))))
+            (if asks
+                (block (set (-> m wpgoal) pgoal) (set (-> m wpopts) opts)
+                       (coco_write_portrayed m b t (bitor mode 8192) 1)
+                       (set (-> m wpgoal) 0) (set (-> m wpopts) 0))
+              (coco_write_mode m b t mode 1)))
           ;; and the full stop after it and the newline, as swipl's
-          ;; pl_write_term3() puts them (3.53.0)
-          (if fullstop (coco_write_fullstop b nl)
-            (if nl (coco_sb_putc b (cast char 10))))
+          ;; pl_write_term3() puts them (3.53.0), unless a portray goal
+          ;; stopped the write
+          (if (== (-> m wpstate) 0)
+              (if fullstop (coco_write_fullstop b nl)
+                (if nl (coco_sb_putc b (cast char 10)))))
           (set (-> m wprec) 0)
           (set (-> m wmax) 0)
           (set (-> m wcells) nil) (set (-> m wnames) nil) (set (-> m nwnames) 0)
@@ -655,7 +689,8 @@
   ;;; it, told to the collector, which may then run; with none it does not.
   ;;; KEEP keeps the goal's bindings (with_output_to/2's once/1); else the
   ;;; machine is put back where it stood (`~@''s, swipl's
-  ;;; PL_rewind_foreign_frame()).
+  ;;; PL_rewind_foreign_frame()). NODEBUG runs it untraced (3.54.0, a
+  ;;; portray goal's, swipl's PL_Q_NODEBUG).
   ;;;
   ;;; Answers 1, the goal succeeded; 0, it failed; 2, it threw, the ball in
   ;;; BL for the caller to raise again; -1, the run ended with no ball; 3,
@@ -664,7 +699,7 @@
   ;;; OUT, and fd 1 is the console's again whatever the answer.
   (static)
   (func coco_out_capture_run ((coco_engine * e) (size_t goal) (size_t * hold) (size_t nhold)
-                              (int keep) (coco_strbuf * out) (coco_fmt_ball * bl)
+                              (int keep) (int nodebug) (coco_strbuf * out) (coco_fmt_ball * bl)
                               (const char ** why)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (coco_store * st . #'(-> e st))
@@ -688,11 +723,16 @@
           (coco_engine_ask (aof sub) goal)
           (set ($ sub rootn) 4)
           (coco_limit_narrow e (aof sub))
-          ;; the trace follows the proof inside, depth and all (1.10.17)
-          (set ($ sub trace) (-> e trace))
-          (set ($ sub trace_depth) (-> e trace_depth))
-          (set ($ sub trace_goal) (-> e trace_goal))
-          (coco_trace_inner e (aof sub) 1)
+          ;; the trace follows the proof inside, depth and all (1.10.17),
+          ;; but for NODEBUG's goal, a portray goal's (3.54.0), which swipl
+          ;; runs with PL_Q_NODEBUG and the tracer never shows
+          (if (not nodebug)
+              (block (set ($ sub trace) (-> e trace))
+                     (set ($ sub trace_depth) (-> e trace_depth))
+                     (set ($ sub trace_goal) (-> e trace_goal))
+                     (coco_trace_inner e (aof sub) 1))
+            ;; a new engine traces as the process does (`coco_trace_default')
+            (set ($ sub trace) 0))
           ;; the marks the machine is wound back to go with the inner
           ;; engine, where the collector keeps them true (1.9.4)
           (let ((size_t * holdp . hold) (size_t nh . nhold) (int held . 0))
@@ -763,6 +803,151 @@
                        (set (nth (-> out len) (-> out s)) (cast char 0)))))
           (fclose tmp)
           (return ans)))
+
+  ;;; ---- the portray hook -------------------------------------------------
+  ;;;
+  ;;; PORTRAY/1 AND PORTRAY_GOAL(G) AS SWIPL'S WRITER ASKS THEM (3.54.0,
+  ;;; pl-write.c's callPortray()), installed as the writer's
+  ;;; `coco_portray_hook' and asked of each term but a variable of a write
+  ;;; in mode 8192, the term first (`coco_write_ask'). The goal is
+  ;;; portray(T), or call(G, T, Opts) with Opts the write's options less
+  ;;; every priority(_) and priority(PREC) after them, PREC the priority T
+  ;;; stands at; it runs once, untraced, its output captured as
+  ;;; with_output_to/2's is (`coco_out_capture_run'), its bindings undone and
+  ;;; its other work kept, and the collector off: the writer holds cells
+  ;;; across it. The writer's own state is put aside for the goal's writes
+  ;;; and back after, so that their variable names, their depth limit and
+  ;;; their priority are their own and the write's stay its own. What the
+  ;;; goal wrote goes on B whatever its answer -- 1 it portrayed T, 0 it
+  ;;; failed, -1 it threw or ended the run: the write stops where its text
+  ;;; ends, and the ball is kept on the machine for the builtin
+  ;;; (`coco_portray_take'). A goal's text at B's start is the first token
+  ;;; there (`wpfirst'), with no space before it, as none goes before a
+  ;;; write of swipl's.
+
+  ;;; call/3's options: the write's but priority(_), then priority(PREC)
+  (static)
+  (func coco_portray_opts ((coco_engine * e) (size_t opts) (int prec)) (out size_t)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t * v . nil) (size_t n . 0)
+              (size_t l . #'(coco_cons m (coco_make1 m "priority" (coco_new_int m (cast i64 prec)))
+                                       (coco_new_nil m))))
+          (if (coco_m_list_array e opts (aof v) (aof n))
+              (while (> n 0)
+                (set n (- n 1))
+                (let ((size_t o . #'(coco_deref m (nth n v))))
+                  (if (not (and (and (coco_is_callable m o) (== (coco_arity m o) 1))
+                                (== 0 (strcmp (coco_atom_name m (coco_name_of m o)) "priority"))))
+                      (set l (coco_cons m o l))))))
+          (free v)
+          (return l)))
+
+  (static)
+  (func coco_portray_call ((coco_machine * m) (coco_strbuf * b) (size_t t) (int prec)) (out int)
+        (let ((coco_engine * e . #'(cast (coco_engine *) (-> m eng))))
+          (if (== e nil) (return 0))
+          ;; no deeper than swipl's MAX_PORTRAY_NESTING, 100: past it the
+          ;; innermost write raises resource_error(portray_nesting)
+          (if (>= (-> m wpnest) 100)
+              (block (set (-> m wpstate) 4) (set (-> m wpstop) 1)
+                     (set (-> m wpcutbuf) (cast (void *) b)) (set (-> m wpcut) (-> b len))
+                     (return -1)))
+          (let ((size_t mark . #'(-> m heap_len)) (size_t goal . 0) (size_t args [3])
+                (coco_strbuf out) (coco_fmt_ball bl) (const char * why . "") (int rc . 0)
+                (u32 sdeep . #'(-> m wdeep)) (int scyc . #'(-> m wcyc)) (int sprec . #'(-> m wprec))
+                (i64 smax . #'(-> m wmax)) (size_t * scells . #'(-> m wcells))
+                (u64 * snames . #'(-> m wnames)) (size_t snw . #'(-> m nwnames))
+                (void * scanon . #'(-> m wcanon)) (void * sfirst . #'(-> m wpfirst))
+                (size_t sgoal . #'(-> m wpgoal)) (size_t sopts . #'(-> m wpopts)))
+            (if (!= sgoal 0)
+                (block (set (nth 0 args) sgoal) (set (nth 1 args) t)
+                       (set (nth 2 args) (coco_portray_opts e sopts prec))
+                       (set goal (coco_make m "call" 3 args)))
+              (set goal (coco_make1 m "portray" t)))
+            (set (-> m wdeep) 1024) (set (-> m wcyc) 0) (set (-> m wprec) 0) (set (-> m wmax) 0)
+            (set (-> m wcells) nil) (set (-> m wnames) nil) (set (-> m nwnames) 0)
+            (set (-> m wcanon) nil) (set (-> m wpfirst) nil) (set (-> m wpgoal) 0) (set (-> m wpopts) 0)
+            (coco_sb_init (aof out))
+            (set (-> m wpnest) (+ (-> m wpnest) 1))
+            (set rc (coco_out_capture_run e goal nil 0 0 1 (aof out) (aof bl) (aof why)))
+            (set (-> m wpnest) (- (-> m wpnest) 1))
+            (set (-> m wdeep) sdeep) (set (-> m wcyc) scyc) (set (-> m wprec) sprec) (set (-> m wmax) smax)
+            (set (-> m wcells) scells) (set (-> m wnames) snames) (set (-> m nwnames) snw)
+            (set (-> m wcanon) scanon) (set (-> m wpfirst) sfirst) (set (-> m wpgoal) sgoal)
+            (set (-> m wpopts) sopts)
+            ;; the goal's own cells: the capture wound the heap back to where
+            ;; it began, which is above them
+            (if (<= mark (-> m heap_len)) (set (-> m heap_len) mark))
+            (if (and (!= ($ out s) nil) (> ($ out len) 0))
+                (block (if (== (-> b len) 0) (set (-> m wpfirst) (cast (void *) b)))
+                       (coco_sb_put_len b ($ out s) ($ out len))))
+            (coco_sb_free (aof out))
+            (if (== rc 1) (return 1))
+            (if (== rc 0) (return 0))
+            ;; it threw (1), ended the run with no ball (2), or no capture
+            ;; could be made (3): the write stops here
+            (set (-> m wpstate) (? (== rc 2) 1 (? (== rc -1) 2 3)))
+            (if (== rc 2)
+                (block (set (-> m wpb_cell) ($ bl cell)) (set (-> m wpb_size) ($ bl size))
+                       (set (-> m wpb_st) ($ bl st)) (set (-> m wpb_mark) ($ bl mark))))
+            (set (-> m wpstop) 1)
+            (set (-> m wpcutbuf) (cast (void *) b))
+            (set (-> m wpcut) (-> b len))
+            (return -1))))
+
+  ;;; What a portrayed write left for its builtin (3.54.0): 0 nothing, 1 a
+  ;;; ball (moved to BL, for `coco_fmt_rethrow'), 2 the run ended, 3 no
+  ;;; capture could be made, 4 the goals nested too deep; the machine's
+  ;;; state cleared
+  (static)
+  (func coco_portray_take ((coco_machine * m) (coco_fmt_ball * bl)) (out int)
+        (let ((int s . #'(-> m wpstate)))
+          (if (== s 1)
+              (block (set (-> bl cell) (-> m wpb_cell)) (set (-> bl size) (-> m wpb_size))
+                     (set (-> bl st) (-> m wpb_st)) (set (-> bl mark) (-> m wpb_mark))))
+          (set (-> m wpstate) 0)
+          (return s)))
+
+  ;;; ... AND FORMAT'S END FOR IT (3.54.0): a ball raised again as a `~@'
+  ;;; goal's is (kind 10), a run that ended as one that ended (11), and no
+  ;;; capture as no capture (12), each with what came before put out
+  (static)
+  (func coco_fmt_portray_fail ((coco_machine * m) (coco_fmt_ball * ball) (char * err)
+                               (size_t errlen) (int * fkind)) (out int)
+        (let ((int s . #'(coco_portray_take m ball)))
+          (return (coco_fmt_fail err errlen fkind (? (== s 1) 10 (? (== s 2) 11 (? (== s 4) 13 12)))
+                                 (? (== s 3) "cannot capture a portray goal's output" "")))))
+
+  ;;; ... AND A WRITE BUILTIN'S, print/1's and write_term/2's (3.54.0), once
+  ;;; it has put out what came before: the ball raised again in its engine,
+  ;;; where the catch frames are, a run that ended ended
+  (static)
+  (func coco_portray_after ((coco_engine * e)) (out int)
+        (let ((coco_fmt_ball bl) (int s . #'(coco_portray_take (coco_m_machine e) (aof bl))))
+          (if (== s 0) (return 1))
+          (if (== s 1) (return (coco_fmt_rethrow e (aof bl))))
+          (if (== s 2) (return -1))
+          (if (== s 4) (return (coco_m_resource_error e "portray_nesting")))
+          (return (coco_m_error e "print/1" "cannot capture a portray goal's output"))))
+
+  ;;; THE TRACER'S TEXT OF A GOAL (3.54.0, swipl's debugger, which writes a
+  ;;; frame's goal with `~p'), installed as the engine's
+  ;;; `coco_trace_text_hook': print/1's, portray/1 asked where the program
+  ;;; has a clause for it, its goals untraced as print/1's are. A portray
+  ;;; goal that threw cuts the line where it threw, as swipl's port line is
+  ;;; cut, and its ball is given back unraised, where swipl's goes up into
+  ;;; the program at a later port (COMPAT.md)
+  (func coco_b_trace_text ((coco_engine * e) (coco_strbuf * b) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (coco_fmt_ball bl))
+          (if (not (coco_portray_defined e)) (return (coco_write_print m b g)))
+          (coco_write_portrayed m b g 8281 1)
+          (if (== (coco_portray_take m (aof bl)) 1)
+              (let ((coco_store * st . #'(-> e st))
+                    (coco_store * bst . #'(? (== ($ bl st) nil) st (cast (coco_store *) ($ bl st)))))
+                (if (== bst st)
+                    (set (-> st dead) (+ (-> st dead) ($ bl size)))
+                  (block (set (-> bst len) ($ bl mark))
+                         (coco_store_shrink_empty bst)))))
+          (return 1)))
 
   ;;; Builds the whole of one format into B. Answers 1, or 0 with what went
   ;;; wrong in *FKIND (above) -- so that every way of going wrong is reported
@@ -919,7 +1104,7 @@
                     (set wc0 (-> cs col))
                     (set wfrom (-> o len))
                     (if (== (-> cs rn) 0) (coco-fmt-direct cs (-> b s) (-> b len) wc0 wdirect))
-                    (set grc (coco_out_capture_run e a nil 0 0 o ball (aof why)))
+                    (set grc (coco_out_capture_run e a nil 0 0 0 o ball (aof why)))
                     (if (== grc 1)
                         (block (set (-> cs col) (coco-fmt-wcol (-> o s) wfrom (-> o len) wc0 wdirect))
                                (set (-> cs cdone) (-> o len))
@@ -945,6 +1130,7 @@
                           (block (set (cof fdir) rc)
                                  (return (coco_fmt_fail err errlen fkind 5 "")))))
                     (coco-fmt-writer cs b o (coco_wt_put e o a opts))
+                    (if (-> m wpstate) (return (coco_fmt_portray_fail m ball err errlen fkind)))
                     continue))
 
               ;; a directive no format has, by its whole character, refused
@@ -964,8 +1150,15 @@
                 ;; writeq/1's, numbervars and all (2.2.5); 107 `~k'
                 ;; write_canonical/1's (3.0.0), its names and all (3.1.0);
                 ;; each a writer's column (`coco-fmt-writer', 3.33.0)
+                ;; `~p' asks portray/1 while the program has a clause for it
+                ;; (3.54.0), as swipl's print/1 does, and a portray goal's
+                ;; throw ends the format as a `~@' goal's does
                 (if (== d 112)
-                    (block (coco-fmt-writer cs b o (coco_write_print m o a)) continue))
+                    (block (coco-fmt-writer cs b o (? (coco_portray_defined e)
+                                                      (coco_write_portrayed m o a 8281 1)
+                                                      (coco_write_print m o a)))
+                           (if (-> m wpstate) (return (coco_fmt_portray_fail m ball err errlen fkind)))
+                           continue))
                 (if (or (== d 119) (== d 113))
                     (block (coco-fmt-writer cs b o (coco_write_mode m o a (? (== d 113) 25 8) 1))
                            continue))
@@ -1097,6 +1290,8 @@
               (return (coco_m_raise e (coco_make1 m "representation_error"
                                                   (coco_new_atom m "code_point")))))
           (if (== kind 12) (return (coco_m_error e "format/2" err)))
+          ;; portray goals nested past swipl's limit (3.54.0)
+          (if (== kind 13) (return (coco_m_resource_error e "portray_nesting")))
           (return (coco_m_error e err nil))))
 
   ;;; The arguments, as an array. `format("~w", foo)' is legal and means one
@@ -1352,7 +1547,7 @@
             (if (== f 2) (return (coco_m_raise_pi e fm "system" op opn)))
             (set goal r))
           (coco_sb_init (aof tb))
-          (set rc (coco_out_capture_run e goal hold 1 1 (aof tb) (aof ball) (aof why)))
+          (set rc (coco_out_capture_run e goal hold 1 1 0 (aof tb) (aof ball) (aof why)))
           (if (!= rc 1)
               (block (coco_sb_free (aof tb))
                      (if (== rc 2) (return (coco_fmt_rethrow e (aof ball))))

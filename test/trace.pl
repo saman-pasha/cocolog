@@ -57,7 +57,10 @@ main :-
                        %% print/1 writes it (3.40.0)
                        'nv(f(X, _, X))', nw, nq, 'nr(X)', 'ns(X)',
                        %% a meta-predicate's argument said of user (3.45.0)
-                       'mp(atom(foo))', 'mp(fail)', mq ]),
+                       'mp(atom(foo))', 'mp(fail)', mq,
+                       %% a goal written with portray/1, whose goals run untraced
+                       %% (3.54.0)
+                       pq ]),
            traced(Swipl, Program, Q)),
     %% LIBRARY CALLS (3.27.0, test/trace-library.pl): a library predicate a
     %% program's clause calls is a port, and what it calls is none -- its
@@ -229,6 +232,16 @@ own_lines :-
     own(D, tk, [ 'is_list(x).', 'tk :- must_be(list, [a]).' ], tk,
         p(_, _, 'is_list([a])'), hidden,
         'a library''s call of a name the program took over is hidden as the builtin''s'),
+    %% A PORTRAY GOAL THAT THROWS AS THE TRACER WRITES A PORT (3.54.0): the
+    %% line cut where it threw, as swipl's is, and the ball given back
+    %% unraised, where swipl's goes up into the program at a later port --
+    %% kept, write_term/2 would raise it as a portray goal's of its own
+    own(D, tz, [ 'portray(pz) :- throw(oops).', 'tz :- atom(pz), write_term(ok, []).' ], tz,
+        p('Call', 2, 'atom('), printed,
+        'a portray goal that throws cuts the tracer''s line where it threw'),
+    own(D, tz2, [ 'portray(pz) :- throw(oops).', 'tz :- atom(pz), write_term(ok, []).' ], tz,
+        p('Exit', 2, 'write_term(ok,[])'), printed,
+        'and its ball is given back: the program goes on'),
     shl(['rm -rf ', D]).
 
 own(D, Base, Lines, Q, Line, Expect, Name) :-

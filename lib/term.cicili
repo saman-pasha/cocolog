@@ -1032,7 +1032,34 @@
     (member u64        gvb_hook0)
     (member u64        gvb_fid)
     (member size_t     lfloor)
-    (member int        lhook))
+    (member int        lhook)
+    ;; THE PORTRAY HOOK'S WRITE (3.54.0, swipl's callPortray(): print/1's
+    ;; portray/1, write_term/2's portray(true) and portray_goal(G)): a write
+    ;; in mode 8192 asks `coco_portray_hook' of each term it meets but a
+    ;; variable. WPGOAL is portray_goal(G)'s G, 0 for portray/1, and WPOPTS
+    ;; the write's options, of which call(G, T, Opts)'s Opts is made; WPFIRST
+    ;; the buffer a portray goal's text began (no space goes before it, as
+    ;; none goes before a write of swipl's); a goal that threw stops the
+    ;; write (WPSTOP), WPCUT in WPCUTBUF where its text ends, and its ball is
+    ;; kept (WPB_*, WPSTATE 1; 2 a goal that ended the run with none, 3 a
+    ;; capture that could not be made) for the builtin to raise again once
+    ;; it has put out what came before. Each is set around one write.
+    ;; Appended.
+    (member size_t     wpgoal)
+    (member size_t     wpopts)
+    (member void *     wpfirst)
+    (member int        wpstop)
+    (member void *     wpcutbuf)
+    (member size_t     wpcut)
+    (member int        wpstate)
+    (member size_t     wpb_cell)
+    (member size_t     wpb_size)
+    (member void *     wpb_st)
+    (member size_t     wpb_mark)
+    ;; and WPNEST the portray goals running, one inside another: no more
+    ;; than swipl's MAX_PORTRAY_NESTING, 100, past which the innermost write
+    ;; raises resource_error(portray_nesting) (WPSTATE 4). Appended.
+    (member int        wpnest))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends

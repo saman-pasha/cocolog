@@ -1355,7 +1355,7 @@
         ;; written as the port line writes it (`coco_trace_port')
         (let ((coco_strbuf tb))
           (coco_sb_init (aof tb))
-          (coco_write_print (-> e m) (aof tb) g)
+          (coco_trace_text e (aof tb) g)
           (return ($ tb s))))
 
   ;;; the retry entered a clause: its Redo, printed -- or the Redo recorded

@@ -87,9 +87,11 @@ before(uv, x).   % cocolint: N1 -- a library's own name the program defines, whi
 hooks :-
     %% current from the start: asked before predicate_property/2 named them
     t(current_predicate(file_search_path/2)), t(current_predicate(prolog_file_type/2)),
-    forall(member(H, [term_expansion(_, _), message_hook(_, _, _), library_directory(_)]),
+    forall(member(H, [term_expansion(_, _), message_hook(_, _, _), library_directory(_), portray(_)]),
            ( functor(H, N, A), props(H),
              ( current_predicate(N/A) -> out(N/A-current) ; out(N/A-none) ) )),
+    %% one with no clause fails, as print/1's asks find it (3.54.0)
+    t(portray(uvp)),
     forall(member(H, [file_search_path(_, _), prolog_file_type(_, _)]),
            ( functor(H, N, A), props_uncounted(H),
              ( current_predicate(N/A) -> out(N/A-current) ; out(N/A-none) ) )),

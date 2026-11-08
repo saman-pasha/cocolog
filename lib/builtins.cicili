@@ -225,6 +225,13 @@
            ;; nodebug library), which hides their children from the
            ;; tracer as this flag does (3.27.0, the read's `nodbg')
            ":- set_prolog_flag(generate_debug_info, false)."
+           ;; PORTRAY/1 IS DECLARED IN USER, dynamic and multifile, as
+           ;; swipl's is (3.54.0): print/1 and the writes that ask it
+           ;; (`coco_portray_defined') find a predicate with no clause until
+           ;; the program gives it some, current from the start, and a call
+           ;; of it fails where through 3.53.0 it was an unknown procedure
+           ":- dynamic(portray/1)."
+           ":- multifile(portray/1)."
            ;; ---- with_local_clauses/1 -----------------------------------
            ;;
            ;; What a module's clauses already get, asked for by a program:

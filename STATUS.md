@@ -16236,3 +16236,128 @@ padding: nrev +11 instructions, queens +0, lookup +0.
 Narrow cases green: lint, files, syntax, cyclic, string, units, errors,
 repl, trace, backtrace, directives, engine, library, journal, reconsult,
 window, flowdebug and flowchart. Reasoning stays 1.0.27.
+
+## print/1's portray/1, and write_term/2's portray(true) and portray_goal(G), as swipl's (3.54.0)
+
+print/1, format's `~p` and write_term/2's portray(true) and portray_goal(G)
+wrote as writeq/1 writes and called nothing: the hook and the write's goal
+were read past. swipl 9.0.4's pl-write.c asks each, and so does cocolog
+now. A minor, as what a program writes moves.
+
+- **portray/1 is asked of each term but a variable**, the term first, then
+  its arguments, a list's elements, a tail that is no list, an operator's
+  operands, a curly term's argument, a number, a string -- and the list's
+  end only where it is no list's end (`h([])`, `[[]]`). The depth limit is
+  asked before it: a term past max_depth(D) is `...`, whatever a goal
+  would have written. It is asked where the program has a clause for it,
+  as swipl asks it only then, so a print/1 of a program with none writes
+  as it wrote (`coco_portray_defined`, portray/1's name interned once a
+  machine). **portray_goal(G)** is `call(G, T, Opts)`, Opts the write's own
+  options with every priority(_) dropped and the term's priority(P) last;
+  portray(true) and portray_goal(G) imply numbervars(true) unless the
+  options say.
+- **The goal is a search of its own**, its output captured and put on the
+  write's text (`coco_portray_call` over `coco_out_capture_run`): run
+  untraced, as swipl's PL_Q_NODEBUG runs it, its bindings undone and its
+  other work kept, the writer's state of the machine saved around it, its
+  cells given back, and no deeper than 100 goals (swipl's
+  MAX_PORTRAY_NESTING: past it, resource_error(portray_nesting) in the
+  innermost write's context, system:print/1, system:format/2 or
+  system:write_term/2).
+- **No gap goes before a goal's text**, as each of swipl's writes starts
+  afresh with no last character (`1+-1`, `--1`, `dynamicxx`), and the
+  spaces swipl writes whatever follows stay: a space before an infix
+  operator is one after it too, and next_argument's after a comma. A goal
+  that fails having written leaves its text and the term after it, a
+  space between where the two would read as one token (`partial w`).
+- **A goal that throws stops the write**: what came before stays, the
+  goal's own text too, and nothing more is written; what a parent wrote
+  after the stop is taken back, each operand written into a buffer of its
+  own carrying the stop up as it is put on its parent's
+  (`coco_write_cut_up`). The builtin raises the ball once its text is out,
+  and fullstop(true) and nl(true) write nothing after it (swipl 9.0.4's
+  write_term/2 says there that its foreign predicate did not clear the
+  exception, and the catch around it binds nothing: COMPAT.md).
+- **A cyclic term is written in its factors from the first**, as swipl asks
+  PL_is_acyclic() before it writes, so no goal is asked of the term
+  unwound (unless a depth limit is set, as for any write).
+- **portray/1 is declared in user, dynamic and multifile, as swipl's**
+  (the builtins half, as the grammar half declares term_expansion/2,
+  3.48.0): current from the start, predicate_property/2 answers both,
+  listing/0 writes its two declarations, and a call of it with no clause
+  fails, where through 3.53.0 it was an unknown procedure.
+- **The tracer writes a goal as print/1 does** (swipl's debugger writes a
+  frame's goal with `~p`): `print(f(zz))` where portray/1 writes `zz`. A
+  goal that throws there cuts the line where it threw, as swipl's does,
+  and its ball is given back unraised, where swipl's goes up into the
+  program at a later port (COMPAT.md).
+
+The compound writer is one body, `coco-write-fun-body`, emitted twice:
+the plain copy, 3.53.0's code but for its mask, which no write that asks
+nothing leaves, and the copy for a write that asks portray
+(`coco_write_fun_p`), whose operators keep the goal's first text and carry
+the stop up.
+
+test/files/portray.pl, new, holds 192 lines to swipl, byte for byte; 3.53.0
+differs at 170 of them. test/trace.pl's `pq` holds the tracer's text and the
+untraced goal to swipl, and two lines of its own the goal that throws as a
+port is written; test/errors.pl's `portray_stops` the write a goal stopped
+under fullstop(true); test/files/user_view.pl the declaration, and
+test/repl.pl listing/0's two lines of it.
+
+The arms, one build each, every rule taken out alone, each over
+portray.pl, print.pl, test/trace.pl and test/errors.pl's `portray_stops`
+(the declaration's over user_view.pl and test/repl.pl): the arm of no edit
+green in all four, and twenty-nine of the thirty-two rules red. In
+portray.pl alone: the gap before a goal's text after an infix operator
+and after a prefix one, the stop carried up from an infix's right operand
+and from a prefix's operand, a failed goal's text kept and the gap after
+it, a cyclic term written in its factors first, the depth limit first, a
+term asked once, a list's elements carried down, numbervars(true) implied,
+portray_goal's priorities dropped and its own last, the nesting limit,
+print/1's hook, the ball `~p` and `~W` raise, a stopped write asking no
+more, a goal's first text noted, the outer write's state put back and a
+goal's bindings undone; in test/trace.pl alone the goal run untraced, the
+tracer's text and its ball given back; in `portray_stops` alone the full
+stop a stopped write writes none of; in three of the four the hook asked,
+the arguments carried down and what a parent wrote after the stop taken
+back; and the declaration in user_view.pl and test/repl.pl. Five rules had
+no case until one was written for each: the prefix's stop (t(135) to
+t(140), bracketed operands), the cyclic term (t(141) and t(142): unwound,
+1 025 goals are asked of z where swipl asks one -- the writer walks a
+term's first argument down first, so t(132)'s `f(X, z)` asks no z on its
+way to the cycle), `~W`'s ball (t(133), t(134)), a stopped write (t(144)
+to t(147): a z after the throw is seen) and the bindings (t(148) to
+t(150)). Three stay green, as they can: whether portray/1 has a clause
+(P24) and a goal's cells given back (P25), guards of cost -- without the
+first, the 30 print/1s of a program with no portray/1 clause count 588
+million instructions where 58.7 million write them, 0.196 s where 0.010 s;
+without the second they leave 685 704 cells on the heap where 5 064
+stand, 16 a goal -- and the find's bounds check (P23), which no write
+reaches since portray/1 is declared in every store, a thread's and
+run_isolated/2's too.
+
+The cost is none where no portray/1 clause exists and no portray_goal(G)
+is given. tools/flow/zero.sh against 3.53.0 at like paths, work less
+padding: nrev +1 instruction, queens +8, lookup +3 977 -- all of lookup's
+libc's memset and strncmp at the buffers' new addresses but 18, the
+engine's own (`cc_regs_worth`). 3.53.0's write-heavy run (a term of 406,
+ninety times by write/1, writeq/1 and print/1) makes the same 127 632
+writer calls and counts 631 946 fewer instructions (-0.62 %): libc's
+strcmp 629 402 fewer at the names' new addresses, the writer 25 374 fewer,
+and each print/1 105 more -- it asks whether portray/1 has a clause. A
+start counts 45 552 more of 35.8 million (+0.13 %): the two declarations
+read and run, some 12 000, and strcmp 32 768 more, 265 calls of it theirs
+and the rest each call's cost at the names' new addresses.
+
+A goal asked costs about 12 500 instructions and eight system calls,
+because it runs as a search of its own with its output captured (a file
+made, the output's descriptor moved onto it and back, the text read back),
+where swipl calls the hook in place: 30 print/1s of a term whose writes
+ask 42 540 goals, with a portray/1 that matches none of them, count 592
+million instructions where 58.7 million write them with no clause, 0.20 s
+where swipl takes 0.016 s. Making that cheaper is a task of its own.
+
+Narrow cases green: lint, files, syntax, cyclic, string, units, errors,
+repl, trace, backtrace, directives, engine, library, journal, reconsult,
+window, flowdebug and flowchart. Reasoning stays 1.0.27.
