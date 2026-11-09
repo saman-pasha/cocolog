@@ -232,37 +232,40 @@
   ;;; ---- text and status -------------------------------------------------
 
   ;;; CANONICAL, so the reader on the other side needs no operator table:
-  ;;; the writer's quoted, ignore_ops form (`'$async'(ok, f(a,b))').
+  ;;; the writer's quoted, ignore_ops form (`'$async'(ok, f(a,b))'). A term
+  ;;; too deep for the C stack to write (3.59.0) is no text: nil, WSHORT
+  ;;; left for the caller to raise resource_error(c_stack) (`coco_g_short')
   (static)
   (func coco_g_write ((coco_machine * m) (size_t t)) (out char *)
         (let ((coco_strbuf b) (char * out . nil))
           (coco_sb_init (aof b))
           (coco_write_term m (aof b) t 1 1)
-          (if (!= ($ b s) nil) (set out (strdup ($ b s))))
+          (if (and (!= ($ b s) nil) (not (-> m wshort))) (set out (strdup ($ b s))))
+          (coco_sb_free (aof b))
+          (return out)))
+
+  ;;; '$async'(KIND,T), or where T is too deep for the C stack to write
+  ;;; (3.59.0) the error a task's await raises for it
+  (static)
+  (func coco_g_kind_text ((coco_machine * m) (const char * kind) (size_t t)) (out char *)
+        (let ((coco_strbuf b) (char * out . nil))
+          (coco_sb_init (aof b))
+          (coco_sb_put (aof b) kind)
+          (coco_write_term m (aof b) t 1 1)
+          (coco_sb_put (aof b) ")")
+          (if (coco_write_short m)
+              (set out (strdup "'$async'(error,error(resource_error(c_stack),_))"))
+            (if (!= ($ b s) nil) (set out (strdup ($ b s)))))
           (coco_sb_free (aof b))
           (return out)))
 
   (static)
   (func coco_g_ok_text ((coco_machine * m) (size_t goal)) (out char *)
-        (let ((coco_strbuf b) (char * out . nil))
-          (coco_sb_init (aof b))
-          (coco_sb_put (aof b) "'$async'(ok,")
-          (coco_write_term m (aof b) goal 1 1)
-          (coco_sb_put (aof b) ")")
-          (if (!= ($ b s) nil) (set out (strdup ($ b s))))
-          (coco_sb_free (aof b))
-          (return out)))
+        (return (coco_g_kind_text m "'$async'(ok," goal)))
 
   (static)
   (func coco_g_error_text ((coco_machine * m) (size_t ball)) (out char *)
-        (let ((coco_strbuf b) (char * out . nil))
-          (coco_sb_init (aof b))
-          (coco_sb_put (aof b) "'$async'(error,")
-          (coco_write_term m (aof b) ball 1 1)
-          (coco_sb_put (aof b) ")")
-          (if (!= ($ b s) nil) (set out (strdup ($ b s))))
-          (coco_sb_free (aof b))
-          (return out)))
+        (return (coco_g_kind_text m "'$async'(error," ball)))
 
   (static) (func coco_g_failed_text () (out char *) (return (strdup "'$async'(failed)")))
   (static) (func coco_g_closed_text () (out char *) (return (strdup "'$async'(closed)")))
@@ -299,6 +302,16 @@
         (let ((coco_machine * m . #'(-> e m)))
           (return (coco_raise e (coco_make1 m "cocolog_error"
                                              (coco_new_atom m msg))))))
+
+  ;;; what a text that would not write raises: resource_error(c_stack)
+  ;;; where the write ran short of C stack (3.59.0, `coco_g_write'), else
+  ;;; the caller's sentence
+  (static)
+  (func coco_g_short ((coco_engine * e) (const char * why)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (if (coco_write_short m)
+              (return (coco_raise e (coco_make1 m "resource_error" (coco_new_atom m "c_stack")))))
+          (return (coco_g_raise e why))))
 
   ;;; ---- the world's stores ----------------------------------------------
 
@@ -1039,7 +1052,7 @@
               (size_t outc . #'(coco_deref hm (coco_arg hm g 1)))
               (char * gtext . #'(coco_g_write hm goal))
               (int nw . #'(coco_g_nworkers)))
-          (if (== gtext nil) (return (coco_g_raise e "library(async): the goal is too wide")))
+          (if (== gtext nil) (return (coco_g_short e "library(async): the goal is too wide")))
           (let ((green_world * wd . #'(cast (green_world *)
                                            (calloc 1 (sizeof green_world)))))
             (set (-> wd threads) (cast (green_thread *)
@@ -1157,7 +1170,7 @@
               (size_t goal . #'(coco_deref m (coco_arg m g 0)))
               (size_t idc . #'(coco_deref m (coco_arg m g 1))))
           (let ((char * gtext . #'(coco_g_write m goal)))
-            (if (== gtext nil) (return (coco_g_raise e "library(async): the goal is too wide")))
+            (if (== gtext nil) (return (coco_g_short e "library(async): the goal is too wide")))
             (let ((green_world * wd . green_now) (int id . -1))
               (pthread_mutex_lock (aof (-> wd lock)))
               (set id (coco_g_spawn wd gtext))
@@ -1292,7 +1305,7 @@
                   (char * text . #'(coco_g_write m term)))
               (if (== text nil)
                   (block (pthread_mutex_unlock (aof (-> wd lock)))
-                         (return (coco_g_raise e "library(async): the term is too wide"))))
+                         (return (coco_g_short e "library(async): the term is too wide"))))
               (if (== (-> c closed) 1)
                   (block (free text)
                          (pthread_mutex_unlock (aof (-> wd lock)))
@@ -1363,13 +1376,7 @@
                          (let ((size_t t . 0))
                            (if (coco_read_term_from m text (aof t))
                                (block
-                                (let ((coco_strbuf b) (char * out . nil))
-                                  (coco_sb_init (aof b))
-                                  (coco_sb_put (aof b) "'$async'(ok,")
-                                  (coco_write_term m (aof b) t 1 1)
-                                  (coco_sb_put (aof b) ")")
-                                  (if (!= ($ b s) nil) (set out (strdup ($ b s))))
-                                  (coco_sb_free (aof b))
+                                (let ((char * out . #'(coco_g_ok_text m t)))
                                   (coco_g_resume m sc out)
                                   (if (!= out nil) (free out))))
                              (coco_g_resume m sc
@@ -1395,13 +1402,7 @@
                          (let ((size_t t . 0))
                            (if (coco_read_term_from m text (aof t))
                                (block
-                                (let ((coco_strbuf b) (char * out . nil))
-                                  (coco_sb_init (aof b))
-                                  (coco_sb_put (aof b) "'$async'(ok,")
-                                  (coco_write_term m (aof b) t 1 1)
-                                  (coco_sb_put (aof b) ")")
-                                  (if (!= ($ b s) nil) (set out (strdup ($ b s))))
-                                  (coco_sb_free (aof b))
+                                (let ((char * out . #'(coco_g_ok_text m t)))
                                   (coco_g_resume m sc out)
                                   (if (!= out nil) (free out))))
                              (coco_g_resume m sc

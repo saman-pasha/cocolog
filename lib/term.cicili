@@ -1109,7 +1109,13 @@
     ;; set by whoever read the file right before the consult, which takes
     ;; it as it begins. Appended.
     (member int        lenc)
-    (member int        lcls))
+    (member int        lcls)
+    ;; WSHORT (3.59.0): the write in hand stopped for want of C stack, where
+    ;; swipl's C_STACK_OVERFLOW_GUARDED catches the overflow -- its text
+    ;; taken back, the write answering 0, and its builtin to raise
+    ;; resource_error(c_stack) (`coco_write_short'). Cleared as every write
+    ;; begins. Appended.
+    (member int        wshort))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends

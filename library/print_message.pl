@@ -443,6 +443,15 @@ message_to_string(Term, Str) :-
     !.
 '$pm_term_message'(Term, ['Unknown error term: ~p'-[Term]|T], T).
 
+%% A write that ran short of C stack (3.59.0): swipl's out_of_c_stack//0,
+%% the thread's stack in bytes, and the advice swipl gives its main thread
+%% (in another thread swipl names thread_create/3's c_stack(KBytes),
+%% which cocolog's has not got: COMPAT.md)
+'$pm_iso_message'(resource_error(c_stack)) -->
+    { statistics(c_stack, Limit), Limit > 0 },
+    !,
+    [ 'C-stack limit (~D bytes) exceeded.'-[Limit], nl,
+      'Use the shell command ~w to enlarge the limit.'-['ulimit -s size'] ].
 '$pm_iso_message'(resource_error(Missing)) -->
     [ 'Not enough resources: ~w'-[Missing] ].
 '$pm_iso_message'(type_error(evaluable, Actual)) -->

@@ -35,6 +35,8 @@
           (coco_write_mode (coco_m_machine e) (aof b) (coco_m_arg e g 0) 25 1)
           (if (!= ($ b s) nil) (coco_out_puts stdout ($ b s)))
           (coco_sb_free (aof b))
+          ;; a write that ran short of C stack (3.59.0), nothing of it out
+          (if (coco_write_short (coco_m_machine e)) (return (coco_m_resource_error e "c_stack")))
           (return 1)))
 
   ;;; `write_term(Term, Options)', its options read by `coco_wt_put' in
@@ -1418,6 +1420,9 @@
               ;; the HEAP's collections, where `compactions' is the store's
               ((== 0 (strcmp key "heap_collections")) (set v (cast i64 (-> m gc_count))))
               ((== 0 (strcmp key "strings"))    (set v (cast i64 (-> m strings_len))))
+              ;; the calling thread's C stack in bytes (3.59.0, swipl's
+              ;; `c_stack'), whose limit a write that runs short names
+              ((== 0 (strcmp key "c_stack"))    (set v (cast i64 (coco_cstack_size))))
               (#t (return (coco_m_domain_error e "statistics_key" k))))
             (return (coco_m_unify e out (coco_m_new_int e v))))))
 

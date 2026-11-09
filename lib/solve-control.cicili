@@ -2854,6 +2854,22 @@
                                 (snprintf out len "Stack limit (%.1fGb) exceeded"
                                           (/ (cast double k) 1048576.0))))
                              (return)))
+                       ;; A WRITE THAT RAN SHORT OF C STACK (3.59.0):
+                       ;; swipl's out_of_c_stack//0, the thread's stack in
+                       ;; bytes grouped by threes as format's ~D groups
+                       ;; them, and the advice swipl gives its main thread
+                       (if (and (== 0 (strcmp a1 "c_stack")) (> (coco_cstack_size) 0))
+                           (let ((char raw [24]) (char d [40]) (size_t n . 0) (size_t j . 0))
+                             (snprintf raw (sizeof raw) "%lu" (cast ulong (coco_cstack_size)))
+                             (set n (strlen raw))
+                             (for ((size_t i . 0)) (< i n) ((++ i))
+                               (if (and (> i 0) (== 0 (% (- n i) 3)))
+                                   (block (set (nth j d) (cast char 44)) (++ j)))
+                               (set (nth j d) (nth i raw))
+                               (++ j))
+                             (set (nth j d) (cast char 0))
+                             (snprintf out len "C-stack limit (%s bytes) exceeded.\nUse the shell command ulimit -s size to enlarge the limit." d)
+                             (return)))
                        (snprintf out len "Not enough resources: %s" a1)
                        (return)))
 

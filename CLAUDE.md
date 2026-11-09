@@ -1011,7 +1011,8 @@ line said only `BUILD FAILED`, over a tail ending on clang's command line.
 * **`statistics/2` is about the calling thread** (`store_used`, `store_cap`,
   `globalused`, `globalcap`, `trailused`, `trailcap`, `choicepoints`,
   `strings`, `compactions`, `heap_collections`, `cputime`, `inferences`,
-  `atoms`, `functors`). Worker threads are invisible to it: count the
+  `atoms`, `functors`, and since 3.59.0 `c_stack`, the thread's C stack in
+  bytes). Worker threads are invisible to it: count the
   threads first. On macOS `maximum resident set size` undercounts after a
   large realloc moves.
 * `perf` is not installed on the Linux box; `/usr/bin/time` is not either
@@ -1977,9 +1978,30 @@ cocolint index offers no import of it.
   the heap back after; `0.0 =@= -0.0` fails, as unify's floats are SWI's
   since 2.1.1 (below). term_variables/2's collector looks a
   variable up in the map past sixteen (2.1.0; it scanned, and 200 000
-  variables took 6.8 s). A
-  deep TREE overflows the C stack where it always did (~47k levels of
-  `coco_write_rec`, ~87k of `coco_arith`). **The writer's six arguments
+  variables took 6.8 s). **A write too deep for the C stack raises
+  resource_error(c_stack)** (3.59.0, swipl's writeTopTerm() under
+  C_STACK_OVERFLOW_GUARDED; test/files/cyclic_depth.pl, test/cyclic.pl's
+  last section): past 1024 levels each compound asks `coco_cstack_room` --
+  the calling thread's stack left above its floor, which
+  `coco_cstack_bounds` asks of the system once a thread (glibc's
+  pthread_getattr_np, Darwin's pthread_get_stack*_np, through the raw-C
+  escape) -- and before each portray goal 256 KB of it; with under 64 KB
+  the write stops as a cycle stops it (`coco_write_short_stop`: WSHORT and
+  WCYC), the top of the write takes its text back and answers 0
+  (`coco_write_short_end`), and the builtin raises with swipl's context
+  (`coco_cstack_error`; `coco_cstack_error_wt` for portray_clause/1's and
+  listing/1's system:write_term/3). **A new caller of the writer asks
+  `coco_write_short` after the write** (it clears the flag), or a short
+  write is a write of nothing; every write clears WSHORT as it begins, and
+  `coco_layout_clause` for its parts, because a consult's refusal of a
+  clause its store cannot write as a row leaves it set. Under a depth limit
+  (mode 1024) no cycle guard asks: a cyclic term is the tree it stands
+  for, to the limit, as swipl's. The reader (`coco_parse_term` and
+  `coco_parse_named`: some 15k levels of `f(` or a prefix operator, 16k
+  of `[` and 20k of `(` or `,` on 8 MB, where swipl's raises c_stack for
+  a bracket and reads any chain of operators) and `coco_arith` (some 43k,
+  where swipl's evaluates a million) still overflow the C stack. **The
+  writer's six arguments
   stay in registers**: quoted, ignore_ops, operand, (2.2.4) numbervars and
   (2.2.5) swipl's character escapes are one `mode` word (1, 2, 4, 8, 16;
   what a compound hands its arguments is `mode & 27`, the operand's 4

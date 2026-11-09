@@ -1504,6 +1504,16 @@
           (if (== (nth i (-> st xlib)) origin) (return 1)))
         (return 0))
 
+  ;;; THE SENTENCE OF A CLAUSE TOO DEEP FOR THE C STACK TO WRITE AS A ROW
+  ;;; (3.59.0), out of line and cold: written in `coco_assert_from', its
+  ;;; call moved clang's choices for the whole function, and a local store,
+  ;;; which never reaches it, paid at a start's 1 464 asserts.
+  (weak) (cold)
+  (func coco_assert_too_deep ((coco_store * st) (coco_machine * m) (size_t head)) (out int)
+        (snprintf (-> st assert_err) 256 "%s/%u: a clause too deep for the C stack to write"
+                  (coco_atom_name m (coco_name_of m head)) (coco_arity m head))
+        (return 0))
+
   (func coco_assert_from ((coco_store * st) (coco_machine * m) (size_t clause)
                           (int at_end) (u64 origin) (const char * origin_path)
                           (int at) (coco_origin_seen * seen)) (out int)
@@ -1655,6 +1665,12 @@
                 (set len (? (== ($ b s) nil) 0 (strlen ($ b s))))
                 (coco_sb_free (aof b))
                 (set (-> m heap_len) mark)
+                ;; A CLAUSE TOO DEEP FOR THE C STACK TO WRITE (3.59.0) is no
+                ;; row's: its text was taken back, and a row of none would
+                ;; read back as nothing. Refused, WSHORT left for the goal to
+                ;; raise resource_error(c_stack) (`coco_assert_goal'), the
+                ;; sentence for a consult's report.
+                (if (-> m wshort) (return (coco_assert_too_deep st m head)))
                 ;; THE PREDICATE'S NAME SHARES THE ROW, and this is the only
                 ;; place that knows it -- `clause_max' is per-store and was
                 ;; settled from the page and the knowledge base's name. It is

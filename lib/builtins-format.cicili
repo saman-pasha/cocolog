@@ -1061,13 +1061,22 @@
                                  (? (== s 1) 10 (? (== s 2) 11 (? (== s 4) 13 (? (== s 5) 14 12))))
                                  (? (== s 3) "cannot capture a portray goal's output" "")))))
 
+  ;;; ... AND A TERM'S WRITE THAT RAN SHORT OF C STACK (3.59.0), format's
+  ;;; kind 15: resource_error(c_stack), with what came before put out
+  (static)
+  (func coco_fmt_short ((coco_machine * m) (char * err) (size_t errlen) (int * fkind)) (out int)
+        (coco_write_short m)
+        (return (coco_fmt_fail err errlen fkind 15 "")))
+
   ;;; ... AND A WRITE BUILTIN'S, print/1's and write_term/2's (3.54.0), once
   ;;; it has put out what came before: the ball raised again in its engine,
   ;;; where the catch frames are, a run that ended ended, a halt the
-  ;;; engine's to stop at (3.57.0)
+  ;;; engine's to stop at (3.57.0), and a write that ran short of C stack
+  ;;; resource_error(c_stack) (3.59.0)
   (static)
   (func coco_portray_after ((coco_engine * e)) (out int)
         (let ((coco_fmt_ball bl) (int s . #'(coco_portray_take (coco_m_machine e) (aof bl))))
+          (if (coco_write_short (coco_m_machine e)) (return (coco_m_resource_error e "c_stack")))
           (if (== s 0) (return 1))
           (if (== s 1) (return (coco_fmt_rethrow e (aof bl))))
           (if (== s 2) (return -1))
@@ -1287,6 +1296,7 @@
                     ;; or at none after a fill point, where swipl's text is
                     ;; a sub-format's, each directive's its own (-2)
                     (coco-fmt-writer cs b o (coco_wt_put e o a opts (? (== o b) slc -2)))
+                    (if (-> m wshort) (return (coco_fmt_short m err errlen fkind)))
                     (if (-> m wpstate) (return (coco_fmt_portray_fail m ball err errlen fkind)))
                     continue))
 
@@ -1314,13 +1324,19 @@
                     (block (coco-fmt-writer cs b o (? (coco_portray_defined e)
                                                       (coco_write_portrayed m o a 8281 1)
                                                       (coco_write_print m o a)))
+                           (if (-> m wshort) (return (coco_fmt_short m err errlen fkind)))
                            (if (-> m wpstate) (return (coco_fmt_portray_fail m ball err errlen fkind)))
                            continue))
+                ;; a write that ran short of C stack ends the format
+                ;; (3.59.0), resource_error(c_stack) as swipl's
                 (if (or (== d 119) (== d 113))
                     (block (coco-fmt-writer cs b o (coco_write_mode m o a (? (== d 113) 25 8) 1))
+                           (if (-> m wshort) (return (coco_fmt_short m err errlen fkind)))
                            continue))
                 (if (== d 107)
-                    (block (coco-fmt-writer cs b o (coco_write_canon m o a)) continue))
+                    (block (coco-fmt-writer cs b o (coco_write_canon m o a))
+                           (if (-> m wshort) (return (coco_fmt_short m err errlen fkind)))
+                           continue))
 
                 ;; 97 `~a', 115 `~s' -- text of any length, read as swipl's
                 ;; pl-fmt.c reads it (3.0.0, `coco_tx_get'): `~a' with
@@ -1449,6 +1465,8 @@
           (if (== kind 12) (return (coco_m_error e "format/2" err)))
           ;; portray goals nested past swipl's limit (3.54.0)
           (if (== kind 13) (return (coco_m_resource_error e "portray_nesting")))
+          ;; a term's write that ran short of C stack (3.59.0)
+          (if (== kind 15) (return (coco_m_resource_error e "c_stack")))
           (return (coco_m_error e err nil))))
 
   ;;; The arguments, as an array. `format("~w", foo)' is legal and means one

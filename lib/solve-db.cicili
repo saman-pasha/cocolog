@@ -25,9 +25,12 @@
 
   ;;; ---- output ----
 
+  ;;; Each write builtin raises resource_error(c_stack) where its write ran
+  ;;; short of C stack (3.59.0, `coco_cstack_error'), having put out
+  ;;; nothing of it
   (func coco_bi_write ((coco_engine * e) (size_t g)) (out int)
         (coco_print_term (-> e m) stdout (coco_arg (-> e m) g 0))
-        (return 1))
+        (return (coco_cstack_error e)))
 
   ;;; THE PRINT/1 THAT ASKS PORTRAY/1 (3.54.0), filled in by the builtins
   ;;; module (`coco_b_print' in lib/builtins-db.cicili): with none, in a
@@ -51,6 +54,7 @@
 
   (func coco_bi_writeln ((coco_engine * e) (size_t g)) (out int)
         (coco_print_term (-> e m) stdout (coco_arg (-> e m) g 0))
+        (if (-> (-> e m) wshort) (return (coco_cstack_error e)))
         (coco_out_putc stdout 10)
         (return 1))
 
@@ -64,7 +68,7 @@
           (coco_write_canon (-> e m) (aof b) (coco_arg (-> e m) g 0))
           (if (!= ($ b s) nil) (coco_out_puts stdout ($ b s)))
           (coco_sb_free (aof b))
-          (return 1)))
+          (return (coco_cstack_error e))))
 
   (func coco_bi_nl ((coco_engine * e) (size_t g)) (out int)
         (coco_out_putc stdout 10)
@@ -328,6 +332,9 @@
                    ;; (2.11.1): `coco_assert_from' left the reason
                    (if (!= (nth 0 ($ (cof (-> e st)) fetch_err)) (cast char 0))
                        (return (coco_fetch_error e)))
+                   ;; a clause too deep for the C stack to write as a row
+                   ;; (3.59.0, `coco_assert_from')
+                   (if (-> m wshort) (return (coco_cstack_error e)))
                    (if (!= (nth 0 ($ (cof (-> e st)) assert_err)) (cast char 0))
                        (return (coco_raise e (coco_make1 m "resource_error"
                                                          (coco_new_atom m "clause_length")))))
@@ -1466,6 +1473,9 @@
   ;;; the writer's factored form.
   (func coco_layout_clause ((coco_machine * m) (coco_strbuf * b) (size_t t))
         (let ((coco_varmap vm . '{ nil nil 0 0 0 }) (int named . 0))
+          ;; any of its parts' writes that runs short of C stack leaves
+          ;; WSHORT for the builtin (3.59.0, `coco_write_pri')
+          (set (-> m wshort) 0)
           ;; a cyclic term is the writer's factored form, as swipl's
           ;; `numbervars'/write pair gives it
           (if (not (coco_acyclic m t))
@@ -1498,6 +1508,9 @@
         (let ((coco_strbuf b))
           (coco_sb_init (aof b))
           (coco_layout_clause (-> e m) (aof b) (coco_arg (-> e m) g 0))
+          ;; a clause too deep for the C stack writes nothing (3.59.0)
+          (if (-> (-> e m) wshort)
+              (block (coco_sb_free (aof b)) (return (coco_cstack_error_wt e))))
           (if (!= ($ b s) nil) (coco_out_puts stdout ($ b s)))
           (coco_sb_free (aof b))
           (return 1)))
@@ -1580,7 +1593,13 @@
   ;;; a call that failed, or left behind by retracting the last clause of
   ;;; something never declared -- and listing a blank line for it says nothing.
   ;;; A predicate that could not be read answers -1, with the reason on the
-  ;;; store for the caller to raise (2.11.1).
+  ;;; store for the caller to raise (2.11.1), and a clause too deep for the
+  ;;; C stack -2 (3.59.0): `coco_listing_fail' raises either.
+  (static)
+  (func coco_listing_fail ((coco_engine * e) (int r)) (out int)
+        (if (== r -2) (return (coco_cstack_error_wt e)))
+        (return (coco_fetch_error e)))
+
   (static)
   (func coco_listing_pred ((coco_engine * e) (size_t pi) (size_t head) (u64 ctx) (int lead))
         (out int)
@@ -1665,6 +1684,12 @@
                       ;; it out, so what listing/1 shows is what a program
                       ;; reads back
                       (coco_layout_clause m (aof b) t)
+                      ;; a clause too deep for the C stack ends the listing
+                      ;; there (3.59.0), the clauses before it written: -2,
+                      ;; resource_error(c_stack) (`coco_listing_fail')
+                      (if (-> m wshort)
+                          (block (coco_sb_free (aof b)) (set (-> m heap_len) mark)
+                                 (return -2)))
                       (if (!= ($ b s) nil) (coco_out_puts stdout ($ b s)))
                       (coco_sb_free (aof b))))
                 ;; the clause was copied on to the heap only to be written
@@ -1704,8 +1729,8 @@
             (if (and (!= (nth 0 (coco_atom_name (-> e m) (-> p name))) 36)
                      (? (== ctx 0) (and prog (== (-> p pmod) 0))
                         (? (== ctx (cast u64 -1)) prog (== (-> p pmod) ctx))))
-                (if (< (coco_listing_pred e i (cast size_t -1) ctx 1) 0)
-                    (return (coco_fetch_error e))))))
+                (let ((int lr . #'(coco_listing_pred e i (cast size_t -1) ctx 1)))
+                  (if (< lr 0) (return (coco_listing_fail e lr)))))))
         (return 1))
 
   ;;; listing/0, user's
@@ -1922,8 +1947,8 @@
                   (coco_out_puts stdout ($ b s))
                   (coco_sb_free (aof b))
                   (set (-> m heap_len) mark))
-              (if (< (coco_listing_pred e (nth (* 2 i) es) head ctx 0) 0)
-                  (set rc (coco_fetch_error e)))))
+              (let ((int lr . #'(coco_listing_pred e (nth (* 2 i) es) head ctx 0)))
+                (if (< lr 0) (set rc (coco_listing_fail e lr))))))
           (free es)
           (return rc)))
 

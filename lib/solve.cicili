@@ -2757,6 +2757,25 @@
         (return (coco_raise e (coco_make1 (-> e m) "resource_error"
                                       (coco_new_atom (-> e m) "memory")))))
 
+  ;;; What a write that ran short of C stack raises (3.59.0, swipl's
+  ;;; writeTopTerm() under C_STACK_OVERFLOW_GUARDED), its text taken back:
+  ;;; error(resource_error(c_stack), _), once the writer said so
+  ;;; (`coco_write_short'); 1 where it did not
+  (static)
+  (func coco_cstack_error ((coco_engine * e)) (out int)
+        (if (not (coco_write_short (-> e m))) (return 1))
+        (return (coco_raise e (coco_make1 (-> e m) "resource_error"
+                                      (coco_new_atom (-> e m) "c_stack")))))
+
+  ;;; ... and named as swipl's portray_clause/1 and listing/0,1 name it,
+  ;;; written in Prolog over write_term/3: system:write_term/3
+  (static)
+  (func coco_cstack_error_wt ((coco_engine * e)) (out int)
+        (if (not (coco_write_short (-> e m))) (return 1))
+        (return (coco_raise_named e (coco_make1 (-> e m) "resource_error"
+                                                (coco_new_atom (-> e m) "c_stack"))
+                                  "system" "write_term" 3)))
+
   ;;; AN UNBOUND CULPRIT IS AN instantiation_error (3.0.0), as swipl's
   ;;; PL_error() makes ERR_TYPE of a variable: nb_getval(_, V), getenv(_,
   ;;; V), sort(_, L) and tab(_) raised type_error(atom, _) and the like

@@ -1644,6 +1644,10 @@
                      ;; numbervars: `@(_G1,[_G1=f(_G1)])' (through 3.54.0
                      ;; `S_1')
                      (coco_write_mode m (aof b) (coco_arg m g 0) 257 0)
+                     ;; a write that ran short of C stack binds nothing
+                     ;; (3.59.0): resource_error(c_stack), as swipl's
+                     (if (-> m wshort)
+                         (block (coco_sb_free (aof b)) (return (coco_cstack_error e))))
                      (set r (? (coco_unify m x (coco_tx_make m (aof b) as_string)) 1 0))
                      (coco_sb_free (aof b))
                      (return r)))

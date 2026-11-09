@@ -29,7 +29,7 @@
 main :-
     scratch(D),
     shapes(D), long_and_deep(D), entries(D), errors(D), caught(D),
-    questions, arithmetic(D), walks(D),
+    questions, arithmetic(D), walks(D), c_stack(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -560,6 +560,197 @@ walks_parts(F) :-
 %% takes no other part's lines with it
 walk_part(F, Part, Want) :-
     sh_join(['-s ', F, ' -- ', Part], A), child(A, Out, Rc),
+    atomic_list_concat(Got, '\n', Out),
+    each_line(Want, Got),
+    atom_concat(Part, ': ...and the program ends', Label),
+    check(Label, Rc, 0).
+
+%% A WRITE TOO DEEP FOR THE C STACK (3.59.0): past 1024 levels, and before
+%% each portray goal, the writer asks how much of its thread's C stack is
+%% left, and stops where too little is: the write in hand puts out nothing
+%% and its builtin raises resource_error(c_stack). Through 3.58.2 a SIGSEGV,
+%% past some 45 000 levels of f(...) on 8 MB. What swipl holds is
+%% test/files/cyclic_depth.pl's; these are cocolog's own -- a portray goal at
+%% each level, which swipl does not end in five minutes; stdout, where
+%% swipl's stream keeps what its C stack had room for and cocolog's nothing
+%% (COMPAT.md); statistics(c_stack); a stack of 1 MB; a library(thread)
+%% thread and a green task, each on a C stack of its own; the uncaught
+%% message; a row a store cannot write.
+c_stack(D) :-
+    section('a write too deep for the C stack: resource_error(c_stack), in every thread'),
+    atom_concat(D, '/cstack.pl', F),
+    c_stack_fixture(F),
+    c_stack_parts(D, F).
+
+c_stack_fixture(F) :-
+    fixture(F, [
+      ':- use_module(library(thread)).',
+      'deep(0, a) :- !.',
+      'deep(N, f(T)) :- N1 is N - 1, deep(N1, T).',
+      'pg(zz, _) :- write(''ZZ'').',
+      'pw(_, _) :- deep(500, D), with_output_to(string(_), write(D)), fail.',
+      'portray(zz) :- write(''ZZ'').',
+      'r(G) :- catch((G -> R = yes ; R = no), E, (E = error(F, C) -> R = F-C ; R = ball(E))), print(R), nl.',
+      'w(_).',
+      'main :- current_prolog_flag(argv, A), last(A, P), part(P).',
+      'part(portray) :-',
+      '  deep(200000, T),',
+      '  r(with_output_to(string(_), write_term(T, [portray_goal(pg)]))),',
+      '  r(with_output_to(string(_), print(T))), r(format(atom(_), "~p", [T])),',
+      '  with_output_to(string(S), print(f(zz))), print(S), nl,',
+      '  write(done), nl.',
+      'part(stdout) :-',
+      '  deep(200000, T), write(before),',
+      '  catch(write(T), error(E, _), true), write(after), nl, print(E), nl,',
+      '  X = g(T, X), write(before),',
+      '  catch(write(X), error(E2, _), true), write(after), nl, print(E2), nl,',
+      '  write(before), catch(print(X), error(E3, _), true), write(after), nl, print(E3), nl,',
+      '  write(before), catch(portray_clause(T), error(E4, _), true), write(after), nl, print(E4), nl,',
+      '  portray_clause(after(f(g(x)))),',
+      '  write(done), nl.',
+      'part(stats) :-',
+      '  statistics(c_stack, L), ( integer(L), L > 1048576 -> print(yes) ; print(L) ), nl,',
+      '  write(done), nl.',
+      'part(small) :-',
+      '  statistics(c_stack, L), ( L =< 1048576, L >= 524288 -> print(yes) ; print(L) ), nl,',
+      '  deep(20000, T), r(with_output_to(string(_), write(T))),',
+      '  deep(2000, T2), with_output_to(string(S2), write(T2)), string_length(S2, N2), print(N2), nl,',
+      '  r(with_output_to(string(_), write_term(T, [portray_goal(pw)]))),',
+      '  write(done), nl.',
+      'part(thread) :-',
+      '  thread_create((deep(200000, T), catch(with_output_to(string(_), write(T)), error(E, _), true),',
+      '                 print(E), nl), I1),',
+      '  thread_join(I1, S1), print(S1), nl,',
+      '  thread_create((deep(200000, T2), with_output_to(string(_), write(T2))), I2),',
+      '  thread_join(I2, S2),',
+      '  ( S2 = error(M2), sub_atom(M2, _, _, _, ''resource_error(c_stack)'') -> print(c_stack) ; print(S2) ), nl,',
+      '  write(done), nl.',
+      'part(green) :-',
+      '  async_run((go(\\+ \\+ (deep(200000, T), r(with_output_to(string(_), write(T)))), G1), await(G1))),',
+      '  async_run((go(deep(200000, _), G2), r(await(G2)))),',
+      '  async_run(\\+ \\+ (deep(200000, T3), r(go(w(T3), _)))),',
+      '  async_run(\\+ \\+ (deep(200000, T4), channel(C4), r(channel_send(C4, T4)))),',
+      '  r(async_run(deep(200000, _))),',
+      '  deep(200000, T5), r(async_run(w(T5))),',
+      '  write(done), nl.',
+      'part(store) :-',
+      '  deep(200000, T), r(assertz(dp(T))), r(current_predicate(dp/1)),',
+      '  deep(2000, T2), r(assertz(dq(T2))), r(dq(T2)),',
+      '  write(done), nl.',
+      'part(consult) :-',
+      '  current_prolog_flag(argv, A), append(_, [X, consult], A), consult(X),',
+      '  write(after), nl, r(current_predicate(dx/1)), write(done), nl.',
+      'part(uncaught) :-',
+      '  deep(200000, T), write(before), write(T).',
+      'part(message) :-',
+      '  print_message(error, error(resource_error(c_stack), _)).']).
+
+c_stack_parts(D, F) :-
+    c_stack_part(F, '', portray, [
+      'a portray goal asked at each of 200000 levels: stopped before the goal'
+          - 'resource_error(c_stack)-context(system:write_term/2,_G)',
+      'print/1 asking portray/1 at each' - 'resource_error(c_stack)-context(system:print/1,_G)',
+      '...and format/3''s ~p' - 'resource_error(c_stack)-context(system:format/3,_G)',
+      'and the next portray goal is asked as before' - '"f(ZZ)"',
+      '...done' - done]),
+    c_stack_part(F, '', stdout, [
+      'a write to stdout puts out nothing of the term' - beforeafter,
+      '...and raises' - 'resource_error(c_stack)',
+      'nor of a cyclic term whose factors run out' - beforeafter,
+      '...raising it' - 'resource_error(c_stack)',
+      '...by print/1 asking portray/1 of the factors' - beforeafter,
+      '...raising it' - 'resource_error(c_stack)',
+      '...nor of a clause by portray_clause/1' - beforeafter,
+      '...raising it' - 'resource_error(c_stack)',
+      '...and the next clause it lays out is whole' - 'after(f(g(x))).',
+      '...done' - done]),
+    c_stack_part(F, '', stats, [
+      'statistics(c_stack, L): the thread''s C stack, in bytes' - yes,
+      '...done' - done]),
+    c_stack_part(F, 'ulimit -s 1024 && ', small, [
+      'under ulimit -s 1024, statistics(c_stack) says so' - yes,
+      'a tree 20000 deep is too deep there' - 'resource_error(c_stack)-context(system:write/1,_G)',
+      '...and one 2000 deep is written whole' - '6001',
+      'a portray goal that writes 500 levels of its own: stopped short of it'
+          - 'resource_error(c_stack)-context(system:write_term/2,_G)',
+      '...done' - done]),
+    c_stack_part(F, '', thread, [
+      'a library(thread) thread asks its own C stack' - 'resource_error(c_stack)',
+      '...and goes on to its end' - true,
+      'uncaught there, the thread''s status names it' - c_stack,
+      '...done' - done]),
+    c_stack_part(F, '', green, [
+      'a green task asks its worker''s C stack' - 'resource_error(c_stack)-context(system:write/1,_G)',
+      'a task''s answer too deep to hand back: await/1 raises it' - 'resource_error(c_stack)-_G',
+      'go/2 of a goal too deep to hand over' - 'resource_error(c_stack)-_G',
+      'channel_send/2 of a term too deep' - 'resource_error(c_stack)-_G',
+      'async_run/1 whose answer is too deep to hand back' - 'resource_error(c_stack)-_G',
+      'async_run/1 of a goal too deep' - 'resource_error(c_stack)-_G',
+      '...done' - done]),
+    atom_concat(D, '/kb', KB),
+    sh_join(['--embed ', KB, ' '], Embed),
+    c_stack_part(F, Embed, store, [
+      'a clause too deep for the store to write as a row'
+          - 'resource_error(c_stack)-context(system:assertz/1,_G)',
+      '...is not asserted' - no,
+      'one 2000 deep is' - yes,
+      '...and read back' - yes,
+      '...done' - done]),
+    c_stack_consult(D, F),
+    sh_join(['--no-backtrace -s ', F, ' -- uncaught'], A1), child_err(D, A1, E1, Rc1),
+    re_replace_atom('[0-9][0-9,]*[0-9]', 'N', E1, E1n),
+    lines(['', 'ERROR: -s main: write/1: C-stack limit (N bytes) exceeded.',
+           'ERROR: Use the shell command ulimit -s size to enlarge the limit.'], W1),
+    check('uncaught: swipl''s message, the bytes the thread''s', E1n, W1),
+    check('...and the exit status is 2', Rc1, 2),
+    sh_join(['-s ', F, ' -- message'], A2), child_err(D, A2, E2, Rc2),
+    re_replace_atom('[0-9][0-9,]*[0-9]', 'N', E2, E2n),
+    lines(['ERROR: C-stack limit (N bytes) exceeded.',
+           'ERROR: Use the shell command ulimit -s size to enlarge the limit.'], W2),
+    check('print_message/2 of it', E2n, W2),
+    check('...and the program ends', Rc2, 0).
+
+%% A CONSULT UNDER A STORE of a clause too deep for the C stack to write
+%% as a row (a term_expansion/2 makes it): reported and passed over, and
+%% the writes after it whole -- the refusal leaves the writer's flag set
+%% for no builtin to clear, and each write begins by clearing it
+c_stack_consult(D, F) :-
+    atom_concat(D, '/xpand.pl', X),
+    fixture(X, [
+      'xdeep(0, a) :- !.',
+      'xdeep(N, f(T)) :- N1 is N - 1, xdeep(N1, T).',
+      'term_expansion(go, dx(T)) :- xdeep(200000, T).',
+      'go.',
+      ':- write(read), nl.',
+      'go.',
+      ':- portray_clause(f(x)).']),
+    atom_concat(D, '/kb2', KB),
+    sh_join(['--embed ', KB, ' -s ', F, ' -- ', X, ' consult'], A),
+    atom_concat(A, ' 2>/dev/null', A0),
+    child(A0, Out, Rc), atomic_list_concat(Got, '\n', Out),
+    each_line([
+      'a consult under a store: the file read on past the clause' - read,
+      '...and past it again, portray_clause/1 the first write after it' - 'f(x).',
+      '...and the program after it' - after,
+      '...the clause not in the store' - no,
+      '...done' - done], Got),
+    check('consult: ...and the program ends', Rc, 0),
+    child_err(D, A, E, _),
+    lines(['ERROR: xpand.pl:4:',
+           'ERROR:    dx/1: a clause too deep for the C stack to write',
+           'ERROR: xpand.pl:6:',
+           'ERROR:    dx/1: a clause too deep for the C stack to write'], W),
+    check('...reported where it stands', E, W).
+
+%% one part of the fixture, a child of its own, PRE before the binary (a
+%% ulimit) and ARGS before -s (a store)
+c_stack_part(F, Pre, Part, Want) :-
+    (   sub_atom(Pre, 0, _, _, ulimit)
+    ->  cocolog(C), sh_join([Pre, C, ' -s ', F, ' -- ', Part], Cmd),
+        proc_run(Cmd, 120000, Raw0, Rc), chomp(Raw0, Body), atom_codes(Raw, Body),
+        re_replace_atom('_G[0-9]+', '_G', Raw, Out)
+    ;   sh_join([Pre, '-s ', F, ' -- ', Part], A), child(A, Out, Rc)
+    ),
     atomic_list_concat(Got, '\n', Out),
     each_line(Want, Got),
     atom_concat(Part, ': ...and the program ends', Label),
