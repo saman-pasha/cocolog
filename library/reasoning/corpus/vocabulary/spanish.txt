@@ -199,6 +199,7 @@ The masculine noun "avance" means "progress".
 The feminine noun "muestra" means "exhibition".
 The masculine noun "resto" means "remainder".
 The feminine noun "técnica" means "technique".
+The feminine noun "investigación" means "investigation".
 The feminine noun "investigación" means "research".
 The feminine noun "vía" means "way".
 The verb "apunta" means "notes".
@@ -482,6 +483,7 @@ The adjective "de pega" means "fake".
 The conjunction "a medida que" means "as".
 The masculine noun "precio" means "price".
 The adverb "como mucho" means "at most".
+The verb "revela" means "reveals".
 The verb "pone en evidencia" means "reveals".
 The adverb "en ocasiones" means "sometimes".
 The masculine adjective "mal educado" means "rude".
@@ -2457,6 +2459,292 @@ The verb "manifiesta" means "states".
 The name "alpes" means "Alps".
 "vincula" takes the passive.
 The intransitive verb "estalla" means "explodes".
+The masculine noun "arrepentido" means "informer".
+"arrepentidos" is the plural of "arrepentido".
+"arrepentido" is a person.
+The feminine noun "cadena perpetua" means "life sentence".
+"cadenas perpetuas" is the plural of "cadena perpetua".
+The feminine noun "requisitoria" means "closing speech".
+"requisitorias" is the plural of "requisitoria".
+The masculine noun "tribunal penal" means "court of assizes".
+"tribunales penales" is the plural of "tribunal penal".
+The masculine noun "entresijo" means "inside story".
+The feminine noun "llamada telefónica" means "phone call".
+"llamadas telefónicas" is the plural of "llamada telefónica".
+The preposition "a las puertas de" means "on the outskirts of".
+The verb "saca a la luz" means "brings to light".
+"sacan a la luz" is the plural of "saca a la luz".
+"sacar a la luz" is the infinitive of "saca a la luz".
+"sacado a la luz" is the participle of "saca a la luz".
+"sacada a la luz" is the participle of "saca a la luz".
+"sacada a la luz" is feminine.
+"sacados a la luz" is the participle of "saca a la luz".
+"sacados a la luz" is the plural of "sacado a la luz".
+"sacadas a la luz" is the participle of "saca a la luz".
+"sacadas a la luz" is feminine.
+"sacadas a la luz" is the plural of "sacada a la luz".
+The feminine noun "banda" means "band".
+The feminine noun "banda" means "gang".
+"banda" is a group.
+"pandilla" is a group.
+The masculine noun "defensor" means "campaigner".
+The masculine noun "defensor" means "defender".
+The preposition "al final de" means "at the end of".
+The preposition "a lo largo de" means "along".
+The determiner "toda una" means "a whole".
+The determiner "todo un" means "a whole".
+"toda una" is feminine.
+The masculine noun "secuestrado" means "kidnap victim".
+"secuestrados" is the plural of "secuestrado".
+"secuestrado" is a person.
+The adverb "al final" means "in the end".
+The noun "ceramista" means "ceramist".
+"ceramista" is not feminine.
+"ceramistas" is the plural of "ceramista".
+"ceramista" is a person.
+"Comando Ciudadano Justiciero" is a name.
+The masculine noun "justiciero" means "vigilante".
+"justicieros" is the plural of "justiciero".
+"justiciero" is a person.
+The verb "frecuenta" means "frequents".
+"frecuentan" is the plural of "frecuenta".
+"frecuentar" is the infinitive of "frecuenta".
+"frecuentó" is the past of "frecuenta".
+"frecuentaron" is the past of "frecuentan".
+"frecuentaba" is the imperfect of "frecuenta".
+"frecuentaban" is the imperfect of "frecuentan".
+"frecuentado" is the participle of "frecuenta".
+"frecuentada" is the participle of "frecuenta".
+"frecuentada" is feminine.
+"placa" means "plaque".
+"junta" means "board".
+"tablero" means "board".
+"tablero" means "panel".
+The masculine noun "plafón" means "panel".
+"plafones" is the plural of "plafón".
+The masculine noun "semirrelieve" means "half-relief".
+"semirrelieves" is the plural of "semirrelieve".
+The adverb "genuinamente" means "genuinely".
+"coloca" takes the passive.
+"oficina" means "office".
+"despacho" means "office".
+The masculine noun "camión de reparto" means "delivery truck".
+"camiones de reparto" is the plural of "camión de reparto".
+The verb "apura el giro" means "cuts the corner".
+"apuran el giro" is the plural of "apura el giro".
+"apurar el giro" is the infinitive of "apura el giro".
+"apuró el giro" is the past of "apura el giro".
+"apuraron el giro" is the past of "apuran el giro".
+"carga" means "loads".
+The reflexive verb "carga" means "wrecks".
+The masculine noun "servicio jurídico" means "legal service".
+"servicios jurídicos" is the plural of "servicio jurídico".
+The adverb "inmediatamente" means "immediately".
+The adverb "de inmediato" means "immediately".
+The verb "averigua" means "finds out".
+"averiguan" is the plural of "averigua".
+"averiguar" is the infinitive of "averigua".
+"averiguó" is the past of "averigua".
+"averigüé" is the first person of "averiguó".
+"averiguaron" is the past of "averiguan".
+"averiguado" is the participle of "averigua".
+The adverb "de Herodes a Pilatos" means "from pillar to post".
+"sacia" means "satiates".
+The verb "harta" means "satiates".
+The reflexive verb "harta" means "gets fed up".
+"hartan" is the plural of "harta".
+"hartar" is the infinitive of "harta".
+"hartó" is the past of "harta".
+"harté" is the first person of "hartó".
+"hartaron" is the past of "hartan".
+"hartado" is the participle of "harta".
+The adverb "al carajo" means "to hell".
+"negligencia" means "negligence".
+"negligencia" means "neglect".
+The feminine noun "desidia" means "neglect".
+The feminine noun "mala educación" means "bad manners".
+"informa" means "reports".
+"informa" means "informs".
+The verb "entera" means "informs".
+The reflexive verb "entera" means "finds out about".
+"enteran" is the plural of "entera".
+"enterar" is the infinitive of "entera".
+"enteró" is the past of "entera".
+"enteraron" is the past of "enteran".
+"enterado" is the participle of "entera".
+"entera" takes "de" before the phrase.
+The feminine noun "peripecia" means "misadventure".
+"peripecias" is the plural of "peripecia".
+The masculine noun "artículo de regalo" means "gift item".
+"artículos de regalo" is the plural of "artículo de regalo".
+The adverb "desinteresadamente" means "selflessly".
+The conjunction "por si" means "in case".
+The preposition "a disposición de" means "at the disposal of".
+The adverb "finalmente" means "finally".
+The adverb "por fin" means "finally".
+"superior" means "upper".
+The adjective "de arriba" means "upper".
+The masculine adjective "publicitado" means "publicised".
+The feminine adjective "publicitada" means "publicised".
+"publicitados" is the plural of "publicitado".
+"publicitadas" is the plural of "publicitada".
+The verb "divierte" means "amuses".
+The verb "da risa" means "amuses".
+"dan risa" is the plural of "da risa".
+"dar risa" is the infinitive of "da risa".
+"dio risa" is the past of "da risa".
+The adverb "a buenas horas" means "belatedly".
+The reflexive verb "fija" means "notices".
+"fija" takes "en" before the phrase.
+"calle" is a street.
+"plaza" is a street.
+"avenida" is a street.
+"paseo" is a street.
+"rambla" is a street.
+"carretera" is a street.
+"averigua" takes the question.
+"tengo que" is the first person of "tiene que".
+"tienes que" is the second person of "tiene que".
+"tenemos que" is the first person of "tienen que".
+"tuve que" is the first person of "tuvo que".
+"tenía que" is the imperfect of "tiene que".
+"tenían que" is the imperfect of "tienen que".
+"teníamos que" is the first person of "tenían que".
+"tendrá que" is the future of "tiene que".
+"tendrán que" is the plural of "tendrá que".
+"tendría que" is the conditional of "tiene que".
+"tendrían que" is the plural of "tendría que".
+"wrapped" is the past of "wraps".
+"wrapped" is the participle of "wraps".
+"concierne" means "concerns".
+"preocupa" means "concerns".
+The reflexive verb "preocupa" means "worries".
+"preocupa" takes "de" before the clause.
+"va" takes the future.
+The adverb "a su disposición" means "at his disposal".
+The reflexive verb "desnuda" means "undresses".
+The reflexive verb "desnuda" means "strips".
+The masculine noun "telespectador" means "television viewer".
+The feminine noun "telespectadora" means "television viewer".
+"telespectadoras" is the plural of "telespectadora".
+"telespectadora" is a person.
+The feminine noun "vedette" means "showgirl".
+"vedettes" is the plural of "vedette".
+"vedette" is a person.
+The masculine adjective "divertido" means "fun".
+The masculine adjective "divertido" means "amused".
+The feminine adjective "divertida" means "fun".
+The feminine adjective "divertida" means "amused".
+The masculine noun "entrevistador" means "interviewer".
+The feminine noun "entrevistadora" means "interviewer".
+"entrevistadoras" is the plural of "entrevistadora".
+"entrevistadora" is a person.
+The adjective "machista" means "sexist".
+"machista" is not feminine.
+"machistas" is the plural of "machista".
+The masculine adjective "enmadrado" means "mother-fixated".
+"enmadrados" is the plural of "enmadrado".
+The feminine adjective "enmadrada" means "mother-fixated".
+"enmadradas" is the plural of "enmadrada".
+The masculine adjective "deseducativo" means "miseducative".
+"deseducativos" is the plural of "deseducativo".
+The feminine adjective "deseducativa" means "miseducative".
+"deseducativas" is the plural of "deseducativa".
+The verb "cambia de canal" means "changes the channel".
+"cambian de canal" is the plural of "cambia de canal".
+"cambiar de canal" is the infinitive of "cambia de canal".
+"cambió de canal" is the past of "cambia de canal".
+"cambiado de canal" is the participle of "cambia de canal".
+The verb "exalta" means "exalts".
+"exaltan" is the plural of "exalta".
+"exaltar" is the infinitive of "exalta".
+"exaltó" is the past of "exalta".
+"exaltaron" is the past of "exaltan".
+"exaltaba" is the imperfect of "exalta".
+"exaltaban" is the imperfect of "exaltan".
+"exaltado" is the participle of "exalta".
+"exaltada" is the participle of "exalta".
+"exaltada" is feminine.
+The name "copenhague" means "Copenhagen".
+"broadcast" is the past of "broadcasts".
+"broadcast" is the participle of "broadcasts".
+The preposition "en términos de" means "in terms of".
+The adverb "como si nada" means "as if it were nothing".
+The name "coi" means "IOC".
+The preposition "por orden de" means "by order of".
+The adverb "por casualidad" means "by chance".
+The preposition "muy cerca de" means "very near".
+The masculine noun "equipo de fondo" means "cross-country team".
+"equipos de fondo" is the plural of "equipo de fondo".
+The masculine noun "esquí de fondo" means "cross-country skiing".
+The masculine noun "esquí" means "skiing".
+The masculine noun "esquí" means "ski".
+The masculine adjective "nórdico" means "Nordic".
+The feminine adjective "nórdica" means "Nordic".
+"nórdicos" is the plural of "nórdico".
+"nórdicas" is the plural of "nórdica".
+The masculine noun "director" means "director".
+The masculine noun "enlace" means "link".
+The masculine noun "vínculo" means "link".
+"utilizase" is the past subjunctive of "utiliza".
+"utilizasen" is the plural of "utilizase".
+The feminine noun "perfusión" means "perfusion".
+"perfusiones" is the plural of "perfusión".
+The adverb "a la vez" means "at the same time".
+The feminine noun "mujer de la limpieza" means "cleaning woman".
+"mujeres de la limpieza" is the plural of "mujer de la limpieza".
+"mujer de la limpieza" is a person.
+The masculine noun "positivo" means "positive test".
+"positivos" is the plural of "positivo".
+The adjective "contundente" means "forceful".
+The feminine noun "censura" means "censure".
+The verb "censura" means "censures".
+The masculine noun "borrón" means "blot".
+"borrones" is the plural of "borrón".
+The feminine noun "indefensión" means "helplessness".
+The conjunction "tal como" means "just as".
+"coi" is an acronym.
+"ioc" is an acronym.
+"antidopaje" is the plural of "antidopaje".
+The adverb "quizás" means "maybe".
+The adverb "puede que" means "maybe".
+"ignora" takes the question.
+"utiliza" takes the passive.
+The verb "viene" marks the passive.
+"goza" takes "de" before the phrase.
+"disfruta" takes "de" before the phrase.
+The masculine noun "carrito" means "trolley".
+"carritos" is the plural of "carrito".
+The feminine noun "apuesta" means "bet".
+The feminine noun "apuesta" means "stake".
+The adverb "de lo habitual" means "than usual".
+The feminine noun "sala de reuniones" means "meeting room".
+"salas de reuniones" is the plural of "sala de reuniones".
+The masculine noun "centro de investigación" means "research centre".
+"centros de investigación" is the plural of "centro de investigación".
+The adverb "bien a la vista" means "in full view".
+The masculine noun "boletín de notas" means "report card".
+"boletines de notas" is the plural of "boletín de notas".
+The masculine noun "gran boletín de notas" means "big report card".
+"grandes boletines de notas" is the plural of "gran boletín de notas".
+The feminine noun "hoja" means "leaf".
+The feminine noun "hoja" means "sheet".
+The verb "da un paso atrás" means "takes a step back".
+"dan un paso atrás" is the plural of "da un paso atrás".
+"doy un paso atrás" is the first person of "da un paso atrás".
+"damos un paso atrás" is the first person of "dan un paso atrás".
+"dar un paso atrás" is the infinitive of "da un paso atrás".
+"dio un paso atrás" is the past of "da un paso atrás".
+"dieron un paso atrás" is the past of "dan un paso atrás".
+"dado un paso atrás" is the participle of "da un paso atrás".
+The adjective "de cincuenta y dos años" means "fifty-two-year-old".
+The masculine adjective "propagandístico" means "propagandistic".
+The feminine adjective "propagandística" means "propagandistic".
+"propagandísticos" is the plural of "propagandístico".
+"propagandísticas" is the plural of "propagandística".
+"esparce" takes "por" before the phrase.
+The feminine noun "especie" means "species".
+The feminine noun "especie" means "sort".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

@@ -285,7 +285,7 @@ naming :-
     check('reason_name/2 names a fact''s variable', N3-N3b, car_1-car_1),
     yes_no((var(Q3b), Q3b == Q3c), K3),
     check('and leaves a rule''s alone', K3, yes),
-    reason_name([g(V4, a)], M4),
+    reason_name([g(_, a)], M4),
     check('a variable no unary term introduces is a thing', M4, [g(thing_1, a)]),
     reason_text('', M5),
     check('empty text, no terms', M5, []).

@@ -3425,6 +3425,385 @@ The name "alpi" means "Alps".
 The feminine noun "esplosione" means "explosion".
 "alpi" is feminine.
 The intransitive verb "esplode" means "explodes".
+The masculine noun "sequestro" means "kidnapping".
+"sequestri" is the plural of "sequestro".
+The masculine noun "pentito" means "informer".
+"pentiti" is the plural of "pentito".
+"pentito" is a person.
+The masculine noun "ergastolo" means "life sentence".
+"ergastoli" is the plural of "ergastolo".
+The feminine noun "condanna a vita" means "life sentence".
+"condanne a vita" is the plural of "condanna a vita".
+The feminine noun "requisitoria" means "closing speech".
+"requisitorie" is the plural of "requisitoria".
+The feminine noun "corte di assise" means "court of assizes".
+"corti di assise" is the plural of "corte di assise".
+The noun "delinquente" means "criminal".
+The noun "malvivente" means "criminal".
+"malviventi" is the plural of "malvivente".
+"malvivente" is a person.
+The masculine noun "retroscena" means "inside story".
+"retroscena" is the plural of "retroscena".
+"retroscena" is not feminine.
+The masculine noun "processo" means "trial".
+The masculine noun "dibattimento" means "trial".
+"dibattimenti" is the plural of "dibattimento".
+The masculine noun "riscatto" means "ransom".
+"riscatti" is the plural of "riscatto".
+The masculine noun "difensore" means "defender".
+"difensori" is the plural of "difensore".
+"difensore" is a person.
+The feminine noun "telefonata" means "phone call".
+"telefonate" is the plural of "telefonata".
+The feminine noun "discrepanza" means "discrepancy".
+The feminine noun "discordanza" means "discrepancy".
+"discordanze" is the plural of "discordanza".
+The preposition "alle porte di" means "on the outskirts of".
+The preposition "a partire da" means "starting from".
+The preposition "a cominciare da" means "starting from".
+The preposition "alla fine di" means "at the end of".
+The preposition "a conclusione di" means "at the end of".
+The preposition "quanto a" means "as for".
+The preposition "per quanto riguarda" means "as for".
+The verb "mette in luce" means "brings to light".
+"mettono in luce" is the plural of "mette in luce".
+"mettere in luce" is the infinitive of "mette in luce".
+"messo in luce" is the participle of "mette in luce".
+"messa in luce" is the participle of "mette in luce".
+"messa in luce" is feminine.
+"messi in luce" is the participle of "mette in luce".
+"messi in luce" is the plural of "messo in luce".
+"messe in luce" is the participle of "mette in luce".
+"messe in luce" is feminine.
+"messe in luce" is the plural of "messa in luce".
+"banda" is a group.
+The noun "componente" means "component".
+The masculine noun "membro" means "member".
+The noun "componente" means "member".
+"franco" is a name.
+The preposition "lungo" means "along".
+The determiner "tutta una" means "a whole".
+The determiner "tutto un" means "a whole".
+"tutta una" is feminine.
+The masculine noun "rapito" means "kidnap victim".
+"rapiti" is the plural of "rapito".
+"rapito" is a person.
+The adverb "alla fine" means "in the end".
+The noun "ceramista" means "ceramist".
+"ceramista" is not feminine.
+"ceramisti" is the plural of "ceramista".
+"ceramista" is a person.
+The masculine noun "giustiziere" means "vigilante".
+"giustizieri" is the plural of "giustiziere".
+"giustiziere" is a person.
+"frequenta" means "attends".
+"frequenta" means "frequents".
+The feminine noun "targa" means "plaque".
+The masculine noun "mezzorilievo" means "half-relief".
+"mezzirilievi" is the plural of "mezzorilievo".
+"primavera" means "spring".
+"angolo" means "angle".
+The masculine noun "angolo" means "corner".
+The masculine noun "bancone" means "counter".
+"colloca" means "places".
+The masculine noun "camion delle consegne" means "delivery truck".
+"camion delle consegne" is the plural of "camion delle consegne".
+The verb "stringe la curva" means "cuts the corner".
+"stringono la curva" is the plural of "stringe la curva".
+"stringere la curva" is the infinitive of "stringe la curva".
+"strinse la curva" is the past of "stringe la curva".
+"strinsero la curva" is the past of "stringono la curva".
+"stretto la curva" is the participle of "stringe la curva".
+The verb "sfascia" means "wrecks".
+"sfasciano" is the plural of "sfascia".
+"sfasciare" is the infinitive of "sfascia".
+"sfasciò" is the past of "sfascia".
+"sfasciarono" is the past of "sfasciano".
+"sfasciato" is the participle of "sfascia".
+"sfasciata" is the participle of "sfascia".
+"sfasciata" is feminine.
+The masculine noun "servizio legale" means "legal service".
+"servizi legali" is the plural of "servizio legale".
+"scopre" means "discovers".
+"scopre" means "finds out".
+The adverb "da Erode a Pilato" means "from pillar to post".
+"stufa" means "stews".
+The reflexive verb "stufa" means "gets fed up".
+The adverb "al diavolo" means "to hell".
+The feminine noun "maleducazione" means "bad manners".
+The verb "viene a sapere" means "finds out about".
+"vengono a sapere" is the plural of "viene a sapere".
+"venire a sapere" is the infinitive of "viene a sapere".
+"venne a sapere" is the past of "viene a sapere".
+"vennero a sapere" is the past of "vengono a sapere".
+"venuto a sapere" is the participle of "viene a sapere".
+"venendo a sapere" is the gerund of "viene a sapere".
+"viene a sapere" takes "di" before the phrase.
+The feminine noun "peripezia" means "misadventure".
+"peripezie" is the plural of "peripezia".
+The masculine noun "articolo da regalo" means "gift item".
+"articoli da regalo" is the plural of "articolo da regalo".
+"disinteressatamente" means "disinterestedly".
+"disinteressatamente" means "selflessly".
+The conjunction "nel caso che" means "in case".
+"nel caso che" takes the subjunctive.
+The preposition "a disposizione di" means "at the disposal of".
+The masculine adjective "pubblicizzato" means "publicised".
+The feminine adjective "pubblicizzata" means "publicised".
+"pubblicizzati" is the plural of "pubblicizzato".
+"pubblicizzate" is the plural of "pubblicizzata".
+The verb "diverte" means "amuses".
+"divertono" is the plural of "diverte".
+"divertire" is the infinitive of "diverte".
+"divertì" is the past of "diverte".
+"divertirono" is the past of "divertono".
+"divertito" is the participle of "diverte".
+The masculine adjective "kafkiano" means "kafkaesque".
+The feminine adjective "kafkiana" means "kafkaesque".
+"kafkiani" is the plural of "kafkiano".
+"kafkiane" is the plural of "kafkiana".
+"laboratorio" means "lab".
+The masculine noun "laboratorio" means "workshop".
+"spaccò" is the past of "spacca".
+"spaccarono" is the past of "spaccano".
+"spaccava" is the imperfect of "spacca".
+"spaccavano" is the imperfect of "spaccano".
+"spaccato" is the participle of "spacca".
+"spaccata" is the participle of "spacca".
+"spaccata" is feminine.
+"spaccati" is the participle of "spacca".
+"spaccati" is the plural of "spaccato".
+"spaccate" is the participle of "spacca".
+"spaccate" is feminine.
+"spaccate" is the plural of "spaccata".
+"via" is a street.
+"piazza" is a street.
+"corso" is a street.
+"viale" is a street.
+"vicolo" is a street.
+"strada" is a street.
+The feminine noun "chiamata" means "call".
+The feminine noun "assicuratrice" means "insurer".
+"assicuratrici" is the plural of "assicuratrice".
+"ceramica" means "pottery".
+"scopre" takes the question.
+"wrapped" is the past of "wraps".
+"wrapped" is the participle of "wraps".
+"accuratamente" means "carefully".
+The verb "preoccupa" means "worries".
+The reflexive verb "preoccupa" means "worries".
+"preoccupano" is the plural of "preoccupa".
+"preoccupare" is the infinitive of "preoccupa".
+"preoccupò" is the past of "preoccupa".
+"preoccuparono" is the past of "preoccupano".
+"preoccupava" is the imperfect of "preoccupa".
+"preoccupavano" is the imperfect of "preoccupano".
+"preoccupato" is the participle of "preoccupa".
+"preoccupata" is the participle of "preoccupa".
+"preoccupata" is feminine.
+"preoccupati" is the participle of "preoccupa".
+"preoccupati" is the plural of "preoccupato".
+The masculine noun "restauratore" means "restorer".
+"restauratori" is the plural of "restauratore".
+"restauratore" is a person.
+The feminine noun "restauratrice" means "restorer".
+"restauratrici" is the plural of "restauratrice".
+"restauratrice" is a person.
+The adverb "a sua disposizione" means "at his disposal".
+The feminine noun "formalità" means "formality".
+"formalità" is the plural of "formalità".
+The masculine noun "movimento" means "movement".
+The verb "spoglia" means "strips".
+The reflexive verb "spoglia" means "undresses".
+"spogliano" is the plural of "spoglia".
+"spogliare" is the infinitive of "spoglia".
+"spogliò" is the past of "spoglia".
+"spogliarono" is the past of "spogliano".
+"spogliava" is the imperfect of "spoglia".
+"spogliavano" is the imperfect of "spogliano".
+"spogliato" is the participle of "spoglia".
+"spogliata" is the participle of "spoglia".
+"spogliata" is feminine.
+"spogliati" is the participle of "spoglia".
+"spogliate" is the participle of "spoglia".
+"spogliate" is feminine.
+The verb "denuda" means "bares".
+The reflexive verb "denuda" means "strips".
+"denudano" is the plural of "denuda".
+"denudare" is the infinitive of "denuda".
+"denudò" is the past of "denuda".
+"denudarono" is the past of "denudano".
+"denudato" is the participle of "denuda".
+"denudata" is the participle of "denuda".
+"denudata" is feminine.
+The masculine noun "telespettatore" means "television viewer".
+"telespettatori" is the plural of "telespettatore".
+"telespettatore" is a person.
+The feminine noun "telespettatrice" means "television viewer".
+"telespettatrici" is the plural of "telespettatrice".
+"telespettatrice" is a person.
+The feminine noun "soubrette" means "showgirl".
+"soubrette" is the plural of "soubrette".
+"soubrette" is a person.
+"evolvere" is the infinitive of "evolve".
+"evoluto" is the participle of "evolve".
+"evoluta" is the participle of "evolve".
+"evoluta" is feminine.
+"evoluti" is the participle of "evolve".
+"evolute" is the participle of "evolve".
+"evolute" is feminine.
+"è" is the auxiliary of "evolve".
+The reflexive verb "evolve" means "evolves".
+The preposition "sul piano di" means "in terms of".
+"è" is the auxiliary of "cambia".
+"alba" is a name.
+The masculine adjective "divertito" means "amused".
+"divertiti" is the plural of "divertito".
+The feminine adjective "divertita" means "amused".
+"divertite" is the plural of "divertita".
+The masculine noun "intervistatore" means "interviewer".
+"intervistatori" is the plural of "intervistatore".
+"intervistatore" is a person.
+The feminine noun "intervistatrice" means "interviewer".
+"intervistatrici" is the plural of "intervistatrice".
+"intervistatrice" is a person.
+The adjective "maschilista" means "sexist".
+"maschilista" is not feminine.
+"maschilisti" is the plural of "maschilista".
+"maschiliste" is the plural of "maschilista".
+"maschiliste" is feminine.
+The masculine adjective "mammone" means "mother-fixated".
+"mammoni" is the plural of "mammone".
+The masculine adjective "cinico" means "cynical".
+"cinici" is the plural of "cinico".
+The feminine adjective "cinica" means "cynical".
+"ciniche" is the plural of "cinica".
+The masculine adjective "diseducativo" means "miseducative".
+"diseducativi" is the plural of "diseducativo".
+The feminine adjective "diseducativa" means "miseducative".
+"diseducative" is the plural of "diseducativa".
+The masculine adjective "progressivo" means "progressive".
+The feminine adjective "progressiva" means "progressive".
+The adjective "progressista" means "progressive".
+"progressista" is not feminine.
+"progressisti" is the plural of "progressista".
+"progressiste" is the plural of "progressista".
+"progressiste" is feminine.
+The feminine noun "interrogazione" means "interpellation".
+"interrogazioni" is the plural of "interrogazione".
+The verb "cambia canale" means "changes the channel".
+"cambiano canale" is the plural of "cambia canale".
+"cambiare canale" is the infinitive of "cambia canale".
+"cambiò canale" is the past of "cambia canale".
+"cambiato canale" is the participle of "cambia canale".
+The verb "esalta" means "exalts".
+"esaltano" is the plural of "esalta".
+"esaltare" is the infinitive of "esalta".
+"esaltò" is the past of "esalta".
+"esaltarono" is the past of "esaltano".
+"esaltava" is the imperfect of "esalta".
+"esaltavano" is the imperfect of "esaltano".
+"esaltato" is the participle of "esalta".
+"esaltata" is the participle of "esalta".
+"esaltata" is feminine.
+The name "copenaghen" means "Copenhagen".
+"copenaghen" is a city.
+"broadcast" is the past of "broadcasts".
+"broadcast" is the participle of "broadcasts".
+The verb "trasmette" means "broadcasts".
+"trasmesso" is the participle of "trasmette".
+"trasmessa" is the participle of "trasmette".
+"trasmessa" is feminine.
+"rai" is a name.
+The word "tale da" begins the purpose.
+The adverb "come se niente fosse" means "as if it were nothing".
+The name "cio" means "IOC".
+The preposition "per ordine di" means "by order of".
+The adverb "per caso" means "by chance".
+The preposition "molto vicino a" means "very near".
+The feminine noun "squadra di fondo" means "cross-country team".
+"squadre di fondo" is the plural of "squadra di fondo".
+The masculine noun "sci di fondo" means "cross-country skiing".
+The masculine noun "sci" means "skiing".
+The masculine adjective "nordico" means "Nordic".
+The feminine adjective "nordica" means "Nordic".
+"nordici" is the plural of "nordico".
+"nordiche" is the plural of "nordica".
+The masculine noun "collegamento" means "link".
+The masculine noun "legame" means "link".
+The feminine noun "perfusione" means "perfusion".
+"perfusioni" is the plural of "perfusione".
+The adverb "allo stesso tempo" means "at the same time".
+The feminine noun "donna delle pulizie" means "cleaning woman".
+"donne delle pulizie" is the plural of "donna delle pulizie".
+"donna delle pulizie" is a person.
+The masculine noun "positivo" means "positive test".
+"positivi" is the plural of "positivo".
+The masculine adjective "incisivo" means "forceful".
+The feminine adjective "incisiva" means "forceful".
+The feminine noun "censura" means "censure".
+The verb "censura" means "censures".
+The feminine noun "macchia" means "blot".
+The feminine noun "impotenza" means "helplessness".
+"cio" is an acronym.
+"ioc" is an acronym.
+"antidoping" is the plural of "antidoping".
+The verb "affitta" means "rents".
+"vuote" is the plural of "vuota".
+"ignora" takes the question.
+The masculine noun "campione" means "champion".
+The masculine noun "campione" means "sample".
+"gode" takes "di" before the phrase.
+The masculine adjective "carico" means "loaded".
+The feminine adjective "carica" means "loaded".
+The masculine adjective "ordinario" means "ordinary".
+The feminine adjective "ordinaria" means "ordinary".
+The adjective "qualunque" means "ordinary".
+"sparso" is the participle of "sparge".
+"sparsa" is the participle of "sparge".
+"sparsi" is the participle of "sparge".
+"sparse" is the participle of "sparge".
+The feminine noun "posta in gioco" means "stake".
+"poste in gioco" is the plural of "posta in gioco".
+The adverb "del solito" means "than usual".
+The feminine noun "sala riunioni" means "meeting room".
+"sale riunioni" is the plural of "sala riunioni".
+The masculine noun "centro ricerca" means "research centre".
+"centri ricerca" is the plural of "centro ricerca".
+"centro ricerca" is not feminine.
+The adverb "bene in vista" means "in full view".
+The masculine adjective "minaccioso" means "threatening".
+The feminine adjective "minacciosa" means "threatening".
+"minacciosi" is the plural of "minaccioso".
+"minacciose" is the plural of "minacciosa".
+The feminine noun "pagella" means "report card".
+"pagelle" is the plural of "pagella".
+The feminine noun "maxipagella" means "big report card".
+"maxipagelle" is the plural of "maxipagella".
+The masculine noun "scrutinio" means "assessment".
+"scrutini" is the plural of "scrutinio".
+The masculine noun "foglio" means "sheet".
+The verb "fa un passo indietro" means "takes a step back".
+"fanno un passo indietro" is the plural of "fa un passo indietro".
+"faccio un passo indietro" is the first person of "fa un passo indietro".
+"facciamo un passo indietro" is the first person of "fanno un passo indietro".
+"fare un passo indietro" is the infinitive of "fa un passo indietro".
+"fece un passo indietro" is the past of "fa un passo indietro".
+"fecero un passo indietro" is the past of "fanno un passo indietro".
+"fatto un passo indietro" is the participle of "fa un passo indietro".
+The adjective "cinquantaduenne" means "fifty-two-year-old".
+The masculine adjective "propagandistico" means "propagandistic".
+The feminine adjective "propagandistica" means "propagandistic".
+"propagandistici" is the plural of "propagandistico".
+"propagandistiche" is the plural of "propagandistica".
+The masculine noun "malcontento" means "dissatisfaction".
+"qualcosa" takes "di" before the adjective.
+"niente" takes "di" before the adjective.
+"nulla" takes "di" before the adjective.
+"sparge" takes "per" before the phrase.
+"dura" is intransitive.
+The feminine noun "sorta" means "sort".
+"concentra" takes the passive.
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".

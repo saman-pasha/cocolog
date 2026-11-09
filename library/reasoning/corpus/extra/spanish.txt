@@ -263,6 +263,9 @@ The feminine noun "muestra" means "exhibition".
 # `una vía más instintiva' a way; `apuntó Claude Lebet' he noted, not aimed
 The masculine noun "resto" means "remainder".
 The feminine noun "técnica" means "technique".
+# the IOC report: `una investigación' is an investigation (of the IOC, of the Congress, of the police), said
+# before the research, which `a través de la investigación' wants
+The feminine noun "investigación" means "investigation".
 The feminine noun "investigación" means "research".
 The feminine noun "vía" means "way".
 The verb "apunta" means "notes".
@@ -776,6 +779,9 @@ The masculine noun "precio" means "price".
 # ocasiones, mal educada': at most it shows that its owner is busy and, at
 # times, rude -- words of several words the dictionary does not carry
 The adverb "como mucho" means "at most".
+# (`revela' said first, so that it stays the word written for reveals: the lesson states no participle of `pone en
+# evidencia', and `è stato lui a rivelare tutti i retroscena' -- `ha revelado' -- was refused into Spanish)
+The verb "revela" means "reveals".
 The verb "pone en evidencia" means "reveals".
 The adverb "en ocasiones" means "sometimes".
 The masculine adjective "mal educado" means "rude".
@@ -3978,3 +3984,411 @@ The name "alpes" means "Alps".
 "vincula" takes the passive.
 # `al estallarle una bomba colocada en la arena': a bomb exploding, the phrase after the verb its subject
 The intransitive verb "estalla" means "explodes".
+# The Grazioli trial report (VIT-9310..9323), Italian into Spanish: `il pentito Maurizio Abbatino' is `el
+# arrepentido', the word the Spanish press gives an Italian trial's informer
+The masculine noun "arrepentido" means "informer".
+"arrepentidos" is the plural of "arrepentido".
+"arrepentido" is a person.
+# `dieci ergastoli': `diez cadenas perpetuas'
+The feminine noun "cadena perpetua" means "life sentence".
+"cadenas perpetuas" is the plural of "cadena perpetua".
+# `a conclusione della requisitoria': `de la requisitoria'
+The feminine noun "requisitoria" means "closing speech".
+"requisitorias" is the plural of "requisitoria".
+# `in corte di assise': `en el tribunal penal'
+The masculine noun "tribunal penal" means "court of assizes".
+"tribunales penales" is the plural of "tribunal penal".
+# `tutti i retroscena della vicenda': `todos los entresijos del asunto' (the dictionary's `secret' is not said again
+# first: as the first line of its meaning it would make `entresijo' the writer's word for every secret)
+The masculine noun "entresijo" means "inside story".
+# `le telefonate fatte alla famiglia del rapito': `las llamadas telefónicas'
+The feminine noun "llamada telefónica" means "phone call".
+"llamadas telefónicas" is the plural of "llamada telefónica".
+# `alle porte di Roma': `a las puertas de Roma'
+The preposition "a las puertas de" means "on the outskirts of".
+# `sono state messe in luce alcune discordanze': `han sido sacadas a la luz', one verb of four words
+The verb "saca a la luz" means "brings to light".
+"sacan a la luz" is the plural of "saca a la luz".
+"sacar a la luz" is the infinitive of "saca a la luz".
+"sacado a la luz" is the participle of "saca a la luz".
+"sacada a la luz" is the participle of "saca a la luz".
+"sacada a la luz" is feminine.
+"sacados a la luz" is the participle of "saca a la luz".
+"sacados a la luz" is the plural of "sacado a la luz".
+"sacadas a la luz" is the participle of "saca a la luz".
+"sacadas a la luz" is feminine.
+"sacadas a la luz" is the plural of "sacada a la luz".
+# `i componenti della banda della Magliana': `la banda de la Magliana', the word of the Spanish press for a gang (a
+# band said again first), a group
+The feminine noun "banda" means "band".
+The feminine noun "banda" means "gang".
+"banda" is a group.
+"pandilla" is a group.
+# `con l'intervento dei difensori': `de los defensores' (the writer's word for a defender was `zaguero', a football
+# player's; a campaigner said again first)
+The masculine noun "defensor" means "campaigner".
+The masculine noun "defensor" means "defender".
+# `a conclusione della requisitoria': `al final de la requisitoria' (the writer's word for at the end of was `a
+# finales de', the end of a month or a year)
+The preposition "al final de" means "at the end of".
+# `avvenuto lungo la Via Salaria': `a lo largo de la Via Salaria' (Spanish had no preposition for along)
+The preposition "a lo largo de" means "along".
+# `tutta una serie di indicazioni': `toda una serie de indicaciones'
+The determiner "toda una" means "a whole".
+The determiner "todo un" means "a whole".
+"toda una" is feminine.
+# `alla famiglia del rapito': `a la familia del secuestrado', a person
+The masculine noun "secuestrado" means "kidnap victim".
+"secuestrados" is the plural of "secuestrado".
+"secuestrado" is a person.
+# `alla fine ottenere il riscatto': `al final conseguir el rescate' (`al final de' stays the preposition)
+The adverb "al final" means "in the end".
+# The ceramist and the plaque (AnCora CESS-CAST-P-20011202-118), Spanish into Italian and English: `Un ceramista de
+# Gràcia busca al Comando Ciudadano Justiciero', a ceramist, a person of either sex
+The noun "ceramista" means "ceramist".
+"ceramista" is not feminine.
+"ceramistas" is the plural of "ceramista".
+"ceramista" is a person.
+# `el Comando Ciudadano Justiciero', the group of the report's own name, and `los justicieros', its members
+"Comando Ciudadano Justiciero" is a name.
+The masculine noun "justiciero" means "vigilante".
+"justicieros" is the plural of "justiciero".
+"justiciero" is a person.
+# `un grupo de intelectuales que frecuentan el restaurante': the dictionary has no `frecuentar'
+The verb "frecuenta" means "frequents".
+"frecuentan" is the plural of "frecuenta".
+"frecuentar" is the infinitive of "frecuenta".
+"frecuentó" is the past of "frecuenta".
+"frecuentaron" is the past of "frecuentan".
+"frecuentaba" is the imperfect of "frecuenta".
+"frecuentaban" is the imperfect of "frecuentan".
+"frecuentado" is the participle of "frecuenta".
+"frecuentada" is the participle of "frecuenta".
+"frecuentada" is feminine.
+# `la placa original dedicada al Salvador Seguí': a plaque (the plate second)
+"placa" means "plaque".
+# `los plafones inferiores de la placa', the ceramic panels of the plaque (`tablero' said again first, so that it stays
+# the word written for a panel, and `junta' before it, so that it stays the word written for a board)
+"junta" means "board".
+"tablero" means "board".
+"tablero" means "panel".
+The masculine noun "plafón" means "panel".
+"plafones" is the plural of "plafón".
+# `semirrelieves de cerámica'
+The masculine noun "semirrelieve" means "half-relief".
+"semirrelieves" is the plural of "semirrelieve".
+# `es genuinamente kafkiana'
+The adverb "genuinamente" means "genuinely".
+# `La placa ... se colocó en la primavera de 1983': the plaque was placed
+"coloca" takes the passive.
+# `muchas puertas de despacho': office doors (the dispatch second; `oficina' said again first, so that it stays the
+# word written for an office)
+"oficina" means "office".
+"despacho" means "office".
+# `Un camión de reparto apuró el giro en la calle de la Cadena y se los cargó': a delivery truck cut the corner and
+# wrecked them
+The masculine noun "camión de reparto" means "delivery truck".
+"camiones de reparto" is the plural of "camión de reparto".
+The verb "apura el giro" means "cuts the corner".
+"apuran el giro" is the plural of "apura el giro".
+"apurar el giro" is the infinitive of "apura el giro".
+"apuró el giro" is the past of "apura el giro".
+"apuraron el giro" is the past of "apuran el giro".
+"carga" means "loads".
+The reflexive verb "carga" means "wrecks".
+# `una llamada del servicio jurídico del ayuntamiento'
+The masculine noun "servicio jurídico" means "legal service".
+"servicios jurídicos" is the plural of "servicio jurídico".
+# `que el ayuntamiento la repondría de inmediato'
+The adverb "inmediatamente" means "immediately".
+The adverb "de inmediato" means "immediately".
+# `No conseguí averiguar con quién tenía que hablar': the dictionary has no `averiguar'
+The verb "averigua" means "finds out".
+"averiguan" is the plural of "averigua".
+"averiguar" is the infinitive of "averigua".
+"averiguó" is the past of "averigua".
+"averigüé" is the first person of "averiguó".
+"averiguaron" is the past of "averiguan".
+"averiguado" is the participle of "averigua".
+# `Aquello fue de Herodes a Pilatos', from pillar to post
+The adverb "de Herodes a Pilatos" means "from pillar to post".
+# `me enviaban de un sitio a otro hasta que me harté': I got fed up (`sacia' said again first)
+"sacia" means "satiates".
+The verb "harta" means "satiates".
+The reflexive verb "harta" means "gets fed up".
+"hartan" is the plural of "harta".
+"hartar" is the infinitive of "harta".
+"hartó" is the past of "harta".
+"harté" is the first person of "hartó".
+"hartaron" is the past of "hartan".
+"hartado" is the participle of "harta".
+# `que se vayan al carajo', to hell
+The adverb "al carajo" means "to hell".
+# `Fue una desidia absoluta y mala educación mezclada con burocracia' (`negligencia' said again first)
+"negligencia" means "negligence".
+"negligencia" means "neglect".
+The feminine noun "desidia" means "neglect".
+The feminine noun "mala educación" means "bad manners".
+# `Al enterarse de la acción del Comando Ciudadano Justiciero': on finding out about it (the plain verb informs, and
+# `informa' said again first before it, so that it stays the word written for informs)
+"informa" means "reports".
+"informa" means "informs".
+The verb "entera" means "informs".
+The reflexive verb "entera" means "finds out about".
+"enteran" is the plural of "entera".
+"enterar" is the infinitive of "entera".
+"enteró" is the past of "entera".
+"enteraron" is the past of "enteran".
+"enterado" is the participle of "entera".
+"entera" takes "de" before the phrase.
+The feminine noun "peripecia" means "misadventure".
+"peripecias" is the plural of "peripecia".
+# `su taller de ceramista de artículo de regalo', gift items
+The masculine noun "artículo de regalo" means "gift item".
+"artículos de regalo" is the plural of "artículo de regalo".
+# `Ahora los ofrece desinteresadamente al comando por si desea reponerlos'
+The adverb "desinteresadamente" means "selflessly".
+The conjunction "por si" means "in case".
+# `los pone a disposición de los justicieros', `me pongo a su disposición'
+The preposition "a disposición de" means "at the disposal of".
+# `Por fin alguien con sensibilidad se ha preocupado de que ...'
+The adverb "finalmente" means "finally".
+The adverb "por fin" means "finally".
+# `la parte de arriba', the upper part (`superior' said again first)
+"superior" means "upper".
+The adjective "de arriba" means "upper".
+# `tras el publicitado robo', the much-publicised theft
+The masculine adjective "publicitado" means "publicised".
+The feminine adjective "publicitada" means "publicised".
+"publicitados" is the plural of "publicitado".
+"publicitadas" is the plural of "publicitada".
+# `Me da risa', it amuses me
+The verb "divierte" means "amuses".
+The verb "da risa" means "amuses".
+"dan risa" is the plural of "da risa".
+"dar risa" is the infinitive of "da risa".
+"dio risa" is the past of "da risa".
+# `A buenas horas se preocupan', belatedly
+The adverb "a buenas horas" means "belatedly".
+# `tras fijarse en una placa del ceramista': after noticing it (the plain verb sets, said first in an earlier line)
+The reflexive verb "fija" means "notices".
+"fija" takes "en" before the phrase.
+# `en la esquina de la calle de la Cadena': the street called that, whose name the lesson knows as a chain
+"calle" is a street.
+"plaza" is a street.
+"avenida" is a street.
+"paseo" is a street.
+"rambla" is a street.
+"carretera" is a street.
+# `No conseguí averiguar con quién tenía que hablar': the question after `averiguar'
+"averigua" takes the question.
+# `No conseguí averiguar con quién tenía que hablar': the dictionary gives the modal `tiene que' no imperfect, no
+# future and no first person, and `tenía que hablar' had no reading
+"tengo que" is the first person of "tiene que".
+"tienes que" is the second person of "tiene que".
+"tenemos que" is the first person of "tienen que".
+"tuve que" is the first person of "tuvo que".
+"tenía que" is the imperfect of "tiene que".
+"tenían que" is the imperfect of "tienen que".
+"teníamos que" is the first person of "tenían que".
+"tendrá que" is the future of "tiene que".
+"tendrán que" is the plural of "tendrá que".
+"tendría que" is the conditional of "tiene que".
+"tendrían que" is the plural of "tendría que".
+# `envolvió cuidadosamente los plafones': English's past of `wraps' (the upstream verb table's row for it is broken,
+# and the writer made `wraped')
+"wrapped" is the past of "wraps".
+"wrapped" is the participle of "wraps".
+# `alguien con sensibilidad se ha preocupado de que el monumento ... quede como él se merece', `A buenas horas se
+# preocupan': worries, with its own pronoun (the plain verb concerns, said again first, and `concierne' before it)
+"concierne" means "concerns".
+"preocupa" means "concerns".
+The reflexive verb "preocupa" means "worries".
+"preocupa" takes "de" before the clause.
+# `Creo que van a restaurar la parte de arriba': the near future, `ir a' and an infinitive
+"va" takes the future.
+# `me pongo a su disposición', at his disposal (the possessive's own first meaning; the noun's is willingness)
+The adverb "a su disposición" means "at his disposal".
+# ---- the TV reports (VIT-9296..9309), Italian into Spanish: the words the Spanish writer needs
+# `le donne che si spogliano in tv': `las mujeres que se desnudan' (the reflexive meaning is written with its
+# pronoun), and `la libertà ... di denudarsi davanti ai telespettatori': `desnudarse ante los telespectadores'
+The reflexive verb "desnuda" means "undresses".
+The reflexive verb "desnuda" means "strips".
+The masculine noun "telespectador" means "television viewer".
+The feminine noun "telespectadora" means "television viewer".
+"telespectadoras" is the plural of "telespectadora".
+"telespectadora" is a person.
+# `ha detto la soubrette': `la vedette'
+The feminine noun "vedette" means "showgirl".
+"vedettes" is the plural of "vedette".
+"vedette" is a person.
+# `la divertita intervistatrice': `la divertida entrevistadora' (the adjective stays fun to the reader)
+The masculine adjective "divertido" means "fun".
+The masculine adjective "divertido" means "amused".
+The feminine adjective "divertida" means "fun".
+The feminine adjective "divertida" means "amused".
+The masculine noun "entrevistador" means "interviewer".
+The feminine noun "entrevistadora" means "interviewer".
+"entrevistadoras" is the plural of "entrevistadora".
+"entrevistadora" is a person.
+# `è ancora maschilista e mammone': `machista y enmadrado'
+The adjective "machista" means "sexist".
+"machista" is not feminine.
+"machistas" is the plural of "machista".
+The masculine adjective "enmadrado" means "mother-fixated".
+"enmadrados" is the plural of "enmadrado".
+The feminine adjective "enmadrada" means "mother-fixated".
+"enmadradas" is the plural of "enmadrada".
+# `"cinici e diseducativi"': `cínicos y deseducativos'
+The masculine adjective "deseducativo" means "miseducative".
+"deseducativos" is the plural of "deseducativo".
+The feminine adjective "deseducativa" means "miseducative".
+"deseducativas" is the plural of "deseducativa".
+# `può cambiare canale': `puede cambiar de canal'
+The verb "cambia de canal" means "changes the channel".
+"cambian de canal" is the plural of "cambia de canal".
+"cambiar de canal" is the infinitive of "cambia de canal".
+"cambió de canal" is the past of "cambia de canal".
+"cambiado de canal" is the participle of "cambia de canal".
+# `che esalta la cultura della guerra': `que exalta'
+The verb "exalta" means "exalts".
+"exaltan" is the plural of "exalta".
+"exaltar" is the infinitive of "exalta".
+"exaltó" is the past of "exalta".
+"exaltaron" is the past of "exaltan".
+"exaltaba" is the imperfect of "exalta".
+"exaltaban" is the imperfect of "exaltan".
+"exaltado" is the participle of "exalta".
+"exaltada" is the participle of "exalta".
+"exaltada" is feminine.
+The name "copenhague" means "Copenhagen".
+# `la trasmissione che Raiuno manda in onda da ieri': has broadcast, where English's rule made `broadcasted'
+"broadcast" is the past of "broadcasts".
+"broadcast" is the participle of "broadcasts".
+# `di non essersi evolute sul piano della solidarietà': `en términos de la solidaridad' (the Spanish writer had no
+# word for `in terms of', and the sentence was refused)
+The preposition "en términos de" means "in terms of".
+# `come se niente fosse': `como si nada'
+The adverb "como si nada" means "as if it were nothing".
+# the IOC report (AnCora CESS-CAST-P-20020301-99): `El COI abrió ayer ... una investigación': the IOC, the name the
+# acronym stands for
+The name "coi" means "IOC".
+# `por orden de su presidente': by order of
+The preposition "por orden de" means "by order of".
+# `al descubrir, por casualidad, material médico': by chance
+The adverb "por casualidad" means "by chance".
+# `muy cerca de Salt Lake City': very near (the adverb went to the end of the clause)
+The preposition "muy cerca de" means "very near".
+# `el equipo de fondo de la Federación Austriaca de Esquí', `el esquí de fondo': cross-country, the team and the sport
+The masculine noun "equipo de fondo" means "cross-country team".
+"equipos de fondo" is the plural of "equipo de fondo".
+The masculine noun "esquí de fondo" means "cross-country skiing".
+# `director de esquí nórdico austríaco': skiing, the sport, said before the ski; Nordic, said before Norse; and the
+# director, said before the conductor
+The masculine noun "esquí" means "skiing".
+The masculine noun "esquí" means "ski".
+The masculine adjective "nórdico" means "Nordic".
+The feminine adjective "nórdica" means "Nordic".
+"nórdicos" is the plural of "nórdico".
+"nórdicas" is the plural of "nórdica".
+The masculine noun "director" means "director".
+# `cualquier vínculo de su delegación con el dopaje': a link, before the bond -- the dictionary's `enlace' said again
+# first, so that it stays the word written for a link (`con links contra el nazismo')
+The masculine noun "enlace" means "link".
+The masculine noun "vínculo" means "link".
+# `ese material se utilizase para perfusiones': the past subjunctive in `-se', which the dictionary gives for reading
+# only, and the perfusion, which it lacks
+"utilizase" is the past subjunctive of "utiliza".
+"utilizasen" is the plural of "utilizase".
+The feminine noun "perfusión" means "perfusion".
+"perfusiones" is the plural of "perfusión".
+# `una práctica prohibida y, a la vez, extremadamente peligrosa': at the same time
+The adverb "a la vez" means "at the same time".
+# `una mujer de la limpieza': a cleaning woman
+The feminine noun "mujer de la limpieza" means "cleaning woman".
+"mujeres de la limpieza" is the plural of "mujer de la limpieza".
+"mujer de la limpieza" is a person.
+# `el positivo de Mühlegg': a positive test, the noun
+The masculine noun "positivo" means "positive test".
+"positivos" is the plural of "positivo".
+# `quiso ser contundente en la censura del esquiador': forceful, before conclusive; censure, before censorship; and
+# `Llaneras censuró a los dirigentes': censured, before censored
+The adjective "contundente" means "forceful".
+The feminine noun "censura" means "censure".
+The verb "censura" means "censures".
+# `Es un borrón en la historia del deporte español': a blot
+The masculine noun "borrón" means "blot".
+"borrones" is the plural of "borrón".
+# `por la indefensión que sufrió': helplessness
+The feminine noun "indefensión" means "helplessness".
+# `tal como había adelantado el pasado miércoles': just as
+The conjunction "tal como" means "just as".
+# `El COI': the acronym goes out in capitals, into the lesson's language and into English (`The Ioc' before)
+"coi" is an acronym.
+"ioc" is an acronym.
+# `las medidas antidopaje': the adjective is its own plural (`control antidopaje' read, the plural did not)
+"antidopaje" is the plural of "antidopaje".
+# `pero puede que ese material se utilizase para perfusiones': maybe, an adverb of two words before its clause --
+# the dictionary's `quizás' said again first, so that it stays the word written for maybe (`Puede que no le había
+# gustado' was written for `Forse non le era piaciuto': `puede que' takes the subjunctive)
+The adverb "quizás" means "maybe".
+The adverb "puede que" means "maybe".
+# `Ignoro de qué está hablando el COI': the verb of not knowing takes the question
+"ignora" takes the question.
+# `puede que ese material se utilizase para perfusiones': a thing's reflexive is the passive, that material was used
+"utiliza" takes the passive.
+# `Su principal queja viene dada por un hecho evidente': `venir' and a participle is the passive, as Italian's `venire'
+The verb "viene" marks the passive.
+# `goza, también, de una enorme fama internacional': the verb of enjoying takes its phrase with `de', which English
+# says bare
+"goza" takes "de" before the phrase.
+# ... and `disfrutar', the writer's word for enjoys: `Godranno di qualche boccata d'ossigeno' is `Disfrutarán de
+# alguna bocanada', and with the phrase governed it was written bare
+"disfruta" takes "de" before the phrase.
+# The CNR report (VIT-4883..4900, Italian into Spanish and English): the words the Spanish writer needs. A trolley (the
+# Spanish had no word for one, and every sentence with it was refused)
+The masculine noun "carrito" means "trolley".
+"carritos" is the plural of "carrito".
+# the stake: a bet said again first, so that it stays the noun's meaning, and the stake after it, so that `apuesta' is
+# the word written for it (`participación' was, a share)
+The feminine noun "apuesta" means "bet".
+The feminine noun "apuesta" means "stake".
+# than usual, one adverb
+The adverb "de lo habitual" means "than usual".
+# a meeting room, a research centre
+The feminine noun "sala de reuniones" means "meeting room".
+"salas de reuniones" is the plural of "sala de reuniones".
+The masculine noun "centro de investigación" means "research centre".
+"centros de investigación" is the plural of "centro de investigación".
+# in full view
+The adverb "bien a la vista" means "in full view".
+# a report card, and a big one
+The masculine noun "boletín de notas" means "report card".
+"boletines de notas" is the plural of "boletín de notas".
+The masculine noun "gran boletín de notas" means "big report card".
+"grandes boletines de notas" is the plural of "gran boletín de notas".
+# a sheet: a leaf said first, where the dictionary's first noun is a blade, and the sheet after it (`chapa', a sheet of
+# metal, was the word written for one)
+The feminine noun "hoja" means "leaf".
+The feminine noun "hoja" means "sheet".
+# takes a step back, with its forms
+The verb "da un paso atrás" means "takes a step back".
+"dan un paso atrás" is the plural of "da un paso atrás".
+"doy un paso atrás" is the first person of "da un paso atrás".
+"damos un paso atrás" is the first person of "dan un paso atrás".
+"dar un paso atrás" is the infinitive of "da un paso atrás".
+"dio un paso atrás" is the past of "da un paso atrás".
+"dieron un paso atrás" is the past of "dan un paso atrás".
+"dado un paso atrás" is the participle of "da un paso atrás".
+# fifty-two-year-old, an adjective of several words
+The adjective "de cincuenta y dos años" means "fifty-two-year-old".
+# propagandistic
+The masculine adjective "propagandístico" means "propagandistic".
+The feminine adjective "propagandística" means "propagandistic".
+"propagandísticos" is the plural of "propagandístico".
+"propagandísticas" is the plural of "propagandística".
+# `esparcidos por la península': the phrase the verb governs
+"esparce" takes "por" before the phrase.
+# `una especie de gran boletín de notas': a sort; a species said again first, so that it stays the noun's meaning
+The feminine noun "especie" means "species".
+The feminine noun "especie" means "sort".
