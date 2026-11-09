@@ -172,7 +172,7 @@
     ("$text_split_at" 5 coco_bi_text_split_at)
     ("$atom_text_length" 3 coco_bi_atom_text_length)
     ("$string_text_length" 3 coco_bi_string_text_length)
-    ("$sub_text_length" 7 coco_bi_sub_text_length)
+    ("$sub_text_length" 9 coco_bi_sub_text_length)
     ("sub_atom_icasechk" 3 coco_bi_icasechk)
     ("split_string"  4 coco_bi_split_string)
     ("$atom_concat"  3 coco_bi_atom_concat)
@@ -589,7 +589,7 @@
     ("$absolute_file_name" 2)
     ("working_directory" 2 :MAP "system" "$chdir" 1)
     ;; the C halves of predicates written as clauses here
-    ("$sub_text_length" 7 :ATOM 6 ("atom" "system" "sub_atom" 5)
+    ("$sub_text_length" 9 :ATOM 6 ("atom" "system" "sub_atom" 5)
                                   ("string" "system" "sub_string" 5))
     ("$string_text_length" 3 :ATOM 2 ("string" "system" "sub_string" 5)
                                      ("atomic" "system" "string_concat" 3)

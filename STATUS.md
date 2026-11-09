@@ -16976,3 +16976,166 @@ decides them again, which moved after it.
 
 Narrow cases green: lint, files, engine, directives, library, errors,
 script, window, flowdebug, reconsult and trace. Reasoning stays 1.0.27.
+
+## sub_atom/5 and sub_string/5 as swipl's sub_text() (3.58.2)
+
+swipl's sub_atom/5 and sub_string/5 are one C function, sub_text() in
+pl-prims.c, and what is given chooses its walk:
+
+- two of Before, Length and After given are the third worked out: one
+  answer and no choice point;
+- one of them given walks the other two, its last answer leaving none;
+- a bound Sub is a test where Before or After is given, and else a search
+  that moves one place past each match and keeps its choice point only
+  where the substring still fits there -- `ab' in `abcab' ends at 3 with
+  none, `a' at 3 with one, which its redo fails;
+- nothing given walks every Before and every Length.
+
+cocolog's clauses walked Before and Length whatever was given, so:
+
+- `sub_atom(A, B, 3, 0, S)' asked every place of A: 900 019 inferences and
+  3.5 s on 100 000 characters;
+- sub_string/5 cut a list of codes from the string's start at every place
+  it tried (`'$sub_string'/5', length/2 and append/3 over string_codes/2):
+  the search for a substring at the end of a string of 100 000 characters
+  took 5 002 150 035 inferences and 254 s, and every suffix (After alone)
+  was quadratic in either, 8 054 089 inferences and 1.8 s for 2 000
+  characters;
+- the walks' last answers left a choice point where swipl's leave none
+  (`sub_atom(abc, B, 1, A, S)' at `c'), and a bound Sub's search left none
+  at its last place where swipl's keeps one;
+- `'$sub_atom'/6' asked an atom of a bound Sub, so `sub_atom(a12b, 1, L,
+  A, 12)' failed, where swipl's PL_cmp_text() compares text.
+
+Now sub_atom/5 and sub_string/5 are one clause each over the same seven
+cases:
+
+- `'$sub_text_length'/9' reads the arguments as sub_text() does, as /7 did
+  (3.0.0), and hands back the text's length in bytes, which
+  `'$atom_byte_length'/2' read again, and the case the given arguments
+  make (`coco_bi_sub_text_length', the table in its comment);
+- `'$sub_text_'/9' is a clause a case, its first argument the case, so no
+  call asks what is bound: nothing given, Before, two of Before, Length
+  and After, Length, After, a Sub alone or with Length, a Sub with Before
+  or After;
+- `'$sub_text'/8' cuts one substring where Before and Length say, a string
+  for sub_string/5, with no walk from the start where a text's characters
+  are its bytes, and works out whichever of Before, Length and After its
+  clause leaves, Length from a Sub given. So the two cases that walk
+  nothing are that call alone, and a walk binds only what it walks;
+- a Sub given is a test, a memcmp and no term made, and whether it was
+  given is the clause's word, `test', never what Sub is bound to when the
+  C half runs: a walk binds Before or Length first, and a Sub that is the
+  same variable is an integer then, which no substring unifies with.
+  `sub_atom('1', 0, L, _, L)' fails in swipl. A first cut asked whether
+  Sub was bound there and answered L = 1, and `sub_atom('01', _, B, _, B)'
+  B = 1, both of which 3.58.1 had right;
+- `'$sub_atom_positions'/6' finds a bound Sub's places in one scan, as /5
+  did, gives the Sub's length (a Length given is compared), and ends the
+  list `fits' where the last place leaves room, which `'$sub_search'/3'
+  reads by its first argument's index.
+
+`'$sub_atom'/6', `'$sub_string'/5', `'$sub_string_same'/2' and
+`'$atom_byte_length'/2' are gone. A patch: swipl's answers and choice
+points were cocolog's to match, and nothing new is reachable.
+
+Not swipl's, and recorded in COMPAT.md: 9.0.4's search succeeds at the
+last place the Sub fits whether or not its unifications did. Its
+SUB_SEARCH goes to exit_succeed without asking `match', keeping what they
+bound, so where Before, Length or After are one variable it answers what
+no substring is: `sub_atom(abab, X, X, _, b)' X = 3 with After unbound,
+`sub_atom(abab, X, _, X, b)' X = 3 with Length 1. cocolog answers what
+the unifications give, none for either, as it copies no other bug of
+swipl's.
+
+test/files/sub_text.pl holds 1 210 lines to swipl. They cover every mode of
+every answer of five texts, one past ASCII -- each of Before, Length, After
+and Sub given or not, given as an answer gives it -- with whether each
+answer left a choice point. Then come the failures and errors, a bound Sub
+of another type, and arguments that are one variable (all but swipl's bug),
+for both predicates. 3.58.1 gets 303 of them wrong. test/string.pl holds
+the walks to what they cost: each mode with two of Before, Length and After
+given costs the same on ten characters as on ten thousand, and Before and
+Length given cost eight inferences.
+
+Arms, one build each, 23. The arm of no edit is green. Twenty-one rules
+are each red in the files case:
+
+- a Sub given with Before, and one with After, a test;
+- the search's `fits' end, and no `fits' where no place fits after;
+- Length and After given, and Before and After, worked out;
+- Length alone, After alone, Before alone and nothing given, each walking
+  only to where the text ends;
+- sub_string/5's string;
+- a place in characters the bytes it covers;
+- a Sub given compared as text;
+- the length in bytes the length helper hands back;
+- whether Sub was given the clause's word (the arm asks what Sub is bound
+  to, the first cut's rule) and the test's clause saying so;
+- a Length given beside a Sub given compared, in the test and in the
+  search, and the search's Length the Sub's;
+- three given adding up, and a place worked out below 0 failing.
+
+Before and Length given walking nothing is green in the files case, a walk
+of a Length given being a test, and red in string's: eight inferences
+become ten. The check that each mode with two given costs the same on ten
+characters as on ten thousand was vacuous as first written. st_cost/4 ran
+once/1 on the mode itself, so the first call's answer bound the mode's
+variables, and the second call, all given and wrong for the longer text,
+failed out of the findall. The arms of Length and After and of Before and
+After were green there. It takes the mode afresh now, and both are red there
+too, as 3.58.1 is: 63 inferences against 89 973 for Length and After given,
+and sub_string/5's 142 against 50 144 947.
+
+The cost, by mode (inferences, 3.58.1 then 3.58.2; a short call ten
+thousand times over `rep/2', which counts four of its own a call):
+
+    100 000 characters, Length and After given        900 019       9
+    100 000, Sub and After / Sub and Before                 16       9
+    100 000, Before and Length given                        19       9
+    100 000, Sub alone, first answer                        16      11
+    100 000, Sub alone, every answer                   500 011 500 007
+    100 000, Length alone, every answer              1 200 057 700 034
+    2 000, After alone, every answer                 8 054 089  14 041
+    100 000 string, Sub alone, first answer      5 002 150 035      11
+    2 000 string, Length alone, every answer         2 057 103  14 036
+    short, nothing given (x1 000)                      199 007 198 007
+    short, Sub and After (x10 000)                     190 007 120 007
+    short, Before and Length (x10 000)                 220 007 120 007
+    short, Sub alone (x10 000)                         190 007 140 007
+    short string, Sub alone (x10 000)                1 310 009 140 009
+    short string, nothing given (x1 000)               541 009 198 009
+
+In time, the walk of every Length on 100 000 characters goes from 3.5 s to
+0.02, and the string's search from 254 s to nothing measurable.
+
+Two cuts came first:
+
+- The first kept the old shape's tests, an if-then-else over nonvar/1 in
+  two clauses and `'$atom_byte_length'/2'. Every mode with Sub given cost 3
+  to 6 inferences a call more than 3.58.1's, and its search 9 an answer
+  where 3.58.1's was 5 -- a test of each place for the last one. The
+  `fits' end and the case table took both back.
+- The second had a clause for each of ten cases. Its walks bound the
+  missing one of Before, Length and After in Prolog, and every start
+  (`cocolog query true') read 107 220 instructions more than 3.58.1's,
+  36.02 million against 35.91: ten clauses of nine arguments more to read,
+  coco_next_token +29 000, strcmp +27 000, the parse +16 000, the store's
+  put +15 000. It was also the cut that read a Sub bound at the C half as
+  given.
+
+With the C half working out what a clause leaves, the cases are seven, and
+two of them are that call alone. Every mode costs what the ten-case cut's
+did or less: a Sub with Before or After 9 where it was 12, a Sub alone 11
+where it was 14, the After walk 14 041 where it was 16 045.
+
+The start does 14 587 instructions less work than 3.58.1's, 35.90 million,
+5 031 less with the padding set aside. tools/flow/zero.sh against 3.58.1 at
+like paths, work less padding: nrev +102, queens -3, lookup -3 393, of 40
+to 66 million.
+
+Narrow cases green: lint, files, string, units, errors, library, engine,
+trace, window, flowdebug, directives, script, reason, normalise and
+translate, and the lessons that use sub_atom/5 or sub_string/5 (basics 08,
+12 and 13; library 03, 13, 15, 17, 24, 26, 38, 46, 50, 51 and 55).
+Reasoning stays 1.0.27.

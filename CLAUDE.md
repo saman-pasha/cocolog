@@ -1489,7 +1489,7 @@ cocolint index offers no import of it.
   atom_concat/3, string_concat/3 and sub_string/5 read `CVT_ATOMIC`
   alone, so a list is no text to them, and a `"..."` under codes is a
   list: `sub_string(S, 0, 1, _, '#')`, never `"#"`. Their clauses ask
-  `'$sub_text_length'/7` (sub_atom/5, sub_string/5),
+  `'$sub_text_length'/9` (sub_atom/5, sub_string/5),
   `'$atom_text_length'/3` or `'$string_text_length'/3`, each raising that
   predicate's own swipl type (`atom`, `atomic`, `string`, `text`) of the
   whole term. **A new text builtin reads through `coco_tx_get`** with
@@ -1764,8 +1764,8 @@ cocolint index offers no import of it.
   row of `*frame-contexts*` takes a fourth field, swipl's name
   (`lists:member_/3`), which `coco_det_pi` asks. sub_atom/5,
   atom_concat/3, clause/2 and string_code/3 are deterministic on their
-  last answers with them (sub_atom/5 with its text given since 3.25.0,
-  below). **A library predicate that would leave a choice
+  last answers with them (sub_atom/5 and sub_string/5 where swipl's
+  sub_text() is, since 3.58.2, below). **A library predicate that would leave a choice
   point on its last element wants its list first in a helper**, and since
   3.23.0 library(apply)'s are swipl's too: maplist/2..5, include/3,
   exclude/3, partition/4,5 and convlist/3 over `'$maplist_'/2..5`,
@@ -1786,8 +1786,12 @@ cocolint index offers no import of it.
   order -- with `'$cp_in'/2`, member/2's clauses under a private name (a
   program's member/2 joins the library's); current_predicate/1 named whole
   and predicate_property/2 with its property named are a memberchk/2, and
-  sub_atom/5 with its text given walks the places with `'$cp_in'/2`, or
-  checks the one given. `'$cp_member'/2`, the goal first, stays where
+  sub_atom/5 and sub_string/5 with the substring given test the place
+  Before or After gives, or search its places (`'$sub_search'/3`), keeping
+  a choice point after a place only where another place would fit, as
+  sub_text() does -- the C half ends the list of places `fits` where room
+  is left after the last, and the search reads the end by its first
+  argument (3.58.2; through 3.58.1 `'$cp_in'/2`, none at the last place). `'$cp_member'/2`, the goal first, stays where
   swipl's leaves a choice point at every answer, its last too:
   current_predicate/1 with a part of its spec unbound. **A determinism
   error names a library's frame with its module** since 3.26.0, as swipl's
@@ -2329,7 +2333,23 @@ cocolint index offers no import of it.
 * **`atomic_list_concat/3` with a bound third argument and a non-ground list
   SPLITS**; `/2` cannot split; `atom_concat/3` has `(+,-,+)` and `(-,+,+)` but
   no `(-,-,+)`; `string_concat/3` only `(+,+,-)`. **`sub_atom/5` and
-  `sub_string/5` are clauses** walking every position -- use
+  `sub_string/5` walk only what is not given** (3.58.2, swipl's
+  sub_text(); `'$sub_text_'/9` in lib/builtins.cicili, a clause a case
+  `'$sub_text_length'/9` names, test/files/sub_text.pl): two of Before,
+  Length and After given are the third worked out, one of them walks the
+  other two, and a substring given is a test where Before or After is,
+  else one scan for its places. The C half `'$sub_text'/8` works out
+  whichever of the three a clause leaves, Length from a Sub given, which
+  its clause names with `test`: **whether Sub was given is the case's
+  word, never what Sub is bound to when the C half runs** -- a walk binds
+  Before or Length first, and a Sub that is the same variable is an
+  integer then (`sub_atom('1', 0, L, _, L)` fails in swipl, and 3.58.2's
+  first cut compared its text and said L = 1). Through 3.58.1 they walked
+  Before and Length whatever was given -- `sub_atom(A, B, 3, 0, S)` on
+  100 000 characters was 900 019 inferences, 9 now, and sub_string/5 cut
+  a list of codes from the start at every place: its search for a
+  substring at the end of 100 000 characters took 5 billion inferences
+  and 254 s, 11 now. With nothing given they walk every place still:
   `atom_concat/3`, `memberchk/2`, `split_string/4` in a hot path.
 * **A call is keyed on whichever bound argument chooses** (since 1.9.1):
   the first argument's table as always, and for a predicate the first

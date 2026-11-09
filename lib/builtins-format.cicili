@@ -1790,7 +1790,7 @@
         (return (coco_tx_term_text e g 0)))
 
   ;;; THE TEXT OF AN ATOMIC T WHERE IT LIVES (3.0.0), for the C halves of
-  ;;; sub_atom/5, which '$sub_text_length'/7 has read already: an atom's
+  ;;; sub_atom/5, which '$sub_text_length'/9 has read already: an atom's
   ;;; name or a string's bytes in place, with their length in *N, and a
   ;;; number's writing on B -- which the caller frees, in every case. No
   ;;; copy of an atom or a string: `sub_atom/5''s bound-Sub path asks about
@@ -1815,16 +1815,9 @@
           (if (!= n nil) (set (cof n) ($ (cof b) len)))
           (return 1)))
 
-  ;;; The byte length of the text `atom_length/2' measured in characters.
-  ;;;
-  ;;; It is asked once per `sub_atom/5' call, before the candidate loop; the
-  ;;; candidate loop used to ask `strlen' for every prefix.
-  (func coco_b_atom_byte_length ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_strbuf b) (const char * s . nil) (size_t n . 0))
-          (if (not (coco_b_atomic_text e (coco_m_arg e g 0) (aof b) (aof s) (aof n)))
-              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-          (coco_sb_free (aof b))
-          (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 n)))))
+  ;;; THE BYTE LENGTH sub_atom/5 and sub_string/5 pass on is
+  ;;; '$sub_text_length'/9's (3.58.2), which reads the text once for both
+  ;;; lengths; '$atom_byte_length'/2 read it a second time through 3.58.1.
 
   ;;; THE POSITIONS A BOUND SUBSTRING OCCUPIES, in one scan. `sub_atom/5''s
   ;;; first clause used to call the single-substring builtin once per B;
@@ -1837,21 +1830,34 @@
   ;;; B is in characters under `text_units = characters', as atom_length/2
   ;;; and sub_atom/5 are. The byte scan only starts a match on a UTF-8 lead
   ;;; byte (or ASCII), so it cannot land inside a character.
+  ;;;
+  ;;; `'$sub_atom_positions'(T, Sub, NB, N, L, Ps)' (3.58.2): N is T's
+  ;;; length in characters and L the Sub's, which the scan gives as it
+  ;;; reads Sub -- a Length given is compared -- so the search's clause asks
+  ;;; no atom_length/2, and no place is looked for where Sub is longer than
+  ;;; T. No place found fails here.
   (func coco_b_sub_atom_positions ((coco_engine * e) (size_t g)) (out int)
         (let ((const char * s . nil) (const char * sub . nil)
               (coco_strbuf sb) (coco_strbuf ub)
               (i64 nbytes . 0) (size_t n . 0) (size_t sl . 0)
               (size_t * pos . nil) (size_t np . 0)
-              (size_t p . 0) (size_t bchar . 0) (int chars . 0))
+              (size_t p . 0) (size_t bchar . 0) (int chars . 0)
+              (i64 nchars . 0) (i64 len . 0) (i64 sn . 0) (i64 maxp . 0) (int kl . 0))
           (if (not (coco_m_int e (coco_m_arg e g 2) (aof nbytes))) (return 0))
           (if (< nbytes 0) (return 0))
+          (if (not (coco_m_int e (coco_m_arg e g 3) (aof nchars))) (return 0))
+          (set kl (coco_m_int e (coco_m_arg e g 4) (aof len)))
           (set n (cast size_t nbytes))
           (if (not (coco_b_atomic_text e (coco_m_arg e g 1) (aof ub) (aof sub) (aof sl)))
               (return 0))
+          (set chars (-> (coco_m_machine e) text_chars))
+          (set sn (cast i64 (? chars (coco_utf8_count sub sl) sl)))
+          (set maxp (- nchars sn))
+          (if (and kl (!= len sn))
+              (block (coco_sb_free (aof ub)) (return 0)))
           (if (not (coco_b_atomic_text e (coco_m_arg e g 0) (aof sb) (aof s) nil))
               (block (coco_sb_free (aof ub))
                      (return (coco_m_type_error e "atom" (coco_m_arg e g 0)))))
-          (set chars (-> (coco_m_machine e) text_chars))
           (set pos (cast (size_t *) (malloc (* (+ n 1) (sizeof size_t)))))
           (if (== pos nil)
               (block (coco_sb_free (aof sb)) (coco_sb_free (aof ub)) (return 0)))
@@ -1868,21 +1874,25 @@
                 (set bchar (+ bchar 1)))
             (set p (+ p 1)))
           (coco_sb_free (aof sb)) (coco_sb_free (aof ub))
-          ;; A PLACE GIVEN (3.25.0) keeps that one alone, so the clause's
-          ;; walk of what comes back is a check that leaves no choice point,
-          ;; as swipl's sub_atom/5 leaves none
-          (let ((i64 bv . 0))
-            (if (coco_m_int e (coco_m_arg e g 3) (aof bv))
-                (let ((size_t k . 0))
-                  (for ((size_t i . 0)) (< i np) ((++ i))
-                    (if (== (cast i64 (nth i pos)) bv)
-                        (block (set (nth k pos) (nth i pos)) (set k (+ k 1)))))
-                  (set np k))))
-          (let ((size_t lst . #'(coco_m_nil e)))
+          ;; NO PLACE IS GIVEN HERE (3.58.2): the clauses test a place
+          ;; given, Before or After, as swipl's sub_text() does, and ask for
+          ;; the places only to search them; through 3.58.1 a fourth argument
+          ;; kept the one place given (3.25.0). The list ends `fits' where
+          ;; the last match is before MAX, the last place the substring fits
+          ;; at: swipl's search keeps its choice point there, and
+          ;; '$sub_search'/3 reads the end by its first argument, where a
+          ;; test of each place cost an answer one inference more
+          (let ((size_t lst . 0) (int rc . 1) (size_t mark . 0))
+            (set lst (? (and (> np 0) (< (cast i64 (nth (- np 1) pos)) maxp))
+                        (coco_m_new_atom e "fits") (coco_m_nil e)))
             (for ((size_t i . np)) (> i 0) ((-- i))
               (set lst (coco_m_cons e (coco_m_new_int e (cast i64 (nth (- i 1) pos))) lst)))
             (free pos)
-            (return (coco_m_unify e (coco_m_arg e g 4) lst)))))
+            (set mark (coco_m_mark e))
+            (if (not kl) (set rc (coco_m_unify_int e (coco_m_arg e g 4) sn)))
+            (if rc (set rc (coco_m_unify e (coco_m_arg e g 5) lst)))
+            (if (not rc) (coco_m_undo e mark))
+            (return rc))))
 
   ;;; One substring, at a known place and length. The enumeration is in the
   ;;; Coco half, where the engine can make the choice points.
@@ -1909,53 +1919,108 @@
   ;;; path asks about every prefix of a long atom; a `strlen' here made that
   ;;; search O(n^2) -- 0.09 s at 10 KB, 0.84 s at 40 KB and 5.5 s at 100 KB
   ;;; on 2.11.6, where splitting with `atomic_list_concat/3' was flat. The
-  ;;; Coco half asks once with `$atom_byte_length'/2 and passes NB here.
-  (func coco_b_sub_atom_at ((coco_engine * e) (size_t g)) (out int)
-        (let ((const char * s . nil) (const char * sub . nil) (coco_strbuf sb) (char * out . nil)
-              (i64 before . 0) (i64 len . 0) (size_t n . 0) (int rc . 1) (i64 aft . 0)
-              (i64 nbytes . 0))
-          (if (not (coco_m_int e (coco_m_arg e g 1) (aof before))) (return 0))
-          (if (not (coco_m_int e (coco_m_arg e g 2) (aof len))) (return 0))
+  ;;; Coco half has NB from '$sub_text_length'/9 and passes it here.
+  ;;;
+  ;;; `'$sub_text'(T, B, L, Aft, Sub, NB, N, Type)' (3.58.2): sub_atom/5's
+  ;;; and sub_string/5's one substring, Type `string' building a string,
+  ;;; `test' comparing a Sub given and anything else building an atom, as
+  ;;; swipl's sub_text() builds either. N is T's length in characters.
+  ;;; WHICHEVER OF BEFORE, LENGTH AND AFTER IS NOT GIVEN IS WORKED OUT HERE
+  ;;; from the other two, Length from a Sub given, so every case of
+  ;;; sub_text() that walks nothing is this call alone and the clauses that
+  ;;; walk bind only what they walk; two not given fail. A text whose
+  ;;; characters are its bytes (N == NB, ASCII, and every text under
+  ;;; `text_units' bytes) is cut where Before says with no walk from its
+  ;;; start -- a walk made each place of a long text's enumeration cost the
+  ;;; places before it. A SUB GIVEN IS ANY ATOMIC TEXT, a test and no term
+  ;;; to build, as swipl's PL_cmp_text(): through 3.58.1 '$sub_atom'/6
+  ;;; asked an atom of it, and a number never matched there. Whether Sub
+  ;;; was given is the clause's word, `test', never what Sub is bound to
+  ;;; here: a walk binds Before or Length first, and a Sub that is the
+  ;;; same variable is then an integer, which no substring unifies with --
+  ;;; sub_atom('1', 0, L, _, L) fails in swipl, and read as a Sub given it
+  ;;; matched.
+  (func coco_b_sub_text_at ((coco_engine * e) (size_t g)) (out int)
+        (let ((const char * s . nil) (const char * sub . nil) (coco_strbuf sb) (coco_strbuf ub)
+              (char * out . nil) (i64 before . 0) (i64 len . 0) (i64 aft . 0)
+              (int kb . 0) (int kl . 0) (int ka . 0) (int hl . 0) (int ok . 1)
+              (size_t n . 0) (size_t sl . 0) (size_t b0 . 0) (size_t bl . 0)
+              (int rc . 0) (i64 nbytes . 0) (i64 nchars . 0) (int str . 0) (int test . 0))
           (if (not (coco_m_int e (coco_m_arg e g 5) (aof nbytes))) (return 0))
-          (if (or (< before 0) (< len 0) (< nbytes 0)) (return 0))
+          (if (not (coco_m_int e (coco_m_arg e g 6) (aof nchars))) (return 0))
+          (set kb (coco_m_int e (coco_m_arg e g 1) (aof before)))
+          (set kl (coco_m_int e (coco_m_arg e g 2) (aof len)))
+          (set ka (coco_m_int e (coco_m_arg e g 3) (aof aft)))
+          (set hl kl)
+          (let ((const char * ty . #'(coco_m_atom e (coco_m_arg e g 7))))
+            ;; `string' (s, 115), `test' (t, 116)
+            (if (!= ty nil)
+                (block (set str (== (cast int (nth 0 ty)) 115))
+                       (set test (== (cast int (nth 0 ty)) 116)))))
           (if (not (coco_b_atomic_text e (coco_m_arg e g 0) (aof sb) (aof s) nil))
               (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
           (set n (cast size_t nbytes))
-          ;; UNDER `text_units = characters' (1.13.0) BEFORE and LEN count
-          ;; characters: they become the bytes they cover, and what is after
-          ;; is counted in characters again -- sub_atom('dár', 1, 1, A, S)
-          ;; is A = 1, S = 'á' where bytes cut á in half
-          (if (-> (coco_m_machine e) text_chars)
-              (let ((size_t b0 . #'(coco_utf8_at s n (cast size_t before))) (size_t bl . 0))
-                (if (== b0 (cast size_t -1)) (block (coco_sb_free (aof sb)) (return 0)))
-                (set bl (coco_utf8_at (+ s b0) (- n b0) (cast size_t len)))
-                (if (== bl (cast size_t -1)) (block (coco_sb_free (aof sb)) (return 0)))
-                (set aft (cast i64 (coco_utf8_count (+ s (+ b0 bl)) (- n (+ b0 bl)))))
-                (set before (cast i64 b0))
-                (set len (cast i64 bl)))
+          (if test
               (block
-               (if (> (cast size_t (+ before len)) n) (block (coco_sb_free (aof sb)) (return 0)))
-               (set aft (cast i64 (- n (cast size_t (+ before len)))))))
-          ;; A BOUND SUBSTRING IS A TEST, NOT A TERM TO BUILD. The first
-          ;; clause of sub_atom/5 asks about every prefix of a long atom;
-          ;; allocating and unifying a candidate there made a failed search
-          ;; O(n^2) even after the byte length stopped being strlen'd. A
-          ;; memcmp, with no mark, allocation or undo, is the ordinary case.
-          (set sub (coco_m_atom e (coco_m_arg e g 4)))
-          (if (!= sub nil)
-              (if (or (!= (strlen sub) (cast size_t len))
-                      (!= 0 (memcmp (+ s before) sub (cast size_t len))))
-                  (block (coco_sb_free (aof sb)) (return 0))))
-          (set out (cast (char *) (malloc (+ (cast size_t len) 1))))
-          (if (== out nil) (block (coco_sb_free (aof sb)) (return 0)))
-          (memcpy out (+ s before) (cast size_t len))
-          (set (nth len out) (cast char 0))
+                (if (not (coco_b_atomic_text e (coco_m_arg e g 4) (aof ub) (aof sub) (aof sl)))
+                    (block (coco_sb_free (aof sb)) (return 0)))
+                ;; Length is the Sub's, in characters where they are counted
+                (let ((i64 sn . #'(cast i64 (? (-> (coco_m_machine e) text_chars)
+                                                (coco_utf8_count sub sl) sl))))
+                  (if (and kl (!= len sn)) (set ok 0))
+                  (set len sn)
+                  (set hl 1))))
+          ;; the one of the three not given, from the two that are
+          (if (and kb hl)
+              (let ((i64 a . #'(- nchars (+ before len))))
+                (if (and ka (!= aft a)) (set ok 0))
+                (set aft a))
+              (if (and kb ka)
+                  (set len (- nchars (+ before aft)))
+                  (if (and hl ka)
+                      (set before (- nchars (+ len aft)))
+                      (set ok 0))))
+          (if (or (< before 0) (or (< len 0) (< aft 0))) (set ok 0))
+          ;; UNDER `text_units = characters' (1.13.0) BEFORE and LENGTH
+          ;; count characters: they become the bytes they cover where a
+          ;; character is more than one -- sub_atom('dár', 1, 1, A, S) is
+          ;; A = 1, S = 'á' where bytes cut á in half
+          (if ok
+              (if (!= nbytes nchars)
+                  (block
+                    (set b0 (coco_utf8_at s n (cast size_t before)))
+                    (if (== b0 (cast size_t -1))
+                        (set ok 0)
+                        (block
+                          (set bl (coco_utf8_at (+ s b0) (- n b0) (cast size_t len)))
+                          (if (== bl (cast size_t -1)) (set ok 0)))))
+                  (block (set b0 (cast size_t before)) (set bl (cast size_t len)))))
+          ;; A SUB GIVEN IS A TEST, NOT A TERM TO BUILD: a memcmp, with no
+          ;; allocation. Else the substring is copied before anything is
+          ;; made: a new atom or string can move the table T's text lives in
+          (if test
+              (block
+                (if (and ok (or (!= sl bl) (!= 0 (memcmp (+ s b0) sub sl)))) (set ok 0))
+                (coco_sb_free (aof ub)))
+              (if ok
+                  (block
+                    (set out (cast (char *) (malloc (+ bl 1))))
+                    (if (== out nil)
+                        (set ok 0)
+                        (block (memcpy out (+ s b0) bl) (set (nth bl out) (cast char 0)))))))
           (coco_sb_free (aof sb))
+          (if (not ok) (block (free out) (return 0)))
+          ;; what was not given is unified in swipl's order, the substring
+          ;; last
           (let ((size_t mark . #'(coco_m_mark e)))
-            (if (not (coco_m_unify_int e (coco_m_arg e g 3) aft))
-                (block (coco_m_undo e mark) (set rc 0)))
-            (if (and rc (not (coco_m_unify_atom e (coco_m_arg e g 4) out)))
-                (block (coco_m_undo e mark) (set rc 0))))
+            (set rc 1)
+            (if (not kb) (set rc (coco_m_unify_int e (coco_m_arg e g 1) before)))
+            (if (and rc (not kl)) (set rc (coco_m_unify_int e (coco_m_arg e g 2) len)))
+            (if (and rc (not ka)) (set rc (coco_m_unify_int e (coco_m_arg e g 3) aft)))
+            (if (and rc (not test))
+                (set rc (? str (coco_m_unify_string e (coco_m_arg e g 4) out bl)
+                               (coco_m_unify_atom e (coco_m_arg e g 4) out))))
+            (if (not rc) (coco_m_undo e mark)))
           (free out)
           (return rc)))
 

@@ -844,9 +844,11 @@
   ;;; and swipl's errors (`coco_tx_get' with 29). Through 2.16.1 the four
   ;;; took a list of codes or characters for text. An unbound T is
   ;;; instantiation_error to all. Answers 1 with the length in *N, or the
-  ;;; raise's answer.
+  ;;; raise's answer. NB, where it is not nil, takes the text's length in
+  ;;; bytes (3.58.2, '$sub_text_length'/9's): it is set where WHOLE is a
+  ;;; type, the only callers that ask.
   (static)
-  (func coco_len_text ((coco_engine * e) (size_t t) (const char * whole) (i64 * n)) (out int)
+  (func coco_len_text ((coco_engine * e) (size_t t) (const char * whole) (i64 * n) (i64 * nb)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (size_t d . #'(coco_deref m t)))
           (if (coco-tag-is REF (nth d (-> m heap)))
@@ -881,6 +883,7 @@
             (set (cof n) (cast i64 (? (-> m text_chars)
                                       (coco_utf8_count ($ b s) ($ b len))
                                       ($ b len))))
+            (if (!= nb nil) (set (cof nb) (cast i64 ($ b len))))
             (coco_sb_free (aof b))
             (return 1))))
 
@@ -901,7 +904,7 @@
 
   (func coco_bi_atom_length ((coco_engine * e) (size_t g)) (out int)
         (let ((i64 n . 0)
-              (int r . #'(coco_len_text e (coco_arg (-> e m) g 0) nil (aof n))))
+              (int r . #'(coco_len_text e (coco_arg (-> e m) g 0) nil (aof n) nil)))
           (if (!= r 1) (return r))
           (return (coco_len_answer e (coco_arg (-> e m) g 1) n))))
 
@@ -922,7 +925,7 @@
           (if (not (coco-tag-is ATOM (nth ty (-> m heap))))
               (return (coco_type_error e "atom" ty)))
           (snprintf tn (sizeof tn) "%s" (coco_atom_name m (coco_name_of m ty)))
-          (set r (coco_len_text e (coco_arg m g 0) tn (aof n)))
+          (set r (coco_len_text e (coco_arg m g 0) tn (aof n) nil))
           (if (!= r 1) (return r))
           (return (coco_len_answer e (coco_arg m g 1) n))))
 
@@ -1012,15 +1015,30 @@
   ;;; and so did a Sub that was a list: sub_atom(abc, B, L, A, "b") under
   ;;; `double_quotes = codes' said no where swipl says type_error(atom,
   ;;; [98]).
+  ;;;
+  ;;; '$sub_text_length'(T, B, L, A, Sub, N, Type, NB, Case) (3.58.2): NB
+  ;;; is T's length in bytes, which '$atom_byte_length'/2 asked again
+  ;;; through 3.58.1, and CASE which walk sub_text() takes for what is
+  ;;; given, the clause of '$sub_text_'/9 its first argument picks:
+  ;;;   0 nothing                      walk Before and Length
+  ;;;   1 Before                       walk Length
+  ;;;   2 two of Before, Length, After the third worked out
+  ;;;   3 Length                       walk Before
+  ;;;   4 After                        walk Before
+  ;;;   5 Sub, and perhaps Length      a search
+  ;;;   6 Sub, and Before or After     a test
+  ;;; '$sub_text'/8 works out what a walk leaves, Length from a Sub given,
+  ;;; so 2 and 6 walk nothing and the walks bind only what they walk.
   (func coco_bi_sub_text_length ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (size_t ty . #'(coco_a e g 6))
-              (char tn [64]) (i64 n . 0) (int r . 0))
+              (char tn [64]) (i64 n . 0) (i64 nb . 0) (int r . 0) (int given . 0) (int c . 0))
           (if (not (coco-tag-is ATOM (nth ty (-> m heap))))
               (return (coco_type_error e "atom" ty)))
           (snprintf tn (sizeof tn) "%s" (coco_atom_name m (coco_name_of m ty)))
-          (set r (coco_len_text e (coco_arg m g 0) tn (aof n)))
+          (set r (coco_len_text e (coco_arg m g 0) tn (aof n) (aof nb)))
           (if (!= r 1) (return r))
+          ;; GIVEN: Before 1, Length 2, After 4, Sub 8
           (for ((u32 i . 1)) (<= i 3) ((++ i))
             (let ((size_t x . #'(coco_a e g i)))
               (if (not (coco-tag-is REF (nth x (-> m heap))))
@@ -1028,14 +1046,26 @@
                     (if (not (coco-is-int (nth x (-> m heap))))
                         (return (coco_type_error e "integer" x)))
                     (if (< (coco_int_val m (nth x (-> m heap))) 0)
-                        (return (coco_domain_error e "not_less_than_zero" x)))))))
+                        (return (coco_domain_error e "not_less_than_zero" x)))
+                    (set given (bitor given (<< 1 (- (cast int i) 1))))))))
           (let ((size_t sub . #'(coco_a e g 4)) (coco_strbuf b))
             (if (not (coco-tag-is REF (nth sub (-> m heap))))
                 (block
                   (if (not (coco_tx_get e sub 7 (aof b)))
                       (return (coco_type_error e tn sub)))
-                  (coco_sb_free (aof b)))))
-          (return (coco_len_answer e (coco_arg m g 5) n))))
+                  (coco_sb_free (aof b))
+                  (set given (bitor given 8)))))
+          (set c (? (bitand given 8)
+                    (? (bitand given 5) 6 5)
+                    (? (bitand given 1)
+                       (? (bitand given 6) 2 1)
+                       (? (bitand given 2)
+                          (? (bitand given 4) 2 3)
+                          (? (bitand given 4) 4 0)))))
+          (set r (coco_len_answer e (coco_arg m g 5) n))
+          (if (!= r 1) (return r))
+          (if (not (coco_unify m (coco_deref m (coco_arg m g 7)) (coco_new_int m nb))) (return 0))
+          (return (? (coco_unify m (coco_deref m (coco_arg m g 8)) (coco_new_int m (cast i64 c))) 1 0))))
 
   ;;; Text as codes: a byte a code, or under `text_units = characters' a
   ;;; character a code, its code point (1.13.0, `coco_text_list').
@@ -1322,7 +1352,7 @@
   ;;; text, and a length that was no integer failed.
   (func coco_bi_string_length ((coco_engine * e) (size_t g)) (out int)
         (let ((i64 n . 0)
-              (int r . #'(coco_len_text e (coco_arg (-> e m) g 0) nil (aof n))))
+              (int r . #'(coco_len_text e (coco_arg (-> e m) g 0) nil (aof n) nil)))
           (if (!= r 1) (return r))
           (return (coco_len_answer e (coco_arg (-> e m) g 1) n))))
 

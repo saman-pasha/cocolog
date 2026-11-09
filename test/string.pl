@@ -151,11 +151,39 @@ splitting :-
     check('and skips no pad when another separator follows it at once', G10, ['', '', b]).
 
 %% ---- sub_string/5 backtracks, which is why it is a clause ------------------
+%% What is given chooses the walk, as swipl's sub_text() chooses it (3.58.2):
+%% two of Before, Length and After given walk nothing, so each such call
+%% costs the same on ten characters as on ten thousand -- through 3.58.1
+%% Length and After walked every place, and sub_string/5 every place a list
+%% of codes from the start -- and Before and Length given cost eight
+%% inferences from one statistics/2 to the next, where a walk of the Length
+%% given would cost two more.
 substrings :-
     answer((findall(B-L, sub_string(hello, B, L, _, _), All), length(All, N1)), N1, G1),
     check('sub_string enumerates', G1, 21),
     answer(sub_string(hello, B2, _, _, ell), B2, G2),
-    check('and finds a known substring', G2, 1).
+    check('and finds a known substring', G2, 1),
+    st_text(10, T10), st_text(10000, T10k),
+    findall(P-M, ( member(P, [sub_atom, sub_string]), st_two_given(M),
+                   st_cost(P, T10, M, C10), st_cost(P, T10k, M, C10k), C10 \== C10k ), L3),
+    check('two of Before, Length and After given walk nothing', L3, []),
+    findall(P4-C4, ( member(P4, [sub_atom, sub_string]), st_cost(P4, T10, [1, 2, _, _], C4) ), L4),
+    check('and Before and Length given are eight inferences', L4, [sub_atom-8, sub_string-8]).
+
+%% the modes that give two of Before, Length and After, a Sub with them
+st_two_given([1, 2, _, _]).
+st_two_given([_, 2, 3, _]).
+st_two_given([1, _, 3, _]).
+st_two_given([1, _, _, xx]).
+st_two_given([_, _, 3, xx]).
+st_text(N, A) :- length(L, N), maplist(=(0'x), L), atom_codes(A, L).
+%% each call takes the mode afresh: the first call's answer bound the
+%% mode's own variables, and the second, all given and wrong for the
+%% longer text, failed and dropped the mode from the check
+st_cost(P, T, M, I) :-
+    copy_term(M, [B, L, A, S]),
+    G =.. [P, T, B, L, A, S],
+    statistics(inferences, I0), once(G), statistics(inferences, I1), I is I1 - I0.
 
 %% ---- A CODE LIST IS TEXT TO SOME, AND NOT TO OTHERS: swipl's rule ---------
 %%

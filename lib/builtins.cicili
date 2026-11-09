@@ -79,9 +79,8 @@
     ("upcase_atom"             2 coco_b_upcase)
     ("downcase_atom"           2 coco_b_downcase)
     ("term_to_atom"            2 coco_b_term_to_atom)
-    ("$sub_atom"               6 coco_b_sub_atom_at)
-    ("$sub_atom_positions"     5 coco_b_sub_atom_positions)
-    ("$atom_byte_length"       2 coco_b_atom_byte_length)
+    ("$sub_text"               8 coco_b_sub_text_at)
+    ("$sub_atom_positions"     6 coco_b_sub_atom_positions)
     ("atomic_list_concat"      2 coco_b_alc2)
     ("atomic_list_concat"      3 coco_b_alc3)
     ("$atom_split"             3 coco_b_atom_split)
@@ -692,28 +691,56 @@
            ;; occurs at, in one scan, and one substring given where it starts
            ;; and how long it is. The bound-Sub case is separated out because
            ;; enumerating every B and L to find a known substring is O(n^2)
-           ;; when a search is O(n). '$sub_text_length'/7 asks first what
+           ;; when a search is O(n). '$sub_text_length'/9 asks first what
            ;; swipl's sub_text() asks (3.0.0): the text atomic, B, L and
            ;; After each unbound or a size, and Sub unbound or atomic -- so a
            ;; list of codes or characters is type_error(atom, L) as swipl's,
            ;; where through 2.16.1 it was read as the text it spells.
-           ;; The places walked by a member that leaves no choice point at
-           ;; the last, the place given the one place there is, as swipl's
-           ;; (3.25.0); no step more than '$cp_member'/2's walk was, the list
-           ;; split where the C half answers
-           "sub_atom(A, B, L, Aft, Sub) :- nonvar(Sub), !, '$sub_text_length'(A, B, L, Aft, Sub, N, atom), atom_length(Sub, L), Max is N - L, Max >= 0, '$atom_byte_length'(A, NB), '$sub_atom_positions'(A, Sub, NB, B, [B0|Bs]), '$cp_in_'(Bs, B, B0), Aft is N - B - L."
-           "sub_atom(A, B, L, Aft, Sub) :- '$sub_text_length'(A, B, L, Aft, Sub, N, atom), '$atom_byte_length'(A, NB), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_atom'(A, B, L, Aft, Sub, NB)."
+           ;; WHAT IS GIVEN CHOOSES THE WALK, as swipl's sub_text() chooses
+           ;; it (3.58.2, sub_string/5's too): '$sub_text_length'/9 hands
+           ;; back the case its arguments are, and the case is the first
+           ;; argument of '$sub_text_'/9, a clause each, so no call asks what
+           ;; is bound. Two of Before, Length and After given are the third
+           ;; worked out, one answer and no choice point; one of them given
+           ;; walks the other two by between/3, which leaves none at its last
+           ;; answer, as swipl's walk does; a bound Sub is a test where
+           ;; Before or After is given, and else a search of its places
+           ;; ('$sub_search'/3) that leaves a choice point after a place
+           ;; only where another place would fit -- swipl's search moves on
+           ;; one place past each match and succeeds with no choice point
+           ;; when the substring no longer fits there, so `ab' in `abcab'
+           ;; ends at 3 with none and `a' at 3 with one, which its redo
+           ;; fails. The search looks one place ahead, as '$cp_in_'/3 does,
+           ;; a place with another after it fitting another, and the C half
+           ;; ends the list `fits' where the last place leaves room, so the
+           ;; first argument's index decides it and no answer pays a test.
+           ;; '$sub_text'/8 works out the one of Before, Length and After a
+           ;; clause leaves, Length from a Sub given, so a case that walks
+           ;; nothing is that call alone; `test' says the Sub was given, as
+           ;; a Sub the walk bound through Before or Length was not.
+           ;; Through 3.58.1 a bound Sub left none at its last place, and an
+           ;; unbound one walked every Before and every Length, its last
+           ;; answer leaving one -- `sub_atom(A, B, 3, 0, S)' asked every
+           ;; place of A
+           "sub_atom(A, B, L, Aft, Sub) :- '$sub_text_length'(A, B, L, Aft, Sub, N, atom, NB, C), '$sub_text_'(C, A, B, L, Aft, Sub, N, NB, atom)."
+           "'$sub_text_'(0, T, B, L, Aft, Sub, N, NB, Ty) :- between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_text'(T, B, L, Aft, Sub, NB, N, Ty)."
+           "'$sub_text_'(1, T, B, L, Aft, Sub, N, NB, Ty) :- Rest is N - B, between(0, Rest, L), '$sub_text'(T, B, L, Aft, Sub, NB, N, Ty)."
+           "'$sub_text_'(2, T, B, L, Aft, Sub, N, NB, Ty) :- '$sub_text'(T, B, L, Aft, Sub, NB, N, Ty)."
+           "'$sub_text_'(3, T, B, L, Aft, Sub, N, NB, Ty) :- Max is N - L, between(0, Max, B), '$sub_text'(T, B, L, Aft, Sub, NB, N, Ty)."
+           "'$sub_text_'(4, T, B, L, Aft, Sub, N, NB, Ty) :- Max is N - Aft, between(0, Max, B), '$sub_text'(T, B, L, Aft, Sub, NB, N, Ty)."
+           "'$sub_text_'(5, T, B, L, Aft, Sub, N, NB, _) :- '$sub_atom_positions'(T, Sub, NB, N, L, [P|Ps]), '$sub_search'(Ps, P, B), Aft is N - B - L."
+           "'$sub_text_'(6, T, B, L, Aft, Sub, N, NB, _) :- '$sub_text'(T, B, L, Aft, Sub, NB, N, test)."
+           "'$sub_search'(_, B, B)."
+           "'$sub_search'([P|Ps], _, B) :- '$sub_search'(Ps, P, B)."
+           "'$sub_search'(fits, _, _) :- fail."
 
            ;; ---- sub_string/5 ------------------------------------------------
-           ;; THE SAME ENUMERATION AS sub_atom/5, ANSWERING A STRING. It is
-           ;; here and not in C for the reason string_concat/3's comment
-           ;; gives: SWI backtracks over every way of cutting a string, and a
-           ;; C builtin in this engine answers once. The engine makes the
-           ;; choice points, so the enumeration lives where the engine is.
-           ;;
-           ;; Sub is matched as TEXT, so a string, an atom or a number all
-           ;; work in that position -- which is SWI's rule for every text
-           ;; argument.
+           ;; THE SAME WALK AS sub_atom/5, ANSWERING A STRING (3.58.2): the
+           ;; C half builds a string where its type says so. Through 3.58.1
+           ;; it was a walk of its own over the string's codes, a list
+           ;; walked from the start for every answer. Sub is matched as TEXT,
+           ;; so a string, an atom or a number all work in that position --
+           ;; which is SWI's rule for every text argument.
            ;;
            ;; NO BACKSLASH-QUOTE IN THIS COMMENT, and that is not a style
            ;; note. The blocklist's shape-2 scanner reads every string literal
@@ -724,15 +751,7 @@
            ;; ty/0 -- and lost sub_string/5, which the store probe caught
            ;; because the store had never heard of the three. Written once
            ;; with the escape IN the warning, which cost a second round.
-           "sub_string(S, B, L, Aft, Sub) :- nonvar(Sub), !, '$sub_text_length'(S, B, L, Aft, Sub, N, string), '$string_text_length'(Sub, L, string), Max is N - L, between(0, Max, B), '$sub_string'(S, B, L, Aft, Sub)."
-           "sub_string(S, B, L, Aft, Sub) :- '$sub_text_length'(S, B, L, Aft, Sub, N, string), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_string'(S, B, L, Aft, Sub)."
-           "'$sub_string'(S, B, L, Aft, Sub) :- string_codes(S, Cs), length(Pre, B), append(Pre, Mid, Cs), length(Mid, ML), MidL is ML, length(SubCs, L), append(SubCs, Post, Mid), length(Post, Aft), string_codes(Sub0, SubCs), '$sub_string_same'(Sub, Sub0), MidL >= L."
-           ;; Sub may arrive as a string, an atom or a number; compare the
-           ;; text. A `$' name (3.48.1): as sub_string_same/2 it was a
-           ;; predicate a program saw, which swipl's user has none of.
-           "'$sub_string_same'(Sub, Sub0) :- var(Sub), !, Sub = Sub0."
-           "'$sub_string_same'(Sub, Sub0) :- string(Sub), !, Sub == Sub0."
-           "'$sub_string_same'(Sub, Sub0) :- atom_string(Sub, S1), S1 == Sub0."
+           "sub_string(S, B, L, Aft, Sub) :- '$sub_text_length'(S, B, L, Aft, Sub, N, string, NB, C), '$sub_text_'(C, S, B, L, Aft, Sub, N, NB, string)."
 
            ;; ---- atomic_list_concat/2,3 ARE NOT HERE -----------------------
            ;; They were four clauses around '$atom_join'/3 and
