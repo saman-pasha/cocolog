@@ -195,6 +195,9 @@
     ;; across anything else, and the world lock is never taken under it.
     (member pthread_mutex_t   mmx))
 
+  ;;; <pthread.h>'s, which Cicili's std does not declare
+  (decl) (func pthread_attr_getstacksize ((const pthread_attr_t * attr) (size_t * stacksize)) (out int))
+
   (decl) (func coco_green_module () (out int))
   (decl) (func coco_g_async_run ((coco_engine * e) (size_t g)) (out int))
   (decl) (func coco_g_async_go ((coco_engine * e) (size_t g)) (out int))
@@ -1107,12 +1110,22 @@
               (set (-> w0 base) hm))
             (coco_g_store_link wd hs hm)
             (set (-> hm tshared) 1)
-            (for ((int i . 1)) (< i nw) ((++ i))
-              (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
-                (set (-> wi st) hs)
-                (set (-> wi base) hm)
-                (pthread_create (aof (-> wi tid)) nil coco_g_worker_body
-                                (cast (void *) wi))))
+            ;; A WORKER'S C STACK IS NEVER UNDER 8 MB (3.60.1), what a
+            ;; library(thread) thread is given: the system's default for a
+            ;; thread otherwise -- RLIMIT_STACK's on Linux -- where macOS's
+            ;; is 512 KB, and a task there could not write back an answer
+            ;; some 10 000 levels deep that the main thread reads whole
+            (let ((pthread_attr_t attr) (size_t ss . 0))
+              (pthread_attr_init (aof attr))
+              (pthread_attr_getstacksize (aof attr) (aof ss))
+              (if (< ss 8388608) (pthread_attr_setstacksize (aof attr) 8388608))
+              (for ((int i . 1)) (< i nw) ((++ i))
+                (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
+                  (set (-> wi st) hs)
+                  (set (-> wi base) hm)
+                  (pthread_create (aof (-> wi tid)) (aof attr) coco_g_worker_body
+                                  (cast (void *) wi))))
+              (pthread_attr_destroy (aof attr)))
             ;; the main task, id 0, on worker 0
             (let ((green_thread * mt . #'(aof (nth 0 (-> wd threads)))))
               (memset mt 0 (sizeof green_thread))

@@ -36,15 +36,27 @@ main :-
 %% stdout of `cocolog ARGS', the `_G' numbers taken out, and the exit
 %% status; stderr apart (ERR) when asked for
 child(Args, Out, Rc) :-
-    cocolog_run(Args, Raw, Rc, 60000),
+    child_run(Args, Raw, Rc),
     re_replace_atom('_G[0-9]+', '_G', Raw, Out).
 
 child_err(D, Args, Err, Rc) :-
     sh_join([Args, ' 2>&1 >/dev/null'], A),
-    cocolog_run(A, Raw, Rc, 60000),
+    child_run(A, Raw, Rc),
     atom_concat(D, '/', Prefix),
     re_replace_atom(Prefix, '', Raw, R1),
     re_replace_atom('_G[0-9]+', '_G', R1, Err).
+
+%% EVERY CHILD RUNS ON A C STACK OF 8 MB (3.60.1): what is too deep for a
+%% stack is too deep for some size of it, and a runner's own limit is no 8
+%% MB -- GitHub's gave the main thread more, and 20 000 levels read there
+%% that the case held too deep (CI run 42573674735). Where the shell may
+%% not lower its limit the child runs on the one it has.
+child_run(Args, Text, Exit) :-
+    cocolog(C),
+    sh_join(['ulimit -s 8192 2>/dev/null; ', C, ' ', Args], Cmd),
+    proc_run(Cmd, 60000, Out, Exit),
+    chomp(Out, Body),
+    atom_codes(Text, Body).
 
 lines(Ls, Text) :- atomic_list_concat(Ls, '\n', Text).
 
@@ -575,7 +587,9 @@ walk_part(F, Part, Want) :-
 %% swipl's stream keeps what its C stack had room for and cocolog's nothing
 %% (COMPAT.md); statistics(c_stack); a stack of 1 MB; a library(thread)
 %% thread and a green task, each on a C stack of its own; the uncaught
-%% message; a row a store cannot write.
+%% message; a row a store cannot write. Each part but the 1 MB one runs on
+%% the 8 MB every child of this case has (`child_run/3', 3.60.1), where a
+%% write of 200 000 levels is too deep: under 64 MB it is not.
 c_stack(D) :-
     section('a write too deep for the C stack: resource_error(c_stack), in every thread'),
     atom_concat(D, '/cstack.pl', F),
@@ -750,7 +764,13 @@ c_stack_consult(D, F) :-
 %% stack of 1 MB and the main thread's size, RLIMIT_STACK's as swipl's; a
 %% library(thread) thread's goal and message and a green task's, each a
 %% text another machine reads; the messages of a load that ends there under
-%% `-s' and `run', and the REPL's.
+%% `-s' and `run', and the REPL's. Every stack of the thread and task parts
+%% is 8 MB (`child_run/3', 3.60.1), a term too deep to read 25 000 levels
+%% and one read whole 5 000: on 8 MB the reader stops near 14 000 levels
+%% and the writer near 43 000. Through 3.60.0 the parts read and wrote 20
+%% 000 and 10 000 on the runner's own stack, and on GitHub's -- more than 8
+%% MB on Linux, a green worker 512 KB on macOS -- each went red
+%% (CI run 42573674735).
 c_stack_read(D) :-
     section('a read too deep for the C stack: resource_error(c_stack), in every thread and every load'),
     atom_concat(D, '/rstack.pl', F),
@@ -761,6 +781,10 @@ c_stack_read(D) :-
           - 'resource_error(c_stack)-context(system:term_to_atom/2,_G)',
       '...and one 1000 deep reads' - '1000',
       '...done' - done]),
+    c_stack_part(F, 'ulimit -s 1024 && COCOLOG_GREEN_WORKERS=2 ', rworker, [
+      'a green worker''s C stack is 8 MB on a main thread of 1 MB' - '8388608',
+      '...where a task reads 5000 levels' - '5000',
+      '...done' - done]),
     c_stack_part(F, '', rthread, [
       'a library(thread) thread reads on its own C stack' - 'resource_error(c_stack)',
       '...and goes on to its end' - true,
@@ -769,7 +793,7 @@ c_stack_read(D) :-
           - 'error(''uncaught exception: error(resource_error(c_stack),_)'')',
       'channel_recv/2 of a message too deep to read'
           - 'resource_error(c_stack)-context(thread:channel_recv/2,_G)',
-      '...and one 10000 deep is the term sent' - same,
+      '...and one 5000 deep is the term sent' - same,
       '...done' - done]),
     c_stack_part(F, '', rgreen, [
       'a green task reads on its worker''s C stack'
@@ -780,7 +804,7 @@ c_stack_read(D) :-
       '...and of one waiting in a buffered channel' - 'resource_error(c_stack)-_G',
       'async_run/1 whose answer is too deep to read back' - 'resource_error(c_stack)-_G',
       'async_run/1 of a goal too deep to read' - 'resource_error(c_stack)-_G',
-      'an answer 10000 deep is read back whole' - '10000',
+      'an answer 5000 deep is read back whole' - '5000',
       '...done' - done]),
     c_stack_read_load(D),
     c_stack_read_limits.
@@ -803,26 +827,31 @@ c_stack_read_fixture(F) :-
       '  nest(20000, A), r(term_to_atom(_, A)),',
       '  nest(1000, A2), term_to_atom(T2, A2), down(T2, 0, N2), print(N2), nl,',
       '  write(done), nl.',
+      'rdepth(K, N) :- nest(K, A), term_to_atom(T, A), down(T, 0, N).',
+      'part(rworker) :-',
+      '  async_run((go(statistics(c_stack, L), G1), await(G1, statistics(_, L)), print(L), nl)),',
+      '  async_run((go(rdepth(5000, _), G2), await(G2, rdepth(_, N)), print(N), nl)),',
+      '  write(done), nl.',
       'part(rthread) :-',
       '  thread_create((nest(200000, A), catch(term_to_atom(_, A), error(E, _), true), print(E), nl), I1),',
       '  thread_join(I1, S1), print(S1), nl,',
       '  thread_create((nest(200000, A2), term_to_atom(_, A2)), I2), thread_join(I2, S2),',
       '  ( S2 = error(M2), sub_atom(M2, _, _, _, ''resource_error(c_stack)'') -> print(c_stack) ; print(S2) ), nl,',
-      '  deep(20000, T3), thread_create(w(T3), I3), thread_join(I3, S3), print(S3), nl,',
+      '  deep(25000, T3), thread_create(w(T3), I3), thread_join(I3, S3), print(S3), nl,',
       '  channel_new(C), channel_send(C, T3), r(channel_recv(C, _)),',
-      '  deep(10000, T5), channel_send(C, T5), channel_recv(C, R5),',
+      '  deep(5000, T5), channel_send(C, T5), channel_recv(C, R5),',
       '  ( R5 == T5 -> print(same) ; print(differ) ), nl,',
       '  write(done), nl.',
       'part(rgreen) :-',
       '  async_run((go(\\+ \\+ (nest(200000, A), r(term_to_atom(_, A))), G1), await(G1))),',
-      '  async_run((go(deep(20000, _), G2), r(await(G2, _)))),',
-      '  async_run(\\+ \\+ (deep(20000, T3), go(w(T3), G3), r(await(G3)))),',
-      '  async_run(\\+ \\+ (deep(20000, T4), channel(C4), go(channel_recv(C4, _), G4),',
+      '  async_run((go(deep(25000, _), G2), r(await(G2, _)))),',
+      '  async_run(\\+ \\+ (deep(25000, T3), go(w(T3), G3), r(await(G3)))),',
+      '  async_run(\\+ \\+ (deep(25000, T4), channel(C4), go(channel_recv(C4, _), G4),',
       '                     channel_send(C4, T4), r(await(G4, _)))),',
-      '  async_run(\\+ \\+ (deep(20000, T8), channel(1, C8), channel_send(C8, T8), r(channel_recv(C8, _)))),',
-      '  r(async_run(deep(20000, _))),',
-      '  deep(20000, T6), r(async_run(w(T6))),',
-      '  async_run((go(deep(10000, _), G7), await(G7, deep(_, X7)), down(X7, 0, N7), print(N7), nl)),',
+      '  async_run(\\+ \\+ (deep(25000, T8), channel(1, C8), channel_send(C8, T8), r(channel_recv(C8, _)))),',
+      '  r(async_run(deep(25000, _))),',
+      '  deep(25000, T6), r(async_run(w(T6))),',
+      '  async_run((go(deep(5000, _), G7), await(G7, deep(_, X7)), down(X7, 0, N7), print(N7), nl)),',
       '  write(done), nl.']).
 
 %% A LOAD THAT ENDS ON A CLAUSE TOO DEEP TO READ: swipl's message, its size

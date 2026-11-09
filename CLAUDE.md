@@ -770,6 +770,11 @@ line said only `BUILD FAILED`, over a tail ending on clang's command line.
   quantum check took the eighth of eight children to share worker 0, true
   only where the size divides eight, and on that Mac it was a race (run
   41030811820); it starts one child a worker now.
+* **A check of what is too deep for the C stack pins the stack's size**
+  (3.60.1, test/cyclic.pl's `child_run/3`: every child there runs under
+  `ulimit -s 8192`). GitHub's Linux runners give the main thread more than
+  8 MB, and 3.60.0's 20 000 levels too deep to read read there (run
+  42573674735); a depth that is too deep is too deep for one size.
 * **A red run of `test/translate.pl` prints two reports and only the first is
   true**: `main` fails, the engine backtracks into an earlier choice point and
   re-runs later sections over changed lessons. Read up to the first `RED`.
@@ -3871,7 +3876,10 @@ cocolint index offers no import of it.
   own in a WORLD of one worker a CORE (2.9.3, Go's GOMAXPROCS rule: the
   caller's thread is worker 0 and N-1 OS threads are workers 1..N-1,
   `COCOLOG_GREEN_WORKERS` overriding N for a benchmark arm or a narrow
-  affinity; it was eight through 2.9.2). `async_workers/1` answers N
+  affinity; it was eight through 2.9.2), **each worker's C stack never
+  under 8 MB** (3.60.1, a library(thread) thread's: the system's default,
+  raised where it is less -- macOS gives a thread 512 KB, where a task
+  could not write back an answer 10 000 levels deep). `async_workers/1` answers N
   (2.15.0, `coco_g_async_workers`): inside a world the world's own
   `nworkers`, read through the thread-local `green_now` whatever the
   variable says since; outside one `coco_g_nworkers`, what the next
