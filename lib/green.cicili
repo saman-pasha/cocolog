@@ -273,8 +273,21 @@
   (static) (func coco_g_closed_send_text () (out char *)
         (return (strdup "'$async'(error,error(permission_error(send,channel,closed),_))")))
 
+  ;;; What a task is handed for a text that did not read: the error its
+  ;;; await, its receive or its start raises -- resource_error(c_stack)
+  ;;; where the read ran short of C stack (3.60.0, `coco_read_short', as a
+  ;;; write that ran short raises it, 3.59.0), else system_error. Asks the
+  ;;; machine's word once.
+  (static)
+  (func coco_g_unread_text ((coco_machine * m)) (out const char *)
+        (return (? (coco_read_short m)
+                   "'$async'(error,error(resource_error(c_stack),_))"
+                   "'$async'(error,error(system_error,_))")))
+
   ;;; Read TEXT into M and unify it with CELL. 0 when the reader or the
-  ;;; unify refuses; the caller turns that into a failure.
+  ;;; unify refuses; the caller turns that into a failure. A text too deep
+  ;;; for the C stack to read (3.60.0) is the error `coco_g_unread_text'
+  ;;; names, so a status or a message of that depth raises it.
   (static)
   (func coco_g_resume ((coco_machine * m) (size_t cell) (const char * text)) (out int)
         (let ((size_t t . 0)
@@ -290,7 +303,9 @@
           (if (== text nil) (return 0))
           (set (nth 0 hold) cell)
           (set held (coco_heap_root_push m (aof holdp) (aof nhold)))
-          (if (not (coco_read_term_from m text (aof t)))
+          (if (and (not (coco_read_term_from m text (aof t)))
+                   (or (not (-> m rshort))
+                       (not (coco_read_term_from m (coco_g_unread_text m) (aof t)))))
               (block (if held (coco_heap_root_pop m)) (return 0)))
           (set cell (nth 0 hold))
           (if held (coco_heap_root_pop m))
@@ -385,7 +400,7 @@
             (set (-> t goal) nil)
             (if (not ok)
                 (block
-                 (set (-> t status) (strdup "'$async'(error,error(system_error,_))"))
+                 (set (-> t status) (strdup (coco_g_unread_text m)))
                  (return 0))))
           (return 1)))
 
@@ -1379,8 +1394,7 @@
                                 (let ((char * out . #'(coco_g_ok_text m t)))
                                   (coco_g_resume m sc out)
                                   (if (!= out nil) (free out))))
-                             (coco_g_resume m sc
-                              (strdup "'$async'(error,error(system_error,_))"))))
+                             (coco_g_resume m sc (coco_g_unread_text m))))
                          (free text))))
                   (coco_g_move_sender wd c)
                   (pthread_mutex_unlock (aof (-> wd lock)))
@@ -1405,8 +1419,7 @@
                                 (let ((char * out . #'(coco_g_ok_text m t)))
                                   (coco_g_resume m sc out)
                                   (if (!= out nil) (free out))))
-                             (coco_g_resume m sc
-                              (strdup "'$async'(error,error(system_error,_))"))))
+                             (coco_g_resume m sc (coco_g_unread_text m))))
                          (free text)))))
                   (coco_g_chan_remove_sender c 0)
                   (pthread_mutex_unlock (aof (-> wd lock)))

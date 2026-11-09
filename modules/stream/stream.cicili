@@ -1992,6 +1992,11 @@
                                               (aof pos) (aof start) err (sizeof err)))
             (set rc (coco_m_read_clause e (cast (char *) buf) (aof t) (aof names) err (sizeof err))))
           (if (== rc -1) (return (st_syntax e g buf c0 l0 p0)))
+          ;; A CLAUSE TOO DEEP FOR THE C STACK TO READ (3.60.0) raises
+          ;; resource_error(c_stack), named by the caller's indicator, the
+          ;; stream standing after its full stop, as swipl's read_term/3,
+          ;; read/1,2 do
+          (if (== rc -2) (block (free buf) (return (coco_m_resource_error e "c_stack"))))
           ;; where the term begins: a stream of one byte a character's bytes
           ;; are its characters, and a UTF-16 or UCS-4 one's are counted from
           ;; its UTF-8, a character's first byte by `st_rawn'

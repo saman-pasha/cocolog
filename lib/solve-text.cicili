@@ -1560,6 +1560,12 @@
               (size_t at . 0) (i64 pos . 0) (size_t idt . 0) (size_t ctx . 0)
               (const char * s . #'(-> rd src)) (size_t n . #'(-> rd len))
               (int chars . #'(-> m text_chars)))
+          ;; A TEXT TOO DEEP FOR THE C STACK (3.60.0): resource_error(c_stack)
+          ;; and no syntax error, the builtin's own context, as swipl's reader
+          ;; raises it for a bracket some 17 000 deep
+          (if (-> rd cshort)
+              (block (coco_reader_free rd)
+                     (return (coco_raise e (coco_make1 m "resource_error" (coco_new_atom m "c_stack"))))))
           (coco_sb_init (aof raw))
           (coco_raw_walk s n 0 (aof raw) chars (aof kind) (aof q) (aof at0))
           (cond

@@ -410,9 +410,13 @@
   ;;; because it is what freeze/thaw and every backend already use.
   ;;;
   ;;; The caller FREES what `coco_m_term_text' answers. Null when the term
-  ;;; will not write; 0 from `coco_m_read_term' when the text will not read.
+  ;;; will not write; 0 from `coco_m_read_term' when the text will not read,
+  ;;; and then `coco_m_read_short' says once whether it was too deep for the
+  ;;; C stack to read (3.60.0, the machine's RSHORT), for the module to raise
+  ;;; resource_error(c_stack).
   (decl) (func coco_m_term_text ((coco_engine * e) (size_t t)) (out char *))
   (decl) (func coco_m_read_term ((coco_engine * e) (const char * src)) (out size_t))
+  (decl) (func coco_m_read_short ((coco_engine * e)) (out int))
 
   ;;; ---- a term's functor, a clause with its names, an output sink --------
   ;;;
@@ -430,8 +434,10 @@
   ;;; its variables kept. Answers 1 with OUT the term and NAMES a list of
   ;;; 'Name'=Var in the order they first appear (`_' is not among them);
   ;;; 0 when SRC holds only layout and comments; -1 on a syntax error, with
-  ;;; ERR saying what and where. `coco_m_read_term' is the same reader with
-  ;;; the names and the reason thrown away.
+  ;;; ERR saying what and where; -2 (3.60.0) when the text is too deep for
+  ;;; the C stack to read, for the module to raise resource_error(c_stack)
+  ;;; as swipl's reader raises it. `coco_m_read_term' is the same reader
+  ;;; with the names and the reason thrown away.
   (decl) (func coco_m_read_clause ((coco_engine * e) (const char * src) (size_t * out)
                                    (size_t * names) (char * err) (size_t errlen)) (out int))
 
@@ -1243,6 +1249,9 @@
           (if (not (coco_read_term_from (-> e m) src (aof t))) (return 0))
           (return t)))
 
+  (func coco_m_read_short ((coco_engine * e)) (out int)
+        (return (coco_read_short (-> e m))))
+
   (func coco_m_functor ((coco_engine * e) (size_t t) (u32 * arity)) (out const char *)
         (let ((size_t d . #'(coco_deref (-> e m) t)))
           (if (not (coco_is_callable (-> e m) d)) (return nil))
@@ -1266,6 +1275,9 @@
               (block (set ($ r want_pos) 1)
                      (set ($ r pbase) base)))
           (set rc (coco_read_clause (aof r) (aof t)))
+          ;; a text too deep for the C stack to read is no syntax error
+          ;; (3.60.0): -2, for the module to raise resource_error(c_stack)
+          (if (and (== rc -1) ($ r cshort)) (set rc -2))
           (if (== rc 1)
               (block
                 (set (cof out) t)
@@ -1451,7 +1463,14 @@
               (coco_m_kb_open (aof m) (aof st) (aof kb)))
           (if (not (coco_read_term_from (aof m) src (aof g)))
               (block
-               (if (!= err nil) (snprintf err errlen "the goal would not read"))
+               ;; a goal too deep for the C stack to read (3.60.0) is the
+               ;; run's raise of resource_error(c_stack), as the goal's own
+               ;; read of such a text would be
+               (if (!= err nil)
+                   (snprintf err errlen "%s"
+                             (? (coco_read_short (aof m))
+                                "uncaught exception: error(resource_error(c_stack),_)"
+                                "the goal would not read")))
                (set out -1))
             (block
              ;; THE GOAL SWIPL'S C CALLS (3.44.0): a thread's goal is

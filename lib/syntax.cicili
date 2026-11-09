@@ -507,7 +507,7 @@
 ;;; A NAME token that has already been copied out: an atom, a compound, a
 ;;; prefix operator applied to what follows, or the negative-number spelling.
 ;;; It stood from NF to NT.
-(DEFMACRO coco-parse-named-body (P TERM ARGS)
+(DEFMACRO coco-parse-named-body (P ARGS)
   `(block
      (if (not (coco_next_token r)) (return 0))
 
@@ -554,18 +554,22 @@
      (let ((int prec . 0) (int type . 0) (int prefix . 0))
        (if (or (not was_quoted) (coco_quoted_op name))
            (set prefix (coco_op_prefix name (aof prec) (aof type))))
+       ;; A PREFIX OPERATOR THAT APPLIES IS THE TERM BEING READ'S TO APPLY
+       ;; (3.60.0, `coco-parse-term-body'): its operand is the next operand
+       ;; there, read in a frame of its own -- answered 2, the operator in
+       ;; PX*, its functor named as an application is (3.15.1: a quoted
+       ;; `'[]'' the atom), where through 3.59.0 its operand was a call of
+       ;; `coco_parse_term' here
        (if (and prefix (and (<= prec maxprec) (coco_starts_term r)))
-           (let ((size_t arg) (int argprec)
-                 (int argmax . #'(? (== type COCO_FY) prec (- prec 1))))
+           (block
+             (set (-> r pxfid) (coco_parse_fid r name 0 1))
+             (set (-> r pxprec) prec)
+             (set (-> r pxmax) (? (== type COCO_FY) prec (- prec 1)))
+             (set (-> r pxnf) nf)
+             (set (-> r pxnt) nt)
              ;; its operand is what an operator clash in it is placed after
              (set (-> r lopend) nt)
-             (if (not (,TERM r argmax (aof arg) (aof argprec)))
-                 (block (coco_op_failed r name) (return 0)))
-             ;; named as an application is (3.15.1): a quoted `'[]'' the atom
-             (set (cof out) (coco_make1_f (-> r m) (coco_parse_fid r name 0 1) arg))
-             (set (cof outprec) prec)
-             (if ,P (coco_pos_prefix r nf nf nt))
-             (return 1)))
+             (return 2)))
 
        ;; A PREFIX OPERATOR OVER THE PRIORITY HERE, BEFORE A TERM (3.10.0):
        ;; `a = \+ b', `a :- :- b' -- swipl's operator clash, at the token
@@ -595,67 +599,138 @@
        (if ,P (coco_pos_leaf r nf nt))
        (return 1))))
 
-;;; SMALL/HEAP live across the loop, not inside it, so that the one
-;;; `free' at the end covers every iteration -- and outside the
-;;; RECURSION too, because each nesting level parses its own operator
-;;; and a buffer shared with the frame below would be overwritten under
-;;; it. An operator longer than 255 characters is absurd but is read
-;;; correctly anyway, for the same reason a long atom now is: the reader
-;;; should not be where a name quietly changes.
-(DEFMACRO coco-parse-term-body (P TERM PRIMARY)
-  `(let ((size_t left) (int leftprec) (size_t lopt . 0)
-         (char small [256]) (char * heap . nil) (size_t hcap . 0))
-     (if (not (,PRIMARY r maxprec (aof left) (aof leftprec)))
-         (block (free heap) (return 0)))
-     (while 1
-       (let ((char * name . #'small) (int prec) (int type) (int have . 0))
-         ;; `,' and `|' arrive as punctuation but are operators: the comma
-         ;; is ','/2 and the bar '|'/2 (3.2.0; `;' through 3.1.0), each as
-         ;; the operator table has it -- save where they END the term read:
-         ;; an argument's comma (`stop' 1) or a list element's comma or bar
-         ;; (2), whatever priority it is read to (`coco_parse_args')
-         (cond
-           ((== (-> r tok) COCO_TK_NAME)
-            (set name (coco_tok_name r small (sizeof small) (aof heap) (aof hcap)))
-            (if (== name nil) (block (free heap) (return (coco_fail r "out of memory"))))
-            ;; A QUOTED NAME IS AN INFIX OPERATOR ONLY WHERE IT CANNOT BE
-            ;; WRITTEN WITHOUT ITS QUOTES (3.15.1, swipl's): `a 'x\'y' b'
-            ;; and `a ',' b' apply it, `a '-' b' is no term
-            (if (or (not (-> r quoted)) (coco_quoted_op name)) (set have 1)))
-           ((coco_is_punct r (coco-ch ","))
-            (if (== (-> r stop) 0)
-                (block (snprintf small (sizeof small) ",") (set have 1))))
-           ((coco_is_punct r (coco-ch "|"))
-            (if (!= (-> r stop) 2)
-                (block (snprintf small (sizeof small) "|") (set have 1)))))
-         (if (not have) break)
-         (if (not (coco_op_infix name (aof prec) (aof type))) break)
-         (if (> prec maxprec) break)
-         (let ((int lmax . #'(? (== type COCO_YFX) prec (- prec 1)))
-               (int rmax . #'(? (== type COCO_XFY) prec (- prec 1))))
-           ;; a clash (3.10.0), placed after this level's last operator -- or
-           ;; none, when the left came from the primary: `\+ = a' is swipl's
-           ;; operator_expected
-           (if (> leftprec lmax)
-               (block (if (!= lopt 0) (coco_clash r lopt)) break))
-           ;; for positions: where the operator stands, and the left
-           ;; operand's position and start, which the term built on it
-           ;; begins with -- the term parsed last, so far
-           (let ((size_t opf . #'(-> r tstart)) (size_t opt . #'(-> r pos))
-                 (size_t lp . #'(-> r lpos)) (size_t lf . #'(-> r lfrom)))
-             (set lopt opt) (set (-> r lopend) opt)
-             (if (not (coco_next_token r)) (block (free heap) (return 0)))
-             (let ((size_t right) (int rightprec))
-               (if (not (,TERM r rmax (aof right) (aof rightprec)))
-                   (block (coco_op_failed r name) (free heap) (return 0)))
-               (set left (coco_make2_f (-> r m) (coco_parse_fid r name 0 2) left right))
-               (set leftprec prec)
-               (if ,P (coco_pos_infix r lp lf opf opt)))))))
-     (free heap)
-     (set (cof out) left)
-     (set (cof outprec) leftprec)
-     (return 1)))
+;;; A FRAME SUSPENDED ON THE READER'S STACK (3.60.0), the frame in hand's
+;;; locals stored -- its positions only in the family that builds them, P
+;;; asked as the macro expands (Lisp's 0 is true: `eql') -- PUSHED set;
+;;; the frames grown out of line (`coco_rframe_grow').
+(DEFMACRO coco-rframe-push (P)
+  `(if (or (< (-> r rfn) (-> r rfcap)) (coco_rframe_grow r))
+       (let ((coco_rframe * f . #'(+ (-> r rf) (-> r rfn))))
+         (set (-> f kind) kind) (set (-> f maxprec) maxprec)
+         (set (-> f left) left) (set (-> f leftprec) leftprec) (set (-> f lopt) lopt)
+         (set (-> f fid) ofid) (set (-> f prec) oprec)
+         ,@(IF (EQL P 1)
+               '((set (-> f a) pa) (set (-> f b) pb) (set (-> f c) pc) (set (-> f d) pd)))
+         (set (-> r rfn) (+ (-> r rfn) 1))
+         (set pushed 1))))
 
+;;; A TERM'S OPERATORS ARE READ WITH A STACK OF THE READER'S OWN (3.60.0),
+;;; as pl-read.c's complex_term keeps one, where through 3.59.0 each
+;;; operator's operand was a call of this function: a chain of 15 000
+;;; prefix operators, or of 20 000 `,', was a SIGSEGV, where swipl reads
+;;; any. An infix operator that takes the term read so far, or a prefix
+;;; operator where an operand stands (the named term's answer 2, the
+;;; operator in the reader's PX*), suspends the frame in hand
+;;; (`coco_rframe', on RF), and its operand is the next frame's, read to the
+;;; priority the operator gives it; a frame read is its operator's term
+;;; and the term read so far of the frame below it, whose operators are
+;;; asked next. The frame in hand is in locals: KIND what it is to the
+;;; frame below it (0 the term this call reads, 1 an infix operator's
+;;; right operand, 2 a prefix operator's operand), OFID its operator's
+;;; functor -- named as an application is (3.15.1), as the operator is
+;;; passed, so no name is kept -- OPREC its priority, and PA to PD where it
+;;; stands, for the positions. A BRACKET'S TERM IS A CALL OF THIS FUNCTION
+;;; STILL, as swipl's complex_term is a call for each: it asks the C stack
+;;; first, and below the reader's floor (`sfloor': 64 KB above the
+;;; thread's, or a probe until a read goes that deep, `coco_read_deep') the
+;;; read stops for want of it (`coco_read_cshort'), for its builtin to raise
+;;; resource_error(c_stack), as swipl's raises it for a bracket some 17 000
+;;; deep. Two loops: the outer reads an operand -- a prefix operator's
+;;; pushed, and its operand read next -- and the inner asks the operators
+;;; after it, an infix operator pushed and its operand read next (`break'),
+;;; else the frame in hand read and the operators of the frame below it
+;;; asked. A failure is each operator's whose operand would not read, from
+;;; the frame in hand down to this call's (`coco_parse_unwind', out of
+;;; line), as each call's caller said it through 3.59.0. Through a state
+;;; word the first cut asked at each step it cost a read of a clause of
+;;; fifteen operators some 1 200 instructions more than 3.59.0's calls.
+(DEFMACRO coco-parse-term-body (P PRIMARY)
+  `(let ((size_t left . 0) (int leftprec . 0) (size_t lopt . 0)
+         (int kind . 0) (u64 ofid . 0) (int oprec . 0)
+         (size_t pa . 0) (size_t pb . 0) (size_t pc . 0) (size_t pd . 0)
+         (size_t base . #'(-> r rfn)))
+     (if (and (< (cast size_t (aof left)) (-> r sfloor))
+              (not (coco_read_deep r (cast size_t (aof left)))))
+         (return 0))
+     (while 1
+       ;; AN OPERAND for the frame in hand, to its MAXPREC; a prefix
+       ;; operator's operand is the next frame's
+       (let ((int rc . #'(,PRIMARY r maxprec (aof left) (aof leftprec))))
+         (if (== rc 0) (return (coco_parse_unwind r base kind ofid 0)))
+         (if (!= rc 1)
+             (let ((int pushed . 0))
+               (coco-rframe-push ,P)
+               (if (not pushed) (return (coco_parse_unwind r base kind ofid 1)))
+               (set kind 2) (set maxprec (-> r pxmax)) (set lopt 0)
+               (set ofid (-> r pxfid)) (set oprec (-> r pxprec))
+               (set pa (-> r pxnf)) (set pb (-> r pxnt))
+               continue)))
+       ;; THE OPERATORS AFTER IT
+       (while 1
+         ;; AN INFIX OPERATOR THAT TAKES THE TERM READ SO FAR, its right
+         ;; operand the next frame's (`break', for the outer loop to read)
+         (let ((const char * name . "") (int prec . 0) (int type . 0) (int have . 0)
+               (int took . 0))
+           ;; `,' and `|' arrive as punctuation but are operators: the
+           ;; comma is ','/2 and the bar '|'/2 (3.2.0; `;' through 3.1.0),
+           ;; each as the operator table has it -- save where they END the
+           ;; term read: an argument's comma (`stop' 1) or a list element's
+           ;; comma or bar (2), whatever priority it is read to
+           ;; (`coco_parse_args')
+           (cond
+             ((== (-> r tok) COCO_TK_NAME)
+              (if (!= ($ (-> r text) s) nil) (set name ($ (-> r text) s)))
+              ;; A QUOTED NAME IS AN INFIX OPERATOR ONLY WHERE IT CANNOT BE
+              ;; WRITTEN WITHOUT ITS QUOTES (3.15.1, swipl's): `a 'x\'y' b'
+              ;; and `a ',' b' apply it, `a '-' b' is no term
+              (if (or (not (-> r quoted)) (coco_quoted_op name)) (set have 1)))
+             ((coco_is_punct r (coco-ch ","))
+              (if (== (-> r stop) 0) (block (set name ",") (set have 1))))
+             ((coco_is_punct r (coco-ch "|"))
+              (if (!= (-> r stop) 2) (block (set name "|") (set have 1)))))
+           (if (and have (and (coco_op_infix name (aof prec) (aof type)) (<= prec maxprec)))
+               (let ((int lmax . #'(? (== type COCO_YFX) prec (- prec 1)))
+                     (int rmax . #'(? (== type COCO_XFY) prec (- prec 1))))
+                 (if (> leftprec lmax)
+                     ;; a clash (3.10.0), placed after this frame's last
+                     ;; operator -- or none, when the left came from the
+                     ;; primary: `\+ = a' is swipl's operator_expected
+                     (block (if (!= lopt 0) (coco_clash r lopt)))
+                   ;; for positions: where the operator stands, and the
+                   ;; left operand's position and start, which the term
+                   ;; built on it begins with -- the term parsed last, so
+                   ;; far; and its functor, from the token's text before
+                   ;; the next token takes it
+                   (let ((size_t opf . #'(-> r tstart)) (size_t opt . #'(-> r pos))
+                         (size_t lp . #'(-> r lpos)) (size_t lf . #'(-> r lfrom))
+                         (u64 nfid . #'(coco_parse_fid r name 0 2)) (int pushed . 0))
+                     (set lopt opt) (set (-> r lopend) opt)
+                     (if (not (coco_next_token r)) (return (coco_parse_unwind r base kind ofid 0)))
+                     (coco-rframe-push ,P)
+                     (if (not pushed) (return (coco_parse_unwind r base kind ofid 1)))
+                     (set kind 1) (set maxprec rmax) (set lopt 0)
+                     (set ofid nfid) (set oprec prec)
+                     (set pa lp) (set pb lf) (set pc opf) (set pd opt)
+                     (set took 1)))))
+           (if took break))
+         ;; ELSE THE FRAME IN HAND IS READ: this call's term, or an operand
+         ;; whose operator's term is the term read so far below it
+         (if (== (-> r rfn) base)
+             (block (set (cof out) left)
+                    (set (cof outprec) leftprec)
+                    (return 1)))
+         (let ((coco_rframe * f . #'(+ (-> r rf) (- (-> r rfn) 1))))
+           (if (== kind 1)
+               (block (set left (coco_make2_f (-> r m) ofid (-> f left) left))
+                      (if ,P (coco_pos_infix r pa pb pc pd)))
+             (block (set left (coco_make1_f (-> r m) ofid left))
+                    (if ,P (coco_pos_prefix r pa pa pb))))
+           (set leftprec oprec)
+           (set kind (-> f kind)) (set maxprec (-> f maxprec)) (set lopt (-> f lopt))
+           (set ofid (-> f fid)) (set oprec (-> f prec))
+           ,@(IF (EQL P 1)
+                 '((set pa (-> f a)) (set pb (-> f b)) (set pc (-> f c)) (set pd (-> f d))))
+           (set (-> r rfn) (- (-> r rfn) 1)))))))
 
 ;;;; ------------------------------------------------------------------
 ;;;; Declarations
@@ -731,9 +806,31 @@
   (decl) (func coco_op_static_at ((size_t i) (const char ** name) (int * prec)
                                 (int * type) (int * kind)) (out int))
 
+  ;;; A FRAME AN OPERATOR SUSPENDED (3.60.0): what the term being read had
+  ;;; when an infix operator took it, or a prefix operator stood where its
+  ;;; operand was to be (`coco-parse-term-body'). KIND is what the frame is
+  ;;; to the one below it -- 0 the term a call of `coco_parse_term' reads, 1
+  ;;; an infix operator's right operand, 2 a prefix operator's operand --
+  ;;; FID its operator's functor, PREC its priority, and A to D where it
+  ;;; stands: an infix operator's left operand's position and start and its
+  ;;; own two ends, a prefix operator's two ends.
+  (struct coco_rframe
+    (member int    kind)
+    (member int    maxprec)
+    (member size_t left)
+    (member int    leftprec)
+    (member size_t lopt)
+    (member u64    fid)
+    (member int    prec)
+    (member size_t a)
+    (member size_t b)
+    (member size_t c)
+    (member size_t d))
+
   ;;; The reader. One of these reads a whole source text, clause by clause; the
   ;;; variable names of the clause just read stay in it so a caller can report
   ;;; `X = 1' rather than `_G17 = 1'.
+
   (struct coco_reader
     (member coco_machine * m)
     (member const char * src)
@@ -843,7 +940,40 @@
     ;; (`coco_text_cook'): a quoted item reads it as the code 0
     ;; (`coco-lex-quoted-loop'). Set by `coco_reader_init_nul', before the
     ;; first token, and by a switch
-    (member int          nul))
+    (member int          nul)
+    ;; THE OPERATORS PENDING (3.60.0, `coco-parse-term-body'): a frame each
+    ;; that an operator suspended while its operand is read, RFN of them in
+    ;; RF -- the reader's own stack, where through 3.59.0 each was a call of
+    ;; `coco_parse_term' on the C stack
+    (member coco_rframe * rf)
+    (member size_t       rfn)
+    (member size_t       rfcap)
+    ;; a prefix operator the named term found, for the term being read to
+    ;; apply: its functor, its priority, its operand's, and where it stands
+    (member u64          pxfid)
+    (member int          pxprec)
+    (member int          pxmax)
+    (member size_t       pxnf)
+    (member size_t       pxnt)
+    ;; THE C STACK (3.60.0): the lowest address a bracket's read may take
+    ;; its frame at, 64 KB above the thread's floor (0, nowhere, where the
+    ;; system would not say), and whether a read stopped for want of it --
+    ;; its builtin raises resource_error(c_stack), as swipl's reader does.
+    ;; Where the floor of the process's first thread is not known yet SPROBE
+    ;; is set, and the floor is a probe 64 KB below the reader's start, past
+    ;; which a read asks the system once (`coco_read_deep',
+    ;; `coco_cstack_floor_at'): a read that stays shallow asks nothing, where
+    ;; glibc's pthread_getattr_np() reads /proc/self/maps for that thread
+    (member size_t       sfloor)
+    (member int          cshort)
+    (member int          sprobe)
+    ;; THE FIRST SIXTEEN FRAMES (3.60.0), in the reader: RF names them
+    ;; until a term pends more, so a read of a text (term_to_atom/2) takes
+    ;; no memory for them -- 1 408 bytes are a large request to glibc's
+    ;; malloc, which consolidated its fast bins at every read, some 900
+    ;; instructions. LAST: the reader's init and free clear what is before
+    ;; them (`coco_reader_head')
+    (member coco_rframe  rfs [16]))
 
   (decl) (func coco_reader_init ((coco_reader * r) (coco_machine * m) (const char * src)))
   (decl) (func coco_reader_init_nul ((coco_reader * r) (coco_machine * m) (const char * src) (int nul)))
@@ -1030,10 +1160,26 @@
   ;;; back and its answer 0 -- for its builtin to raise
   ;;; resource_error(c_stack), as swipl's writeTopTerm() raises it
   (decl) (func coco_write_short ((coco_machine * m)) (out int))
+  ;;; A READ THAT RAN SHORT OF C STACK (3.60.0): 1 once, the machine's
+  ;;; RSHORT cleared, when its last read stopped there, for a caller with
+  ;;; no reader in hand to raise resource_error(c_stack)
+  (decl) (func coco_read_short ((coco_machine * m)) (out int))
 
   ;;; The calling thread's C stack in bytes, 0 where the system does not
-  ;;; say (statistics(c_stack, L), swipl's)
+  ;;; say (statistics(c_stack, L), swipl's): the process's first thread's
+  ;;; RLIMIT_STACK, -1 where it has none, since 3.60.0, which that thread
+  ;;; says it is (`coco_cstack_main', cocolog's main())
   (decl) (func coco_cstack_size () (out size_t))
+  (decl) (func coco_cstack_main ())
+  ;;; The lowest address a read may take a bracket's frame at (3.60.0): 64 KB
+  ;;; above the calling thread's floor, 0 where the system does not say
+  (decl) (func coco_cstack_floor () (out size_t))
+  ;;; ... and the floor a reader that starts at HERE begins with: the
+  ;;; thread's, or a probe below HERE, *PROBE set (`coco_read_deep')
+  (decl) (func coco_cstack_floor_at ((size_t here) (int * probe)) (out size_t))
+  ;;; swipl's two lines for a run short of C stack, SEP between them; 0
+  ;;; where the system does not say how big the stack is
+  (decl) (func coco_cstack_text ((char * out) (size_t len) (const char * sep)) (out int))
 
   ;;; True when NAME can be written without quotes.
   (decl) (func coco_atom_needs_quotes ((const char * name)) (out int))
@@ -2364,6 +2510,65 @@
           (memcpy (cof heap) ($ (-> r text) s) (+ n 1))
           (return (cof heap))))
 
+  ;;; THE OPERATORS PENDING (3.60.0, `coco-parse-term-body'): the frames
+  ;;; grown out of line (0 where memory was refused), and a pending
+  ;;; operator's name, from its functor, for the failure that names it
+  ;;; (`coco_op_failed')
+  (weak) (cold)
+  (func coco_rfid_name ((coco_reader * r) (u64 fid)) (out const char *)
+        (return (coco_atom_name (-> r m) ($ (nth (cast size_t fid) (-> (-> r m) functors)) name))))
+
+  (weak) (cold)
+  (func coco_rframe_grow ((coco_reader * r)) (out int)
+        (let ((size_t ncap . #'(? (< (-> r rfcap) 16) 32 (* (-> r rfcap) 2)))
+              (coco_rframe * inl . #'(aof (nth 0 (-> r rfs))))
+              (coco_rframe * grown . nil))
+          (if (== (-> r rf) inl)
+              (block (set grown (cast (coco_rframe *) (malloc (* ncap (sizeof coco_rframe)))))
+                     (if (!= grown nil) (memcpy grown inl (* (-> r rfn) (sizeof coco_rframe)))))
+            (set grown (cast (coco_rframe *) (realloc (-> r rf) (* ncap (sizeof coco_rframe))))))
+          (if (== grown nil) (return 0))
+          (set (-> r rf) grown)
+          (set (-> r rfcap) ncap)
+          (return 1)))
+
+  ;;; The bytes of a reader before its frames (`rfs'), which its init and
+  ;;; its free clear.
+  (static) (inline)
+  (func coco_reader_head ((coco_reader * r)) (out size_t)
+        (return (- (cast size_t (aof (nth 0 (-> r rfs)))) (cast size_t r))))
+
+  ;;; A BRACKET TOO DEEP FOR THE C STACK (3.60.0): the read stops as one
+  ;;; that failed, CSHORT saying why, for its builtin to raise
+  ;;; resource_error(c_stack) where it would say a syntax error, as
+  ;;; swipl's reader raises it. 0, as `coco_fail' answers.
+  (weak) (cold)
+  (func coco_read_cshort ((coco_reader * r)) (out int)
+        (set (-> r cshort) 1)
+        (if (!= (-> r m) nil) (set (-> (-> r m) rshort) 1))
+        (return (coco_fail r "a term too deep for the C stack")))
+
+  ;;; A BRACKET'S FRAME PAST THE READER'S FLOOR (3.60.0): where the floor was
+  ;;; a probe (`sprobe'), the thread's own is asked now, once, and the read
+  ;;; goes on above it; else the read stops for want of C stack. 1 to go on,
+  ;;; 0 when the read stopped (`coco_read_cshort').
+  (weak) (cold)
+  (func coco_read_deep ((coco_reader * r) (size_t at)) (out int)
+        (if (-> r sprobe)
+            (block (set (-> r sprobe) 0)
+                   (set (-> r sfloor) (coco_cstack_floor))
+                   (if (>= at (-> r sfloor)) (return 1))))
+        (return (coco_read_cshort r)))
+
+  ;;; Whether the machine's last read stopped for want of C stack (3.60.0),
+  ;;; asked once: a caller with no reader in hand (`coco_read_term_from')
+  ;;; raises resource_error(c_stack) where it would say the text did not
+  ;;; read. Clears the flag.
+  (func coco_read_short ((coco_machine * m)) (out int)
+        (let ((int s . #'(-> m rshort)))
+          (set (-> m rshort) 0)
+          (return s)))
+
   ;;; The token in hand is this punctuation mark.
   (static)
   (func coco_is_punct ((coco_reader * r) (int c)) (out int)
@@ -2404,6 +2609,21 @@
         (if (-> r clash_set) (return))
         (set (-> r clash_set) 1)
         (set (-> r clash_at) at))
+
+  ;;; A TERM THAT WOULD NOT READ (3.60.0, `coco-parse-term-body'): each
+  ;;; pending operator's failure, from the frame in hand -- KIND and OFID --
+  ;;; down to the call's at BASE, its frames taken off; OOM says the read
+  ;;; failed for want of memory first. 0, as `coco_fail' answers.
+  (weak) (cold)
+  (func coco_parse_unwind ((coco_reader * r) (size_t base) (int kind) (u64 ofid) (int oom)) (out int)
+        (if oom (coco_fail r "out of memory"))
+        (while 1
+          (if (!= kind 0) (coco_op_failed r (coco_rfid_name r ofid)))
+          (if (== (-> r rfn) base) break)
+          (set (-> r rfn) (- (-> r rfn) 1))
+          (set kind ($ (nth (-> r rfn) (-> r rf)) kind))
+          (set ofid ($ (nth (-> r rfn) (-> r rf)) fid)))
+        (return 0))
 
   ;;; A BRACKET'S TERM THAT FAILED (swipl's complex_term with STOPS, the
   ;;; marks that end it; CLOSER its own, 0 at the top, where the full stop
@@ -2462,6 +2682,9 @@
   ;;; No failure decided and no clash seen. A reader is made with none, only
   ;;; a read that fails sets them, and a failed reader reads nothing until
   ;;; `coco_reader_resync' takes it past the clause, which calls this.
+  ;;; CSHORT is left (3.60.0): a load ends at a clause too deep, and every
+  ;;; other reader that asks it reads one text -- a clear here changed
+  ;;; nothing a case can see.
   (static)
   (func coco_reader_fresh ((coco_reader * r))
         (set (-> r esyn) nil)
@@ -2611,10 +2834,10 @@
   (func coco_parse_named ((coco_reader * r) (int maxprec) (const char * name)
                           (int was_quoted) (size_t nf) (size_t nt)
                           (size_t * out) (int * outprec)) (out int)
-        (coco-parse-named-body 0 coco_parse_term coco_parse_args))
+        (coco-parse-named-body 0 coco_parse_args))
   (static)
   (func coco_parse_term ((coco_reader * r) (int maxprec) (size_t * out) (int * outprec)) (out int)
-        (coco-parse-term-body 0 coco_parse_term coco_parse_primary))
+        (coco-parse-term-body 0 coco_parse_primary))
 
   (static)
   (func coco_parse_list_p ((coco_reader * r) (size_t f) (size_t * out)) (out int)
@@ -2630,16 +2853,25 @@
   (func coco_parse_named_p ((coco_reader * r) (int maxprec) (const char * name)
                           (int was_quoted) (size_t nf) (size_t nt)
                           (size_t * out) (int * outprec)) (out int)
-        (coco-parse-named-body 1 coco_parse_term_p coco_parse_args_p))
+        (coco-parse-named-body 1 coco_parse_args_p))
   (static)
   (func coco_parse_term_p ((coco_reader * r) (int maxprec) (size_t * out) (int * outprec)) (out int)
-        (coco-parse-term-body 1 coco_parse_term_p coco_parse_primary_p))
+        (coco-parse-term-body 1 coco_parse_primary_p))
 
   ;;; ---- the reader's own surface -----------------------------------------
 
   (func coco_reader_init_nul ((coco_reader * r) (coco_machine * m) (const char * src) (int nul))
-        (memset r 0 (sizeof coco_reader))
+        (memset r 0 (coco_reader_head r))
         (set (-> r m) m)
+        ;; the operators' frames in the reader, to begin with (3.60.0)
+        (set (-> r rf) (aof (nth 0 (-> r rfs))))
+        (set (-> r rfcap) 16)
+        ;; the lowest address a bracket's read may take its frame at (3.60.0),
+        ;; or a probe below this frame, and the machine's word that a read
+        ;; ran short cleared
+        (let ((char here . 0))
+          (set (-> r sfloor) (coco_cstack_floor_at (cast size_t (aof here)) (aof (-> r sprobe)))))
+        (if (!= m nil) (set (-> m rshort) 0))
         (set (-> r src) src)
         (set (-> r len) (strlen src))
         (set (-> r nul) nul)
@@ -2673,11 +2905,12 @@
 
   (func coco_reader_free ((coco_reader * r))
         (coco_reader_clear_vars r)
+        (if (!= (-> r rf) (aof (nth 0 (-> r rfs)))) (free (-> r rf)))
         (free (-> r var_names))
         (free (-> r var_cells))
         (free (-> r cidx))
         (coco_sb_free (aof (-> r text)))
-        (memset r 0 (sizeof coco_reader)))
+        (memset r 0 (coco_reader_head r)))
 
   (func coco_read_clause ((coco_reader * r) (size_t * out)) (out int)
         (coco_reader_clear_vars r)
@@ -3247,8 +3480,22 @@
   ;;; in Cicili's std, so they go through the raw-C escape, as files.cicili's
   ;;; realpath does, each declared where it is called. The floor is 1 where
   ;;; the system would not say, and no write stops for want of stack then.
+  ;;; THE PROCESS'S FIRST THREAD'S SIZE IS RLIMIT_STACK'S (3.60.0), -1 where
+  ;;; it has none, as swipl's statistics(c_stack, L) and its c_stack message
+  ;;; say: Linux's pthread_getattr_np() says what glibc made of the limit
+  ;;; for that thread, less the arguments and the environment above the
+  ;;; stack (8 376 320 of 8 388 608, a different number in each run), and
+  ;;; the floor is still its. getrlimit()'s header is none the emitted C
+  ;;; includes, so it is asked through the raw-C escape, RLIMIT_STACK by
+  ;;; its number, 3, on Linux alone: Darwin's main thread's size is still
+  ;;; pthread_get_stacksize_np()'s, unmeasured against the limit (COMPAT.md).
+  ;;; cocolog's main() says which thread is the first (`coco_cstack_main').
   (thread-local) (var size_t coco_cs_lo)
   (thread-local) (var size_t coco_cs_size)
+  (thread-local) (var int coco_cs_main)
+
+  (func coco_cstack_main ()
+        (set coco_cs_main 1))
 
   (weak) (cold)
   (func coco_cstack_bounds ()
@@ -3263,7 +3510,12 @@
                  if (pthread_getattr_np(pthread_self(), &a) == 0) {
                    if (pthread_attr_getstack(&a, &lo, &sz) != 0) { lo = NULL; sz = 0; }
                    pthread_attr_destroy(&a); }
-                 coco_cs_size = sz; coco_cs_lo = (lo != NULL && sz > 0) ? (size_t) lo : 1; }")
+                 coco_cs_size = sz; coco_cs_lo = (lo != NULL && sz > 0) ? (size_t) lo : 1;
+                 if (coco_cs_main && coco_cs_lo != 1) {
+                   struct coco_rlim { unsigned long cur; unsigned long max; } rl;
+                   extern int getrlimit(int, struct coco_rlim *);
+                   if (getrlimit(3, &rl) == 0)
+                     coco_cs_size = (rl.cur == (unsigned long) -1) ? (size_t) -1 : (size_t) rl.cur; } }")
         (@endif))
 
   ;;; The C stack left below the caller's frame, in bytes, down to the
@@ -3281,6 +3533,48 @@
   (func coco_cstack_size () (out size_t)
         (if (== coco_cs_lo 0) (coco_cstack_bounds))
         (return coco_cs_size))
+
+  (func coco_cstack_floor () (out size_t)
+        (if (== coco_cs_lo 0) (coco_cstack_bounds))
+        (if (== coco_cs_lo 1) (return 0))
+        (return (+ coco_cs_lo 65536)))
+
+  ;;; THE FLOOR A READER THAT STARTS AT HERE BEGINS WITH (3.60.0): the
+  ;;; thread's (`coco_cstack_floor') where it is known, or cheap to ask --
+  ;;; every thread but the process's first, whose stack glibc's
+  ;;; pthread_getattr_np() finds by reading /proc/self/maps; there, until
+  ;;; a read has gone deep, a probe 64 KB below HERE, *PROBE set, past which
+  ;;; the read asks (`coco_read_deep'). The first thread's stack is
+  ;;; RLIMIT_STACK's: a reader that starts with less than 128 KB of it left
+  ;;; reads past the floor unasked (STATUS.md, 3.60.0).
+  (func coco_cstack_floor_at ((size_t here) (int * probe)) (out size_t)
+        (if (or (!= coco_cs_lo 0) (not coco_cs_main)) (return (coco_cstack_floor)))
+        (set (cof probe) 1)
+        (return (? (> here 65536) (- here 65536) 0)))
+
+  ;;; SWIPL'S SENTENCE FOR A RUN SHORT OF C STACK (messages.pl's
+  ;;; out_of_c_stack//0; 3.59.0 in the error's text, and since 3.60.0 a
+  ;;; load's report too): the thread's stack in bytes, grouped by threes as
+  ;;; format's ~D groups them, and the advice swipl gives its main thread,
+  ;;; SEP between the two lines -- a newline for an error's text, and a
+  ;;; newline and the ERROR tag for a load's report. 0, nothing written,
+  ;;; where the system does not say how big the stack is.
+  (func coco_cstack_text ((char * out) (size_t len) (const char * sep)) (out int)
+        (let ((char raw [24]) (char d [40]) (size_t n . 0) (size_t j . 0))
+          ;; no size, or none to the stack (-1), is swipl's Limit > 0 failing:
+          ;; `Not enough resources: c_stack'
+          (if (or (== (coco_cstack_size) 0) (== (coco_cstack_size) (cast size_t -1))) (return 0))
+          (snprintf raw (sizeof raw) "%lu" (cast ulong (coco_cstack_size)))
+          (set n (strlen raw))
+          (for ((size_t i . 0)) (< i n) ((++ i))
+            (if (and (> i 0) (== 0 (% (- n i) 3)))
+                (block (set (nth j d) (cast char 44)) (++ j)))
+            (set (nth j d) (nth i raw))
+            (++ j))
+          (set (nth j d) (cast char 0))
+          (snprintf out len "C-stack limit (%s bytes) exceeded.%sUse the shell command ulimit -s size to enlarge the limit."
+                    d sep)
+          (return 1)))
 
   ;;; A WRITE STOPPED FOR WANT OF C STACK (3.59.0), where swipl's SIGSEGV
   ;;; handler stops it: as a cycle stops it (WDEEP 0, so every compound

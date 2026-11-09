@@ -1996,11 +1996,11 @@ cocolint index offers no import of it.
   `coco_layout_clause` for its parts, because a consult's refusal of a
   clause its store cannot write as a row leaves it set. Under a depth limit
   (mode 1024) no cycle guard asks: a cyclic term is the tree it stands
-  for, to the limit, as swipl's. The reader (`coco_parse_term` and
-  `coco_parse_named`: some 15k levels of `f(` or a prefix operator, 16k
-  of `[` and 20k of `(` or `,` on 8 MB, where swipl's raises c_stack for
-  a bracket and reads any chain of operators) and `coco_arith` (some 43k,
-  where swipl's evaluates a million) still overflow the C stack. **The
+  for, to the limit, as swipl's. **A read too deep for the C stack raises
+  it too** (3.60.0, test/files/read_depth.pl, test/cyclic.pl's
+  `c_stack_read`: the bullet on the reader below), and `coco_arith` (some
+  43k levels, where swipl's evaluates a million) still overflows the C
+  stack. **The
   writer's six arguments
   stay in registers**: quoted, ignore_ops, operand, (2.2.4) numbervars and
   (2.2.5) swipl's character escapes are one `mode` word (1, 2, 4, 8, 16;
@@ -3669,7 +3669,53 @@ cocolint index offers no import of it.
   **A change to the parser is a change to the macro**, and a helper both
   families call is `(inline)`. One parser with a flag at each site cost
   consulting the translator 1.3 %; the two cost `coco_next_token` nothing
-  and the parser within 0.13 %. **An argument, a list element and a curly
+  and the parser within 0.13 %. **A term's operators are read on the
+  reader's own stack** (3.60.0, `coco-parse-term-body`, pl-read.c's
+  complex_term): an infix operator that takes the term read so far, or a
+  prefix operator where an operand stands (`coco-parse-named-body` answers
+  2, the operator in the reader's `px*`), suspends the frame in hand on
+  `rf` (`coco_rframe`), and its operand is the next frame's; the frame
+  holds its operator's functor, interned as the operator is passed (the
+  token's text is the next token's after it), and a failure is each
+  pending operator's, from the frame in hand down to the call's
+  (`coco_parse_unwind`, out of line, over `coco_op_failed`). Two loops,
+  an operand's and the operators' after it, with a return where the read
+  ends: through a state word asked at each step, and with its frames
+  malloc'd at each reader and the operators' names copied, the first cut
+  cost a read of a clause of fifteen operators some 1 700 instructions
+  more than 3.59.0's calls, and every process's start 1.36 million. **The
+  first sixteen frames are in the reader** (`rfs`, last in the struct,
+  which the init and the free clear up to, `coco_reader_head`): 1 408
+  bytes are a large request to glibc, which consolidated its fast bins at
+  each term_to_atom/2. A chain of 200 000 operators reads, where through
+  3.59.0 each operand was a call of `coco_parse_term` and 15 000 prefix
+  operators or 20 000 `,` were a SIGSEGV. **A bracket's term is still a
+  call**, as swipl's is, and asks the C stack first: below the reader's
+  floor (`sfloor`, 64 KB above the thread's, `coco_cstack_floor`) the read
+  stops (`coco_read_cshort`: the reader's `cshort` and the machine's
+  `rshort`), some 14 000 levels of `f(` and 18 400 of a bracket on 8 MB
+  where swipl's reads 16 800 of each. **On the process's first thread the
+  floor is a probe until a read goes deep** (`coco_cstack_floor_at`, 64 KB
+  below the reader's start, past which `coco_read_deep` asks once): glibc
+  finds that thread's stack by reading /proc/self/maps, some 180 000
+  instructions, which no shallow read asks for. **Every reader
+  raises resource_error(c_stack) there, never a syntax error**: the text
+  builtins in their own context (`coco_tx_syntax`), library(stream)'s
+  readers (`coco_m_read_clause` answers -2), a load as swipl's
+  read_clause/3 ends it (`coco_consult_cstack_refused`: the clauses before
+  it kept, the ball out of consult/1, `-s` and `run` saying `Prolog
+  initialisation failed:` over swipl's two lines and exiting 1), the
+  REPL's query as swipl's toplevel's two lines; and a caller that reads
+  text back with no reader in hand asks `coco_read_short`
+  (`coco_m_read_short` from a module): a green task's goal, answer and
+  message (`coco_g_unread_text`), a library(thread) thread's goal and
+  message. **A new reader of a text that may be deep asks `cshort` or
+  `coco_read_short`**, or the short read is said to be a syntax error.
+  **The main thread's C stack is RLIMIT_STACK's** on Linux (cocolog's
+  main() says which thread is the first, `coco_cstack_main`; -1 with no
+  limit, swipl's statistics(c_stack, L)), where pthread_getattr_np() says
+  what glibc made of it, less the arguments and environment above it.
+  **An argument, a list element and a curly
   term are read to 1200** (3.2.0, swipl's non-ISO reader; 999 through
   3.1.0), and what ends them is the reader's `stop`: 1 in an argument (a
   comma ends the term), 2 in a list (a comma or a bar), 0 inside `(` and

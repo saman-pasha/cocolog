@@ -1115,7 +1115,15 @@
     ;; taken back, the write answering 0, and its builtin to raise
     ;; resource_error(c_stack) (`coco_write_short'). Cleared as every write
     ;; begins. Appended.
-    (member int        wshort))
+    (member int        wshort)
+    ;; RSHORT (3.60.0): the read in hand stopped for want of C stack -- set
+    ;; by the reader where it stops (`coco_read_cshort'), cleared as every
+    ;; reader begins, and asked by a caller that hands text over and reads
+    ;; it back with no reader of its own in hand (`coco_read_short': a
+    ;; green task's goal, a channel's message), which raises
+    ;; resource_error(c_stack) where it would say the text did not read.
+    ;; Appended.
+    (member int        rshort))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends

@@ -483,6 +483,10 @@
           (if (== text nil) (return 0))
           (set t (coco_m_read_term e text))
           (free text)
+          ;; a message too deep for the C stack to read (3.60.0) raises
+          ;; resource_error(c_stack), as swipl's reader does
+          (if (and (== t 0) (coco_m_read_short e))
+              (return (coco_m_resource_error e "c_stack")))
           (if (== t 0)
               (return (coco_m_error e "channel_recv" "what came back would not read")))
           (return (coco_m_unify e (coco_m_arg e g out) t))))

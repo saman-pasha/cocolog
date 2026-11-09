@@ -418,7 +418,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.59.0"))
+  (func coco_version_text () (out const char *) (return "3.60.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -883,7 +883,10 @@
           (coco_out_fresh stderr)
           (if (not (coco_engine_error_text e msg (sizeof msg)))
               (snprintf msg (sizeof msg) "%s" (-> e err)))
-          (fprintf stderr "ERROR: Prolog initialisation failed:\nERROR: %s\n" msg)
+          ;; a line each, the tag before each (3.60.0: a read too deep for
+          ;; the C stack says two, as swipl's)
+          (fprintf stderr "ERROR: Prolog initialisation failed:\n")
+          (coco_say_lines "ERROR" "" msg)
           (coco_out_note stderr "\n" 1)
           (coco_bt_say m 0)
           (return 1)))
@@ -1497,6 +1500,14 @@
                   (coco_reader_init (aof r) (aof m) (? (== ($ line s) nil) "" ($ line s)))
                   (set prc (coco_read_clause (aof r) (aof g)))
                   (cond
+                    ;; A QUERY TOO DEEP FOR THE C STACK (3.60.0) is swipl's
+                    ;; toplevel's two lines, its read_term_from_atom/3 named,
+                    ;; where any other refusal is cocolog's syntax error
+                    ((and (== prc -1) ($ r cshort))
+                     (let ((char msg [512]))
+                       (if (not (coco_cstack_text msg (sizeof msg) "\nERROR: "))
+                           (snprintf msg (sizeof msg) "Not enough resources: c_stack"))
+                       (fprintf stderr "ERROR: read_term_from_atom/3: %s\n" msg)))
                     ((== prc -1) (fprintf stderr "cocolog: %s\n" ($ r err)))
                     ((== prc 1)
                      ;; `[File].' AND `consult(File).' ARE THE GOALS' (2.14.0),
@@ -2533,6 +2544,9 @@
   (func main ((int argc) (char ** argv))
         (out int)
         (let ((int i . 1) (int rc . 0))
+          ;; this thread's C stack is the process's (3.60.0): its size is
+          ;; RLIMIT_STACK's, as swipl's statistics(c_stack, L) says
+          (coco_cstack_main)
           ;; `--' ENDS COCOLOG'S ARGUMENTS. Everything after it belongs to
           ;; the program and reaches it as `current_prolog_flag(argv, V)';
           ;; everything before is this binary's, exactly as it was.

@@ -2796,6 +2796,31 @@
             (set (-> m lball_size) (- (-> st len) c)))
           (set (-> m heap_len) mark)))
 
+  ;;; A CLAUSE TOO DEEP FOR THE C STACK TO READ ENDS THE LOAD (3.60.0), as
+  ;;; swipl's read_clause/3 raises error(resource_error(c_stack),
+  ;;; context(system:read_clause/3, _)) out of consult/1 for a bracket some
+  ;;; 17 000 deep: the ball put on the machine (`lball') as an include's
+  ;;; is, the clauses read before it standing, and ERR swipl's `Prolog
+  ;;; initialisation failed' over the message's two lines, each tagged.
+  ;;; Out of line and cold, as the store's refusal of a clause too deep to
+  ;;; write is (`coco_assert_too_deep').
+  (weak) (cold)
+  (func coco_consult_cstack_refused ((coco_store * st) (coco_machine * m) (char * err) (size_t errlen))
+        (let ((size_t mark . #'(-> m heap_len)) (size_t ball . 0) (char msg [512]))
+          (set ball (coco_make2 m "error" (coco_make1 m "resource_error" (coco_new_atom m "c_stack"))
+                                (coco_make2 m "context"
+                                            (coco_make2 m ":" (coco_new_atom m "system")
+                                                        (coco_make2 m "/" (coco_new_atom m "read_clause")
+                                                                    (coco_new_int m 3)))
+                                            (coco_new_var m))))
+          (if (not (coco_cstack_text msg (sizeof msg) "\nERROR: "))
+              (snprintf msg (sizeof msg) "Not enough resources: c_stack"))
+          (snprintf err errlen "Prolog initialisation failed:\nERROR: read_clause/3: %s" msg)
+          (let ((size_t c . #'(coco_store_put st m ball)))
+            (set (-> m lball) (+ c 1))
+            (set (-> m lball_size) (- (-> st len) c)))
+          (set (-> m heap_len) mark)))
+
   ;;; THE TEXT READ AGAIN FROM AT (3.58.0), `:- encoding(E)''s: TEXT's
   ;;; bytes up to AT as they are, and the rest written back in the class
   ;;; CLS it was decoded from (`coco_text_raw') and decoded in TO's -- the
@@ -3720,8 +3745,18 @@
             ;; raw read of a clause's text finds it (`coco_reader_resync').
             ;; Through 3.0.4 the consult ended there and the rest of the file
             ;; was not read: one typo near the top and nothing under it loaded.
+            ;; BUT A CLAUSE TOO DEEP FOR THE C STACK TO READ ENDS THE LOAD
+            ;; (3.60.0), as swipl's read_clause/3 ends it: what was read
+            ;; stands, and the ball is thrown out of the load
+            ;; (`coco_consult_cstack_refused'). Through 3.59.0 a SIGSEGV.
             (if (== rc -1)
                 (block
+                  (if ($ r cshort)
+                      (block (coco_consult_cstack_refused st m err errlen)
+                             (set (-> m heap_len) mark)
+                             (if (== up nil) (coco_inits_free ip))
+                             (coco_reader_free (aof r))
+                             (return -1)))
                   (coco_consult_syntax_say m (aof r) origin)
                   (set (-> m heap_len) mark)
                   (coco_reader_resync (aof r))

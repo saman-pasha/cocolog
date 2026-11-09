@@ -29,7 +29,7 @@
 main :-
     scratch(D),
     shapes(D), long_and_deep(D), entries(D), errors(D), caught(D),
-    questions, arithmetic(D), walks(D), c_stack(D),
+    questions, arithmetic(D), walks(D), c_stack(D), c_stack_read(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -741,6 +741,161 @@ c_stack_consult(D, F) :-
            'ERROR: xpand.pl:6:',
            'ERROR:    dx/1: a clause too deep for the C stack to write'], W),
     check('...reported where it stands', E, W).
+
+%% A READ TOO DEEP FOR THE C STACK (3.60.0): a bracket below the reader's
+%% floor stops the read, and its builtin raises resource_error(c_stack), as
+%% swipl's reader does -- through 3.59.0 a SIGSEGV, past some 15 000 levels
+%% of `f(' on 8 MB. What swipl holds is test/files/read_depth.pl's: the
+%% text builtins, the stream readers, a load. These are cocolog's own -- a
+%% stack of 1 MB and the main thread's size, RLIMIT_STACK's as swipl's; a
+%% library(thread) thread's goal and message and a green task's, each a
+%% text another machine reads; the messages of a load that ends there under
+%% `-s' and `run', and the REPL's.
+c_stack_read(D) :-
+    section('a read too deep for the C stack: resource_error(c_stack), in every thread and every load'),
+    atom_concat(D, '/rstack.pl', F),
+    c_stack_read_fixture(F),
+    c_stack_part(F, 'ulimit -s 1024 && ', rsmall, [
+      'under ulimit -s 1024, statistics(c_stack) says so' - yes,
+      'a bracket 20000 deep is too deep to read there'
+          - 'resource_error(c_stack)-context(system:term_to_atom/2,_G)',
+      '...and one 1000 deep reads' - '1000',
+      '...done' - done]),
+    c_stack_part(F, '', rthread, [
+      'a library(thread) thread reads on its own C stack' - 'resource_error(c_stack)',
+      '...and goes on to its end' - true,
+      'uncaught there, the thread''s status names it' - c_stack,
+      'a goal too deep for the thread to read: its status names it'
+          - 'error(''uncaught exception: error(resource_error(c_stack),_)'')',
+      'channel_recv/2 of a message too deep to read'
+          - 'resource_error(c_stack)-context(thread:channel_recv/2,_G)',
+      '...and one 10000 deep is the term sent' - same,
+      '...done' - done]),
+    c_stack_part(F, '', rgreen, [
+      'a green task reads on its worker''s C stack'
+          - 'resource_error(c_stack)-context(system:term_to_atom/2,_G)',
+      'await/2 of an answer too deep to read back' - 'resource_error(c_stack)-_G',
+      'go/2 of a goal too deep for the task to read' - 'resource_error(c_stack)-_G',
+      'channel_recv/2 of a message too deep to read' - 'resource_error(c_stack)-_G',
+      '...and of one waiting in a buffered channel' - 'resource_error(c_stack)-_G',
+      'async_run/1 whose answer is too deep to read back' - 'resource_error(c_stack)-_G',
+      'async_run/1 of a goal too deep to read' - 'resource_error(c_stack)-_G',
+      'an answer 10000 deep is read back whole' - '10000',
+      '...done' - done]),
+    c_stack_read_load(D),
+    c_stack_read_limits.
+
+c_stack_read_fixture(F) :-
+    fixture(F, [
+      ':- use_module(library(thread)).',
+      'deep(0, a) :- !.',
+      'deep(N, f(T)) :- N1 is N - 1, deep(N1, T).',
+      'nest(N, A) :- length(Os, N), maplist(=(''f(''), Os), atomic_list_concat(Os, A1),',
+      '    length(Cs, N), maplist(=('')''), Cs), atomic_list_concat(Cs, A2),',
+      '    atomic_list_concat([A1, x, A2], A).',
+      'down(T, N0, N) :- compound(T), !, arg(1, T, A), N1 is N0 + 1, down(A, N1, N).',
+      'down(_, N, N).',
+      'r(G) :- catch((G -> R = yes ; R = no), E, (E = error(F, C) -> R = F-C ; R = ball(E))), print(R), nl.',
+      'w(_).',
+      'main :- current_prolog_flag(argv, A), last(A, P), part(P).',
+      'part(rsmall) :-',
+      '  statistics(c_stack, L), ( L =< 1048576, L >= 524288 -> print(yes) ; print(L) ), nl,',
+      '  nest(20000, A), r(term_to_atom(_, A)),',
+      '  nest(1000, A2), term_to_atom(T2, A2), down(T2, 0, N2), print(N2), nl,',
+      '  write(done), nl.',
+      'part(rthread) :-',
+      '  thread_create((nest(200000, A), catch(term_to_atom(_, A), error(E, _), true), print(E), nl), I1),',
+      '  thread_join(I1, S1), print(S1), nl,',
+      '  thread_create((nest(200000, A2), term_to_atom(_, A2)), I2), thread_join(I2, S2),',
+      '  ( S2 = error(M2), sub_atom(M2, _, _, _, ''resource_error(c_stack)'') -> print(c_stack) ; print(S2) ), nl,',
+      '  deep(20000, T3), thread_create(w(T3), I3), thread_join(I3, S3), print(S3), nl,',
+      '  channel_new(C), channel_send(C, T3), r(channel_recv(C, _)),',
+      '  deep(10000, T5), channel_send(C, T5), channel_recv(C, R5),',
+      '  ( R5 == T5 -> print(same) ; print(differ) ), nl,',
+      '  write(done), nl.',
+      'part(rgreen) :-',
+      '  async_run((go(\\+ \\+ (nest(200000, A), r(term_to_atom(_, A))), G1), await(G1))),',
+      '  async_run((go(deep(20000, _), G2), r(await(G2, _)))),',
+      '  async_run(\\+ \\+ (deep(20000, T3), go(w(T3), G3), r(await(G3)))),',
+      '  async_run(\\+ \\+ (deep(20000, T4), channel(C4), go(channel_recv(C4, _), G4),',
+      '                     channel_send(C4, T4), r(await(G4, _)))),',
+      '  async_run(\\+ \\+ (deep(20000, T8), channel(1, C8), channel_send(C8, T8), r(channel_recv(C8, _)))),',
+      '  r(async_run(deep(20000, _))),',
+      '  deep(20000, T6), r(async_run(w(T6))),',
+      '  async_run((go(deep(10000, _), G7), await(G7, deep(_, X7)), down(X7, 0, N7), print(N7), nl)),',
+      '  write(done), nl.']).
+
+%% A LOAD THAT ENDS ON A CLAUSE TOO DEEP TO READ: swipl's message, its size
+%% the stack's in bytes, under -s and run alike, the directive before it
+%% run and the exit status 1, as swipl's `Prolog initialisation failed';
+%% and the REPL's query of that depth, swipl's toplevel's two lines, the
+%% next query read as before
+c_stack_read_load(D) :-
+    atom_concat(D, '/rdeep.pl', L),
+    c_stack_read_nest(200000, 'deep(f(', x, '))', T0), atom_concat(T0, '.', T),
+    fixture(L, ['a(1).', ':- write(directive_ran), nl.', T, 'z(2).',
+                'main :- write(main_ran), nl.']),
+    lines(['ERROR: Prolog initialisation failed:',
+           'ERROR: read_clause/3: C-stack limit (N bytes) exceeded.',
+           'ERROR: Use the shell command ulimit -s size to enlarge the limit.'], W),
+    sh_join(['-s ', L], A1), child_err(D, A1, E1, Rc1),
+    re_replace_atom('[0-9][0-9,]*[0-9]', 'N', E1, E1n),
+    check('-s of a load that ends there: swipl''s message', E1n, W),
+    check('...and the exit status is 1', Rc1, 1),
+    atom_concat(A1, ' 2>/dev/null', A1q),
+    child(A1q, O1, _), check('...the directive before it run', O1, directive_ran),
+    sh_join(['run ', L, ' main'], A2), child_err(D, A2, E2, Rc2),
+    re_replace_atom('[0-9][0-9,]*[0-9]', 'N', E2, E2n),
+    check('run FILE GOAL: the same message', E2n, W),
+    check('...and the exit status is 1', Rc2, 1),
+    atom_concat(D, '/rquery.txt', Q),
+    c_stack_read_nest(200000, 'f(', x, ')', Q0), atom_concat(Q0, '.', Q1),
+    fixture(Q, [Q1, 'X = 1.']),
+    sh_join(['< ', Q], A3), child_err(D, A3, E3, Rc3),
+    re_replace_atom('[0-9][0-9,]*[0-9]', 'N', E3, E3n),
+    lines(['ERROR: read_term_from_atom/3: C-stack limit (N bytes) exceeded.',
+           'ERROR: Use the shell command ulimit -s size to enlarge the limit.'], W3),
+    check('the REPL: a query too deep is swipl''s toplevel''s two lines', E3n, W3),
+    check('...and the session ends as it would', Rc3, 0),
+    atom_concat(A3, ' 2>/dev/null', A3q),
+    child(A3q, O3, _), check('...the next query read and answered', O3, 'X = 1.').
+
+c_stack_read_nest(N, Open, Mid, Close, A) :-
+    length(Os, N), maplist(=(Open), Os), atomic_list_concat(Os, A1),
+    length(Cs, N), maplist(=(Close), Cs), atomic_list_concat(Cs, A2),
+    atomic_list_concat([A1, Mid, A2], A).
+
+%% THE MAIN THREAD'S SIZE IS RLIMIT_STACK'S, and -1 where there is none, as
+%% swipl's statistics(c_stack, L) says (3.60.0): through 3.59.0 what
+%% glibc's pthread_getattr_np() made of it, less the arguments and the
+%% environment above the stack. Linux's alone -- Darwin's main thread's size
+%% is pthread_get_stacksize_np()'s -- and the unlimited one only where the
+%% shell may lift the limit.
+c_stack_read_limits :-
+    (   catch(use_module(library(os)), _, fail), os_is(linux)
+    ->  c_stack_limit_said('1024', '1048576'),
+        c_stack_limit_said('2048', '2097152'),
+        (   sh_exit('ulimit -s unlimited', 0)
+        ->  c_stack_limit_said(unlimited, '-1'),
+            cocolog(C),
+            sh_join(['ulimit -s unlimited && ', C, ' --no-backtrace query',
+                     ' "throw(error(resource_error(c_stack), _))" 2>&1 >/dev/null'], Cmd),
+            proc_run(Cmd, 120000, Raw, _), atom_codes(R, Raw), atomic_list_concat([E|_], '\n', R),
+            check('...and with no limit, swipl''s sentence of none',
+                  E, 'ERROR: ?-: Not enough resources: c_stack')
+        ;   format("  SKIP: the shell may not lift its stack limit~n", [])
+        )
+    ;   format("  SKIP: the main thread's size is RLIMIT_STACK's on Linux alone~n", [])
+    ).
+
+%% statistics(c_stack, L) in the main thread under `ulimit -s LIMIT'
+c_stack_limit_said(Limit, Want) :-
+    cocolog(C),
+    sh_join(['ulimit -s ', Limit, ' && ', C,
+             ' query "statistics(c_stack, L), print(L), nl" 2>/dev/null'], Cmd),
+    proc_run(Cmd, 120000, Raw, _), atom_codes(R, Raw), atomic_list_concat([L|_], '\n', R),
+    sh_join(['under ulimit -s ', Limit, ', the main thread''s is ', Want], Label),
+    check(Label, L, Want).
 
 %% one part of the fixture, a child of its own, PRE before the binary (a
 %% ulimit) and ARGS before -s (a store)
