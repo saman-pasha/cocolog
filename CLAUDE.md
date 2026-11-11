@@ -3537,12 +3537,35 @@ cocolint index offers no import of it.
   (`coco_error_text`, library(print_message)'s `'$pm_stack_size'/2`). **A
   new array that grows with a search takes its growth from the room the
   limit leaves**, as the three do. **A C row that builds a list of a size
-  it is given asks `coco-l-too-long` first** (3.42.3, lib/lists.cicili:
-  nth0/3's and nth1/3's tail, length/2's, numlist/3's): cells whose bytes
+  it is given asks `coco-l-too-long` first** (3.42.3; the macro is
+  lib/term.cicili's since 3.62.2: lib/lists.cicili's nth0/3's and nth1/3's
+  tail, length/2's, numlist/3's, and lib/files.cicili's
+  read_file_to_codes/2): cells whose bytes
   alone pass the limit raise resource_error(stack) before one is built, as
   swipl's length/2 does -- a growth past the limit is given and stops the
   engine only at its next step, so a C loop never sees it, and
   `length(L, 10^12)` built until the kernel killed the process.
+  **read_file_to_codes/2 has no ceiling of its own** (3.62.2; through
+  3.62.1 a file past 16 MiB FAILED, as a missing file does, and a program
+  that read 21 MB was told nothing): a file's codes are a list, asked of
+  the limit before the read by its bytes (a quarter of them under
+  characters, a character being four bytes at most) and by the count once
+  they are read; a buffer refused is resource_error(memory); a missing
+  file, a directory and a read cut short fail still. **The list is built
+  where it stands**: three cells a code -- the list cell, the code in its
+  first argument, a reference to the next cell in its second -- reserved
+  in one growth and written front to back, so the text is decoded as it
+  is read (no array of code points first, `coco_text_list`'s eight bytes
+  a byte) and 1 GB holds the 44 million codes `coco-l-too-long` says it
+  does. `coco_m_cons` over `coco_new_int` is FOUR cells an element, the
+  integer a cell of its own that the list cell refers to: what every
+  other row that builds a list of numbers still costs (numlist/3,
+  atom_codes/2), a quarter more than the macro counts. An integer in an
+  argument's own cell is what a `'$k'` frame's barrier always was; the
+  walks reach it by `coco_deref` of the slot as they reach any argument
+  (the case's children under COCOLOG_GC_CELLS and COCOLOG_KMAT hold a list
+  so built to one consed the usual way). test/errors.pl's
+  `file_no_ceiling`.
   test/files/stack_limit.pl holds the flag and the stops to swipl;
   test/errors.pl's `stack_limit_said` and
   test/solve.cicili (an engine that never collects) the rest.

@@ -74,6 +74,7 @@ main :-
     det_said,
     stack_limit_said,
     portray_stops,
+    file_no_ceiling,
     checks_done.
 
 %% ---- where a text would not read, uncaught (3.10.0) -------------------------
@@ -1212,3 +1213,147 @@ portray_stops :-
                                    E1, true)),
     check('its text is kept, and no full stop or newline after it', A1, 'f(before'),
     check('and its ball is raised', E1, zq_boom).
+
+%% ---- read_file_to_codes/2 has no ceiling of its own (3.62.2) ----------------
+%%
+%% Through 3.62.1 a file past 16 MiB FAILED, as a missing file does: a
+%% ceiling from before the engine had a stack limit, and a program that read
+%% a snapshot of 21 MB was told nothing (another project's report). The
+%% file's codes are a list, three heap cells a code, and are asked of the
+%% stack limit as a list a C row builds is: before a byte is read where no
+%% text of that many bytes could fit, and by the count once the bytes are
+%% read, each error(resource_error(stack), _) with no cell built -- which
+%% the heap's own size says here, a limit passed in the building being
+%% raised too, a step later, by the engine. A buffer refused is
+%% error(resource_error(memory), _). A missing file and a directory fail,
+%% as they did. The list is built where it stands, three cells a code in
+%% one growth (through 3.62.1 four, consed from the end).
+%%
+%% The files are SPARSE (dd's seek): their size is all that is asked of the
+%% disk, and what is read from one is NUL bytes. Each read is a child's, so
+%% that the 430 MB a list of 17 million codes takes are not this process's.
+file_no_ceiling :-
+    section('read_file_to_codes/2 has no ceiling of its own: the stack limit\'s'),
+    scratch(D),
+    cocolog(C),
+    atom_concat(D, '/read.pl', F),
+    fixture(F, [ 'main :- current_prolog_flag(argv, [_, File|_]),',
+                 '        statistics(globalcap, G0),',
+                 '        (   catch(read_file_to_codes(File, Cs), error(E, _), true)',
+                 '        ->  (   var(E) -> length(Cs, N), last(Cs, L), writeln(read(N, L))',
+                 '            ;   statistics(globalcap, G1),',
+                 '                ( G1 =:= G0 -> Heap = as_it_was ; Heap = grown ),',
+                 '                writeln(E-Heap)',
+                 '            )',
+                 '        ;   writeln(failed)',
+                 '        ).' ]),
+    fnc_sparse(D, past, 17825797, Past),
+    fnc_sparse(D, two, 2097152, Two),
+    fnc_sparse(D, one, 1048576, One),
+    fnc_sparse(D, big, 268435456, Big),
+    fnc_read(C, '', F, Past, T1),
+    check('a file of 17 MiB, past the old ceiling, is its 17825797 codes', T1, 'read(17825797,0)'),
+    fnc_read(C, 'COCOLOG_TEXT_UNITS=bytes ', F, Past, T2),
+    check('and its 17825797 bytes under text_units = bytes', T2, 'read(17825797,0)'),
+    fnc_read(C, 'COCOLOG_STACK_LIMIT=33554432 ', F, Two, T3),
+    check('2 MiB of codes under a limit of 32 MB: resource_error(stack), and no cell built', T3,
+          'resource_error(stack)-as_it_was'),
+    fnc_read(C, 'COCOLOG_STACK_LIMIT=33554432 COCOLOG_TEXT_UNITS=bytes ', F, Two, T4),
+    check('the same of its bytes', T4, 'resource_error(stack)-as_it_was'),
+    %% THREE CELLS A CODE: a MiB of codes is 24 MiB of list, which a limit
+    %% of 32 holds; consed with a cell for each code beside its list cell,
+    %% as through 3.62.1, it was 32 and did not fit
+    fnc_read(C, 'COCOLOG_STACK_LIMIT=33554432 ', F, One, T5),
+    check('a MiB of codes under the same limit is read: three cells a code', T5, 'read(1048576,0)'),
+    fnc_read(C, '', F, Big, T6),
+    check('256 MiB under swipl\'s 1 GB: resource_error(stack)', T6, 'resource_error(stack)-as_it_was'),
+
+    %% what is no file to read is a failure still
+    atom_concat(D, '/none', None),
+    yes_no(read_file_to_codes(None, _), Y7),
+    check('a missing file fails, as it did', Y7, no),
+    yes_no(read_file_to_codes(D, _), Y8),
+    check('and so does a directory', Y8, no),
+
+    %% A CHARACTER A CODE: bytes that are UTF-8 beside bytes that are
+    %% none, each of those a code of its own (U+DC00 and the byte) -- a
+    %% continuation byte after a whole character, a character cut short by
+    %% the file's end
+    atom_concat(D, '/marks', Marks),
+    write_file_from_codes(Marks, [0'a, 0xDCC3, 0xDCA9, 0xDC80, 0xDCE2, 0xDC82, 0xDCAC,
+                                  0xDCF0, 0xDC9F, 0xDC98, 0xDC80, 0'z, 0xDCE2, 0xDC82]),
+    read_file_to_codes(Marks, Cs9),
+    check('a character a code, and a byte that is no UTF-8 a code of its own', Cs9,
+          [0'a, 0xE9, 0xDC80, 0x20AC, 0x1F600, 0'z, 0xDCE2, 0xDC82]),
+
+    %% THE LIST AS THE ENGINE'S WALKS MEET IT: a code stands in its list
+    %% cell's own argument, where a list consed the usual way refers to a
+    %% cell beside it. One of each, through unification, the order, the
+    %% copy, the sorts, text, the store, a global, a setarg/3 undone -- and
+    %% again with a collection every 2000 cells, each put through a
+    %% freeze's materialisation first
+    atom_concat(D, '/walks.pl', W),
+    fixture(W, [ ':- dynamic kept/1.',
+                 'ok(N, G) :- ( catch(G, _, fail) -> true ; writeln(differs(N)) ).',
+                 'main :- current_prolog_flag(argv, [_, F|_]),',
+                 '    numlist(0, 400, Ns),',
+                 '    findall(C, ( member(N, Ns), C0 is (N * 7919) mod 0x10FFF + 1,',
+                 '                 ( C0 >= 0xD800, C0 =< 0xDFFF -> C = 0''q ; C = C0 ) ), Cs),',
+                 '    write_file_from_codes(F, Cs), read_file_to_codes(F, A),',
+                 '    findall(X, member(X, Cs), B),',
+                 '    ok(eq, A == B), ok(unify, A = B), ok(compare, compare(=, A, B)),',
+                 '    ok(copy, ( copy_term(A, A2), A2 == B )),',
+                 '    ok(msort, ( msort(A, SA), msort(B, SB), SA == SB )),',
+                 '    ok(sort4, ( sort(0, @>=, A, RA), sort(0, @>=, B, RB), RA == RB )),',
+                 '    ok(atom, ( atom_codes(At, A), atom_codes(Bt, B), At == Bt )),',
+                 '    ok(reverse, ( reverse(A, R1), reverse(R1, A3), A3 == B )),',
+                 '    ok(assert, ( assertz(kept(A)), kept(K), K == B )),',
+                 '    ok(global, ( nb_setval(k, A), nb_getval(k, G), G == B )),',
+                 '    ok(findall, ( findall(A, true, [FA]), FA == B )),',
+                 '    ok(write, ( term_to_atom(A, TA), term_to_atom(B, TB), TA == TB )),',
+                 '    ok(variant, ( A =@= B, subsumes_term(A, B) )),',
+                 '    ok(univ, ( A =.. UA, B =.. UB, UA == UB )),',
+                 '    garbage_collect, ok(collected, A == B),',
+                 '    ok(setarg, ( read_file_to_codes(F, A4), setarg(1, A4, zz), A4 = [zz|T4], B = [_|TB4], T4 == TB4 )),',
+                 '    ok(undone, ( read_file_to_codes(F, A6), ( setarg(1, A6, zz), fail ; true ), A6 == B )),',
+                 '    ok(many, ( findall(Z, ( between(1, 200, _), read_file_to_codes(F, Z) ), Zs), last(Zs, ZL), ZL == B )),',
+                 '    writeln(same).' ]),
+    atom_concat(D, '/walks.bin', WB),
+    fnc_read(C, '', W, WB, T14),
+    check('a list read is a list consed, to every walk of the engine', T14, same),
+    fnc_read(C, 'COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 ', W, WB, T15),
+    check('and with a collection every 2000 cells, materialised first', T15, same),
+
+    %% A BUFFER REFUSED, under an address-space ceiling: with no stack
+    %% limit, 1 GiB is asked for and not given; with swipl's limit, the
+    %% file is refused before anything is asked for
+    shell('uname -s', Sys, _),
+    (   Sys == 'Darwin'
+    ->  format("   SKIP (macOS does not enforce ulimit -v)~n", [])
+    ;   fnc_sparse(D, giant, 1073741824, Giant),
+        fnc_read(C, 'ulimit -v 600000; COCOLOG_STACK_LIMIT=0 ', F, Giant, T10),
+        check('a buffer the system refuses: resource_error(memory)', T10, 'resource_error(memory)-as_it_was'),
+        fnc_read(C, 'ulimit -v 600000; ', F, Giant, T11),
+        check('and under the limit the file is refused before its buffer is asked for', T11,
+              'resource_error(stack)-as_it_was'),
+        %% WHAT NO READING COULD FIT is asked by the unit: under a limit of
+        %% 2 GB, 256 MiB of bytes are 6 GB of list whatever they hold, and
+        %% 256 MiB of text may be 64 million characters, which fit -- so
+        %% its buffer is asked for, and here refused
+        fnc_read(C, 'ulimit -v 250000; COCOLOG_STACK_LIMIT=2147483648 COCOLOG_TEXT_UNITS=bytes ', F, Big, T12),
+        check('256 MiB of bytes under 2 GB: refused before the buffer', T12, 'resource_error(stack)-as_it_was'),
+        fnc_read(C, 'ulimit -v 250000; COCOLOG_STACK_LIMIT=2147483648 ', F, Big, T13),
+        check('256 MiB of text under 2 GB may fit: its buffer is asked for', T13,
+              'resource_error(memory)-as_it_was')
+    ),
+    shl(['rm -rf ', D]).
+
+fnc_sparse(D, Name, Bytes, Path) :-
+    atomic_list_concat([D, '/', Name], Path),
+    sh_join(['dd if=/dev/zero of=', Path, ' bs=1 count=0 seek=', Bytes, ' 2>/dev/null'], Cmd),
+    shell(Cmd, _, _).
+
+fnc_read(C, Env, F, File, Text) :-
+    sh_join([Env, C, ' --no-backtrace --local -s ', F, ' -- ', File, ' 2>&1'], Cmd),
+    shell(Cmd, Text, _).
+

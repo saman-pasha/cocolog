@@ -18337,3 +18337,146 @@ corrected) and the lint of the three changed `.pl` files. Not run: the
 whole suite and the whole tutorial run. The binary the cases ran on and
 the one built last from the committed source are one file, byte for byte.
 Reasoning stays 1.0.33.
+
+## read_file_to_codes/2 has no ceiling of its own: the stack limit's (3.62.2)
+
+Another project that stands on cocolog (Ambitious, whose reasoner is
+Prolog) reported that `read_file_to_codes/2` "refuses a file over 16 MiB,
+by failing with no error": a page's snapshot of 21 MB, 408,681 facts, and
+its reasoner ended 1 with nothing said. It reads a snapshot a line at a
+time through library(stream) now. The report was right, and the fault was
+a ceiling the engine no longer needed.
+
+WHAT IT WAS. `(if (> ($ sb st_size) 16777216) (return 0))` in
+`coco_f_read_file_to_codes` (lib/files.cicili), under a comment that called
+the ceiling real: tcp_read's 16 MiB, from when the predicate was written to
+serve static files and the engine had no limit of its own -- a file of a
+gigabyte would have been built as a list until the kernel killed the
+process. The answer for a file past it was the answer for a file that is
+not there, and the predicate has no other way to say which.
+
+WHAT IT IS. The engine has swipl's stack limit since 3.32.0, and a C row
+that builds a list asks it first since 3.42.3 (`coco-l-too-long`: cells
+whose bytes alone pass the limit, which no collection could make room
+for). A file's codes are asked the same way, twice:
+
+- **before a byte is read**, where no reading of that many bytes could
+  fit: a code a byte under `text_units = bytes`, and under characters a
+  code for every four bytes at the least. 256 MiB under the default 1 GB
+  is refused in a hundredth of a second, with 9 MB resident.
+- **by the count**, once the bytes are read: a walk of the text.
+
+Each raises `error(resource_error(stack), _)` with no cell built, as
+swipl's `read_file_to_codes/3` ends on its stack limit. A buffer the
+system refuses is `error(resource_error(memory), _)`, where it was the
+same silent failure. A missing file, a directory and a read cut short
+fail, as they did: that is the predicate's contract (`exists_file/1` asks
+first), and library(httpd), which serves static files with it, asks
+`size_file/2` for a ceiling of its own (`max_file/1`, 1 MiB).
+
+THE LIST IS BUILT WHERE IT STANDS. Measuring the first cut found the read
+stopped at 33 MB under a limit that holds 44: the list was consed from the
+end, `coco_m_cons` over `coco_new_int`, and that is FOUR cells an element
+-- the integer a cell of its own, which the list cell's first argument
+refers to -- where `coco-l-too-long` counts three. Under characters the
+text was decoded first into an array of eight bytes a byte
+(`coco_text_list`: a list is consed from its end, and whether a byte that
+is no UTF-8 is a code of its own is what the text BEFORE it says), 168 MB
+beside a file of 21, and where that array was refused the machine was
+marked and the file read as `[]`. Now the cells are reserved in one growth
+and written front to back: the list's functor, the code in the first
+argument's own cell, a reference to the next cell in the second, the last
+one's the list's end. The text is decoded as it is read, so there is no
+array; the count is one walk of it and the cells a second.
+
+An integer in an argument's own cell is not new to the engine -- a `'$k'`
+frame's barrier has always been one, and the collector, a freeze and every
+walk reach an argument by `coco_deref` of its slot -- but it is new to a
+term a program holds, so the case holds a list so read to a list of the
+same codes consed the usual way through unification, the standard order,
+copy_term/2, both sorts, atom_codes/2, reverse/2, assertz/1, nb_setval/2,
+findall/3, the writer, `=@=`, `=..`, a collection, setarg/3 and its undo,
+and again with a collection every 2000 cells, each put through a freeze's
+materialisation first (`COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2`).
+
+WHAT IT COSTS, AND WHERE THE LIMIT STOPS IT. Sparse files of NUL bytes
+under the default 1 GB on this box; the list's length and its last element
+asked after the read; seconds and peak resident memory of the process.
+
+| file | 3.62.1 | 3.62.2 | swipl 9.0.4, `read_file_to_codes/3` |
+|---|---|---|---|
+| 17 MiB | fails, 0.01 s | 1.31 s, 582 MB | 2.04 s, 891 MB |
+| 21 MB | fails | 1.50 s, 681 MB | 1.90 s, 891 MB |
+| 33 MB | fails | 2.32 s, 1056 MB | 2.95 s, 1096 MB |
+| 36 MB | fails | 2.53 s, 1133 MB | 3.13 s, 1096 MB |
+| 40 MB | fails | 2.74 s, 1258 MB | resource_error(stack), 2.56 s, 1096 MB |
+| 44 MB | fails | 3.17 s, 1383 MB | resource_error(stack), 2.50 s |
+| 45 MB | fails | resource_error(stack), 0.07 s, 52 MB | resource_error(stack), 2.56 s, 1095 MB |
+| 256 MiB | fails | resource_error(stack), 0.01 s, 9 MB | resource_error(stack), 2.64 s, 1095 MB |
+
+Of the 1.5 s a file of 21 MB takes, the read is 1.0 (the cells and the
+collection that follows them), `length/2` 0.22 and `last/2` 0.23. With the
+list consed, four cells a code, the same binary read 33 MB (1315 MB peak)
+and stopped at 36 (1420 MB, built and then refused by the step after).
+
+THE ARMS. One build each from the fix's tree, test/errors.pl's
+`file_no_ceiling`, 15 checks of which 10 are red on 3.62.1:
+
+| arm | the rule taken out | red |
+|---|---|---|
+| `ceiling` | the old line back: a file past 16 MiB fails | 7: both reads of 17 MiB, 256 MiB under 1 GB, and the four under an address-space ceiling |
+| `pre-read` | nothing is asked before the read | 2: a file of 1 GiB under a ceiling of 600 MB is asked for its buffer (memory) where the limit refuses it first; 256 MiB of bytes under 2 GB the same |
+| `least-chars` | under characters the bytes are asked, as under bytes | 1: 256 MiB of text under 2 GB is refused by the limit, where 64 million characters would fit |
+| `least-bytes` | under bytes a quarter is asked, as under characters | 1: 256 MiB of bytes under 2 GB is asked for its buffer |
+| `count` | the count is not asked once the bytes are read | 1: 2 MiB of codes under 32 MB are built, and the step after raises: the heap grown |
+| `consed` | the list consed from the end, four cells a code | 1: a MiB of codes under 32 MB does not fit |
+| `buffer-memory` | a buffer refused is the failure it was | 2: `failed` where resource_error(memory) is said |
+
+Under bytes the count is the size, so there the first question answers
+for the second (the `count` arm leaves the bytes' row green, which
+`pre-read` and `least-bytes` hold).
+
+NOT FIXED, RECORDED.
+
+- **The peak is above the limit.** A list of 44 million codes is 1007 MiB
+  of heap and the process peaks at 1383 MB: the file's bytes beside it
+  (44 MB), and the collection that follows the read. The limit counts the
+  stacks, as swipl's does; swipl stays under 1.1 GB because it stops at
+  36 MB.
+- **Every other row that builds a list of numbers is four cells an
+  element** -- numlist/3 (32,002,336 bytes for a million), atom_codes/2
+  and its kin (`coco_text_list`) -- a quarter more than `coco-l-too-long`
+  counts: `numlist(1, 34000000, L)` is asked as 816 MB, builds 1088 and is
+  refused by the step after (2.0 s, 1338 MB peak), where 30 million are
+  built. Building them in place is the same change, a row at a time.
+- **`coco_text_list` answers its tail where its array is refused**, for
+  the text builtins that still use it (a list of the codes of an atom too
+  long for memory is `[]`). It is one of the engine's marks of a machine
+  out of memory that stop nothing, which the next change stops
+  (3.62.3).
+- **A reservation refused outright ends the run** `out of memory`, as any
+  growth of the heap refused outright does, where the file's buffer
+  refused is a ball a program can catch. Under an address-space ceiling
+  the buffer is asked first, so that is the usual answer.
+
+THE REPORT'S OTHER FINDINGS for cocolog, recorded as tasks and not done
+here: a key inside a compound first argument (COMPAT.md: no deep index;
+their lookup by a handle `n(Doc, Index, Gen)` walked every fact, 0.385 ms
+against 0.014 over 100,000 facts); one `--embed` store that spun at 100 %
+CPU holding its lock after builds whose macro file changed between them,
+not reproduced from a fresh store. `public` read as a prefix operator
+(3.62.0) is cicilang's to bracket.
+
+Its "27 us a fact" for a snapshot's reading is not the reader's: 408,681
+facts of 57 bytes (`node(n(1, I, 0), div, [class-x, id-'nI'], 7).`, 23 MB)
+are read and asserted in 1.62 s by `read_term/2` in a loop over a
+library(stream) stream, 4.0 us a fact (swipl 9.0.4: 1.78 s, 4.4), and in
+0.90 s by `consult/1`, 2.2 us (swipl: 9.15 s). The path the report's
+reasoner takes -- `read_line_to_codes/2`, `string_codes/2`, then
+`read_term_from_atom/3` a line -- is 6.6 us here before its own checks,
+and the rest of the 27 is its checks. Said to it in the relay.
+
+The two CI runs that failed on master and on the pull request that day
+(43046283585, 43046167220) failed in the Ubuntu job's package step --
+`Temporary failure resolving 'azure.archive.ubuntu.com'`, exit 100 -- and
+the suite never ran there; both Macs were green on the same commits.

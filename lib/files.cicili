@@ -629,26 +629,55 @@
   ;;; in cocolog is a C string and stops at the first NUL, so an atom-shaped
   ;;; read would truncate every PNG at its header. A file is bytes.
   ;;;
-  ;;; THE CEILING IS REAL AND IT FAILS RATHER THAN TRUNCATING. 16 MiB, the
-  ;;; same as tcp_read's, because the two are read by the same kind of
-  ;;; program for the same kind of reason. A quiet truncation would be a
-  ;;; corrupted download that looks like a successful one; failing says the
-  ;;; file is too big to serve this way, which is true. A caller that wants
-  ;;; to know BEFORE reading has size_file/2, and library(httpd) uses it.
+  ;;; NO CEILING OF ITS OWN: THE STACK LIMIT'S (3.62.2). Through 3.62.1 a
+  ;;; file past 16 MiB FAILED -- tcp_read's ceiling, from before the engine
+  ;;; had a limit of its own -- and a failure is what a missing file is: a
+  ;;; program that read a snapshot of 21 MB was told nothing, and ended 1
+  ;;; with nothing said. A list of codes is three heap cells a code, so the
+  ;;; file's codes are asked of the machine's stack limit as any list a C
+  ;;; row builds is (`coco-l-too-long'; swipl's stack_limit, whose 1 GB
+  ;;; holds 44 million codes): BEFORE the read where no text of that many
+  ;;; bytes could fit, a character being four bytes at most, and by the
+  ;;; count once the bytes are read. Each raises
+  ;;; error(resource_error(stack), _) with no cell built, as swipl's
+  ;;; read_file_to_codes/3 ends on its stack limit; a buffer refused is
+  ;;; error(resource_error(memory), _), where it was the same failure. A
+  ;;; caller that wants to know BEFORE reading has size_file/2, and
+  ;;; library(httpd) uses it for a ceiling of its own (max_file/1).
+  ;;;
+  ;;; THE LIST IS BUILT WHERE IT STANDS (3.62.2): its cells reserved in one
+  ;;; growth and written front to back, each the list's functor, the code
+  ;;; in its first argument and a reference to the cell after it in its
+  ;;; second, the last one's the list's end. Through 3.62.1 it was consed
+  ;;; from the end, `coco_m_cons' over `coco_new_int': FOUR cells a code --
+  ;;; the code a cell of its own, which the list cell refers to -- in a
+  ;;; heap grown a doubling at a time, and under characters from an array
+  ;;; of eight bytes a byte the text was decoded into first
+  ;;; (`coco_text_list': a list is consed from its end, and whether a byte
+  ;;; that is no UTF-8 is a code of its own is what the text BEFORE it
+  ;;; says). Written forward, the text is decoded as it is read: the count
+  ;;; is one walk of it and the cells a second.
   ;;;
   ;;; A DIRECTORY IS NOT A FILE. Opening one succeeds on Linux and read(2)
   ;;; then answers EISDIR, so the stat is not belt-and-braces: without it
   ;;; `read_file_to_codes('/tmp', X)' would fail with errno set and look
   ;;; like a missing file.
   (func coco_f_read_file_to_codes ((coco_engine * e) (size_t g)) (out int)
-        (let ((int rc . 0) (char p [4096]) (stat_t sb) (int fd)
-              (size_t want . 0) (size_t got . 0) (ssize_t n . 0)
-              (size_t lst) (char * buf . nil))
+        (let ((coco_machine * m . #'(-> e m))
+              (int rc . 0) (char p [4096]) (stat_t sb) (int fd)
+              (size_t want . 0) (size_t least . 0) (size_t got . 0) (ssize_t n . 0)
+              (size_t lst . 0) (size_t k . 0) (size_t h . 0) (size_t i . 0)
+              (u64 cf . 0) (i64 c . 0) (char * buf . nil))
           (if (not (coco_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (if (!= 0 (stat p (aof sb))) (return 0))
           (if (not (S_ISREG ($ sb st_mode))) (return 0))
-          (if (> ($ sb st_size) 16777216) (return 0))
           (set want (cast size_t ($ sb st_size)))
+          ;; what no reading of these bytes could fit: a code a byte under
+          ;; `text_units = bytes', and under characters a code for every
+          ;; four bytes at the least. Asked before a byte is read
+          (set least want)
+          (if (-> m text_chars) (set least (/ want 4)))
+          (if (coco-l-too-long m least) (return (coco_m_resource_error e "stack")))
           (set fd (open p O_RDONLY))
           (if (< fd 0) (return 0))
           ;; An EMPTY file is the empty list and not a failure -- a zero-byte
@@ -658,7 +687,7 @@
               (block (close fd)
                      (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_nil e)))))
           (set buf (cast (char *) (malloc want)))
-          (if (== buf nil) (block (close fd) (return 0)))
+          (if (== buf nil) (block (close fd) (return (coco_m_resource_error e "memory"))))
           ;; READ IN A LOOP, because one read(2) is not obliged to answer with
           ;; everything even from a regular file -- a signal is enough to cut
           ;; it short, and a short read here would be a truncated file served
@@ -677,27 +706,36 @@
           ;; code point, as atom_codes/2 answers there and SWI reads a text
           ;; file; a byte that is no UTF-8 is U+DC00 plus the byte, and
           ;; write_file_from_codes/2 writes it back as that byte, so a binary
-          ;; file still goes round unchanged
-          (if (-> (-> e m) text_chars)
-              (block (set lst (coco_text_list (-> e m) buf got 0 (coco_m_nil e)))
-                     (free buf)
-                     (return (coco_m_unify e (coco_m_arg e g 1) lst))))
-          ;; built back to front, as tcp_read builds its own
-          ;; MASKED TO 0..255, and that is not decoration. `char' is SIGNED
-          ;; on x86-64, so byte 0xFF read straight out of the buffer is -1,
-          ;; and a PNG would come back as a list with negative codes in it --
-          ;; which atom_codes would then refuse and length/2 would not. The
-          ;; mask is also why this needs no `ubyte_t': a type is one token in
-          ;; Cicili, files.cicili is imported BEFORE tcp.cicili, and one
-          ;; `bitand' is cheaper than a second typedef of the same name.
-          (set lst (coco_m_nil e))
-          (for ((size_t i . got)) (> i 0) ((-- i))
-               (set lst (coco_m_cons e
-                                     (coco_new_int (-> e m)
-                                                   (cast i64 (bitand
-                                                     (cast int (nth (- i 1) buf))
-                                                     255)))
-                                     lst)))
+          ;; file still goes round unchanged. Under bytes a code is a byte,
+          ;; MASKED TO 0..255: `char' is SIGNED on x86-64, so byte 0xFF read
+          ;; straight out of the buffer is -1, and a PNG would come back as a
+          ;; list with negative codes in it -- which atom_codes would then
+          ;; refuse and length/2 would not.
+          (set k got)
+          (if (-> m text_chars) (set k (coco_utf8_count buf got)))
+          (if (coco-l-too-long m k)
+              (block (free buf) (return (coco_m_resource_error e "stack"))))
+          ;; three cells a code, in one growth. Refused outright, the machine
+          ;; is finished (`coco_grow'), and the answer is nobody's
+          (set h (-> m heap_len))
+          (if (not (coco_grow m (cast (void **) (aof (-> m heap))) (aof (-> m heap_cap))
+                              (+ h (* 3 k)) (sizeof u64)))
+              (block (free buf) (return 0)))
+          (set lst h)
+          (set cf (coco-cell FUN (coco_cons_fid m)))
+          (while (< i got)
+            (if (-> m text_chars)
+                (if (< (cast uchar (nth i buf)) 128)
+                    (block (set c (cast i64 (nth i buf))) (set i (+ i 1)))
+                    (set c (coco_utf8_get buf got (aof i))))
+                (block (set c (cast i64 (bitand (cast int (nth i buf)) 255)))
+                       (set i (+ i 1))))
+            (set (nth h (-> m heap)) cf)
+            (set (nth (+ h 1) (-> m heap)) (coco-int-cell c))
+            (set (nth (+ h 2) (-> m heap)) (coco-cell REF (+ h 3)))
+            (set h (+ h 3)))
+          (set (nth (- h 1) (-> m heap)) (coco-cell ATOM (coco_nil_id m)))
+          (set (-> m heap_len) h)
           (free buf)
           (return (coco_m_unify e (coco_m_arg e g 1) lst))))
 
