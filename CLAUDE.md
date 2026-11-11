@@ -1908,8 +1908,11 @@ cocolint index offers no import of it.
   every write named them but write_term's `variable_names`,
   write_canonical's and the store's, write_term/2 with no numbervars and
   term_to_atom/2 among them), the engine's own writes naming them as
-  before. `is/2` and the comparisons ask at 1024
-  levels and raise `type_error(expression, E)`, E their whole argument.
+  before. `is/2` and the comparisons ask at the expression's 101st
+  compound whether the WHOLE of it is cyclic, and raise
+  `type_error(expression, E)`, E their whole argument (3.61.0, swipl's
+  valueExpression(); through 3.60.0 1 024 levels down, of the subterm
+  there: the bullet on the evaluator below).
   `acyclic_term/1` and `cyclic_term/1` answer. **Every other walk COUNTS,
   and asks or changes course only past its count** -- what it has met
   against what a tree on this heap could hold -- so a term that is no cycle
@@ -2003,9 +2006,10 @@ cocolint index offers no import of it.
   (mode 1024) no cycle guard asks: a cyclic term is the tree it stands
   for, to the limit, as swipl's. **A read too deep for the C stack raises
   it too** (3.60.0, test/files/read_depth.pl, test/cyclic.pl's
-  `c_stack_read`: the bullet on the reader below), and `coco_arith` (some
-  43k levels, where swipl's evaluates a million) still overflows the C
-  stack. **The
+  `c_stack_read`: the bullet on the reader below), and an expression of
+  any depth evaluates (3.61.0, the bullet on the evaluator below; through
+  3.60.0 `coco_arith` overflowed the C stack some 43 000 levels down).
+  **The
   writer's six arguments
   stay in registers**: quoted, ignore_ops, operand, (2.2.4) numbervars and
   (2.2.5) swipl's character escapes are one `mode` word (1, 2, 4, 8, 16;
@@ -3315,6 +3319,54 @@ cocolint index offers no import of it.
   **A new evaluable function that makes a float asks `coco_float_ok` of it,
   and of each float it takes; a new division by zero goes through
   `coco_zero_div`.**
+* **An expression is evaluated as swipl's valueExpression() evaluates it**
+  (3.61.0, `coco_arith_top`, `coco_arith`, `coco_arith_past` and
+  `coco_arith_far` in lib/solve-arith.cicili; test/files/arith_depth.pl): a
+  compound's arguments from its LAST -- `X is a + b` names b/0,
+  `foo(1, 2, a)` a/0 before foo/3, and the comparisons still their left side
+  first -- f() its own culprit, type_error(evaluable, f()), and an
+  expression of any depth. **Every evaluation begins at `coco_arith_top`**,
+  which sets the count to 100 and the root (`abud`, `aroot`, appended to the
+  machine): a new caller of the evaluator calls it, never `coco_arith`, or
+  it takes on the last evaluation's count and asks the wrong term.
+  `coco_arith` counts each compound it enters -- a list of one character
+  and f() none the count takes, roundtoward/2 one before its mode is read --
+  and where the count runs out hands the compound to `coco_arith_past`
+  (weak, cold), **ONE tail call on the cold branch**: a test of the far
+  walk in place there made clang keep a flag across the two count sites,
+  some four instructions an evaluation. The first time is the expression's
+  101st compound: the WHOLE expression is asked once whether it is cyclic,
+  type_error(expression, E) when it is, and the C stack where it stands is
+  kept (`astk`). After that a compound entered 16 KB of C stack below it
+  is `coco_arith_far`'s, evaluated on two stacks of its own, the pending
+  compounds and the values made (the first 32 of each on the C stack, the
+  rest malloc'd and, as swipl's segstacks, no part of stack_limit); any
+  other is `coco_arith`'s again with the 63 after it, so a wide expression
+  is evaluated by calls, a million compounds no deeper than twenty among
+  them, and a deep one leaves the C stack. **Where the stack stands is read
+  from the cells an evaluation is handed for its answer** (ISF, in its
+  caller's frame): a function that evaluates an argument into the cells it
+  was handed itself says the stack stood still, and a chain of it never
+  leaves the C stack -- `coco_roundtoward` makes its value in cells of its
+  own for that. **A function's application is written once and emitted
+  twice** (`coco-arith-unary-body`, `coco-arith-binary-apply`,
+  `coco-arith-powm-apply`): `coco_arith` and `coco_arith_far`'s
+  `coco_arith_apply` expand the same macro, so a new function goes into the
+  macro and both evaluate it. A raise past the hundredth puts each pending
+  roundtoward/2's rounding mode back, the innermost first. **The cycle
+  question is two walks**: `coco_arith_acyclic` walks the expression as the
+  tree it nearly always is, counting 4 096 compounds, a chain keeping and
+  marking nothing (77 instructions a compound); past its count
+  `coco_arith_marked` meets each compound once, its state in the top two
+  bits of its own header while the walk lasts -- on the path, or done -- and
+  every mark put back before it answers (131 a compound, where
+  `coco_acyclic`'s map is 240), so a DAG costs its compounds and a cycle
+  the compounds before it. Counted against the heap's length, the tree
+  walk's first cut, `X = 1 + X` cost as many steps as the heap had cells.
+  **The question is the release's cost, and swipl's**: an expression of
+  more than a hundred compounds pays the walk of the whole of it, a chain
+  of 400 levels 357 instructions a level where it was 258
+  (STATUS.md).
 * **`>>` and `<<` take any count** (1.14.0, `coco_shift_right` and
   `coco_shift_left` in lib/term.cicili, which both evaluators call --
   `coco_arith` and the guards' runner, written once in kb.cicili and

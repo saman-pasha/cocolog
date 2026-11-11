@@ -757,7 +757,7 @@
               (size_t was . #'(-> e kcall))
               (int isf . 0) (i64 iv . 0) (double fv . 0.0) (int rc . 0) (size_t v . 0))
           (set (-> e kcall) (coco_make2 m "$pi_head" spec (coco_new_var m)))
-          (set rc (coco_arith e (coco_make2 m "+" ar (coco_new_int m 2)) (aof isf) (aof iv) (aof fv) 0))
+          (set rc (coco_arith_top e (coco_make2 m "+" ar (coco_new_int m 2)) (aof isf) (aof iv) (aof fv)))
           (if (== rc 3) (set rc (coco_type_error e "expression" ar)))
           (set (-> e kcall) was)
           (if (!= rc 1) (return rc))
@@ -1848,7 +1848,7 @@
                ;; `Arity is DCGArity+2'
                (let ((int isf . 0) (i64 iv . 0) (double fv . 0.0)
                      (size_t x . #'(coco_make2 m "+" ar (coco_new_int m 2)))
-                     (int r . #'(coco_arith e x (aof isf) (aof iv) (aof fv) 0)))
+                     (int r . #'(coco_arith_top e x (aof isf) (aof iv) (aof fv))))
                  (if (!= r 1) (return (? (== r 3) (coco_type_error e "expression" x) r)))
                  (set ar (? (== isf 0) (coco_new_int m iv) (coco_new_atom m "[]"))))))
             ((coco_is_callable m s)

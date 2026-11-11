@@ -816,7 +816,7 @@
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t t . #'(coco_make2 m op a b))
               (int isf . 0) (i64 iv . 0) (double fv . 0.0)
-              (int rc . #'(coco_arith e t (aof isf) (aof iv) (aof fv) 0)))
+              (int rc . #'(coco_arith_top e t (aof isf) (aof iv) (aof fv))))
           (if (!= rc 1)
               (return (? (== rc 3) (coco_type_error e "expression" t) rc)))
           (let ((size_t r . #'(? (== isf 2) (coco_new_rat m (-> m arith_n) (-> m arith_d))

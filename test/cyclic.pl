@@ -29,7 +29,7 @@
 main :-
     scratch(D),
     shapes(D), long_and_deep(D), entries(D), errors(D), caught(D),
-    questions, arithmetic(D), walks(D), c_stack(D), c_stack_read(D),
+    questions, arithmetic(D), walks(D), c_stack(D), c_stack_read(D), arith_depth(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -770,7 +770,9 @@ c_stack_consult(D, F) :-
 %% and the writer near 43 000. Through 3.60.0 the parts read and wrote 20
 %% 000 and 10 000 on the runner's own stack, and on GitHub's -- more than 8
 %% MB on Linux, a green worker 512 KB on macOS -- each went red
-%% (CI run 42573674735).
+%% (CI run 42573674735). A worker's 8 MB is held as 8 MB and under 64 KB
+%% more (3.61.0): macOS 15 on Apple silicon counts a thread given 8 388 608
+%% as 8 400 896 (run 42580082940, the one red check of 3.60.1's).
 c_stack_read(D) :-
     section('a read too deep for the C stack: resource_error(c_stack), in every thread and every load'),
     atom_concat(D, '/rstack.pl', F),
@@ -782,7 +784,7 @@ c_stack_read(D) :-
       '...and one 1000 deep reads' - '1000',
       '...done' - done]),
     c_stack_part(F, 'ulimit -s 1024 && COCOLOG_GREEN_WORKERS=2 ', rworker, [
-      'a green worker''s C stack is 8 MB on a main thread of 1 MB' - '8388608',
+      'a green worker''s C stack is 8 MB on a main thread of 1 MB' - yes,
       '...where a task reads 5000 levels' - '5000',
       '...done' - done]),
     c_stack_part(F, '', rthread, [
@@ -829,7 +831,8 @@ c_stack_read_fixture(F) :-
       '  write(done), nl.',
       'rdepth(K, N) :- nest(K, A), term_to_atom(T, A), down(T, 0, N).',
       'part(rworker) :-',
-      '  async_run((go(statistics(c_stack, L), G1), await(G1, statistics(_, L)), print(L), nl)),',
+      '  async_run((go(statistics(c_stack, L), G1), await(G1, statistics(_, L)),',
+      '             ( L >= 8388608, L < 8454144 -> print(yes) ; print(L) ), nl)),',
       '  async_run((go(rdepth(5000, _), G2), await(G2, rdepth(_, N)), print(N), nl)),',
       '  write(done), nl.',
       'part(rthread) :-',
@@ -925,6 +928,94 @@ c_stack_limit_said(Limit, Want) :-
     proc_run(Cmd, 120000, Raw, _), atom_codes(R, Raw), atomic_list_concat([L|_], '\n', R),
     sh_join(['under ulimit -s ', Limit, ', the main thread''s is ', Want], Label),
     check(Label, L, Want).
+
+%% AN EXPRESSION OF ANY DEPTH EVALUATES (3.61.0), on stacks of the
+%% evaluator's own past its hundredth compound, as swipl's valueExpression()
+%% evaluates it -- through 3.60.0 a SIGSEGV past some 43 000 levels. What
+%% swipl holds is test/files/arith_depth.pl's. These are cocolog's own: a
+%% million levels on a C stack of 1 MB -- of `+', of roundtoward/2, of a
+%% function there is none of, and with a compound beside the chain at every
+%% level -- and a million compounds no deeper than twenty there; in a
+%% library(thread) thread and in a green task, an expression a clause's
+%% guards cannot decide, and one the REPL evaluates.
+arith_depth(D) :-
+    section('an expression of any depth evaluates, in every thread, on any C stack'),
+    atom_concat(D, '/adeep.pl', F),
+    fixture(F, [
+      ':- use_module(library(thread)).',
+      'right(0, T, T) :- !.',
+      'right(N, T0, T) :- N1 is N - 1, right(N1, 1 + T0, T).',
+      'left(0, T, T) :- !.',
+      'left(N, T0, T) :- N1 is N - 1, left(N1, T0 + 1, T).',
+      'rts(0, T, T) :- !.',
+      'rts(N, T0, T) :- N1 is N - 1, rts(N1, roundtoward(T0, to_nearest), T).',
+      'foos(0, T, T) :- !.',
+      'foos(N, T0, T) :- N1 is N - 1, foos(N1, foo(T0), T).',
+      'pairs(0, T, T) :- !.',
+      'pairs(N, T0, T) :- N1 is N - 1, pairs(N1, (1 * 1) + T0, T).',
+      'dag(0, T, T) :- !.',
+      'dag(N, T0, T) :- N1 is N - 1, dag(N1, T0 + T0, T).',
+      'g(E, X) :- X is E.',
+      'h(E, X) :- ( X is E + 1, X > 0 -> true ; X = no ).',
+      'main :- current_prolog_flag(argv, A), last(A, P), part(P).',
+      'part(asmall) :-',
+      '  right(1000000, 0, R), X is R, print(X), nl,',
+      '  left(1000000, 0, L), Y is L, print(Y), nl,',
+      '  ( R =:= L -> print(equal) ; print(differ) ), nl,',
+      '  X1 is R - L + max(R, L), print(X1), nl,',
+      '  rts(1000000, 7, R2), X2 is R2, print(X2), nl,',
+      '  foos(1000000, 7, R3), catch(_ is R3, error(E3, _), true), print(E3), nl,',
+      '  pairs(1000000, 0, R4), X4 is R4, print(X4), nl,',
+      '  dag(20, 1, R5), X5 is R5, print(X5), nl,',
+      '  write(done), nl.',
+      'part(athread) :-',
+      '  thread_create((right(200000, 0, T), X is T, print(X), nl), I), thread_join(I, S),',
+      '  print(S), nl,',
+      '  thread_create((right(200000, a, T2), catch(_ is T2, error(E, _), true), print(E), nl), I2),',
+      '  thread_join(I2, S2), print(S2), nl,',
+      '  write(done), nl.',
+      'eval(N, X) :- right(N, 0, T), X is T.',
+      'part(agreen) :-',
+      '  async_run((go(eval(200000, _), G), await(G, eval(_, X1)), print(X1), nl)),',
+      '  async_run((go(eval(300000, _), G2), go(eval(100000, _), G3),',
+      '             await(G2, eval(_, X2)), await(G3, eval(_, X3)), print(X2-X3), nl)),',
+      '  write(done), nl.',
+      'part(aguard) :-',
+      '  right(200000, 0, T), g(T, X), print(X), nl,',
+      '  h(T, Y), print(Y), nl,',
+      '  left(200000, a, T3), catch(g(T3, _), error(E, _), true), print(E), nl,',
+      '  write(done), nl.']),
+    c_stack_part(F, 'ulimit -s 1024 && ', asmall, [
+      'under ulimit -s 1024, a million levels nested to the right' - '1000000',
+      '...and to the left' - '1000000',
+      '...compared' - equal,
+      '...with more of them' - '1000000',
+      '...a million levels of roundtoward/2' - '7',
+      '...and of a function there is none of' - 'type_error(evaluable,foo/1)',
+      '...a compound beside the chain at every level' - '1000000',
+      '...a million compounds no deeper than twenty' - '1048576',
+      '...done' - done]),
+    c_stack_part(F, '', athread, [
+      'a library(thread) thread evaluates on its own C stack' - '200000',
+      '...and ends' - true,
+      '...a fault at the bottom raises there' - 'type_error(evaluable,a/0)',
+      '...and that thread ends too' - true,
+      '...done' - done]),
+    c_stack_part(F, '', agreen, [
+      'a green task evaluates on its worker''s C stack' - '200000',
+      '...and two at once' - '300000-100000',
+      '...done' - done]),
+    c_stack_part(F, '', aguard, [
+      'an expression a clause''s guards cannot decide' - '200000',
+      '...and one in an if-then-else''s condition' - '200001',
+      '...a fault at the bottom names it' - 'type_error(evaluable,a/0)',
+      '...done' - done]),
+    atom_concat(D, '/aquery.txt', Q),
+    length(Ones, 100000), maplist(=('1+'), Ones), atomic_list_concat(Ones, Body),
+    atomic_list_concat(['X is ', Body, '0.'], Q1),
+    fixture(Q, [Q1]),
+    sh_join(['< ', Q, ' 2>/dev/null'], A3), child(A3, O3, _),
+    check('the REPL evaluates a query of a chain 100000 long', O3, 'X = 100000.').
 
 %% one part of the fixture, a child of its own, PRE before the binary (a
 %% ulimit) and ARGS before -s (a store)

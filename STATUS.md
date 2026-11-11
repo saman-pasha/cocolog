@@ -48,7 +48,7 @@ happily as over a real one.
 | `test/files.pl` | the Files module held to SWI: every case is ONE Prolog file run TWICE — once by `swipl`, once by cocolog, in a freshly made empty directory at the same absolute path both times — and the two outputs compared byte for byte. A library that claims to be SWI's is checked against SWI and not against its own opinion. Since 1.10.6 it also holds the core builtins' errors to SWI's (`catch.pl`: what `=..`, `functor/3`, `arg/3` and `is/2` raise, every one catchable, and what assert and retract refuse -- an unbound clause, a head that is not callable, a body with a number in it, a clause for a control construct), text of any length through `format/2`'s `~a`, `~s` and the format itself and `term_to_atom/2` (`format.pl`: 20 000 characters), and `write_term/2`'s `variable_names` (`write_term.pl`); since 1.10.7 `read_term/3`'s `subterm_positions` and `term_position` (`read_term.pl`: every shape SWI answers, over comments, a tab, a CR, a two-byte character and other reads between two read_terms; at the end of the file only the span's length, where SWI stands one character short of the end); since 1.10.28 a float as SWI writes it (`floats.pl`: 40 values four ways -- `0.30000000000000004`, `1.0e+22`, `1.0e-5`, `100000000000000.0`, the powers of two whose nearest 16 digits miss (negated too), `-0.0` from a literal and from `-/1` -- each read back the same, and `1.0Inf`, `-1.0Inf` and `1.5NaN` read) and `current_predicate/1` and `predicate_property/2` over a file the program ensure_loads (`loaded.pl`: its predicates the program's, with their clause and rule counts, `user:H` walking them, a construct by name and arity); since 2.1.0 `=@=/2`, `\=@=/2` and `subsumes_term/2` (`variant.pl`); since 2.1.1 floats as terms (`float_order.pl`: `0.0` and `-0.0`, a NaN in unify, `==`, compare and the sorts); since 2.1.2 the comparisons, `max`, `min` and `sign` over a NaN and the zeros (`float_arith.pl`); and since 2.2.0 a float that is no finite number raising as SWI's does (`float_check.pl`: every function, the operands it checks, the power's integer answers, `truncate/1`'s kin handing a NaN back, `sum_list/2`, `max_list/2` and `aggregate_all/3`); since 2.13.0 consult/1, load_files/2 and `[File]` as goals (`consult.pl`), and since 2.14.0 a file read again (`reload.pl`: a module's file re-read by consult/1, `[File]` and `if(true)`, `if(changed)` and `if(exists)` only when it is newer, and what the new text no longer defines gone), and since 2.14.1 where its clauses go (`reload_order.pl`: each where the clause it is a variant of stood, before what the program asserted after it, an asserted twin taken for the file's own, another file's clauses no candidates, a first read appending, and a call open on the predicate keeping its view), and since 2.15.1 the arithmetic folds evaluating what they fold and `term_to_atom/2` reading a bound text (`folds.pl`: `sum_list/2`, `max_list/2`, `min_list/2` and `aggregate_all/3`'s sum, max, min and witness forms over expressions, rationals, an atom and an unbound element, and `term_to_atom/2` with both arguments bound), and since 2.16.0 print_message/2 (`print_message.pl`: the kinds and their prefixes, the elements a line is made of, `~N` over the column user_output and user_error share and a capture's own, the file and line a directive's error or warning names, prolog:message//1, prolog:error_message//1, message_hook/3 for the silent kind too, and the flag `verbose`), the text of forty error terms (`error_messages.pl`), a file's own line under library(stream) (`fresh_line_stream.pl`) and `sumlist/2` (`folds.pl`), and since 2.16.1 atom_length/2 and string_length/2 (`atom_length.pl`: the text an atom, a number, a string or a list of codes or of characters, a compound refused, a list held to its first element's kind and its tail to `[]`, a length that is no integer refused), and since 3.0.0 how every text builtin reads its text (`text_read.pl`: fifteen terms -- a compound, lists of codes, of characters and of both, `[]` and `'[]'`, a number, a partial and an improper list -- given to each one's text argument) and what each builtin raises and the predicate its error names (`error_context.pl`: 138 builtins, each with a compound in every argument and, but for nine, with every argument unbound -- last/2 among them since 3.0.1 --, and six control constructs called as terms), and since 3.0.1 last/2 in every mode (`last.pl`: a proper list, no list, an unbound list and partial ones, the first answers of each in order and each answer as it comes), and since 3.0.2 a loadable module's errors naming the module (`module_context.pl`: swipl's own library(md5), whose md5_hash/3 is foreign, against a fixture module of that name built from `test/md5.cicili` by the case into the sandbox's library/, and library(thread)'s mutexes, swipl's builtins). 52 cases. SKIPs without `swipl`; module_context alone skips by name without Cicili, sbcl or a compiler for its fixture |
 | `test/trace.pl` | the four-port tracer held to SWI the same way: both are asked the same queries over `test/trace-program.pl` with the tracer on, and the port lines compared one for one — Call, Exit, Redo and Fail, in order, at the same relative depths, over the same goals. Since 1.10.24 among them: a call whose clause cuts and then fails (`cutfail :- !, fail.` -- through 1.10.22 no Fail was printed for it, the cut having taken the frame its Fail is printed from), on a guard, with a call or a disjunction redone after the cut, inside another call and in a disjunction; a Redo that opens only the calls it is inside (`det0` and `cut0`, siblings that exited before it, were failed through 1.10.22); and two queries whose first term, heap cell 0, the tracer took for "no call". Over 1.10.22 seven of its 33 queries differ from SWI. SKIPs without `swipl` |
 | `test/backtrace.pl` | an error nothing caught is followed on stderr by WHERE IT WAS RAISED (1.10.17; TRACING.md): at full speed the goal that raised and each engine's goals left to run, under `--backtrace` and `--trace` every call as `[Depth] Goal`, each to the letter over one program, with `--backtrace` changing nothing of a run that does not raise and `--no-backtrace` keeping the message alone; balls a catch takes write nothing -- one taken only once its bindings are undone among them -- and the one nothing caught names itself: an unknown procedure met the second time (stamped, so no module walk names it), `throw/1`, an unbound goal, a number, `call/N` over a number; inside `findall/3`, `call_metered/4` and `with_output_to/2` the goals inside, then the builtin, then the goals after it, and traced at the depths they run at (through 1.10.16 `with_output_to/2`'s engine counted from 1 and traced as `--trace` had started it); a goal left in an environment naming its clause; a recursion thirty deep cut to its first eight entries, a count and its last four; a directive's and `initialization(main, main)`'s reports, a load under a catch, and lines a caught throw wrote printed by no later directive's report, no load the program starts after, and after no error that is not a ball (in a directive or in the program); `cocolog query`'s, and nothing when the goal that raised is the whole query; a goal past 240 characters cut. Each of twenty arms that takes one rule out goes red: the goal in flight not set at a builtin, at an unknown procedure, at `throw/1`, an unbound goal, a number or `call/N`; the first lines not kept by `findall/3`, `call_metered/4` or `with_output_to/2`; the directive's stop; a load's, a report's or the CLI's drop; the quiet trace printing; the whole query written again; the culprit's own frame written; `with_output_to/2`'s depths from 1; the clause unnamed; the ring; the cut. The question before the lines (is there a catch?) is a cost and not a behaviour: without it a caught throw from twenty calls deep writes and drops its lines, 35448 instructions an iteration against 15124 (1.10.16: 15004). 32 checks |
-| `test/cyclic.pl` | a cyclic term -- `X = f(X)` -- written, raised, caught and asked about without taking the process down (1.10.18; through 1.10.17 its write, the message of an error over it, a backtrace line holding it, `atom_length/2` of it and `is/2` over it were a SIGSEGV, and a throw of it never came back): twenty-eight shapes written by `writeq/1` to swipl 9.0.4's letter, `@(S_1,[S_1=f(S_1)])` -- the compounds a left-to-right walk meets a second time, in that order, each one that holds no cycle put back, so a shared subterm that is none stays written out; a list that is its own tail past Brent's first 1024 cells, a cycle 3000 levels down written once a level, a tree 2000 deep and a list of 100000 as before; which writer says `S_1` (write/1, print/1, writeq/1, format/2, term_to_atom/2, with_output_to/2) and which the variable itself (write_canonical/1, write_term/2 naming variables of its own); an error over one -- its message, its backtrace at full speed and under `--backtrace`, exit 2 -- a `throw/1` of one and `cocolog query`'s; the catcher handed the cyclic term itself through `throw/1`, a builtin's error, `findall/3`, `with_output_to/2`, `call_metered/4` and `forall/2`, and a program's own `'$cyclic'(a,b)` left as thrown; `acyclic_term/1` and `cyclic_term/1` (a fact and a fail through 1.10.17) over trees, a DAG that doubles at each of 40 levels, variables, a list of 200000, cycles deep and long; `is/2` and the comparisons raising `type_error(expression, E)`, E the whole side, and an expression 3000 deep still evaluated. Every check that could crash is a child: over 1.10.17 the case is 75 red and 8 green. Each of fourteen arms that takes one rule out goes red (failing checks of 83): the writer's depth guard 69, every compound stopped once a cycle is found 29, Brent on a list's tail 35, a factor that holds no cycle put back 5, the factors' order 5, the writers that say `S_1` 37, a write_term/2's own names 1, the ball stored as its factors 27, read back 23, a program's own `'$cyclic'` left as thrown 1, is/2's guard 8, the side named 2, acyclic_term/1 and cyclic_term/1 3, the exact walk's done state 1 (at three levels the DAG was the quick walk's, and that arm was green). The quick walk before the exact one is a cost and not a behaviour: without it a caught throw of `error(type_error(integer, a), context(arg/3, _))` from twenty calls deep is 17644 instructions against 17395. **1.10.19 adds THE WALKS over one**, a section of six parts, each a child with its own timeout, each with a DAG that doubles at each of 40 levels (2^40 nodes as a tree, which only a walk that meets a compound once finishes): copy -- copy_term/2, findall/3's results and nb_setval/2 keep the cycle, a variable beside it copied once; assert -- `representation_error(cyclic_term)` for a cyclic head, a body that is its own tail or first goal, a grammar rule whose body is a cyclic list, conjunction or disjunction (the last two a SIGSEGV in the translator through 1.10.18), nothing stored, a DAG of 14 levels asserted whole; unify -- unify, `==`, compare/3 and sort/2 of two cyclic terms end with SWI's answers, two cyclic lists of different periods unify, and one answer that is not SWI's on purpose (SWI orders P and Q > both ways; cocolog gives the order of their trees, its walk linking only past its count); vars -- ground/1, term_variables/2 in SWI's order, over cycles, DAGs and a list of 300000; occurs -- unify_with_occurs_check/2 over cycles, a tree 6000 deep and a variable 100 compounds down, past the quick walk; lists -- length/2, msort/2, memberchk/2, atom_codes/2, atom_chars/2, number_chars/2, string_chars/2, string_codes/2, atomic_list_concat/2 raise `type_error(list, L)` over a list that is its own tail, a format's text and term_to_atom/2 `type_error(text, L)`, sort/2 and sort/4 dropping duplicates take it as the set of its elements, is_list/1, proper_length/2 and is_set/1 fail. Over 1.10.18 the case is 83 green (its own 83 checks) and 100 red -- every check of the walks. Each of forty arms that takes one rule out goes red (failing checks of the case as it then stood, 173 to 183): unify's count 35, its link 24, compare's count 39, its link 39, asked again from the first pair 2, the store's matcher handing a pair to unify (`test/solve.cicili` red), copy_term's ceiling 16, the copy that keeps each compound once 16, the store's ceiling 28, a DAG put whole 4, the count of cycles put 12, the reader 40, the ball's count 30, assert refused 2, raised 5, the body's count 12, a grammar rule asked first 12, its refusal counted 3, ground/1's count 11, its map 11, term_variables/2's count 11, its map 11, the occurs check asked 4, past its quick walk 1 (green until the variable 100 compounds down was added: the quick walk pops the last argument first and found the other check's variable at once), a module's list length 16, is_list/1 16, length/2's raise 16, memberchk/2's count 25, a code list's 25, a char list's 25, a format's text 25, atom_codes/2's raise 1, string_codes/2 and string_chars/2's 2, atom_chars/2's 1, number_chars/2's 1, term_to_atom/2's `text` 1, sort/2's set 8, sort/4's 1, proper_length/2 1, is_set/1 1. **3.59.0 adds a write too deep for the C stack** (56 checks, each part a child; test/files/cyclic_depth.pl holds what swipl says): a portray goal asked at each of 200000 levels, print/1 asking portray/1 and format/3's ~p, each raising `resource_error(c_stack)`, and the next portray goal asked as before; stdout given nothing of a tree, nor of a cyclic term whose factors run out, by write/1 or by print/1 asking portray/1, nor of a clause by portray_clause/1, and the next clause it lays out whole; statistics(c_stack); under `ulimit -s 1024` that size said, a tree 20000 deep too deep and one 2000 deep written whole, and a portray goal that writes 500 levels of its own stopped before it is asked; a library(thread) thread's own C stack, caught and uncaught; a green task's worker's, a task's answer, go/2, channel_send/2, and async_run/1's answer and goal; a store's refusal of a clause it cannot write as a row, by assertz/1 and by a consult (reported, read on past, its writes after it whole); and the uncaught message and print_message/2's, swipl's two lines. **3.60.0 adds a read too deep for the C stack** (39 checks, each part a child; test/files/read_depth.pl holds what swipl says): under `ulimit -s 1024` statistics(c_stack) said, a bracket 20000 deep too deep to read and one 1000 deep read; a library(thread) thread's read on its own C stack, caught and uncaught, a goal and a message too deep for it to read; a green task's read on its worker's stack, await/2 and async_run/1 of an answer too deep to read back, go/2 and async_run/1 of a goal too deep to read, channel_recv/2 of a message, one waiting in a buffered channel too; `-s` and `run FILE GOAL` of a load that ends there, swipl's message, exit 1 and the directive before it run; the REPL's query too deep, swipl's two lines, and the next query answered; and the main thread's size under `ulimit -s` 1024, 2048 and unlimited, with swipl's sentence of none. **3.60.1 runs every child on 8 MB** (`child_run/3`): a term too deep to read is 25 000 levels and one read whole 5 000; and a green worker's C stack is 8 MB on a main thread of 1 MB, where a task reads 5 000 levels. 285 checks |
+| `test/cyclic.pl` | a cyclic term -- `X = f(X)` -- written, raised, caught and asked about without taking the process down (1.10.18; through 1.10.17 its write, the message of an error over it, a backtrace line holding it, `atom_length/2` of it and `is/2` over it were a SIGSEGV, and a throw of it never came back): twenty-eight shapes written by `writeq/1` to swipl 9.0.4's letter, `@(S_1,[S_1=f(S_1)])` -- the compounds a left-to-right walk meets a second time, in that order, each one that holds no cycle put back, so a shared subterm that is none stays written out; a list that is its own tail past Brent's first 1024 cells, a cycle 3000 levels down written once a level, a tree 2000 deep and a list of 100000 as before; which writer says `S_1` (write/1, print/1, writeq/1, format/2, term_to_atom/2, with_output_to/2) and which the variable itself (write_canonical/1, write_term/2 naming variables of its own); an error over one -- its message, its backtrace at full speed and under `--backtrace`, exit 2 -- a `throw/1` of one and `cocolog query`'s; the catcher handed the cyclic term itself through `throw/1`, a builtin's error, `findall/3`, `with_output_to/2`, `call_metered/4` and `forall/2`, and a program's own `'$cyclic'(a,b)` left as thrown; `acyclic_term/1` and `cyclic_term/1` (a fact and a fail through 1.10.17) over trees, a DAG that doubles at each of 40 levels, variables, a list of 200000, cycles deep and long; `is/2` and the comparisons raising `type_error(expression, E)`, E the whole side, and an expression 3000 deep still evaluated. Every check that could crash is a child: over 1.10.17 the case is 75 red and 8 green. Each of fourteen arms that takes one rule out goes red (failing checks of 83): the writer's depth guard 69, every compound stopped once a cycle is found 29, Brent on a list's tail 35, a factor that holds no cycle put back 5, the factors' order 5, the writers that say `S_1` 37, a write_term/2's own names 1, the ball stored as its factors 27, read back 23, a program's own `'$cyclic'` left as thrown 1, is/2's guard 8, the side named 2, acyclic_term/1 and cyclic_term/1 3, the exact walk's done state 1 (at three levels the DAG was the quick walk's, and that arm was green). The quick walk before the exact one is a cost and not a behaviour: without it a caught throw of `error(type_error(integer, a), context(arg/3, _))` from twenty calls deep is 17644 instructions against 17395. **1.10.19 adds THE WALKS over one**, a section of six parts, each a child with its own timeout, each with a DAG that doubles at each of 40 levels (2^40 nodes as a tree, which only a walk that meets a compound once finishes): copy -- copy_term/2, findall/3's results and nb_setval/2 keep the cycle, a variable beside it copied once; assert -- `representation_error(cyclic_term)` for a cyclic head, a body that is its own tail or first goal, a grammar rule whose body is a cyclic list, conjunction or disjunction (the last two a SIGSEGV in the translator through 1.10.18), nothing stored, a DAG of 14 levels asserted whole; unify -- unify, `==`, compare/3 and sort/2 of two cyclic terms end with SWI's answers, two cyclic lists of different periods unify, and one answer that is not SWI's on purpose (SWI orders P and Q > both ways; cocolog gives the order of their trees, its walk linking only past its count); vars -- ground/1, term_variables/2 in SWI's order, over cycles, DAGs and a list of 300000; occurs -- unify_with_occurs_check/2 over cycles, a tree 6000 deep and a variable 100 compounds down, past the quick walk; lists -- length/2, msort/2, memberchk/2, atom_codes/2, atom_chars/2, number_chars/2, string_chars/2, string_codes/2, atomic_list_concat/2 raise `type_error(list, L)` over a list that is its own tail, a format's text and term_to_atom/2 `type_error(text, L)`, sort/2 and sort/4 dropping duplicates take it as the set of its elements, is_list/1, proper_length/2 and is_set/1 fail. Over 1.10.18 the case is 83 green (its own 83 checks) and 100 red -- every check of the walks. Each of forty arms that takes one rule out goes red (failing checks of the case as it then stood, 173 to 183): unify's count 35, its link 24, compare's count 39, its link 39, asked again from the first pair 2, the store's matcher handing a pair to unify (`test/solve.cicili` red), copy_term's ceiling 16, the copy that keeps each compound once 16, the store's ceiling 28, a DAG put whole 4, the count of cycles put 12, the reader 40, the ball's count 30, assert refused 2, raised 5, the body's count 12, a grammar rule asked first 12, its refusal counted 3, ground/1's count 11, its map 11, term_variables/2's count 11, its map 11, the occurs check asked 4, past its quick walk 1 (green until the variable 100 compounds down was added: the quick walk pops the last argument first and found the other check's variable at once), a module's list length 16, is_list/1 16, length/2's raise 16, memberchk/2's count 25, a code list's 25, a char list's 25, a format's text 25, atom_codes/2's raise 1, string_codes/2 and string_chars/2's 2, atom_chars/2's 1, number_chars/2's 1, term_to_atom/2's `text` 1, sort/2's set 8, sort/4's 1, proper_length/2 1, is_set/1 1. **3.59.0 adds a write too deep for the C stack** (56 checks, each part a child; test/files/cyclic_depth.pl holds what swipl says): a portray goal asked at each of 200000 levels, print/1 asking portray/1 and format/3's ~p, each raising `resource_error(c_stack)`, and the next portray goal asked as before; stdout given nothing of a tree, nor of a cyclic term whose factors run out, by write/1 or by print/1 asking portray/1, nor of a clause by portray_clause/1, and the next clause it lays out whole; statistics(c_stack); under `ulimit -s 1024` that size said, a tree 20000 deep too deep and one 2000 deep written whole, and a portray goal that writes 500 levels of its own stopped before it is asked; a library(thread) thread's own C stack, caught and uncaught; a green task's worker's, a task's answer, go/2, channel_send/2, and async_run/1's answer and goal; a store's refusal of a clause it cannot write as a row, by assertz/1 and by a consult (reported, read on past, its writes after it whole); and the uncaught message and print_message/2's, swipl's two lines. **3.60.0 adds a read too deep for the C stack** (39 checks, each part a child; test/files/read_depth.pl holds what swipl says): under `ulimit -s 1024` statistics(c_stack) said, a bracket 20000 deep too deep to read and one 1000 deep read; a library(thread) thread's read on its own C stack, caught and uncaught, a goal and a message too deep for it to read; a green task's read on its worker's stack, await/2 and async_run/1 of an answer too deep to read back, go/2 and async_run/1 of a goal too deep to read, channel_recv/2 of a message, one waiting in a buffered channel too; `-s` and `run FILE GOAL` of a load that ends there, swipl's message, exit 1 and the directive before it run; the REPL's query too deep, swipl's two lines, and the next query answered; and the main thread's size under `ulimit -s` 1024, 2048 and unlimited, with swipl's sentence of none. **3.60.1 runs every child on 8 MB** (`child_run/3`): a term too deep to read is 25 000 levels and one read whole 5 000; and a green worker's C stack is 8 MB on a main thread of 1 MB, where a task reads 5 000 levels. **3.61.0 adds an expression of any depth** (26 checks, each part a child; test/files/arith_depth.pl holds what swipl says): under `ulimit -s 1024` a million levels nested to the right and to the left, compared, with more of them, a million levels of roundtoward/2 and of a function there is none of, a compound beside the chain at every level, and a million compounds no deeper than twenty; a library(thread) thread's evaluation on its own C stack, a fault at the bottom raised there; a green task's on its worker's, and two at once; an expression a clause's guards cannot decide, one in an if-then-else's condition, a fault at the bottom named; and the REPL's query of a chain 100 000 long. A green worker's C stack is held to 8 MB and the pages over it that macOS 15 on Apple silicon counts (8 400 896, CI run 42580082940), where 3.60.1's check wanted 8 388 608 to the byte. 311 checks |
 | `test/window.pl` | the inference clock and the recorded window (DESIGN-flow.md 9.5, D1, 1.10.12; 1.10.13 for the Redo): a traced run counts what an untraced one counts -- the trace case's 33 queries recorded, nrev, queens and lookup under `--trace` (through 1.10.11 they counted 2185, 4968 and 18272 against 1126, 3664 and 14215), naive reverse of eight 47 both ways where it was 93 traced -- and a machine stepped ten inferences a turn suspends at 10, 20, 30, 40 and finishes after 47, the count of one turn (1.10.11 said 11, 22, 33, 44 and finished after 51); the recorder records the ports the printer prints, one for one, at the same depths, over the trace case's 33 queries (since 1.10.24 the ten of a cut and a failure, and of a Redo that opens only the calls it is inside: over 1.10.22 the printer and the recorder disagree on two of them) and a call that exited and is backtracked past with no clause left, which goes quietly in both (through 1.10.12 a window recorded a Redo as every retry began); `'$trace_window'/4`'s probe says how a run ended and at which inference, and a recording from the first inference has every call, the clause it entered, each head that did not unify, every Exit with what the proof bound; a window opened part way, in the run's engine and inside `findall/3`'s, holds event for event what the whole recording holds there; the collector runs on the way to a window and not in it (a collection asked for inside one does not come, and every Exit names its Call's cell); answers(K), a throw and the catch that took it, an uncaught exception, an argument cut to `text(N)` with its whole length, nothing left bound, and five refusals by name. Each of ten arms that takes one rule out goes red: the Exit marker counted as a step (14 checks), a Redo recorded as its retry begins, a stopped turn saved with the step it did not take, the window never opening in place, opening only in the innermost engine, opening without pushing the next goal back, the collector left on in a window opened part way and in one recorded from the first inference, and the heads not recorded. And `ask(Cond, Holds)` (D4, 1.10.16): a question proved where the run stopped, over what it had bound there -- the second of a list true stopped at the inference of the call that bound it and false at the one before, an answer's bindings and nothing kept after, a failure's, a question that raises (its ball) and one that runs on (stopped), and one asked after collections had moved it and the run's terms -- a collection first, a list nothing keeps under the question, and a run that ends by building a larger one where the question was: compaction leaves the old copy readable, and a stale cell read the right answer until something was built over it (the first arm of the root rule stayed green); each of three arms goes red: the question's cell not moved with a collection, asked after the undo, a proof said to have failed. And since 1.11.2 (the reasoning session's finding E), the heads recorded are the ones the selection TRIED: `w_kv(K, 2)` tries `w_kv(a, 3)` and enters `w_kv(b, 2)`, which binds K; `w_kv(d, V)` records no head for the clauses of a and b, which the index passes over, and `w_kv(e, V)` none at all; a retry of `w_kv(K, 3)` tries `w_kv(b, 2)` before it enters `w_kv(d, 3)`; `w_many(k9999, V)` over 10,000 facts is three events, where 1.11.1 recorded 10,001; and `w_go`'s reverse no longer gives a list the head `w_nrev([], [])`. On 1.11.0 four of these go red, and the arm that reads the key again after the selection has bound the call goes red on the other two. And since 1.12.2 (the two clocks, the reasoning session's point 4): a window whose last inference is a call that exits by the tracer's marker keeps that Exit, as a whole recording has it there (through 1.12.1 the stop came before the marker); a machine stepped five inferences a turn through a goal with a `=/2` and a `true` at every turn of its loop suspends at 5, 10, 15 and 20 and finishes after 24, the count of one turn; and `w_fill/1` answers at 13, where `length(L, 3)` made it 25. Each of four arms goes red on one check: the marker not taken before the stop, a frozen machine's frees not read back, a turn's budget in steps, no room past the step limit. And since 1.13.3, the clock a probe runs under (`time(F, K)`), held where it does not depend on how fast the box is: `w_cnt(3)` timed from its first inference, every one, the clock's cost measured over 512 readings, and the guards its clause ran as it was entered (2, 4, 6) reading 0; into findall/3's engine and out, every inference read; `time(1, 4)` the run's last four, 40 a guard; `time(5, 0)` with `to(9)`; a collection garbage_collect/0 asked for kept apart, at the inference before whose step it came (6), and no part of that step's time; findall/3's copies its own -- its inference the longest of a run of 20 000 answers, and over three answers of a 10 000-element list no inner inference a tenth of its own; the clock's array grown its own time, the inference after its second growth under 10 us (the least of three runs; 78 to 568 us with the clock not reading again); three refusals. Each of six arms goes red: the clock not handed to a nested engine (1), the guards' budget reading the clock's MAX_STEPS (3), findall/3 not taking the clock back at each answer (1), nor at its end (1), a collection charged to its step (1), the clock not reading again after its array grew (1). 52 checks |
 | `test/journal.pl` | the journal (DESIGN-flow.md 9.2, D3, 1.10.15), against values worked out by hand from `test/journal/run.pl`: a record of a run that reaches the world at every kind of portal -- the clock, the environment, a file asked about, read and appended to, a stream written (by `format/3` and by `with_output_to/2`) and read back, a raise `open/3` made and caught, `getenv/2` inside `findall/3` and its failure, a process, a temporary name, the program's arguments, a thread that leaves a mark and sends a message -- an entry for each in order, `format/3` into an atom not journalled, a float written to its seventeen digits; its replay ending where the record did with every answer the record's, the clock to the bit, and nothing done twice: the file appended to once, the stream's file not written again, the thread not started, the journal untouched; each divergence, where and with what -- another portal where the journal holds one, another argument, the journal's call passed by and made late, passed by and noticed at a module's call that is not a portal, a portal past the journal's last, one the journal holds made early (stopped before it runs), another argument where the journal's call FAILED (no answer to unify: the text tells them apart), the journal's calls left out with the answer where the record's was, its last call left out, and a replay stopped at `to(3)` that is none; a raise nothing catches, recorded and raised again by the replay at the same inference; the run recorded by one process and replayed by another, and again under collections every 2000 cells; five refusals by name, and a window without a journal as before. Each of nine arms that takes one rule out goes red: the journal's call run instead of answered, a call matched by its predicate alone, a passed call unseen, a portal the journal holds made where it holds none, floats written `%.15g`, a portal's ball not kept, a replay's write to a stream it never opened delivered, `format/3` a portal whatever its sink, and a replay's end not asked. 39 checks |
 | `test/vacuum.pl` | the store's two hygiene verbs — `forget` and the vacuum — in BOTH arrangements, plus the gate on `vacuum_kb/0`: the hook is installed only when the operator said `--vacuum`, and a run that did not raises `permission_error` rather than quietly spending the store's point-in-time reads. Forget's contract is pinned as count, emptiness with declarations, and idempotence. The three vacuum steps of the wire half get 180s where the rest keep 10s, because the pass rewrites the WHOLE store's live rows and not this base's — 16s measured against a server also holding CivV's 92 bases |
@@ -17535,4 +17535,238 @@ under none, the hard limit unlimited. Through 3.60.0 it was red under 64 MB
 (four checks: a store's row and the uncaught message) and under no limit
 (ten), because a write of 200 000 levels fits there. cowork was red in the
 Mac's suite and green alone: its four workers' speed is a clock check.
+Reasoning stays 1.0.33.
+
+## An expression of any depth, its last argument first, as swipl's (3.61.0)
+
+swipl's valueExpression() in pl-arith.c evaluates an expression on two
+stacks of its own, the compounds still to be applied and the values made,
+so an expression of any depth evaluates: a million levels of `1 + E`, nested
+to the right or to the left. It takes a compound's arguments from the LAST:
+`X is a + b` raises `type_error(evaluable, b/0)`, `foo(1, 2, a)` names a/0
+before foo/3, and so do `tab(a + b)` and format/2's `~2f` of `a + b`. A
+comparison evaluates its left side first. When it pushes its 101st compound
+-- a list of one character and f() not counted, roundtoward/2 counted before
+its mode is read -- it asks once whether the WHOLE expression is cyclic, and
+raises `type_error(expression, E)` of the whole when it is. f() is its own
+culprit, `type_error(evaluable, f())`, and roundtoward/2's mode that is no
+atom `type_error(atom, M)`.
+
+cocolog's `coco_arith` called itself for each argument, the first first.
+Some 43 000 levels were a SIGSEGV on 8 MB, exit 139, in is/2, the
+comparisons, tab/1, format/2's numeric directives and the folds. Every
+expression with two faults named the other one. A cycle was asked about
+1 024 levels down, of the subterm there, so `a + X` with X cyclic said a/0.
+f() was f/0, and a mode that is no atom was `type_error(round, M)`.
+
+Now:
+
+- every evaluation begins at `coco_arith_top`, which sets the count to 100
+  and the root to the expression (`abud`, `aroot`, appended to
+  coco_machine): is/2, each side of a comparison, tab/1, format/2, the
+  folds of library(lists) and aggregate_all/3, and the `Name//Arity` of
+  listing/1 and of a declaration (`'$pi_head'/2`'s);
+- `coco_arith` evaluates a compound's arguments from its last, and counts
+  each compound it enters but a list of one character. Where the count
+  runs out the compound is `coco_arith_past`'s (weak, cold), one tail call
+  on a branch an expression of a hundred compounds never takes;
+- `coco_arith_past`'s first time is the 101st compound. f() raises there,
+  before any question. Then the whole expression is asked about, once, 3
+  for its caller to raise; and the C stack where it stands is kept
+  (`astk`). Every time after, a compound entered with the C stack 16 KB
+  below that is `coco_arith_far`'s, and any other is `coco_arith`'s again
+  with the 63 after it. So a deep expression leaves the C stack -- a chain
+  at its 229th level, the third time it is asked -- and a wide one, a
+  million compounds no deeper than twenty, is evaluated by calls, asked
+  here once in 64. Where the stack stands is read from the cells an
+  evaluation is handed for its answer, which are in its caller's frame,
+  and nothing more is handed down;
+- `coco_arith_far`: each compound is a frame on a stack of its own, its
+  arguments evaluated from its last -- an integer or a float in place,
+  another leaf by `coco_arith`, a compound a frame above it -- and applied
+  once they are, its value one more on the values' stack. The first 32
+  frames and values are on the C stack and the rest malloc'd
+  (`coco-afar-room`), a refusal `resource_error(memory)`; as swipl's
+  segstacks they are no part of stack_limit;
+- THE CYCLE QUESTION is two walks. `coco_arith_acyclic` walks the
+  expression as the tree it nearly always is and counts its compounds: an
+  argument that is a compound is walked next and only the others wait, so
+  a chain's walk keeps nothing and marks nothing. A walk that ends is no
+  cycle. One that has counted 4 096 compounds and not ended is a bigger
+  tree, a DAG or a cycle, and `coco_arith_marked` says which: each compound
+  met once, its state in the top two bits of its own header while the walk
+  lasts -- on the path, or done --, a compound met on the path a cycle, and
+  every mark put back before the answer;
+- a function's application is written once and emitted twice:
+  `coco-arith-unary-body`, `coco-arith-binary-apply` and
+  `coco-arith-powm-apply` are expanded in `coco_arith` and in
+  `coco_arith_far`'s `coco_arith_apply`;
+- roundtoward/2's mode is read and set as its compound is entered, its one
+  argument evaluated and its mode put back when it is done; a raise past
+  the hundredth puts each pending one's mode back, the innermost first. Its
+  argument's value is made in cells of its own frame: handed its caller's,
+  a chain of roundtoward/2 said the stack stood still and never left it;
+- f() is `type_error(evaluable, f())`, in the first hundred compounds and
+  past them.
+
+Not swipl's (COMPAT.md):
+
+- an integer past 64 bits raises int_overflow where swipl makes a bignum
+  (the integers row): `2**63 - 1` raises at its `2**63`;
+- powm/3 of a float raises `type_error(integer, F)`, where swipl 9.0.4's
+  ar_powm() raises it and answers all the same, `foreign predicate
+  system:is/2 did not clear exception` (a new row).
+
+test/files/arith_depth.pl holds 175 lines to swipl:
+
+- 43 of the order: each function's two faults, an unknown function of two
+  and of three arguments, a comparison, roundtoward/2's modes that are no
+  mode, a list and a string of one character, f() in three places, tab/1
+  and format/2;
+- 49 of depth: 200 000 levels to the right, to the left, of `-` and of
+  abs/1, mixed; halves, tenths and thirds; tenths under each rounding mode,
+  roundtoward/2 nested 200 and 1 000 levels inside and outside another and
+  100 000 deep by itself, with which mode is set after; powm/3, max, min,
+  `//` and `mod` over deep sides, and a function of one, of two and of
+  three arguments 1 000 levels down, on the evaluator's own stacks; a list
+  and a string of one character at the bottom; the infinities; the depths
+  99 to 1 025, 4 094 to 4 098, and every
+  depth from 90 to 700 each way nested and with a fault at the bottom; a
+  DAG of 20 levels, a million compounds, alone, under a chain and over a
+  fault; a wide expression over deep ones and a deep one over a wide one,
+  and a compound beside the chain at every level; and deep sides compared;
+- 29 of cycles: a cyclic expression at the top, and K levels down for K 0
+  to 1 025, each way nested, the culprit the whole; behind chains of 4 095,
+  4 096, 4 097 and 200 000 levels, under a DAG of 14 levels, beside one,
+  and a DAG with a fault and no cycle; beside the hundredth, which of f(),
+  roundtoward/2's modes, a list or a fault raises first; a list of one
+  character moving the question one compound on; f(Y), -(Z) and [W]; and
+  the comparisons', tab/1's, format/2's and sum_list/2's;
+- 41 of errors: a fault at the bottom of 200 000 levels -- an atom, a
+  variable, an unknown function, `-` and sqrt/1 of what they refuse, 1/0,
+  a float overflow, f(), a list, a string, roundtoward/2's modes --, the
+  rounding mode after a raise 200, 1 000 and 100 000 levels down, and two
+  faults past the hundredth and a thousand levels down;
+- 13 of others: tab/1, format/2, sum_list/2, max_list/2, min_list/2,
+  aggregate_all/3's sum and max over deep expressions, their faults, and
+  succ/2 after.
+
+test/cyclic.pl's new section holds what swipl does not end or has not got
+(26 checks, its row above): on a C stack of 1 MB a million levels each
+way, of roundtoward/2 and of a function there is none of, a compound beside
+the chain at every level, and a million compounds no deeper than twenty; a
+library(thread) thread's and a green task's; an expression a clause's
+guards cannot decide; and the REPL's.
+
+THE COST. An evaluation of under a hundred compounds pays the count: two
+stores as it begins and a decrement and a branch a compound. Six loops of
+20 000 turns, each a call, its line and `X is N - 1`, instructions a turn
+less the padding, 3.60.0 and 3.61.0:
+
+    X is N - 1 alone                         2 003     2 008
+    _ is (N * 3 + 1) mod 7                   3 140     3 148
+    _ is -N                                  2 519     2 530
+    N > 0, N =< 1000000                      2 841     2 848
+    _ is N / 2.0 + sqrt(N)                   3 398     3 408
+    _ is max(N, 3) + abs(N - 7) * 2          3 588     3 601
+
+tools/flow/zero.sh at like paths, work less padding: nrev +100, queens +21,
+lookup +73, of 40 to 66 million. A start, each binary at the checkout's own
+path: `-s` of a file of one clause -1 499 of 36.1 million, `cocolog query
+true` -10 596.
+
+Past a hundred compounds the expression pays swipl's question, the walk of
+the whole of it. Instructions a compound, an expression evaluated many
+times, 3.60.0 and 3.61.0:
+
+    a chain of 50 levels                       285       279
+    150                                        265       337   (+27 %)
+    400                                        258       357   (+38 %)
+    2 000, to the right                        370       373
+    2 000, to the left                         368       423   (+15 %)
+    20 000                                     470       449
+    a DAG of 12 levels, 4 095 compounds
+      an evaluation                            162       242   (+49 %)
+    a cyclic expression, raised            236 704   382 881
+
+3.60.0 asked nothing above 1 024 levels, and there `coco_acyclic` of the
+subterm, 240 instructions a compound of it. 3.61.0 asks at the 101st
+compound, of the whole: the tree walk is 77 instructions a compound, and of
+the chain of 400 it is 77 of the 99 more. The rest is the far walk, which
+takes that chain from its 229th level: some 300 instructions a level where
+a call is 250. A chain to the left keeps a value waiting at every level.
+
+How it came to that:
+
+- the far walk from the 101st compound on, the first cut, cost a wide
+  expression its frames: the DAG of 12 levels 304 instructions a compound
+  (+88 %). So the far walk takes a compound only where the C stack is
+  deep, and the recursion goes on asked once in 64;
+- that test written in `coco_arith` itself kept a flag across its two
+  count sites: the last loop above 3 637. One tail call on the cold branch
+  is 3 601;
+- the question asked of `coco_acyclic` is 240 instructions a compound. The
+  tree walk counted against the heap's length cost `X = 1 + X` 792 947
+  instructions, as many steps as the heap had cells. The exact walk alone
+  is 131 a compound: the chain of 150 was 396 and the chain of 400 415. So
+  the tree walk first, to 4 096 compounds, and the exact walk past them.
+
+Not done: only a raise, or a run with no end, tells a cyclic expression
+from another once its 101st compound is passed, so a question asked there
+alone would cost an expression that evaluates nothing. It wants every raise
+of the evaluator behind one test and a count in the far walk.
+
+THE ARMS. 44, one build each, run through test/files.pl's arith_depth and,
+where that is green, test/cyclic.pl: the arm of no edit green in both, 39
+rules red, each in arith_depth, and four guards of cost green. The rules:
+
+- a binary function's right operand first, powm/3's last argument first,
+  an unknown function's arguments from the last, and past the hundredth
+  compound the same;
+- the count of 100, the question asked of the root, and asked once;
+- a list of one character no compound the count takes, and a leaf past the
+  hundredth; f() raising before the question at the 101st, its own culprit,
+  and raising where the far walk enters it;
+- roundtoward/2's mode that is no atom `type_error(atom, M)`, in the first
+  hundred and past them; past them its one argument evaluated, its mode
+  set, put back when it is done, and put back by a raise;
+- a rational kept past the hundredth, a leaf's and a compound's; a function
+  of one argument and powm/3 applied there; a compound's values taken off
+  when it is applied; the first frames copied when the far walk's stacks
+  grow, and the cycle walks' cells when theirs do;
+- an evaluation beginning with its count and with its root; a comparison's
+  second side beginning one, and tab/1's, format/2's, the folds' and
+  listing/1's two;
+- the exact walk asked past the tree walk's count; in it a compound met
+  again on its own path a cycle, a compound done not entered again and off
+  the path, and every mark taken off before the answer;
+- the tree walk following one compound and keeping the others waiting;
+- a compound entered 16 KB of C stack below the 101st the far walk's, no
+  chain of calls growing by more than 64 compounds unasked, the stack kept
+  where the 101st stood, and roundtoward/2's cells its own.
+
+Green, and kept for what they cost:
+
+- the tree walk before the exact one: the exact walk alone is 131
+  instructions a compound where the tree walk is 77, the chain of 400
+  levels 415 a level where it is 357;
+- its count of 4 096: with ten thousand times that, `X = 1 + X` is walked
+  forty million compounds before the exact walk is asked, three billion
+  instructions at 77 a compound;
+- an integer or a float read in place past the hundredth, where another
+  leaf is `coco_arith`'s call;
+- the question asked once in 64 compounds, not at each.
+
+Narrow cases green on the final build, with a server up: lint first, then
+term, syntax, solve, module, state, zigurat and shared (the test binaries),
+files, errors, rationals, engine, cyclic, string, units, trace, gc,
+directives, backtrace, journal, reason, translate, normalise, stream,
+reconsult, flowchart, script, repl, zigurat-lib, library, thread, async,
+serialize, template, static, argv, text, kbs, tunnel, store-lock, meter,
+hex, astar, bigint, process, regex, os, signal, vacuum, groups, ruler,
+tokens, tcp, http, curl, websocket, crypto, tls, zigurat-tls and clay, and
+alone window, flowdebug, httpd, cowork and httpd-tls; tensors SKIPs here,
+with no library/torch.so built. The thirteen basics lessons and library
+03, 18, 48, 50, 51, 54 and 56, each run as the suite runs it. Memcheck
+over test/files/arith_depth.pl names no error.
 Reasoning stays 1.0.33.

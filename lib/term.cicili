@@ -1123,7 +1123,17 @@
     ;; green task's goal, a channel's message), which raises
     ;; resource_error(c_stack) where it would say the text did not read.
     ;; Appended.
-    (member int        rshort))
+    (member int        rshort)
+    ;; ABUD, AROOT and ASTK (3.61.0): the compounds the evaluation in hand
+    ;; may still enter before `coco_arith_past' is asked -- 100 as an
+    ;; evaluation begins (`coco_arith_top'), where swipl's valueExpression()
+    ;; asks whether its whole expression, AROOT, is cyclic, AROOT -1 once
+    ;; that is asked, and 64 from then on; and ASTK the C stack where that
+    ;; 101st compound was entered, 16 KB below which a compound is
+    ;; `coco_arith_far''s. Appended.
+    (member int        abud)
+    (member size_t     aroot)
+    (member size_t     astk))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends

@@ -617,7 +617,7 @@
   (static)
   (func coco_fmt_eval ((coco_engine * e) (size_t a) (int * isf) (i64 * iv) (double * fv))
         (out int)
-        (let ((int rc . #'(coco_arith e a isf iv fv 0)))
+        (let ((int rc . #'(coco_arith_top e a isf iv fv)))
           (if (== rc 3) (return (coco_type_error e "expression" a)))
           (return rc)))
 

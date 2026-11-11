@@ -211,7 +211,7 @@
   ;;; argument had to be an integer, type_error(integer, E).
   (func coco_b_tab ((coco_engine * e) (size_t g)) (out int)
         (let ((i64 n . 0) (int isf . 0) (double fv . 0.0)
-              (int rc . #'(coco_arith e (coco_m_arg e g 0) (aof isf) (aof n) (aof fv) 0)))
+              (int rc . #'(coco_arith_top e (coco_m_arg e g 0) (aof isf) (aof n) (aof fv))))
           (if (== rc 3) (return (coco_type_error e "expression" (coco_m_arg e g 0))))
           (if (!= rc 1) (return rc))
           (if (!= isf 0)

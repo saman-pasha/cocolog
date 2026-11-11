@@ -18,6 +18,395 @@
 
 (IN-PACKAGE :cocolog)
 
+;;; THE APPLICATIONS OF A FUNCTION TO ITS ARGUMENTS EVALUATED (3.61.0),
+;;; each written once and emitted twice: in `coco_arith', which evaluates
+;;; an expression's first hundred compounds on the C stack, and in
+;;; `coco_arith_apply', which applies a compound `coco_arith_far' evaluated
+;;; on stacks of its own. They read the operands S0, I0, N0, D0, F0 (and S1
+;;; ..., S2 ...: S 0 an integer I, 1 a float F, 2 a rational N/D) and E, M,
+;;; NID, ISF, IV, FV and RC where they are written, and answer with a
+;;; `return' of the function they are in.
+
+;;; a function of one argument
+(DEFMACRO coco-arith-unary-body ()
+  `(block
+                       ;; A RATIONAL OPERAND (2.5.0): the exact unary
+                       ;; operations are done here; an integer-only one names
+                       ;; the rational; anything else is a float function and
+                       ;; promotes the operand, as swipl does.
+                       (if (== s0 2)
+                           (cond
+                             ((== nid (coco-id m COCO_OP_NOT))
+                              (return (coco_not_integer_rat e n0 d0 nid 1)))
+                             ((== nid (coco-id m "msb"))
+                              (return (coco_not_integer_rat e n0 d0 nid 1)))
+                             ((== nid (coco-id m "-"))
+                              (block
+                               (if (== n0 (- -9223372036854775807 1))
+                                   (return (coco_int_overflow e)))
+                               (set (-> m arith_n) (- 0 n0))
+                               (set (-> m arith_d) d0)
+                               (set (cof isf) 2)
+                               (return 1)))
+                             ((== nid (coco-id m "+"))
+                              (block (set (-> m arith_n) n0) (set (-> m arith_d) d0)
+                                     (set (cof isf) 2) (return 1)))
+                             ((== nid (coco-id m "abs"))
+                              (block
+                               (if (== n0 (- -9223372036854775807 1))
+                                   (return (coco_int_overflow e)))
+                               (set (-> m arith_n) (? (< n0 0) (- 0 n0) n0))
+                               (set (-> m arith_d) d0)
+                               (set (cof isf) 2)
+                               (return 1)))
+                             ((== nid (coco-id m "sign"))
+                              (block (set (cof iv) (? (> n0 0) 1 (? (< n0 0) -1 0)))
+                                     (set (cof isf) 0) (return 1)))
+                             ;; the integer roundings, exactly
+                             ((or (== nid (coco-id m "integer"))
+                                  (or (== nid (coco-id m "round"))
+                                      (or (== nid (coco-id m "truncate"))
+                                          (or (== nid (coco-id m "floor"))
+                                              (or (== nid (coco-id m "ceiling"))
+                                                  (== nid (coco-id m "ceil")))))))
+                              (let ((int how . 0) (i64 w . 0) (int ovf . 0))
+                                (cond ((or (== nid (coco-id m "integer"))
+                                           (== nid (coco-id m "round"))) (set how 3))
+                                      ((== nid (coco-id m "truncate")) (set how 0))
+                                      ((== nid (coco-id m "floor")) (set how 1))
+                                      (#t (set how 2)))
+                                (coco_rat_round n0 d0 how (aof w) (aof ovf))
+                                (if ovf (return (coco_int_overflow e)))
+                                (set (cof iv) w)
+                                (set (cof isf) 0)
+                                (return 1)))
+                             ((== nid (coco-id m "numerator"))
+                              (block (set (cof iv) n0) (set (cof isf) 0)
+                                     (return 1)))
+                             ((== nid (coco-id m "denominator"))
+                              (block (set (cof iv) d0) (set (cof isf) 0)
+                                     (return 1)))
+                             ;; EVAL of a rational is itself (2.5.0)
+                             ((== nid (coco-id m "eval"))
+                              (block (set (-> m arith_n) n0) (set (-> m arith_d) d0)
+                                     (set (cof isf) 2) (return 1)))
+                             ;; RANDOM(N) over a rational is no integer (2.5.0)
+                             ((== nid (coco-id m "random"))
+                              (return (coco_not_integer_rat e n0 d0 nid 1)))
+                             ((== nid (coco-id m "rational"))
+                              (block (set (-> m arith_n) n0) (set (-> m arith_d) d0)
+                                     (set (cof isf) 2) (return 1)))
+                             ((== nid (coco-id m "rationalize"))
+                              (block (set (-> m arith_n) n0) (set (-> m arith_d) d0)
+                                     (set (cof isf) 2) (return 1)))
+                             ((== nid (coco-id m "float_integer_part"))
+                              (let ((i64 w . 0) (int ovf . 0))
+                                (coco_rat_round n0 d0 0 (aof w) (aof ovf))
+                                (if ovf (return (coco_int_overflow e)))
+                                (set (cof iv) w)
+                                (set (cof isf) 0)
+                                (return 1)))
+                             ((== nid (coco-id m "float_fractional_part"))
+                              (let ((i64 r . #'(% n0 d0)))
+                                (if (== r 0)
+                                    (block (set (cof iv) 0)
+                                           (set (cof isf) 0))
+                                  (block (set (-> m arith_n) r) (set (-> m arith_d) d0)
+                                         (set (cof isf) 2)))
+                                (return 1)))
+                             ((== nid (coco-id m "float"))
+                              (let ((double x . #'(/ (cast double n0) (cast double d0))))
+                                (return (coco_float_fn e 1 x x isf fv))))
+                             (#t (block (set f0 (/ (cast double n0) (cast double d0)))
+                                        (set s0 1)))))
+                       (cond
+                         ;; -(0.0) is -0.0, and a NaN is itself, its bits
+                         ;; kept as swipl's ar_u_minus() keeps them (2.2.2):
+                         ;; -(nan) == nan
+                         ((== nid (coco-id m "-"))
+                          (if s0 (block (set (cof fv) (? (!= f0 f0) f0 (- f0))) (set (cof isf) 1))
+                            (block
+                             ;; the least integer has no negation in 64 bits
+                             (if (== i0 (- -9223372036854775807 1)) (return (coco_int_overflow e)))
+                             (set (cof iv) (- 0 i0)) (set (cof isf) 0)))
+                          (return 1))
+                         ((== nid (coco-id m "+"))
+                          (if s0 (block (set (cof fv) f0) (set (cof isf) 1))
+                            (block (set (cof iv) i0) (set (cof isf) 0)))
+                          (return 1))
+                         ;; bitwise complement, on the two's complement the
+                         ;; whole engine already uses: \ 0 is -1
+                         ((== nid (coco-id m COCO_OP_NOT))
+                          (if s0 (return (coco_not_integer e f0 nid 1)))
+                          ;; -1 - X, which no X overflows (0 - X - 1 did,
+                          ;; at the least integer)
+                          (set (cof iv) (- -1 i0)) (set (cof isf) 0)
+                          (return 1))
+                         ;; SWI's: an integer under 1 is outside its domain,
+                         ;; domain_error(not_less_than_one, N) -- through
+                         ;; 1.14.0 a type error naming heap cell 0
+                         ((== nid (coco-id m "msb"))
+                          (if s0 (return (coco_not_integer e f0 nid 1)))
+                          (if (<= i0 0)
+                              (return (coco_fn_domain e nid 1 "not_less_than_one" (coco_new_int m i0))))
+                          (let ((i64 b . #'-1) (i64 v . #'i0))
+                            (while (> v 0) (set b (+ b 1)) (set v (>> v 1)))
+                            (set (cof iv) b))
+                          (set (cof isf) 0) (return 1))
+                         ((== nid (coco-id m "abs"))
+                          (if s0 (block (set (cof fv) (fabs f0)) (set (cof isf) 1))
+                            (block
+                             (if (== i0 (- -9223372036854775807 1)) (return (coco_int_overflow e)))
+                             (set (cof iv) (? (< i0 0) (- 0 i0) i0)) (set (cof isf) 0)))
+                          (return 1))
+                         ;; of a NaN a NaN, SWI's one, the bits `1.5NaN'
+                         ;; reads as (2.1.2; 0.0 through 2.1.1)
+                         ((== nid (coco-id m "sign"))
+                          (if s0 (block (set (cof fv) (? (!= f0 f0) (strtod "nan" nil)
+                                                         (? (> f0 0.0) 1.0 (? (< f0 0.0) -1.0 0.0))))
+                                        (set (cof isf) 1))
+                            (block (set (cof iv) (? (> i0 0) 1 (? (< i0 0) -1 0))) (set (cof isf) 0)))
+                          (return 1))
+                         ;; a float checked as swipl's promotion checks it
+                         ;; (2.2.0): float(1.5NaN) raises undefined
+                         ((== nid (coco-id m "float"))
+                          (return (coco_float_fn e s0 f0 (? s0 f0 (cast double i0)) isf fv)))
+                         ;; A FLOAT IS ONLY AN INTEGER WHERE 64 BITS HOLD IT
+                         ;; (2.0.0, `coco_float_int'): the C conversion of
+                         ;; anything else is undefined, and through 1.15.0 it
+                         ;; was made. A NaN or an infinity is handed back as
+                         ;; it came, as swipl's are (2.2.0)
+                         ((== nid (coco-id m "integer"))
+                          (if s0 (block (set rc (coco_float_int e f0))
+                                        (if (== rc 0) (return (coco_float_back f0 isf fv)))
+                                        (if (!= rc 1) (return rc))))
+                          (set (cof iv) (? s0 (cast i64 (llround f0)) i0)) (set (cof isf) 0) (return 1))
+                         ((== nid (coco-id m "truncate"))
+                          (if s0 (block (set rc (coco_float_int e f0))
+                                        (if (== rc 0) (return (coco_float_back f0 isf fv)))
+                                        (if (!= rc 1) (return rc))))
+                          (set (cof iv) (? s0 (cast i64 f0) i0)) (set (cof isf) 0) (return 1))
+                         ((== nid (coco-id m "round"))
+                          (if s0 (block (set rc (coco_float_int e f0))
+                                        (if (== rc 0) (return (coco_float_back f0 isf fv)))
+                                        (if (!= rc 1) (return rc))))
+                          (set (cof iv) (? s0 (cast i64 (llround f0)) i0)) (set (cof isf) 0) (return 1))
+                         ;; floor and ceiling from the truncating cast, which
+                         ;; goes toward zero: one step down for a negative
+                         ;; fraction, one step up for a positive one (a double
+                         ;; this far out has no fraction, so neither step
+                         ;; leaves 64 bits)
+                         ((== nid (coco-id m "floor"))
+                          (if s0
+                              (let ((i64 w . 0))
+                                (set rc (coco_float_int e f0))
+                                (if (== rc 0) (return (coco_float_back f0 isf fv)))
+                                (if (!= rc 1) (return rc))
+                                (set w (cast i64 f0))
+                                (set (cof iv) (? (and (< f0 0.0) (!= (cast double w) f0)) (- w 1) w)))
+                            (set (cof iv) i0))
+                          (set (cof isf) 0) (return 1))
+                         ((== nid (coco-id m "ceiling"))
+                          (if s0
+                              (let ((i64 w . 0))
+                                (set rc (coco_float_int e f0))
+                                (if (== rc 0) (return (coco_float_back f0 isf fv)))
+                                (if (!= rc 1) (return rc))
+                                (set w (cast i64 f0))
+                                (set (cof iv) (? (and (> f0 0.0) (!= (cast double w) f0)) (+ w 1) w)))
+                            (set (cof iv) i0))
+                          (set (cof isf) 0) (return 1))
+                         ;; sqrt/1 and the ISO transcendentals, each libm's
+                         ;; own, the operand and the result checked as swipl
+                         ;; checks them (2.2.0, `coco_float_fn'): sqrt(-1.0) is
+                         ;; undefined, exp(1000) float_overflow, sin(1.0Inf)
+                         ;; float_overflow for its operand. Through 2.1.2 the
+                         ;; NaN or the infinity was the answer, and log/1
+                         ;; refused an operand at or under zero as undefined,
+                         ;; where swipl's log(0.0) is float_overflow
+                         ;; the parts of an INTEGER are itself and 0 (2.5.0)
+                         ((== nid (coco-id m "float_integer_part"))
+                          (if s0
+                              (return (coco_float_fn e 1 f0 (trunc f0) isf fv)))
+                          (set (cof iv) i0) (set (cof isf) 0) (return 1))
+                         ((== nid (coco-id m "float_fractional_part"))
+                          (if s0
+                              (return (coco_float_fn e 1 f0 (- f0 (trunc f0)) isf fv)))
+                          (set (cof iv) 0) (set (cof isf) 0) (return 1))
+                         ;; EVAL/1 is its operand (2.5.0): already evaluated,
+                         ;; and handed on as it came
+                         ((== nid (coco-id m "eval"))
+                          (if s0
+                              (block (set (cof fv) f0) (set (cof isf) 1))
+                            (block (set (cof iv) i0) (set (cof isf) 0)))
+                          (return 1))
+                         ;; RANDOM(N): an integer in [0, N) (2.5.0); an
+                         ;; integral float is taken as the integer it is
+                         ((== nid (coco-id m "random"))
+                          (cond
+                            (s0
+                             (if (!= f0 (floor f0))
+                                 (return (coco_type_error e "integer" (coco_new_float m f0))))
+                             (if (< f0 1.0)
+                                 (return (coco_fn_domain e nid 1 "not_less_than_one"
+                                                            (coco_new_float m f0))))
+                             (if (>= f0 9223372036854775807.0)
+                                 (return (coco_int_overflow e)))
+                             (set (cof iv) (cast i64 (coco_random_below m (cast u64 f0)))))
+                            (#t
+                             (if (< i0 1)
+                                 (return (coco_fn_domain e nid 1 "not_less_than_one"
+                                                            (coco_new_int m i0))))
+                             (set (cof iv) (cast i64 (coco_random_below m (cast u64 i0))))))
+                          (set (cof isf) 0) (return 1))
+                         ;; the hyperbolic and error functions (2.5.0), libm's
+                         ;; own through the same check every float function gets
+                         ((== nid (coco-id m "sinh"))
+                          (return (coco_float_fn e s0 f0 (sinh (? s0 f0 (cast double i0))) isf fv)))
+                         ((== nid (coco-id m "cosh"))
+                          (return (coco_float_fn e s0 f0 (cosh (? s0 f0 (cast double i0))) isf fv)))
+                         ((== nid (coco-id m "tanh"))
+                          (return (coco_float_fn e s0 f0 (tanh (? s0 f0 (cast double i0))) isf fv)))
+                         ((== nid (coco-id m "asinh"))
+                          (return (coco_float_fn e s0 f0 (asinh (? s0 f0 (cast double i0))) isf fv)))
+                         ((== nid (coco-id m "acosh"))
+                          (return (coco_float_fn e s0 f0 (acosh (? s0 f0 (cast double i0))) isf fv)))
+                         ((== nid (coco-id m "atanh"))
+                          (return (coco_float_fn e s0 f0 (atanh (? s0 f0 (cast double i0))) isf fv)))
+                         ((== nid (coco-id m "log10"))
+                          (return (coco_float_fn e s0 f0 (log10 (? s0 f0 (cast double i0))) isf fv)))
+                         ((== nid (coco-id m "lgamma"))
+                          (return (coco_float_fn e s0 f0 (lgamma (? s0 f0 (cast double i0))) isf fv)))
+                         ((== nid (coco-id m "erf"))
+                          (return (coco_float_fn e s0 f0 (erf (? s0 f0 (cast double i0))) isf fv)))
+                         ((== nid (coco-id m "erfc"))
+                          (return (coco_float_fn e s0 f0 (erfc (? s0 f0 (cast double i0))) isf fv)))
+                         ;; LSB(N) and POPCOUNT(N) (2.5.0): integers alone
+                         ((== nid (coco-id m "lsb"))
+                          (if s0 (return (coco_not_integer e f0 nid 1)))
+                          (if (< i0 1)
+                              (return (coco_fn_domain e nid 1 "not_less_than_one"
+                                                         (coco_new_int m i0))))
+                          (set (cof iv) (coco_lsb64 (cast u64 i0)))
+                          (set (cof isf) 0) (return 1))
+                         ((== nid (coco-id m "popcount"))
+                          (if s0 (return (coco_not_integer e f0 nid 1)))
+                          (if (< i0 0)
+                              (return (coco_fn_domain e nid 1 "not_less_than_zero"
+                                                         (coco_new_int m i0))))
+                          (set (cof iv) (coco_popcount64 (cast u64 i0)))
+                          (set (cof isf) 0) (return 1))
+                         ((== nid (coco-id m "sqrt"))
+                          (return (coco_float_fn e s0 f0 (sqrt (? s0 f0 (cast double i0))) isf fv)))
+                         ((== nid (coco-id m "sin"))
+                          (return (coco_float_fn e s0 f0 (sin (? s0 f0 (cast double i0))) isf fv)))
+                         ((== nid (coco-id m "cos"))
+                          (return (coco_float_fn e s0 f0 (cos (? s0 f0 (cast double i0))) isf fv)))
+                         ((== nid (coco-id m "tan"))
+                          (return (coco_float_fn e s0 f0 (tan (? s0 f0 (cast double i0))) isf fv)))
+                         ((== nid (coco-id m "asin"))
+                          (return (coco_float_fn e s0 f0 (asin (? s0 f0 (cast double i0))) isf fv)))
+                         ((== nid (coco-id m "acos"))
+                          (return (coco_float_fn e s0 f0 (acos (? s0 f0 (cast double i0))) isf fv)))
+                         ((== nid (coco-id m "atan"))
+                          (return (coco_float_fn e s0 f0 (atan (? s0 f0 (cast double i0))) isf fv)))
+                         ((== nid (coco-id m "exp"))
+                          (return (coco_float_fn e s0 f0 (exp (? s0 f0 (cast double i0))) isf fv)))
+                         ((== nid (coco-id m "log"))
+                          (return (coco_float_fn e s0 f0 (log (? s0 f0 (cast double i0))) isf fv)))
+                         ;; SWI's rational/1 and rationalize/1 (2.5.0): the
+                         ;; exact fraction a float's bits are, or the simplest
+                         ;; fraction near it; an integer is its own rational
+                         ((== nid (coco-id m "rational"))
+                          (block
+                           (if (not s0)
+                               (block (set (cof iv) i0)
+                                      (set (cof isf) 0) (return 1)))
+                           (if (!= f0 f0) (return (coco_evaluation_error e "undefined")))
+                           (if (or (== f0 (coco_inf 1)) (== f0 (coco_inf -1)))
+                               (return (coco_evaluation_error e "rational_overflow")))
+                           (let ((i64 nn . 0) (i64 dd . 1))
+                             (if (not (coco_double_rat f0 (aof nn) (aof dd)))
+                                 (return (coco_int_overflow e)))
+                             (return (coco_rat_result m nn dd isf iv)))))
+                         ((== nid (coco-id m "rationalize"))
+                          (block
+                           (if (not s0)
+                               (block (set (cof iv) i0)
+                                      (set (cof isf) 0) (return 1)))
+                           (if (!= f0 f0) (return (coco_evaluation_error e "undefined")))
+                           (if (or (== f0 (coco_inf 1)) (== f0 (coco_inf -1)))
+                               (return (coco_evaluation_error e "rational_overflow")))
+                           (let ((i64 nn . 0) (i64 dd . 1))
+                             (if (not (coco_rat_approx f0 (aof nn) (aof dd)))
+                                 (return (coco_int_overflow e)))
+                             (return (coco_rat_result m nn dd isf iv)))))
+                         (#t (return (coco_not_evaluable e nid 1))))))
+
+;;; a function of two: a rational operand, or rdiv, goes to the exact path
+;;; (2.5.0), everything else to the old one. Written as an `and' of the
+;;; COMMON case first: an ordinary arithmetic step pays one test, not three.
+(DEFMACRO coco-arith-binary-apply ()
+  `(block
+     (if (and (!= s0 2) (and (!= s1 2) (!= nid (coco-id m "rdiv"))))
+         (return (coco_arith_binary e nid (? (and (== s0 0) (== s1 0)) 1 0) s0 s1
+                                    i0 (? s0 f0 (cast double i0))
+                                    i1 (? s1 f1 (cast double i1))
+                                    isf iv fv)))
+     (return (coco_arith_rat_binary e nid
+                                    (? (== s0 1) 1 0) (? (== s0 2) 1 0) i0 n0 d0 f0
+                                    (? (== s1 1) 1 0) (? (== s1 2) 1 0) i1 n1 d1 f1
+                                    isf iv fv))))
+
+;;; POWM(A, B, M): A and B 0 or more, M 1 or more, each named as swipl
+;;; names it (2.5.0)
+(DEFMACRO coco-arith-powm-apply ()
+  `(block
+     (if (== s0 2) (return (coco_not_integer_rat e n0 d0 nid 3)))
+     (if s0 (return (coco_not_integer e f0 nid 3)))
+     (if (== s1 2) (return (coco_not_integer_rat e n1 d1 nid 3)))
+     (if s1 (return (coco_not_integer e f1 nid 3)))
+     (if (== s2 2) (return (coco_not_integer_rat e n2 d2 nid 3)))
+     (if s2 (return (coco_not_integer e f2 nid 3)))
+     (if (< i0 0)
+         (return (coco_fn_domain e nid 3 "not_less_than_zero" (coco_new_int m i0))))
+     (if (< i1 0)
+         (return (coco_fn_domain e nid 3 "not_less_than_zero" (coco_new_int m i1))))
+     (if (< i2 1)
+         (return (coco_fn_domain e nid 3 "not_less_than_one" (coco_new_int m i2))))
+     (set (cof iv) (cast i64 (coco_powm64 (cast u64 i0) (cast u64 i1) (cast u64 i2))))
+     (set (cof isf) 0) (return 1)))
+
+;;; ROOM FOR NEED MORE on a vector of cells of the cycle question's
+;;; (`coco_arith_acyclic', `coco_arith_marked'), P its LEN cells in CAP, the
+;;; first ones in INL on the C stack and the rest malloc'd: a refusal leaves
+;;; the walk's loop, RC -1.
+(DEFMACRO coco-acy-room (p inl cap len need)
+  `(if (> (+ ,len ,need) ,cap)
+       (let ((size_t ncap . #'(* ,cap 2)) (size_t * grown . nil))
+         (if (== ,p (aof (nth 0 ,inl)))
+             (block (set grown (cast (size_t *) (malloc (* ncap (sizeof size_t)))))
+                    (if (!= grown nil) (memcpy grown ,p (* ,len (sizeof size_t)))))
+           (set grown (cast (size_t *) (realloc ,p (* ncap (sizeof size_t))))))
+         (if (== grown nil) (block (set rc -1) break))
+         (set ,p grown)
+         (set ,cap ncap))))
+
+;;; ROOM FOR ONE MORE on one of `coco_arith_far''s two stacks, P its LEN
+;;; entries of TYPE in CAP, the first ones in INL on the C stack and the
+;;; rest malloc'd: a refusal raises resource_error(memory) and leaves the
+;;; walk's loop, RC its answer.
+(DEFMACRO coco-afar-room (p inl cap len type)
+  `(if (>= ,len ,cap)
+       (let ((size_t ncap . #'(* ,cap 2)) (,type * grown . nil))
+         (if (== ,p (aof (nth 0 ,inl)))
+             (block (set grown (cast (,type *) (malloc (* ncap (sizeof ,type)))))
+                    (if (!= grown nil) (memcpy grown ,p (* ,len (sizeof ,type)))))
+           (set grown (cast (,type *) (realloc ,p (* ncap (sizeof ,type))))))
+         (if (== grown nil) (block (set rc (coco_mem_error e)) break))
+         (set ,p grown)
+         (set ,cap ncap))))
+
 (generic impl-solve-arith
   ()
 
@@ -1055,10 +1444,13 @@
   ;;; be.
   ;;;
   ;;; NOT BY A CYCLE (1.10.18): `X = 1+X, Y is X' is bounded by nothing, and
-  ;;; through 1.10.17 recursed until the C stack ran out. An argument met
-  ;;; 1024 levels down asks `coco_acyclic' of its compound, once a path, and
-  ;;; a cycle answers 3 all the way up, for `is/2' and the comparisons to
-  ;;; raise SWI's type_error(expression, E) naming their whole argument.
+  ;;; through 1.10.17 recursed until the C stack ran out. The expression's
+  ;;; 101st compound asks whether the whole of it is cyclic (3.61.0,
+  ;;; `coco_arith_past'; through 3.60.0 an argument met 1024 levels down
+  ;;; asked of its own compound), and a cycle answers 3 all the way up, for
+  ;;; `is/2' and the comparisons to raise SWI's type_error(expression, E)
+  ;;; naming their whole argument. NOR BY ITS DEPTH (3.61.0): the calls end
+  ;;; some two hundred levels down, where `coco_arith_far' takes over.
   ;;; The two integer leaves read below ask nothing: they do not recurse.
   ;;; THE BINARY OPERATORS THAT TAKE INTEGERS ALONE (2.5.0).
   (static)
@@ -1241,15 +1633,10 @@
 
   (static) (decl)
   (func coco_roundtoward ((coco_engine * e) (size_t t)
-                          (int * isf) (i64 * iv) (double * fv) (u32 depth)) (out int))
+                          (int * isf) (i64 * iv) (double * fv)) (out int))
 
   (static) (decl) (func coco_arith ((coco_engine * e) (size_t t)
-                                  (int * isf) (i64 * iv) (double * fv) (u32 depth)) (out int))
-
-  ;;; 1 when the recursion at DEPTH must stop: a cycle under T
-  (static)
-  (func coco_arith_deep ((coco_machine * m) (size_t t) (u32 depth)) (out int)
-        (return (? (and (== depth 1024) (== 0 (coco_acyclic m t))) 1 0)))
+                                  (int * isf) (i64 * iv) (double * fv)) (out int))
 
   ;;; A ONE-CHARACTER TEXT EVALUATES TO ITS CODE (3.0.0), as swipl's does:
   ;;; `X is "a"', `X is [0'a]' and `X is [a]' are 97. A list's one element
@@ -1311,21 +1698,342 @@
           (set (cof iv) code) (set (cof isf) 0)
           (return 1)))
 
+
   ;;; AN UNKNOWN FUNCTION'S ARGUMENTS ARE EVALUATED FIRST, as swipl's are
   ;;; (3.0.0): `X is foo(1, 2, a)' names a/0, not foo/3. Arity 1 and 2 did
-  ;;; so already, the binary and unary dispatches evaluating first.
+  ;;; so already, the binary and unary dispatches evaluating first. The
+  ;;; last one first (3.61.0, as every function's): `foo(a, b)' names b/0.
+  ;;; And f() is no function and its own culprit, type_error(evaluable,
+  ;;; f()), as swipl's, where through 3.60.0 it was f/0.
   (weak) (cold)
-  (func coco_arith_args_first ((coco_engine * e) (size_t t) (u64 nid) (u32 n) (u32 depth))
+  (func coco_arith_args_first ((coco_engine * e) (size_t t) (u64 nid) (u32 n))
         (out int)
-        (let ((int s . 0) (i64 i . 0) (double f . 0.0) (int rc . 1))
-          (if (>= depth 1024) (if (coco_arith_deep (-> e m) t depth) (return 3)))
-          (for ((u32 k . 0)) (< k n) ((++ k))
-            (set rc (coco_arith e (coco_arg (-> e m) t k) (aof s) (aof i) (aof f) (+ depth 1)))
+        (let ((int s . 0) (i64 i . 0) (double f . 0.0) (int rc . 1) (u32 k . n))
+          (if (== n 0) (return (coco_type_error e "evaluable" t)))
+          (while (> k 0)
+            (set k (- k 1))
+            (set rc (coco_arith e (coco_arg (-> e m) t k) (aof s) (aof i) (aof f)))
             (if (!= rc 1) (return rc)))
           (return (coco_not_evaluable e nid n))))
 
+  ;;;; ---- an expression past its hundredth compound (3.61.0) ----
+  ;;; swipl's valueExpression() evaluates an expression on two stacks of its
+  ;;; own, the compounds pending and the values made, so that an expression
+  ;;; of any depth evaluates: a sum of three million levels, nested either
+  ;;; way. Through 3.60.0 `coco_arith' called itself for each argument, and
+  ;;; some 43 000 levels were a SIGSEGV. It still does while the C stack is
+  ;;; shallow, which is every expression most programs evaluate, a wide one
+  ;;; of any size too; the 101st compound is where swipl's asks whether the
+  ;;; WHOLE expression is cyclic, and raises type_error(expression, E) of it
+  ;;; when it is -- the check `coco_arith' made 1 024 levels down, of the
+  ;;; subterm there -- and a compound entered 16 KB of C stack below that
+  ;;; one, some hundred levels on, is `coco_arith_far''s, with everything
+  ;;; under it.
+
+  ;;; a pending compound: T, its name and arity, K the argument evaluated
+  ;;; next -- the last first, -1 once all are -- KIND `coco_arith_apply''s,
+  ;;; or 4 roundtoward/2, its OLD the rounding mode before it; VB where its
+  ;;; values begin on the values' stack
+  (struct coco_afrm
+    (member size_t t)
+    (member u64    nid)
+    (member u32    n)
+    (member int    k)
+    (member int    kind)
+    (member int    old)
+    (member size_t vb))
+
+  ;;; a value made: S 0 an integer I, 1 a float F, 2 a rational I/D
+  (struct coco_aval
+    (member int    s)
+    (member i64    i)
+    (member i64    d)
+    (member double f))
+
+  ;;; A COMPOUND APPLIED TO ITS ARGUMENTS EVALUATED, in W as they were made
+  ;;; (its last argument's first): KIND 1 a function of one argument, 2 of
+  ;;; two, 3 powm/3, 5 a name no function has. The applications are
+  ;;; `coco_arith''s own, its macros.
+  (static)
+  (func coco_arith_apply ((coco_engine * e) (u64 nid) (int kind) (u32 n) (coco_aval * w)
+                          (int * isf) (i64 * iv) (double * fv)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (int rc . 0))
+          (if (== kind 1)
+              (let ((int s0 . #'($ (nth 0 w) s)) (i64 i0 . #'($ (nth 0 w) i))
+                    (i64 n0 . #'($ (nth 0 w) i)) (i64 d0 . #'($ (nth 0 w) d))
+                    (double f0 . #'($ (nth 0 w) f)))
+                (coco-arith-unary-body)))
+          (if (== kind 2)
+              (let ((int s0 . #'($ (nth 1 w) s)) (i64 i0 . #'($ (nth 1 w) i))
+                    (i64 n0 . #'($ (nth 1 w) i)) (i64 d0 . #'($ (nth 1 w) d))
+                    (double f0 . #'($ (nth 1 w) f))
+                    (int s1 . #'($ (nth 0 w) s)) (i64 i1 . #'($ (nth 0 w) i))
+                    (i64 n1 . #'($ (nth 0 w) i)) (i64 d1 . #'($ (nth 0 w) d))
+                    (double f1 . #'($ (nth 0 w) f)))
+                (coco-arith-binary-apply)))
+          (if (== kind 3)
+              (let ((int s0 . #'($ (nth 2 w) s)) (i64 i0 . #'($ (nth 2 w) i))
+                    (i64 n0 . #'($ (nth 2 w) i)) (i64 d0 . #'($ (nth 2 w) d))
+                    (double f0 . #'($ (nth 2 w) f))
+                    (int s1 . #'($ (nth 1 w) s)) (i64 i1 . #'($ (nth 1 w) i))
+                    (i64 n1 . #'($ (nth 1 w) i)) (i64 d1 . #'($ (nth 1 w) d))
+                    (double f1 . #'($ (nth 1 w) f))
+                    (int s2 . #'($ (nth 0 w) s)) (i64 i2 . #'($ (nth 0 w) i))
+                    (i64 n2 . #'($ (nth 0 w) i)) (i64 d2 . #'($ (nth 0 w) d))
+                    (double f2 . #'($ (nth 0 w) f)))
+                (coco-arith-powm-apply)))
+          (return (coco_not_evaluable e nid n))))
+
+  ;;; THE CYCLE QUESTION'S EXACT WALK: each compound of T met ONCE, as
+  ;;; swipl's PL_is_acyclic() meets it, its state kept in its own header
+  ;;; while the walk lasts -- bit 63 while its arguments are walked, on the
+  ;;; path, and bit 62 once they all were, done. A compound met on the path
+  ;;; is a cycle, and one met done was walked already: a cycle costs the
+  ;;; compounds before it and a DAG its compounds, whatever the tree they
+  ;;; spell holds. The marks are the walk's alone: a header's functor is in
+  ;;; its low bits, nothing else reads the heap meanwhile, and every header
+  ;;; marked is put back before the answer, whatever it is. V keeps them,
+  ;;; three cells a compound met -- the compound, its arguments still to
+  ;;; look at (the last first), and the one whose argument it is, CUR's way
+  ;;; back up the path. `coco_acyclic' answers the same with a map beside
+  ;;; the heap, three questions of it a compound: some 240 instructions
+  ;;; one, where this is 131. 1 acyclic, 0 a cycle, -1 a refusal of memory.
+  (weak) (cold)
+  (func coco_arith_marked ((coco_machine * m) (size_t t)) (out int)
+        (let ((size_t vi [192]) (size_t * v . nil) (size_t cap . 192) (size_t n . 0)
+              (size_t cur . #'(cast size_t -1)) (int rc . 1)
+              (u64 * heap . #'(-> m heap))
+              (size_t enter . #'(coco_deref m t)))
+          (if (not (coco-tag-is FUN (nth enter heap))) (return 1))
+          (set v (aof (nth 0 vi)))
+          (while 1
+            ;; a compound to enter: kept, on the path, its arguments to look at
+            (if (!= enter (cast size_t -1))
+                (block
+                  (coco-acy-room v vi cap n 3)
+                  (set (nth n v) enter)
+                  (set (nth (+ n 1) v) (cast size_t (coco_arity m enter)))
+                  (set (nth (+ n 2) v) cur)
+                  (set (nth enter heap) (bitor (nth enter heap) (<< (cast u64 1) 63)))
+                  (set cur n)
+                  (set n (+ n 3))
+                  (set enter (cast size_t -1))))
+            (if (== cur (cast size_t -1)) break)
+            (let ((size_t c . #'(nth cur v)) (size_t k . #'(nth (+ cur 1) v)))
+              (if (== k 0)
+                  ;; every argument walked: off the path, and done
+                  (block
+                    (set (nth c heap)
+                         (bitor (bitand (nth c heap) 4611686018427387903) (<< (cast u64 1) 62)))
+                    (set cur (nth (+ cur 2) v)))
+                (let ((size_t x . 0) (u64 h . 0))
+                  (set k (- k 1))
+                  (set (nth (+ cur 1) v) k)
+                  ;; the argument, read through its bindings
+                  (set x (+ c (+ k 1)))
+                  (set h (nth x heap))
+                  (while (and (coco-tag-is REF h) (!= (cast size_t (coco-payload h)) x))
+                    (set x (cast size_t (coco-payload h)))
+                    (set h (nth x heap)))
+                  (if (coco-tag-is FUN h)
+                      (if (!= 0 (bitand h (<< (cast u64 1) 63)))
+                          (block (set rc 0) break)
+                        (if (== 0 (bitand h (<< (cast u64 1) 62))) (set enter x))))))))
+          ;; every header marked, put back
+          (while (> n 0)
+            (set n (- n 3))
+            (set (nth (nth n v) heap) (bitand (nth (nth n v) heap) 4611686018427387903)))
+          (if (!= v (aof (nth 0 vi))) (free v))
+          (return rc)))
+
+  ;;; THE CYCLE QUESTION, asked once at the expression's 101st compound, of
+  ;;; the whole expression T, walked first as the tree it nearly always is:
+  ;;; each compound counted as it is met, its arguments looked at where they
+  ;;; stand -- one that is a compound is walked next, and only the others
+  ;;; that are compounds wait, in S -- so a chain's walk keeps nothing and
+  ;;; marks nothing, 77 instructions a compound of a chain a clause built
+  ;;; (four cells read through a compound). A walk that ends is no cycle.
+  ;;; One that has counted 4 096 compounds and not ended is a bigger tree, a
+  ;;; DAG or a cycle, and `coco_arith_marked' says which, at what the term
+  ;;; holds: counted against the heap's length, this walk's first cut,
+  ;;; `X = 1 + X' cost as many steps as the heap had cells. 1 acyclic, 0 a
+  ;;; cycle, -1 a refusal of memory.
+  (weak) (cold)
+  (func coco_arith_acyclic ((coco_machine * m) (size_t t)) (out int)
+        (let ((size_t si [64]) (size_t * s . nil) (size_t cap . 64) (size_t n . 0)
+              (size_t budget . 4096) (int rc . 1)
+              (size_t a . #'(coco_deref m t)))
+          (if (not (coco-tag-is FUN (nth a (-> m heap)))) (return 1))
+          (set s (aof (nth 0 si)))
+          (while 1
+            ;; A is a compound not counted yet
+            (if (== budget 0) (block (set rc 2) break))
+            (set budget (- budget 1))
+            (let ((u32 k . #'(coco_arity m a)) (size_t next . #'(cast size_t -1)))
+              (while (> k 0)
+                (set k (- k 1))
+                (let ((size_t x . #'(coco_deref m (coco_arg m a k))))
+                  (if (coco-tag-is FUN (nth x (-> m heap)))
+                      (if (== next (cast size_t -1))
+                          (set next x)
+                        (block
+                          (coco-acy-room s si cap n 1)
+                          (set (nth n s) x)
+                          (set n (+ n 1)))))))
+              (if (!= rc 1) break)
+              (if (!= next (cast size_t -1))
+                  (set a next)
+                (block
+                  (if (== n 0) break)
+                  (set n (- n 1))
+                  (set a (nth n s))))))
+          (if (!= s (aof (nth 0 si))) (free s))
+          (return (? (== rc 2) (coco_arith_marked m t) rc))))
+
+  ;;; T EVALUATED ON STACKS OF ITS OWN, T a compound `coco_arith' would
+  ;;; have entered with the C stack 16 KB below where the expression's
+  ;;; 101st compound stood (`coco_arith_past'): each compound is a frame,
+  ;;; its arguments evaluated from its last -- a leaf by `coco_arith', a
+  ;;; compound a frame above it -- and applied once they are, its value one
+  ;;; more for the frame below. A raise ends the walk where it is, every
+  ;;; roundtoward/2 pending putting its mode back, the innermost first.
+  (weak) (cold)
+  (func coco_arith_far ((coco_engine * e) (size_t t) (int * isf) (i64 * iv) (double * fv))
+        (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_afrm fi [32]) (coco_aval vi [32])
+              (coco_afrm * fs . nil) (coco_aval * vs . nil)
+              (size_t fcap . 32) (size_t vcap . 32) (size_t fn . 0) (size_t vn . 0)
+              (size_t enter . t) (int rc . 1) (u64 consf . 0)
+              (int rs . 0) (i64 ri . 0) (i64 rd . 1) (double rf . 0.0))
+          ;; the list's functor, asked once: a list of one character is a leaf
+          (set consf (coco_cons_fid m))
+          (set fs (aof (nth 0 fi)))
+          (set vs (aof (nth 0 vi)))
+          (while 1
+            ;; a compound to enter: its frame
+            (if (!= enter (cast size_t -1))
+                (let ((u64 nid . #'(coco_name_of m enter))
+                      (u32 n . #'(coco_arity m enter))
+                      (coco_afrm * f . nil))
+                  (if (== n 0) (block (set rc (coco_type_error e "evaluable" enter)) break))
+                  (coco-afar-room fs fi fcap fn coco_afrm)
+                  (set f (+ fs fn))
+                  (set (-> f t) enter) (set (-> f nid) nid) (set (-> f n) n)
+                  (set (-> f k) (- (cast int n) 1)) (set (-> f old) 0) (set (-> f vb) vn)
+                  (set (-> f kind) (? (== n 1) 1
+                                      (? (== n 2) 2
+                                         (? (and (== n 3) (== nid (coco-id m "powm"))) 3 5))))
+                  ;; roundtoward(Expr, Mode): its mode read and set before
+                  ;; Expr is evaluated, its only argument evaluated
+                  (if (and (== n 2) (== nid (coco-id m "roundtoward")))
+                      (let ((size_t mt . #'(coco_deref m (coco_arg m enter 1))) (int mode . -1))
+                        (if (not (coco-tag-is ATOM (nth mt (-> m heap))))
+                            (block (set rc (coco_type_error e "atom" mt)) break))
+                        (set mode (coco_round_mode (coco_atom_name m (coco_name_of m mt))))
+                        (if (< mode 0) (block (set rc (coco_domain_error e "round" mt)) break))
+                        (set (-> f kind) 4) (set (-> f k) 0)
+                        (set (-> f old) (fegetround))
+                        (fesetround mode)))
+                  (set fn (+ fn 1))
+                  (set enter (cast size_t -1))
+                  continue))
+            (let ((coco_afrm * f . #'(+ fs (- fn 1))))
+              ;; its next argument: a compound of an argument or more, and no
+              ;; list, is entered; anything else is a leaf, its value made
+              (if (>= (-> f k) 0)
+                  (let ((size_t a . #'(coco_deref m (coco_arg m (-> f t) (cast u32 (-> f k)))))
+                        (u64 c . 0))
+                    (set (-> f k) (- (-> f k) 1))
+                    (set c (nth a (-> m heap)))
+                    (if (and (coco-tag-is FUN c)
+                             (not (and (== (coco_arity m a) 2) (== (coco-payload c) consf))))
+                        (block (set enter a) continue))
+                    ;; an integer or a float, what a deep chain's leaves
+                    ;; mostly are, read here; anything else by `coco_arith'
+                    (cond
+                      ((coco-tag-is INT c) (set rs 0) (set ri (coco-signed-payload c)))
+                      ((coco-tag-is FLT c)
+                       (set rs 1) (set rf (nth (cast size_t (coco-payload c)) (-> m floats))))
+                      (#t
+                       (set rc (coco_arith e a (aof rs) (aof ri) (aof rf)))
+                       (if (!= rc 1) break)
+                       (if (== rs 2) (block (set ri (-> m arith_n)) (set rd (-> m arith_d))))))
+                    (coco-afar-room vs vi vcap vn coco_aval)
+                    (set ($ (nth vn vs) s) rs) (set ($ (nth vn vs) i) ri)
+                    (set ($ (nth vn vs) d) rd) (set ($ (nth vn vs) f) rf)
+                    (set vn (+ vn 1))
+                    continue))
+              ;; every argument evaluated: the compound's own step
+              (if (== (-> f kind) 4)
+                  (block (fesetround (-> f old))
+                         (set rs ($ (nth (-> f vb) vs) s)) (set ri ($ (nth (-> f vb) vs) i))
+                         (set rd ($ (nth (-> f vb) vs) d)) (set rf ($ (nth (-> f vb) vs) f)))
+                (block
+                  (set rc (coco_arith_apply e (-> f nid) (-> f kind) (-> f n) (+ vs (-> f vb))
+                                            (aof rs) (aof ri) (aof rf)))
+                  (if (!= rc 1) break)
+                  (if (== rs 2) (block (set ri (-> m arith_n)) (set rd (-> m arith_d))))))
+              (set vn (-> f vb))
+              (set fn (- fn 1))
+              (if (== fn 0) break)
+              (coco-afar-room vs vi vcap vn coco_aval)
+              (set ($ (nth vn vs) s) rs) (set ($ (nth vn vs) i) ri)
+              (set ($ (nth vn vs) d) rd) (set ($ (nth vn vs) f) rf)
+              (set vn (+ vn 1))))
+          (if (== rc 1)
+              (block
+                (set (cof isf) rs)
+                (cond ((== rs 2) (set (-> m arith_n) ri) (set (-> m arith_d) rd))
+                      ((== rs 1) (set (cof fv) rf))
+                      (#t (set (cof iv) ri))))
+            (while (> fn 0)
+              (set fn (- fn 1))
+              (if (== ($ (nth fn fs) kind) 4) (fesetround ($ (nth fn fs) old)))))
+          (if (!= fs (aof (nth 0 fi))) (free fs))
+          (if (!= vs (aof (nth 0 vi))) (free vs))
+          (return rc)))
+
+  ;;; THE COUNT RAN OUT (`abud' under 0) at T, a compound `coco_arith' was
+  ;;; about to enter with its answer's cells at ISF. The first time is the
+  ;;; expression's 101st compound, where swipl's valueExpression() asks
+  ;;; whether the WHOLE expression (`aroot') is cyclic: 3 for the caller to
+  ;;; raise when it is, else the C stack it stands at is kept (`astk'),
+  ;;; `aroot' -1 for a question asked. Every time after, T is
+  ;;; `coco_arith_far''s when the C stack stands 16 KB below that, some
+  ;;; hundred levels on: ISF is in the frame of the call that asks for T,
+  ;;; so the cells an evaluation is handed say where the stack stands, and
+  ;;; nothing more is handed down. Else T and the 63 compounds after it are
+  ;;; `coco_arith''s again -- a wide expression is evaluated by calls
+  ;;; however many compounds it has, asked here once in 64, and no chain of
+  ;;; calls grows by more than 64 unasked. f() is no compound swipl's count
+  ;;; takes, and raises before any question.
+  (weak) (cold)
+  (func coco_arith_past ((coco_engine * e) (size_t t) (int * isf) (i64 * iv) (double * fv))
+        (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (if (== (coco_arity m t) 0) (return (coco_type_error e "evaluable" t)))
+          (if (!= (-> m aroot) (cast size_t -1))
+              (block
+                (if (== 0 (coco_arith_acyclic m (-> m aroot))) (return 3))
+                (set (-> m aroot) (cast size_t -1))
+                (set (-> m astk) (cast size_t isf)))
+            (if (> (cast i64 (- (-> m astk) (cast size_t isf))) 16384)
+                (return (coco_arith_far e t isf iv fv))))
+          (set (-> m abud) 64)
+          (return (coco_arith e t isf iv fv))))
+
+  ;;; AN EXPRESSION'S VALUE: 1 with it in *ISF (0 an integer *IV, 1 a float
+  ;;; *FV, 2 a rational, its pair in the machine), or the raise's answer, or
+  ;;; 3 for a cyclic expression, which its caller raises as
+  ;;; type_error(expression, E) of the expression it was given. A
+  ;;; compound's arguments are evaluated from its LAST (3.61.0), as swipl's
+  ;;; valueExpression() evaluates them: `X is a + b' names b/0, `tab(a+b)'
+  ;;; and format/2's `~f' of a+b too. Through 3.60.0 the first first, and
+  ;;; every expression with two faults named the other. An evaluation is
+  ;;; begun by `coco_arith_top'.
   (func coco_arith ((coco_engine * e) (size_t t)
-                    (int * isf) (i64 * iv) (double * fv) (u32 depth)) (out int)
+                    (int * isf) (i64 * iv) (double * fv)) (out int)
         (let ((coco_machine * m . #'(-> e m)))
           (set t (coco_deref m t))
           (let ((u64 c . #'(nth t (-> m heap))))
@@ -1376,343 +2084,37 @@
               (#t
                (let ((u64 nid . #'(coco_name_of m t))
                      (u32 n . #'(coco_arity m t)))
+                 ;; a list of one character is its code (3.0.0), a leaf --
+                 ;; no compound swipl's count takes -- asked before its
+                 ;; tail's [] would be evaluated
+                 (if (and (== n 2) (== (coco-payload c) (coco_cons_fid m)))
+                     (return (coco_arith_list e t isf iv)))
+                 ;; THE EXPRESSION'S 101ST COMPOUND asks whether the whole
+                 ;; expression is cyclic, where swipl's asks (3.61.0), and
+                 ;; one entered 16 KB of C stack below it is
+                 ;; `coco_arith_far''s: no evaluation calls itself deeper.
+                 ;; Both are `coco_arith_past''s, out of line: a count and
+                 ;; a branch are all an evaluation pays here.
+                 (set (-> m abud) (- (-> m abud) 1))
+                 (if (< (-> m abud) 0) (return (coco_arith_past e t isf iv fv)))
                  ;; ROUNDTOWARD(Expr, Mode) is READ before its arguments are
-                 ;; evaluated: the mode is an atom, no expression (2.5.0);
-                 ;; and a list of one character is its code (3.0.0), asked
-                 ;; before its tail's [] would be evaluated
-                 (if (== n 2)
-                     (block
-                       (if (== nid (coco-id m "roundtoward"))
-                           (return (coco_roundtoward e t isf iv fv depth)))
-                       (if (== (coco-payload c) (coco_cons_fid m))
-                           (return (coco_arith_list e t isf iv)))))
+                 ;; evaluated: the mode is an atom, no expression (2.5.0)
+                 (if (and (== n 2) (== nid (coco-id m "roundtoward")))
+                     (return (coco_roundtoward e t isf iv fv)))
                  (if (== n 1)
                      (let ((int s0) (i64 i0) (i64 n0 . 0) (i64 d0 . 1)
                            (double f0) (int rc))
-                       (if (>= depth 1024) (if (coco_arith_deep m t depth) (return 3)))
-                       (set rc (coco_arith e (coco_arg m t 0)
-                                           (aof s0) (aof i0) (aof f0) (+ depth 1)))
+                       (set rc (coco_arith e (coco_arg m t 0) (aof s0) (aof i0) (aof f0)))
                        (if (!= rc 1) (return rc))
                        ;; a rational's pair lives in the machine; take it
                        ;; before anything else can evaluate (2.5.0)
                        (if (== s0 2)
                            (block (set n0 (-> m arith_n)) (set d0 (-> m arith_d))))
-                       ;; A RATIONAL OPERAND (2.5.0): the exact unary
-                       ;; operations are done here; an integer-only one names
-                       ;; the rational; anything else is a float function and
-                       ;; promotes the operand, as swipl does.
-                       (if (== s0 2)
-                           (cond
-                             ((== nid (coco-id m COCO_OP_NOT))
-                              (return (coco_not_integer_rat e n0 d0 nid 1)))
-                             ((== nid (coco-id m "msb"))
-                              (return (coco_not_integer_rat e n0 d0 nid 1)))
-                             ((== nid (coco-id m "-"))
-                              (block
-                               (if (== n0 (- -9223372036854775807 1))
-                                   (return (coco_int_overflow e)))
-                               (set (-> m arith_n) (- 0 n0))
-                               (set (-> m arith_d) d0)
-                               (set (cof isf) 2)
-                               (return 1)))
-                             ((== nid (coco-id m "+"))
-                              (block (set (-> m arith_n) n0) (set (-> m arith_d) d0)
-                                     (set (cof isf) 2) (return 1)))
-                             ((== nid (coco-id m "abs"))
-                              (block
-                               (if (== n0 (- -9223372036854775807 1))
-                                   (return (coco_int_overflow e)))
-                               (set (-> m arith_n) (? (< n0 0) (- 0 n0) n0))
-                               (set (-> m arith_d) d0)
-                               (set (cof isf) 2)
-                               (return 1)))
-                             ((== nid (coco-id m "sign"))
-                              (block (set (cof iv) (? (> n0 0) 1 (? (< n0 0) -1 0)))
-                                     (set (cof isf) 0) (return 1)))
-                             ;; the integer roundings, exactly
-                             ((or (== nid (coco-id m "integer"))
-                                  (or (== nid (coco-id m "round"))
-                                      (or (== nid (coco-id m "truncate"))
-                                          (or (== nid (coco-id m "floor"))
-                                              (or (== nid (coco-id m "ceiling"))
-                                                  (== nid (coco-id m "ceil")))))))
-                              (let ((int how . 0) (i64 w . 0) (int ovf . 0))
-                                (cond ((or (== nid (coco-id m "integer"))
-                                           (== nid (coco-id m "round"))) (set how 3))
-                                      ((== nid (coco-id m "truncate")) (set how 0))
-                                      ((== nid (coco-id m "floor")) (set how 1))
-                                      (#t (set how 2)))
-                                (coco_rat_round n0 d0 how (aof w) (aof ovf))
-                                (if ovf (return (coco_int_overflow e)))
-                                (set (cof iv) w)
-                                (set (cof isf) 0)
-                                (return 1)))
-                             ((== nid (coco-id m "numerator"))
-                              (block (set (cof iv) n0) (set (cof isf) 0)
-                                     (return 1)))
-                             ((== nid (coco-id m "denominator"))
-                              (block (set (cof iv) d0) (set (cof isf) 0)
-                                     (return 1)))
-                             ;; EVAL of a rational is itself (2.5.0)
-                             ((== nid (coco-id m "eval"))
-                              (block (set (-> m arith_n) n0) (set (-> m arith_d) d0)
-                                     (set (cof isf) 2) (return 1)))
-                             ;; RANDOM(N) over a rational is no integer (2.5.0)
-                             ((== nid (coco-id m "random"))
-                              (return (coco_not_integer_rat e n0 d0 nid 1)))
-                             ((== nid (coco-id m "rational"))
-                              (block (set (-> m arith_n) n0) (set (-> m arith_d) d0)
-                                     (set (cof isf) 2) (return 1)))
-                             ((== nid (coco-id m "rationalize"))
-                              (block (set (-> m arith_n) n0) (set (-> m arith_d) d0)
-                                     (set (cof isf) 2) (return 1)))
-                             ((== nid (coco-id m "float_integer_part"))
-                              (let ((i64 w . 0) (int ovf . 0))
-                                (coco_rat_round n0 d0 0 (aof w) (aof ovf))
-                                (if ovf (return (coco_int_overflow e)))
-                                (set (cof iv) w)
-                                (set (cof isf) 0)
-                                (return 1)))
-                             ((== nid (coco-id m "float_fractional_part"))
-                              (let ((i64 r . #'(% n0 d0)))
-                                (if (== r 0)
-                                    (block (set (cof iv) 0)
-                                           (set (cof isf) 0))
-                                  (block (set (-> m arith_n) r) (set (-> m arith_d) d0)
-                                         (set (cof isf) 2)))
-                                (return 1)))
-                             ((== nid (coco-id m "float"))
-                              (let ((double x . #'(/ (cast double n0) (cast double d0))))
-                                (return (coco_float_fn e 1 x x isf fv))))
-                             (#t (block (set f0 (/ (cast double n0) (cast double d0)))
-                                        (set s0 1)))))
-                       (cond
-                         ;; -(0.0) is -0.0, and a NaN is itself, its bits
-                         ;; kept as swipl's ar_u_minus() keeps them (2.2.2):
-                         ;; -(nan) == nan
-                         ((== nid (coco-id m "-"))
-                          (if s0 (block (set (cof fv) (? (!= f0 f0) f0 (- f0))) (set (cof isf) 1))
-                            (block
-                             ;; the least integer has no negation in 64 bits
-                             (if (== i0 (- -9223372036854775807 1)) (return (coco_int_overflow e)))
-                             (set (cof iv) (- 0 i0)) (set (cof isf) 0)))
-                          (return 1))
-                         ((== nid (coco-id m "+"))
-                          (if s0 (block (set (cof fv) f0) (set (cof isf) 1))
-                            (block (set (cof iv) i0) (set (cof isf) 0)))
-                          (return 1))
-                         ;; bitwise complement, on the two's complement the
-                         ;; whole engine already uses: \ 0 is -1
-                         ((== nid (coco-id m COCO_OP_NOT))
-                          (if s0 (return (coco_not_integer e f0 nid 1)))
-                          ;; -1 - X, which no X overflows (0 - X - 1 did,
-                          ;; at the least integer)
-                          (set (cof iv) (- -1 i0)) (set (cof isf) 0)
-                          (return 1))
-                         ;; SWI's: an integer under 1 is outside its domain,
-                         ;; domain_error(not_less_than_one, N) -- through
-                         ;; 1.14.0 a type error naming heap cell 0
-                         ((== nid (coco-id m "msb"))
-                          (if s0 (return (coco_not_integer e f0 nid 1)))
-                          (if (<= i0 0)
-                              (return (coco_fn_domain e nid 1 "not_less_than_one" (coco_new_int m i0))))
-                          (let ((i64 b . #'-1) (i64 v . #'i0))
-                            (while (> v 0) (set b (+ b 1)) (set v (>> v 1)))
-                            (set (cof iv) b))
-                          (set (cof isf) 0) (return 1))
-                         ((== nid (coco-id m "abs"))
-                          (if s0 (block (set (cof fv) (fabs f0)) (set (cof isf) 1))
-                            (block
-                             (if (== i0 (- -9223372036854775807 1)) (return (coco_int_overflow e)))
-                             (set (cof iv) (? (< i0 0) (- 0 i0) i0)) (set (cof isf) 0)))
-                          (return 1))
-                         ;; of a NaN a NaN, SWI's one, the bits `1.5NaN'
-                         ;; reads as (2.1.2; 0.0 through 2.1.1)
-                         ((== nid (coco-id m "sign"))
-                          (if s0 (block (set (cof fv) (? (!= f0 f0) (strtod "nan" nil)
-                                                         (? (> f0 0.0) 1.0 (? (< f0 0.0) -1.0 0.0))))
-                                        (set (cof isf) 1))
-                            (block (set (cof iv) (? (> i0 0) 1 (? (< i0 0) -1 0))) (set (cof isf) 0)))
-                          (return 1))
-                         ;; a float checked as swipl's promotion checks it
-                         ;; (2.2.0): float(1.5NaN) raises undefined
-                         ((== nid (coco-id m "float"))
-                          (return (coco_float_fn e s0 f0 (? s0 f0 (cast double i0)) isf fv)))
-                         ;; A FLOAT IS ONLY AN INTEGER WHERE 64 BITS HOLD IT
-                         ;; (2.0.0, `coco_float_int'): the C conversion of
-                         ;; anything else is undefined, and through 1.15.0 it
-                         ;; was made. A NaN or an infinity is handed back as
-                         ;; it came, as swipl's are (2.2.0)
-                         ((== nid (coco-id m "integer"))
-                          (if s0 (block (set rc (coco_float_int e f0))
-                                        (if (== rc 0) (return (coco_float_back f0 isf fv)))
-                                        (if (!= rc 1) (return rc))))
-                          (set (cof iv) (? s0 (cast i64 (llround f0)) i0)) (set (cof isf) 0) (return 1))
-                         ((== nid (coco-id m "truncate"))
-                          (if s0 (block (set rc (coco_float_int e f0))
-                                        (if (== rc 0) (return (coco_float_back f0 isf fv)))
-                                        (if (!= rc 1) (return rc))))
-                          (set (cof iv) (? s0 (cast i64 f0) i0)) (set (cof isf) 0) (return 1))
-                         ((== nid (coco-id m "round"))
-                          (if s0 (block (set rc (coco_float_int e f0))
-                                        (if (== rc 0) (return (coco_float_back f0 isf fv)))
-                                        (if (!= rc 1) (return rc))))
-                          (set (cof iv) (? s0 (cast i64 (llround f0)) i0)) (set (cof isf) 0) (return 1))
-                         ;; floor and ceiling from the truncating cast, which
-                         ;; goes toward zero: one step down for a negative
-                         ;; fraction, one step up for a positive one (a double
-                         ;; this far out has no fraction, so neither step
-                         ;; leaves 64 bits)
-                         ((== nid (coco-id m "floor"))
-                          (if s0
-                              (let ((i64 w . 0))
-                                (set rc (coco_float_int e f0))
-                                (if (== rc 0) (return (coco_float_back f0 isf fv)))
-                                (if (!= rc 1) (return rc))
-                                (set w (cast i64 f0))
-                                (set (cof iv) (? (and (< f0 0.0) (!= (cast double w) f0)) (- w 1) w)))
-                            (set (cof iv) i0))
-                          (set (cof isf) 0) (return 1))
-                         ((== nid (coco-id m "ceiling"))
-                          (if s0
-                              (let ((i64 w . 0))
-                                (set rc (coco_float_int e f0))
-                                (if (== rc 0) (return (coco_float_back f0 isf fv)))
-                                (if (!= rc 1) (return rc))
-                                (set w (cast i64 f0))
-                                (set (cof iv) (? (and (> f0 0.0) (!= (cast double w) f0)) (+ w 1) w)))
-                            (set (cof iv) i0))
-                          (set (cof isf) 0) (return 1))
-                         ;; sqrt/1 and the ISO transcendentals, each libm's
-                         ;; own, the operand and the result checked as swipl
-                         ;; checks them (2.2.0, `coco_float_fn'): sqrt(-1.0) is
-                         ;; undefined, exp(1000) float_overflow, sin(1.0Inf)
-                         ;; float_overflow for its operand. Through 2.1.2 the
-                         ;; NaN or the infinity was the answer, and log/1
-                         ;; refused an operand at or under zero as undefined,
-                         ;; where swipl's log(0.0) is float_overflow
-                         ;; the parts of an INTEGER are itself and 0 (2.5.0)
-                         ((== nid (coco-id m "float_integer_part"))
-                          (if s0
-                              (return (coco_float_fn e 1 f0 (trunc f0) isf fv)))
-                          (set (cof iv) i0) (set (cof isf) 0) (return 1))
-                         ((== nid (coco-id m "float_fractional_part"))
-                          (if s0
-                              (return (coco_float_fn e 1 f0 (- f0 (trunc f0)) isf fv)))
-                          (set (cof iv) 0) (set (cof isf) 0) (return 1))
-                         ;; EVAL/1 is its operand (2.5.0): already evaluated,
-                         ;; and handed on as it came
-                         ((== nid (coco-id m "eval"))
-                          (if s0
-                              (block (set (cof fv) f0) (set (cof isf) 1))
-                            (block (set (cof iv) i0) (set (cof isf) 0)))
-                          (return 1))
-                         ;; RANDOM(N): an integer in [0, N) (2.5.0); an
-                         ;; integral float is taken as the integer it is
-                         ((== nid (coco-id m "random"))
-                          (cond
-                            (s0
-                             (if (!= f0 (floor f0))
-                                 (return (coco_type_error e "integer" (coco_new_float m f0))))
-                             (if (< f0 1.0)
-                                 (return (coco_fn_domain e nid 1 "not_less_than_one"
-                                                            (coco_new_float m f0))))
-                             (if (>= f0 9223372036854775807.0)
-                                 (return (coco_int_overflow e)))
-                             (set (cof iv) (cast i64 (coco_random_below m (cast u64 f0)))))
-                            (#t
-                             (if (< i0 1)
-                                 (return (coco_fn_domain e nid 1 "not_less_than_one"
-                                                            (coco_new_int m i0))))
-                             (set (cof iv) (cast i64 (coco_random_below m (cast u64 i0))))))
-                          (set (cof isf) 0) (return 1))
-                         ;; the hyperbolic and error functions (2.5.0), libm's
-                         ;; own through the same check every float function gets
-                         ((== nid (coco-id m "sinh"))
-                          (return (coco_float_fn e s0 f0 (sinh (? s0 f0 (cast double i0))) isf fv)))
-                         ((== nid (coco-id m "cosh"))
-                          (return (coco_float_fn e s0 f0 (cosh (? s0 f0 (cast double i0))) isf fv)))
-                         ((== nid (coco-id m "tanh"))
-                          (return (coco_float_fn e s0 f0 (tanh (? s0 f0 (cast double i0))) isf fv)))
-                         ((== nid (coco-id m "asinh"))
-                          (return (coco_float_fn e s0 f0 (asinh (? s0 f0 (cast double i0))) isf fv)))
-                         ((== nid (coco-id m "acosh"))
-                          (return (coco_float_fn e s0 f0 (acosh (? s0 f0 (cast double i0))) isf fv)))
-                         ((== nid (coco-id m "atanh"))
-                          (return (coco_float_fn e s0 f0 (atanh (? s0 f0 (cast double i0))) isf fv)))
-                         ((== nid (coco-id m "log10"))
-                          (return (coco_float_fn e s0 f0 (log10 (? s0 f0 (cast double i0))) isf fv)))
-                         ((== nid (coco-id m "lgamma"))
-                          (return (coco_float_fn e s0 f0 (lgamma (? s0 f0 (cast double i0))) isf fv)))
-                         ((== nid (coco-id m "erf"))
-                          (return (coco_float_fn e s0 f0 (erf (? s0 f0 (cast double i0))) isf fv)))
-                         ((== nid (coco-id m "erfc"))
-                          (return (coco_float_fn e s0 f0 (erfc (? s0 f0 (cast double i0))) isf fv)))
-                         ;; LSB(N) and POPCOUNT(N) (2.5.0): integers alone
-                         ((== nid (coco-id m "lsb"))
-                          (if s0 (return (coco_not_integer e f0 nid 1)))
-                          (if (< i0 1)
-                              (return (coco_fn_domain e nid 1 "not_less_than_one"
-                                                         (coco_new_int m i0))))
-                          (set (cof iv) (coco_lsb64 (cast u64 i0)))
-                          (set (cof isf) 0) (return 1))
-                         ((== nid (coco-id m "popcount"))
-                          (if s0 (return (coco_not_integer e f0 nid 1)))
-                          (if (< i0 0)
-                              (return (coco_fn_domain e nid 1 "not_less_than_zero"
-                                                         (coco_new_int m i0))))
-                          (set (cof iv) (coco_popcount64 (cast u64 i0)))
-                          (set (cof isf) 0) (return 1))
-                         ((== nid (coco-id m "sqrt"))
-                          (return (coco_float_fn e s0 f0 (sqrt (? s0 f0 (cast double i0))) isf fv)))
-                         ((== nid (coco-id m "sin"))
-                          (return (coco_float_fn e s0 f0 (sin (? s0 f0 (cast double i0))) isf fv)))
-                         ((== nid (coco-id m "cos"))
-                          (return (coco_float_fn e s0 f0 (cos (? s0 f0 (cast double i0))) isf fv)))
-                         ((== nid (coco-id m "tan"))
-                          (return (coco_float_fn e s0 f0 (tan (? s0 f0 (cast double i0))) isf fv)))
-                         ((== nid (coco-id m "asin"))
-                          (return (coco_float_fn e s0 f0 (asin (? s0 f0 (cast double i0))) isf fv)))
-                         ((== nid (coco-id m "acos"))
-                          (return (coco_float_fn e s0 f0 (acos (? s0 f0 (cast double i0))) isf fv)))
-                         ((== nid (coco-id m "atan"))
-                          (return (coco_float_fn e s0 f0 (atan (? s0 f0 (cast double i0))) isf fv)))
-                         ((== nid (coco-id m "exp"))
-                          (return (coco_float_fn e s0 f0 (exp (? s0 f0 (cast double i0))) isf fv)))
-                         ((== nid (coco-id m "log"))
-                          (return (coco_float_fn e s0 f0 (log (? s0 f0 (cast double i0))) isf fv)))
-                         ;; SWI's rational/1 and rationalize/1 (2.5.0): the
-                         ;; exact fraction a float's bits are, or the simplest
-                         ;; fraction near it; an integer is its own rational
-                         ((== nid (coco-id m "rational"))
-                          (block
-                           (if (not s0)
-                               (block (set (cof iv) i0)
-                                      (set (cof isf) 0) (return 1)))
-                           (if (!= f0 f0) (return (coco_evaluation_error e "undefined")))
-                           (if (or (== f0 (coco_inf 1)) (== f0 (coco_inf -1)))
-                               (return (coco_evaluation_error e "rational_overflow")))
-                           (let ((i64 nn . 0) (i64 dd . 1))
-                             (if (not (coco_double_rat f0 (aof nn) (aof dd)))
-                                 (return (coco_int_overflow e)))
-                             (return (coco_rat_result m nn dd isf iv)))))
-                         ((== nid (coco-id m "rationalize"))
-                          (block
-                           (if (not s0)
-                               (block (set (cof iv) i0)
-                                      (set (cof isf) 0) (return 1)))
-                           (if (!= f0 f0) (return (coco_evaluation_error e "undefined")))
-                           (if (or (== f0 (coco_inf 1)) (== f0 (coco_inf -1)))
-                               (return (coco_evaluation_error e "rational_overflow")))
-                           (let ((i64 nn . 0) (i64 dd . 1))
-                             (if (not (coco_rat_approx f0 (aof nn) (aof dd)))
-                                 (return (coco_int_overflow e)))
-                             (return (coco_rat_result m nn dd isf iv)))))
-                         (#t (return (coco_not_evaluable e nid 1)))))
+                       (coco-arith-unary-body))
                    (if (== n 2)
                        (let ((int s0) (i64 i0) (i64 n0 . 0) (i64 d0 . 1) (double f0)
                              (int s1) (i64 i1) (i64 n1 . 0) (i64 d1 . 1) (double f1)
-                             (int rc) (int both))
+                             (int rc))
                          ;; TWO INTEGER LEAVES UNDER `+', `-' OR `*' -- `N - 1',
                          ;; `A0 + K', most of what a program counts with --
                          ;; are read here, without the two recursive asks
@@ -1739,104 +2141,84 @@
                                        (return (coco_int_overflow e)))
                                    (return 1))
                                   (#t (block))))))
-                         (if (>= depth 1024) (if (coco_arith_deep m t depth) (return 3)))
-                         (set rc (coco_arith e (coco_arg m t 0)
-                                             (aof s0) (aof i0) (aof f0) (+ depth 1)))
-                         (if (!= rc 1) (return rc))
-                         (if (== s0 2)
-                             (block (set n0 (-> m arith_n)) (set d0 (-> m arith_d))))
-                         (set rc (coco_arith e (coco_arg m t 1)
-                                             (aof s1) (aof i1) (aof f1) (+ depth 1)))
+                         ;; the right operand first, as swipl's
+                         (set rc (coco_arith e (coco_arg m t 1) (aof s1) (aof i1) (aof f1)))
                          (if (!= rc 1) (return rc))
                          (if (== s1 2)
                              (block (set n1 (-> m arith_n)) (set d1 (-> m arith_d))))
-                         ;; a rational operand, or rdiv, goes to the exact
-                         ;; path (2.5.0); everything else is the old one.
-                         ;; Written as an `and' of the COMMON case first: an
-                         ;; ordinary arithmetic step pays one test, not three.
-                         (if (and (!= s0 2) (and (!= s1 2) (!= nid (coco-id m "rdiv"))))
-                             (block
-                              (set both (? (and (== s0 0) (== s1 0)) 1 0))
-                              (return (coco_arith_binary e nid both s0 s1
-                                                       i0 (? s0 f0 (cast double i0))
-                                                       i1 (? s1 f1 (cast double i1))
-                                                       isf iv fv)))
-                           (return (coco_arith_rat_binary e nid
-                                                          (? (== s0 1) 1 0) (? (== s0 2) 1 0) i0 n0 d0 f0
-                                                          (? (== s1 1) 1 0) (? (== s1 2) 1 0) i1 n1 d1 f1
-                                                          isf iv fv))))
-                     (if (== n 3)
-                         (if (== nid (coco-id m "powm"))
-                             (let ((int s0) (i64 i0) (i64 n0 . 0) (i64 d0 . 1) (double f0)
-                                   (int s1) (i64 i1) (i64 n1 . 0) (i64 d1 . 1) (double f1)
-                                   (int s2) (i64 i2) (i64 n2 . 0) (i64 d2 . 1) (double f2)
-                                   (int rc))
-                               (if (>= depth 1024) (if (coco_arith_deep m t depth) (return 3)))
-                               (set rc (coco_arith e (coco_arg m t 0)
-                                                   (aof s0) (aof i0) (aof f0) (+ depth 1)))
-                               (if (!= rc 1) (return rc))
-                               (if (== s0 2)
-                                   (block (set n0 (-> m arith_n)) (set d0 (-> m arith_d))))
-                               (set rc (coco_arith e (coco_arg m t 1)
-                                                   (aof s1) (aof i1) (aof f1) (+ depth 1)))
-                               (if (!= rc 1) (return rc))
-                               (if (== s1 2)
-                                   (block (set n1 (-> m arith_n)) (set d1 (-> m arith_d))))
-                               (set rc (coco_arith e (coco_arg m t 2)
-                                                   (aof s2) (aof i2) (aof f2) (+ depth 1)))
-                               (if (!= rc 1) (return rc))
-                               (if (== s2 2)
-                                   (block (set n2 (-> m arith_n)) (set d2 (-> m arith_d))))
-                               ;; POWM(A, B, M): A and B 0 or more, M 1 or
-                               ;; more, each named as swipl names it (2.5.0)
-                               (if (== s0 2) (return (coco_not_integer_rat e n0 d0 nid 3)))
-                               (if s0 (return (coco_not_integer e f0 nid 3)))
-                               (if (== s1 2) (return (coco_not_integer_rat e n1 d1 nid 3)))
-                               (if s1 (return (coco_not_integer e f1 nid 3)))
-                               (if (== s2 2) (return (coco_not_integer_rat e n2 d2 nid 3)))
-                               (if s2 (return (coco_not_integer e f2 nid 3)))
-                               (if (< i0 0)
-                                   (return (coco_fn_domain e nid 3 "not_less_than_zero"
-                                                              (coco_new_int m i0))))
-                               (if (< i1 0)
-                                   (return (coco_fn_domain e nid 3 "not_less_than_zero"
-                                                              (coco_new_int m i1))))
-                               (if (< i2 1)
-                                   (return (coco_fn_domain e nid 3 "not_less_than_one"
-                                                              (coco_new_int m i2))))
-                               (set (cof iv) (cast i64 (coco_powm64 (cast u64 i0)
-                                                                    (cast u64 i1)
-                                                                    (cast u64 i2))))
-                               (set (cof isf) 0) (return 1))
-                           (return (coco_arith_args_first e t nid n depth)))
-                       (return (coco_arith_args_first e t nid n depth)))))))))
+                         (set rc (coco_arith e (coco_arg m t 0) (aof s0) (aof i0) (aof f0)))
+                         (if (!= rc 1) (return rc))
+                         (if (== s0 2)
+                             (block (set n0 (-> m arith_n)) (set d0 (-> m arith_d))))
+                         (coco-arith-binary-apply))
+                     (if (and (== n 3) (== nid (coco-id m "powm")))
+                         (let ((int s0) (i64 i0) (i64 n0 . 0) (i64 d0 . 1) (double f0)
+                               (int s1) (i64 i1) (i64 n1 . 0) (i64 d1 . 1) (double f1)
+                               (int s2) (i64 i2) (i64 n2 . 0) (i64 d2 . 1) (double f2)
+                               (int rc))
+                           (set rc (coco_arith e (coco_arg m t 2) (aof s2) (aof i2) (aof f2)))
+                           (if (!= rc 1) (return rc))
+                           (if (== s2 2)
+                               (block (set n2 (-> m arith_n)) (set d2 (-> m arith_d))))
+                           (set rc (coco_arith e (coco_arg m t 1) (aof s1) (aof i1) (aof f1)))
+                           (if (!= rc 1) (return rc))
+                           (if (== s1 2)
+                               (block (set n1 (-> m arith_n)) (set d1 (-> m arith_d))))
+                           (set rc (coco_arith e (coco_arg m t 0) (aof s0) (aof i0) (aof f0)))
+                           (if (!= rc 1) (return rc))
+                           (if (== s0 2)
+                               (block (set n0 (-> m arith_n)) (set d0 (-> m arith_d))))
+                           (coco-arith-powm-apply))
+                       (return (coco_arith_args_first e t nid n)))))))))
           (return 0)))
+
+  ;;; AN EVALUATION BEGINS (3.61.0): its count of compounds at 100, past
+  ;;; which whether T is cyclic is asked once (`abud', `aroot';
+  ;;; `coco_arith_past'). Every caller of the evaluator begins here: is/2,
+  ;;; the comparisons, tab/1, format/2, the folds.
+  (static) (inline)
+  (func coco_arith_top ((coco_engine * e) (size_t t)
+                        (int * isf) (i64 * iv) (double * fv)) (out int)
+        (set (-> (-> e m) abud) 100)
+        (set (-> (-> e m) aroot) t)
+        (return (coco_arith e t isf iv fv)))
 
   ;;; ROUNDTOWARD(Expr, Mode) (2.5.0): the C rounding mode set around the
   ;;; evaluation of Expr -- so the arithmetic inside rounds as asked -- and
   ;;; put back whatever it was, even on a raise. swipl's caveat applies:
-  ;;; a libm function is free to ignore the mode.
+  ;;; a libm function is free to ignore the mode. A mode that is no atom is
+  ;;; type_error(atom, Mode), as swipl's (3.61.0; through 3.60.0
+  ;;; type_error(round, Mode)), and an atom no mode domain_error(round,
+  ;;; Mode); the compound is counted before its mode is read, and
+  ;;; `coco_arith_far' reads it the same way. Expr's value is made in cells
+  ;;; of this frame and handed up: the cells an evaluation is given say
+  ;;; where the C stack stands (`coco_arith'), and the caller's own handed
+  ;;; down would say that a chain of roundtoward/2 stood still.
   (static)
   (func coco_roundtoward ((coco_engine * e) (size_t t)
-                          (int * isf) (i64 * iv) (double * fv) (u32 depth)) (out int)
+                          (int * isf) (i64 * iv) (double * fv)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (size_t mt . #'(coco_deref m (coco_arg m t 1)))
-              (int mode . -1) (int old . 0) (int rc . 0))
+              (int mode . -1) (int old . 0) (int rc . 0)
+              (int s . 0) (i64 i . 0) (double f . 0.0))
           (if (not (coco-tag-is ATOM (nth mt (-> m heap))))
-              (return (coco_type_error e "round" mt)))
+              (return (coco_type_error e "atom" mt)))
           (set mode (coco_round_mode (coco_atom_name m (coco_name_of m mt))))
           (if (< mode 0) (return (coco_domain_error e "round" mt)))
           (set old (fegetround))
           (fesetround mode)
-          (set rc (coco_arith e (coco_arg m t 0) isf iv fv (+ depth 1)))
+          (set rc (coco_arith e (coco_arg m t 0) (aof s) (aof i) (aof f)))
           (fesetround old)
+          (if (== rc 1)
+              (block (set (cof isf) s)
+                     (cond ((== s 1) (set (cof fv) f))
+                           ((== s 0) (set (cof iv) i)))))
           (return rc)))
 
   (func coco_bi_is ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (int isf) (i64 iv) (double fv) (int rc))
-          (set rc (coco_arith e (coco_arg m g 1)
-                              (aof isf) (aof iv) (aof fv) 0))
+          (set rc (coco_arith_top e (coco_arg m g 1) (aof isf) (aof iv) (aof fv)))
           (if (!= rc 1)
               (return (? (== rc 3) (coco_type_error e "expression" (coco_arg m g 1)) rc)))
           (let ((size_t r . #'(? (== isf 2) (coco_new_rat m (-> m arith_n) (-> m arith_d))
@@ -1856,14 +2238,12 @@
               (int s0) (i64 i0) (i64 n0 . 0) (i64 d0 . 1) (double f0)
               (int s1) (i64 i1) (i64 n1 . 0) (i64 d1 . 1) (double f1)
               (int rc))
-          (set rc (coco_arith e (coco_arg m g 0)
-                              (aof s0) (aof i0) (aof f0) 0))
+          (set rc (coco_arith_top e (coco_arg m g 0) (aof s0) (aof i0) (aof f0)))
           (if (!= rc 1)
               (return (? (== rc 3) (coco_type_error e "expression" (coco_arg m g 0)) rc)))
           (if (== s0 2)
               (block (set n0 (-> m arith_n)) (set d0 (-> m arith_d))))
-          (set rc (coco_arith e (coco_arg m g 1)
-                              (aof s1) (aof i1) (aof f1) 0))
+          (set rc (coco_arith_top e (coco_arg m g 1) (aof s1) (aof i1) (aof f1)))
           (if (!= rc 1)
               (return (? (== rc 3) (coco_type_error e "expression" (coco_arg m g 1)) rc)))
           (if (== s1 2)
