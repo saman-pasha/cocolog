@@ -72,18 +72,24 @@ mkdir -p "$OUT"
 # a framework.
 GESTURE_OBJ="$HERE/gesture.o"
 GESTURE_LIBS=
+# The full-screen mode is the same story (window.h): macOS has one of its
+# own that leaves the display's video mode alone, and everywhere else the
+# object says "not here" and raylib's ToggleFullscreen is used.
+WINDOW_OBJ="$HERE/window.o"
 case "$(uname -s)" in
   Darwin)
     "$CC" -c -fobjc-arc -I"$RAY_INC" -o "$GESTURE_OBJ" "$HERE/gesture_macos.m"
+    "$CC" -c -fobjc-arc -I"$RAY_INC" -I"$HERE" -o "$WINDOW_OBJ" "$HERE/window_macos.m"
     GESTURE_LIBS="-framework Cocoa"
     ;;
   *)
     "$CC" -c -O3 -I"$RAY_INC" -o "$GESTURE_OBJ" "$HERE/gesture_none.c"
+    "$CC" -c -O3 -I"$RAY_INC" -I"$HERE" -o "$WINDOW_OBJ" "$HERE/window_none.c"
     ;;
 esac
 
 # -O3 is what optimises the .so; Cicili's --release governs its own step.
 "$CC" -shared -fPIC -O3 -I"$RAY_INC" -I"$HERE" -o "$OUT/ray.so" "$HERE/ray.c" \
-    "$GESTURE_OBJ" $RAY_LINK -lX11 -lm -lpthread -ldl $GESTURE_LIBS
-rm -f "$GESTURE_OBJ"
+    "$GESTURE_OBJ" "$WINDOW_OBJ" $RAY_LINK -lX11 -lm -lpthread -ldl $GESTURE_LIBS
+rm -f "$GESTURE_OBJ" "$WINDOW_OBJ"
 echo "built $OUT/ray.so"

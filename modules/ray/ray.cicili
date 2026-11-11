@@ -324,6 +324,7 @@
 
   (include <raylib.h>)
   (include "gesture.h")
+  (include "window.h")
 
   ;;; raylib's types and entry points, declared to Cicili in
   ;;; ./binding.cicili: a Color, a Vector2, a Camera3D and a Texture2D
@@ -486,7 +487,10 @@
 
   ;;; SetWindowSize after the window is open. A window manager may clamp it,
   ;;; which ray_screen_size/2 then reports; the call itself cannot fail in
-  ;;; raylib, so this answers 1 when there is a window.
+  ;;; raylib, so this answers 1 when there is a window. IN THE FULL-SCREEN
+  ;;; MODE OF window.h a size is the size to RETURN to: resizing the
+  ;;; screen-filling window would leave a borderless rectangle in a corner,
+  ;;; so the remembered frame moves and the live window is left alone.
   (func ray_p_window_size ((coco_engine * e) (size_t g)) (out int)
         (if (not (IsWindowReady)) (return 0))
         (let ((i64 w . 0) (i64 h . 0))
@@ -494,20 +498,26 @@
             (if (!= rc6 1) (return rc6)))
           (let ((int rc7 . #'(ray_iarg e g 1 (aof h))))
             (if (!= rc7 1) (return rc7)))
-          (SetWindowSize (cast int w) (cast int h))
+          (if (== (ray_window_restore_size (cast int w) (cast int h)) 0)
+              (SetWindowSize (cast int w) (cast int h)))
           (return 1)))
 
   ;;; Fullscreen is a mode, not a one-shot toggle: `On' is 1 for
   ;;; true/on and 0 for false/off from the Coco half. Toggle only when the
   ;;; requested state differs, so entering twice does not leave the mode.
+  ;;; WHERE window.h HAS A MODE OF ITS OWN IT IS USED (macOS: borderless at
+  ;;; the desktop's size, the display's video mode untouched -- see
+  ;;; window_macos.m for what raylib's toggle does to a Retina display);
+  ;;; everywhere else it answers -1 and raylib's ToggleFullscreen is asked.
   (func ray_p_fullscreen ((coco_engine * e) (size_t g)) (out int)
         (if (not (IsWindowReady)) (return 0))
         (let ((i64 on . 0))
           (let ((int rc8 . #'(ray_iarg e g 0 (aof on))))
             (if (!= rc8 1) (return rc8)))
           (if (!= on 0) (set on 1) (set on 0))
-          (if (!= (ray_yes (IsWindowFullscreen)) (cast int on))
-              (ToggleFullscreen))
+          (if (< (ray_window_fullscreen (cast int on)) 0)
+              (if (!= (ray_yes (IsWindowFullscreen)) (cast int on))
+                  (ToggleFullscreen)))
           (return 1)))
 
   ;;; The current monitor's position and size. Raylib 6 has monitor bounds,
@@ -530,8 +540,19 @@
   ;;; The GL context goes with the window, and every texture with it: the
   ;;; slots are freed FIRST, while unloading is still a thing that can be
   ;;; done, and a handle from a closed window is not a handle any more.
+  ;;; AND THE WINDOW LEAVES FULL SCREEN BEFORE IT CLOSES. raylib keeps
+  ;;; FLAG_FULLSCREEN_MODE in a global CloseWindow does not clear, so a
+  ;;; window closed in the mode made the NEXT ray_open in the same process
+  ;;; come up full screen through InitWindow's own branch -- which sizes
+  ;;; itself before the video mode it asks for has taken effect, and draws
+  ;;; a viewport smaller than its drawable. Leaving first costs nothing and
+  ;;; the next window opens as a window.
   (func ray_p_close ((coco_engine * e) (size_t g)) (out int)
         (for ((int i . 0)) (< i 256) ((++ i)) (ray_slot_free i))
+        (if (IsWindowReady)
+            (block
+              (ray_window_fullscreen 0)
+              (if (IsWindowFullscreen) (ToggleFullscreen))))
         (CloseWindow) (return 1))
 
   (func ray_p_closing ((coco_engine * e) (size_t g)) (out int)

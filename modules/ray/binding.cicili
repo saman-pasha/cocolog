@@ -147,4 +147,12 @@
      ;;; never turns into a scroll or a touch point. The declaration is
      ;;; here because this is where Cicili's C declarations live.
      (decl) (func ray_pinch_scale () (out double))
+
+     ;;; ---- the full-screen mode, from window_macos.m / window_none.c ----
+     ;;; Not raylib's either: its ToggleFullscreen switches a Retina
+     ;;; display's video mode (window_macos.m has the measurement), so
+     ;;; macOS has a borderless mode of its own and every other system
+     ;;; answers -1 and falls through to raylib.
+     (decl) (func ray_window_fullscreen ((int on)) (out int))
+     (decl) (func ray_window_restore_size ((int width) (int height)) (out int))
      ))
