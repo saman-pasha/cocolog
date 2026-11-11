@@ -418,7 +418,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.62.0"))
+  (func coco_version_text () (out const char *) (return "3.62.1"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -427,6 +427,10 @@
         (fprintf stderr "                                under the query's own variable names,\n")
         (fprintf stderr "                                `;' for another solution, halt. leaves\n")
         (fprintf stderr "  cocolog [options] consult FILE...\n")
+        (fprintf stderr "  cocolog [options] run FILE [FILE... GOAL]\n")
+        (fprintf stderr "                                consult each FILE, prove GOAL (main\n")
+        (fprintf stderr "                                where one FILE is all there is);\n")
+        (fprintf stderr "                                exit 0 proved, 1 failed, 2 threw\n")
         (fprintf stderr "  cocolog [options] -s SCRIPT   load SCRIPT as a module, prove main;\n")
         (fprintf stderr "                                exit 0 only when main proved\n")
         (fprintf stderr "  cocolog [options] query GOAL\n")

@@ -4104,12 +4104,74 @@ cocolint index offers no import of it.
   ready tasks round robin and waits on its own condition variable; the
   deadlock is asked when a worker's pick finds nothing (NOT after every
   run: 1024 tasks, 10,000 runs cost 18 us a task that way and 14 this; and
-  NOT before the main task exists -- the workers start first and
-  `nthreads` 0 is not a deadlock). The main is task 0 on worker 0; the
-  caller runs worker 0's loop; the world waits for a pending write and then
-  stops. 1024 tasks and 64 channels a world. A result is the goal as
+  NOT before the main task exists: the world lock is held from the first
+  worker's creation to the main task's). The main is task 0 on worker 0;
+  the caller runs worker 0's loop. 1024 tasks and 64 channels a world. A
+  result is the goal as
   instantiated, in canonical text; a throw is rethrown by `await/2`; a
   deadlock is raised as resource_error(deadlock) at `async_run/1,2`.
+  **THE 3.62.1 REVIEW** found sixteen faults, each with a section of
+  test/async.pl red on 3.62.0 (STATUS.md has the table). What a session
+  must keep:
+  - **The world ends when its main task ends** (`coco_g_end`: the main's
+    finish, a deadlock, a task's halt): every worker leaves at its loop's
+    TOP -- the acknowledgement of a write in flight first, then
+    `main_done`, then the pick -- and says so under the lock (`gone`). A
+    task still ready is not run; one inside a nested wait is abandoned
+    (`coco_g_abandon`: its engines halted, which `coco_g_run` reads after
+    the world's end as nobody's halt). Through 3.62.0 a worker ran its
+    ready tasks to the end first, and a task that never ended on the
+    main's own worker kept async_run/1 from returning.
+  - **A write counts the workers it asks** (`asked`, the op's sequence):
+    not one inside a foreign call, not one gone; and **only a counted
+    worker's acknowledgement counts** (`coco_g_ack`, the one place an
+    acknowledgement is made: the loop's top, a write's own wait, a nested
+    wait, the foreign pair). A worker back from a foreign call
+    acknowledged a write that never counted it, and the write began under
+    a task that had not stopped. **A worker leaving for a foreign call
+    answers until no write is in flight** (`coco_g_foreign_begin`'s loop):
+    the wait for one write gives the lock up, and the next writer counts a
+    worker that has not said it is away -- a deadlock where the call waits
+    for that writer (mutex_lock/1 of the mutex it holds).
+  - **A task's tables are synced wherever it may have slept through a
+    write** (`coco_g_sync_here`: after an acknowledgement made in a
+    write's own wait, after a foreign call; the main task's machine is its
+    own, not the host's). `coco_intern_h` syncs at every intern, which is
+    why most paths never showed it.
+  - **The names' lock and generation are a thread's** (`coco_tbl_mx`,
+    `coco_tbl_genp`, thread-local; `coco_tbl_set(mx, genp)` by the caller
+    and by each worker's loop, `(nil, nil)` by each as it leaves): a
+    library(thread) thread beside a world, or a second world in another
+    thread, never takes them. **The lock is asked through
+    `coco_tbl_lock`, the process's count first** (`coco_tbl_live`, the
+    threads whose lock is set, kept by `coco_tbl_set`): every intern asks
+    it, and the thread-local alone -- three instructions and two more
+    saved registers, a call on Darwin -- cost a start 103 171
+    instructions, all in `coco_intern_len` and `coco_functor_id`. **The atom
+    buckets are not freed while the tables are shared**
+    (`coco_atoms_rehash`), as no table's array is: an intern probes them
+    with no lock.
+  - **A nested waiter is state 3 from its first line to its last**
+    (`coco_g_wait_nested`, the one body of the await's and the channel's
+    wait): `coco_g_serve` hands it its text and leaves it 3 -- made
+    ready, a deeper wait on the same C stack ran it a second time --,
+    `coco_g_live` counts another worker's waiter whose wait is over as
+    alive, `coco_g_wait_leave` takes a waiter that gave up out of its
+    channel's list, and `coco_g_deadlock` WAKES the nested waiters of a
+    world nothing else can move (each asks `coco_g_live` and raises in
+    its own task). **A new way to wake a waiter goes through
+    `coco_g_serve`; a new blocking builtin sets `resume_cell` on BOTH its
+    paths** (the plain send did not: its status went to the task's last
+    wait's cell, or heap cell 0) **and waits through
+    `coco_g_wait_nested`.**
+  - **A task's halt is the process's** (`halt`, `halt_code` on the world,
+    handed to the engine that called async_run/1,2, 3.57.0's rule), and a
+    world is as wide as the threads it was given (`pthread_create`'s
+    refusal ends the count).
+  - **Each risky shape in test/async.pl is a CHILD PROCESS with a
+    ceiling**: a hang is the usual failure, and it must cost the case a
+    red line, not the suite its run. The arms are one build each
+    (STATUS.md lists the nineteen).
   `test/async.pl`, lesson 54, `bench/concurrency.sh`,
   `library/async/README.md` (the model, the Run G numbers and the limits).
   A library predicate with a choice point per answer (`between/3`) is slow

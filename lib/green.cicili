@@ -95,7 +95,8 @@
   (struct green_thread
     (member int           id)
     (member int           worker)      ; pinned at spawn
-    (member int           state)       ; 0 ready, 1 blocked, 2 done
+    (member int           state)       ; 0 ready, 1 blocked, 2 done, 3
+                                       ; waiting inside a nested search
     (member int           block)       ; 0 none, 1 await, 2 send, 3 recv,
                                        ; 4 yield
     (member int           wait_on)     ; the awaited thread
@@ -117,9 +118,14 @@
     (member int    cap)
     (member int    head)
     (member int    count)
-    (member int    senders [64])
+    ;; EVERY TASK OF A WORLD MAY WAIT ON ONE CHANNEL (3.62.1): a task waits
+    ;; on one channel at most, so each list holds as many as a world holds
+    ;; tasks and needs no bound. They held 64: the 65th waiter's id was
+    ;; written over the count beside the array, the waiters were lost, and
+    ;; the world called itself dead (test/async.pl, `waiters').
+    (member int    senders [1024])
     (member int    nsenders)
-    (member int    receivers [64])
+    (member int    receivers [1024])
     (member int    nreceivers))
 
   ;; ONE WRITE AT A TIME. The writer names itself, the sequence keeps a
@@ -144,6 +150,15 @@
     ;; skip a worker with FOREIGN > 0; the call's end syncs with any write
     ;; still in flight before the worker reads the store again.
     (member int            foreign)
+    ;; THIS WORKER HAS LEFT ITS LOOP (3.62.1): the world is ending and it
+    ;; reads the store no more. Set under the world lock in the hold that
+    ;; found no write in flight to acknowledge, so a write counts a worker
+    ;; in its NEED only if that worker will acknowledge it.
+    (member int            gone)
+    ;; THE WRITE THAT COUNTED THIS WORKER, by its sequence (3.62.1): set
+    ;; by the writer as it counts its NEED, and only that write takes this
+    ;; worker's acknowledgement (`coco_g_ack').
+    (member int            asked)
     ;; A WAKE GENERATION: every signal to this worker bumps it, and the
     ;; loop's cond wait refuses to sleep when it moved since the last
     ;; check -- a signal that arrives while the worker is between its pick
@@ -169,14 +184,20 @@
     ;; machine. A blocking green builtin inside one therefore WAITS HERE,
     ;; running this worker's ready tasks itself, and returns with the
     ;; answer still in the same C frame. CHANGED wakes such a waiter on
-    ;; any task event. INLINE_WAIT says one is waiting, so no worker
-    ;; calls the task dead while it is doing so.
+    ;; any task event. Such a task is state 3 while it waits, and no
+    ;; worker calls a world dead that holds one: the waiter asks itself
+    ;; whether anything can still move (`coco_g_live').
     (member pthread_cond_t    changed)
-    (member int               inline_wait)
     (member green_op *        op)
     (member int               op_seq)
-    (member int               stop)
+    ;; THE WORLD IS ENDING: the main task ended (its goal, or the deadlock
+    ;; that ends it for it), or a task halted. Every worker leaves at its
+    ;; next safe point, whatever else is ready (3.62.1).
     (member int               main_done)
+    ;; A TASK HALTED (3.62.1): the process's halt, handed up to the engine
+    ;; that called async_run/1,2 once the workers are joined.
+    (member int               halt)
+    (member int               halt_code)
     (member int               next_worker)
     (member coco_store *      host_st)
     (member coco_machine *    host)
@@ -185,6 +206,8 @@
     ;; atom, functor, string, float, big and rat tables, and the table
     ;; mutations take this lock. Since 2.9.0 there is ONE store as well.
     (member pthread_mutex_t   tbl_mx)
+    ;; and the names' generation, the world's own (3.62.1)
+    (member size_t            tbl_gen)
     ;; THE MACHINE LIST'S MUTEX (2.9.1). The one store lists every task's
     ;; machine for the frame walk (`st->machines'), and a link (a task
     ;; prepared on its worker, OUTSIDE the world lock) used to run beside
@@ -418,6 +441,61 @@
           ;; of its own to receive: it watches this one
           (pthread_cond_broadcast (aof (-> wd changed)))))
 
+  ;;; THE WAITERS OF A CHANNEL, in the order they came. A task waits on one
+  ;;; channel at most, so a list never holds more than the world's tasks.
+  (static)
+  (func coco_g_chan_remove_sender ((green_chan * c) (int at))
+        (for ((int i . at)) (< i (- (-> c nsenders) 1)) ((++ i))
+          (set (nth i (-> c senders)) (nth (+ i 1) (-> c senders))))
+        (set (-> c nsenders) (- (-> c nsenders) 1)))
+
+  (static)
+  (func coco_g_chan_remove_receiver ((green_chan * c) (int at))
+        (for ((int i . at)) (< i (- (-> c nreceivers) 1)) ((++ i))
+          (set (nth i (-> c receivers)) (nth (+ i 1) (-> c receivers))))
+        (set (-> c nreceivers) (- (-> c nreceivers) 1)))
+
+  ;; a waiter that gave up leaves the list it stood in
+  (static)
+  (func coco_g_chan_drop ((green_chan * c) (int tid))
+        (for ((int i . 0)) (< i (-> c nsenders)) ((++ i))
+          (if (== (nth i (-> c senders)) tid)
+              (block (coco_g_chan_remove_sender c i) (return))))
+        (for ((int i . 0)) (< i (-> c nreceivers)) ((++ i))
+          (if (== (nth i (-> c receivers)) tid)
+              (block (coco_g_chan_remove_receiver c i) (return)))))
+
+  ;;; A WAITER IS SERVED: TEXT is what its builtin resumes with. A blocked
+  ;;; task (state 1) is ready again. ONE WAITING INSIDE A NESTED SEARCH
+  ;;; (state 3) IS NOT MADE READY (3.62.1): its worker's thread is inside
+  ;;; that wait and takes the text itself (`coco_g_wait_nested'). Made
+  ;;; ready, it was any pick's to run -- and a deeper wait on the same
+  ;;; worker's C stack picked it, ran its engine a second time under the
+  ;;; call still open on it, finished it and freed its machine, which the
+  ;;; first run then walked on (a SIGSEGV, three runs in three, on one
+  ;;; worker: test/async.pl, `stacked').
+  (static)
+  (func coco_g_serve ((green_world * wd) (green_thread * t) (char * text))
+        (set (-> t resume_text) text)
+        (set (-> t block) 0)
+        (set (-> t chan) -1)
+        (if (== (-> t state) 1) (set (-> t state) 0))
+        (coco_g_poke (aof (nth (-> t worker) (-> wd workers)))))
+
+  ;;; THE WORLD ENDS (3.62.1): the main task ended, a task halted, or every
+  ;;; task is blocked. Every worker is told, and each leaves at its next
+  ;;; safe point -- its loop's top, after it has acknowledged a write in
+  ;;; flight -- whatever is still ready: when the main task ends the world
+  ;;; stops, as a Go program ends when main returns. Through 3.62.0 a
+  ;;; worker went on running its ready tasks until none was left, and one
+  ;;; that never ended on the main's own worker kept async_run/1 from
+  ;;; returning.
+  (static)
+  (func coco_g_end ((green_world * wd))
+        (set (-> wd main_done) 1)
+        (for ((int i . 0)) (< i (-> wd nworkers)) ((++ i))
+          (coco_g_poke (aof (nth i (-> wd workers))))))
+
   (static)
   (func coco_g_wake ((green_world * wd) (int ti))
         (let ((green_thread * f . #'(aof (nth ti (-> wd threads)))))
@@ -441,12 +519,7 @@
         (coco_g_thread_free wd t)
         (coco_g_wake wd (-> t id))
         (pthread_cond_broadcast (aof (-> wd changed)))
-        (if (== (-> t id) 0)
-            (block
-             (set (-> wd main_done) 1)
-             (for ((int i . 0)) (< i (-> wd nworkers)) ((++ i))
-               (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
-                 (coco_g_poke wi))))))
+        (if (== (-> t id) 0) (coco_g_end wd)))
 
   ;;; EVERY TASK BLOCKED AND THE MAIN NOT ENDED: a deadlock. A task that
   ;;; is ready is somebody's next step; one that is running has a worker
@@ -454,20 +527,76 @@
   (static)
   (func coco_g_deadlock ((green_world * wd))
         (if (== (-> wd main_done) 1) (return))
-        ;; A NESTED WAIT IS A RUNNING TASK, not a dead world: it has its own
-        ;; loop and raises the deadlock itself if nothing can run.
-        (if (!= (-> wd inline_wait) 0) (return))
-        ;; NO TASK AT ALL YET: the workers start before the main task is
-        ;; made, and an empty world is not a deadlock.
         (if (== (-> wd nthreads) 0) (return))
         (if (!= (-> wd op) nil) (return))
-        (for ((int i . 0)) (< i (-> wd nthreads)) ((++ i))
-          (let ((green_thread * t . #'(aof (nth i (-> wd threads)))))
-            (if (== (-> t state) 0) (return))))
+        ;; A NESTED WAIT (state 3) IS A RUNNING TASK, not a dead world: it
+        ;; has its own loop and raises the deadlock itself if nothing can
+        ;; move. Asked of the task's state, set under the lock by the
+        ;; builtin that blocks; a counter the waiter raised only once it had
+        ;; taken the lock again left a moment in which a waiter already
+        ;; served was called dead (3.62.1).
+        ;;
+        ;; AND IT IS WOKEN TO LOOK (3.62.1). A nested waiter sleeps on
+        ;; `changed' while anything else can still move; when the last such
+        ;; task blocks or ends, this is where the world notices, and through
+        ;; 3.62.0 it noticed and said nothing: the waiter slept on, every
+        ;; worker idle, async_run/1 with them (a receive inside findall/3
+        ;; that nobody answers, the main task blocking on it a moment
+        ;; later: three runs in four, test/async.pl, `dead_nested').
+        (let ((int nested . 0))
+          (for ((int i . 0)) (< i (-> wd nthreads)) ((++ i))
+            (let ((green_thread * t . #'(aof (nth i (-> wd threads)))))
+              (if (== (-> t state) 0) (return))
+              (if (== (-> t state) 3) (set nested 1))))
+          (if nested
+              (block (pthread_cond_broadcast (aof (-> wd changed)))
+                     (return))))
         (coco_g_finish wd (aof (nth 0 (-> wd threads)))
                        (strdup "'$async'(error,error(resource_error(deadlock),_))")))
 
+  ;;; THE RUNNING TASK'S OWN TABLES, brought up to the root before its
+  ;;; engine reads the store again. The scheduler does this at a quantum's
+  ;;; start; inside one, a write this thread acknowledged, an inline task or
+  ;;; a foreign call can have put names in the store that the task's
+  ;;; machine has not seen. THE MAIN TASK'S MACHINE IS ITS OWN (3.62.1), as
+  ;;; every task's is: for task 0 this synced the host's machine, the root
+  ;;; itself and so nothing, and the main task came back from a foreign
+  ;;; call reading another task's new atom as `<bad-atom>' (six runs in
+  ;;; six: test/async.pl, `names').
+  (static)
+  (func coco_g_sync_here () (out void)
+        (if (or (== green_now nil) (== green_me nil)) (return))
+        (let ((int cur . #'(-> green_me cur)))
+          (if (< cur 0) (return))
+          (let ((green_thread * t . #'(aof (nth cur (-> green_now threads)))))
+            (if (!= (-> t m) nil) (coco_tbl_sync (-> t m))))))
+
   ;;; ---- the pre-write barrier --------------------------------------------
+
+  ;;; W HAS SEEN THE WRITE IN FLIGHT (the caller holds the lock; OP is not
+  ;;; W's own and W has not seen it before). Answers the write's sequence,
+  ;;; which the caller waits on: the op is the writer's to free.
+  ;;;
+  ;;; ONLY A WORKER THE WRITE COUNTED ACKNOWLEDGES IT (3.62.1). A worker
+  ;;; inside a foreign call is left out of the write's NEED, and on its
+  ;;; return it waits for the write to clear -- but through 3.62.0 it also
+  ;;; added an acknowledgement, which the writer took for a counted
+  ;;; worker's: with one worker counted and still running, the returning
+  ;;; one made the count and THE WRITE BEGAN UNDER A TASK THAT HAD NOT
+  ;;; STOPPED. That task read the store as it changed, and read what the
+  ;;; write stored before its own tables knew the names (`<bad-atom>',
+  ;;; twenty runs in twenty of a main task in and out of a foreign call
+  ;;; beside a writer and a reader: test/async.pl, `foreign_ack').
+  (static)
+  (func coco_g_ack ((green_world * wd) (green_worker * w) (green_op * op)) (out int)
+        (let ((int oseq . #'(-> op seq)))
+          (set (-> w applied_seq) oseq)
+          (if (== (-> w asked) oseq)
+              (block
+               (set (-> op acks) (+ (-> op acks) 1))
+               (if (>= (-> op acks) (-> op need))
+                   (pthread_cond_broadcast (aof (-> wd op_done))))))
+          (return oseq)))
 
   ;;; THE PRE-WRITE BARRIER (2.9.0). A store write takes it BEFORE the
   ;;; store call: every other worker acknowledges at its safe point and
@@ -475,11 +604,32 @@
   ;;; the end releases them. A nested write is already inside it and
   ;;; skips. The end is a let's `(defer () ...)', so a failed write or a
   ;;; raise inside it still releases the world.
+  ;;;
+  ;;; THE BARRIER HOLDS TO THE WORLD'S LAST WORKER (3.62.1). Through 3.62.0
+  ;;; a write made as the world ended asked `main_done' WITHOUT THE LOCK
+  ;;; and, finding it clear, published a write whose NEED counted workers
+  ;;; that had left their loops a moment before -- the host among them,
+  ;;; already in pthread_join -- so no acknowledgement came, the writer
+  ;;; slept on `op_done' for ever and the join with it: async_run/1 never
+  ;;; returned (3 runs in 40 of a channel and one child, 10 in 40 with
+  ;;; library(thread) loaded: test/async.pl, `world_end'). A worker that
+  ;;; has left says so under the lock (`gone'), in the hold that found
+  ;;; nothing to acknowledge, and a write counts only the workers still in
+  ;;; their loops; one made after the main task ended stops those as any
+  ;;; other does, where it used to take no barrier at all.
+  ;;;
+  ;;; WHAT LANDED WHILE THIS THREAD WAITED IS READ WITH THE NAMES IT WAS
+  ;;; WRITTEN WITH (3.62.1). A task that acknowledges another's write
+  ;;; here goes on in the same quantum, and its machine's name and value
+  ;;; tables were last synced when the quantum began: the atom the other
+  ;;; task interned and then stored read as `<bad-atom>', its float and its
+  ;;; big integer as another machine's stale array held them (a wrong
+  ;;; number, one run in six a SIGSEGV: test/async.pl, `names'). The
+  ;;; loop's own acknowledgement needs none: the next quantum syncs.
   (func coco_g_write_begin ((void * ev)) (out int)
         (if (or (== green_now nil) (== green_me nil)) (return 0))
-        (if (or (!= (-> green_now stop) 0) (!= (-> green_now main_done) 0))
-            (return 0))
         (if (!= green_in_write 0) (return 0))
+        (let ((int acked . 0))
         (pthread_mutex_lock (aof (-> green_now lock)))
         (while (!= (-> green_now op) nil)
           ;; ACKNOWLEDGE WHAT IS IN FLIGHT BEFORE WAITING FOR IT TO CLEAR.
@@ -493,11 +643,8 @@
             (if (and (!= (-> opx writer) (-> green_me id))
                      (!= (-> green_me applied_seq) (-> opx seq)))
                 (block
-                 (let ((int oseq . #'(-> opx seq)))
-                   (set (-> green_me applied_seq) oseq)
-                   (set (-> opx acks) (+ (-> opx acks) 1))
-                   (if (>= (-> opx acks) (-> opx need))
-                       (pthread_cond_broadcast (aof (-> green_now op_done))))))))
+                 (set acked 1)
+                 (coco_g_ack green_now green_me opx))))
           (pthread_cond_wait (aof (-> green_now op_done))
                              (aof (-> green_now lock))))
         (let ((green_op * op . #'(cast (green_op *)
@@ -509,13 +656,15 @@
           ;; A WORKER AWAY IN A NON-STORE FOREIGN CALL IS NOT ASKED: it
           ;; cannot reach a safe point, it is not reading the store, and
           ;; `coco_g_foreign_end' will acknowledge any write still in
-          ;; flight before that worker reads the store again.
+          ;; flight before that worker reads the store again. NOR IS ONE
+          ;; THAT HAS LEFT ITS LOOP (`gone'): it reads the store no more.
           (let ((int need . 0))
             (for ((int i . 0)) (< i (-> green_now nworkers)) ((++ i))
               (let ((green_worker * wi . #'(aof (nth i (-> green_now workers)))))
                 (if (and (!= (-> wi id) (-> green_me id))
-                         (== (-> wi foreign) 0))
-                    (set need (+ need 1)))))
+                         (and (== (-> wi foreign) 0) (== (-> wi gone) 0)))
+                    (block (set (-> wi asked) (-> op seq))
+                           (set need (+ need 1))))))
             (set (-> op need) need))
           (set (-> green_now op) op)
           (for ((int i . 0)) (< i (-> green_now nworkers)) ((++ i))
@@ -525,6 +674,7 @@
             (pthread_cond_wait (aof (-> green_now op_done))
                                (aof (-> green_now lock))))
           (pthread_mutex_unlock (aof (-> green_now lock))))
+        (if acked (coco_g_sync_here)))
         (set green_in_write 1)
         (return 1))
 
@@ -600,15 +750,32 @@
               ;; cleanup's own goals may want
               (if (== rc 1) (coco_engine_cut en))
               (pthread_mutex_lock (aof (-> wd lock)))
-              ;; THE QUANTUM'S STOP IS NOT AN ERROR: the limit path saw
-              ;; GREENQ and set GSTOP, and the engine reports it as its
-              ;; limit (-1). The continuation is intact; the task is ready.
-              (if (== (-> en gstop) 1)
-                  (block
-                   (set (-> en gstop) 0)
-                   (set (-> t state) 0)
-                   (set (-> t block) 0))
-                (cond
+              (cond
+                  ;; A HALT IS THE PROCESS'S (3.62.1; swipl's halt/1 ends
+                  ;; the process from whatever called Prolog, and 3.57.0's
+                  ;; rule is that every starter of an engine hands one up).
+                  ;; The world ends, and async_run/1,2 gives the halt to the
+                  ;; engine that called it. Through 3.62.0 the task was read
+                  ;; as failed and the program went on past its halt/1. A
+                  ;; halt AFTER the world's end is a task abandoned inside a
+                  ;; nested wait (`coco_g_abandon'), and nobody's halt.
+                  ((== (-> en halted) 1)
+                   (block
+                    (if (== (-> wd main_done) 0)
+                        (block (set (-> wd halt) 1)
+                               (set (-> wd halt_code) (-> en halt_code))))
+                    (set (-> en gstop) 0)
+                    (coco_g_finish wd t (coco_g_failed_text))
+                    (coco_g_end wd)))
+                  ;; THE QUANTUM'S STOP IS NOT AN ERROR: the limit path saw
+                  ;; GREENQ and set GSTOP, and the engine reports it as its
+                  ;; limit (-1). The continuation is intact; the task is
+                  ;; ready.
+                  ((== (-> en gstop) 1)
+                   (block
+                    (set (-> en gstop) 0)
+                    (set (-> t state) 0)
+                    (set (-> t block) 0)))
                   ((== rc 1)
                    (coco_g_finish wd t (coco_g_ok_text m (-> en query))))
                   ((== rc 0)
@@ -639,7 +806,7 @@
                              (block (set (-> bst len) (-> en ball_mark))
                                     (coco_store_shrink_empty bst)))
                          (coco_g_finish wd t (coco_g_error_text m ball)))
-                     (coco_g_finish wd t (strdup "'$async'(error,error(system_error,_))"))))))
+                     (coco_g_finish wd t (strdup "'$async'(error,error(system_error,_))")))))
               (pthread_mutex_unlock (aof (-> wd lock)))))))
 
   ;;; ---- blocking inside a nested engine --------------------------------
@@ -663,11 +830,25 @@
           (if (and (!= (-> t e) nil) (== (-> t e) e)) (return 0)))
         (return 1))
 
+  ;;; WHETHER ANYTHING CAN STILL MOVE WITHOUT THE CALLER, a nested waiter
+  ;;; on worker W: a task ready or running, or ANOTHER worker's nested
+  ;;; waiter whose wait is over -- its text is there, or the task it awaits
+  ;;; has ended -- and whose thread is about to wake (3.62.1; a waiter is
+  ;;; state 3 until it returns, and counted as nothing it made the caller
+  ;;; call the world dead in the moment between its answer and its
+  ;;; waking). A nested waiter of the caller's OWN worker is below the
+  ;;; caller on the one C stack, and moves only when the caller returns.
   (static)
-  (func coco_g_any_ready ((green_world * wd)) (out int)
+  (func coco_g_live ((green_world * wd) (green_worker * w)) (out int)
         (for ((int i . 0)) (< i (-> wd nthreads)) ((++ i))
           (let ((green_thread * t . #'(aof (nth i (-> wd threads)))))
-            (if (== (-> t state) 0) (return 1))))
+            (if (== (-> t state) 0) (return 1))
+            (if (and (== (-> t state) 3) (!= (-> t worker) (-> w id)))
+                (block
+                 (if (!= (-> t resume_text) nil) (return 1))
+                 (if (and (>= (-> t wait_on) 0)
+                          (== ($ (nth (-> t wait_on) (-> wd threads)) state) 2))
+                     (return 1))))))
         (return 0))
 
   ;; caller holds the world lock; returns with it held, having run one
@@ -703,11 +884,7 @@
           (if (or (== (-> op writer) (-> w id))
                   (== (-> w applied_seq) (-> op seq)))
               (return 0))
-          (let ((int oseq . #'(-> op seq)))
-            (set (-> w applied_seq) oseq)
-            (set (-> op acks) (+ (-> op acks) 1))
-            (if (>= (-> op acks) (-> op need))
-                (pthread_cond_broadcast (aof (-> wd op_done))))
+          (let ((int oseq . #'(coco_g_ack wd w op)))
             (while (and (!= (-> wd op) nil)
                         (== (-> (-> wd op) seq) oseq))
               (pthread_cond_wait (aof (-> wd op_done))
@@ -718,22 +895,11 @@
   ;;; block and does NOT read or write the store -- raylib's EndDrawing is
   ;;; the first. A write need not wait for this worker: its count is
   ;;; excluded from the barrier's NEED. On return the counter drops and
-  ;;; any write still in flight is acknowledged and waited for, so the
-  ;;; worker does not read the store while it changes. A call that DOES
-  ;;; touch the store must not use this pair.
-  ;; THE CALLER'S OWN TABLES, brought up to the root before its engine
-  ;; reads them again. The normal scheduler does this at a quantum's start;
-  ;; an inline task or a module call can grow the tables inside one.
-  (static)
-  (func coco_g_sync_here () (out void)
-        (if (== green_now nil) (return))
-        (let ((int cur . #'(-> green_me cur)))
-          (if (< cur 0) (return))
-          (if (== cur 0)
-              (coco_tbl_sync (-> green_now host))
-            (let ((green_thread * t . #'(aof (nth cur (-> green_now threads)))))
-              (if (!= (-> t m) nil) (coco_tbl_sync (-> t m)))))))
-
+  ;;; any write still in flight is waited for, so the worker does not read
+  ;;; the store while it changes -- waited for, and acknowledged only if it
+  ;;; counted this worker (`coco_g_ack': a write published while the call
+  ;;; ran did not). A call that DOES touch the store must not use this
+  ;;; pair.
   (func coco_g_foreign_begin () (out void)
         (if (== green_now nil) (return))
         (if (== green_me nil) (return))
@@ -745,7 +911,19 @@
         ;; worker leaves for the call: the writer may have read FOREIGN as 0
         ;; a moment ago, and would otherwise wait for a worker that is now
         ;; asleep in a non-store call. The wait is the write's, not the call's.
-        (coco_g_ack_wait green_now green_me)
+        ;;
+        ;; EVERY SUCH WRITE, NOT THE FIRST (3.62.1). The wait for one write
+        ;; to clear gives the lock up, and the next writer in line publishes
+        ;; in that moment, counting this worker, which had not said it was
+        ;; away yet. Asked once, the worker left for its call with that
+        ;; second write unanswered, and the writer waited for the call to
+        ;; return: a stopped world for as long as a sleep lasts, and for
+        ;; ever where the call waits for the writer -- a mutex_lock/1 of the
+        ;; mutex the writer holds (ten runs in ten of three tasks:
+        ;; test/async.pl, `foreign_begin').
+        (let ((int more . 1))
+          (while more
+            (set more (coco_g_ack_wait green_now green_me))))
         (set (-> green_me foreign) (+ (-> green_me foreign) 1))
         (pthread_mutex_unlock (aof (-> green_now lock))))
 
@@ -773,49 +951,43 @@
                                  m "resource_error"
                                  (coco_new_atom m "deadlock"))))))
 
+  ;;; A NESTED WAIT IS OVER (the caller holds the lock): answered, given
+  ;;; up, or abandoned. A waiter that was not served LEAVES THE CHANNEL IT
+  ;;; STOOD IN (3.62.1): left there, the next send found it, handed it the
+  ;;; message nobody was waiting for and wrote it, at that task's next run,
+  ;;; into the cell of a wait long over.
   (static)
-  (func coco_g_await_here ((coco_engine * e) (int id) (size_t sc)) (out int)
-        (let ((green_world * wd . green_now)
-              (green_worker * w . green_me)
-              (int self_id . #'(-> w cur))
-              (green_thread * self . nil)
-              (int rc . 1))
-          (pthread_mutex_lock (aof (-> wd lock)))
-          (set self (aof (nth self_id (-> wd threads))))
-          (set (-> self state) 3)
-          (set (-> wd inline_wait) (+ (-> wd inline_wait) 1))
-          (while 1
-            (let ((green_thread * target . #'(aof (nth id (-> wd threads)))))
-              (if (== (-> target state) 2)
-                  (block
-                   (set (-> self state) 0)
-                   (set (-> wd inline_wait) (- (-> wd inline_wait) 1))
-                   (set rc (coco_g_resume (-> e m) sc (-> target status)))
-                   (pthread_mutex_unlock (aof (-> wd lock)))
-                   (return rc)))
-              (if (!= (coco_g_ack_wait wd w) 0) (continue))
-              (if (and (== (-> target state) 0)
-                       (== (-> target worker) (-> w id)))
-                  (block
-                   (set (-> w cur) id)
-                   (pthread_mutex_unlock (aof (-> wd lock)))
-                   (coco_g_run w id)
-                   (coco_tbl_sync (-> e m))
-                   (pthread_mutex_lock (aof (-> wd lock)))
-                   (set (-> w cur) self_id)
-                   continue))
-              (if (!= (coco_g_run_ready wd w self_id (-> e m)) 0) (continue))
-              (if (== (coco_g_any_ready wd) 0)
-                  (block
-                   (set (-> self state) 0)
-                   (set (-> wd inline_wait) (- (-> wd inline_wait) 1))
-                   (pthread_mutex_unlock (aof (-> wd lock)))
-                   (return (coco_g_deadlock_error e))))
-              (pthread_cond_wait (aof (-> wd changed)) (aof (-> wd lock)))))
-        (return 1)))
+  (func coco_g_wait_leave ((green_world * wd) (green_thread * self))
+        (if (>= (-> self chan) 0)
+            (coco_g_chan_drop (aof (nth (-> self chan) (-> wd chans))) (-> self id)))
+        (if (!= (-> self send_text) nil)
+            (block (free (-> self send_text)) (set (-> self send_text) nil)))
+        (set (-> self state) 0)
+        (set (-> self block) 0)
+        (set (-> self chan) -1)
+        (set (-> self wait_on) -1))
 
+  ;;; THE WORLD ENDED UNDER A NESTED WAIT (3.62.1). The wait cannot be
+  ;;; answered and the search around it cannot be suspended, so the task is
+  ;;; stopped as a halt stops one: no catch/3 takes it, no cleanup runs,
+  ;;; and each engine out to the task's own stops at its next step
+  ;;; (`coco_halt_up'), whatever the search was in the middle of.
+  ;;; `coco_g_run' reads a halt after the world's end as a task abandoned.
+  ;;; Through 3.62.0 the waiter saw another task still marked ready -- one
+  ;;; whose worker had already left -- and slept for ever, and async_run/1
+  ;;; with it, in pthread_join (test/async.pl, `world_end').
   (static)
-  (func coco_g_wait_resume ((coco_engine * e) (size_t sc)) (out int)
+  (func coco_g_abandon ((coco_engine * e)) (out int)
+        (set (-> e halted) 1)
+        (set (-> e halt_code) 0)
+        (return 1))
+
+  ;;; THE TWO NESTED WAITS, one body: an await's (ID the awaited task, 0 or
+  ;;; more) and a channel's (ID -1, the answer the text a sender, a
+  ;;; receiver or a close leaves). The waiter is state 3 from its first
+  ;;; line to its last and nobody else's to run.
+  (static)
+  (func coco_g_wait_nested ((coco_engine * e) (int id) (size_t sc)) (out int)
         (let ((green_world * wd . green_now)
               (green_worker * w . green_me)
               (int self_id . #'(-> w cur))
@@ -824,42 +996,69 @@
           (pthread_mutex_lock (aof (-> wd lock)))
           (set self (aof (nth self_id (-> wd threads))))
           (set (-> self state) 3)
-          (set (-> wd inline_wait) (+ (-> wd inline_wait) 1))
+          (set (-> self wait_on) id)
           (while 1
-            (if (!= (-> self resume_text) nil)
-                (block
-                 (set rc (coco_g_resume (-> e m) sc (-> self resume_text)))
-                 (free (-> self resume_text))
-                 (set (-> self resume_text) nil)
-                 (set (-> self state) 0)
-                 (set (-> self block) 0)
-                 (set (-> self chan) -1)
-                 (set (-> wd inline_wait) (- (-> wd inline_wait) 1))
-                 (pthread_mutex_unlock (aof (-> wd lock)))
-                 (return rc)))
+            ;; answered: the awaited task ended, or the text is here
+            (let ((char * text . #'(? (>= id 0)
+                                      (? (== ($ (nth id (-> wd threads)) state) 2)
+                                         ($ (nth id (-> wd threads)) status) nil)
+                                      (-> self resume_text))))
+              (if (!= text nil)
+                  (block
+                   (set rc (coco_g_resume (-> e m) sc text))
+                   (if (< id 0)
+                       (block (free (-> self resume_text))
+                              (set (-> self resume_text) nil)))
+                   (coco_g_wait_leave wd self)
+                   (pthread_mutex_unlock (aof (-> wd lock)))
+                   (return rc))))
             (if (!= (coco_g_ack_wait wd w) 0) (continue))
-            (if (!= (coco_g_run_ready wd w self_id (-> e m)) 0) (continue))
-            (if (== (coco_g_any_ready wd) 0)
+            (if (== (-> wd main_done) 1)
                 (block
-                 (set (-> self state) 0)
-                 (set (-> wd inline_wait) (- (-> wd inline_wait) 1))
+                 (coco_g_wait_leave wd self)
                  (pthread_mutex_unlock (aof (-> wd lock)))
+                 (return (coco_g_abandon e))))
+            ;; this worker's ready tasks are the waiter's to run: the
+            ;; awaited one first
+            (if (and (>= id 0)
+                     (and (== ($ (nth id (-> wd threads)) state) 0)
+                          (== ($ (nth id (-> wd threads)) worker) (-> w id))))
+                (block
+                 (set (-> w cur) id)
+                 (pthread_mutex_unlock (aof (-> wd lock)))
+                 (coco_g_run w id)
+                 (coco_tbl_sync (-> e m))
+                 (pthread_mutex_lock (aof (-> wd lock)))
+                 (set (-> w cur) self_id)
+                 continue))
+            (if (!= (coco_g_run_ready wd w self_id (-> e m)) 0) (continue))
+            (if (== (coco_g_live wd w) 0)
+                (block
+                 (coco_g_wait_leave wd self)
+                 (pthread_mutex_unlock (aof (-> wd lock)))
+                 ;; a write acknowledged in this wait: its names first
+                 (coco_tbl_sync (-> e m))
                  (return (coco_g_deadlock_error e))))
             (pthread_cond_wait (aof (-> wd changed)) (aof (-> wd lock))))
-        (return 1)))
+          (return 1)))
 
-  ;;; ONE WORKER'S LOOP: a pending write first, then a task of
-  ;;; its own, then sleep until somebody wakes it. The main's end or the
-  ;;; stop ends it.
+  ;;; ONE WORKER'S LOOP: a write in flight first, then the world's end,
+  ;;; then a task of its own, then sleep until somebody wakes it.
+  ;;;
+  ;;; THE ACKNOWLEDGEMENT COMES BEFORE THE END IS ASKED (3.62.1), and the
+  ;;; worker says it has left (`gone') in the same hold of the lock: a
+  ;;; write published before this worker looked is acknowledged, and one
+  ;;; published after does not count it. The end is asked BEFORE the pick:
+  ;;; the main task has ended, and what else is ready stays where it is.
   (static)
   (func coco_g_worker_loop ((green_worker * w))
         (let ((green_world * wd . #'(cast (green_world *) (-> w w))))
           (set green_me w)
           (set green_now wd)
+          ;; the names' lock and generation are each thread's to know
+          (coco_tbl_set (aof (-> wd tbl_mx)) (aof (-> wd tbl_gen)))
           (while 1
             (pthread_mutex_lock (aof (-> wd lock)))
-            (if (== (-> wd stop) 1)
-                (block (pthread_mutex_unlock (aof (-> wd lock))) (break)))
             (let ((green_op * op . #'(-> wd op)))
               (if (and (!= op nil) (!= (-> op writer) (-> w id))
                        (!= (-> w applied_seq) (-> op seq)))
@@ -875,17 +1074,17 @@
                    ;; of acknowledging it (the ABA that hung the light lane,
                    ;; found by the barrier's trace: seq 2 published, zero
                    ;; acks, every worker at the ack wait).
-                   (let ((int oseq . #'(-> op seq)))
-                     (set (-> w applied_seq) oseq)
-                     (set (-> op acks) (+ (-> op acks) 1))
-                     (if (>= (-> op acks) (-> op need))
-                         (pthread_cond_broadcast (aof (-> wd op_done))))
+                   (let ((int oseq . #'(coco_g_ack wd w op)))
                      (while (and (!= (-> wd op) nil)
                                  (== (-> (-> wd op) seq) oseq))
                        (pthread_cond_wait (aof (-> wd op_done))
                                           (aof (-> wd lock)))))
                    (pthread_mutex_unlock (aof (-> wd lock)))
                    (continue))))
+            (if (== (-> wd main_done) 1)
+                (block (set (-> w gone) 1)
+                       (pthread_mutex_unlock (aof (-> wd lock)))
+                       (break)))
             (let ((int ti . #'(coco_g_pick w)))
               (if (>= ti 0)
                   (block
@@ -895,37 +1094,31 @@
                    (pthread_mutex_lock (aof (-> wd lock)))
                    (set (-> w cur) -1)
                    (pthread_mutex_unlock (aof (-> wd lock)))
-                   (continue))
-                (if (== (-> wd main_done) 1)
-                    (block (pthread_mutex_unlock (aof (-> wd lock))) (break))
-                  (block
-                   ;; NOTHING READY ANYWHERE: the deadlock, if every task
-                   ;; is blocked and the main has not ended. Asked HERE,
-                   ;; not after each run: a run ends with a task ready or
-                   ;; blocked, and the world is only dead when no worker
-                   ;; can find a task at all.
-                   (coco_g_deadlock wd)
-                   (if (== (-> wd main_done) 1)
-                       (block (pthread_mutex_unlock (aof (-> wd lock))) (break))
-                     (block
-                      ;; A SIGNAL MAY HAVE ARRIVED SINCE THE PICK: do not
-                      ;; sleep on it -- the generation is under the lock.
-                      ;; NEVER SLEEP WITH A WRITE IN FLIGHT: the op may
-                      ;; be published between the loop's check and this
-                      ;; wait, and its signal then targets a sleeping
-                      ;; worker that never acks (the light-lane hang).
-                      (if (or (!= (-> w wgen) (-> w wseen))
-                              (!= (-> wd op) nil))
-                          (block (set (-> w wseen) (-> w wgen))
-                                 (pthread_mutex_unlock (aof (-> wd lock))))
-                        (block
-                         (pthread_cond_wait (aof (-> w wake)) (aof (-> wd lock)))
-                         (set (-> w wseen) (-> w wgen))
-                         (pthread_mutex_unlock (aof (-> wd lock))))))))))))))
+                   (continue))))
+            ;; NOTHING OF THIS WORKER'S IS READY: the deadlock, if every
+            ;; task is blocked and the main has not ended. Asked HERE, not
+            ;; after each run: a run ends with a task ready or blocked, and
+            ;; the world is only dead when no worker can find a task at all.
+            ;; A world it calls dead is ending, and the loop's top leaves.
+            (coco_g_deadlock wd)
+            ;; A SIGNAL MAY HAVE ARRIVED SINCE THE PICK: do not sleep on it
+            ;; -- the generation is under the lock. NEVER SLEEP WITH A WRITE
+            ;; IN FLIGHT: the op may be published between the loop's check
+            ;; and this wait, and its signal then targets a sleeping worker
+            ;; that never acks (the light-lane hang).
+            (if (and (== (-> wd main_done) 0)
+                     (and (== (-> w wgen) (-> w wseen)) (== (-> wd op) nil)))
+                (pthread_cond_wait (aof (-> w wake)) (aof (-> wd lock))))
+            (set (-> w wseen) (-> w wgen))
+            (pthread_mutex_unlock (aof (-> wd lock))))))
 
   (static)
   (func coco_g_worker_body ((void * arg)) (out void *)
         (coco_g_worker_loop (cast (green_worker *) arg))
+        ;; this thread holds the world's names no more: the process counts
+        ;; the threads that do (`coco_tbl_live'), and a count left behind
+        ;; would have every later intern of the process ask its thread
+        (coco_tbl_set nil nil)
         (return nil))
 
   ;;; ---- spawning --------------------------------------------------------
@@ -965,39 +1158,17 @@
           (return (- (-> wd nchans) 1))))
 
   (static)
-  (func coco_g_chan_remove_sender ((green_chan * c) (int at))
-        (for ((int i . at)) (< i (- (-> c nsenders) 1)) ((++ i))
-          (set (nth i (-> c senders)) (nth (+ i 1) (-> c senders))))
-        (set (-> c nsenders) (- (-> c nsenders) 1)))
-
-  (static)
-  (func coco_g_chan_remove_receiver ((green_chan * c) (int at))
-        (for ((int i . at)) (< i (- (-> c nreceivers) 1)) ((++ i))
-          (set (nth i (-> c receivers)) (nth (+ i 1) (-> c receivers))))
-        (set (-> c nreceivers) (- (-> c nreceivers) 1)))
-
-  (static)
   (func coco_g_chan_close ((green_world * wd) (green_chan * c))
         (set (-> c closed) 1)
         (for ((int i . 0)) (< i (-> c nsenders)) ((++ i))
           (let ((green_thread * t . #'(aof (nth (nth i (-> c senders)) (-> wd threads)))))
-            (set (-> t resume_text) (coco_g_closed_send_text))
-            (set (-> t state) 0)
-            (set (-> t block) 0)
-            (set (-> t chan) -1)
             (if (!= (-> t send_text) nil)
                 (block (free (-> t send_text)) (set (-> t send_text) nil)))
-            (let ((green_worker * tw . #'(aof (nth (-> t worker) (-> wd workers)))))
-              (coco_g_poke tw))))
+            (coco_g_serve wd t (coco_g_closed_send_text))))
         (set (-> c nsenders) 0)
         (for ((int i . 0)) (< i (-> c nreceivers)) ((++ i))
-          (let ((green_thread * t . #'(aof (nth (nth i (-> c receivers)) (-> wd threads)))))
-            (set (-> t resume_text) (coco_g_closed_text))
-            (set (-> t state) 0)
-            (set (-> t block) 0)
-            (set (-> t chan) -1)
-            (let ((green_worker * tw . #'(aof (nth (-> t worker) (-> wd workers)))))
-              (coco_g_poke tw))))
+          (coco_g_serve wd (aof (nth (nth i (-> c receivers)) (-> wd threads)))
+                        (coco_g_closed_text)))
         (set (-> c nreceivers) 0))
 
   ;;; A sender waiting on a full buffer takes the slot a receive freed.
@@ -1013,12 +1184,7 @@
                     (-> st send_text))
                (set (-> c count) (+ (-> c count) 1))
                (set (-> st send_text) nil)
-               (set (-> st resume_text) (coco_g_ok_send_text))
-               (set (-> st state) 0)
-               (set (-> st block) 0)
-               (set (-> st chan) -1)
-               (let ((green_worker * sw . #'(aof (nth (-> st worker) (-> wd workers)))))
-                 (coco_g_poke sw))))
+               (coco_g_serve wd st (coco_g_ok_send_text))))
              (coco_g_chan_remove_sender c 0))))
 
   ;;; ---- the builtins ----------------------------------------------------
@@ -1094,7 +1260,11 @@
             (set (-> wd host_e) e)
             (pthread_mutex_init (aof (-> wd tbl_mx)) nil)
             (pthread_mutex_init (aof (-> wd mmx)) nil)
-            (coco_tbl_set (aof (-> wd tbl_mx)))
+            ;; THE NAMES' LOCK IS THE WORLD'S THREADS' ALONE (3.62.1): each
+            ;; of them is told (`coco_g_worker_loop'), and a thread that is
+            ;; no part of this world -- a library(thread) thread beside it,
+            ;; another world in another thread -- never takes it.
+            (coco_tbl_set (aof (-> wd tbl_mx)) (aof (-> wd tbl_gen)))
             (for ((int i . 0)) (< i nw) ((++ i))
               (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
                 (set (-> wi id) i)
@@ -1114,8 +1284,17 @@
             ;; library(thread) thread is given: the system's default for a
             ;; thread otherwise -- RLIMIT_STACK's on Linux -- where macOS's
             ;; is 512 KB, and a task there could not write back an answer
-            ;; some 10 000 levels deep that the main thread reads whole
-            (let ((pthread_attr_t attr) (size_t ss . 0))
+            ;; some 10 000 levels deep that the main thread reads whole.
+            ;;
+            ;; THE WORLD IS AS WIDE AS THE THREADS IT WAS GIVEN (3.62.1): a
+            ;; worker the system refuses (no memory for its stack, a thread
+            ;; limit) ends the count there, before a task is pinned to
+            ;; anybody. Unasked, a task was pinned to a worker that did not
+            ;; exist and never ran, and the join waited on a thread that was
+            ;; never made. The lock is held from the first thread to the
+            ;; main task, so no worker meets a world with no task in it.
+            (pthread_mutex_lock (aof (-> wd lock)))
+            (let ((pthread_attr_t attr) (size_t ss . 0) (int made . 1))
               (pthread_attr_init (aof attr))
               (pthread_attr_getstacksize (aof attr) (aof ss))
               (if (< ss 8388608) (pthread_attr_setstacksize (aof attr) 8388608))
@@ -1123,9 +1302,13 @@
                 (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
                   (set (-> wi st) hs)
                   (set (-> wi base) hm)
-                  (pthread_create (aof (-> wi tid)) (aof attr) coco_g_worker_body
-                                  (cast (void *) wi))))
-              (pthread_attr_destroy (aof attr)))
+                  (if (!= 0 (pthread_create (aof (-> wi tid)) (aof attr) coco_g_worker_body
+                                            (cast (void *) wi)))
+                      break)
+                  (set made (+ made 1))))
+              (pthread_attr_destroy (aof attr))
+              (set (-> wd nworkers) made)
+              (set (-> wd next_worker) (% 1 made)))
             ;; the main task, id 0, on worker 0
             (let ((green_thread * mt . #'(aof (nth 0 (-> wd threads)))))
               (memset mt 0 (sizeof green_thread))
@@ -1136,25 +1319,24 @@
               (set (-> mt chan) -1)
               (set (-> mt goal) gtext)
               (set (-> wd nthreads) 1))
+            (pthread_mutex_unlock (aof (-> wd lock)))
             ;; the host is worker 0
             (set green_now wd)
             (coco_g_worker_loop (aof (nth 0 (-> wd workers))))
-            ;; a write still in flight finishes before the world stops
-            (pthread_mutex_lock (aof (-> wd lock)))
-            (while (!= (-> wd op) nil)
-              (pthread_cond_wait (aof (-> wd op_done)) (aof (-> wd lock))))
-            (set (-> wd stop) 1)
-            (for ((int i . 0)) (< i (-> wd nworkers)) ((++ i))
-              (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
-                (coco_g_poke wi)))
-            (pthread_mutex_unlock (aof (-> wd lock)))
+            ;; THE WORLD HAS ENDED: every worker leaves at its next safe
+            ;; point, a write in flight acknowledged first, and none counts
+            ;; this thread any more (`gone').
             (for ((int i . 1)) (< i (-> wd nworkers)) ((++ i))
               (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
                 (pthread_join (-> wi tid) nil)))
-            ;; the main task's status
-            (let ((green_thread * mt . #'(aof (nth 0 (-> wd threads)))))
-              (if (!= (-> mt status) nil)
-                  (coco_g_resume hm outc (-> mt status))))
+            ;; the main task's status -- or the halt a task made, which is
+            ;; this engine's now (`coco_halt_up''s rule)
+            (if (-> wd halt)
+                (block (set (-> e halted) 1)
+                       (set (-> e halt_code) (-> wd halt_code)))
+              (let ((green_thread * mt . #'(aof (nth 0 (-> wd threads)))))
+                (if (!= (-> mt status) nil)
+                    (coco_g_resume hm outc (-> mt status)))))
             (set green_now nil)
             (set green_me nil)
             ;; free every task and the world
@@ -1176,10 +1358,10 @@
                      (free (cast (void *) (-> c buf)))))))
             (coco_g_store_unlink wd hs hm)
             (set (-> hm tshared) 0)
-            (for ((int i . 0)) (< i (-> wd nworkers)) ((++ i))
+            (for ((int i . 0)) (< i nw) ((++ i))
               (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
                 (pthread_cond_destroy (aof (-> wi wake)))))
-            (coco_tbl_set nil)
+            (coco_tbl_set nil nil)
             (pthread_cond_destroy (aof (-> wd op_done)))
             (pthread_cond_destroy (aof (-> wd changed)))
             (pthread_mutex_destroy (aof (-> wd lock)))
@@ -1254,7 +1436,7 @@
                 (if (coco_g_nested e)
                     (block
                      (pthread_mutex_unlock (aof (-> wd lock)))
-                     (return (coco_g_await_here e (cast int id) sc)))
+                     (return (coco_g_wait_nested e (cast int id) sc)))
                   (let ((green_thread * t . #'(aof (nth (-> green_me cur)
                                                         (-> wd threads)))))
                     (set (-> t block) 1)
@@ -1341,14 +1523,8 @@
               (if (> (-> c nreceivers) 0)
                   (block
                    (let ((int si . #'(nth 0 (-> c receivers))))
-                    (let ((green_thread * r . #'(aof (nth si (-> wd threads))))
-                          (char * status . #'(coco_g_ok_text m term)))
-                     (set (-> r resume_text) status)
-                     (set (-> r state) 0)
-                     (set (-> r block) 0)
-                     (set (-> r chan) -1)
-                     (let ((green_worker * rw . #'(aof (nth (-> r worker) (-> wd workers)))))
-                       (coco_g_poke rw))))
+                    (coco_g_serve wd (aof (nth si (-> wd threads)))
+                                  (coco_g_ok_text m term)))
                    (coco_g_chan_remove_receiver c 0)
                    (free text)
                    (pthread_mutex_unlock (aof (-> wd lock)))
@@ -1367,13 +1543,23 @@
                 (set (-> t state) (? nested 3 1))
                 (set (-> t chan) (cast int cid))
                 (set (-> t send_text) text)
+                ;; WHERE THE SEND'S STATUS GOES WHEN IT IS TAKEN (3.62.1).
+                ;; Only the nested branch said, so a send that blocked the
+                ;; plain way was answered into the cell of the task's LAST
+                ;; wait -- or, a task that had not waited yet, into its
+                ;; heap's first cell, which for a goal read from text is
+                ;; the goal's first variable: a world whose main task
+                ;; blocked in channel_send/2 came back with that variable
+                ;; bound to `'$async'(ok)', and a send on a channel closed
+                ;; under it answered nothing, which the library read as
+                ;; sent (test/async.pl, `send_status').
+                (set (-> t resume_cell) sc)
                 (set (nth (-> c nsenders) (-> c senders)) (-> t id))
                 (set (-> c nsenders) (+ (-> c nsenders) 1))
                 (if nested
                     (block
-                     (set (-> t resume_cell) sc)
                      (pthread_mutex_unlock (aof (-> wd lock)))
-                     (return (coco_g_wait_resume e sc)))
+                     (return (coco_g_wait_nested e -1 sc)))
                   (block
                    (set (-> e halted) 128)
                    (pthread_mutex_unlock (aof (-> wd lock)))
@@ -1418,12 +1604,7 @@
                    (let ((green_thread * st . #'(aof (nth si (-> wd threads))))
                          (char * text . #'(-> st send_text)))
                     (set (-> st send_text) nil)
-                    (set (-> st resume_text) (coco_g_ok_send_text))
-                    (set (-> st state) 0)
-                    (set (-> st block) 0)
-                    (set (-> st chan) -1)
-                    (let ((green_worker * sw . #'(aof (nth (-> st worker) (-> wd workers)))))
-                      (coco_g_poke sw))
+                    (coco_g_serve wd st (coco_g_ok_send_text))
                     (if (!= text nil)
                         (block
                          (let ((size_t t . 0))
@@ -1456,7 +1637,7 @@
                     (if nested
                         (block
                          (pthread_mutex_unlock (aof (-> wd lock)))
-                         (return (coco_g_wait_resume e sc)))
+                         (return (coco_g_wait_nested e -1 sc)))
                       (block
                        (set (-> e halted) 128)
                        (pthread_mutex_unlock (aof (-> wd lock)))

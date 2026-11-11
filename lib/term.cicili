@@ -935,8 +935,8 @@
     ;; nil. Never `m->eng': pre-setting it made the engine its own outer.
     (member void *     keep_eng)
     ;; THE SHARED NAMES' GENERATION: a machine's table fields are copied from
-    ;; the root when this differs from `coco_tbl_gen' -- at a run's start and
-    ;; before an intern. While the tables are shared the growth never frees
+    ;; the root when this differs from the world's (`coco_tbl_genp') -- at a
+    ;; run's start and before an intern. While the tables are shared the growth never frees
     ;; the old array, so a copied pointer stays valid.
     (member size_t     tgen)
     ;; WHERE THE LOAD STANDS (2.16.0), for source_location/2 and so for
@@ -1268,10 +1268,11 @@
   (decl) (func coco_tsync ((coco_machine * m)))
   (decl) (func coco_tupdate ((coco_machine * m)))
   ;; A green world shares the root's tables across OS threads: it hands the
-  ;; table functions a mutex (coco_tbl_set) and a generation. The mutation
-  ;; functions take the mutex around their growth; the VALUE reads on the run
-  ;; paths stay lock-free, reading the fields a machine synced at its run.
-  (decl) (func coco_tbl_set ((pthread_mutex_t * mx)))
+  ;; table functions a mutex (coco_tbl_set) and a generation, EACH OF ITS
+  ;; THREADS FOR ITSELF (3.62.1). The mutation functions take the mutex
+  ;; around their growth; the VALUE reads on the run paths stay lock-free,
+  ;; reading the fields a machine synced at its run.
+  (decl) (func coco_tbl_set ((pthread_mutex_t * mx) (size_t * genp)))
   (decl) (func coco_tbl_sync ((coco_machine * m)))
   (decl) (func coco_tbl_begin ((coco_machine * m)))
   (decl) (func coco_tbl_end ((coco_machine * m)))
@@ -1691,52 +1692,100 @@
           (if (== b m) (return))
           (coco_tcopy b m)))
 
-  ;;; THE SHARED NAMES' LOCK AND GENERATION. A green world sets a
-  ;;; process-wide mutex; a table mutation takes it, syncs the machine's
+  ;;; THE SHARED NAMES' LOCK AND GENERATION. A green world's threads each
+  ;;; set the world's mutex; a table mutation takes it, syncs the machine's
   ;;; fields from the root when the generation moved, mutates, publishes to
   ;;; the root and moves the generation. A RUN takes the same mutex only to
   ;;; sync at its start; its value reads then hold no lock. Normal runs (no
   ;;; world) take no lock at all.
-  (static) (var pthread_mutex_t * coco_tbl_mx . nil)
-  (static) (var size_t coco_tbl_gen . 0)
+  ;;;
+  ;;; THE LOCK IS A THREAD'S, NOT THE PROCESS'S (3.62.1). It was one
+  ;;; pointer for every thread: a library(thread) thread beside a green
+  ;;; world -- whose machine is its own root and shares no table with the
+  ;;; world -- took the world's mutex at its next intern, and a world that
+  ;;; began or ended between that thread's begin and its end left it
+  ;;; unlocking a mutex it never took, or one destroyed and freed (a
+  ;;; SIGSEGV four runs in four of a thread making atoms beside worlds that
+  ;;; start and end: test/async.pl, `beside'); and two worlds in two
+  ;;; threads took each other's. Only a world's own threads -- the caller's
+  ;;; and its workers -- alias its tables, and each is told
+  ;;; (`coco_g_worker_loop'). The generation is the world's with it: one
+  ;;; counter for two worlds lost an increment between them, and a machine
+  ;;; then missed a sync.
+  (thread-local) (var pthread_mutex_t * coco_tbl_mx . nil)
+  (thread-local) (var size_t * coco_tbl_genp . nil)
 
-  (func coco_tbl_set ((pthread_mutex_t * mx))
+  ;;; HOW MANY THREADS OF THE PROCESS HOLD A NAMES' LOCK, asked before the
+  ;;; thread's own (3.62.1). Every intern asks whether the names are
+  ;;; shared, and a thread-local costs more to read than a word of the
+  ;;; process: three instructions and a register where it was one on Linux
+  ;;; (`cocolog query true' ran 103 171 instructions more for it, all in
+  ;;; `coco_intern_len' and `coco_functor_id'), and a call on Darwin. A
+  ;;; process with no world reads this word alone, as it read the pointer
+  ;;; through 3.62.0. It is counted by the threads themselves
+  ;;; (`coco_tbl_set'), so a thread whose lock is set always reads one or
+  ;;; more, and the answer is the thread-local's own whatever another
+  ;;; thread is doing to the count.
+  (static) (var int coco_tbl_live . 0)
+
+  (static)
+  (func coco_tbl_count ((int by)) (out int)
+        (return (code "__atomic_add_fetch(&coco_tbl_live, by, __ATOMIC_SEQ_CST)")))
+
+  (static) (inline)
+  (func coco_tbl_any () (out int)
+        (return (code "__atomic_load_n(&coco_tbl_live, __ATOMIC_RELAXED)")))
+
+  ;; the names' lock this thread holds, or nil
+  (static) (inline)
+  (func coco_tbl_lock () (out pthread_mutex_t *)
+        (if (== (coco_tbl_any) 0) (return nil))
+        (return coco_tbl_mx))
+
+  ;; the generation is the world's to start at 0: a thread that joins a
+  ;; world late must not wind it back under the machines already synced
+  (func coco_tbl_set ((pthread_mutex_t * mx) (size_t * genp))
+        (if (and (== coco_tbl_mx nil) (!= mx nil)) (coco_tbl_count 1))
+        (if (and (!= coco_tbl_mx nil) (== mx nil)) (coco_tbl_count -1))
         (set coco_tbl_mx mx)
-        (set coco_tbl_gen 0))
+        (set coco_tbl_genp genp))
 
   (func coco_tbl_sync ((coco_machine * m))
-        (if (== coco_tbl_mx nil) (return))
-        ;; THE COMMON CASE IS NO WORK AND NO LOCK (2.9.2). A generation is a
-        ;; word; while the tables are shared the old arrays are never freed,
-        ;; so a machine one generation behind reads valid memory and its next
-        ;; mutation's begin syncs it under the lock. The lock here was taken
-        ;; by EVERY run of a green task, for nothing.
-        (if (== (-> m tgen) coco_tbl_gen) (return))
-        (pthread_mutex_lock coco_tbl_mx)
-        (if (!= (-> m tgen) coco_tbl_gen)
-            (block (coco_tsync m) (set (-> m tgen) coco_tbl_gen)))
-        (pthread_mutex_unlock coco_tbl_mx))
+        (let ((pthread_mutex_t * mx . #'(coco_tbl_lock)))
+          (if (== mx nil) (return))
+          ;; THE COMMON CASE IS NO WORK AND NO LOCK (2.9.2). A generation is
+          ;; a word; while the tables are shared the old arrays are never
+          ;; freed, so a machine one generation behind reads valid memory
+          ;; and its next mutation's begin syncs it under the lock. The lock
+          ;; here was taken by EVERY run of a green task, for nothing.
+          (if (== (-> m tgen) (cof coco_tbl_genp)) (return))
+          (pthread_mutex_lock mx)
+          (if (!= (-> m tgen) (cof coco_tbl_genp))
+              (block (coco_tsync m) (set (-> m tgen) (cof coco_tbl_genp))))
+          (pthread_mutex_unlock mx)))
 
   (func coco_tbl_begin ((coco_machine * m))
-        (if (== coco_tbl_mx nil) (return))
-        (pthread_mutex_lock coco_tbl_mx)
-        (if (!= (-> m tgen) coco_tbl_gen)
-            (block (coco_tsync m) (set (-> m tgen) coco_tbl_gen))))
+        (let ((pthread_mutex_t * mx . #'(coco_tbl_lock)))
+          (if (== mx nil) (return))
+          (pthread_mutex_lock mx)
+          (if (!= (-> m tgen) (cof coco_tbl_genp))
+              (block (coco_tsync m) (set (-> m tgen) (cof coco_tbl_genp))))))
 
   (func coco_tbl_end ((coco_machine * m))
-        (if (== coco_tbl_mx nil)
-            (block (coco_tupdate m) (return)))
-        (coco_tupdate m)
-        (set coco_tbl_gen (+ coco_tbl_gen 1))
-        (set (-> m tgen) coco_tbl_gen)
-        (pthread_mutex_unlock coco_tbl_mx))
+        (let ((pthread_mutex_t * mx . #'(coco_tbl_lock)))
+          (coco_tupdate m)
+          (if (== mx nil) (return))
+          (set (cof coco_tbl_genp) (+ (cof coco_tbl_genp) 1))
+          (set (-> m tgen) (cof coco_tbl_genp))
+          (pthread_mutex_unlock mx)))
 
   ;; A LOOK THAT FOUND THE NAME UNDER THE LOCK CHANGED NOTHING: unlock, and
   ;; move no generation -- a bump here would make every other machine resync
   ;; for the next run, which is what an intern hit used to do.
   (func coco_tbl_done ((coco_machine * m))
-        (if (== coco_tbl_mx nil) (return))
-        (pthread_mutex_unlock coco_tbl_mx))
+        (let ((pthread_mutex_t * mx . #'(coco_tbl_lock)))
+          (if (== mx nil) (return))
+          (pthread_mutex_unlock mx)))
 
   ;;; THE SHARED TABLES GROW WITHOUT FREEING the old array: a machine that
   ;;; synced its pointer before the growth keeps reading valid entries. The
@@ -1744,7 +1793,7 @@
   ;;; freed with the host machine); the leak is one array per growth.
   (func coco_tbl_grow ((coco_machine * m) (void ** buf) (size_t * cap)
                        (size_t need) (size_t esize)) (out int)
-        (if (== coco_tbl_mx nil)
+        (if (== (coco_tbl_lock) nil)
             (return (coco_grow m buf cap need esize)))
         ;; THE ROOM ALREADY THERE IS NOT GROWN. Without this the shared
         ;; path allocated and COPIED the whole table at every new entry --
@@ -2632,7 +2681,13 @@
               (while (!= (nth j nb) 0)
                 (set j (bitand (+ j 1) (- ncap 1))))
               (set (nth j nb) (+ i 1))))
-          (free (-> m atom_buckets))
+          ;; WHILE THE TABLES ARE SHARED THE OLD ARRAY IS NOT FREED (3.62.1),
+          ;; as no table's is (`coco_tbl_grow'): another machine's intern
+          ;; probes the array it synced WITHOUT THE LOCK (`coco_intern_h',
+          ;; 2.9.2), and this free ran under that probe -- a read of freed
+          ;; memory, and of an unmapped page once the array was big enough
+          ;; for the allocator to map it. One array leaks a doubling.
+          (if (== coco_tbl_mx nil) (free (-> m atom_buckets)))
           (set (-> m atom_buckets) nb)
           (set (-> m atom_bucket_cap) ncap)
           (return 1)))

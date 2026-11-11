@@ -37,6 +37,10 @@
 %% (every task blocked, the main one not ended) from async_run, where the
 %% program can catch it; a thread that fails makes await fail, and one that
 %% throws makes await throw the same ball.
+%%
+%% THE WORLD ENDS WHEN ITS MAIN TASK ENDS (3.62.1), as a Go program ends
+%% when main returns: what else is running is stopped, and what is ready is
+%% not run. await/1,2 what must finish.
 
 
 spin(0) :- !.
@@ -73,6 +77,17 @@ case_error :-
 case_deadlock :-
     go(await(0, _), F),
     await(F, _).
+
+%% the main task starts a task that never ends on every worker, its own
+%% too (the N-th child wraps round to worker 0), and ends itself
+case_main_ends :-
+    async_workers(N),
+    case_start(N).
+
+case_start(0) :- !.
+case_start(K) :- go(case_for_ever), K1 is K - 1, case_start(K1).
+
+case_for_ever :- case_for_ever.
 
 case_shared(R) :-
     channel(C),
@@ -166,7 +181,9 @@ lesson_failures :-
     ->  W2 = caught
     ;   W2 = missed
     ),
-    must('a deadlock is caught at async_run/1', W2, caught).
+    must('a deadlock is caught at async_run/1', W2, caught),
+    ( async_run(case_main_ends) -> W3 = returned ; W3 = failed ),
+    must('the world ends with its main task, a task still running on every worker', W3, returned).
 
 %% ---- the store ----------------------------------------------------------
 lesson_store :-

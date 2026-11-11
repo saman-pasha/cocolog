@@ -188,6 +188,20 @@ main :-
     cleanups,
     retract_walks,
     retired_codes,
+    world_end,
+    halts,
+    waiters,
+    send_status,
+    names,
+    foreign_ack,
+    foreign_begin,
+    rehash,
+    stacked,
+    live_waiters,
+    gave_up,
+    dead_nested,
+    beside,
+    narrow,
     checks_done.
 
 %% ---- values ------------------------------------------------------------
@@ -572,4 +586,497 @@ retired_codes :-
                  check(Says, Out-Exit, done-0) )),
         shl(['rm -rf ', D])
     ;   format("   SKIP (no valgrind here)~n", [])
+    ).
+
+%% ---- the world's end (3.62.1) --------------------------------------------
+%%
+%% WHEN THE MAIN TASK ENDS THE WORLD STOPS, as a Go program ends when main
+%% returns: every worker leaves at its next safe point, whatever is still
+%% ready, running or waiting. Three shapes did not end through 3.62.0, so
+%% each is a child with a ceiling, and a red run is an exit of 124:
+%%
+%%   all     a task that never ends on EVERY worker, the main's own among
+%%           them: the main's worker went on running what was ready on it,
+%%           and async_run/1 never returned (three runs in three);
+%%   beside  a task that WRITES for ever on each worker beside the
+%%           main's, twelve worlds: a write asked `main_done' with no lock
+%%           and was published as the world ended, counting workers
+%%           already gone, the host in pthread_join among them -- nobody
+%%           was left to acknowledge it (eight runs in eight: five hung,
+%%           three were a SIGSEGV, a write still running as the host took
+%%           the world's tables back);
+%%   nested  a task waiting inside findall/3 for one that never ends: the
+%%           wait saw the other still marked ready, its worker gone, and
+%%           slept for ever (three in three).
+%%
+%% Four workers whatever the box has, so the shapes are the same anywhere.
+world_end :-
+    section('when the main task ends the world stops'),
+    scratch(D),
+    atom_concat(D, '/end.pl', Path),
+    fixture(Path,
+            [ 'we_spin :- we_spin.',
+              'we_write :- nb_setval(we_k, 1), we_write.',
+              'we_children(0, _) :- !.',
+              'we_children(K, G) :- go(G), K1 is K - 1, we_children(K1, G).',
+              'we_wait(F) :- findall(R, await(F, R), _).',
+              'we(all) :- async_workers(N), async_run(( we_children(N, we_spin), true )).',
+              'we(beside) :- async_workers(N), N1 is N - 1,',
+              '    forall(between(1, 12, _), async_run(( we_children(N1, we_write), true ))).',
+              'we(nested) :- async_run(( go(we_spin, F), go(we_wait(F)), ''$green_foreign_sleep''(100), true )).',
+              'main :- current_prolog_flag(argv, [_, How|_]), we(How), write(done), nl.' ]),
+    cocolog(C),
+    forall(member(How-Says,
+                  [ all-'a task that never ends on every worker, the main\'s own too',
+                    beside-'tasks that write for ever as the world ends, twelve worlds',
+                    nested-'a task waiting inside findall/3 for one that never ends' ]),
+           ( sh_join(['COCOLOG_GREEN_WORKERS=4 ', C, ' -s ', Path, ' -- ', How, ' 2>&1'], Cmd),
+             shell(Cmd, Out, Exit, 30000),
+             check(Says, Out-Exit, done-0) )),
+    shl(['rm -rf ', D]).
+
+%% A HALT IN A TASK IS THE PROCESS'S (3.62.1), as swipl's halt/1 ends the
+%% process from whatever called Prolog and as a nested search hands one up
+%% (3.57.0). Through 3.62.0 the task was read as failed, async_run/1
+%% failed, and the program went on: each of these exited 1.
+halts :-
+    section('halt/1 in a green task halts the process'),
+    scratch(D),
+    atom_concat(D, '/halt.pl', Path),
+    fixture(Path,
+            [ 'hl_spin :- hl_spin.',
+              'hl(main) :- async_run(( write(a), nl, halt(3) )).',
+              'hl(child) :- async_run(( go(halt(4), F), await(F, _) )).',
+              'hl(nested) :- async_run(findall(x, halt(5), _)).',
+              'hl(beside) :- async_run(( go(hl_spin), go(hl_spin), go(hl_spin), go(hl_spin), halt(6) )).',
+              'main :- current_prolog_flag(argv, [_, How|_]), ( hl(How) -> true ; true ), write(after), nl.' ]),
+    cocolog(C),
+    forall(member(How-(Says-Want),
+                  [ main-('the main task\'s halt(3): its output, then the code'-(a-3)),
+                    child-('a child\'s halt(4), the main awaiting it'-(''-4)),
+                    nested-('halt(5) inside findall/3 inside a task'-(''-5)),
+                    beside-('halt(6) beside tasks that never end'-(''-6)) ]),
+           ( sh_join(['COCOLOG_GREEN_WORKERS=4 ', C, ' -s ', Path, ' -- ', How, ' 2>&1'], Cmd),
+             shell(Cmd, Out, Exit, 30000),
+             check(Says, Out-Exit, Want) )),
+    shl(['rm -rf ', D]).
+
+%% EVERY TASK OF A WORLD MAY WAIT ON ONE CHANNEL (3.62.1). A channel's two
+%% lists of waiters held 64 ids: the 65th waiter's was written over the
+%% count beside the array, the waiters were lost, and the world called
+%% itself dead -- resource_error(deadlock), three runs in three, and 64
+%% waiters answered. ONE WORKER makes the shape exact: the main's yield
+%% runs each child once, and each blocks, before the main serves any.
+waiters :-
+    section('a hundred tasks wait on one channel'),
+    scratch(D),
+    atom_concat(D, '/waiters.pl', Path),
+    fixture(Path,
+            [ 'wt_tx(0, _, []) :- !.',
+              'wt_tx(K, C, [F|Fs]) :- go(channel_send(C, K), F), K1 is K - 1, wt_tx(K1, C, Fs).',
+              'wt_rx(0, _, []) :- !.',
+              'wt_rx(K, C, [F|Fs]) :- go(channel_recv(C, _), F), K1 is K - 1, wt_rx(K1, C, Fs).',
+              'wt_take(0, _, 0) :- !.',
+              'wt_take(K, C, S) :- channel_recv(C, V), K1 is K - 1, wt_take(K1, C, S1), S is S1 + V.',
+              'wt_give(0, _) :- !.',
+              'wt_give(K, C) :- channel_send(C, K), K1 is K - 1, wt_give(K1, C).',
+              'wt_got([], 0).',
+              'wt_got([F|Fs], S) :- await(F, channel_recv(_, V)), wt_got(Fs, S1), S is S1 + V.',
+              'wt_world(S, R) :-',
+              '    channel(C1), wt_tx(100, C1, Txs), yield, wt_take(100, C1, S), await_all(Txs),',
+              '    channel(C2), wt_rx(100, C2, Rxs), yield, wt_give(100, C2), wt_got(Rxs, R).',
+              'main :- catch(( async_run(wt_world(_, _), W), W = wt_world(S, R) ),',
+              '              error(E, _), ( S = E, R = E )),',
+              '        write(S-R), nl.' ]),
+    cocolog(C),
+    sh_join(['COCOLOG_GREEN_WORKERS=1 ', C, ' run ', Path, ' main 2>&1'], Cmd),
+    shell(Cmd, Out, Exit, 60000),
+    check('100 blocked senders and 100 blocked receivers, each served once',
+          Out-Exit, '5050-5050'-0),
+    shl(['rm -rf ', D]).
+
+%% A SEND THAT BLOCKED HEARS HOW IT ENDED (3.62.1). A send with nobody
+%% to take it suspends its task, and what becomes of it -- taken, or the
+%% channel closed under it -- is read into the cell the send left for it.
+%% The send that blocked inside a nested search left one; the plain one
+%% did not, and its answer went to the cell of the task's LAST wait, or,
+%% a task that had not waited yet, to its heap's first cell -- for a goal
+%% read from text, the goal's first variable. So a world whose main task
+%% blocked in channel_send/2 came back with that variable bound to
+%% `'$async'(ok)' (and failed where it meant to bind it), and a send on a
+%% channel closed under it heard nothing, which reads as sent. The
+%% receiver and the closer sleep first, so the send does block.
+send_status :-
+    section('a send that blocked hears how it ended'),
+    scratch(D),
+    atom_concat(D, '/send.pl', Path),
+    fixture(Path,
+            [ 'ss_recv(C) :- ''$green_foreign_sleep''(20), channel_recv(C, _).',
+              'ss_close(C) :- ''$green_foreign_sleep''(20), channel_close(C).',
+              'ss_taken(R) :- channel(C), go(ss_recv(C)), channel_send(C, hello), R = sent.',
+              'ss_closed(R) :- channel(C), go(ss_close(C)),',
+              '    catch(( channel_send(C, hello), R = sent ),',
+              '          error(permission_error(send, channel, closed), _), R = closed).',
+              'main :- current_prolog_flag(argv, [_, How|_]), G =.. [How, _],',
+              '        ( catch(async_run(G, W), E, W = raised(E)) -> true ; W = failed ),',
+              '        write(W), nl.' ]),
+    cocolog(C),
+    forall(member(How-(Says-Want),
+                  [ ss_taken-('taken by a receiver that came later: the goal\'s own variable is the goal\'s'-'ss_taken(sent)'),
+                    ss_closed-('the channel closed under it: the send raises'-'ss_closed(closed)') ]),
+           ( sh_join(['COCOLOG_GREEN_WORKERS=4 ', C, ' -s ', Path, ' -- ', How, ' 2>&1'], Cmd),
+             shell(Cmd, Out, Exit, 30000),
+             check(Says, Out-Exit, Want-0) )),
+    shl(['rm -rf ', D]).
+
+%% WHAT ANOTHER TASK WROTE IS READ WITH THE NAMES IT WAS WRITTEN WITH
+%% (3.62.1). A task's machine syncs the world's name and value tables when
+%% its quantum begins; inside one it went on unsynced past two points where
+%% another task's write had landed:
+%%
+%%   a write of its own   it acknowledged the other's write while it
+%%                        waited for its turn, then read on: the other's
+%%                        new atom was `<bad-atom>', its float and its big
+%%                        integer whatever a stale array held (six runs in
+%%                        six; one in six of the numbers a SIGSEGV);
+%%   a foreign call       in the MAIN task, whose sync after one synced the
+%%                        host's machine and not its own (six in six).
+%%
+%% The maker interns an atom, makes a float, a string and an integer past
+%% the cell's sixty bits, and puts the four in a global; the writer writes
+%% a global of its own and reads the maker's; the main task sleeps in a
+%% foreign call and reads it. Three workers: one each.
+names :-
+    section('a task reads the names another task wrote'),
+    scratch(D),
+    atom_concat(D, '/names.pl', Path),
+    fixture(Path,
+            [ 'nm_make(K, K) :- !.',
+              'nm_make(I, K) :-',
+              '    atom_concat(nm_, I, A), X is I * 1.5, B is 4611686018427387904 + I,',
+              '    number_codes(I, Ds), string_codes(S, [0''s|Ds]),',
+              '    nb_setval(nm_latest, v(I, A, X, B, S)), I1 is I + 1, nm_make(I1, K).',
+              'nm_ok(v(I, A, X, B, S)) :-',
+              '    atom_codes(A, [0''n, 0''m, 0''_|Ds]), number_codes(I, Ds),',
+              '    X =:= I * 1.5, B - 4611686018427387904 =:= I,',
+              '    string_codes(S, [0''s|Ds]).',
+              'nm_writer(0, ok) :- !.',
+              'nm_writer(K, R) :-',
+              '    nb_setval(nm_tick, K), nb_getval(nm_latest, V),',
+              '    ( nm_ok(V) -> K1 is K - 1, nm_writer(K1, R) ; R = bad ).',
+              'nm_sleeper(0, ok) :- !.',
+              'nm_sleeper(K, R) :-',
+              '    ''$green_foreign_sleep''(1), nb_getval(nm_latest, V),',
+              '    ( nm_ok(V) -> K1 is K - 1, nm_sleeper(K1, R) ; R = bad ).',
+              'nm_world(RW, RS) :-',
+              '    go(nm_make(1, 4000), F), go(nm_writer(4000, _), G),',
+              '    nm_sleeper(100, RS), await(F), await(G, nm_writer(_, RW)).',
+              'main :- string_codes(S0, [0''s, 0''0]),',
+              '        nb_setval(nm_latest, v(0, nm_0, 0.0, 4611686018427387904, S0)), nb_setval(nm_tick, 0),',
+              '        async_run(nm_world(_, _), W), W = nm_world(RW, RS),',
+              '        write(RW-RS), nl.' ]),
+    cocolog(C),
+    sh_join(['COCOLOG_GREEN_WORKERS=3 ', C, ' run ', Path, ' main 2>&1'], Cmd),
+    shell(Cmd, Out, Exit, 60000),
+    check('a writer, and the main task after a foreign call, read atom, float, big and string right',
+          Out-Exit, 'ok-ok'-0),
+    shl(['rm -rf ', D]).
+
+%% A WRITE BEGINS WHEN THE WORKERS IT COUNTED HAVE STOPPED, AND NOT BEFORE
+%% (3.62.1). A worker inside a foreign call is left out of a write's count
+%% and, back from the call, waits for the write to clear. It also ADDED AN
+%% ACKNOWLEDGEMENT, which the writer took for a counted worker's: with one
+%% worker counted and still running, the returning one made the count and
+%% the write began under a task that had not stopped -- which then read
+%% the store as it changed, and read what the write stored with tables
+%% that did not yet know its names. The main task goes in and out of a
+%% foreign call as fast as it can; the maker interns an atom and stores
+%% it; the reader, a writer too, reads what is stored: `<bad-atom>',
+%% eighteen runs in twenty (and ten in ten of 3.62.0).
+foreign_ack :-
+    section('a worker back from a foreign call adds no acknowledgement'),
+    scratch(D),
+    atom_concat(D, '/ack.pl', Path),
+    fixture(Path,
+            [ 'fa_make(K, K) :- !.',
+              'fa_make(I, K) :-',
+              '    atom_concat(fa_, I, A), nb_setval(fa_latest, I-A), I1 is I + 1, fa_make(I1, K).',
+              'fa_ok(I-A) :- atom_codes(A, [0''f, 0''a, 0''_|Ds]), number_codes(I, Ds).',
+              'fa_reader(0, ok) :- !.',
+              'fa_reader(K, R) :-',
+              '    nb_setval(fa_tick, K), nb_getval(fa_latest, V),',
+              '    ( fa_ok(V) -> K1 is K - 1, fa_reader(K1, R) ; R = bad ).',
+              'fa_foreign(F) :- future_ready(F), !.',
+              'fa_foreign(F) :- ''$green_foreign_sleep''(0), fa_foreign(F).',
+              'fa_world(R) :-',
+              '    go(fa_make(1, 20000), F), go(fa_reader(20000, _), G),',
+              '    fa_foreign(G), await(F), await(G, fa_reader(_, R)).',
+              'main :- nb_setval(fa_latest, 0-fa_0), nb_setval(fa_tick, 0),',
+              '        async_run(fa_world(_), W), W = fa_world(R), write(R), nl.' ]),
+    cocolog(C),
+    sh_join(['COCOLOG_GREEN_WORKERS=3 ', C, ' run ', Path, ' main 2>&1'], Cmd),
+    shell(Cmd, Out, Exit, 60000),
+    check('20,000 writes read by a second writer, the main task in and out of a foreign call',
+          Out-Exit, ok-0),
+    shl(['rm -rf ', D]).
+
+%% A WORKER LEAVING FOR A FOREIGN CALL ANSWERS EVERY WRITE THAT COUNTED IT
+%% (3.62.1). It answered the one in flight and waited for it to clear --
+%% and the next writer in line published in that moment, counting the
+%% worker, which then left for its call with that write unanswered. The
+%% writer waited for the call to return; where the call waits for the
+%% writer, for ever: the writer holds a mutex across its write, and the
+%% call is mutex_lock/1 of that mutex (six runs in six). Three tasks on
+%% three workers -- one writes under the mutex, one takes and gives the
+%% mutex, one writes all the time -- and the main task waiting for the
+%% first two.
+foreign_begin :-
+    section('a worker leaving for a foreign call answers every write that counted it'),
+    (   catch(use_module(library(thread)), _, fail)
+    ->  scratch(D),
+        atom_concat(D, '/fbegin.pl', Path),
+        fixture(Path,
+                [ ':- use_module(library(thread)).',
+                  'fb_b(_, 0) :- !.',
+                  'fb_b(M, N) :- mutex_lock(M), nb_setval(fb_k, N), mutex_unlock(M), N1 is N - 1, fb_b(M, N1).',
+                  'fb_a(_, 0) :- !.',
+                  'fb_a(M, N) :- mutex_lock(M), mutex_unlock(M), N1 is N - 1, fb_a(M, N1).',
+                  'fb_c(_, FB, FA) :- future_ready(FB), future_ready(FA), !.',
+                  'fb_c(I, FB, FA) :- nb_setval(fb_c, I), I1 is I + 1, fb_c(I1, FB, FA).',
+                  'fb_world(R) :- mutex_create(M),',
+                  '    go(fb_b(M, 3000), FB), go(fb_a(M, 3000), FA), go(fb_c(0, FB, FA), FC),',
+                  '    await(FB), await(FA), await(FC), R = done.',
+                  'main :- ( catch(async_run(fb_world(_), W), E, W = raised(E)) -> true ; W = failed ),',
+                  '        ( W = fb_world(R) -> true ; R = W ), write(R), nl.' ]),
+        cocolog(C),
+        sh_join(['COCOLOG_GREEN_WORKERS=4 ', C, ' -s ', Path, ' 2>&1'], Cmd),
+        shell(Cmd, Out, Exit, 30000),
+        check('3,000 writes under a mutex another task takes 3,000 times, beside a third writer',
+              Out-Exit, done-0),
+        shl(['rm -rf ', D])
+    ;   format("     (skipped: no thread module)~n")
+    ).
+
+%% THE ATOM TABLE'S BUCKETS ARE NOT FREED UNDER A PROBE (3.62.1). An
+%% intern looks its name up with no lock (2.9.2), in the bucket array its
+%% machine last synced; a rehash, made under the names' lock by whichever
+%% task interned the name that filled the table, FREED that array -- the
+%% one table of the shared six that did -- and the other workers' probes
+%% read freed memory, an unmapped page once the array was big enough for
+%% the allocator to map it: a SIGSEGV, ten runs in ten. One task interns
+%% 200,000 new atoms, three intern one that is there.
+rehash :-
+    section('the atom table rehashes under lock-free lookups'),
+    scratch(D),
+    atom_concat(D, '/rehash.pl', Path),
+    fixture(Path,
+            [ 'rh_new(K, K) :- !.',
+              'rh_new(I, K) :- atom_concat(rh_, I, A), atom_length(A, _), I1 is I + 1, rh_new(I1, K).',
+              'rh_hit(F) :- future_ready(F), !.',
+              'rh_hit(F) :- rh_hits(200), rh_hit(F).',
+              'rh_hits(0) :- !.',
+              'rh_hits(K) :- atom_concat(rh_, hit, A), atom_length(A, _), K1 is K - 1, rh_hits(K1).',
+              'rh_world :-',
+              '    go(rh_new(0, 200000), F), go(rh_hit(F), G1), go(rh_hit(F), G2), rh_hit(F),',
+              '    await(F), await(G1), await(G2).',
+              'main :- async_run(rh_world), write(done), nl.' ]),
+    cocolog(C),
+    sh_join(['COCOLOG_GREEN_WORKERS=4 ', C, ' run ', Path, ' main 2>&1'], Cmd),
+    shell(Cmd, Out, Exit, 60000),
+    check('200,000 new atoms on one worker, lookups of an old one on three',
+          Out-Exit, done-0),
+    shl(['rm -rf ', D]).
+
+%% A TASK SERVED INSIDE A NESTED WAIT IS NOBODY ELSE'S TO RUN (3.62.1). On
+%% one worker the first waiter runs the second from inside its own wait,
+%% and the second waits in turn, stacked on the first on the one C stack.
+%% A third task then serves the FIRST: it was marked ready, the second's
+%% wait picked it and ran its engine again under the call still open on
+%% it, finished it and freed its machine -- a SIGSEGV, three runs in three.
+%% It stays the waiter's own now. The second's wait can then be answered
+%% by nobody (the first cannot go on until the second returns), which is
+%% the nested wait's stated limit and its error: resource_error(deadlock)
+%% in the second, and the first answers.
+stacked :-
+    section('a nested wait stacked on another on one worker'),
+    scratch(D),
+    atom_concat(D, '/stacked.pl', Path),
+    fixture(Path,
+            [ ':- dynamic st_done/2.',
+              'st_wait(K, C) :- findall(X, channel_recv(C, X), L), assertz(st_done(K, L)).',
+              'st_world :-',
+              '    channel(C1), channel(C2),',
+              '    go(st_wait(1, C1), F1), go(st_wait(2, C2), F2), go(channel_send(C1, a), _),',
+              '    await(F1, _),',
+              '    ( catch(await(F2, _), error(resource_error(W), _), true) -> true ; W = failed ),',
+              '    findall(K-L, st_done(K, L), Ds), write(Ds-W), nl.',
+              'main :- async_run(st_world).' ]),
+    cocolog(C),
+    sh_join(['COCOLOG_GREEN_WORKERS=1 ', C, ' run ', Path, ' main 2>&1'], Cmd),
+    shell(Cmd, Out, Exit, 30000),
+    check('the first waiter answers once, the second is told it cannot be answered',
+          Out-Exit, '[1-[a]]-deadlock'-0),
+    shl(['rm -rf ', D]).
+
+%% A WAITER THAT HAS ITS ANSWER AND HAS NOT WOKEN IS NOT A DEAD ONE
+%% (3.62.1). Two tasks wait inside findall/3 on two workers: the main for
+%% a task to end, a child for the message the main sends once it has. The
+%% third task ends, both waiters wake, and the child, first to the lock,
+%% asked whether anything could still move: a task done, and a waiter --
+%% which read as nothing, so the child was told it could never be
+%% answered and the world died of it (twelve runs in thirty: a deadlock
+%% raised, or no answer at all). A waiter whose wait is over counts as
+%% alive (`coco_g_live'); so does one already handed a message.
+live_waiters :-
+    section('a waiter with its answer, not yet awake, is alive'),
+    scratch(D),
+    atom_concat(D, '/live.pl', Path),
+    fixture(Path,
+            [ 'lv_y(C, R) :- findall(V, channel_recv(C, V), R).',
+              'lv_t :- ''$green_foreign_sleep''(30).',
+              'lv_send(C) :- ''$green_foreign_sleep''(30), channel_send(C, go).',
+              'lv_await(R) :- channel(C2), go(lv_y(C2, _), FY), go(lv_t, FT),',
+              '    findall(done, await(FT), X), channel_send(C2, X), await(FY, lv_y(_, R)).',
+              'lv_recv(R) :- channel(C1), channel(C2), go(lv_y(C2, _), FY), go(lv_send(C1)),',
+              '    findall(V, channel_recv(C1, V), X), channel_send(C2, X), await(FY, lv_y(_, R)).',
+              'lv_worlds(_, 0, ok) :- !.',
+              'lv_worlds(How, K, R) :- G =.. [How, _],',
+              '    (   catch(async_run(G, W), E, W = raised(E)) -> true ; W = failed ),',
+              '    (   arg(1, W, [[_]]) -> K1 is K - 1, lv_worlds(How, K1, R) ; R = W ).',
+              'main :- current_prolog_flag(argv, [_, How|_]), lv_worlds(How, 12, R), write(R), nl.' ]),
+    cocolog(C),
+    forall(member(How-Says,
+                  [ lv_await-'the awaited task ended: twelve worlds',
+                    lv_recv-'the message was handed over: twelve worlds' ]),
+           ( sh_join(['COCOLOG_GREEN_WORKERS=4 ', C, ' -s ', Path, ' -- ', How, ' 2>&1'], Cmd),
+             shell(Cmd, Out, Exit, 60000),
+             check(Says, Out-Exit, ok-0) )),
+    shl(['rm -rf ', D]).
+
+%% A NESTED WAIT THAT GAVE UP HAS LEFT ITS CHANNEL (3.62.1). A receive
+%% inside findall/3 that nobody can answer raises the deadlock, and the
+%% task that catches it goes on. Its id stayed in the channel's list of
+%% receivers: the next send found it there and handed it the message --
+%% a task that was waiting for none. Here it is waiting for the SENDER to
+%% end, on a channel with room for one: the message was read into the
+%% await's answer, the await made nothing of it, and the receive after it
+%% found an empty channel (resource_error(deadlock) out of async_run/2,
+%% twelve runs in twelve).
+gave_up :-
+    section('a nested wait that gave up has left its channel'),
+    scratch(D),
+    atom_concat(D, '/gave.pl', Path),
+    fixture(Path,
+            [ 'gu_a(C, R) :-',
+              '    catch(findall(X, channel_recv(C, X), _), error(resource_error(W), _), true),',
+              '    go(channel_send(C, 1), S), await(S), channel_recv(C, Y), R = W-Y.',
+              'gu_world(R) :- channel(1, C), go(gu_a(C, _), F), await(F, gu_a(_, R)).',
+              'main :- ( catch(( async_run(gu_world(_), Out), Out = gu_world(R) ),',
+              '                error(E, _), R = raised(E)) -> true ; R = failed ),',
+              '        write(R), nl.' ]),
+    cocolog(C),
+    forall(member(N, [1, 4]),
+           ( sh_join(['COCOLOG_GREEN_WORKERS=', N, ' ', C, ' run ', Path, ' main 2>&1'], Cmd),
+             shell(Cmd, Out, Exit, 30000),
+             sh_join(['workers ', N, ': the deadlock is caught, and the next message waits for the real receive'], Says),
+             check(Says, Out-Exit, 'deadlock-1'-0) )),
+    shl(['rm -rf ', D]).
+
+%% A DEAD WORLD SAYS SO THOUGH A NESTED WAIT IS IN IT (3.62.1). A nested
+%% waiter sleeps while anything else can still move, and the world's own
+%% deadlock check leaves a world with a nested waiter to that waiter. But
+%% nothing woke it: when the last task that could move blocked, the check
+%% saw the waiter and returned, the waiter slept on, and every worker with
+%% it -- async_run/1 never came back (three runs in four). The main task
+%% is still running when the waiter first looks, and blocks on it after.
+dead_nested :-
+    section('a dead world with a nested wait in it'),
+    scratch(D),
+    atom_concat(D, '/dead.pl', Path),
+    fixture(Path,
+            [ 'dn_a(C, W) :- catch(findall(X, channel_recv(C, X), _), error(resource_error(W), _), true).',
+              'dn_world(W) :- channel(C), go(dn_a(C, _), F), ''$green_foreign_sleep''(50), await(F, dn_a(_, W)).',
+              'main :- ( catch(( async_run(dn_world(_), Out), Out = dn_world(R) ),',
+              '                error(E, _), R = raised(E)) -> true ; R = failed ),',
+              '        write(R), nl.' ]),
+    cocolog(C),
+    forall(member(N, [1, 4]),
+           ( sh_join(['COCOLOG_GREEN_WORKERS=', N, ' ', C, ' run ', Path, ' main 2>&1'], Cmd),
+             shell(Cmd, Out, Exit, 20000),
+             sh_join(['workers ', N, ': the waiter is woken and raises the deadlock'], Says),
+             check(Says, Out-Exit, deadlock-0) )),
+    shl(['rm -rf ', D]).
+
+%% A THREAD BESIDE A WORLD SHARES NOTHING WITH IT (3.62.1). The lock on
+%% the world's name tables was one pointer for the whole process: a
+%% library(thread) thread, whose machine is its own, took the world's mutex
+%% at its next intern, and a world that began or ended between that
+%% thread's lock and its unlock left it unlocking a mutex it never took, or
+%% one destroyed and freed -- a SIGSEGV, four runs in four; two worlds in
+%% two threads took each other's (three in four, the fourth a hang). The
+%% lock is each world's threads' own.
+beside :-
+    section('an OS thread, and a second world, beside a world'),
+    (   catch(use_module(library(thread)), _, fail)
+    ->  scratch(D),
+        atom_concat(D, '/beside.pl', Path),
+        fixture(Path,
+                [ ':- use_module(library(thread)).',
+                  'bs_atoms(K, K) :- !.',
+                  'bs_atoms(I, K) :- atom_concat(bs_, I, A), atom_length(A, _), I1 is I + 1, bs_atoms(I1, K).',
+                  'bs_worlds(0) :- !.',
+                  'bs_worlds(K) :- async_run(( go(bs_atoms(0, 300), F), go(bs_atoms(0, 300), G), await(F), await(G) )),',
+                  '    K1 is K - 1, bs_worlds(K1).',
+                  'bs(thread, S) :- thread_create(bs_atoms(0, 300000), Id), bs_worlds(200), thread_join(Id, S).',
+                  'bs(worlds, S) :- thread_create(bs_worlds(60), Id), bs_worlds(60), thread_join(Id, S).',
+                  'main :- current_prolog_flag(argv, [_, How|_]), bs(How, S), write(S), nl.' ]),
+        cocolog(C),
+        forall(member(How-Says,
+                      [ thread-'a thread makes 300,000 atoms beside 200 worlds that start and end',
+                        worlds-'two threads run sixty worlds each at once' ]),
+               ( sh_join(['COCOLOG_GREEN_WORKERS=4 ', C, ' -s ', Path, ' -- ', How, ' 2>&1'], Cmd),
+                 shell(Cmd, Out, Exit, 120000),
+                 check(Says, Out-Exit, true-0) )),
+        shl(['rm -rf ', D])
+    ;   format("     (skipped: no thread module)~n")
+    ).
+
+%% THE WORLD IS AS WIDE AS THE THREADS IT WAS GIVEN (3.62.1). A worker the
+%% system refuses a thread for ended nothing: tasks were pinned to workers
+%% that did not exist and never ran, and the join waited on a thread never
+%% made (a hang, three runs in three). The count stops at the first
+%% refusal, and async_workers/1 answers what the world got.
+%%
+%% THE REFUSAL IS MADE OF STACKS ALONE: a worker's stack is the soft stack
+%% limit, 512 MB here, under an address-space ceiling of 1.5 GB -- two
+%% workers fit beside the caller's thread, the third is refused, and some
+%% 400 MB are left for the 300 tasks. (The first cut ran 8 MB stacks into
+%% a ceiling of 700 MB: 84 workers and nothing left, and whatever asked
+%% for memory next wrote through a null -- the reader's buffer, a write's
+%% record, a task's first heap cell. A program out of memory is another
+%% matter than a world out of threads.) macOS does not enforce `ulimit
+%% -v', and a box that cannot raise its stack limit is skipped by name.
+narrow :-
+    section('a world narrower than it asked for'),
+    shell('uname -s', Sys, _),
+    (   Sys == 'Darwin'
+    ->  format("   SKIP (macOS does not enforce ulimit -v)~n", [])
+    ;   scratch(D),
+        atom_concat(D, '/narrow.pl', Path),
+        fixture(Path,
+                [ 'nr_children(0, []) :- !.',
+                  'nr_children(K, [F|Fs]) :- go(atom_length(abc, _), F), K1 is K - 1, nr_children(K1, Fs).',
+                  'nr_world(N) :- async_workers(N), nr_children(300, Fs), await_all(Fs).',
+                  'main :- async_run(nr_world(_), W), W = nr_world(N),',
+                  '        ( N < 256 -> write(narrow) ; write(full) ), nl.' ]),
+        cocolog(C),
+        sh_join(['ulimit -s 524288 2>/dev/null || { echo nostack; exit 0; }; ',
+                 'ulimit -v 1500000; COCOLOG_GREEN_WORKERS=256 ', C, ' run ', Path, ' main 2>&1'], Cmd),
+        shell(Cmd, Out, Exit, 30000),
+        (   Out == nostack
+        ->  format("   SKIP (the stack limit cannot be raised to 512 MB)~n", [])
+        ;   check('256 workers asked, the third refused its stack: the world it got runs 300 tasks',
+                  Out-Exit, narrow-0)
+        ),
+        shl(['rm -rf ', D])
     ).

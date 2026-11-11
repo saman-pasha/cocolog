@@ -48,6 +48,11 @@
 %% own and is not reported. Everything must run under async_run/1,2 -- a
 %% go/1 outside it says so by name.
 %%
+%% THE WORLD ENDS WHEN ITS MAIN TASK ENDS (3.62.1), as a Go program ends
+%% when main returns: a task still running stops where its quantum does,
+%% one still ready is not run, and async_run/1,2 returns. await/1,2 what
+%% must finish. A halt/0,1 in a task is the process's.
+%%
 %% THE LIMITS: 1024 threads and 64 channels a world; a task is preempted
 %% at a 10,000-step quantum (a foreign call holds its worker); a consult or
 %% load, a backend's fetch and a module's own C state belong to the worker

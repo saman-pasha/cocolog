@@ -12,7 +12,7 @@ ZiguratIP server, Zeytun over HTTP — in which a clause is a row, and a running
 proof is a term that can be frozen into rows and resumed by another process.
 It is one binary, written in **Cicili** (C in S-expressions).
 
-Version at the time of writing: cocolog 3.62.0, reasoning 1.0.33, built with
+Version at the time of writing: cocolog 3.62.1, reasoning 1.0.33, built with
 Cicili 3.3.0. `./cocolog --version` answers the first.
 
 **Part A** is for writing and running Prolog on cocolog. **Part B** is for
@@ -95,8 +95,7 @@ and swipl 9.0.4 disagree and `COMPAT.md` has no row for it, that is a bug.
   was raised in, `--no-backtrace` the message alone (§10).
 - `./cocolog --help` lists the other commands (`consult`, `forget`, `vacuum`,
   `start`, `step`, `finish`, `work`, `swarm`, `list`, `drop`: the store's
-  housekeeping, and machines suspended in it). It leaves out `run`, which is
-  as written above.
+  housekeeping, and machines suspended in it).
 
 The binary finds its libraries in `$COCOLOG_LIBRARY` (colon-separated), then
 `./library`, then beside itself. Set the variable when a program is run from
@@ -326,6 +325,13 @@ conc_os(Status) :-                                % Status = true
   `async_workers/1`. A task that fails makes `await` fail; one that throws
   makes it throw; every task blocked is `resource_error(deadlock)` at
   `async_run`.
+- **The world ends when its main task ends**, as a Go program ends when
+  `main` returns: a task still running is stopped and one still ready is
+  never run. `await/1,2` or `await_all/1` what must finish. `halt/0,1` in a
+  task halts the process.
+- An `await` or a blocking send or receive inside `findall/3` (any nested
+  search) cannot suspend its task: it waits there and holds its worker.
+  Wait outside the search where the program allows it.
 - A store write in a green world stops every worker while it lands. Write
   seldom, and do the first call of each predicate before the world starts.
 - Size work from `async_workers/1`, never from a number: a machine may have

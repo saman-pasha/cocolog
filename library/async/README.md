@@ -96,9 +96,17 @@ The scheduler is **M:N at a step quantum**: each worker picks the ready
 tasks pinned to it, and a task that never yields is stopped at 10,000
 steps (the engine's limit path, the continuation flushed and resumed), so
 it cannot hold its worker; a foreign call still can. A world holds
-**1024 tasks and 64 channels**. A worker with nothing to run waits on its
-own condition variable; a deadlock (every task blocked, the main not
-ended) is raised at `async_run/1,2`.
+**1024 tasks and 64 channels**, and any number of its tasks may wait on one
+channel. A worker with nothing to run waits on its own condition variable;
+a deadlock (every task blocked, the main not ended) is raised at
+`async_run/1,2`.
+
+**THE WORLD ENDS WHEN ITS MAIN TASK ENDS** (3.62.1), as a Go program ends
+when `main` returns: every worker leaves at its next safe point -- its
+loop's top, a write in flight acknowledged first -- whatever else is ready,
+and a task still running stops where its quantum does. `await/1,2` what
+must finish. A task that calls `halt/0,1` ends the world too, and the halt
+is the process's, as it is from any other nested search (3.57.0).
 
 The engine's side is small: a thread is a `coco_machine` + `coco_engine` +
 `coco_store`; a cooperative stop writes 128 into the engine's `halted` cell
@@ -457,14 +465,72 @@ a ball instead of letting an outer catch take it, and `with_output_to/2`
 restores stdout before the outer throw. The ball's store is carried across
 those boundaries rather than assumed to be the shared one.
 
+## The review of 3.62.1
+
+The green world was read end to end and each suspect path stressed. Sixteen
+faults came out of it, every one of them in 3.62.0, every one with a
+section of `test/async.pl` that is red there (22 checks of 66, one of them
+in three runs of four) and an arm that takes the one rule back out. What a
+program could see:
+
+| what happened | how often, on four cores | the rule now | section |
+|---|---|---|---|
+| `async_run/1` never returned: a write published as the world ended counted workers that had left | 3 runs in 40 of one channel and one child; 8 in 8 of tasks that write for ever | a worker says it has left (`gone`) under the lock; a write counts only workers still in their loops | `world_end` |
+| ... a task that never ends on the main's own worker | every run | the world ends when the main task ends | `world_end` |
+| ... a task waiting inside `findall/3` when the world ended | 12 in 12 | the wait is abandoned, as a halt stops a task | `world_end` |
+| a world died of a deadlock it did not have: more than 64 tasks waiting on one channel | every run | the lists hold the world's 1024 | `waiters` |
+| `<bad-atom>`, a wrong float, a SIGSEGV: a task read what another stored before its own tables knew the names | every run of the shape | a sync after an acknowledgement made in a write's own wait, and of the main task's own machine after a foreign call | `names` |
+| a write began under a task that had not stopped: a worker back from a foreign call acknowledged a write that never counted it | 20 in 20 | only a worker the write counted acknowledges it (`asked`) | `foreign_ack` |
+| a deadlock for ever: a worker left for a foreign call with a second write unanswered, and the call waited for that writer (a `mutex_lock/1` of the mutex the writer holds) | 10 in 10 within 300 rounds | the worker answers every write published before it says it is away | `foreign_begin` |
+| SIGSEGV: the atom table's bucket array freed under another worker's lock-free probe | 10 in 10 of 200,000 new atoms | not freed while the tables are shared, as no table's array is | `rehash` |
+| SIGSEGV: a `library(thread)` thread beside a world took the world's names lock, and two worlds in two threads each other's | 4 in 4 | the lock and the generation are each thread's to know, a world's threads alone | `beside` |
+| SIGSEGV: two waits inside `findall/3` stacked on one worker; the outer, answered, was run again by the inner | 3 in 3 | a served nested waiter is nobody else's to run | `stacked` |
+| a false deadlock: a nested waiter that had its answer and had not woken read as dead to another | 12 in 30 | such a waiter counts as alive (`coco_g_live`) | `live_waiters` |
+| a message handed to a task that was waiting for none: a nested wait that gave up stayed in its channel's list | 12 in 12 | it leaves the list | `gave_up` |
+| `async_run/1` never returned: a dead world with a nested waiter in it; nobody woke the waiter | 3 in 4 | the deadlock check wakes it to look | `dead_nested` |
+| `channel_send/2` that blocked: its status written into the task's last wait's cell, or the goal's first variable; a close under it read as sent | every run | the send leaves its cell, as `await` and a receive do | `send_status` |
+| `halt/1` in a task: read as the task failing, and the program went on | every run | the halt is the process's | `halts` |
+| a hang: a worker the system refused a thread for was counted, and tasks pinned to it | 3 in 3 under an address-space ceiling | the world is as wide as the threads it got | `narrow` |
+
+And one with no failure seen: the workers were started, and the main task
+made, with no lock (helgrind reports a race there on `async_run(true)`;
+none with the lock held from the first thread to the main task).
+
+**What it costs.** Nothing a count finds. The untraced engine is 3.62.0's
+(`tools/flow/zero.sh`, work less padding: naive reverse 66 132 492
+instructions to 66 132 531, queens 40 250 554 to 40 250 617, lookup
+48 031 239 to 48 034 635), and so is a start (`cocolog query true`:
+34 934 347 instructions less padding to 34 937 271). The first cut's start
+was 103 171 instructions dearer, all of it in `coco_intern_len` and
+`coco_functor_id`: every intern asks whether the names are shared, and the
+lock, a word of the process through 3.62.0, had become a thread-local --
+three instructions and two more saved registers where it was one, and a
+call on Darwin. A count of the threads whose lock is set is asked first
+now (`coco_tbl_live`, kept by `coco_tbl_set`; a worker clears its lock as
+its thread ends), a word of the process again: 4 inside a world of four
+workers and 0 after it, read with gdb.
+
+**Not fixed, recorded.** Under an address-space ceiling a task's creation
+writes through a null in three places (the reader's token buffer, a write's
+record in `coco_g_write_begin`, a fresh machine's first heap cell), and a
+channel's buffer of a size the allocator refuses is used unchecked;
+`coco_functor_id` takes the names' lock and moves the generation on every
+lookup, a hit too, where `coco_intern_len` has a lock-free hit; a send and
+a receive write and read their term's text with the world lock held; and
+the world's end waits for a worker inside a long foreign call.
+
 ## What a finished `async_run` leaves in its host
 
 Nothing runnable and nothing locked. By the time `async_run/1,2` returns it
-has joined every worker thread, stopped the world, waited for any write in
-flight, unlinked the store's machines, cleared `tshared`, freed every task's
-engine and machine and every channel buffer, destroyed the world's mutexes
-and condition variables, cleared `green_now`/`green_me`, and cleared the
-shared-table pointer with `coco_tbl_set(nil)`. The environment (including
+has joined every worker thread -- each left its loop at a safe point, a
+write in flight acknowledged and finished first -- unlinked the store's
+machines, cleared `tshared`, freed every task's engine and machine and every
+channel buffer, destroyed the world's mutexes and condition variables,
+cleared `green_now`/`green_me`, and cleared this thread's shared-table
+pointers with `coco_tbl_set(nil, nil)`. A task that had not ended when the
+main task did is not run again: it stopped at the end of its quantum, or,
+waiting inside a nested search, was stopped as a halt stops one -- no
+`catch/3` takes it and no cleanup of its runs. The environment (including
 `COCOLOG_GREEN_WORKERS`) is read, never written, by the runtime.
 
 What deliberately remains is what the goal did to the one shared store: its
@@ -505,11 +571,11 @@ host state to leave.
   its return acknowledges and waits for any write still in flight before
   it reads the store. A call that touches the store must not declare itself
   this way, and a worker in an undeclared long foreign call still holds
-  the barrier. A write a
-  task makes after the main task has ended is not stopped for -- the world
-  is ending and the workers are breaking -- so a program that lets its
-  main task end while others still write, and then reads the store from
-  the host, may race itself. A task's FIRST call to a predicate the
+  the barrier. A write a task makes after the main task has ended is
+  stopped for as any other is, by the workers still in their loops
+  (3.62.1; through 3.62.0 it took no barrier, or one that counted workers
+  already gone, and `async_run/1` could hang in its join); once
+  `async_run/1,2` has returned no task writes. A task's FIRST call to a predicate the
   process has not read yet fetches it through the backend on the worker's
   thread; before 2.9.1 that crashed under `--embed` (the client kept one
   session, made on the host, and the engine's transaction is
@@ -519,7 +585,18 @@ host state to leave.
   server the one socket is still shared, and a task's write through it
   is untested.
 * 1024 tasks and 64 channels a world; a spawn copies nothing; a deadlock is
-  the world's error.
+  the world's error. A world is as wide as the threads the system gave it
+  (3.62.1): a worker refused its thread ends the count, and
+  `async_workers/1` inside the world says what it got.
+* THE WORLD ENDS WITH ITS MAIN TASK (3.62.1). What is still ready is not
+  run, what is running stops at its quantum's end, and a worker inside a
+  long foreign call is waited for: the join is as long as that call.
+* A wait inside a nested search -- `await`, a blocking send or receive
+  inside `findall/3` -- holds its worker's C stack. Two such waits stacked
+  on ONE worker (the first waiter ran the second's task inline) can only
+  return innermost first; when the outer one's answer is all that is left
+  to come, the inner one raises `resource_error(deadlock)` in its task.
+  Give such tasks a worker each, or wait outside the search.
 * The world is M:N: the caller's thread and N-1 OS threads (N the online
   cores; `COCOLOG_GREEN_WORKERS` sets it; `async_workers/1` answers it),
   one store. A write waits for
