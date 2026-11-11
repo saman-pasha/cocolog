@@ -4001,6 +4001,82 @@ The feminine noun "comparsa" means "emergence".
 The adverb "in politica" means "in politics".
 The feminine noun "rottura" means "break".
 The feminine noun "rottura" means "split".
+The masculine noun "buon compleanno" means "happy birthday".
+The verb "compie gli anni" means "has a birthday".
+"compiono gli anni" is the plural of "compie gli anni".
+"compiere gli anni" is the infinitive of "compie gli anni".
+"compì gli anni" is the past of "compie gli anni".
+"compie gli anni" is intransitive.
+The masculine noun "nome della rosa" means "Name of the Rose".
+"nome della rosa" is not feminine.
+The masculine adjective "antiquario" means "antiquarian".
+"antiquari" is the plural of "antiquario".
+The feminine adjective "antiquaria" means "antiquarian".
+"antiquarie" is the plural of "antiquaria".
+The masculine determiner "pochissimo" means "very few".
+"pochissimi" is the plural of "pochissimo".
+The feminine determiner "pochissima" means "very few".
+"pochissime" is the plural of "pochissima".
+The adjective "stravagante" means "extravagant".
+"stravaganti" is the plural of "stravagante".
+The masculine noun "vezzo" means "affectation".
+"vezzi" is the plural of "vezzo".
+The masculine adjective "affermato" means "established".
+"affermati" is the plural of "affermato".
+The feminine adjective "affermata" means "established".
+"affermate" is the plural of "affermata".
+The adverb "a proprio agio" means "at ease".
+The masculine noun "inizio" means "beginning".
+The masculine noun "esordio" means "beginning".
+"esordi" is the plural of "esordio".
+The masculine noun "puzzle" means "puzzle".
+"puzzle" is the plural of "puzzle".
+The feminine noun "informatica" means "computing".
+The feminine noun "bibliofilia" means "bibliophily".
+The masculine adjective "augusto" means "venerable".
+"augusti" is the plural of "augusto".
+The feminine adjective "augusta" means "venerable".
+"auguste" is the plural of "augusta".
+The number "settanta" means "seventy".
+The number "settant" means "seventy".
+The masculine adjective "inquieto" means "restless".
+The feminine adjective "inquieta" means "restless".
+The masculine adjective "irrequieto" means "restless".
+"irrequieti" is the plural of "irrequieto".
+The feminine adjective "irrequieta" means "restless".
+"irrequiete" is the plural of "irrequieta".
+The adjective "abituale" means "usual".
+The masculine adjective "consueto" means "usual".
+"consueti" is the plural of "consueto".
+The feminine adjective "consueta" means "usual".
+"consuete" is the plural of "consueta".
+The feminine noun "carica" means "post".
+The feminine noun "rilevanza" means "relevance".
+The masculine noun "teorico" means "theorist".
+"teorici" is the plural of "teorico".
+"teorico" is a person.
+The masculine noun "vagito" means "wail".
+"vagiti" is the plural of "vagito".
+The masculine noun "fondamento" means "basis".
+"fondamenti" is the plural of "fondamento".
+The masculine adjective "semiologico" means "semiological".
+"semiologici" is the plural of "semiologico".
+The feminine adjective "semiologica" means "semiological".
+"semiologiche" is the plural of "semiologica".
+The masculine noun "novecento" means "twentieth century".
+The verb "coglie" means "grasps".
+"cogliere" is the infinitive of "coglie".
+The feminine noun "tavola rotonda" means "round table".
+"tavole rotonde" is the plural of "tavola rotonda".
+The adverb "recentemente" means "recently".
+The feminine noun "semiotica" means "semiotics".
+"funziona" is intransitive.
+The adverb "da sola" means "on its own".
+The adverb "da solo" means "on its own".
+The preposition "alla caccia di" means "in search of".
+"manca" is intransitive.
+"eco" is a name.
+The preposition "nei confronti di" means "towards".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".

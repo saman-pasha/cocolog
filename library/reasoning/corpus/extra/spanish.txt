@@ -4619,3 +4619,61 @@ The verb "viene bien" means "helps".
 # Spanish writer wrote it bare
 "influye" takes "en" before the phrase.
 The adverb "en política" means "in politics".
+# The Eco profile (VIT-10096..10109), Italian into Spanish: the words the Spanish writer has none of
+The masculine noun "feliz cumpleaños" means "happy birthday".
+The verb "cumple años" means "has a birthday".
+"cumplen años" is the plural of "cumple años".
+"cumplir años" is the infinitive of "cumple años".
+"cumplió años" is the past of "cumple años".
+"cumple años" is intransitive.
+The masculine noun "nombre de la rosa" means "Name of the Rose".
+"nombre de la rosa" is not feminine.
+The masculine adjective "anticuario" means "antiquarian".
+"anticuarios" is the plural of "anticuario".
+The feminine adjective "anticuaria" means "antiquarian".
+"anticuarias" is the plural of "anticuaria".
+The masculine determiner "poquísimo" means "very few".
+"poquísimos" is the plural of "poquísimo".
+The feminine determiner "poquísima" means "very few".
+"poquísimas" is the plural of "poquísima".
+The masculine adjective "consagrado" means "established".
+"consagrados" is the plural of "consagrado".
+The feminine adjective "consagrada" means "established".
+"consagradas" is the plural of "consagrada".
+The adverb "a gusto" means "at ease".
+The feminine noun "bibliofilia" means "bibliophily".
+The feminine noun "relevancia" means "relevance".
+The masculine adjective "semiológico" means "semiological".
+"semiológicos" is the plural of "semiológico".
+The feminine adjective "semiológica" means "semiological".
+"semiológicas" is the plural of "semiológica".
+The masculine noun "siglo veinte" means "twentieth century".
+The feminine noun "mesa redonda" means "round table".
+"mesas redondas" is the plural of "mesa redonda".
+The feminine noun "erudición" means "erudition".
+The feminine noun "semiótica" means "semiotics".
+The adverb "por sí solo" means "on its own".
+The preposition "a la caza de" means "in search of".
+The masculine adjective "honorífico" means "honorific".
+"honoríficos" is the plural of "honorífico".
+The feminine adjective "honorífica" means "honorific".
+"honoríficas" is the plural of "honorífica".
+# `al dibattito italiano mancavano gli strumenti analitici': the dictionary gives `faltar' no tense, and the Spanish
+# writer had no imperfect for `lacks'
+"faltar" is the infinitive of "falta".
+"faltó" is the past of "falta".
+"faltaron" is the past of "faltan".
+"faltaba" is the imperfect of "falta".
+"faltaban" is the imperfect of "faltan".
+"faltará" is the future of "falta".
+"faltarán" is the plural of "faltará".
+"faltaría" is the conditional of "falta".
+"faltarían" is the plural of "faltaría".
+"falte" is the subjunctive of "falta".
+"falten" is the plural of "falte".
+"faltara" is the past subjunctive of "falta".
+"faltado" is the participle of "falta".
+"falta" is intransitive.
+# `per una serie di ragioni anche generazionali': the dictionary has no Spanish adjective for generational
+The adjective "generacional" means "generational".
+"generacionales" is the plural of "generacional".

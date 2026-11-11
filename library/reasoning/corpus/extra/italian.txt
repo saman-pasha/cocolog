@@ -6022,3 +6022,113 @@ The adverb "in politica" means "in politics".
 # for -- the dictionary's own meaning, a break, said again first, so that the reader keeps it
 The feminine noun "rottura" means "break".
 The feminine noun "rottura" means "split".
+# The Eco profile (VIT-10096..10109): Umberto Eco at seventy, Italian into Spanish and English -- the words the
+# dictionary lacks or gets wrong
+# `Buon compleanno professore': happy birthday
+The masculine noun "buon compleanno" means "happy birthday".
+# `Compie gli anni l'autore più famoso al mondo': has his birthday
+The verb "compie gli anni" means "has a birthday".
+"compiono gli anni" is the plural of "compie gli anni".
+"compiere gli anni" is the infinitive of "compie gli anni".
+"compì gli anni" is the past of "compie gli anni".
+"compie gli anni" is intransitive.
+# `il successo del "nome della rosa"': the novel's title (the squad is `rosa''s first meaning, which a football
+# report needs)
+The masculine noun "nome della rosa" means "Name of the Rose".
+"nome della rosa" is not feminine.
+# `una libreria antiquaria': antiquarian
+The masculine adjective "antiquario" means "antiquarian".
+"antiquari" is the plural of "antiquario".
+The feminine adjective "antiquaria" means "antiquarian".
+"antiquarie" is the plural of "antiquaria".
+# `uno dei pochissimi Athanasius Kircher': very few
+The masculine determiner "pochissimo" means "very few".
+"pochissimi" is the plural of "pochissimo".
+The feminine determiner "pochissima" means "very few".
+"pochissime" is the plural of "pochissima".
+# `la sua stravagante collezione': extravagant (the dictionary's word is the old `estravagante')
+The adjective "stravagante" means "extravagant".
+"stravaganti" is the plural of "stravagante".
+# `vezzi da intellettuale affermato': the affectations of an established intellectual
+The masculine noun "vezzo" means "affectation".
+"vezzi" is the plural of "vezzo".
+The masculine adjective "affermato" means "established".
+"affermati" is the plural of "affermato".
+The feminine adjective "affermata" means "established".
+"affermate" is the plural of "affermata".
+# `sentirsi a proprio agio': at ease
+The adverb "a proprio agio" means "at ease".
+# `Dai suoi esordi': his beginnings (the dictionary's own word said again first, so that it stays the one written)
+The masculine noun "inizio" means "beginning".
+The masculine noun "esordio" means "beginning".
+"esordi" is the plural of "esordio".
+# `un intellettuale - puzzle'
+The masculine noun "puzzle" means "puzzle".
+"puzzle" is the plural of "puzzle".
+# `dall'informatica alla bibliofilia'
+The feminine noun "informatica" means "computing".
+The feminine noun "bibliofilia" means "bibliophily".
+# `l'augusto compleanno del professore': venerable
+The masculine adjective "augusto" means "venerable".
+"augusti" is the plural of "augusto".
+The feminine adjective "augusta" means "venerable".
+"auguste" is the plural of "augusta".
+# `(settant anni!)': the paper's `settant'' with no apostrophe (the dictionary's own word said again first)
+The number "settanta" means "seventy".
+The number "settant" means "seventy".
+# `un'intelligenza irrequieta': restless (the dictionary's own word said again first)
+The masculine adjective "inquieto" means "restless".
+The feminine adjective "inquieta" means "restless".
+The masculine adjective "irrequieto" means "restless".
+"irrequieti" is the plural of "irrequieto".
+The feminine adjective "irrequieta" means "restless".
+"irrequiete" is the plural of "irrequieta".
+# `meno consuete nei suoi coetanei': usual (the dictionary's own word said again first)
+The adjective "abituale" means "usual".
+The masculine adjective "consueto" means "usual".
+"consueti" is the plural of "consueto".
+The feminine adjective "consueta" means "usual".
+"consuete" is the plural of "consueta".
+# `istituzioni e cariche onorifiche': posts, where `carica' is a charge first
+The feminine noun "carica" means "post".
+# `una rilevanza maggiore di altre'
+The feminine noun "rilevanza" means "relevance".
+# `come teorico e come autore televisivo': a theorist, a person
+The masculine noun "teorico" means "theorist".
+"teorici" is the plural of "teorico".
+"teorico" is a person.
+# `i primi vagiti dello strutturalismo': the first wails
+The masculine noun "vagito" means "wail".
+"vagiti" is the plural of "vagito".
+# `i fondamenti della nuova scienza semiologica': the bases
+The masculine noun "fondamento" means "basis".
+"fondamenti" is the plural of "fondamento".
+The masculine adjective "semiologico" means "semiological".
+"semiologici" is the plural of "semiologico".
+The feminine adjective "semiologica" means "semiological".
+"semiologiche" is the plural of "semiologica".
+# `alla fine del novecento': the twentieth century
+The masculine noun "novecento" means "twentieth century".
+# `per cogliere gli effetti': grasp (the dictionary has no infinitive)
+The verb "coglie" means "grasps".
+"cogliere" is the infinitive of "coglie".
+# `la tavola rotonda sui giochi letterari'
+The feminine noun "tavola rotonda" means "round table".
+"tavole rotonde" is the plural of "tavola rotonda".
+# `più recentemente': recently, where the dictionary's first is `freshly'
+The adverb "recentemente" means "recently".
+# `La semiotica studia i modi': semiotics, the noun (the dictionary has the adjective alone)
+The feminine noun "semiotica" means "semiotics".
+# `i modi in cui funzionano i segni': the signs function, and nothing they function is an object
+"funziona" is intransitive.
+# `nessuna tessera, da sola, lo definisce': on its own
+The adverb "da sola" means "on its own".
+The adverb "da solo" means "on its own".
+# `alla caccia di uno dei pochissimi Athanasius Kircher': in search of (`alla ricerca di' stays the one written)
+The preposition "alla caccia di" means "in search of".
+# `al dibattito italiano mancavano gli strumenti analitici': the tools were missing, and nothing lacks an object
+"manca" is intransitive.
+# `per capire che al dibattito ...', `Eco si è trovato': Umberto Eco, where `eco' is an echo
+"eco" is a name.
+# `un'impazienza nei confronti di istituzioni e cariche onorifiche': towards
+The preposition "nei confronti di" means "towards".

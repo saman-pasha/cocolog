@@ -33,7 +33,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, newspaper_venice, newspaper_yeltsin, newspaper_isole, newspaper_satan, newspaper_veloso, newspaper_corsica, newspaper_figli, newspaper_noche, newspaper_spoleto, spoleto_faults, newspaper_salou, newspaper_grazioli, newspaper_ceram, newspaper_tv, newspaper_coi, newspaper_cnr, newspaper_air, newspaper_phys, newspaper_lehendakari, question_roles, stated_gender, newspaper_units,
+    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, newspaper_venice, newspaper_yeltsin, newspaper_isole, newspaper_satan, newspaper_veloso, newspaper_corsica, newspaper_figli, newspaper_noche, newspaper_spoleto, spoleto_faults, newspaper_salou, newspaper_grazioli, newspaper_ceram, newspaper_tv, newspaper_coi, newspaper_cnr, newspaper_air, newspaper_phys, newspaper_lehendakari, newspaper_umberto, question_roles, stated_gender, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     teach_lines, checks_done.
 
@@ -18324,6 +18324,105 @@ newspaper_lehendakari_checks_2 :-
     nf_tr('El futuro está en "reconocer los argumentos".', spanish, italian, C25),
     check('... and after a preposition: `el futuro del proceso está en "reconocer como válidos ..."'' lost its opening mark (qinf/2)', C25,
           'Il futuro è in "riconoscere gli argomenti".').
+
+newspaper_umberto :-
+    section('an Italian profile of Umberto Eco, into Spanish and English: a modal before a verb of no agent and the second infinitive under it, the verb of lacking, a noun - noun with a dash, a determiner of quantity before a name, a bracket that ends on its mark, the reflexive of finding, a comparison after an object and `da'' and a person, a linking verb''s predicate, `at ease'', a superlative joined to an adjective, the word for `also'' that is a noun too, and a name the lesson states before an impersonal verb'),
+    newspaper_umberto_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_umberto_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_umberto_checks_1, newspaper_umberto_checks_2,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+newspaper_umberto_lesson(L, Text) :-
+    newspaper_lehendakari_lesson(L, A), newspaper_umberto_part(L, B), atomic_list_concat([A, ' ', B], Text).
+
+% the twenty-seventh part of each hand lesson
+newspaper_umberto_part(spanish, 'The verb "falta" means "lacks". "faltan" is the plural of "falta". "faltaba" is the imperfect of "falta". "faltaban" is the imperfect of "faltan". "falta" is intransitive. The masculine noun "instrumento" means "instrument". "instrumentos" is the plural of "instrumento". The verb "pasa" means "happens". "pasar" is the infinitive of "pasa". "pasa" is intransitive. The verb "encuentra" means "meets". "encontrar" is the infinitive of "encuentra". The masculine noun "intelectual" means "intellectual". "intelectual" is a person. The masculine noun "rompecabezas" means "puzzle". "rompecabezas" is the plural of "rompecabezas". The feminine noun "afectación" means "affectation". "afectaciones" is the plural of "afectación". The masculine noun "cálculo" means "calculation". "cálculos" is the plural of "cálculo". The adjective "preciso" means "precise". "precisos" is the plural of "preciso". The verb "convierte" means "converts". The reflexive verb "convierte" means "becomes". The masculine noun "caso" means "case". "casos" is the plural of "caso". The determiner "cierto" means "some". "ciertos" is the plural of "cierto". The adverb "a gusto" means "at ease". The feminine noun "situación" means "situation". "situaciones" is the plural of "situación". The adjective "cultural" means "cultural". "culturales" is the plural of "cultural". The adjective "variado" means "varied". "variadas" is the plural of "variada". The feminine adjective "variada" means "varied". The adjective "animado" means "lively". "animadas" is the plural of "animada". The feminine adjective "animada" means "lively". The verb "ama" means "loves". The feminine noun "razón" means "reason". "razones" is the plural of "razón". The adjective "nuevo" means "new". "nuevas" is the plural of "nueva". The feminine adjective "nueva" means "new". The masculine noun "cumpleaños" means "birthday". "cumpleaños" is the plural of "cumpleaños". The masculine noun "año" means "year". "años" is the plural of "año". The verb "sorprende" means "surprises". The verb "lava" means "washes". The verb "oye" means "hears". "oír" is the infinitive of "oye". The verb "grita" means "shouts". "gritar" is the infinitive of "grita". The pronoun "nadie" means "nobody".').
+newspaper_umberto_part(italian, 'The verb "capita" means "happens". "capita" is intransitive. "capitare" is the infinitive of "capita". "capita" takes "di" before the infinitive. The verb "incontra" means "meets". "incontrare" is the infinitive of "incontra". The verb "manca" means "lacks". "mancano" is the plural of "manca". "mancava" is the imperfect of "manca". "mancavano" is the imperfect of "mancano". "manca" is intransitive. The feminine noun "collezione" means "collection". The masculine noun "strumento" means "instrument". "strumenti" is the plural of "strumento". The masculine noun "intellettuale" means "intellectual". The masculine noun "puzzle" means "puzzle". "puzzle" is the plural of "puzzle". The masculine determiner "pochissimo" means "very few". "pochissimi" is the plural of "pochissimo". The masculine noun "compleanno" means "birthday". The masculine noun "anno" means "year". "anni" is the plural of "anno". The verb "sorprende" means "surprises". The masculine noun "calcolo" means "calculation". "calcoli" is the plural of "calcolo". The adjective "preciso" means "precise". "precisi" is the plural of "preciso". The masculine noun "vezzo" means "affectation". "vezzi" is the plural of "vezzo". The verb "diventa" means "becomes". "diventato" is the participle of "diventa". "diventati" is the participle of "diventa". "diventati" is the plural of "diventato". "è" is the auxiliary of "diventa". The masculine noun "caso" means "case". "casi" is the plural of "caso". The determiner "certo" means "some". "certi" is the plural of "certo". The adverb "a proprio agio" means "at ease". The feminine noun "situazione" means "situation". "situazioni" is the plural of "situazione". The adjective "culturale" means "cultural". "culturali" is the plural of "culturale". The adjective "variegato" means "varied". "variegate" is the plural of "variegata". The feminine adjective "variegata" means "varied". The adjective "vivace" means "lively". "vivaci" is the plural of "vivace". The verb "ama" means "loves". The feminine noun "ragione" means "reason". "ragioni" is the plural of "ragione". The adjective "nuovo" means "new". "nuove" is the plural of "nuova". The feminine adjective "nuova" means "new". The feminine noun "anca" means "hip". The masculine noun "essere" means "being". "eco" is a name. The masculine noun "eco" means "echo". The feminine noun "fine" means "end". The preposition "alla fine di" means "at the end of". The masculine noun "teatro" means "theatre". The verb "canta" means "sings". "trovato" is the participle of "trova". "intellettuale" is a person. "found" is the past of "finds". "became" is the past of "becomes". "become" is the participle of "becomes". The verb "lava" means "washes".').
+
+newspaper_umberto_checks_1 :-
+    nf_tr('Oggi può capitare di incontrarlo.', italian, english, C1),
+    check('A MODAL WITH A VERB OF NO AGENT AFTER IT HAS `it'' FOR ITS SUBJECT: `Oggi può capitare di incontrarlo'' is it can happen to meet him, as `Capita di incontrarlo'' is it happens to, and read with nobody named English refused the modal (en_null_it/2) -- AND UNDER A MODAL ONLY THE FIRST INFINITIVE IS BARE: the one after it is the first one''s, and with the modal still the verb being written it came out `can happen meet him'' (tr_comps_out/7)', C1,
+          'It can happen to meet him today.'),
+    nf_tr('Oggi può capitare di incontrarlo.', italian, spanish, C2),
+    check('... and into Spanish', C2,
+          'Puede pasar encontrarlo hoy.'),
+    nf_tr('Può mangiare il pane e capitare nella casa.', italian, english, C3),
+    check('a GUARD: the verb of no agent is the modal''s first infinitive, or `Oppure potrebbe seguirne l''esempio e capitare ad altre sponde'' was `it could follow his example'' -- the third person nobody names, which English refuses', C3,
+          'refused'),
+    nf_tr('Nadie puede oírlo gritar.', spanish, english, C4),
+    check('a GUARD: never after a verb that makes, lets or perceives, whose infinitive is bare too (`Nadie puede oírte gritar en el espacio'' is nobody can hear you shout, and the first cut wrote `hear you to shout'')', C4,
+          'Nobody can hear it shout.'),
+    nf_tr('Al cane manca il pane.', italian, english, C5),
+    check('WHAT IS LACKING IS MISSING FROM WHAT LACKS IT: `al dibattito italiano mancavano gli strumenti analitici'' -- the instruments were missing from the debate, and with the phrase of `to'' the lesson''s `lacks'' came out `the instruments lacked to the debate'' (tr_write/4, `"manca" is intransitive.'')', C5,
+          'The bread is missing from the dog.'),
+    nf_tr('Il cane vede i gatti che mancano alla casa.', italian, english, C6),
+    check('... in a relative clause too: `uno dei pochissimi Athanasius Kircher che mancano alla sua stravagante collezione''', C6,
+          'The dog sees the cats that are missing from the house.'),
+    nf_tr('Al cane mancavano gli strumenti per vedere il pane.', italian, english, C7),
+    check('... and with an object after its purpose: `mancavano gli strumenti analitici per cogliere gli effetti''', C7,
+          'The instruments were missing from the dog to see the bread.'),
+    nf_tr('Al cane mancavano gli strumenti per vedere il pane.', italian, spanish, C8),
+    check('... and Spanish''s imperfect of `faltar'', which the dictionary gives no tense', C8,
+          'Los instrumentos faltaban al perro para ver el pan.'),
+    nf_tr('Il cane è un intellettuale - puzzle.', italian, english, C9),
+    check('A NOUN, A DASH AND A NOUN IN SMALL LETTERS ARE ONE COMPOUND: `Eco è un intellettuale - puzzle'' -- a puzzle intellectual, and with the dash a phrase of its own the sentence was refused (tr_asides/3, dash1)', C9,
+          'The dog is an intellectual – puzzle.'),
+    nf_tr('Calcio - dichiarazioni varie del cane.', italian, english, C10),
+    check('a GUARD: never before a word that is a verb form and no adjective (`Calcio - dichiarazioni varie del giocatore'', the Lazio report''s headline, read `varie'' as the verb, and the first cut refused it)', C10,
+          'Football – various statements of the dog.'),
+    nf_tr('Il cane vede uno dei pochissimi Athanasius Kircher.', italian, english, C11),
+    check('A DETERMINER OF QUANTITY MAY STAND BEFORE A NAME: `uno dei pochissimi Athanasius Kircher'' is one of the very few, and the phrase had no reading (tr_np/3, tr_name_pre_det/2)', C11,
+          'The dog sees one of the very few Athanasius Kircher.'),
+    nf_tr('Il compleanno del cane (sette anni!) sorprende tutti.', italian, english, C12),
+    check('A MARK THAT ENDS A BRACKET ENDS NO SENTENCE: `l''augusto compleanno del professore (settant anni!) sorprende tutti'' -- the sentence was cut at the `!'' and both halves were refused (tr_split/2, tr_bracket_marks/3)', C12,
+          'The birthday of the dog (seven years) surprises everyone.'),
+    nf_tr('Il cane si è trovato nella casa.', italian, english, C13),
+    check('`finds'' WITH ITS OWN PRONOUN IS ENGLISH''S `finds oneself'': `La fusión se encontrará con trabas en Argentina'' will find itself with fetters (en_true_reflexive/1)', C13,
+          'The dog has found himself in the house.'),
+    nf_tr('Il cane ha fatto calcoli più precisi dei gatti.', italian, english, C14),
+    check('A COMPARATIVE IN AN OBJECT WITH NO ARTICLE OR AN INDEFINITE ONE COMPARES WITH THE PHRASE OF `di'' AFTER IT: `i suoi avversari avevano fatto calcoli più precisi dei suoi'' are more precise calculations than his, and it was `of the hers ones'' (tr_cross_comps/2)', C14,
+          'The dog has made more precise calculations than the cats.').
+
+newspaper_umberto_checks_2 :-
+    nf_tr('Il cane vede le case più grandi dei gatti.', italian, english, C15),
+    check('a GUARD: a definite phrase''s is its superlative', C15,
+          'The dog sees the biggest houses of the cats.'),
+    nf_tr('Il cane non ha vezzi da intellettuale.', italian, english, C16),
+    check('`da'' AND A BARE PERSON AFTER AN OBJECT SAY WHOSE IT IS: `Ma non sono vezzi da intellettuale affermato'' are affectations of an established intellectual, and read as a phrase of `from'' it was `from established intellectual'' (tr_cross_comps/2)', C16,
+          'The dog does not have affectations of an intellectual.'),
+    nf_tr('I cani sono diventati in certi casi grandi.', italian, english, C17),
+    check('THE ADJECTIVE AFTER A LINKING VERB''S PHRASE IS ITS PREDICATE: `I suoi rimbalzi ... sono diventati in certi casi proverbiali'' have become proverbial in some cases, and read as the phrase''s own it was `have become in some proverbial cases'' (tr_linking_pred/3)', C17,
+          'The dogs have become big in some cases.'),
+    nf_tr('Il cane è nella casa grande.', italian, english, C18),
+    check('a GUARD: never after the copula, whose phrase keeps its adjective', C18,
+          'The dog is in the big house.'),
+    nf_tr('Il cane appare come un gatto grande.', italian, english, C19),
+    check('a GUARD: nor the phrase of `like'' (`sin que la ornamentación final aparecieran por allí como fuegos fatuos'' was `fatuous as fires'')', C19,
+          'The dog appears like a big cat.'),
+    nf_tr('Il cane è a proprio agio nella casa.', italian, english, C20),
+    check('`at ease'' STAYS IN ITS PLACE: `sentirsi a proprio agio nelle situazioni'' is to feel at ease in them, and written last it was `To feel in the situations at ease'' (tr_comp_out/7)', C20,
+          'The dog is at ease in the house.'),
+    nf_tr('Il cane ama le situazioni culturali più variegate e vivaci.', italian, english, C21),
+    check('A SUPERLATIVE JOINED TO AN ADJECTIVE AFTER IT IS ONE DEGREE, BEFORE THE PLAIN ADJECTIVES BEFORE IT: `nelle situazioni culturali più variegate e vivaci'' are the most varied and lively cultural situations, and with a coordinator in the list the source''s order stood, `the cultural most varied and lively situations'' (en_adj_order/3)', C21,
+          'The dog loves the most varied and lively cultural situations.'),
+    nf_tr('Per ragioni anche nuove, il cane dorme.', italian, english, C22),
+    check('THE WORD FOR `also'' THAT IS A NOUN TOO, BETWEEN A NOUN AND ITS ADJECTIVE, IS THE ADJECTIVE''S: `per una serie di ragioni anche generazionali'' -- `anche'' is the plural of `anca'' as well, and the phrase ended at it, the adjective had no noun and the front no reading (tr_focus_ints/3, tr_focus_adj_start/2) -- AND ENGLISH WRITES SUCH AN ADJECTIVE AFTER ITS NOUN: before it, `sono un problema anche mio'' was `an also mine problem'' (tr_names_last/3)', C22,
+          'For reasons also new, the dog sleeps.'),
+    nf_tr('Il cane vede la casa e anche nuove ragioni.', italian, english, C23),
+    check('a GUARD: only after a noun, never after a coordinator, where it is the clause''s (`presidente della società di fisica e anche responsabile del progetto'' went on over it, and `anche responsabile'' was the responsible hips: tr_focus_adj_start/2)', C23,
+          'The dog also sees the house and new reasons.'),
+    nf_tr('Il cane deve essere anche grande.', italian, english, C24),
+    check('... and after an infinitive, which is a noun too, the adverb is the clause''s still (`deve essere anche responsabile'' is must also be responsible, and the first cut wrote `must be also responsible'')', C24,
+          'The dog must also be big.'),
+    nf_tr('Il cane mangia anche solo il pane.', italian, english, C25),
+    check('a GUARD: nor before the word for `only'' (`odio anche solo l''idea della guerra''; the store alone shows it, where the sentence lost its commas)', C25,
+          'The dog also eats only the bread.'),
+    nf_tr('Nella casa Eco si lava.', italian, english, C26),
+    check('A NAME THE LESSON STATES ENDS NO FRONT BEFORE AN IMPERSONAL VERB: `alla fine degli anni cinquanta Eco si è trovato nella posizione migliore'' is Eco finding himself there, and longest first the name was apposed to the years, `One has found ... at the end of the fifty years Eco'' (tr_read0/4)', C26,
+          'Eco washes in the house.'),
+    nf_tr('Nel teatro Morlacchi si canta.', italian, english, C27),
+    check('a GUARD: a place''s own name may come before the impersonal word', C27,
+          'One sings in the theatre Morlacchi.').
 
 question_roles :-
     section('which with a noun: the phrase asked for is the object when the verb cannot agree with it or a doer stands after it'),

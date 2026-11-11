@@ -389,6 +389,7 @@ main :-
     section_94,
     section_95,
     section_96,
+    section_97,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -12661,6 +12662,108 @@ section_96_2 :-
 
 lesson_96(spanish, 26, 'The verb "anima" means "encourages". "animó" is the past of "anima". "anima" takes "a" before the infinitive. The verb "acepta" means "accepts". "aceptar" is the infinitive of "acepta". "acepte" is the subjunctive of "acepta". "PNV" is a name. "ETA" is a name. The masculine noun "debate" means "debate". The verb "va" means "goes". "va" is intransitive. "mejor" is the comparative of "bueno". The adverb "mejor" means "better". The verb "trasciende" means "transcends". The intransitive verb "trasciende" means "transpires". The adverb "en privado" means "in private". The feminine noun "crítica" means "criticism". "críticas" is the plural of "crítica". The feminine noun "deportividad" means "sportsmanship". The verb "recomienda" means "recommends". The determiner "más" means "more". The word "más" begins the comparative. The feminine noun "situación" means "situation". The adverb "hace" means "ago". The word "hace" begins the time. The adverb "notablemente" means "notably". The verb "responsabiliza" means "blames". "responsabiliza" takes "de" before the infinitive. The verb "pone trabas" means "hinders". "poner trabas" is the infinitive of "pone trabas". "pone trabas" takes "a" before the phrase. The feminine noun "pacificación" means "pacification". The masculine noun "sector" means "sector". "sector" is a group. The verb "tiene en cuenta" means "takes into account". "teniendo en cuenta" is the gerund of "tiene en cuenta". The adverb "además" means "besides". The verb "viene bien" means "helps". "vienen bien" is the plural of "viene bien". The verb "habla" means "speaks". "hablan" is the plural of "habla". The pronoun "sí" means "itself". The pronoun "sí" does not precede the verb. The preposition "entre" means "among". The masculine noun "diálogo" means "dialogue". The feminine noun "receta" means "prescription". The possessive "su" means "his". The possessive "su" means "its". The feminine noun "vida" means "life". The verb "continúa" means "continues". The masculine noun "curso" means "course". The verb "cierra" means "closes". "cerrar" is the infinitive of "cierra". The feminine noun "puerta" means "door". "puertas" is the plural of "puerta". The masculine noun "futuro" means "future". The verb "reconoce" means "acknowledges". "reconocer" is the infinitive of "reconoce". The masculine noun "argumento" means "argument". "argumentos" is the plural of "argumento". The conjunction "de lo que" means "than what".').
 lesson_96(italian, 26, 'The preposition "ad" means "to". The preposition "ad" comes before "a". The conjunction "ed" means "and". The conjunction "ed" comes before "e". The conjunction "ed" comes before "è". The verb "incoraggia" means "encourages". "incoraggiò" is the past of "incoraggia". "incoraggia" takes "a" before the infinitive. The verb "accetta" means "accepts". "accettare" is the infinitive of "accetta". "PNV" is a name. "ETA" is a name. The masculine noun "dibattito" means "debate". The verb "va" means "goes". "va" is intransitive. "migliore" is the comparative of "buono". The adverb "meglio" means "better". The verb "trapela" means "transpires". "trapela" is intransitive. The adverb "in privato" means "in private". The feminine noun "critica" means "criticism". "critiche" is the plural of "critica". The feminine noun "sportività" means "sportsmanship". The verb "raccomanda" means "recommends". The feminine noun "situazione" means "situation". The adverb "notevolmente" means "notably". The verb "incolpa" means "blames". "incolpa" takes "di" before the infinitive. The verb "ostacola" means "hinders". "ostacolare" is the infinitive of "ostacola". The feminine noun "pacificazione" means "pacification". The masculine noun "settore" means "sector". The verb "tiene conto" means "takes into account". "tenendo conto" is the gerund of "tiene conto". The adverb "inoltre" means "besides". The verb "aiuta" means "helps". "aiutano" is the plural of "aiuta". The verb "parla" means "speaks". "parlano" is the plural of "parla". The pronoun "sé" means "itself". The preposition "tra" means "among". The masculine noun "dialogo" means "dialogue". The feminine noun "prescrizione" means "prescription". The feminine noun "vita" means "life". The verb "continua" means "continues". The masculine noun "corso" means "course". The verb "chiude" means "closes". "chiudere" is the infinitive of "chiude". The feminine noun "porta" means "door". "porte" is the plural of "porta". The masculine noun "futuro" means "future". The verb "riconosce" means "acknowledges". "riconoscere" is the infinitive of "riconosce". The masculine noun "argomento" means "argument". "argomenti" is the plural of "argomento". The conjunction "di quanto" means "than what". The feminine pronoun "quella" means "that". "fu" is the past of "è".').
+
+section_97 :-
+    format("~n97. an Italian profile of Umberto Eco, into Spanish and English: a modal before a verb of no agent and the second infinitive under it, the verb of lacking, a noun - noun with a dash, a determiner of quantity before a name, a bracket that ends on its mark, the reflexive of finding, a comparison after an object and `da' and a person, a linking verb's predicate, `at ease', a superlative joined to an adjective, the word for `also' that is a noun too, and a name the lesson states before an impersonal verb~n", []),
+    lesson_97(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('the lehendakari section''s Spanish lesson and a twenty-seventh part, under its own name', NS),
+    lesson_97(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and the Italian one', NI),
+    section_97_1, section_97_2,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_97(L, Text) :- lesson_96(L, A), lesson_97(L, 27, B), atomic_list_concat([A, ' ', B], Text).
+
+section_97_1 :-
+    ( reason_translate('Oggi può capitare di incontrarlo.', italian, english, X97P1) -> S97P1 = X97P1 ; S97P1 = refused ),
+    must('A MODAL WITH A VERB OF NO AGENT AFTER IT HAS `it'' FOR ITS SUBJECT: `Oggi può capitare di incontrarlo'' is it can happen to meet him, as `Capita di incontrarlo'' is it happens to, and read with nobody named English refused the modal (en_null_it/2) -- AND UNDER A MODAL ONLY THE FIRST INFINITIVE IS BARE: the one after it is the first one''s, and with the modal still the verb being written it came out `can happen meet him'' (tr_comps_out/7)', S97P1,
+         'It can happen to meet him today.'),
+    ( reason_translate('Oggi può capitare di incontrarlo.', italian, spanish, X97P2) -> S97P2 = X97P2 ; S97P2 = refused ),
+    must('... and into Spanish', S97P2,
+         'Puede pasar encontrarlo hoy.'),
+    ( reason_translate('Può mangiare il pane e capitare nella casa.', italian, english, X97P3) -> S97P3 = X97P3 ; S97P3 = refused ),
+    must('a GUARD: the verb of no agent is the modal''s first infinitive, or `Oppure potrebbe seguirne l''esempio e capitare ad altre sponde'' was `it could follow his example'' -- the third person nobody names, which English refuses', S97P3,
+         'refused'),
+    ( reason_translate('Nadie puede oírlo gritar.', spanish, english, X97P4) -> S97P4 = X97P4 ; S97P4 = refused ),
+    must('a GUARD: never after a verb that makes, lets or perceives, whose infinitive is bare too (`Nadie puede oírte gritar en el espacio'' is nobody can hear you shout, and the first cut wrote `hear you to shout'')', S97P4,
+         'Nobody can hear it shout.'),
+    ( reason_translate('Al cane manca il pane.', italian, english, X97P5) -> S97P5 = X97P5 ; S97P5 = refused ),
+    must('WHAT IS LACKING IS MISSING FROM WHAT LACKS IT: `al dibattito italiano mancavano gli strumenti analitici'' -- the instruments were missing from the debate, and with the phrase of `to'' the lesson''s `lacks'' came out `the instruments lacked to the debate'' (tr_write/4, `"manca" is intransitive.'')', S97P5,
+         'The bread is missing from the dog.'),
+    ( reason_translate('Il cane vede i gatti che mancano alla casa.', italian, english, X97P6) -> S97P6 = X97P6 ; S97P6 = refused ),
+    must('... in a relative clause too: `uno dei pochissimi Athanasius Kircher che mancano alla sua stravagante collezione''', S97P6,
+         'The dog sees the cats that are missing from the house.'),
+    ( reason_translate('Al cane mancavano gli strumenti per vedere il pane.', italian, english, X97P7) -> S97P7 = X97P7 ; S97P7 = refused ),
+    must('... and with an object after its purpose: `mancavano gli strumenti analitici per cogliere gli effetti''', S97P7,
+         'The instruments were missing from the dog to see the bread.'),
+    ( reason_translate('Al cane mancavano gli strumenti per vedere il pane.', italian, spanish, X97P8) -> S97P8 = X97P8 ; S97P8 = refused ),
+    must('... and Spanish''s imperfect of `faltar'', which the dictionary gives no tense', S97P8,
+         'Los instrumentos faltaban al perro para ver el pan.'),
+    ( reason_translate('Il cane è un intellettuale - puzzle.', italian, english, X97P9) -> S97P9 = X97P9 ; S97P9 = refused ),
+    must('A NOUN, A DASH AND A NOUN IN SMALL LETTERS ARE ONE COMPOUND: `Eco è un intellettuale - puzzle'' -- a puzzle intellectual, and with the dash a phrase of its own the sentence was refused (tr_asides/3, dash1)', S97P9,
+         'The dog is an intellectual – puzzle.'),
+    ( reason_translate('Calcio - dichiarazioni varie del cane.', italian, english, X97P10) -> S97P10 = X97P10 ; S97P10 = refused ),
+    must('a GUARD: never before a word that is a verb form and no adjective (`Calcio - dichiarazioni varie del giocatore'', the Lazio report''s headline, read `varie'' as the verb, and the first cut refused it)', S97P10,
+         'Football – various statements of the dog.'),
+    ( reason_translate('Il cane vede uno dei pochissimi Athanasius Kircher.', italian, english, X97P11) -> S97P11 = X97P11 ; S97P11 = refused ),
+    must('A DETERMINER OF QUANTITY MAY STAND BEFORE A NAME: `uno dei pochissimi Athanasius Kircher'' is one of the very few, and the phrase had no reading (tr_np/3, tr_name_pre_det/2)', S97P11,
+         'The dog sees one of the very few Athanasius Kircher.'),
+    ( reason_translate('Il compleanno del cane (sette anni!) sorprende tutti.', italian, english, X97P12) -> S97P12 = X97P12 ; S97P12 = refused ),
+    must('A MARK THAT ENDS A BRACKET ENDS NO SENTENCE: `l''augusto compleanno del professore (settant anni!) sorprende tutti'' -- the sentence was cut at the `!'' and both halves were refused (tr_split/2, tr_bracket_marks/3)', S97P12,
+         'The birthday of the dog (seven years) surprises everyone.'),
+    ( reason_translate('Il cane si è trovato nella casa.', italian, english, X97P13) -> S97P13 = X97P13 ; S97P13 = refused ),
+    must('`finds'' WITH ITS OWN PRONOUN IS ENGLISH''S `finds oneself'': `La fusión se encontrará con trabas en Argentina'' will find itself with fetters (en_true_reflexive/1)', S97P13,
+         'The dog has found himself in the house.'),
+    ( reason_translate('Il cane ha fatto calcoli più precisi dei gatti.', italian, english, X97P14) -> S97P14 = X97P14 ; S97P14 = refused ),
+    must('A COMPARATIVE IN AN OBJECT WITH NO ARTICLE OR AN INDEFINITE ONE COMPARES WITH THE PHRASE OF `di'' AFTER IT: `i suoi avversari avevano fatto calcoli più precisi dei suoi'' are more precise calculations than his, and it was `of the hers ones'' (tr_cross_comps/2)', S97P14,
+         'The dog has made more precise calculations than the cats.').
+
+section_97_2 :-
+    ( reason_translate('Il cane vede le case più grandi dei gatti.', italian, english, X97P15) -> S97P15 = X97P15 ; S97P15 = refused ),
+    must('a GUARD: a definite phrase''s is its superlative', S97P15,
+         'The dog sees the biggest houses of the cats.'),
+    ( reason_translate('Il cane non ha vezzi da intellettuale.', italian, english, X97P16) -> S97P16 = X97P16 ; S97P16 = refused ),
+    must('`da'' AND A BARE PERSON AFTER AN OBJECT SAY WHOSE IT IS: `Ma non sono vezzi da intellettuale affermato'' are affectations of an established intellectual, and read as a phrase of `from'' it was `from established intellectual'' (tr_cross_comps/2)', S97P16,
+         'The dog does not have affectations of an intellectual.'),
+    ( reason_translate('I cani sono diventati in certi casi grandi.', italian, english, X97P17) -> S97P17 = X97P17 ; S97P17 = refused ),
+    must('THE ADJECTIVE AFTER A LINKING VERB''S PHRASE IS ITS PREDICATE: `I suoi rimbalzi ... sono diventati in certi casi proverbiali'' have become proverbial in some cases, and read as the phrase''s own it was `have become in some proverbial cases'' (tr_linking_pred/3)', S97P17,
+         'The dogs have become big in some cases.'),
+    ( reason_translate('Il cane è nella casa grande.', italian, english, X97P18) -> S97P18 = X97P18 ; S97P18 = refused ),
+    must('a GUARD: never after the copula, whose phrase keeps its adjective', S97P18,
+         'The dog is in the big house.'),
+    ( reason_translate('Il cane appare come un gatto grande.', italian, english, X97P19) -> S97P19 = X97P19 ; S97P19 = refused ),
+    must('a GUARD: nor the phrase of `like'' (`sin que la ornamentación final aparecieran por allí como fuegos fatuos'' was `fatuous as fires'')', S97P19,
+         'The dog appears like a big cat.'),
+    ( reason_translate('Il cane è a proprio agio nella casa.', italian, english, X97P20) -> S97P20 = X97P20 ; S97P20 = refused ),
+    must('`at ease'' STAYS IN ITS PLACE: `sentirsi a proprio agio nelle situazioni'' is to feel at ease in them, and written last it was `To feel in the situations at ease'' (tr_comp_out/7)', S97P20,
+         'The dog is at ease in the house.'),
+    ( reason_translate('Il cane ama le situazioni culturali più variegate e vivaci.', italian, english, X97P21) -> S97P21 = X97P21 ; S97P21 = refused ),
+    must('A SUPERLATIVE JOINED TO AN ADJECTIVE AFTER IT IS ONE DEGREE, BEFORE THE PLAIN ADJECTIVES BEFORE IT: `nelle situazioni culturali più variegate e vivaci'' are the most varied and lively cultural situations, and with a coordinator in the list the source''s order stood, `the cultural most varied and lively situations'' (en_adj_order/3)', S97P21,
+         'The dog loves the most varied and lively cultural situations.'),
+    ( reason_translate('Per ragioni anche nuove, il cane dorme.', italian, english, X97P22) -> S97P22 = X97P22 ; S97P22 = refused ),
+    must('THE WORD FOR `also'' THAT IS A NOUN TOO, BETWEEN A NOUN AND ITS ADJECTIVE, IS THE ADJECTIVE''S: `per una serie di ragioni anche generazionali'' -- `anche'' is the plural of `anca'' as well, and the phrase ended at it, the adjective had no noun and the front no reading (tr_focus_ints/3, tr_focus_adj_start/2) -- AND ENGLISH WRITES SUCH AN ADJECTIVE AFTER ITS NOUN: before it, `sono un problema anche mio'' was `an also mine problem'' (tr_names_last/3)', S97P22,
+         'For reasons also new, the dog sleeps.'),
+    ( reason_translate('Il cane vede la casa e anche nuove ragioni.', italian, english, X97P23) -> S97P23 = X97P23 ; S97P23 = refused ),
+    must('a GUARD: only after a noun, never after a coordinator, where it is the clause''s (`presidente della società di fisica e anche responsabile del progetto'' went on over it, and `anche responsabile'' was the responsible hips: tr_focus_adj_start/2)', S97P23,
+         'The dog also sees the house and new reasons.'),
+    ( reason_translate('Il cane deve essere anche grande.', italian, english, X97P24) -> S97P24 = X97P24 ; S97P24 = refused ),
+    must('... and after an infinitive, which is a noun too, the adverb is the clause''s still (`deve essere anche responsabile'' is must also be responsible, and the first cut wrote `must be also responsible'')', S97P24,
+         'The dog must also be big.'),
+    ( reason_translate('Il cane mangia anche solo il pane.', italian, english, X97P25) -> S97P25 = X97P25 ; S97P25 = refused ),
+    must('a GUARD: nor before the word for `only'' (`odio anche solo l''idea della guerra''; the store alone shows it, where the sentence lost its commas)', S97P25,
+         'The dog also eats only the bread.'),
+    ( reason_translate('Nella casa Eco si lava.', italian, english, X97P26) -> S97P26 = X97P26 ; S97P26 = refused ),
+    must('A NAME THE LESSON STATES ENDS NO FRONT BEFORE AN IMPERSONAL VERB: `alla fine degli anni cinquanta Eco si è trovato nella posizione migliore'' is Eco finding himself there, and longest first the name was apposed to the years, `One has found ... at the end of the fifty years Eco'' (tr_read0/4)', S97P26,
+         'Eco washes in the house.'),
+    ( reason_translate('Nel teatro Morlacchi si canta.', italian, english, X97P27) -> S97P27 = X97P27 ; S97P27 = refused ),
+    must('a GUARD: a place''s own name may come before the impersonal word', S97P27,
+         'One sings in the theatre Morlacchi.').
+
+lesson_97(spanish, 27, 'The verb "falta" means "lacks". "faltan" is the plural of "falta". "faltaba" is the imperfect of "falta". "faltaban" is the imperfect of "faltan". "falta" is intransitive. The masculine noun "instrumento" means "instrument". "instrumentos" is the plural of "instrumento". The verb "pasa" means "happens". "pasar" is the infinitive of "pasa". "pasa" is intransitive. The verb "encuentra" means "meets". "encontrar" is the infinitive of "encuentra". The masculine noun "intelectual" means "intellectual". "intelectual" is a person. The masculine noun "rompecabezas" means "puzzle". "rompecabezas" is the plural of "rompecabezas". The feminine noun "afectación" means "affectation". "afectaciones" is the plural of "afectación". The masculine noun "cálculo" means "calculation". "cálculos" is the plural of "cálculo". The adjective "preciso" means "precise". "precisos" is the plural of "preciso". The verb "convierte" means "converts". The reflexive verb "convierte" means "becomes". The masculine noun "caso" means "case". "casos" is the plural of "caso". The determiner "cierto" means "some". "ciertos" is the plural of "cierto". The adverb "a gusto" means "at ease". The feminine noun "situación" means "situation". "situaciones" is the plural of "situación". The adjective "cultural" means "cultural". "culturales" is the plural of "cultural". The adjective "variado" means "varied". "variadas" is the plural of "variada". The feminine adjective "variada" means "varied". The adjective "animado" means "lively". "animadas" is the plural of "animada". The feminine adjective "animada" means "lively". The verb "ama" means "loves". The feminine noun "razón" means "reason". "razones" is the plural of "razón". The adjective "nuevo" means "new". "nuevas" is the plural of "nueva". The feminine adjective "nueva" means "new". The masculine noun "cumpleaños" means "birthday". "cumpleaños" is the plural of "cumpleaños". The masculine noun "año" means "year". "años" is the plural of "año". The verb "sorprende" means "surprises". The verb "lava" means "washes". The verb "oye" means "hears". "oír" is the infinitive of "oye". The verb "grita" means "shouts". "gritar" is the infinitive of "grita". The pronoun "nadie" means "nobody".').
+lesson_97(italian, 27, 'The verb "capita" means "happens". "capita" is intransitive. "capitare" is the infinitive of "capita". "capita" takes "di" before the infinitive. The verb "incontra" means "meets". "incontrare" is the infinitive of "incontra". The verb "manca" means "lacks". "mancano" is the plural of "manca". "mancava" is the imperfect of "manca". "mancavano" is the imperfect of "mancano". "manca" is intransitive. The feminine noun "collezione" means "collection". The masculine noun "strumento" means "instrument". "strumenti" is the plural of "strumento". The masculine noun "intellettuale" means "intellectual". The masculine noun "puzzle" means "puzzle". "puzzle" is the plural of "puzzle". The masculine determiner "pochissimo" means "very few". "pochissimi" is the plural of "pochissimo". The masculine noun "compleanno" means "birthday". The masculine noun "anno" means "year". "anni" is the plural of "anno". The verb "sorprende" means "surprises". The masculine noun "calcolo" means "calculation". "calcoli" is the plural of "calcolo". The adjective "preciso" means "precise". "precisi" is the plural of "preciso". The masculine noun "vezzo" means "affectation". "vezzi" is the plural of "vezzo". The verb "diventa" means "becomes". "diventato" is the participle of "diventa". "diventati" is the participle of "diventa". "diventati" is the plural of "diventato". "è" is the auxiliary of "diventa". The masculine noun "caso" means "case". "casi" is the plural of "caso". The determiner "certo" means "some". "certi" is the plural of "certo". The adverb "a proprio agio" means "at ease". The feminine noun "situazione" means "situation". "situazioni" is the plural of "situazione". The adjective "culturale" means "cultural". "culturali" is the plural of "culturale". The adjective "variegato" means "varied". "variegate" is the plural of "variegata". The feminine adjective "variegata" means "varied". The adjective "vivace" means "lively". "vivaci" is the plural of "vivace". The verb "ama" means "loves". The feminine noun "ragione" means "reason". "ragioni" is the plural of "ragione". The adjective "nuovo" means "new". "nuove" is the plural of "nuova". The feminine adjective "nuova" means "new". The feminine noun "anca" means "hip". The masculine noun "essere" means "being". "eco" is a name. The masculine noun "eco" means "echo". The feminine noun "fine" means "end". The preposition "alla fine di" means "at the end of". The masculine noun "teatro" means "theatre". The verb "canta" means "sings". "trovato" is the participle of "trova". "intellettuale" is a person. "found" is the past of "finds". "became" is the past of "becomes". "become" is the participle of "becomes". The verb "lava" means "washes".').
+
+
+
 
 
 
