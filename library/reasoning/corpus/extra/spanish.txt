@@ -4478,3 +4478,56 @@ The intransitive verb "tarda" means "is late".
 "cierra" takes the passive.
 "Baleares" is a name.
 The determiner "un par de" means "a couple of".
+# The physics report (VIT-4860..4882), Italian into Spanish: the words the Spanish writer has none of
+# `il progetto finalizzato': a targeted project, `específico' (its plain meaning said first)
+The masculine adjective "específico" means "specific".
+The masculine adjective "específico" means "targeted".
+The feminine adjective "específica" means "specific".
+The feminine adjective "específica" means "targeted".
+# `un tema che riveste un'enorme importanza': `reviste importancia', takes it on
+The verb "reviste" means "takes on".
+"revisten" is the plural of "reviste".
+"revestir" is the infinitive of "reviste".
+"revistió" is the past of "reviste".
+"revestido" is the participle of "reviste".
+# `notevoli ricadute industriali': the spin-offs, `repercusiones' (its plain meaning said first)
+The feminine noun "repercusión" means "repercussion".
+The feminine noun "repercusión" means "spin-off".
+# `tono serafico', `fisica delle alte energie', `ricerca di punta', `visione ecumenica', `fisica subnucleare', `un
+# ciclotrone', `in costruzione', `fisici trionfanti', `complessi di colpa', `turbato', `apologo' (the dictionary's
+# `fábula' said again first)
+The masculine adjective "seráfico" means "seraphic".
+"seráficos" is the plural of "seráfico".
+The feminine adjective "seráfica" means "seraphic".
+"seráficas" is the plural of "seráfica".
+The feminine noun "alta energía" means "high energy".
+"altas energías" is the plural of "alta energía".
+The adjective "de punta" means "leading".
+"de punta" is the plural of "de punta".
+The masculine adjective "ecuménico" means "ecumenical".
+"ecuménicos" is the plural of "ecuménico".
+The feminine adjective "ecuménica" means "ecumenical".
+"ecuménicas" is the plural of "ecuménica".
+The adjective "subnuclear" means "subnuclear".
+"subnucleares" is the plural of "subnuclear".
+The masculine noun "ciclotrón" means "cyclotron".
+"ciclotrones" is the plural of "ciclotrón".
+The adjective "en construcción" means "under construction".
+"en construcción" is the plural of "en construcción".
+The adjective "triunfante" means "triumphant".
+"triunfantes" is the plural of "triunfante".
+The masculine noun "complejo de culpa" means "guilt complex".
+"complejos de culpa" is the plural of "complejo de culpa".
+"complejo de culpa" is not feminine.
+The verb "perturba" means "disturbs".
+The verb "perturba" means "troubles".
+The feminine noun "fábula" means "fable".
+The masculine noun "apólogo" means "fable".
+"apólogos" is the plural of "apólogo".
+# `i positivisti': the positivists, persons (the dictionary has the adjective alone)
+The noun "positivista" means "positivist".
+"positivista" is not feminine.
+"positivistas" is the plural of "positivista".
+"positivista" is a person.
+# `a livello internazionale': at international level, Spanish's `a nivel internacional'
+The adverb "a nivel internacional" means "at international level".

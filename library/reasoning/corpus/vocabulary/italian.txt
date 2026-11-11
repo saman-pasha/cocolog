@@ -3859,6 +3859,100 @@ The verb "decolla" means "takes off".
 "decolla" takes "da" before the phrase.
 The verb "attende" means "expects".
 The durative verb "attende" means "waits for".
+The feminine noun "giunta" means "board".
+"giunte" is the plural of "giunta".
+"infn" is an acronym.
+"cnr" is an acronym.
+The name "monte bianco" means "Mont Blanc".
+The masculine adjective "finalizzato" means "targeted".
+"finalizzati" is the plural of "finalizzato".
+The feminine adjective "finalizzata" means "targeted".
+"finalizzate" is the plural of "finalizzata".
+The verb "riveste" means "takes on".
+"rivestono" is the plural of "riveste".
+"rivestire" is the infinitive of "riveste".
+"rivestì" is the past of "riveste".
+"rivestirono" is the plural of "rivestì".
+"rivestiva" is the imperfect of "riveste".
+"rivestito" is the participle of "riveste".
+The feminine noun "ricaduta" means "spin-off".
+"ricadute" is the plural of "ricaduta".
+The feminine noun "testuggine" means "tortoise".
+"testuggini" is the plural of "testuggine".
+The feminine noun "incrinatura" means "crack".
+"incrinature" is the plural of "incrinatura".
+The masculine adjective "serafico" means "seraphic".
+"serafici" is the plural of "serafico".
+The feminine adjective "serafica" means "seraphic".
+"serafiche" is the plural of "serafica".
+The feminine noun "alta energia" means "high energy".
+"alte energie" is the plural of "alta energia".
+The masculine noun "guadagno" means "gain".
+"guadagni" is the plural of "guadagno".
+The adjective "di punta" means "leading".
+"di punta" is the plural of "di punta".
+The masculine noun "apologo" means "fable".
+"apologhi" is the plural of "apologo".
+The masculine adjective "ecumenico" means "ecumenical".
+"ecumenici" is the plural of "ecumenico".
+The feminine adjective "ecumenica" means "ecumenical".
+"ecumeniche" is the plural of "ecumenica".
+The adjective "subnucleare" means "subnuclear".
+"subnucleari" is the plural of "subnucleare".
+The masculine noun "ciclotrone" means "cyclotron".
+"ciclotroni" is the plural of "ciclotrone".
+The masculine adjective "superconduttore" means "superconducting".
+"superconduttori" is the plural of "superconduttore".
+The adjective "in costruzione" means "under construction".
+"in costruzione" is the plural of "in costruzione".
+The adjective "primordiale" means "primordial".
+The adverb "innanzitutto" means "first of all".
+The verb "accoppia" means "couples".
+The reflexive verb "accoppia" means "joins".
+The feminine noun "astrofisica" means "astrophysics".
+The adjective "ottimista" means "optimistic".
+The masculine adjective "ottimistico" means "optimistic".
+"ottimistici" is the plural of "ottimistico".
+The feminine adjective "ottimistica" means "optimistic".
+"ottimistiche" is the plural of "ottimistica".
+The verb "affida" means "entrusts".
+The verb "riaffida" means "entrusts".
+"riaffidano" is the plural of "riaffida".
+"riaffidare" is the infinitive of "riaffida".
+"riaffidò" is the past of "riaffida".
+"riaffidato" is the participle of "riaffida".
+The feminine noun "domanda" means "question".
+The masculine noun "quesito" means "question".
+"quesiti" is the plural of "quesito".
+The adjective "trionfante" means "triumphant".
+"trionfanti" is the plural of "trionfante".
+The masculine noun "complesso di colpa" means "guilt complex".
+"complessi di colpa" is the plural of "complesso di colpa".
+"complesso di colpa" is not feminine.
+The verb "turba" means "troubles".
+"turbano" is the plural of "turba".
+"turbare" is the infinitive of "turba".
+"turbò" is the past of "turba".
+"turbarono" is the plural of "turbò".
+"turbava" is the imperfect of "turba".
+"turbato" is the participle of "turba".
+"turbata" is the participle of "turba".
+"turbati" is the participle of "turba".
+"turbate" is the participle of "turba".
+The masculine noun "sopravvissuto" means "survivor".
+The masculine noun "reduce" means "survivor".
+"reduci" is the plural of "reduce".
+"reduce" is a person.
+The verb "lega" means "links".
+The masculine noun "acceleratore" means "accelerator".
+"acceleratori" is the plural of "acceleratore".
+The noun "positivista" means "positivist".
+"positivista" is not feminine.
+"positivisti" is the plural of "positivista".
+"positivista" is a person.
+The adverb "profondamente" means "deeply".
+The personal verb "turba" means "troubles".
+The adverb "a livello internazionale" means "at international level".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".

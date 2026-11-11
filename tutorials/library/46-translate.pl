@@ -387,6 +387,7 @@ main :-
     section_92,
     section_93,
     section_94,
+    section_95,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -7441,8 +7442,8 @@ section_68_2 :-
     reason_translate('Sembra poco?', italian, spanish, S68b8),
     must('A QUESTION IS NO COMMAND: `Sembra poco?'' has the spelling of an imperative, whose clause took the sentence and, with its cut, kept every other reading from it; the question was then refused (tr_read/4)', S68b8,
           'Parece poco?'),
-    ( reason_translate('Sembra poco.', italian, spanish, _) -> S68b9 = translated ; S68b9 = refused ),
-    must('GUARD: a statement with nobody named is refused, as it was', S68b9, refused),
+    ( reason_translate('Mangia poco.', italian, spanish, _) -> S68b9 = translated ; S68b9 = refused ),
+    must('GUARD: a statement with nobody named is refused, as it was (`Sembra poco.'' is `Parece poco.'' since a verb of seeming is no command, section 95''s rule)', S68b9, refused),
     reason_translate('Che il gatto dorme.', italian, spanish, S68b10),
     must('A CLAUSE OF `THAT'' AND NOTHING ELSE IS A FRAGMENT: `diciamo che ...'' and then, as a line of its own, `che è stato un incidente di percorso.'' -- that it was a mishap; asked for the whole piece, after every other reading, so that `Che poi il cane dorma, guardate che ...'' (the eco section) keeps its main clause (tr_that_fragment/4)', S68b10,
           'Que el gato duerme.'),
@@ -7549,7 +7550,7 @@ The pronoun "lui" does not precede the verb. The pronoun "loro" does not precede
 The pronoun "qualcuno" means "somebody". The pronoun "qualcuno" does not precede the verb.
 The word "chi" means "who". The word "chi" begins the relative. The word "cosa" means "what". The word "che" means "what". The word "perché" means "why". The word "quale" means "which". "quali" is the plural of "quale". "quali" is a relative.
 The verb "dice" means "says". "dicono" is the plural of "dice". "dire" is the infinitive of "dice". "dice" takes the clause.
-The verb "sembra" means "seems". "sembrare" is the infinitive of "sembra". "sembra" is the imperative of "sembra". The adverb "poco" means "little".
+The verb "sembra" means "seems". "sembrare" is the infinitive of "sembra". "sembra" is the imperative of "sembra". "mangia" is the imperative of "mangia". The adverb "poco" means "little".
 The verb "vieta" means "forbids". "vietato" is the participle of "vieta". "vietare" is the infinitive of "vieta".
 The verb "propone" means "proposes". "proposta" is the participle of "propone". The feminine noun "proposta" means "proposal".
 The possessive "loro" means "their".
@@ -10937,7 +10938,7 @@ section_84_3 :-
          'El perro duerme, pero come cinco buenos motivos.'),
     ( reason_translate('Il cane compra quello che hanno anche gli altri.', italian, english, X84V31) -> S84V31 = X84V31 ; S84V31 = refused ),
     must('THE OTHERS DO WHAT A RELATIVE CLAUSE SAYS: `comprare "quello che hanno anche gli altri"'' is to buy what the others have too, and read with the relative word for the subject it was `what also have the other ones'' (tr_doer_np/1)', S84V31,
-         'The dog buys what the other ones also have.'),
+         'The dog buys what the others also have.'),
     ( reason_translate('Le differenze tra il pane e il vino sono belle.', italian, spanish, X84V32) -> S84V32 = X84V32 ; S84V32 = refused ),
     must('THE FIRST COORDINATOR AFTER THE WORD FOR `AMONG'' JOINS THE TWO IT TAKES: `Le differenze tra Nord e Sud sono limitate'' are between the two, and split at `e'' the South was a second subject beside the differences, whose participle took the masculine (`limitados'', tr_conjunction_split/5)', S84V32,
          'Las diferencias entre el pan y el vino son bonitas.'),
@@ -12452,6 +12453,121 @@ section_94_2 :-
 
 lesson_94(spanish, 24, 'The verb "vuela" means "flies". The masculine noun "vuelo" means "flight". The verb "espera" means "expects". The durative verb "espera" means "waits for". "esperó" is the past of "espera". The feminine noun "salida" means "departure". The number "siete" means "seven". The number "dos" means "two". The feminine noun "hora" means "hour". "horas" is the plural of "hora". "hora" is a time. The determiner "un par de" means "a couple of". "comió" is the past of "come". "come" is the imperative of "come". The verb "compone" means "composes". The adverb "casi" means "almost". The masculine noun "centenar" means "hundred". The feminine noun "veintena" means "twenty". The preposition "hasta después de" means "until after". The number "seis" means "six". The feminine noun "tarde" means "afternoon". The masculine noun "pasaje" means "passage". The collective noun "pasaje" means "passengers". "pasaje" is a group. The masculine noun "pasajero" means "passenger". "pasajeros" is the plural of "pasajero". The verb "parte" means "departs". The feminine noun "parte" means "part". The feminine noun "queja" means "complaint". "quejas" is the plural of "queja". The verb "presenta" means "presents". "presentada" is the participle of "presenta". "presentadas" is the plural of "presentada". "presentadas" is the participle of "presenta". The masculine determiner "tanto" means "so much". The masculine noun "número" means "number". The feminine noun "puerta" means "door". The verb "cruza" means "crosses". "cruzó" is the past of "cruza". The conjunction "ni" means "neither". The conjunction "así que" means "so". The verb "engaña" means "deceives". The question word "por qué" means "why". The verb "hace" means "makes". The feminine noun "pregunta" means "question". The verb "pregunta" means "asks". "pregunta" is the imperative of "pregunta". The masculine noun "tren" means "train". The masculine noun "plano" means "plane". The verb "despega" means "takes off". "despega" is intransitive. "despega" takes "de" before the phrase. The masculine noun "avión" means "aeroplane". The feminine noun "patrulla" means "patrol". "patrulla" is a group. "Barcelona" is a name. "Air Europa" is a name. "cierra" takes the passive. The verb "cierra" means "closes".').
 lesson_94(italian, 24, 'The verb "vola" means "flies". The masculine noun "volo" means "flight". The verb "attende" means "expects". The durative verb "attende" means "waits for". The feminine noun "partenza" means "departure". The number "sette" means "seven". The number "due" means "two". The feminine noun "ora" means "hour". "ore" is the plural of "ora". "ora" is a time. The determiner "un paio di" means "a couple of". The number "cento" means "hundred". The number "venti" means "twenty". The preposition "fino a dopo" means "until after". The number "sei" means "six". The masculine noun "pomeriggio" means "afternoon". The masculine noun "passeggero" means "passenger". "passeggeri" is the plural of "passeggero". The feminine noun "parte" means "part". The masculine noun "reclamo" means "complaint". "reclami" is the plural of "reclamo". The verb "consegna" means "submits". "consegnato" is the participle of "consegna". "consegnati" is the plural of "consegnato". The masculine determiner "tanto" means "so much". The masculine noun "numero" means "number". The feminine noun "porta" means "door". The verb "attraversa" means "crosses". The conjunction "né" means "neither". The conjunction "per cui" means "so". The verb "inganna" means "deceives". The question word "perché" means "why". The verb "fa" means "makes". The verb "chiede" means "asks". The masculine noun "treno" means "train". The verb "decolla" means "takes off". "decolla" is intransitive. "decolla" takes "da" before the phrase. The masculine noun "aereo" means "aeroplane". The feminine noun "pattuglia" means "patrol". "pattuglia" is a group. "Barcelona" is a name. "Air Europa" is a name. The adverb "circa" means "about". The adverb "quasi" means "almost".').
+
+section_95 :-
+    format("~n95. an Italian report on physics and its funds, into Spanish and English: a nationality after a noun, a person after a verb of a person object, too much, the copula and a participle that is an adjective too, the others, a month and its year, a verb of seeming, ne and a count, a cleft of an adverb, a thing set before an impersonal si, a and an infinitive in front, an apposition in a clause that shares its subject, its in a relative clause, a front's relative clause, a stressed count of time, the attempt to, an acronym before a particle, a mid adverb after the first auxiliary~n", []),
+    lesson_95(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('the Air Europa section''s Spanish lesson and a twenty-fifth part, under its own name', NS),
+    lesson_95(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and the Italian one', NI),
+    section_95_1, section_95_2,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_95(L, Text) :- lesson_94(L, A), lesson_95(L, 25, B), atomic_list_concat([A, ' ', B], Text).
+
+section_95_1 :-
+    ( reason_translate('La fisica italiana gode di un grande credito.', italian, english, X95P1) -> S95P1 = X95P1 ; S95P1 = refused ),
+    must('A NATIONALITY AFTER ANOTHER NOUN IS NO HEAD BY BEING A PERSON: `la fisica italiana'' is Italian physics, and `italiana'' -- an Italian woman, and Italian -- was the head as the one person, `the physical Italian'' (tr_noun/5, tr_nationality_word/1)', S95P1,
+         'The Italian physics enjoys a big credit.'),
+    ( reason_translate('Le paure che avevano turbato i maestri sono lontane.', italian, english, X95P2) -> S95P2 = X95P2 ; S95P2 = refused ),
+    must('A PERSON AFTER A VERB THE LESSON GIVES A MEANING FOR A PERSON OBJECT IS NO DOER: `i complessi di colpa che avevano profondamente turbato i loro maestri'' troubled the teachers, and read with the teachers for the doer English wrote `that their teachers had troubled'' (`The personal verb "turba" means "troubles".'', tr_rel_doer/2)', S95P2,
+         'The fears that had troubled the teachers are far.'),
+    ( reason_translate('Le paure che avevano visto i maestri sono lontane.', italian, english, X95P3) -> S95P3 = X95P3 ; S95P3 = refused ),
+    must('a GUARD: a verb with no meaning for a person object keeps the doer after it (`il pane che mangia il cane'')', S95P3,
+         'The fears that the teachers had seen are far.'),
+    ( reason_translate('Il cane spende troppo per il pane.', italian, english, X95P4) -> S95P4 = X95P4 ; S95P4 = refused ),
+    must('`TOO'' AMONG A VERB''S COMPLEMENTS IS `too much'', in its place: `si spende troppo per la fisica delle alte energie'' was `one spends for the physics ... too'' (tr_comp_out/7)', S95P4,
+         'The dog spends too much for the bread.'),
+    ( reason_translate('Sarebbe più corretto dire che il cane dorme.', italian, english, X95P5) -> S95P5 = X95P5 ; S95P5 = refused ),
+    must('THE COPULA, A PARTICIPLE THAT IS AN ADJECTIVE TOO AND AN INFINITIVE: `Sarebbe più corretto dire che in realtà si spende poco per gli altri'' is it would be more correct to say it, and read as the passive it was `To say that ... would be more corrected'' (tr_copula_adj_inf/3, asked before the passive)', S95P5,
+         'It would be more correct to say that the dog sleeps.'),
+    ( reason_translate('Sarebbe più corretto dire che il cane dorme.', italian, spanish, X95P6) -> S95P6 = X95P6 ; S95P6 = refused ),
+    must('... and the lesson''s language writes the adjective', S95P6,
+         'Sería más correcto decir que el perro duerme.'),
+    ( reason_translate('Sarebbe corretto dire che il cane dorme.', italian, english, X95P7) -> S95P7 = X95P7 ; S95P7 = refused ),
+    must('... and the participle alone, which the complement reader reads as the participle it is too', S95P7,
+         'It would be correct to say that the dog sleeps.'),
+    ( reason_translate('Il cane spende poco per gli altri.', italian, english, X95P8) -> S95P8 = X95P8 ; S95P8 = refused ),
+    must('`OTHER'' ALONE IN THE PLURAL IS `others'': `si spende poco per gli altri'' was `the other ones'' (tr_np_out/5)', S95P8,
+         'The dog spends for the others little.'),
+    ( reason_translate('Il cane dorme nel settembre del settantanove.', italian, english, X95P9) -> S95P9 = X95P9 ; S95P9 = refused ),
+    must('A MONTH AND THE YEAR AFTER ITS `of'' ARE ONE DATE: `nel settembre del settantanove'' is in September ''79, and read as two phrases it was `in the September of the seventy-nine'' (tr_cross_comps/2) -- and English writes a year of two digits said in words as `''79'' (en_short_year/2)', S95P9,
+         'The dog sleeps in September ''79.'),
+    ( reason_translate('Il cane dorme nel settembre del settantanove.', italian, spanish, X95P10) -> S95P10 = X95P10 ; S95P10 = refused ),
+    must('... and the lesson''s language its words, with no article before the month', S95P10,
+         'El perro duerme en septiembre de setenta y nueve.'),
+    ( reason_translate('Il cane dorme nel gennaio 1980.', italian, english, X95P11) -> S95P11 = X95P11 ; S95P11 = refused ),
+    must('A MONTH WITH NO DAY, ITS YEAR AFTER IT, TAKES NO ARTICLE: `nel gennaio 1980'' was `in the January 1980'' and `en el enero de 1980'' (tr_cross_np/2)', S95P11,
+         'The dog sleeps in January 1980.'),
+    ( reason_translate('Il cane dorme nel gennaio 1980.', italian, spanish, X95P12) -> S95P12 = X95P12 ; S95P12 = refused ),
+    must('... in the lesson''s language too', S95P12,
+         'El perro duerme en enero de 1980.'),
+    ( reason_translate('"Il cane dorme nel settembre del settantanove", dice il gatto.', italian, english, X95P13) -> S95P13 = X95P13 ; S95P13 = refused ),
+    must('... and the year keeps the case of its word: the closing mark of `"lo abbiamo proposto ... nel settembre del settantanove", ricorda Fiorini'' was lost', S95P13,
+         '"The dog sleeps in September ''79", the cat says.'),
+    ( reason_translate('Sembra di sentire un''eco.', italian, english, X95P14) -> S95P14 = X95P14 ; S95P14 = refused ),
+    must('A VERB OF SEEMING IS NO COMMAND: `Sembra di sentire un''eco dell''apologo di un certo Menenio Agrippa'' is it seems to hear one, and read as the command English wrote `Seem to feel an echo'' (tr_read_statement0/4)', S95P14,
+         'It seems to feel an echo.'),
+    ( reason_translate('Ne citerei almeno tre.', italian, english, X95P15) -> S95P15 = X95P15 ; S95P15 = refused ),
+    must('A PARTITIVE PRONOUN BESIDE A COUNT IS SAID ONCE, AN ADVERB BETWEEN THEM TOO: `Ne citerei almeno tre'' was `I would cite it at least three'' (tr_cross_comps/2)', S95P15,
+         'I would cite at least three.'),
+    ( reason_translate('Ne citerei almeno tre.', italian, spanish, X95P16) -> S95P16 = X95P16 ; S95P16 = refused ),
+    must('... in the lesson''s language too, where it was `Lo citaría''', S95P16,
+         'Citaría al menos tres.').
+
+section_95_2 :-
+    ( reason_translate('È lì che vivevano i cani.', italian, english, X95P17) -> S95P17 = X95P17 ; S95P17 = refused ),
+    must('AN ADVERB AND A CLAUSE OF `che'' WITH NOBODY NAMED: THE PHRASE AFTER ITS VERB IS ITS SUBJECT: `È lì che vivevano certi oggetti'' was `It is there that they lived some objects'' (tr_cleft_fix/3)', S95P17,
+         'It is there that the dogs lived.'),
+    ( reason_translate('Qualche incrinatura si riesce a trovarla.', italian, english, X95P18) -> S95P18 = X95P18 ; S95P18 = refused ),
+    must('A THING BEFORE AN IMPERSONAL `si'' THAT A PRONOUN JOINED TO THE INFINITIVE TAKES UP AGAIN IS THE INFINITIVE''S OBJECT: `qualche incrinatura si riesce a trovarla'' was `some crack attains to find her'' (tr_dislocation_fix/3)', S95P18,
+         'One manages to find some crack.'),
+    ( reason_translate('A dormire bene, il cane mangia.', italian, english, X95P19) -> S95P19 = X95P19 ; S95P19 = refused ),
+    must('`a'' AND AN INFINITIVE AT THE HEAD, BEFORE A COMMA, ARE A FRONT, THE GERUND: `a scavare bene nella compatta testuggine della fisica italiana, ...'' had no reading, and after an adverb English wrote `to dig ... well'', a purpose (tr_read0/4)', S95P19,
+         'Sleeping well, the dog eats.'),
+    ( reason_translate('A dormire bene, il cane mangia.', italian, spanish, X95P20) -> S95P20 = X95P20 ; S95P20 = refused ),
+    must('... and the lesson''s language its gerund', S95P20,
+         'Durmiendo bien, el perro come.'),
+    ( reason_translate('Insomma, a dormire bene, il cane mangia.', italian, english, X95P21) -> S95P21 = X95P21 ; S95P21 = refused ),
+    must('... with an adverb and its comma before them, which keep the comma (tr_fronts_out/5)', S95P21,
+         'In short, sleeping well, the dog eats.'),
+    ( reason_translate('L''esempio è citato e si riferisce al progetto, un tema grande.', italian, english, X95P22) -> S95P22 = X95P22 ; S95P22 = refused ),
+    must('A PHRASE AFTER A COMMA IS AN APPOSITION AND NO OBJECT, IN A CLAUSE THAT SHARES THE SUBJECT: `e si riferisce al progetto ..., un tema che riveste ...'' was `and one refers'' (tr_shared_subject/5), and English elides the shared subject there', S95P22,
+         'The example is cited and refers to the project, a big topic.'),
+    ( reason_translate('Il cane vede un tema che riveste importanza per le sue ricadute.', italian, english, X95P23) -> S95P23 = X95P23 ; S95P23 = refused ),
+    must('THE PHRASE A SUBJECT''S RELATIVE CLAUSE HANGS ON OWNS WHAT ITS POSSESSIVES NAME: `un tema che riveste un''enorme importanza anche per le sue notevoli ricadute'' is ITS spin-offs, where it was `his'' (tr_cross_np/2, ''$tr_rc_head'')', S95P23,
+         'The dog sees a topic that takes on importance for its spin-offs.'),
+    ( reason_translate('Il cane vede un uomo che dorme con i suoi figli.', italian, english, X95P24) -> S95P24 = X95P24 ; S95P24 = refused ),
+    must('a GUARD: a person''s is his', S95P24,
+         'The dog sees a man that sleeps with his sons.'),
+    ( reason_translate('Senza la ricerca che si fa nei laboratori, tutto il resto crolla.', italian, english, X95P25) -> S95P25 = X95P25 ; S95P25 = refused ),
+    must('A FRONT''S RELATIVE CLAUSE NEVER TAKES A PHRASE AFTER ITS COMMA: `senza la ricerca di punta che si fa nei nostri laboratori, tutto il resto crolla'' took `tutto il resto'' for an apposition and left the command `collapse!'', or took `tutto'' and left `il resto crolla'' (tr_read0/4)', S95P25,
+         'Without the research that makes in the labs, all the remainder collapses.'),
+    ( reason_translate('Il progetto è stato proposto ben otto anni fa.', italian, english, X95P26) -> S95P26 = X95P26 ; S95P26 = refused ),
+    must('A COUNT OF TIME `ben'' STRESSES, BEFORE ITS `ago'', IS THE WHEN OF THE CLAUSE: `proposto ... ben otto anni fa'' was `as many as eight years'' and `nada menos que ocho años hace'' (tr_ago_phrase/2)', S95P26,
+         'The project has been proposed eight years ago.'),
+    ( reason_translate('Il progetto è stato proposto ben otto anni fa.', italian, spanish, X95P27) -> S95P27 = X95P27 ; S95P27 = refused ),
+    must('... and the lesson''s language says it with its word for `ago'' first', S95P27,
+         'El proyecto ha sido propuesto hace ocho años.'),
+    ( reason_translate('Il tentativo di trovare le forze tende a ricostruire le condizioni.', italian, english, X95P28) -> S95P28 = X95P28 ; S95P28 = refused ),
+    must('AFTER A NOUN ENGLISH SAYS WITH `to'', `of'' AND THE -ING FORM ARE `to'' AND THE INFINITIVE: `Il tentativo di trovare le forze primordiali'' was `the attempt of finding'' (tr_comp_out/7, en_noun_to_inf/1)', S95P28,
+         'The attempt to find the forces tends to rebuild the conditions.'),
+    ( reason_translate('Il cane dorme ai laboratori nazionali Infn di Legnaro.', italian, english, X95P29) -> S95P29 = X95P29 ; S95P29 = refused ),
+    must('A WORD THE LESSON CALLS AN ACRONYM IS NO NAME''S FIRST WORD BEFORE A PARTICLE: `ai laboratori nazionali Infn di Legnaro'' was one name, `Infn di Legnaro'', its `di'' untranslated (tr_particle_names/4)', S95P29,
+         'The dog sleeps to the national labs INFN of Legnaro.'),
+    ( reason_translate('Il pane è stato anche mangiato dal cane.', italian, english, X95P30) -> S95P30 = X95P30 ; S95P30 = refused ),
+    must('A GROUP OF THREE WORDS OR MORE TAKES A MID ADVERB AFTER ITS FIRST AUXILIARY: `ci è stato riconosciuto con invidia anche dai colleghi'' was `has been also acknowledged'' (tr_mid_insert/3)', S95P30,
+         'The bread has also been eaten by the dog.'),
+    ( reason_translate('Il fisico era troppo nazionale.', italian, english, X95P31) -> S95P31 = X95P31 ; S95P31 = refused ),
+    must('`TOO'' BEFORE AN ADJECTIVE IS `too'' STILL: `troppo'' is an adjective too, and with `too much'' for the adverb among a verb''s complements (`si spende troppo'' is one spends too much) English wrote `too much national'' (tr_comps_out/7)', S95P31,
+         'The physicist was too national.'),
+    ( reason_translate('Sin la casa que el perro ve entre Pedro y María, dos perros, el gato duerme.', spanish, english, X95P32) -> S95P32 = X95P32 ; S95P32 = refused ),
+    must('... and never where the rest opens on a subject of its own, so that the phrase is an apposition: `los pulsos tácticos entre Aíto y Majkovic, dos personajes antagónicos, el partido tuvo pasión'' -- refused, the front was read again with `entre'' for the verb, `Aíto enters''', S95P32,
+         'Without the house that the dog sees between Pedro and María, two dogs, the cat sleeps.').
+
+lesson_95(spanish, 25, 'The verb "dice" means "says". "decir" is the infinitive of "dice". "sería" is the conditional of "es". The masculine adjective "correcto" means "correct". The masculine noun "septiembre" means "September". "septiembre" is a month. The masculine noun "enero" means "January". "enero" is a month. The number "setenta y nueve" means "seventy-nine". The verb "consigue" means "attains". The verb "encuentra" means "finds". "encontrar" is the infinitive of "encuentra". The feminine noun "grieta" means "crack". The feminine determiner "alguna" means "some". The verb "cava" means "digs". "cavando" is the gerund of "cava". The adverb "bien" means "well". The verb "propone" means "proposes". "propuesto" is the participle of "propone". The masculine noun "físico" means "physicist". "físicos" is the plural of "físico". "físico" is a person. The verb "aprueba" means "approves". "aprobado" is the participle of "aprueba". "Cnr" is a name. The masculine noun "año" means "year". "años" is the plural of "año". "año" is a time. "durmiendo" is the gerund of "duerme". The verb "cita" means "cites". "citaría" is the conditional of "cita". The adverb "al menos" means "at least". The number "tres" means "three". The preposition "por" means "by". The masculine noun "proyecto" means "project". "ha" is the auxiliary of "es". "sido" is the participle of "es". The verb "entra" means "enters". "entre" is the subjunctive of "entra".').
+lesson_95(italian, 25, 'The feminine noun "fisica" means "physics". The feminine adjective "fisica" means "physical". The feminine noun "italiana" means "Italian". "italiana" is a person. The feminine adjective "italiana" means "Italian". The verb "gode" means "enjoys". The masculine noun "credito" means "credit". The masculine adjective "corretto" means "correct". The verb "corregge" means "corrects". "corretto" is the participle of "corregge". "sarebbe" is the conditional of "è". The verb "dice" means "says". "dire" is the infinitive of "dice". The verb "turba" means "troubles". The personal verb "turba" means "troubles". "turbato" is the participle of "turba". The feminine noun "paura" means "fear". "paure" is the plural of "paura". The masculine noun "maestro" means "teacher". "maestri" is the plural of "maestro". "maestro" is a person. "avevano" is the plural of "aveva". "aveva" is the imperfect of "ha". The verb "spende" means "spends". The adverb "troppo" means "too". The masculine adjective "troppo" means "too much". "troppi" is the plural of "troppo". The adverb "poco" means "little". The adjective "lontano" means "far". The feminine adjective "lontana" means "far". "lontane" is the plural of "lontana". The masculine adjective "altro" means "other". "altri" is the plural of "altro". The masculine noun "settembre" means "September". "settembre" is a month. The masculine noun "gennaio" means "January". "gennaio" is a month. The number "settantanove" means "seventy-nine". The verb "sembra" means "seems". "sembra" is the imperative of "sembra". "sembra" takes "di" before the infinitive. The verb "sente" means "feels". "sentire" is the infinitive of "sente". The masculine noun "eco" means "echo". The verb "cita" means "cites". "citerei" is the first person of "citerebbe". "citerebbe" is the conditional of "cita". The adverb "almeno" means "at least". "ne" is partitive. The object pronoun "ne" means "it". The adverb "lì" means "there". The verb "vive" means "lives". "vivevano" is the plural of "viveva". "viveva" is the imperfect of "vive". The feminine noun "incrinatura" means "crack". The determiner "qualche" means "some". The verb "riesce" means "attains". "riesce" takes "a" before the infinitive. The verb "trova" means "finds". "trovare" is the infinitive of "trova". The verb "scava" means "digs". "scavare" is the infinitive of "scava". The adverb "bene" means "well". The adverb "insomma" means "in short". The masculine noun "esempio" means "example". "citato" is the participle of "cita". The verb "riferisce" means "refers". The masculine noun "progetto" means "project". The masculine noun "tema" means "topic". "tema" is not feminine. The verb "riveste" means "takes on". The feminine noun "importanza" means "importance". The feminine noun "ricaduta" means "spin-off". "ricadute" is the plural of "ricaduta". The verb "vede" means "sees". The feminine noun "ricerca" means "research". The masculine noun "laboratorio" means "lab". "laboratori" is the plural of "laboratorio". The masculine noun "resto" means "remainder". The verb "crolla" means "collapses". "crolla" is the imperative of "crolla". The preposition "senza" means "without". The masculine noun "fisico" means "physicist". "fisici" is the plural of "fisico". "fisico" is a person. "proposto" is the participle of "propone". The verb "propone" means "proposes". "approvato" is the participle of "approva". The verb "approva" means "approves". "Cnr" is a name. The masculine noun "anno" means "year". "anni" is the plural of "anno". "anno" is a time. The adverb "fa" means "ago". The adverb "ben" means "well". The number "otto" means "eight". The masculine noun "tentativo" means "attempt". The feminine noun "forza" means "force". "forze" is the plural of "forza". The verb "tende" means "tends". "tende" takes "a" before the infinitive. The verb "ricostruisce" means "rebuilds". "ricostruire" is the infinitive of "ricostruisce". The feminine noun "condizione" means "condition". "condizioni" is the plural of "condizione". The adjective "nazionale" means "national". "nazionali" is the plural of "nazionale". "infn" is an acronym. "Legnaro" is a name. "mangiato" is the participle of "mangia". The feminine pronoun "la" means "her". The masculine possessive "suo" means "his". The masculine possessive "suo" means "its". The feminine possessive "sua" means "his". The feminine possessive "sua" means "its". "sue" is the plural of "sua". "suoi" is the plural of "suo". The verb "dorme" means "sleeps". "dormire" is the infinitive of "dorme". "dai" is the contraction of "da i".').
+
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support

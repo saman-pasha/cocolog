@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20469 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20470 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -2810,6 +2810,50 @@ The intransitive verb "tarda" means "is late".
 "cierra" takes the passive.
 "Baleares" is a name.
 The determiner "un par de" means "a couple of".
+The masculine adjective "específico" means "specific".
+The masculine adjective "específico" means "targeted".
+The feminine adjective "específica" means "specific".
+The feminine adjective "específica" means "targeted".
+The verb "reviste" means "takes on".
+"revisten" is the plural of "reviste".
+"revestir" is the infinitive of "reviste".
+"revistió" is the past of "reviste".
+"revestido" is the participle of "reviste".
+The feminine noun "repercusión" means "repercussion".
+The feminine noun "repercusión" means "spin-off".
+The masculine adjective "seráfico" means "seraphic".
+"seráficos" is the plural of "seráfico".
+The feminine adjective "seráfica" means "seraphic".
+"seráficas" is the plural of "seráfica".
+The feminine noun "alta energía" means "high energy".
+"altas energías" is the plural of "alta energía".
+The adjective "de punta" means "leading".
+"de punta" is the plural of "de punta".
+The masculine adjective "ecuménico" means "ecumenical".
+"ecuménicos" is the plural of "ecuménico".
+The feminine adjective "ecuménica" means "ecumenical".
+"ecuménicas" is the plural of "ecuménica".
+The adjective "subnuclear" means "subnuclear".
+"subnucleares" is the plural of "subnuclear".
+The masculine noun "ciclotrón" means "cyclotron".
+"ciclotrones" is the plural of "ciclotrón".
+The adjective "en construcción" means "under construction".
+"en construcción" is the plural of "en construcción".
+The adjective "triunfante" means "triumphant".
+"triunfantes" is the plural of "triunfante".
+The masculine noun "complejo de culpa" means "guilt complex".
+"complejos de culpa" is the plural of "complejo de culpa".
+"complejo de culpa" is not feminine.
+The verb "perturba" means "disturbs".
+The verb "perturba" means "troubles".
+The feminine noun "fábula" means "fable".
+The masculine noun "apólogo" means "fable".
+"apólogos" is the plural of "apólogo".
+The noun "positivista" means "positivist".
+"positivista" is not feminine.
+"positivistas" is the plural of "positivista".
+"positivista" is a person.
+The adverb "a nivel internacional" means "at international level".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -155549,6 +155593,7 @@ The feminine adjective "marginada" means "marginalised".
 "marginadísimo" is the superlative of "marginado".
 The adjective "proveniente" means "originating".
 "provenientes" is the plural of "proveniente".
+The adjective "primordial" means "primordial".
 The masculine adjective "repentino" means "abrupt".
 The feminine adjective "repentina" means "abrupt".
 The masculine adjective "íntegro" means "upright".
