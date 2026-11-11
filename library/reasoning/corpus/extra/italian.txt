@@ -5832,3 +5832,303 @@ The verb "decolla" means "takes off".
 "decolla" takes "da" before the phrase.
 The verb "attende" means "expects".
 The durative verb "attende" means "waits for".
+# The physics report (VIT-4860..4882): two projects that waited for their funds, what is spent on high-energy physics,
+# and the fields beside it, and the words the dictionary lacks or gets wrong
+# `l'abbiamo proposto alla giunta dell'Infn': the board, which the dictionary does not give; the two bodies' names go
+# out in capitals
+The feminine noun "giunta" means "board".
+"giunte" is the plural of "giunta".
+"infn" is an acronym.
+"cnr" is an acronym.
+# `diretto dal fisico milanese Ettore Fiorini sotto il Monte Bianco': the mountain's name
+The name "monte bianco" means "Mont Blanc".
+# `il progetto finalizzato per l'elettronica dello stato solido': a targeted project
+The masculine adjective "finalizzato" means "targeted".
+"finalizzati" is the plural of "finalizzato".
+The feminine adjective "finalizzata" means "targeted".
+"finalizzate" is the plural of "finalizzata".
+# `un tema che riveste un'enorme importanza': takes on importance (the dictionary has no `rivestire')
+The verb "riveste" means "takes on".
+"rivestono" is the plural of "riveste".
+"rivestire" is the infinitive of "riveste".
+"rivestì" is the past of "riveste".
+"rivestirono" is the plural of "rivestì".
+"rivestiva" is the imperfect of "riveste".
+"rivestito" is the participle of "riveste".
+# `per le sue notevoli ricadute industriali': its spin-offs
+The feminine noun "ricaduta" means "spin-off".
+"ricadute" is the plural of "ricaduta".
+# `a scavare bene nella compatta testuggine della fisica italiana, qualche incrinatura si riesce a trovarla': the
+# tortoise, a crack
+The feminine noun "testuggine" means "tortoise".
+"testuggini" is the plural of "testuggine".
+The feminine noun "incrinatura" means "crack".
+"incrinature" is the plural of "incrinatura".
+# `dice con tono serafico Ettore Fiorini': seraphic
+The masculine adjective "serafico" means "seraphic".
+"serafici" is the plural of "serafico".
+The feminine adjective "serafica" means "seraphic".
+"serafiche" is the plural of "serafica".
+# `si spende troppo per la fisica delle alte energie': high energy, where `alto' is tall first
+The feminine noun "alta energia" means "high energy".
+"alte energie" is the plural of "alta energia".
+# `non si farebbe un grande guadagno': a gain
+The masculine noun "guadagno" means "gain".
+"guadagni" is the plural of "guadagno".
+# `senza la ricerca di punta': leading research
+The adjective "di punta" means "leading".
+"di punta" is the plural of "di punta".
+# `un'eco dell'apologo di un certo Menenio Agrippa': the fable
+The masculine noun "apologo" means "fable".
+"apologhi" is the plural of "apologo".
+# `con una visione ecumenica della fisica': ecumenical
+The masculine adjective "ecumenico" means "ecumenical".
+"ecumenici" is the plural of "ecumenico".
+The feminine adjective "ecumenica" means "ecumenical".
+"ecumeniche" is the plural of "ecumenica".
+# `della fisica subnucleare': subnuclear
+The adjective "subnucleare" means "subnuclear".
+"subnucleari" is the plural of "subnucleare".
+# `un nuovissimo ciclotrone superconduttore attualmente in costruzione': a cyclotron, superconducting, under construction
+The masculine noun "ciclotrone" means "cyclotron".
+"ciclotroni" is the plural of "ciclotrone".
+The masculine adjective "superconduttore" means "superconducting".
+"superconduttori" is the plural of "superconduttore".
+The adjective "in costruzione" means "under construction".
+"in costruzione" is the plural of "in costruzione".
+# `le forze primordiali': primordial, before the dictionary's overriding
+The adjective "primordiale" means "primordial".
+# `Questo significa innanzitutto che': first of all
+The adverb "innanzitutto" means "first of all".
+# `la fisica delle particelle va ad accoppiarsi con l'astrofisica': joins, with its pronoun; astrophysics, before the
+# person
+The verb "accoppia" means "couples".
+The reflexive verb "accoppia" means "joins".
+The feminine noun "astrofisica" means "astrophysics".
+# `Una visione ottimistica che riaffida alla fisica ... il compito': optimistic, entrusts (the dictionary's own words
+# said again first)
+The adjective "ottimista" means "optimistic".
+The masculine adjective "ottimistico" means "optimistic".
+"ottimistici" is the plural of "ottimistico".
+The feminine adjective "ottimistica" means "optimistic".
+"ottimistiche" is the plural of "ottimistica".
+The verb "affida" means "entrusts".
+The verb "riaffida" means "entrusts".
+"riaffidano" is the plural of "riaffida".
+"riaffidare" is the infinitive of "riaffida".
+"riaffidò" is the past of "riaffida".
+"riaffidato" is the participle of "riaffida".
+# `il compito di rispondere ai grandi quesiti dell'uomo': the questions (the dictionary's own word said again first)
+The feminine noun "domanda" means "question".
+The masculine noun "quesito" means "question".
+"quesiti" is the plural of "quesito".
+# `per questa nuova generazione di fisici trionfanti': triumphant
+The adjective "trionfante" means "triumphant".
+"trionfanti" is the plural of "trionfante".
+# `i complessi di colpa che avevano profondamente turbato i loro maestri, i reduci di Hiroshima': guilt complexes,
+# troubles, the survivors (persons; the dictionary's own word for one said again first)
+The masculine noun "complesso di colpa" means "guilt complex".
+"complessi di colpa" is the plural of "complesso di colpa".
+"complesso di colpa" is not feminine.
+The verb "turba" means "troubles".
+"turbano" is the plural of "turba".
+"turbare" is the infinitive of "turba".
+"turbò" is the past of "turba".
+"turbarono" is the plural of "turbò".
+"turbava" is the imperfect of "turba".
+"turbato" is the participle of "turba".
+"turbata" is the participle of "turba".
+"turbati" is the participle of "turba".
+"turbate" is the participle of "turba".
+The masculine noun "sopravvissuto" means "survivor".
+The masculine noun "reduce" means "survivor".
+"reduci" is the plural of "reduce".
+"reduce" is a person.
+# `un grande credito, legato al settore di punta': linked to it, where the dictionary's first is bequeaths
+The verb "lega" means "links".
+# `con gli acceleratori o nelle caverne': the accelerators, a noun (the dictionary has the adjective alone)
+The masculine noun "acceleratore" means "accelerator".
+"acceleratori" is the plural of "acceleratore".
+# `come avevano sperato di fare i positivisti': the positivists, persons (the dictionary has the adjective alone)
+The noun "positivista" means "positivist".
+"positivista" is not feminine.
+"positivisti" is the plural of "positivista".
+"positivista" is a person.
+# `che avevano profondamente turbato i loro maestri': deeply, before the dictionary's acutely; and troubles with a
+# person for its object, so that the teachers after it are what the complexes troubled
+The adverb "profondamente" means "deeply".
+The personal verb "turba" means "troubles".
+# `altri settori ormai competitivi a livello internazionale': at international level, as `a livello federale' is
+The adverb "a livello internazionale" means "at international level".
+# The lehendakari report (CESS-CAST-P-19990901-36), Spanish into Italian: the words the Italian writer has none of
+# `lo que trasciende': what transpires
+The verb "trapela" means "transpires".
+"trapelano" is the plural of "trapela".
+"trapelare" is the infinitive of "trapela".
+"trapelò" is the past of "trapela".
+"trapelato" is the participle of "trapela".
+"trapela" is intransitive.
+# `los peneuvistas': PNV members, persons
+The noun "peneuvista" means "PNV member".
+"peneuvista" is not feminine.
+"peneuvisti" is the plural of "peneuvista".
+"peneuvista" is a person.
+# `con deportividad': sportsmanship
+The feminine noun "sportività" means "sportsmanship".
+# `responsabilizaba a un sector ... de poner trabas a la pacificación': blames for, hinders
+The verb "incolpa" means "blames".
+"incolpano" is the plural of "incolpa".
+"incolpare" is the infinitive of "incolpa".
+"incolpò" is the past of "incolpa".
+"incolpava" is the imperfect of "incolpa".
+"incolpato" is the participle of "incolpa".
+"incolpa" takes "di" before the infinitive.
+The verb "ostacola" means "hinders".
+"ostacolano" is the plural of "ostacola".
+"ostacolare" is the infinitive of "ostacola".
+"ostacolò" is the past of "ostacola".
+"ostacolato" is the participle of "ostacola".
+# `los reproches de ETA': the reproaches
+The masculine noun "rimprovero" means "reproach".
+"rimproveri" is the plural of "rimprovero".
+# `violencia callejera': street violence
+The adjective "di strada" means "street".
+"di strada" is the plural of "di strada".
+# `partidos políticos', `partido nacionalista', `proceso de paz', `mesa nacional', `maduración'
+The masculine noun "partito politico" means "political party".
+"partiti politici" is the plural of "partito politico".
+The masculine noun "partito nazionalista" means "nationalist party".
+"partiti nazionalisti" is the plural of "partito nazionalista".
+"partito nazionalista" is not feminine.
+The masculine noun "processo di pace" means "peace process".
+"processi di pace" is the plural of "processo di pace".
+The masculine noun "esecutivo nazionale" means "national executive".
+"esecutivi nazionali" is the plural of "esecutivo nazionale".
+The feminine noun "maturazione" means "maturation".
+# `estas formaciones entre sí': the political formations (the writer's word was `educazione', an upbringing)
+The feminine noun "formazione" means "formation".
+"formazioni" is the plural of "formazione".
+# `un análisis optimista ... de Ibarretxe': `a giudizio di', in the opinion of
+The preposition "a giudizio di" means "in the opinion of".
+# the euphonic forms: `ad accettare', `ed è'
+The preposition "ad" comes before "a".
+The conjunction "ed" comes before "e".
+The conjunction "ed" comes before "è".
+# `la aparición de episodios de violencia callejera': the emergence (the Italian writer had no word for one)
+The feminine noun "comparsa" means "emergence".
+"comparse" is the plural of "comparsa".
+The adverb "in politica" means "in politics".
+# `la ruptura de las conversaciones entre el Gobierno central y ETA': the split, which the Italian writer had no noun
+# for -- the dictionary's own meaning, a break, said again first, so that the reader keeps it
+The feminine noun "rottura" means "break".
+The feminine noun "rottura" means "split".
+# The Eco profile (VIT-10096..10109): Umberto Eco at seventy, Italian into Spanish and English -- the words the
+# dictionary lacks or gets wrong
+# `Buon compleanno professore': happy birthday
+The masculine noun "buon compleanno" means "happy birthday".
+# `Compie gli anni l'autore più famoso al mondo': has his birthday
+The verb "compie gli anni" means "has a birthday".
+"compiono gli anni" is the plural of "compie gli anni".
+"compiere gli anni" is the infinitive of "compie gli anni".
+"compì gli anni" is the past of "compie gli anni".
+"compie gli anni" is intransitive.
+# `il successo del "nome della rosa"': the novel's title (the squad is `rosa''s first meaning, which a football
+# report needs)
+The masculine noun "nome della rosa" means "Name of the Rose".
+"nome della rosa" is not feminine.
+# `una libreria antiquaria': antiquarian
+The masculine adjective "antiquario" means "antiquarian".
+"antiquari" is the plural of "antiquario".
+The feminine adjective "antiquaria" means "antiquarian".
+"antiquarie" is the plural of "antiquaria".
+# `uno dei pochissimi Athanasius Kircher': very few
+The masculine determiner "pochissimo" means "very few".
+"pochissimi" is the plural of "pochissimo".
+The feminine determiner "pochissima" means "very few".
+"pochissime" is the plural of "pochissima".
+# `la sua stravagante collezione': extravagant (the dictionary's word is the old `estravagante')
+The adjective "stravagante" means "extravagant".
+"stravaganti" is the plural of "stravagante".
+# `vezzi da intellettuale affermato': the affectations of an established intellectual
+The masculine noun "vezzo" means "affectation".
+"vezzi" is the plural of "vezzo".
+The masculine adjective "affermato" means "established".
+"affermati" is the plural of "affermato".
+The feminine adjective "affermata" means "established".
+"affermate" is the plural of "affermata".
+# `sentirsi a proprio agio': at ease
+The adverb "a proprio agio" means "at ease".
+# `Dai suoi esordi': his beginnings (the dictionary's own word said again first, so that it stays the one written)
+The masculine noun "inizio" means "beginning".
+The masculine noun "esordio" means "beginning".
+"esordi" is the plural of "esordio".
+# `un intellettuale - puzzle'
+The masculine noun "puzzle" means "puzzle".
+"puzzle" is the plural of "puzzle".
+# `dall'informatica alla bibliofilia'
+The feminine noun "informatica" means "computing".
+The feminine noun "bibliofilia" means "bibliophily".
+# `l'augusto compleanno del professore': venerable
+The masculine adjective "augusto" means "venerable".
+"augusti" is the plural of "augusto".
+The feminine adjective "augusta" means "venerable".
+"auguste" is the plural of "augusta".
+# `(settant anni!)': the paper's `settant'' with no apostrophe (the dictionary's own word said again first)
+The number "settanta" means "seventy".
+The number "settant" means "seventy".
+# `un'intelligenza irrequieta': restless (the dictionary's own word said again first)
+The masculine adjective "inquieto" means "restless".
+The feminine adjective "inquieta" means "restless".
+The masculine adjective "irrequieto" means "restless".
+"irrequieti" is the plural of "irrequieto".
+The feminine adjective "irrequieta" means "restless".
+"irrequiete" is the plural of "irrequieta".
+# `meno consuete nei suoi coetanei': usual (the dictionary's own word said again first)
+The adjective "abituale" means "usual".
+The masculine adjective "consueto" means "usual".
+"consueti" is the plural of "consueto".
+The feminine adjective "consueta" means "usual".
+"consuete" is the plural of "consueta".
+# `istituzioni e cariche onorifiche': posts, where `carica' is a charge first
+The feminine noun "carica" means "post".
+# `una rilevanza maggiore di altre'
+The feminine noun "rilevanza" means "relevance".
+# `come teorico e come autore televisivo': a theorist, a person
+The masculine noun "teorico" means "theorist".
+"teorici" is the plural of "teorico".
+"teorico" is a person.
+# `i primi vagiti dello strutturalismo': the first wails
+The masculine noun "vagito" means "wail".
+"vagiti" is the plural of "vagito".
+# `i fondamenti della nuova scienza semiologica': the bases
+The masculine noun "fondamento" means "basis".
+"fondamenti" is the plural of "fondamento".
+The masculine adjective "semiologico" means "semiological".
+"semiologici" is the plural of "semiologico".
+The feminine adjective "semiologica" means "semiological".
+"semiologiche" is the plural of "semiologica".
+# `alla fine del novecento': the twentieth century
+The masculine noun "novecento" means "twentieth century".
+# `per cogliere gli effetti': grasp (the dictionary has no infinitive)
+The verb "coglie" means "grasps".
+"cogliere" is the infinitive of "coglie".
+# `la tavola rotonda sui giochi letterari'
+The feminine noun "tavola rotonda" means "round table".
+"tavole rotonde" is the plural of "tavola rotonda".
+# `più recentemente': recently, where the dictionary's first is `freshly'
+The adverb "recentemente" means "recently".
+# `La semiotica studia i modi': semiotics, the noun (the dictionary has the adjective alone)
+The feminine noun "semiotica" means "semiotics".
+# `i modi in cui funzionano i segni': the signs function, and nothing they function is an object
+"funziona" is intransitive.
+# `nessuna tessera, da sola, lo definisce': on its own
+The adverb "da sola" means "on its own".
+The adverb "da solo" means "on its own".
+# `alla caccia di uno dei pochissimi Athanasius Kircher': in search of (`alla ricerca di' stays the one written)
+The preposition "alla caccia di" means "in search of".
+# `al dibattito italiano mancavano gli strumenti analitici': the tools were missing, and nothing lacks an object
+"manca" is intransitive.
+# `per capire che al dibattito ...', `Eco si è trovato': Umberto Eco, where `eco' is an echo
+"eco" is a name.
+# `un'impazienza nei confronti di istituzioni e cariche onorifiche': towards
+The preposition "nei confronti di" means "towards".

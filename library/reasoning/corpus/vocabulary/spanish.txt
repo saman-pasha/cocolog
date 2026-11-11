@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20469 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20470 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -2810,6 +2810,165 @@ The intransitive verb "tarda" means "is late".
 "cierra" takes the passive.
 "Baleares" is a name.
 The determiner "un par de" means "a couple of".
+The masculine adjective "específico" means "specific".
+The masculine adjective "específico" means "targeted".
+The feminine adjective "específica" means "specific".
+The feminine adjective "específica" means "targeted".
+The verb "reviste" means "takes on".
+"revisten" is the plural of "reviste".
+"revestir" is the infinitive of "reviste".
+"revistió" is the past of "reviste".
+"revestido" is the participle of "reviste".
+The feminine noun "repercusión" means "repercussion".
+The feminine noun "repercusión" means "spin-off".
+The masculine adjective "seráfico" means "seraphic".
+"seráficos" is the plural of "seráfico".
+The feminine adjective "seráfica" means "seraphic".
+"seráficas" is the plural of "seráfica".
+The feminine noun "alta energía" means "high energy".
+"altas energías" is the plural of "alta energía".
+The adjective "de punta" means "leading".
+"de punta" is the plural of "de punta".
+The masculine adjective "ecuménico" means "ecumenical".
+"ecuménicos" is the plural of "ecuménico".
+The feminine adjective "ecuménica" means "ecumenical".
+"ecuménicas" is the plural of "ecuménica".
+The adjective "subnuclear" means "subnuclear".
+"subnucleares" is the plural of "subnuclear".
+The masculine noun "ciclotrón" means "cyclotron".
+"ciclotrones" is the plural of "ciclotrón".
+The adjective "en construcción" means "under construction".
+"en construcción" is the plural of "en construcción".
+The adjective "triunfante" means "triumphant".
+"triunfantes" is the plural of "triunfante".
+The masculine noun "complejo de culpa" means "guilt complex".
+"complejos de culpa" is the plural of "complejo de culpa".
+"complejo de culpa" is not feminine.
+The verb "perturba" means "disturbs".
+The verb "perturba" means "troubles".
+The feminine noun "fábula" means "fable".
+The masculine noun "apólogo" means "fable".
+"apólogos" is the plural of "apólogo".
+The noun "positivista" means "positivist".
+"positivista" is not feminine.
+"positivistas" is the plural of "positivista".
+"positivista" is a person.
+The adverb "a nivel internacional" means "at international level".
+The verb "trasciende" means "transcends".
+The intransitive verb "trasciende" means "transpires".
+"trascienden" is the plural of "trasciende".
+"trascender" is the infinitive of "trasciende".
+"trascendió" is the past of "trasciende".
+"trascendía" is the imperfect of "trasciende".
+"trascendido" is the participle of "trasciende".
+The noun "peneuvista" means "PNV member".
+"peneuvista" is not feminine.
+"peneuvistas" is the plural of "peneuvista".
+"peneuvista" is a person.
+The verb "culpa" means "blames".
+The verb "responsabiliza" means "blames".
+"responsabilizan" is the plural of "responsabiliza".
+"responsabilizar" is the infinitive of "responsabiliza".
+"responsabilizó" is the past of "responsabiliza".
+"responsabilizaba" is the imperfect of "responsabiliza".
+"responsabilizado" is the participle of "responsabiliza".
+"responsabiliza" takes "de" before the infinitive.
+The verb "obstaculiza" means "hinders".
+The verb "pone trabas" means "hinders".
+"ponen trabas" is the plural of "pone trabas".
+"poner trabas" is the infinitive of "pone trabas".
+"puso trabas" is the past of "pone trabas".
+"ponía trabas" is the imperfect of "pone trabas".
+"pone trabas" takes "a" before the phrase.
+The masculine noun "reproche" means "reproach".
+"reproches" is the plural of "reproche".
+The masculine adjective "callejero" means "street".
+"callejeros" is the plural of "callejero".
+The feminine adjective "callejera" means "street".
+"callejeras" is the plural of "callejera".
+The verb "aclara" means "clears".
+The verb "aclara" means "clarifies".
+The verb "matiza" means "clarifies".
+"matizan" is the plural of "matiza".
+"matizar" is the infinitive of "matiza".
+"matizó" is the past of "matiza".
+"matiza" takes the clause.
+The masculine noun "partido político" means "political party".
+"partidos políticos" is the plural of "partido político".
+The masculine noun "partido nacionalista" means "nationalist party".
+"partidos nacionalistas" is the plural of "partido nacionalista".
+"partido nacionalista" is not feminine.
+The masculine noun "proceso de paz" means "peace process".
+"procesos de paz" is the plural of "proceso de paz".
+The masculine noun "insulto" means "insult".
+The feminine noun "descalificación" means "insult".
+"descalificaciones" is the plural of "descalificación".
+The feminine noun "mesa nacional" means "national executive".
+"mesas nacionales" is the plural of "mesa nacional".
+The feminine noun "maduración" means "maturation".
+The preposition "a juicio de" means "in the opinion of".
+The verb "ayuda" means "helps".
+The verb "viene bien" means "helps".
+"vienen bien" is the plural of "viene bien".
+"sector" is a group.
+"corresponde" is intransitive.
+"dialoga" is intransitive.
+"influye" takes "en" before the phrase.
+The adverb "en política" means "in politics".
+The masculine noun "feliz cumpleaños" means "happy birthday".
+The verb "cumple años" means "has a birthday".
+"cumplen años" is the plural of "cumple años".
+"cumplir años" is the infinitive of "cumple años".
+"cumplió años" is the past of "cumple años".
+"cumple años" is intransitive.
+The masculine noun "nombre de la rosa" means "Name of the Rose".
+"nombre de la rosa" is not feminine.
+The masculine adjective "anticuario" means "antiquarian".
+"anticuarios" is the plural of "anticuario".
+The feminine adjective "anticuaria" means "antiquarian".
+"anticuarias" is the plural of "anticuaria".
+The masculine determiner "poquísimo" means "very few".
+"poquísimos" is the plural of "poquísimo".
+The feminine determiner "poquísima" means "very few".
+"poquísimas" is the plural of "poquísima".
+The masculine adjective "consagrado" means "established".
+"consagrados" is the plural of "consagrado".
+The feminine adjective "consagrada" means "established".
+"consagradas" is the plural of "consagrada".
+The adverb "a gusto" means "at ease".
+The feminine noun "bibliofilia" means "bibliophily".
+The feminine noun "relevancia" means "relevance".
+The masculine adjective "semiológico" means "semiological".
+"semiológicos" is the plural of "semiológico".
+The feminine adjective "semiológica" means "semiological".
+"semiológicas" is the plural of "semiológica".
+The masculine noun "siglo veinte" means "twentieth century".
+The feminine noun "mesa redonda" means "round table".
+"mesas redondas" is the plural of "mesa redonda".
+The feminine noun "erudición" means "erudition".
+The feminine noun "semiótica" means "semiotics".
+The adverb "por sí solo" means "on its own".
+The preposition "a la caza de" means "in search of".
+The masculine adjective "honorífico" means "honorific".
+"honoríficos" is the plural of "honorífico".
+The feminine adjective "honorífica" means "honorific".
+"honoríficas" is the plural of "honorífica".
+"faltar" is the infinitive of "falta".
+"faltó" is the past of "falta".
+"faltaron" is the past of "faltan".
+"faltaba" is the imperfect of "falta".
+"faltaban" is the imperfect of "faltan".
+"faltará" is the future of "falta".
+"faltarán" is the plural of "faltará".
+"faltaría" is the conditional of "falta".
+"faltarían" is the plural of "faltaría".
+"falte" is the subjunctive of "falta".
+"falten" is the plural of "falte".
+"faltara" is the past subjunctive of "falta".
+"faltado" is the participle of "falta".
+"falta" is intransitive.
+The adjective "generacional" means "generational".
+"generacionales" is the plural of "generacional".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -155549,6 +155708,7 @@ The feminine adjective "marginada" means "marginalised".
 "marginadísimo" is the superlative of "marginado".
 The adjective "proveniente" means "originating".
 "provenientes" is the plural of "proveniente".
+The adjective "primordial" means "primordial".
 The masculine adjective "repentino" means "abrupt".
 The feminine adjective "repentina" means "abrupt".
 The masculine adjective "íntegro" means "upright".

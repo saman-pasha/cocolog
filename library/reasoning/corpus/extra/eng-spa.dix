@@ -738,3 +738,6 @@
 <e><p><l>mutiny<s n="vblex"/></l><r>amotinar<s n="vblex"/></r></p></e>
 <e r="RL"><p><l>submit<s n="vblex"/></l><r>cursar<s n="vblex"/></r></p></e>
 <e r="RL"><p><l>shout<s n="vblex"/></l><r>vociferar<s n="vblex"/></r></p></e>
+# the physics report, Italian into Spanish: `le forze primordiali' are primordial, which the Spanish `primordial' is
+# written for only (r="LR"), so that a Spanish `papel primordial' is still read as paramount
+<e r="LR"><p><l>primordial<s n="adj"/></l><r>primordial<s n="adj"/></r></p></e>

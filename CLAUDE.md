@@ -11003,6 +11003,497 @@ read into an English-worded IR and written into any lesson's language),
   fa AENA niente in questi casi?" Chiede Camp.' (19: `Perché AENA non fa niente', the subject after the verb, and the
   reporting clause's comma and small letter lost); and English writes `yesterday' last (2, 18). The next sample's
   controls take this report in.
+  The physics report (VIT-4860..4882, 23 sentences, the last part of a report on Italian physics and its funds: two
+  projects that waited for their money, what high-energy physics costs the fields beside it, and a hopeful view of the
+  whole, Italian into Spanish and English: 20 of 23 and 19 of 23 on a fresh store, 20 and 18 with the new store alone,
+  10 and 9 with the new code on the old store, 10 and 9 before; reasoning 1.0.35). The sample was taken on the cocolog
+  3.62.1 binary, master's a519dde fast-forwarded onto the branch (the controls of the Air Europa sample read every
+  sentence alike on 3.62.0 and 3.62.1, the same counts to the unit), and cocolog stays 3.62.1. The article's sentences
+  fall from 100.4 million inferences into Spanish and 100.3 into English to 75.7 and 75.5, of which the twelfth,
+  refused, is 40.4 million in each (37.1 before). English refuses 3 for the third person nobody names, on purpose (`è
+  stato approvato in dicembre e ...').
+  It needed these SHAPES, each with its arm red (test/translate.pl's `newspaper_phys': 32 checks, 30 arms, all red in
+  the section; an arm is a library directory of symlinks whose reasoning/translate.pl is the edited copy,
+  `COCOLOG_LIBRARY=ARM cocolog query "use_module('test/translate.pl'), newspaper_phys, checks_done"', a few seconds a
+  run): A NATIONALITY AFTER ANOTHER NOUN IS NO HEAD BY BEING A PERSON (`la fisica italiana' is Italian physics, and
+  `italiana' -- an Italian woman, and Italian -- was the head as the one person, `the physical Italian': tr_noun/5,
+  tr_nationality_word/1), and the controls' `el rotativo británico The Times' is the British newspaper, where it was
+  `the rotary British'; A PERSON AFTER A VERB THE LESSON GIVES A MEANING FOR A PERSON OBJECT IS NO DOER (`i complessi di
+  colpa che avevano profondamente turbato i loro maestri' troubled the teachers, and read with the teachers for the doer
+  English wrote `that their teachers had troubled': `The personal verb "turba" means "troubles".', tr_rel_doer/2), a
+  verb with no such meaning keeping the doer after it (a guard) -- two arms; `too' among a verb's complements is `too
+  much', in its place (`si spende troppo per la fisica delle alte energie' was `one spends for the physics ... too':
+  tr_comp_out/7), and before an adjective `too' still, `troppo' being an adjective too (`too much national':
+  tr_comps_out/7; the controls' `ero troppo giovane, lui troppo intelligente, troppo paterno, troppo tutto' was `I was
+  young, him intelligent, paternal, everything too too too too', and Tatoeba's `Estás demasiado tensa' `You are taut
+  too') -- two arms; THE COPULA, A PARTICIPLE THAT IS AN ADJECTIVE TOO AND AN INFINITIVE (`Sarebbe più corretto dire che
+  in realtà si spende poco' is it would be more correct to say it, and read as the passive it was `To say that ... would
+  be more corrected': tr_copula_adj_inf/3, asked before the passive), the lesson's language writing the adjective, and
+  the participle alone, which the complement reader reads as the participle it is too -- two arms; the controls'
+  `Sarebbe sbagliato leggere tutto pro o contro Berlusconi' is `It would be wrong to read', where it was `To read ...
+  would be erred'; `other' alone in the plural is `others' (`si spende poco per gli altri' was `the other ones':
+  tr_np_out/5); A MONTH AND THE YEAR AFTER ITS `of' ARE ONE DATE (`nel settembre del settantanove' is in September '79,
+  and read as two phrases it was `in the September of the seventy-nine': tr_cross_comps/2), English writing a year of
+  two digits said in words as `'79' (en_short_year/2) and the lesson's language its words with no article before the
+  month, a month with no day and its year after it taking no article (`nel gennaio 1980' was `in the January 1980' and
+  `en el enero de 1980': tr_cross_np/2), and the year keeping the case of its word (the closing mark of `"lo abbiamo
+  proposto ... nel settembre del settantanove", ricorda Fiorini' was lost) -- four arms; the controls' `on November 7,
+  '77' and `(July 9, '95)'; A VERB OF SEEMING IS NO COMMAND (`Sembra di sentire un'eco dell'apologo di un certo Menenio
+  Agrippa' is it seems to hear one, and read as the command English wrote `Seem to feel an echo': tr_read_statement0/4,
+  '$tr_seem_lexemes'); a partitive pronoun beside a count is said once, an adverb between them too (`Ne citerei almeno
+  tre' was `I would cite it at least three' and `Lo citaría al menos tres': tr_cross_comps/2); AN ADVERB AND A CLAUSE OF
+  `che' WITH NOBODY NAMED: THE PHRASE AFTER ITS VERB IS ITS SUBJECT (`È lì che vivevano certi oggetti' was `It is there
+  that they lived some objects': tr_cleft_fix/3); A THING BEFORE AN IMPERSONAL `si' THAT A PRONOUN JOINED TO THE
+  INFINITIVE TAKES UP AGAIN IS THE INFINITIVE'S OBJECT (`qualche incrinatura si riesce a trovarla' was `some crack
+  attains to find her': tr_dislocation_fix/3); `a' AND AN INFINITIVE AT THE HEAD, BEFORE A COMMA, ARE A FRONT, THE
+  GERUND (`a scavare bene nella compatta testuggine della fisica italiana, qualche incrinatura ...' had no reading, and
+  after an adverb English wrote `to dig ... well', a purpose: tr_read0/4), the lesson's language its gerund, an adverb
+  with its comma before them keeping the comma (tr_fronts_out/5) -- three arms; A PHRASE AFTER A COMMA IS AN APPOSITION
+  AND NO OBJECT, IN A CLAUSE THAT SHARES THE SUBJECT (`e si riferisce al progetto ..., un tema che riveste ...' was `and
+  one refers': tr_shared_subject/5), and English elides the shared subject there -- two arms, red once the hand lesson's
+  `riferisce' was the store's, a verb whose reflexive meaning no lesson states; THE PHRASE A SUBJECT'S RELATIVE CLAUSE
+  HANGS ON OWNS WHAT ITS POSSESSIVES NAME (`un tema che riveste un'enorme importanza anche per le sue notevoli ricadute'
+  is ITS spin-offs, where it was `his': tr_cross_np/2, '$tr_rc_head'), a person's his (a guard) -- two arms; the
+  controls' `the economic recession of the biennium 1992/1993 that leaves its traces'; A FRONT'S RELATIVE CLAUSE NEVER
+  TAKES A PHRASE AFTER ITS COMMA where no verb follows (`senza la ricerca di punta che si fa nei nostri laboratori,
+  tutto il resto crolla' took `tutto il resto' for an apposition and left the command `collapse!', or took `tutto' and
+  left `il resto crolla': tr_read0/4), only where the words after the comma open on a pronoun or a subject, and never
+  where the rest opens on a subject of its own, so that the phrase is an apposition (the controls' `los pulsos tácticos
+  entre Aíto y Majkovic, dos personajes antagónicos, el partido tuvo pasión' was refused there and read again with
+  `entre' for the verb, `the tactical duels Aíto enters', 10.6 million inferences more in each language) -- three arms;
+  a count of time `ben' stresses, before its `ago', is the when of the clause (`proposto ... ben otto anni fa' was `as
+  many as eight years' and `nada menos que ocho años hace': tr_ago_phrase/2), the lesson's language its word for `ago'
+  first; after a noun English says with `to', `of' and the -ing form are `to' and the infinitive (`Il tentativo di
+  trovare le forze primordiali' was `the attempt of finding': tr_comp_out/7, en_noun_to_inf/1); A WORD THE LESSON CALLS
+  AN ACRONYM IS NO NAME'S FIRST WORD BEFORE A PARTICLE (`ai laboratori nazionali Infn di Legnaro' was one name, `Infn di
+  Legnaro', its `di' untranslated: tr_particle_names/4), and `"infn" is an acronym.' and `"cnr" is an acronym.' write
+  both in capitals; and a group of three words or more takes a mid adverb after its first auxiliary (`ci è stato
+  riconosciuto con invidia anche dai colleghi' was `has been also acknowledged': tr_mid_insert/3), the controls' six
+  among them (`The body has never been found', `they will also be able to', `will already be institutionalised').
+  It needed these WORDS in `extra/' (the two readers: a line moves the reader of one language and the writer of the
+  other; the dictionary's own word is said again first where it must stay the one written): Italian `giunta' (a board),
+  `"infn"' and `"cnr" is an acronym.', the name `monte bianco' (Mont Blanc), `finalizzato' (targeted), `riveste' (takes
+  on, with its forms: the dictionary has no `rivestire'), `ricaduta' (a spin-off), `testuggine' (a tortoise),
+  `incrinatura' (a crack), `serafico' (seraphic), `alta energia' (high energy, where `alto' is tall first), `guadagno'
+  (a gain), `di punta' (leading), `apologo' (a fable), `ecumenico', `subnucleare', `ciclotrone', `superconduttore', `in
+  costruzione' (under construction), `primordiale' (primordial, before the dictionary's overriding), `innanzitutto'
+  (first of all), `accoppia' (couples, and joins with its pronoun), `astrofisica' (astrophysics, before the person),
+  `ottimistico' (optimistic, with `ottimista' said again first), `riaffida' (entrusts, with `affida' said again first
+  and its forms), `quesito' (a question, with `domanda' said again first), `trionfante', `complesso di colpa' (a guilt
+  complex, not feminine), `turba' (troubles, with its forms, and a personal verb), `reduce' (a survivor, a person, with
+  `sopravvissuto' said again first), `lega' (links, where the dictionary's first is bequeaths), `acceleratore' (an
+  accelerator, the noun: the dictionary has the adjective alone), `positivista' (a positivist, a person, not feminine),
+  `profondamente' (deeply, before acutely) and `a livello internazionale'; Spanish `específico' (specific, and
+  targeted), `reviste' (takes on, with its forms), `repercusión' (a repercussion, and a spin-off), `seráfico', `alta
+  energía', `de punta', `ecuménico', `subnuclear', `ciclotrón', `en construcción', `triunfante', `complejo de culpa'
+  (not feminine), `perturba' (disturbs, and troubles), `apólogo' (a fable, with `fábula' said again first),
+  `positivista' (a person, not feminine) and `a nivel internacional'; and in eng-spa.dix `primordial', written only
+  (r="LR"), so that a Spanish `papel primordial' is still read as paramount. The first meaning moved for 5 Italian words
+  and no Spanish one (Italian `affida' entrusts, `astrofisica' astrophysics, `lega' links, `primordiale' primordial,
+  `profondamente' deeply), the writer's first word for 6 Italian meanings and 2 Spanish ones (Italian board `giunta',
+  where it was `asse', a plank, crack `incrinatura', where it was `botto', a bang, gain `guadagno', leading `di punta',
+  links `lega', troubles `turba'; Spanish leading `de punta', specific `específico'), and none was lost.
+  THE CONTROLS (cocolog 3.62.1, store KB_b4, 134 count files, 3 536 sentences: the earlier set with the Air Europa
+  report in, es_20000401-85, both directions; this report is not among them): the last version's translator against this
+  one, on the one store, 20 sentences in 14 files read differently, all better -- the mid adverb after the first
+  auxiliary (6: `has never been found', `the girl has also been overtaken', `The cores have also been penalised', `they
+  will also be able to benefit', `will already be institutionalised', `will also be visited'), `others' (4: `when the
+  others were near to the finish', `"all the others" have enormous perplexities', `"what the others" also have',
+  Tatoeba's `My mother is not like the others'), `too' before an adjective (3: `"I was too young, him too intelligent,
+  too paternal, too much everything"', Tatoeba's `You are too taut', and `We did not go too much in church' for `in
+  chiesa non ci siamo andati troppo', where it was `in church too'), the short year (2: `on November 7, '77', `(July 9,
+  '95)'), `its traces', `It would be wrong to read' and `Sería incorrecto leer' (2, where it was `would be erred' and
+  `equivocado'), and `The British newspaper The Times' and `Il quotidiano britannico' (2, where it was `The rotary
+  British' and `Il rotante britannico') -- and the inferences rise 0.039 % (6 786 507 878 to 6 789 121 260): 3 516
+  sentences rise, by 257 inferences at the median of the rises, the largest the child-cost report's 43rd (+72 480 of
+  47.8 million in each language) and es_19990301-37 18 (+45 thousand of 0.65 million, the newspaper read). Bytes and
+  characters read every sentence alike (0 differ, the bytes 0.014 % more). The DATA COLUMN (the last version's
+  translator on its own store, KB_a4, against this one on the new): 31 sentences in 20 files, +0.095 % (6 782 646 462 to
+  6 789 121 260). THE CODE ALONE (this translator on KB_a4): the same 20 sentences, +0.039 % (to 6 785 259 688). THE
+  STORE ALONE (the last version's translator on KB_a4 and on KB_b4): 11 sentences in 7 files, +0.057 % (to 6 786 507
+  878), each a word of the report's lines: `lega' links (5: `non si legavano con un intervento terrorista', `segue
+  legato', `di legare i passeggi', `Si può legare', and Spanish `enlazadas al turismo' for `legate', where they were
+  `allacciare' and `legadas', bequeathed), the CNR in capitals (5), and `in uno di quelle giunte' for `en uno de esos
+  tablones', as wrong as the `quelli assi' it was (the writer's word for a board is `giunta' now, and the IR says board
+  for the noticeboard).
+  THE FIRST ROUNDS' REGRESSIONS, found by reading the texts of every column, the whole case and the writers' first
+  words, and mended, each with its arm red: the front's relative-clause guard first refused every phrase after the
+  comma, and the Venice report's eighth sentence ran to the limit of 300 million inferences (251 million before),
+  narrowed to words that open on a pronoun or a subject; its subject half then refused the basketball report's
+  apposition, `Aíto enters' above, narrowed to a rest that names no subject of its own; the first cut of `too much'
+  wrote `too much young' and `too much taut'; the report's lines for `riaffida', `reduce' and `apologo' came first for
+  the writers (the Italian word for entrusts was `riaffida', for a survivor `reduce', and the Spanish word for a fable
+  `apólogo'), and the dictionary's own words are said again first; and Spanish's `primordial' is written only, so that a
+  Spanish `papel primordial' is still read as paramount. Two checks of older sections were written in the old English or
+  reading: the child-cost section's `what the other ones also have' is `what the others also have', and the Tatarella
+  section's guard, `Sembra poco.' refused into Spanish, is `Parece poco.' now that a verb of seeming is no command, so
+  the guard is on `Mangia poco.' (a line `"mangia" is the imperative of "mangia".' in that section's lesson), which a
+  statement with nobody named still refuses. The whole case's scan of the vocabularies found `positivista', `complesso
+  di colpa' and `complejo de culpa', masculine nouns in -a with no denial.
+  THE COST OF THE CODE is +0.039 % on the one store, 257 inferences at the median of the 3 516 rises and no sentence
+  over 0.2 % but es_19990301-37 18 (+6.9 %, a better reading); it was not taken apart rule by rule. THE STATED COSTS: a
+  first meaning that serves the report and not every text -- `lega' links (bequeaths second), `affida' entrusts (trusts
+  second), `primordiale' primordial, `profondamente' deeply, `astrofisica' astrophysics (the astrophysicist second) --
+  and the writers' words: Italian `giunta' for every board (a plank was `asse'), `di punta' and `de punta' for leading
+  (`principale', `puntero'), `incrinatura', `guadagno', `lega' and `turba', Spanish `específico' for specific
+  (`concreto'); the twelfth sentence's refusal costs 3.3 million inferences more (the new code on the new store; either
+  alone, under 0.06 million); and the inferences, +0.039 % on the one store and +0.057 % for the store alone.
+  The report LEAVES, of the 20 into Spanish (English alike unless it says): `El primero considera el experimento Nusex'
+  and `regards the experiment Nusex' (1: concerns the Nusex experiment) and `under the Mont Blanc'; English `We have
+  proposed him' (2: it); `habíamos ya conseguido los primeros fondos' (3: `ricevuto' is received, `ya habíamos
+  recibido'); `nos ha sido reconocido' and `has also been acknowledged us' (4: the dative of a passive); `the
+  electronics of the solid state' and `sus relevantes repercusiones' (5: solid-state electronics, `notables'); English
+  `digging in the compact tortoise of the Italian physics well' (7: `bene' last, and the testudo is a formation); `para
+  la física' and `for the physics' (8: spends on), and the marks on `"Alguien"' and `"Somebody"' alone, where the source
+  opens its quotation there; `se gasta poco para los otros en realidad' and `one in reality spends for the others
+  little' (9); `También, admitiendo disminuir' and `Also, admitting to diminish' (10: even admitting a cut), `no se
+  haría una gran ganancia' and `one would not make a big gain', `que se hace' and `that makes in our labs' (that is
+  done) and `colapsa'; `Parece sentir' and `It seems to feel' (11: to hear); `enlazado al sector' (13: `ligado'); `Se
+  añade la tendencia ... a la unificación a esto de las fuerzas' and `to the unification to this of the fundamental
+  forces' (16: `A questo si aggiunga', to this is added: the subjunctive, and the phrase set in front read into the
+  phrase of `to'); English `of which today they search the traces ... lived' (18: the impersonal `si cercano' written
+  `they', and the verb last), `monopolios' and `the monopolies' (monopoles) and `either in the caves'; `va a unir con la
+  astrofísica' and `goes to join with the astrophysics' (19: the reflexive of `accoppiarsi' lost); `uno se encuentra a
+  comparación con' and `one finds to comparison with' (20: finds oneself face to face with) and `in this research'
+  written last; `y de la física de los núcleos' (21) and English `among the astrophysics'; `más de un siglo hace' (22:
+  `hace más de un siglo') and English `had hoped to make' (to do); and English `They are really far, ..., the times'
+  (23: the times are). Into both languages 6, 12 and 15 are refused: 6, a participle in front with its agent and `ben'
+  (`Proposto dai fisici del gruppo di struttura della materia ben otto anni fa, è stato approvato dal Cnr solo
+  quest'anno'); 12, Ricci's subject and its three insertions before `sembra mettere tutti d'accordo'; and 15, the list
+  of three fields, a bracket with a clause in it. The next sample's controls take this report in.
+  The lehendakari report (AnCora CESS-CAST-P-19990901-36, 17 sentences, the paper's report on the lehendakari Ibarretxe
+  and Herri Batasuna's national executive on ETA's last communique and the peace process, Spanish into Italian and
+  English: 17 of 17 and 14 of 17 on a fresh store, 13 and 9 with the new store alone, 10 and 12 with the new code on the
+  old store, 9 and 7 before; reasoning 1.0.36). The sample was taken on the cocolog 3.62.1 binary, and cocolog stays
+  3.62.1; master's 7e4bac2 (cocolog 3.62.2, read_file_to_codes/2 under the stack limit) came during the sample, changes
+  nothing under library/reasoning/, and is not merged: the next sample takes it. The article's sentences fall from 139.5
+  million inferences into Italian and 139.0 into English to 59.4 and 58.6, of which the fourth, the sixth and the
+  fourteenth are 11.4, 12.2 and 12.5 million in each. English refuses 3, 5 and 9 for the third person nobody names, on
+  purpose (`en el que responsabilizaba a un sector del PNV ...', `donde aprovechó para dar su punto de vista', `al que
+  aludió con el término "apagón"').
+  It needed these SHAPES, each with its arm red (test/translate.pl's `newspaper_lehendakari': 25 checks, 27 arms, all
+  red in the section; an arm is a library directory of symlinks whose reasoning/translate.pl is the edited copy,
+  `COCOLOG_LIBRARY=ARM cocolog query "use_module('test/translate.pl'), newspaper_lehendakari, checks_done"', a few
+  seconds a run): A COMPARATIVE BEFORE `de lo que' COMPARES WITH WHAT FOLLOWS (`el debate va mejor en privado de lo que
+  trasciende' goes better in private than what transpires -- `mejor' was no word of the list tr_compared_before/2 asks,
+  and the sentence had no reading), the clause after `de lo que' the comparison's with nobody named, which English
+  writes `than what' and its verb (tr_comp_out/7), a comparative after a verb that is no copula the adverb (Italian's
+  `va meglio', where the comparative of `good' came out `va migliore': tr_comparative_adverb/3), and English's `better'
+  in its place, before the phrases between it and the comparison, where it was written last (tr_comps_out/7) -- four
+  arms; `a que' AND A SUBJUNCTIVE AFTER A NAME A VERB ENCOURAGES ARE `a' AND THE INFINITIVE (`la coalición radical animó
+  al PNV a que acepte los reproches de ETA' encouraged it to accept them, and the clause had no reading:
+  tr_a_que_inf/3), the name the verb's object (tr_named_object/3) -- two arms; ITALIAN'S `ad' AND `ed' (`The preposition
+  "ad" comes before "a".', `The conjunction "ed" comes before "e".' and before `è': `ad accettare', `il Governo ed ETA',
+  `ed è grande', where they were `a' and `e' (`continua a aumentare', `il PNV e ETA'): tr_euphonic_form/3 in
+  tr_contract/3, the forms a list made once a lesson changes); a word that is a determiner too, before a noun, is no
+  preposition that ends the phrase (`recomendó al PNV "más deportividad"' -- `más' is the preposition `plus' too, with
+  no phrase after it, and the words had no reading: tr_more_determiner/2, the degree words a list made once a lesson
+  changes, tr_gen_words/2); `ago' IN A COMPARISON IS THE COMPARED PHRASE'S (`Destacó de entrada que "la situación es
+  notablemente mejor que la de hace un año"' is better than that of a year ago, and in the clause of `that' the time
+  came out after the verb, `è fa notevolmente migliore di quella d'un anno': tr_ago_in_comparison/2), in a clause of
+  `that' too -- two arms; an adverb in -ly straight before a comparative is said of it (notably better, where `notably'
+  was written last: tr_comps_out/7); `blames' TAKES `for' AND THE GERUND, AND `hinders' ITS PHRASE BARE
+  (`responsabilizaba a un sector del PNV de poner trabas a la pacificación' blames it for hindering the pacification,
+  where it was `to hinder to the pacification': en_prep_gerund/2, en_bare_object/1), a group after a verb of blaming or
+  encouraging is its object, marked as a person is (`incolpava un settore', `incoraggia un settore', where it was
+  `incolpava a un settore': en_person_passive/1, tr_warned_group/3, `"sector" is a group.'), AN INFINITIVE AFTER ITS
+  PREPOSITION GOVERNS THE PHRASE AFTER IT (with the sector's phrase of `of' between the verb and its `de', the
+  infinitive was read after its preposition, pinf/2, and Italian wrote the phrase with its `a', `d'ostacolare alla
+  pacificazione': tr_governing_verb/3), and English writes the preposition its verb takes before the gerund, where the
+  source's `de' came out `of hindering' (tr_comp_out/7) -- six arms; AN ADVERB, ITS COMMA AND A GERUND CLAUSE ARE ONE
+  GERUND CLAUSE WITH ITS FRONT (`..., y, además, teniendo en cuenta que es parte fundamental en este conflicto' -- with
+  the comma the gerund was a front with its clause of `that' left open, and the words after `es' a clause of their own,
+  `parte' the verb that departs: tr_read0/4); a quotation that opens on a relative word and closes on the verb the
+  clause ends on closes where the clause ends (`las críticas, "que en política siempre vienen bien"' -- the words before
+  the verb are written after it, and with the mark on the verb they came out outside the quotation: tr_rel_mark/3); the
+  reflexive pronoun after a preposition is the subject's (`estas formaciones entre sí' talk among themselves, where it
+  was `among itself': tr_write/4); WHAT FOLLOWS A COPULA IS NO THING ITS SUBJECT OWNS (`El diálogo fue su receta' was
+  HIS prescription, Ibarretxe's, and it came out `its prescription': tr_cross/3), and after any other verb it is the
+  thing's (`La vida continúa su curso', a guard) -- two arms; and A QUOTATION THAT OPENS ON AN INFINITIVE OPENS THERE:
+  on its denial (`Ibarretxe recomendó "no cerrar puertas"' -- the mark was taken for the verb group's, `"raccomandò non
+  chiudere porte"': qm/2, tr_complements0/4), on the infinitive, where its mark was lost, before English's `to', as no
+  word of the source stood before the mark (bare/1, tr_comp_out/7), around every word written for it where the mark
+  opens and closes on it (`lo que hace es "desacreditar" la investigación' came out `is "to" discredit', found by the
+  controls), and after a preposition (`el futuro del proceso está en "reconocer como válidos ..."' lost its opening
+  mark: qinf/2) -- five arms.
+  It needed these WORDS in `extra/' (the two readers: a line moves the reader of one language and the writer of the
+  other; the dictionary's own word is said again first where it must stay the one written): Spanish `trasciende'
+  (transcends, where the dictionary's English is `trascends', and transpires with no object, with its forms),
+  `peneuvista' (a PNV member, a person, not feminine: the dictionary has the adjective alone), `culpa' said again first
+  and `responsabiliza' (blames, with its forms, `de' before the infinitive), `obstaculiza' and `pone trabas' (hinders,
+  with its forms, `a' before the phrase), `reproche' (a reproach: the dictionary has the subjunctive of `reprochar'
+  alone), `callejero' and `callejera' (street), `aclara' said again first (clears, then clarifies) and `matiza'
+  (clarifies, with its forms, taking the clause), `partido político' and `partido nacionalista' (a party, where
+  `partido' is a match first, `"partido nacionalista" is not feminine.'), `proceso de paz', `insulto' said again first
+  and `descalificación' (an insult), `mesa nacional' (a national executive), `maduración' (maturation, where the
+  dictionary's English is `maduration'), `a juicio de' (in the opinion of), `ayuda' said again first and `viene bien'
+  (helps), `"sector" is a group.', `"corresponde" is intransitive.', `"dialoga" is intransitive.', `"influye" takes "en"
+  before the phrase.' and `en política' (in politics); Italian `trapela' (transpires, with its forms, intransitive),
+  `peneuvista' (a person, not feminine), `sportività' (sportsmanship), `incolpa' (blames, with its forms, `di' before
+  the infinitive), `ostacola' (hinders, with its forms), `rimprovero' (a reproach), `di strada' (street), `partito
+  politico', `partito nazionalista' (not feminine), `processo di pace', `esecutivo nazionale', `maturazione',
+  `formazione' (a formation: the writer's word was `educazione', an upbringing), `a giudizio di', `"ad" comes before
+  "a".', `"ed" comes before "e".' and before `è', `comparsa' (an emergence: the Italian writer had no word for one), `in
+  politica', and `rottura' (a break said again first, and a split, which the Italian writer had no noun for). The first
+  meaning moved for 3 Spanish words and 2 Italian ones (Spanish `descalificación' an insult, where it was a
+  disqualification, `maduración' and `trasciende', the spellings mended; Italian `formazione' a formation, where it was
+  a training, `maturazione'), the writer's first word for no Spanish meaning and 2 Italian ones (formation `formazione',
+  where it was `educazione'; hinders `ostacola', where it was `impaccia'), and none was lost.
+  THE CONTROLS (cocolog 3.62.1, store KB_c8, 136 count files, 3 582 sentences: the earlier set with the physics report
+  in, it_4860_4882, both directions; this report is not among them): the last version's translator against this one, on
+  the one store, 20 sentences in 17 files read differently, all better -- Italian's `ed' and `ad' (12: `Jordi Vilajoana
+  ed Enric Sopena', `ampliabile ad altri casi', `"intervenga di lavoro" ed emette', `tra Baleares ed El Prat',
+  `mediterraneo ed europeo', `PNV ed EA', `continua ad aumentare', `sorprendente ed efficace', `d'un luogo ad altri',
+  `si resiste ad abitare', `tra il PNV ed ETA', `ed è la nostra traiettoria'), a quotation that opens on an infinitive
+  (2: `lo que hace es "desacreditar" la investigación' is `quello che fa è "screditare" l'investigazione' and `is "to
+  discredit"', es_19981202-34 10), a relative clause's marks (2: `"which they have been torpedoing"' and `"che sono
+  stati sabotando"', es_20000903-30 18), `a "ballast" for themselves' (es_20000903-30 19, where it was `for itself'),
+  `the possibility of influencing the choices' (it_9605_9636 26, where it was `influencing on'), and `participating in
+  the table' and `participar en la mesa' (it_9673_9712 23, where they were `participating to' and `participar a': the
+  infinitive after its preposition governs its phrase) -- and the inferences rise 0.033 % (6 941 079 155 to 6 943 367
+  822): 3 569 sentences rise, by 267 inferences at the median, +0.029 % of the 1 265 under 0.2 million, the largest the
+  Rognoni interview's nineteenth (+34 159 of 176.4 million, refused both ways) and the Venice report's eighth and fourth
+  (+27 969 of 251.4 and +18 867 of 85.8), and the four that fall most have `más' and a noun, which the determiner's rule
+  reads at once (Tatoeba's `Deberías darle más libertad a tu hijo' and `con más atención', `sin más compañía', `con más
+  serenidad', some 30 000 inferences fewer each). Bytes and characters read every sentence alike (0 differ, the bytes
+  0.014 % more). The DATA COLUMN (the last version's translator on its own store, KB_b4, against this one on the new):
+  the one store's 20 sentences, +0.043 % (6 940 381 150 to 6 943 367 822). THE CODE ALONE (this translator on KB_b4): 9
+  sentences in 8 files, +0.032 % (to 6 942 622 018), 8 of them among the 20 and one worse, which the new store's line
+  mends: `la possibilità di incidere sulle scelte' is `influir las elecciones' (it_9605_9636 26), where it was `influir
+  en las elecciones' -- the infinitive after its preposition governs its phrase now, and with no word stated for
+  `influye' the Spanish writer writes it bare; the 12 left are Italian's `ed' and `ad', which need the new lines. THE
+  STORE ALONE (the last version's translator on KB_b4 and on KB_c8): 0 sentences, +0.010 % (6 940 381 150 to 6 941 079
+  155): the noun `peneuvista' and `"corresponde" is intransitive.' cost four sentences a reading for nothing, the texts
+  the same (es_20020801-17 10, `el líder peneuvista', +0.29 million inferences of 5.28 in each language, and three with
+  `corresponde' or `correspondiera', +0.05 to +0.08 million each).
+  THE FIRST ROUNDS' REGRESSIONS, found by reading the texts of every column, the whole case and the writers' first
+  words, and mended. Of the store: the Spanish writer's first words for helps, blames and clarifies were the report's
+  `viene bien', `responsabiliza' and `matiza', and the dictionary's `ayuda', `culpa' and `aclara' are said again first;
+  the whole case's scan of the vocabularies found `partido nacionalista' and `partito nazionalista', masculine nouns in
+  -a with no denial; and two lines, `The reflexive verb "encuentra" means "is".' and its Italian `trova', written for
+  `el proceso de paz se encuentra en fase de maduración', which English writes `finds in phase', cost the store alone of
+  KB_c7 +4.994 % of the controls and 21 sentences: the Venice report's fourth (it_9999_10010 4) was read in 85.8 million
+  inferences in each language and refused after 258.6, `se lo encuentra a otra' was `lo es otra' and `one finds it
+  another one' `another one is it', `no se encuentra ni siquiera un fragmento' `no es ni siquiera un fragmento' and `it
+  is not even a snippet', and two English sentences were refused (es_20010102-25 12, `Thabet was felled to shots on
+  Sunday when one found near his house', and it_9800_9814 4): both lines are out, and `finds in phase' is a stated cost.
+  Of the code (the one store): `lo que hace es "desacreditar" la investigación' came out `is "to" discredit' (a mark
+  around one word the writer writes as two), and the Spanish of `la possibilità di incidere sulle scelte' `influir las
+  elecciones' (the infinitive after its preposition governs its phrase now, and with no word stated for `influye' the
+  Spanish writer wrote it bare: `"influye" takes "en" before the phrase.'). The first cut's arms found four green -- the
+  name the verb's object, the determiner, `ago' in a comparison and in a clause of `that' -- and the checks were made so
+  that each goes red (`ETA animó al PNV a que acepte las críticas' into Italian, `ETA recomienda al PNV más
+  deportividad' into English, and the comparison inside a clause of `that' into Italian); a hunk of the determiner's
+  rule that changed nothing, not even its cost, is gone.
+  THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (32 control sentences of 0.1 to 0.5 million inferences, 16 from
+  each language, into English, over a copy of the library per rule): the first cut was +0.111 % of the controls on
+  KB_c7, +0.83 % of the sentences under 0.2 million, some 1 300 inferences a sentence, and the 32 rose 16 533
+  inferences: the `a que' rule's scan, asked of every piece the reader reads, asked the lexicon at every position of it,
+  and the lists of `that' and of the degree words, kept against '$tr_gen', were made again at every reading -- '$tr_gen'
+  moves at every tr_memo_reset/0, every sentence and every piece. What paid was the list of the conjunctions that mean
+  `that' alone, the lists kept against a counter that moves only where a lesson is learned or unlearned ('$tr_lessons',
+  tr_lessons_moved/0 in reason_learn/3 and reason_unlearn/1), and the cheap tests first in three rules (the name's
+  object, the comparative adverb, `ago' in a comparison). A note of the `a que' pattern made once a sentence where its
+  words are made ('$tr_a_que', asked by the rule first) paid while the lists were made at every reading, and with the
+  lists kept its arm, the note always yes, was green and cheaper: over 300 control sentences picked at random, 150 from
+  each language, into English, the note cost 958 inferences more than none and saved 147 at most in one sentence, every
+  text the same, and it is gone. The 32 rise 3 846 inferences (+0.044 %, 8 684 101 to 8 687 947), of which the
+  determiner's rule is 1 174, the possessive after a copula 212, the reflexive after a preposition 111 and `ago' in a
+  clause of `that' 94, no other rule's arm over 50; the rest is the new clauses entered and failing, a few inferences
+  each.
+  THE STATED COSTS: `el proceso de paz se encuentra en fase de maduración' is `finds in phase' in English (11: the
+  reflexive `is' line, above); the store's four sentences read again for nothing (+0.010 % of the controls); `en
+  política' as one adverb makes sentence 16's `in politics', where it was `in policy', and costs it 0.58 million
+  inferences in each language (3.19 million, where a store with no such line reads it in 2.61); a first meaning that
+  serves the news and not every text -- `descalificación' is an insult (a disqualification second), `formazione' a
+  formation (a training second) -- and the writer's `formazione' for a formation (`educazione', an upbringing, before)
+  and `ostacola' for hinders (`impaccia' before); and the inferences, +0.033 % on the one store and +0.010 % for the
+  store alone.
+  The report LEAVES, of the 17 into Italian (English alike unless it says): `i peneuvisti' and `the pnv members' (2: the
+  acronym in small letters inside the word) and `the criticisms of the band' (ETA, a terrorist band); `i portavoce
+  dell'esecutivo nazionale d'Herri Batasuna coincisero' and `in un'analisi ottimista' (3: agreed in an optimistic
+  analysis); `sfruttò per dare il suo punto di vista' (5: took the opportunity to give it); `Evidenziò per cominciare'
+  and `They highlighted to begin with' (6: he stressed at the outset, the subject the sentence before it names) and
+  `Euskadi crosses a good moment' (is going through one); `la pace è sempre più vicino' (7: `vicina', the adjective of
+  the comparison agreeing with no noun) and `the peace is increasingly near' (peace); `che descrisse come
+  "inaccettabili"' and English `which described as "unacceptables"' (8: which he described as unacceptable, the
+  adjective in the plural) and `the split of the conversations' (the breakdown of the talks); `riconoscere come vigente
+  parte degli argomenti degli altri' (9: `validi', valid); `la sua prescrizione' and `his prescription' (10: his recipe)
+  and `i distinti livelli' and `the distinct levels' (the different levels); `il processo di pace si trova in fase di
+  maturazione' is right, and English writes `the peace process finds in phase of maturation' (11: is in a phase), `senza
+  "marcia dietro"' and `without "march backwards"' (without a reverse gear) and `would not allow him' (it); `Proprio,'
+  and `Precisely,' (12) and `the prominence of the peace process corresponds to the citizens' (belongs to them); `the
+  last communiques of ETA' (13: the latest); `la soluzione al conflitto passa per garantire' is right, and English
+  writes `spends for guaranteeing' (14: goes through guaranteeing), `due dati futuri' (two future dates, `date':
+  `fechas' read as data), `annuncio dell'Assemblea' (the calling of the Assembly) and `Municipii'; `the insults that ETA
+  launched to the PNV through his last communique' (15: at the PNV, its last communique); `che in politica sempre
+  aiutano' and `which in politics always help' (16: always come in handy, `sempre' after the verb in Italian); and `ETA
+  has right to express his opinion' and `it is fundamental part in this conflict' (17: the right, its opinion, a
+  fundamental party to the conflict). The next sample's controls take this report in.
+  The Eco profile (VIT-10096..10109, 14 sentences, a profile of Umberto Eco at seventy, Italian into Spanish and
+  English: 12 of 14 and 12 of 14 on a fresh store, 9 and 9 with the new store alone, 3 and 4 with the new code on the
+  old store, 3 and 3 before; reasoning 1.0.37). The sample was taken on the cocolog 3.62.2 binary, master's 7e4bac2
+  merged as 92e9e0a, and cocolog stays 3.62.2: the controls read every sentence alike on 3.62.1 and 3.62.2 (3 582
+  sentences, 0 differ, the same counts to the unit). The article's sentences fall from 147.9 million inferences in
+  each language to 109.0 into Spanish and 108.9 into English, of which the fourth, refused, is 59.1 million in each.
+  THE SECTION IS `newspaper_umberto': `newspaper_eco' is the Eco essay's of an earlier sample, and the section
+  generator, which takes an old copy of its section out up to `question_roles :-', first cut 9 184 lines of
+  test/translate.pl from it (restored from git before anything ran).
+  It needed these SHAPES, each with its arm red (test/translate.pl's `newspaper_umberto': 27 checks, 27 arms, 24 red
+  in the section and three green that stay, below; an arm is a library directory of symlinks whose
+  reasoning/translate.pl is the edited copy, `COCOLOG_LIBRARY=ARM cocolog query "use_module('test/translate.pl'),
+  newspaper_umberto, checks_done"', two seconds a run): A MODAL WITH A VERB OF NO AGENT AFTER IT HAS `it' FOR ITS
+  SUBJECT (`Oggi può capitare di incontrarlo' is it can happen to meet him, as `Capita di incontrarlo' is it happens
+  to, and read with nobody named English refused the modal: en_null_it/2), the modal's first infinitive only (a guard
+  the controls found: `Oppure potrebbe seguirne l'esempio e capitare ad altre sponde' was `it could follow his
+  example', where English refuses the third person nobody names, on purpose); UNDER A MODAL ONLY THE FIRST INFINITIVE
+  IS BARE (`can happen meet him': the infinitive after the first is the first one's, tr_comps_out/7, and the controls'
+  `who would have been able to think to mediate with Hitler'), never after a verb that makes, lets or perceives, whose
+  infinitive is bare too (a guard the controls found: Tatoeba's `Nadie puede oírte gritar en el espacio' was `hear you
+  to shout', and `deve avergli fatto cambiare idea' `made him idea change') -- four arms; WHAT IS LACKING IS MISSING
+  FROM WHAT LACKS IT (`al dibattito italiano mancavano gli strumenti analitici' -- the instruments were missing from
+  the debate, `"manca" is intransitive.' making them the subject, and with the phrase of `to' the lesson's `lacks'
+  came out `lacked to': tr_write/4), in a relative clause too (`uno dei pochissimi Athanasius Kircher che mancano alla
+  sua stravagante collezione'), and with an object after a purpose (`per cogliere gli effetti') -- two arms; A NOUN, A
+  DASH AND A NOUN IN SMALL LETTERS ARE ONE COMPOUND (`Eco è un intellettuale - puzzle: nessuna tessera, da sola, lo
+  definisce', `alcune tessere dell'Eco - puzzle' -- read as the dash that joins two pieces, the second was a noun
+  alone and the sentence was cut or refused: tr_asides/3, dash1), never before a word that is a verb form and no
+  adjective (a guard the first cut broke: the Lazio report's headline `Calcio - dichiarazioni varie del giocatore',
+  whose `varie' is a verb form too) -- two arms; A DETERMINER OF QUANTITY MAY STAND BEFORE A NAME (`uno dei pochissimi
+  Athanasius Kircher', which had no reading: tr_np/3, tr_name_pre_det/2); A MARK THAT ENDS A BRACKET ENDS NO SENTENCE
+  (`l'augusto compleanno del professore (settant anni!) sorprende tutti' was cut at the `!' and both halves refused:
+  tr_split/2, tr_bracket_marks/3); `finds' WITH ITS OWN PRONOUN IS ENGLISH'S `finds oneself' (en_true_reflexive/1: the
+  controls' `The fusion will find itself with fetters', `the peace process finds itself', `the two parts "find
+  themselves"'), and a name keeps the verb bare, its gender being none the IR carries; A COMPARATIVE IN AN OBJECT
+  COMPARES WITH THE PHRASE OF `di' AFTER IT (`alcune tessere ... hanno una rilevanza maggiore di altre', and the
+  controls' `his opponents had made more precise calculations than his', where it was `of the hers ones':
+  tr_cross_comps/2), a definite phrase's adjective being a superlative to the reader already, whose `di' is `of' (a
+  guard whose arm was green as a test in the rule, which is gone); `da' AND A BARE PERSON AFTER AN OBJECT SAY WHOSE
+  KIND IT IS (`Ma non sono vezzi da intellettuale affermato' are affectations of an established intellectual, and read
+  as a phrase of `from' it was `from established intellectual': tr_cross_comps/2); THE ADJECTIVE AFTER A LINKING
+  VERB'S PHRASE IS ITS PREDICATE (`I suoi rimbalzi ... sono diventati in certi casi proverbiali' have become
+  proverbial in some cases, and read as the phrase's own it was `have become in some proverbial cases':
+  tr_linking_pred/3), never after the copula, whose phrase keeps its adjective, nor with the phrase of `like' (a guard
+  the controls found: `sin que ... la ornamentación final aparecieran por allí como fuegos fatuos' was `fatuous as
+  fires' and `fatue come fuochi') -- three arms; `at ease' STAYS IN ITS PLACE (`sentirsi a proprio agio nelle
+  situazioni' is to feel at ease in them, and written last it was `To feel in the situations at ease': tr_comp_out/7);
+  A SUPERLATIVE JOINED TO AN ADJECTIVE AFTER IT IS ONE DEGREE, before the plain adjectives the source put before it
+  (`nelle situazioni culturali più variegate e vivaci' are the most varied and lively cultural situations, and with a
+  coordinator in the list the source's order stood, `the cultural most varied and lively situations': en_adj_order/3);
+  THE WORD FOR `also' OR `even' THAT IS A NOUN TOO, BETWEEN A NOUN AND ITS ADJECTIVE, IS THE ADJECTIVE'S (`per una
+  serie di ragioni anche generazionali' -- `anche' is the plural of `anca' as well, the phrase ended at it, the
+  adjective had no noun and the front no reading: tr_focus_ints/3, a pass of its own over a phrase that holds one of
+  the sentence's such words, and tr_focus_adj_start/2, which lets the phrase go on over it), and English writes such
+  an adjective after its noun (the controls' `are a problem also mine', where it was `are also a problem mine', and
+  the first cut's `an also mine problem': tr_names_last/3), only after a noun, never after a coordinator, where it is
+  the clause's (a guard the controls found: `presidente della società di fisica e anche responsabile del progetto'
+  went on over it, and `anche responsabile' was `responsible hips'), nor before the word for `only' (a guard red in
+  the store alone: `sono una piccola imprenditrice ..., odio anche solo l'idea della guerra' was `I am also only a
+  small businesswoman of 29 pacifist years convinced hate the idea', which no hand lesson reproduces and which stays
+  for what the controls show), nor beside a participle (a guard of cost, green: `Era stato anche proibito alla radio
+  brasiliana ...' read so again, 6.86 million inferences where it is 5.42, the text the same) -- four arms red, two
+  green; and A NAME THE LESSON STATES ENDS NO FRONT BEFORE AN IMPERSONAL VERB (`alla fine degli anni cinquanta Eco si
+  è trovato nella posizione migliore' is Eco finding himself there, and longest first the name was apposed to the
+  years, `One has found in the best position at the end of the fifty years Eco': tr_read0/4, beside the rule for a
+  front that ends on a name before a verb with nobody named), a name the lesson states only, as the impersonal word
+  may follow a place's own name (`nel teatro Morlacchi si canta' is one singing there, a guard) -- two arms. Two
+  pieces of the first cut had arms that stayed green in the section and changed nothing in the controls, and are gone:
+  a clause of tr_rel_doer_fix/3 for the definite phrase after an intransitive verb in a preposition's relative clause
+  (`i modi in cui funzionano i segni' reads by tr_rel_subject_fix/2, through `in cui' and `nei quali' alike), and the
+  comparison's test of its object's determiner (above). The note `$tr_focusnoun', the sentence's words for `also' or
+  `even' that are nouns too, made once a sentence in tr_into_ir/4, is a guard of cost, green (below).
+  It needed these WORDS in `extra/' (the two readers: a line moves the reader of one language and the writer of the
+  other; the dictionary's own word is said again first where it must stay the one written): Italian `buon compleanno'
+  (happy birthday), `compie gli anni' (has a birthday, with its forms, intransitive), `nome della rosa' (the novel's
+  title, not feminine), `antiquario' and `antiquaria' (antiquarian), the determiners `pochissimo' and `pochissima'
+  (very few), `stravagante' (extravagant: the dictionary's word is the old `estravagante'), `vezzo' (an affectation),
+  `affermato' and `affermata' (established), `a proprio agio' (at ease), `esordio' (a beginning, `inizio' said again
+  first), `puzzle' (its own plural), `informatica' (computing), `bibliofilia', `augusto' and `augusta' (venerable),
+  `settant' (seventy, the paper's form with no apostrophe, `settanta' said again first), `irrequieto' and `irrequieta'
+  (restless, `inquieto' and `inquieta' said again first), `consueto' and `consueta' (usual, `abituale' said again
+  first), `carica' (a post, where it is a charge first), `rilevanza' (relevance), `teorico' (a theorist, a person),
+  `vagito' (a wail), `fondamento' (a basis), `semiologico' and `semiologica', `novecento' (the twentieth century),
+  `coglie' (grasps, with its infinitive: the dictionary has none), `tavola rotonda' (a round table), `alla caccia di'
+  (in search of), `recentemente' (recently, where the dictionary's first is freshly), `semiotica' (semiotics, the
+  noun: the dictionary has the adjective alone), `"funziona" is intransitive.', `da sola' and `da solo' (on its own),
+  `"manca" is intransitive.', `"eco" is a name.' and `nei confronti di' (towards); Spanish `feliz cumpleaños', `cumple
+  años' (with its forms, intransitive), `nombre de la rosa' (not feminine), `anticuario' and `anticuaria', `poquísimo'
+  and `poquísima', `consagrado' and `consagrada' (established), `a gusto', `bibliofilia', `relevancia' (relevance,
+  where it was importance), `semiológico' and `semiológica', `siglo veinte', `mesa redonda', `erudición', `semiótica',
+  `por sí solo', `a la caza de', `honorífico' and `honorífica', `generacional' (the dictionary has no Spanish
+  adjective for generational) and the tenses of `falta' (the dictionary gives `faltar' none, and the Spanish writer
+  had no imperfect for `lacks': sentence 13 was refused) with `"falta" is intransitive.'. The first meaning moved for
+  3 Italian words and 1 Spanish one (Italian `carica' a post, `coglie' grasps, `recentemente' recently; Spanish
+  `relevancia' relevance), the writer's first word for 5 Italian meanings and 1 Spanish one (Italian affectation
+  `vezzo', where it was `affettazione', basis `fondamento', where it was `base', extravagant `stravagante', grasps
+  `coglie', where it was `abbranca', relevance `rilevanza', where it was `attinenza'; Spanish relevance `relevancia',
+  where it was `pertinencia'), and none was lost.
+  THE CONTROLS (cocolog 3.62.2, store KB_d5, 138 count files, 3 616 sentences: the earlier set with the lehendakari
+  report in, es_19990901-36, both directions; this profile is not among them): the last version's translator against
+  this one, on the one store, 8 sentences in 7 files read differently, all better -- `finds itself' and `find
+  themselves' (3), `who would have been able to think to mediate with Hitler', `are a problem also mine' and Spanish's
+  `un problema también mío' (where it was `míos'), and `more precise calculations than his' in both languages (`than
+  the hers ones', the possessive's own fault) -- and the inferences rise 0.055 % (7 065 277 733 to 7 069 153 464): 3
+  612 sentences rise, by 286 inferences at the median, the largest the Venice report's eighth (+0.14 million of
+  251.5), the physics report's twelfth (+0.05 of 40.5, refused both ways) and it_9967_9998 22 (+0.03 of 32.8), and two
+  fall. Bytes and characters read every sentence alike (0 differ, the bytes 0.014 % more). The DATA COLUMN (the last
+  version's translator on its own store, KB_c8, against this one on the new): 12 sentences in 11 files, +0.110 % (7
+  061 385 771 to 7 069 153 464). THE CODE ALONE (this translator on KB_c8): the same 8 sentences, +0.055 % (to 7 065
+  261 706). THE STORE ALONE (the last version's translator on KB_c8 and on KB_d5): 4 sentences in 4 files, +0.055 %
+  (to 7 065 277 733), each a word of the profile's lines: `carica' is a post (`with the post of vicedirector', `the
+  intake of the post', where it was the charge) and `coglie' grasps (it_9381_9414 29, `has also been grasped her from
+  syncope' and `aferrada', where it was `overtaken' and `sorprendida', a stated cost).
+  THE FIRST ROUNDS' REGRESSIONS, found by reading the texts of every column and mended, each with its arm red. Of the
+  code: the first cut of the word for `also' before an adjective, a pair the intensifier test took wherever it stood,
+  cost +0.843 % of the controls on the one store and changed five sentences, three for the worse (`I am also only a
+  small businesswoman of 29 pacifist years', `are an also mine problem', `it must be also responsible', and two
+  adverbs `still' moved: `believed her still flat', `seems still far'), and the second, which asked a noun before it,
+  read the physics report's twelfth sentence with `anche responsabile' as `responsible hips', where it is refused (the
+  phrase went on over the word after a coordinator); the null `it' of a modal took any infinitive and read `Oppure
+  potrebbe seguirne l'esempio' as `it could follow his example'; the second infinitive under a modal took `to' after a
+  verb of hearing and of making; and the linking predicate took the adjective of a phrase of `like'. Of the store: the
+  third store (KB_d3) had no tense of `faltar' and no Spanish `generacional', and sentence 13 was refused into
+  Spanish.
+  THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (the heaviest risers of each round over a copy of the library
+  per rule on KB_d5): the first cut's rule for `anche' was 6.25 million of the 6.38 million inferences seven risers
+  rose (`Era stato anche proibito', `odio anche solo l'idea', the Venice eighth's `tende, anche con l'aiuto'): asked
+  of every pair of words of every phrase, it opened readings in every sentence that has the word. With a noun before
+  it, no participle on either side and the sentence's own such words in the note, nine risers rose 1.36 million of
+  395.1; as a clause of tr_intensify/3 it was still tried at every word of every phrase, 0.76 million in the Venice
+  eighth alone, and as a pass of its own, asked only of a phrase that holds such a word (memberchk/2, one step), the
+  nine rose 0.30 million (+0.075 %). The note pays 1 % of a long Spanish sentence, es_20000903-30 18, which has no
+  such word (62.43 million inferences, 63.07 without it), and the participle guard a quarter of the Veloso interview's
+  twenty-sixth (above). Over 24 sentences of the controls of 0.1 to 2 million inferences picked at random, 12 from
+  each language, into English, the final code rises 11 548 inferences of 8.47 million (+0.136 %): the bracket's walk
+  of every sentence's codes 1 987, the determiner before a name 697, the adverb's start 363, the rest under 60 each,
+  and the note saves 12 380 of what the rule would cost there.
+  THE STATED COSTS: a first meaning that serves the profile and not every text -- `carica' is a post (a charge
+  second), `coglie' grasps (`colta da sincope', struck by it, is `grasped' and `aferrada'), `recentemente' recently --
+  and the writers' `vezzo' for an affectation, `fondamento' for a basis (no sentence of the controls has one),
+  `stravagante', `coglie', `rilevanza' and `relevancia'; English writes `For a series of reasons also generational',
+  stiff; the physics report's twelfth sentence stays refused (+0.05 million inferences); and the inferences, +0.055 %
+  on the one store and +0.055 % for the store alone.
+  The profile LEAVES, of the 12 into Spanish (English alike unless it says): `Profesor fenomenología feliz cumpleaños
+  de Umberto Eco' and `Phenomenology professor happy birthday of Umberto Eco' (1: the headline's order, happy
+  birthday, Professor Phenomenology); `Cumple años el autor más famoso al mundo' and `has a birthday to the world' (2:
+  in the world, `del mundo'), `desde el libro en Mike' (`sobre Mike') and `de Stefano Bartezzaghi' and `of Stefano
+  Bartezzaghi' (the byline, by); `Puede pasar encontrarlo' (3: `Puede ocurrir que uno lo encuentre'), `recogida'
+  (`colección': the writer's word for a collection, sample 64's stated cost), and `hoy' and English's `possibly today'
+  written last; `más varias' (6: `variadas') and `para Umberto Eco' last; `ninguna carta' and `no card' (7: a tessera
+  of the puzzle is a piece); `de la erudición a la vida diaria' is right, and English writes `from the erudition to
+  the daily life' (8); `sorprende todos' (9: `a todos'), `in his contemporaries' (among them) and `the venerable
+  birthday'; `de la Eco – rompecabezas' and `of the Eco – puzzle' (10: the paper's coinage keeps its article, `del
+  Eco') and `mayor que otros' (`otras', the pieces); `Entre las primeras cosas que deben ser dichas de Eco es que se
+  trata de un semiólogo' and `it is that it is a semiologist' (11: he is); English writes `in which they function the
+  signs and the manners in which the people communicate among them' (12: the second phrase with its own relative
+  clause is read into the first clause's object, and a guard that refused that reading left the sentence with none;
+  `fra di loro' is among themselves); and `en la posición mejor' (13: `en la mejor posición'), `aferrar' (grasp:
+  `captar') and English's `Eco has found in the best position' (himself: a name keeps the verb bare) and `at the end
+  of the 50s,' with a comma the source lacks. Into both languages 4 and 14 are refused: 4 is a fragment that goes on
+  from 3 (`Oppure in una manifestazione pubblica, come la tavola rotonda ... che si terrà al Piccolo di Milano il 21
+  gennaio, e in cui si confronterà con ...'), and 14 a front with two dashes (`Con un lavoro su più piani - come
+  teorico e come autore televisivo, ... - ha portato in Italia quel che in Italia non c'era ancora: ...'), whose verb
+  has a third person nobody names, which English refuses on purpose. The next sample's controls take this profile in.
 
 ## Tutorials are documentation that runs
 
