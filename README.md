@@ -292,8 +292,8 @@ image and a macOS section are in the long tour. `make EMBED=0` builds the same
 binary without ZiguratIP.
 
 The suite is one cocolog script -- `make test` -- and it ends `red: 0` over
-**76 lines: seven Cicili test binaries (term, syntax, solve, module, state,
-zigurat, shared) and sixty-nine Prolog cases**. Cases that need a server,
+**77 lines: seven Cicili test binaries (term, syntax, solve, module, state,
+zigurat, shared) and seventy Prolog cases**. Cases that need a server,
 a reference Prolog 9.0.4, raylib, libtensorflow or a CUDA toolkit say `SKIP`
 by name rather than failing, so read the lines and count the SKIPs, not only
 the verdict.
@@ -308,11 +308,15 @@ the verdict.
   reference Prologs and ISO, each row checked by running the same goal on
   both.
 * [MODULES.md](MODULES.md) -- how to write a module in Cicili.
+* [SKILL.md](SKILL.md) -- the working guide, for a person or an agent: how to
+  run a program, where the dialect parts from SWI-Prolog's, every library
+  with its lesson, `library(tensor_expr)` and the flow libraries in working
+  detail, and the rules for changing cocolog itself.
 * [bench/README.md](bench/README.md) -- the runs, the method, and the losses.
 * [library/async/README.md](library/async/README.md) -- the green world: the
   model, the barrier, the benchmarks and the limits.
 * [emacs/README.md](emacs/README.md) -- cocolog-mode: the colour-variable
   reading, the in-comment tests, the shadow engine and its checks.
 
-cocolog 3.18.0. README.md says what it is, STATUS.md what is proven, MODULES.md
+cocolog 3.62.0. README.md says what it is, STATUS.md what is proven, MODULES.md
 how a module is written.
