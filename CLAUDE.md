@@ -11138,6 +11138,175 @@ read into an English-worded IR and written into any lesson's language),
   (`Proposto dai fisici del gruppo di struttura della materia ben otto anni fa, è stato approvato dal Cnr solo
   quest'anno'); 12, Ricci's subject and its three insertions before `sembra mettere tutti d'accordo'; and 15, the list
   of three fields, a bracket with a clause in it. The next sample's controls take this report in.
+  The lehendakari report (AnCora CESS-CAST-P-19990901-36, 17 sentences, the paper's report on the lehendakari Ibarretxe
+  and Herri Batasuna's national executive on ETA's last communique and the peace process, Spanish into Italian and
+  English: 17 of 17 and 14 of 17 on a fresh store, 13 and 9 with the new store alone, 10 and 12 with the new code on the
+  old store, 9 and 7 before; reasoning 1.0.36). The sample was taken on the cocolog 3.62.1 binary, and cocolog stays
+  3.62.1; master's 7e4bac2 (cocolog 3.62.2, read_file_to_codes/2 under the stack limit) came during the sample, changes
+  nothing under library/reasoning/, and is not merged: the next sample takes it. The article's sentences fall from 139.5
+  million inferences into Italian and 139.0 into English to 59.4 and 58.6, of which the fourth, the sixth and the
+  fourteenth are 11.4, 12.2 and 12.5 million in each. English refuses 3, 5 and 9 for the third person nobody names, on
+  purpose (`en el que responsabilizaba a un sector del PNV ...', `donde aprovechó para dar su punto de vista', `al que
+  aludió con el término "apagón"').
+  It needed these SHAPES, each with its arm red (test/translate.pl's `newspaper_lehendakari': 25 checks, 27 arms, all
+  red in the section; an arm is a library directory of symlinks whose reasoning/translate.pl is the edited copy,
+  `COCOLOG_LIBRARY=ARM cocolog query "use_module('test/translate.pl'), newspaper_lehendakari, checks_done"', a few
+  seconds a run): A COMPARATIVE BEFORE `de lo que' COMPARES WITH WHAT FOLLOWS (`el debate va mejor en privado de lo que
+  trasciende' goes better in private than what transpires -- `mejor' was no word of the list tr_compared_before/2 asks,
+  and the sentence had no reading), the clause after `de lo que' the comparison's with nobody named, which English
+  writes `than what' and its verb (tr_comp_out/7), a comparative after a verb that is no copula the adverb (Italian's
+  `va meglio', where the comparative of `good' came out `va migliore': tr_comparative_adverb/3), and English's `better'
+  in its place, before the phrases between it and the comparison, where it was written last (tr_comps_out/7) -- four
+  arms; `a que' AND A SUBJUNCTIVE AFTER A NAME A VERB ENCOURAGES ARE `a' AND THE INFINITIVE (`la coalición radical animó
+  al PNV a que acepte los reproches de ETA' encouraged it to accept them, and the clause had no reading:
+  tr_a_que_inf/3), the name the verb's object (tr_named_object/3) -- two arms; ITALIAN'S `ad' AND `ed' (`The preposition
+  "ad" comes before "a".', `The conjunction "ed" comes before "e".' and before `è': `ad accettare', `il Governo ed ETA',
+  `ed è grande', where they were `a' and `e' (`continua a aumentare', `il PNV e ETA'): tr_euphonic_form/3 in
+  tr_contract/3, the forms a list made once a lesson changes); a word that is a determiner too, before a noun, is no
+  preposition that ends the phrase (`recomendó al PNV "más deportividad"' -- `más' is the preposition `plus' too, with
+  no phrase after it, and the words had no reading: tr_more_determiner/2, the degree words a list made once a lesson
+  changes, tr_gen_words/2); `ago' IN A COMPARISON IS THE COMPARED PHRASE'S (`Destacó de entrada que "la situación es
+  notablemente mejor que la de hace un año"' is better than that of a year ago, and in the clause of `that' the time
+  came out after the verb, `è fa notevolmente migliore di quella d'un anno': tr_ago_in_comparison/2), in a clause of
+  `that' too -- two arms; an adverb in -ly straight before a comparative is said of it (notably better, where `notably'
+  was written last: tr_comps_out/7); `blames' TAKES `for' AND THE GERUND, AND `hinders' ITS PHRASE BARE
+  (`responsabilizaba a un sector del PNV de poner trabas a la pacificación' blames it for hindering the pacification,
+  where it was `to hinder to the pacification': en_prep_gerund/2, en_bare_object/1), a group after a verb of blaming or
+  encouraging is its object, marked as a person is (`incolpava un settore', `incoraggia un settore', where it was
+  `incolpava a un settore': en_person_passive/1, tr_warned_group/3, `"sector" is a group.'), AN INFINITIVE AFTER ITS
+  PREPOSITION GOVERNS THE PHRASE AFTER IT (with the sector's phrase of `of' between the verb and its `de', the
+  infinitive was read after its preposition, pinf/2, and Italian wrote the phrase with its `a', `d'ostacolare alla
+  pacificazione': tr_governing_verb/3), and English writes the preposition its verb takes before the gerund, where the
+  source's `de' came out `of hindering' (tr_comp_out/7) -- six arms; AN ADVERB, ITS COMMA AND A GERUND CLAUSE ARE ONE
+  GERUND CLAUSE WITH ITS FRONT (`..., y, además, teniendo en cuenta que es parte fundamental en este conflicto' -- with
+  the comma the gerund was a front with its clause of `that' left open, and the words after `es' a clause of their own,
+  `parte' the verb that departs: tr_read0/4); a quotation that opens on a relative word and closes on the verb the
+  clause ends on closes where the clause ends (`las críticas, "que en política siempre vienen bien"' -- the words before
+  the verb are written after it, and with the mark on the verb they came out outside the quotation: tr_rel_mark/3); the
+  reflexive pronoun after a preposition is the subject's (`estas formaciones entre sí' talk among themselves, where it
+  was `among itself': tr_write/4); WHAT FOLLOWS A COPULA IS NO THING ITS SUBJECT OWNS (`El diálogo fue su receta' was
+  HIS prescription, Ibarretxe's, and it came out `its prescription': tr_cross/3), and after any other verb it is the
+  thing's (`La vida continúa su curso', a guard) -- two arms; and A QUOTATION THAT OPENS ON AN INFINITIVE OPENS THERE:
+  on its denial (`Ibarretxe recomendó "no cerrar puertas"' -- the mark was taken for the verb group's, `"raccomandò non
+  chiudere porte"': qm/2, tr_complements0/4), on the infinitive, where its mark was lost, before English's `to', as no
+  word of the source stood before the mark (bare/1, tr_comp_out/7), around every word written for it where the mark
+  opens and closes on it (`lo que hace es "desacreditar" la investigación' came out `is "to" discredit', found by the
+  controls), and after a preposition (`el futuro del proceso está en "reconocer como válidos ..."' lost its opening
+  mark: qinf/2) -- five arms.
+  It needed these WORDS in `extra/' (the two readers: a line moves the reader of one language and the writer of the
+  other; the dictionary's own word is said again first where it must stay the one written): Spanish `trasciende'
+  (transcends, where the dictionary's English is `trascends', and transpires with no object, with its forms),
+  `peneuvista' (a PNV member, a person, not feminine: the dictionary has the adjective alone), `culpa' said again first
+  and `responsabiliza' (blames, with its forms, `de' before the infinitive), `obstaculiza' and `pone trabas' (hinders,
+  with its forms, `a' before the phrase), `reproche' (a reproach: the dictionary has the subjunctive of `reprochar'
+  alone), `callejero' and `callejera' (street), `aclara' said again first (clears, then clarifies) and `matiza'
+  (clarifies, with its forms, taking the clause), `partido político' and `partido nacionalista' (a party, where
+  `partido' is a match first, `"partido nacionalista" is not feminine.'), `proceso de paz', `insulto' said again first
+  and `descalificación' (an insult), `mesa nacional' (a national executive), `maduración' (maturation, where the
+  dictionary's English is `maduration'), `a juicio de' (in the opinion of), `ayuda' said again first and `viene bien'
+  (helps), `"sector" is a group.', `"corresponde" is intransitive.', `"dialoga" is intransitive.', `"influye" takes "en"
+  before the phrase.' and `en política' (in politics); Italian `trapela' (transpires, with its forms, intransitive),
+  `peneuvista' (a person, not feminine), `sportività' (sportsmanship), `incolpa' (blames, with its forms, `di' before
+  the infinitive), `ostacola' (hinders, with its forms), `rimprovero' (a reproach), `di strada' (street), `partito
+  politico', `partito nazionalista' (not feminine), `processo di pace', `esecutivo nazionale', `maturazione',
+  `formazione' (a formation: the writer's word was `educazione', an upbringing), `a giudizio di', `"ad" comes before
+  "a".', `"ed" comes before "e".' and before `è', `comparsa' (an emergence: the Italian writer had no word for one), `in
+  politica', and `rottura' (a break said again first, and a split, which the Italian writer had no noun for). The first
+  meaning moved for 3 Spanish words and 2 Italian ones (Spanish `descalificación' an insult, where it was a
+  disqualification, `maduración' and `trasciende', the spellings mended; Italian `formazione' a formation, where it was
+  a training, `maturazione'), the writer's first word for no Spanish meaning and 2 Italian ones (formation `formazione',
+  where it was `educazione'; hinders `ostacola', where it was `impaccia'), and none was lost.
+  THE CONTROLS (cocolog 3.62.1, store KB_c8, 136 count files, 3 582 sentences: the earlier set with the physics report
+  in, it_4860_4882, both directions; this report is not among them): the last version's translator against this one, on
+  the one store, 20 sentences in 17 files read differently, all better -- Italian's `ed' and `ad' (12: `Jordi Vilajoana
+  ed Enric Sopena', `ampliabile ad altri casi', `"intervenga di lavoro" ed emette', `tra Baleares ed El Prat',
+  `mediterraneo ed europeo', `PNV ed EA', `continua ad aumentare', `sorprendente ed efficace', `d'un luogo ad altri',
+  `si resiste ad abitare', `tra il PNV ed ETA', `ed è la nostra traiettoria'), a quotation that opens on an infinitive
+  (2: `lo que hace es "desacreditar" la investigación' is `quello che fa è "screditare" l'investigazione' and `is "to
+  discredit"', es_19981202-34 10), a relative clause's marks (2: `"which they have been torpedoing"' and `"che sono
+  stati sabotando"', es_20000903-30 18), `a "ballast" for themselves' (es_20000903-30 19, where it was `for itself'),
+  `the possibility of influencing the choices' (it_9605_9636 26, where it was `influencing on'), and `participating in
+  the table' and `participar en la mesa' (it_9673_9712 23, where they were `participating to' and `participar a': the
+  infinitive after its preposition governs its phrase) -- and the inferences rise 0.033 % (6 941 079 155 to 6 943 367
+  822): 3 569 sentences rise, by 267 inferences at the median, +0.029 % of the 1 265 under 0.2 million, the largest the
+  Rognoni interview's nineteenth (+34 159 of 176.4 million, refused both ways) and the Venice report's eighth and fourth
+  (+27 969 of 251.4 and +18 867 of 85.8), and the four that fall most have `más' and a noun, which the determiner's rule
+  reads at once (Tatoeba's `Deberías darle más libertad a tu hijo' and `con más atención', `sin más compañía', `con más
+  serenidad', some 30 000 inferences fewer each). Bytes and characters read every sentence alike (0 differ, the bytes
+  0.014 % more). The DATA COLUMN (the last version's translator on its own store, KB_b4, against this one on the new):
+  the one store's 20 sentences, +0.043 % (6 940 381 150 to 6 943 367 822). THE CODE ALONE (this translator on KB_b4): 9
+  sentences in 8 files, +0.032 % (to 6 942 622 018), 8 of them among the 20 and one worse, which the new store's line
+  mends: `la possibilità di incidere sulle scelte' is `influir las elecciones' (it_9605_9636 26), where it was `influir
+  en las elecciones' -- the infinitive after its preposition governs its phrase now, and with no word stated for
+  `influye' the Spanish writer writes it bare; the 12 left are Italian's `ed' and `ad', which need the new lines. THE
+  STORE ALONE (the last version's translator on KB_b4 and on KB_c8): 0 sentences, +0.010 % (6 940 381 150 to 6 941 079
+  155): the noun `peneuvista' and `"corresponde" is intransitive.' cost four sentences a reading for nothing, the texts
+  the same (es_20020801-17 10, `el líder peneuvista', +0.29 million inferences of 5.28 in each language, and three with
+  `corresponde' or `correspondiera', +0.05 to +0.08 million each).
+  THE FIRST ROUNDS' REGRESSIONS, found by reading the texts of every column, the whole case and the writers' first
+  words, and mended. Of the store: the Spanish writer's first words for helps, blames and clarifies were the report's
+  `viene bien', `responsabiliza' and `matiza', and the dictionary's `ayuda', `culpa' and `aclara' are said again first;
+  the whole case's scan of the vocabularies found `partido nacionalista' and `partito nazionalista', masculine nouns in
+  -a with no denial; and two lines, `The reflexive verb "encuentra" means "is".' and its Italian `trova', written for
+  `el proceso de paz se encuentra en fase de maduración', which English writes `finds in phase', cost the store alone of
+  KB_c7 +4.994 % of the controls and 21 sentences: the Venice report's fourth (it_9999_10010 4) was read in 85.8 million
+  inferences in each language and refused after 258.6, `se lo encuentra a otra' was `lo es otra' and `one finds it
+  another one' `another one is it', `no se encuentra ni siquiera un fragmento' `no es ni siquiera un fragmento' and `it
+  is not even a snippet', and two English sentences were refused (es_20010102-25 12, `Thabet was felled to shots on
+  Sunday when one found near his house', and it_9800_9814 4): both lines are out, and `finds in phase' is a stated cost.
+  Of the code (the one store): `lo que hace es "desacreditar" la investigación' came out `is "to" discredit' (a mark
+  around one word the writer writes as two), and the Spanish of `la possibilità di incidere sulle scelte' `influir las
+  elecciones' (the infinitive after its preposition governs its phrase now, and with no word stated for `influye' the
+  Spanish writer wrote it bare: `"influye" takes "en" before the phrase.'). The first cut's arms found four green -- the
+  name the verb's object, the determiner, `ago' in a comparison and in a clause of `that' -- and the checks were made so
+  that each goes red (`ETA animó al PNV a que acepte las críticas' into Italian, `ETA recomienda al PNV más
+  deportividad' into English, and the comparison inside a clause of `that' into Italian); a hunk of the determiner's
+  rule that changed nothing, not even its cost, is gone.
+  THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (32 control sentences of 0.1 to 0.5 million inferences, 16 from
+  each language, into English, over a copy of the library per rule): the first cut was +0.111 % of the controls on
+  KB_c7, +0.83 % of the sentences under 0.2 million, some 1 300 inferences a sentence, and the 32 rose 16 533
+  inferences: the `a que' rule's scan, asked of every piece the reader reads, asked the lexicon at every position of it,
+  and the lists of `that' and of the degree words, kept against '$tr_gen', were made again at every reading -- '$tr_gen'
+  moves at every tr_memo_reset/0, every sentence and every piece. What paid was the list of the conjunctions that mean
+  `that' alone, the lists kept against a counter that moves only where a lesson is learned or unlearned ('$tr_lessons',
+  tr_lessons_moved/0 in reason_learn/3 and reason_unlearn/1), and the cheap tests first in three rules (the name's
+  object, the comparative adverb, `ago' in a comparison). A note of the `a que' pattern made once a sentence where its
+  words are made ('$tr_a_que', asked by the rule first) paid while the lists were made at every reading, and with the
+  lists kept its arm, the note always yes, was green and cheaper: over 300 control sentences picked at random, 150 from
+  each language, into English, the note cost 958 inferences more than none and saved 147 at most in one sentence, every
+  text the same, and it is gone. The 32 rise 3 846 inferences (+0.044 %, 8 684 101 to 8 687 947), of which the
+  determiner's rule is 1 174, the possessive after a copula 212, the reflexive after a preposition 111 and `ago' in a
+  clause of `that' 94, no other rule's arm over 50; the rest is the new clauses entered and failing, a few inferences
+  each.
+  THE STATED COSTS: `el proceso de paz se encuentra en fase de maduración' is `finds in phase' in English (11: the
+  reflexive `is' line, above); the store's four sentences read again for nothing (+0.010 % of the controls); `en
+  política' as one adverb makes sentence 16's `in politics', where it was `in policy', and costs it 0.58 million
+  inferences in each language (3.19 million, where a store with no such line reads it in 2.61); a first meaning that
+  serves the news and not every text -- `descalificación' is an insult (a disqualification second), `formazione' a
+  formation (a training second) -- and the writer's `formazione' for a formation (`educazione', an upbringing, before)
+  and `ostacola' for hinders (`impaccia' before); and the inferences, +0.033 % on the one store and +0.010 % for the
+  store alone.
+  The report LEAVES, of the 17 into Italian (English alike unless it says): `i peneuvisti' and `the pnv members' (2: the
+  acronym in small letters inside the word) and `the criticisms of the band' (ETA, a terrorist band); `i portavoce
+  dell'esecutivo nazionale d'Herri Batasuna coincisero' and `in un'analisi ottimista' (3: agreed in an optimistic
+  analysis); `sfruttò per dare il suo punto di vista' (5: took the opportunity to give it); `Evidenziò per cominciare'
+  and `They highlighted to begin with' (6: he stressed at the outset, the subject the sentence before it names) and
+  `Euskadi crosses a good moment' (is going through one); `la pace è sempre più vicino' (7: `vicina', the adjective of
+  the comparison agreeing with no noun) and `the peace is increasingly near' (peace); `che descrisse come
+  "inaccettabili"' and English `which described as "unacceptables"' (8: which he described as unacceptable, the
+  adjective in the plural) and `the split of the conversations' (the breakdown of the talks); `riconoscere come vigente
+  parte degli argomenti degli altri' (9: `validi', valid); `la sua prescrizione' and `his prescription' (10: his recipe)
+  and `i distinti livelli' and `the distinct levels' (the different levels); `il processo di pace si trova in fase di
+  maturazione' is right, and English writes `the peace process finds in phase of maturation' (11: is in a phase), `senza
+  "marcia dietro"' and `without "march backwards"' (without a reverse gear) and `would not allow him' (it); `Proprio,'
+  and `Precisely,' (12) and `the prominence of the peace process corresponds to the citizens' (belongs to them); `the
+  last communiques of ETA' (13: the latest); `la soluzione al conflitto passa per garantire' is right, and English
+  writes `spends for guaranteeing' (14: goes through guaranteeing), `due dati futuri' (two future dates, `date':
+  `fechas' read as data), `annuncio dell'Assemblea' (the calling of the Assembly) and `Municipii'; `the insults that ETA
+  launched to the PNV through his last communique' (15: at the PNV, its last communique); `che in politica sempre
+  aiutano' and `which in politics always help' (16: always come in handy, `sempre' after the verb in Italian); and `ETA
+  has right to express his opinion' and `it is fundamental part in this conflict' (17: the right, its opinion, a
+  fundamental party to the conflict). The next sample's controls take this report in.
 
 ## Tutorials are documentation that runs
 

@@ -4531,3 +4531,91 @@ The noun "positivista" means "positivist".
 "positivista" is a person.
 # `a livello internazionale': at international level, Spanish's `a nivel internacional'
 The adverb "a nivel internacional" means "at international level".
+# The lehendakari report (CESS-CAST-P-19990901-36): Ibarretxe and Herri Batasuna on ETA's last communique, and the
+# words the dictionary lacks or gets wrong
+# `el debate va mejor en privado de lo que trasciende': what transpires, the verb with no object (the dictionary's
+# English is spelled `trascends')
+The verb "trasciende" means "transcends".
+The intransitive verb "trasciende" means "transpires".
+"trascienden" is the plural of "trasciende".
+"trascender" is the infinitive of "trasciende".
+"trascendió" is the past of "trasciende".
+"trascendía" is the imperfect of "trasciende".
+"trascendido" is the participle of "trasciende".
+# `los peneuvistas deben aceptar con deportividad las críticas': PNV members, persons (the dictionary has the
+# adjective alone)
+The noun "peneuvista" means "PNV member".
+"peneuvista" is not feminine.
+"peneuvistas" is the plural of "peneuvista".
+"peneuvista" is a person.
+# `en el que responsabilizaba a un sector del PNV de poner trabas a la pacificación': blames for, hinders
+# (the dictionary's own word said again first, so that it stays the one written)
+The verb "culpa" means "blames".
+The verb "responsabiliza" means "blames".
+"responsabilizan" is the plural of "responsabiliza".
+"responsabilizar" is the infinitive of "responsabiliza".
+"responsabilizó" is the past of "responsabiliza".
+"responsabilizaba" is the imperfect of "responsabiliza".
+"responsabilizado" is the participle of "responsabiliza".
+"responsabiliza" takes "de" before the infinitive.
+The verb "obstaculiza" means "hinders".
+The verb "pone trabas" means "hinders".
+"ponen trabas" is the plural of "pone trabas".
+"poner trabas" is the infinitive of "pone trabas".
+"puso trabas" is the past of "pone trabas".
+"ponía trabas" is the imperfect of "pone trabas".
+"pone trabas" takes "a" before the phrase.
+# `los reproches de ETA': the reproaches (the dictionary has the subjunctive of `reprochar' alone)
+The masculine noun "reproche" means "reproach".
+"reproches" is the plural of "reproche".
+# `la aparición de episodios de violencia callejera': street violence
+The masculine adjective "callejero" means "street".
+"callejeros" is the plural of "callejero".
+The feminine adjective "callejera" means "street".
+"callejeras" is the plural of "callejera".
+# `HB matiza que se refieren únicamente a "algunos sectores"': clarifies, and takes the clause
+# (the dictionary's own word said again first, so that it stays the one written)
+The verb "aclara" means "clears".
+The verb "aclara" means "clarifies".
+The verb "matiza" means "clarifies".
+"matizan" is the plural of "matiza".
+"matizar" is the infinitive of "matiza".
+"matizó" is the past of "matiza".
+"matiza" takes the clause.
+# `los partidos políticos', `el partido nacionalista': a party, where `partido' is a match first
+The masculine noun "partido político" means "political party".
+"partidos políticos" is the plural of "partido político".
+The masculine noun "partido nacionalista" means "nationalist party".
+"partidos nacionalistas" is the plural of "partido nacionalista".
+"partido nacionalista" is not feminine.
+# `el proceso de paz': the peace process
+The masculine noun "proceso de paz" means "peace process".
+"procesos de paz" is the plural of "proceso de paz".
+# `las descalificaciones que ETA lanzó al PNV': insults (the dictionary's own word for one said again first)
+The masculine noun "insulto" means "insult".
+The feminine noun "descalificación" means "insult".
+"descalificaciones" is the plural of "descalificación".
+# `la mesa nacional de Herri Batasuna': its national executive
+The feminine noun "mesa nacional" means "national executive".
+"mesas nacionales" is the plural of "mesa nacional".
+# `el proceso se encuentra en fase de maduración': maturation (the dictionary's English is `maduration')
+The feminine noun "maduración" means "maturation".
+# `A juicio de Ibarretxe': in the opinion of
+The preposition "a juicio de" means "in the opinion of".
+# `las críticas, "que en política siempre vienen bien"': help
+# (the dictionary's own word said again first, so that it stays the one written)
+The verb "ayuda" means "helps".
+The verb "viene bien" means "helps".
+"vienen bien" is the plural of "viene bien".
+# `responsabilizaba a un sector del PNV': a sector of a party is a group of persons, which a verb done to persons takes
+# as its object
+"sector" is a group.
+# `el protagonismo del proceso de paz corresponde a los ciudadanos': belongs to them, the phrase of `to' its own
+"corresponde" is intransitive.
+# `Deben dialogar el Gobierno y ETA': they talk, and nothing they talk is an object
+"dialoga" is intransitive.
+# `la possibilità di incidere sulle scelte del management': influences them, `influir en las elecciones' -- the
+# infinitive after its preposition governs its phrase (tr_governing_verb/3), and with no word stated for `influye' the
+# Spanish writer wrote it bare
+"influye" takes "en" before the phrase.
+The adverb "en política" means "in politics".

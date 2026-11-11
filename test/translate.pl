@@ -33,7 +33,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, newspaper_venice, newspaper_yeltsin, newspaper_isole, newspaper_satan, newspaper_veloso, newspaper_corsica, newspaper_figli, newspaper_noche, newspaper_spoleto, spoleto_faults, newspaper_salou, newspaper_grazioli, newspaper_ceram, newspaper_tv, newspaper_coi, newspaper_cnr, newspaper_air, newspaper_phys, question_roles, stated_gender, newspaper_units,
+    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, newspaper_venice, newspaper_yeltsin, newspaper_isole, newspaper_satan, newspaper_veloso, newspaper_corsica, newspaper_figli, newspaper_noche, newspaper_spoleto, spoleto_faults, newspaper_salou, newspaper_grazioli, newspaper_ceram, newspaper_tv, newspaper_coi, newspaper_cnr, newspaper_air, newspaper_phys, newspaper_lehendakari, question_roles, stated_gender, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     teach_lines, checks_done.
 
@@ -18231,6 +18231,99 @@ newspaper_phys_checks_2 :-
     nf_tr('Sin la casa que el perro ve entre Pedro y María, dos perros, el gato duerme.', spanish, english, C32),
     check('... and never where the rest opens on a subject of its own, so that the phrase is an apposition: `los pulsos tácticos entre Aíto y Majkovic, dos personajes antagónicos, el partido tuvo pasión'' -- refused, the front was read again with `entre'' for the verb, `Aíto enters''', C32,
           'Without the house that the dog sees between Pedro and María, two dogs, the cat sleeps.').
+
+newspaper_lehendakari :-
+    section('a Spanish report on the lehendakari and the peace process, into Italian and English: a comparative with `de lo que'' and the adverb, `a que'' and a subjunctive after a name, `ad'' and `ed'', a determiner that is a preposition too, `ago'' in a comparison, an adverb in -ly before a comparative, `blames'' and `hinders'', an infinitive after its preposition, an adverb and a gerund clause, the marks of a relative clause and of an infinitive, the reflexive after a preposition, and the possessive after a copula'),
+    newspaper_lehendakari_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_lehendakari_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_lehendakari_checks_1, newspaper_lehendakari_checks_2,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+newspaper_lehendakari_lesson(L, Text) :-
+    newspaper_phys_lesson(L, A), newspaper_lehendakari_part(L, B), atomic_list_concat([A, ' ', B], Text).
+
+% the twenty-sixth part of each hand lesson
+newspaper_lehendakari_part(spanish, 'The verb "anima" means "encourages". "animó" is the past of "anima". "anima" takes "a" before the infinitive. The verb "acepta" means "accepts". "aceptar" is the infinitive of "acepta". "acepte" is the subjunctive of "acepta". "PNV" is a name. "ETA" is a name. The masculine noun "debate" means "debate". The verb "va" means "goes". "va" is intransitive. "mejor" is the comparative of "bueno". The adverb "mejor" means "better". The verb "trasciende" means "transcends". The intransitive verb "trasciende" means "transpires". The adverb "en privado" means "in private". The feminine noun "crítica" means "criticism". "críticas" is the plural of "crítica". The feminine noun "deportividad" means "sportsmanship". The verb "recomienda" means "recommends". The determiner "más" means "more". The word "más" begins the comparative. The feminine noun "situación" means "situation". The adverb "hace" means "ago". The word "hace" begins the time. The adverb "notablemente" means "notably". The verb "responsabiliza" means "blames". "responsabiliza" takes "de" before the infinitive. The verb "pone trabas" means "hinders". "poner trabas" is the infinitive of "pone trabas". "pone trabas" takes "a" before the phrase. The feminine noun "pacificación" means "pacification". The masculine noun "sector" means "sector". "sector" is a group. The verb "tiene en cuenta" means "takes into account". "teniendo en cuenta" is the gerund of "tiene en cuenta". The adverb "además" means "besides". The verb "viene bien" means "helps". "vienen bien" is the plural of "viene bien". The verb "habla" means "speaks". "hablan" is the plural of "habla". The pronoun "sí" means "itself". The pronoun "sí" does not precede the verb. The preposition "entre" means "among". The masculine noun "diálogo" means "dialogue". The feminine noun "receta" means "prescription". The possessive "su" means "his". The possessive "su" means "its". The feminine noun "vida" means "life". The verb "continúa" means "continues". The masculine noun "curso" means "course". The verb "cierra" means "closes". "cerrar" is the infinitive of "cierra". The feminine noun "puerta" means "door". "puertas" is the plural of "puerta". The masculine noun "futuro" means "future". The verb "reconoce" means "acknowledges". "reconocer" is the infinitive of "reconoce". The masculine noun "argumento" means "argument". "argumentos" is the plural of "argumento". The conjunction "de lo que" means "than what".').
+newspaper_lehendakari_part(italian, 'The preposition "ad" means "to". The preposition "ad" comes before "a". The conjunction "ed" means "and". The conjunction "ed" comes before "e". The conjunction "ed" comes before "è". The verb "incoraggia" means "encourages". "incoraggiò" is the past of "incoraggia". "incoraggia" takes "a" before the infinitive. The verb "accetta" means "accepts". "accettare" is the infinitive of "accetta". "PNV" is a name. "ETA" is a name. The masculine noun "dibattito" means "debate". The verb "va" means "goes". "va" is intransitive. "migliore" is the comparative of "buono". The adverb "meglio" means "better". The verb "trapela" means "transpires". "trapela" is intransitive. The adverb "in privato" means "in private". The feminine noun "critica" means "criticism". "critiche" is the plural of "critica". The feminine noun "sportività" means "sportsmanship". The verb "raccomanda" means "recommends". The feminine noun "situazione" means "situation". The adverb "notevolmente" means "notably". The verb "incolpa" means "blames". "incolpa" takes "di" before the infinitive. The verb "ostacola" means "hinders". "ostacolare" is the infinitive of "ostacola". The feminine noun "pacificazione" means "pacification". The masculine noun "settore" means "sector". The verb "tiene conto" means "takes into account". "tenendo conto" is the gerund of "tiene conto". The adverb "inoltre" means "besides". The verb "aiuta" means "helps". "aiutano" is the plural of "aiuta". The verb "parla" means "speaks". "parlano" is the plural of "parla". The pronoun "sé" means "itself". The preposition "tra" means "among". The masculine noun "dialogo" means "dialogue". The feminine noun "prescrizione" means "prescription". The feminine noun "vita" means "life". The verb "continua" means "continues". The masculine noun "corso" means "course". The verb "chiude" means "closes". "chiudere" is the infinitive of "chiude". The feminine noun "porta" means "door". "porte" is the plural of "porta". The masculine noun "futuro" means "future". The verb "riconosce" means "acknowledges". "riconoscere" is the infinitive of "riconosce". The masculine noun "argomento" means "argument". "argomenti" is the plural of "argomento". The conjunction "di quanto" means "than what". The feminine pronoun "quella" means "that". "fu" is the past of "è".').
+
+newspaper_lehendakari_checks_1 :-
+    nf_tr('El debate va mejor de lo que trasciende.', spanish, english, C1),
+    check('A COMPARATIVE BEFORE `de lo que'' COMPARES WITH WHAT FOLLOWS: `el debate va mejor en privado de lo que trasciende'' goes better than what transpires -- `mejor'' was no word of the list tr_compared_before/2 asks, and the clause after `de lo que'' is the comparison''s with nobody named, which English writes `than what'' and its verb (tr_comp_out/7)', C1,
+          'The debate goes better than what transpires.'),
+    nf_tr('El debate va mejor de lo que trasciende.', spanish, italian, C2),
+    check('... AND A COMPARATIVE AFTER A VERB THAT IS NO COPULA IS THE ADVERB: Italian''s `va meglio'', where the comparative of `good'' came out `va migliore'' (tr_comparative_adverb/3)', C2,
+          'Il dibattito va meglio di quanto trapela.'),
+    nf_tr('El debate va mejor en la casa de lo que trasciende.', spanish, english, C3),
+    check('... and English writes `better'' in its place, before the phrases between it and the comparison, where it was written last (tr_comps_out/7)', C3,
+          'The debate goes better in the house than what transpires.'),
+    nf_tr('ETA animó al PNV a que acepte las críticas.', spanish, italian, C4),
+    check('`a que'' AND A SUBJUNCTIVE AFTER A NAME A VERB ENCOURAGES ARE `a'' AND THE INFINITIVE: `la coalición radical animó al PNV a que acepte los reproches de ETA'' encouraged it to accept them, and the clause had no reading (tr_a_que_inf/3), the name the verb''s object (tr_named_object/3) -- and Italian''s `ad'' before a word in `a'' (`The preposition "ad" comes before "a".'', tr_euphonic_form/3)', C4,
+          'ETA incoraggiò il PNV ad accettare le critiche.'),
+    nf_tr('ETA animó al PNV a que acepte las críticas.', spanish, english, C5),
+    check('... in English too', C5,
+          'ETA encouraged the PNV to accept the criticisms.'),
+    nf_tr('El perro y ETA duermen.', spanish, italian, C6),
+    check('... and `ed'' before a word in `e'' (`Deben dialogar el Gobierno y ETA'' is `il Governo ed ETA'')', C6,
+          'Il cane ed ETA dormono.'),
+    nf_tr('El perro come y es grande.', spanish, italian, C7),
+    check('... and before `è''', C7,
+          'Il cane mangia ed è grande.'),
+    nf_tr('ETA recomienda al PNV más deportividad.', spanish, english, C8),
+    check('A WORD THAT IS A DETERMINER TOO, BEFORE A NOUN, IS NO PREPOSITION THAT ENDS THE PHRASE: `recomendó al PNV "más deportividad"'' -- `más'' is the preposition `plus'' too, with no phrase after it, and the words had no reading (tr_more_determiner/2)', C8,
+          'ETA recommends more sportsmanship to the PNV.'),
+    nf_tr('El perro dice que la situación es notablemente mejor que la de hace un año.', spanish, italian, C9),
+    check('`ago'' IN A COMPARISON IS THE COMPARED PHRASE''S: `Destacó de entrada que "la situación es notablemente mejor que la de hace un año"'' is better than that of a year ago, and in the clause of `that'' the time came out after the verb, `è fa notevolmente migliore di quella d''un anno'' (tr_ago_in_comparison/2)', C9,
+          'Il cane dice che la situazione è notevolmente migliore di quella d''un anno fa.'),
+    nf_tr('La situación es notablemente mejor que la de hace un año.', spanish, english, C10),
+    check('AN ADVERB IN -ly STRAIGHT BEFORE A COMPARATIVE IS SAID OF IT: notably better, and written last it came out `better than that of a year ago notably'' (tr_comps_out/7)', C10,
+          'The situation is notably better than that of a year ago.'),
+    nf_tr('ETA responsabiliza al PNV de poner trabas a la pacificación.', spanish, english, C11),
+    check('`blames'' TAKES `for'' AND THE GERUND, AND `hinders'' ITS PHRASE BARE: `responsabilizaba a un sector del PNV de poner trabas a la pacificación'' blames it for hindering the pacification, where it was `to hinder to the pacification'' (en_prep_gerund/2, en_bare_object/1)', C11,
+          'ETA blames the PNV for hindering the pacification.'),
+    nf_tr('ETA responsabiliza a un sector de poner trabas a la pacificación.', spanish, italian, C12),
+    check('A GROUP AFTER A VERB OF BLAMING OR ENCOURAGING IS ITS OBJECT, MARKED AS A PERSON IS: `incolpava un settore'', and read as a phrase of `to'' it was `incolpava a un settore'' (en_person_passive/1, tr_warned_group/3)', C12,
+          'ETA incolpa un settore d''ostacolare la pacificazione.'),
+    nf_tr('ETA anima a un sector a aceptar las críticas.', spanish, italian, C13),
+    check('... after a verb of encouraging too', C13,
+          'ETA incoraggia un settore ad accettare le critiche.').
+
+newspaper_lehendakari_checks_2 :-
+    nf_tr('ETA responsabiliza a un sector del PNV de poner trabas a la pacificación.', spanish, italian, C14),
+    check('AN INFINITIVE AFTER ITS PREPOSITION GOVERNS THE PHRASE AFTER IT: with the sector''s phrase of `of'' between them the infinitive was read after its `de'', pinf/2, and Italian wrote the phrase with its `a'', `d''ostacolare alla pacificazione'' (tr_governing_verb/3)', C14,
+          'ETA incolpa un settore del PNV d''ostacolare la pacificazione.'),
+    nf_tr('ETA responsabiliza a un sector del PNV de poner trabas a la pacificación.', spanish, english, C15),
+    check('... and English the preposition its verb takes before the gerund, where the source''s `de'' came out `of hindering'' (tr_comp_out/7)', C15,
+          'ETA blames a sector of the PNV for hindering the pacification.'),
+    nf_tr('El perro come el pan, y, además, teniendo en cuenta que es grande.', spanish, italian, C16),
+    check('AN ADVERB, ITS COMMA AND A GERUND CLAUSE ARE ONE GERUND CLAUSE WITH ITS FRONT: `..., y, además, teniendo en cuenta que es parte fundamental en este conflicto'' -- with the comma the gerund was a front with its clause of `that'' left open, and the words after `es'' a clause of their own, `parte'' the verb that departs (tr_read0/4)', C16,
+          'Il cane mangia il pane, e, inoltre, tenendo conto che è grande.'),
+    nf_tr('El perro come las críticas, "que en la casa siempre vienen bien".', spanish, italian, C17),
+    check('A QUOTATION THAT OPENS ON A RELATIVE WORD AND CLOSES ON THE VERB THE CLAUSE ENDS ON CLOSES WHERE THE CLAUSE ENDS: `las críticas, "que en política siempre vienen bien"'' -- the words before the verb are written after it, and with the mark on the verb they came out outside the quotation (tr_rel_mark/3)', C17,
+          'Il cane mangia le critiche, "che aiutano nella casa sempre".'),
+    nf_tr('Los perros hablan entre sí.', spanish, english, C18),
+    check('THE REFLEXIVE PRONOUN AFTER A PREPOSITION IS THE SUBJECT''S: `estas formaciones entre sí'' talk among themselves, and it came out `among itself'' (tr_write/4)', C18,
+          'The dogs speak among themselves.'),
+    nf_tr('El diálogo fue su receta.', spanish, english, C19),
+    check('WHAT FOLLOWS A COPULA IS NO THING ITS SUBJECT OWNS: `El diálogo fue su receta'' was HIS recipe, Ibarretxe''s, and it came out `The dialogue was its prescription''', C19,
+          'The dialogue was his prescription.'),
+    nf_tr('La vida continúa su curso.', spanish, english, C20),
+    check('a GUARD: after any other verb it is the thing''s', C20,
+          'The life continues its course.'),
+    nf_tr('El perro recomienda "no cerrar puertas".', spanish, italian, C21),
+    check('A QUOTATION THAT OPENS ON THE DENIAL OF AN INFINITIVE OPENS THERE: `Ibarretxe recomendó "no cerrar puertas"'' -- the mark on the denial was taken for the verb group''s, `"raccomandò non chiudere porte"'' (qm/2, tr_complements0/4)', C21,
+          'Il cane raccomanda "non chiudere porte".'),
+    nf_tr('El perro recomienda "cerrar puertas".', spanish, italian, C22),
+    check('... and one that opens on the infinitive opens there, where its mark was lost', C22,
+          'Il cane raccomanda "chiudere porte".'),
+    nf_tr('El perro recomienda "cerrar puertas".', spanish, english, C23),
+    check('... before English''s `to'', as no word of the source stood before the mark (bare/1, tr_comp_out/7)', C23,
+          'The dog recommends "to close doors".'),
+    nf_tr('El perro recomienda "cerrar" puertas.', spanish, english, C24),
+    check('... and a mark that opens and closes on it is around every word written for it: `lo que hace es "desacreditar" la investigación'' came out `is "to" discredit''', C24,
+          'The dog recommends "to close" doors.'),
+    nf_tr('El futuro está en "reconocer los argumentos".', spanish, italian, C25),
+    check('... and after a preposition: `el futuro del proceso está en "reconocer como válidos ..."'' lost its opening mark (qinf/2)', C25,
+          'Il futuro è in "riconoscere gli argomenti".').
 
 question_roles :-
     section('which with a noun: the phrase asked for is the object when the verb cannot agree with it or a doer stands after it'),

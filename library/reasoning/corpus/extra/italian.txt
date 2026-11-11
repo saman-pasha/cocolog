@@ -5960,3 +5960,65 @@ The adverb "profondamente" means "deeply".
 The personal verb "turba" means "troubles".
 # `altri settori ormai competitivi a livello internazionale': at international level, as `a livello federale' is
 The adverb "a livello internazionale" means "at international level".
+# The lehendakari report (CESS-CAST-P-19990901-36), Spanish into Italian: the words the Italian writer has none of
+# `lo que trasciende': what transpires
+The verb "trapela" means "transpires".
+"trapelano" is the plural of "trapela".
+"trapelare" is the infinitive of "trapela".
+"trapelò" is the past of "trapela".
+"trapelato" is the participle of "trapela".
+"trapela" is intransitive.
+# `los peneuvistas': PNV members, persons
+The noun "peneuvista" means "PNV member".
+"peneuvista" is not feminine.
+"peneuvisti" is the plural of "peneuvista".
+"peneuvista" is a person.
+# `con deportividad': sportsmanship
+The feminine noun "sportività" means "sportsmanship".
+# `responsabilizaba a un sector ... de poner trabas a la pacificación': blames for, hinders
+The verb "incolpa" means "blames".
+"incolpano" is the plural of "incolpa".
+"incolpare" is the infinitive of "incolpa".
+"incolpò" is the past of "incolpa".
+"incolpava" is the imperfect of "incolpa".
+"incolpato" is the participle of "incolpa".
+"incolpa" takes "di" before the infinitive.
+The verb "ostacola" means "hinders".
+"ostacolano" is the plural of "ostacola".
+"ostacolare" is the infinitive of "ostacola".
+"ostacolò" is the past of "ostacola".
+"ostacolato" is the participle of "ostacola".
+# `los reproches de ETA': the reproaches
+The masculine noun "rimprovero" means "reproach".
+"rimproveri" is the plural of "rimprovero".
+# `violencia callejera': street violence
+The adjective "di strada" means "street".
+"di strada" is the plural of "di strada".
+# `partidos políticos', `partido nacionalista', `proceso de paz', `mesa nacional', `maduración'
+The masculine noun "partito politico" means "political party".
+"partiti politici" is the plural of "partito politico".
+The masculine noun "partito nazionalista" means "nationalist party".
+"partiti nazionalisti" is the plural of "partito nazionalista".
+"partito nazionalista" is not feminine.
+The masculine noun "processo di pace" means "peace process".
+"processi di pace" is the plural of "processo di pace".
+The masculine noun "esecutivo nazionale" means "national executive".
+"esecutivi nazionali" is the plural of "esecutivo nazionale".
+The feminine noun "maturazione" means "maturation".
+# `estas formaciones entre sí': the political formations (the writer's word was `educazione', an upbringing)
+The feminine noun "formazione" means "formation".
+"formazioni" is the plural of "formazione".
+# `un análisis optimista ... de Ibarretxe': `a giudizio di', in the opinion of
+The preposition "a giudizio di" means "in the opinion of".
+# the euphonic forms: `ad accettare', `ed è'
+The preposition "ad" comes before "a".
+The conjunction "ed" comes before "e".
+The conjunction "ed" comes before "è".
+# `la aparición de episodios de violencia callejera': the emergence (the Italian writer had no word for one)
+The feminine noun "comparsa" means "emergence".
+"comparse" is the plural of "comparsa".
+The adverb "in politica" means "in politics".
+# `la ruptura de las conversaciones entre el Gobierno central y ETA': the split, which the Italian writer had no noun
+# for -- the dictionary's own meaning, a break, said again first, so that the reader keeps it
+The feminine noun "rottura" means "break".
+The feminine noun "rottura" means "split".

@@ -2854,6 +2854,67 @@ The noun "positivista" means "positivist".
 "positivistas" is the plural of "positivista".
 "positivista" is a person.
 The adverb "a nivel internacional" means "at international level".
+The verb "trasciende" means "transcends".
+The intransitive verb "trasciende" means "transpires".
+"trascienden" is the plural of "trasciende".
+"trascender" is the infinitive of "trasciende".
+"trascendió" is the past of "trasciende".
+"trascendía" is the imperfect of "trasciende".
+"trascendido" is the participle of "trasciende".
+The noun "peneuvista" means "PNV member".
+"peneuvista" is not feminine.
+"peneuvistas" is the plural of "peneuvista".
+"peneuvista" is a person.
+The verb "culpa" means "blames".
+The verb "responsabiliza" means "blames".
+"responsabilizan" is the plural of "responsabiliza".
+"responsabilizar" is the infinitive of "responsabiliza".
+"responsabilizó" is the past of "responsabiliza".
+"responsabilizaba" is the imperfect of "responsabiliza".
+"responsabilizado" is the participle of "responsabiliza".
+"responsabiliza" takes "de" before the infinitive.
+The verb "obstaculiza" means "hinders".
+The verb "pone trabas" means "hinders".
+"ponen trabas" is the plural of "pone trabas".
+"poner trabas" is the infinitive of "pone trabas".
+"puso trabas" is the past of "pone trabas".
+"ponía trabas" is the imperfect of "pone trabas".
+"pone trabas" takes "a" before the phrase.
+The masculine noun "reproche" means "reproach".
+"reproches" is the plural of "reproche".
+The masculine adjective "callejero" means "street".
+"callejeros" is the plural of "callejero".
+The feminine adjective "callejera" means "street".
+"callejeras" is the plural of "callejera".
+The verb "aclara" means "clears".
+The verb "aclara" means "clarifies".
+The verb "matiza" means "clarifies".
+"matizan" is the plural of "matiza".
+"matizar" is the infinitive of "matiza".
+"matizó" is the past of "matiza".
+"matiza" takes the clause.
+The masculine noun "partido político" means "political party".
+"partidos políticos" is the plural of "partido político".
+The masculine noun "partido nacionalista" means "nationalist party".
+"partidos nacionalistas" is the plural of "partido nacionalista".
+"partido nacionalista" is not feminine.
+The masculine noun "proceso de paz" means "peace process".
+"procesos de paz" is the plural of "proceso de paz".
+The masculine noun "insulto" means "insult".
+The feminine noun "descalificación" means "insult".
+"descalificaciones" is the plural of "descalificación".
+The feminine noun "mesa nacional" means "national executive".
+"mesas nacionales" is the plural of "mesa nacional".
+The feminine noun "maduración" means "maturation".
+The preposition "a juicio de" means "in the opinion of".
+The verb "ayuda" means "helps".
+The verb "viene bien" means "helps".
+"vienen bien" is the plural of "viene bien".
+"sector" is a group.
+"corresponde" is intransitive.
+"dialoga" is intransitive.
+"influye" takes "en" before the phrase.
+The adverb "en política" means "in politics".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
