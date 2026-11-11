@@ -4392,3 +4392,89 @@ The feminine adjective "propagandística" means "propagandistic".
 # `una especie de gran boletín de notas': a sort; a species said again first, so that it stays the noun's meaning
 The feminine noun "especie" means "species".
 The feminine noun "especie" means "sort".
+# the Air Europa report (CESS-CAST-P-20000401-85): `tenía previsto despegar ayer': takes off, an English verb of two words,
+# which the builder takes from no dictionary entry
+The verb "despega" means "takes off".
+"despegan" is the plural of "despega".
+"despegar" is the infinitive of "despega".
+"despegó" is the past of "despega".
+"despegaron" is the plural of "despegó".
+"despegaba" is the imperfect of "despega".
+"despegará" is the future of "despega".
+"despegado" is the participle of "despega".
+"despegando" is the gerund of "despega".
+"despega" is intransitive.
+"despega" takes "de" before the phrase.
+# `aseguró que la compañía luchó': assured, before a clause; ensures said again first, so that it stays the plain meaning
+The verb "asegura" means "ensures".
+The clausal verb "asegura" means "assures".
+# `esperó siete horas la salida': waited seven hours for it, a span of time and an object
+The verb "espera" means "expects".
+The durative verb "espera" means "waits for".
+# `la testigo entregó los anillos', `rodeó a una azafata': a flight attendant, a person
+The feminine noun "azafata" means "flight attendant".
+"azafatas" is the plural of "azafata".
+"azafata" is a person.
+# `una veintena de viajeros', `Un centenar de pasajeros': about twenty, about a hundred (the count's own rule)
+The feminine noun "veintena" means "twenty".
+"veintenas" is the plural of "veintena".
+# `Presa del nerviosismo y del cabreo': anger (the dictionary's own `rabia' said again first, so that it stays the
+# word written for anger: the colloquial `cabreo' was)
+The feminine noun "rabia" means "anger".
+The masculine noun "cabreo" means "anger".
+The preposition "presa de" means "in the grip of".
+The adverb "verbalmente" means "verbally".
+# `Una avería', `una doble avería': a breakdown, before the failure
+The feminine noun "avería" means "breakdown".
+# `La solución fue mandar desde Palma de Mallorca un avión': sends, before commands; the dictionary's own word for it said
+# again first, so that it stays the one written
+The verb "envía" means "sends".
+The verb "manda" means "sends".
+"Palma de Mallorca" is a name.
+The preposition "rumbo a" means "bound for".
+The feminine noun "puerta de embarque" means "boarding gate".
+"puertas de embarque" is the plural of "puerta de embarque".
+The adverb "a cambio" means "in return".
+# `cuando cruzó la puerta de embarque número 24 una patrulla': a patrol, a group, which does what it does
+"patrulla" is a group.
+The conjunction "así que" means "so".
+The preposition "hasta después de" means "until after".
+The masculine noun "mal tiempo" means "bad weather".
+# `Parte del pasaje volaba por placer', `el pasaje destiló tanta indignación', `cursadas por el pasaje': the passengers,
+# the noun's collective meaning, which a phrase that does something takes (`el pasaje de Vintró' stays a passage:
+# the dictionary's own meaning said again first)
+The masculine noun "pasaje" means "passage".
+The collective noun "pasaje" means "passengers".
+"pasaje" is a group.
+# (the dictionary's own `queja' said again first, so that it stays the word written for a complaint, and `entregar'
+# for submits, which the reader's `cursar' took: `entregar' hands first)
+The feminine noun "queja" means "complaint".
+The verb "entrega" means "hands".
+The verb "entrega" means "submits".
+The feminine noun "reclamación" means "complaint".
+The feminine noun "reclamación" means "claim".
+The masculine adjective "millonario" means "multimillion".
+The feminine adjective "millonaria" means "multimillion".
+"millonarios" is the plural of "millonario".
+"millonarias" is the plural of "millonaria".
+"masa" is a person.
+# `Air Europa me toma el pelo': fools, an idiom of three words
+The verb "toma el pelo" means "fools".
+"toman el pelo" is the plural of "toma el pelo".
+"tomar el pelo" is the infinitive of "toma el pelo".
+"tomó el pelo" is the past of "toma el pelo".
+"tomaron el pelo" is the plural of "tomó el pelo".
+"tomaba el pelo" is the imperfect of "toma el pelo".
+"tomado el pelo" is the participle of "toma el pelo".
+# `aguaron la fiesta': spoiled the party, an idiom
+The verb "agua la fiesta" means "spoils the party".
+"aguan la fiesta" is the plural of "agua la fiesta".
+"aguar la fiesta" is the infinitive of "agua la fiesta".
+"aguó la fiesta" is the past of "agua la fiesta".
+"aguaron la fiesta" is the plural of "aguó la fiesta".
+# `la pieza tardó': was late, with no object
+The intransitive verb "tarda" means "is late".
+# `ni se cerró el suculento trato': the deal was closed, a thing's reflexive the passive
+"cierra" takes the passive.
+"Baleares" is a name.
+The determiner "un par de" means "a couple of".

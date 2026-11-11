@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20466 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20469 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -2745,6 +2745,71 @@ The feminine adjective "propagandística" means "propagandistic".
 "esparce" takes "por" before the phrase.
 The feminine noun "especie" means "species".
 The feminine noun "especie" means "sort".
+The verb "despega" means "takes off".
+"despegan" is the plural of "despega".
+"despegar" is the infinitive of "despega".
+"despegó" is the past of "despega".
+"despegaron" is the plural of "despegó".
+"despegaba" is the imperfect of "despega".
+"despegará" is the future of "despega".
+"despegado" is the participle of "despega".
+"despegando" is the gerund of "despega".
+"despega" is intransitive.
+"despega" takes "de" before the phrase.
+The verb "asegura" means "ensures".
+The clausal verb "asegura" means "assures".
+The verb "espera" means "expects".
+The durative verb "espera" means "waits for".
+The feminine noun "azafata" means "flight attendant".
+"azafatas" is the plural of "azafata".
+"azafata" is a person.
+The feminine noun "veintena" means "twenty".
+"veintenas" is the plural of "veintena".
+The feminine noun "rabia" means "anger".
+The masculine noun "cabreo" means "anger".
+The preposition "presa de" means "in the grip of".
+The adverb "verbalmente" means "verbally".
+The feminine noun "avería" means "breakdown".
+The verb "envía" means "sends".
+The verb "manda" means "sends".
+"Palma de Mallorca" is a name.
+The preposition "rumbo a" means "bound for".
+The feminine noun "puerta de embarque" means "boarding gate".
+"puertas de embarque" is the plural of "puerta de embarque".
+The adverb "a cambio" means "in return".
+"patrulla" is a group.
+The conjunction "así que" means "so".
+The preposition "hasta después de" means "until after".
+The masculine noun "mal tiempo" means "bad weather".
+The masculine noun "pasaje" means "passage".
+The collective noun "pasaje" means "passengers".
+"pasaje" is a group.
+The feminine noun "queja" means "complaint".
+The verb "entrega" means "hands".
+The verb "entrega" means "submits".
+The feminine noun "reclamación" means "complaint".
+The feminine noun "reclamación" means "claim".
+The masculine adjective "millonario" means "multimillion".
+The feminine adjective "millonaria" means "multimillion".
+"millonarios" is the plural of "millonario".
+"millonarias" is the plural of "millonaria".
+"masa" is a person.
+The verb "toma el pelo" means "fools".
+"toman el pelo" is the plural of "toma el pelo".
+"tomar el pelo" is the infinitive of "toma el pelo".
+"tomó el pelo" is the past of "toma el pelo".
+"tomaron el pelo" is the plural of "tomó el pelo".
+"tomaba el pelo" is the imperfect of "toma el pelo".
+"tomado el pelo" is the participle of "toma el pelo".
+The verb "agua la fiesta" means "spoils the party".
+"aguan la fiesta" is the plural of "agua la fiesta".
+"aguar la fiesta" is the infinitive of "agua la fiesta".
+"aguó la fiesta" is the past of "agua la fiesta".
+"aguaron la fiesta" is the plural of "aguó la fiesta".
+The intransitive verb "tarda" means "is late".
+"cierra" takes the passive.
+"Baleares" is a name.
+The determiner "un par de" means "a couple of".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -31221,6 +31286,110 @@ The verb "desborda" means "overwhelms".
 "desbordadas" is the plural of "desbordada".
 "desbordar" is the infinitive of "desborda".
 "desbordando" is the gerund of "desborda".
+The verb "lincha" means "lynches".
+"linchan" is the plural of "lincha".
+"linchamos" is the first person of "linchan".
+"lincháis" is the second person of "linchan".
+"lincho" is the first person of "lincha".
+"linchas" is the second person of "lincha".
+"linchó" is the past of "lincha".
+"lincharon" is the past of "linchan".
+"linchamos" is the first person of "lincharon".
+"linchasteis" is the second person of "lincharon".
+"linché" is the first person of "linchó".
+"linchaste" is the second person of "linchó".
+"linchaba" is the imperfect of "lincha".
+"linchaban" is the imperfect of "linchan".
+"linchábamos" is the first person of "linchaban".
+"linchabais" is the second person of "linchaban".
+"linchabas" is the second person of "linchaba".
+"linchará" is the future of "lincha".
+"lincharán" is the plural of "linchará".
+"lincharemos" is the first person of "lincharán".
+"lincharéis" is the second person of "lincharán".
+"lincharé" is the first person of "linchará".
+"lincharás" is the second person of "linchará".
+"lincharía" is the conditional of "lincha".
+"lincharían" is the plural of "lincharía".
+"lincharíamos" is the first person of "lincharían".
+"lincharíais" is the second person of "lincharían".
+"lincharías" is the second person of "lincharía".
+"linche" is the subjunctive of "lincha".
+"linchen" is the plural of "linche".
+"linchemos" is the first person of "linchen".
+"linches" is the second person of "linche".
+"linchara" is the past subjunctive of "lincha".
+"lincharan" is the plural of "linchara".
+"lincháramos" is the first person of "lincharan".
+"lincharais" is the second person of "lincharan".
+"lincharas" is the second person of "linchara".
+"lincha" is the imperative of "lincha".
+"linches" is the negative imperative of "lincha".
+"linchad" is the imperative of "linchan".
+"linchéis" is the negative imperative of "linchan".
+"linchemos" is the hortative of "lincha".
+"linchado" is the participle of "lincha".
+"linchada" is the participle of "lincha".
+"linchada" is feminine.
+"linchados" is the participle of "lincha".
+"linchados" is the plural of "linchado".
+"linchadas" is the participle of "lincha".
+"linchadas" is feminine.
+"linchadas" is the plural of "linchada".
+"linchar" is the infinitive of "lincha".
+"linchando" is the gerund of "lincha".
+The verb "amotina" means "mutinies".
+"amotinan" is the plural of "amotina".
+"amotinamos" is the first person of "amotinan".
+"amotináis" is the second person of "amotinan".
+"amotino" is the first person of "amotina".
+"amotinas" is the second person of "amotina".
+"amotinó" is the past of "amotina".
+"amotinaron" is the past of "amotinan".
+"amotinamos" is the first person of "amotinaron".
+"amotinasteis" is the second person of "amotinaron".
+"amotiné" is the first person of "amotinó".
+"amotinaste" is the second person of "amotinó".
+"amotinaba" is the imperfect of "amotina".
+"amotinaban" is the imperfect of "amotinan".
+"amotinábamos" is the first person of "amotinaban".
+"amotinabais" is the second person of "amotinaban".
+"amotinabas" is the second person of "amotinaba".
+"amotinará" is the future of "amotina".
+"amotinarán" is the plural of "amotinará".
+"amotinaremos" is the first person of "amotinarán".
+"amotinaréis" is the second person of "amotinarán".
+"amotinaré" is the first person of "amotinará".
+"amotinarás" is the second person of "amotinará".
+"amotinaría" is the conditional of "amotina".
+"amotinarían" is the plural of "amotinaría".
+"amotinaríamos" is the first person of "amotinarían".
+"amotinaríais" is the second person of "amotinarían".
+"amotinarías" is the second person of "amotinaría".
+"amotine" is the subjunctive of "amotina".
+"amotinen" is the plural of "amotine".
+"amotinemos" is the first person of "amotinen".
+"amotines" is the second person of "amotine".
+"amotinara" is the past subjunctive of "amotina".
+"amotinaran" is the plural of "amotinara".
+"amotináramos" is the first person of "amotinaran".
+"amotinarais" is the second person of "amotinaran".
+"amotinaras" is the second person of "amotinara".
+"amotina" is the imperative of "amotina".
+"amotines" is the negative imperative of "amotina".
+"amotinad" is the imperative of "amotinan".
+"amotinéis" is the negative imperative of "amotinan".
+"amotinemos" is the hortative of "amotina".
+"amotinado" is the participle of "amotina".
+"amotinada" is the participle of "amotina".
+"amotinada" is feminine.
+"amotinados" is the participle of "amotina".
+"amotinados" is the plural of "amotinado".
+"amotinadas" is the participle of "amotina".
+"amotinadas" is feminine.
+"amotinadas" is the plural of "amotinada".
+"amotinar" is the infinitive of "amotina".
+"amotinando" is the gerund of "amotina".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -123154,6 +123323,112 @@ The verb "augura" means "predicts".
 "auguradas" is the plural of "augurada".
 "augurar" is the infinitive of "augura".
 "augurando" is the gerund of "augura".
+The verb "cursa" means "submits".
+"cursan" is the plural of "cursa".
+"cursamos" is the first person of "cursan".
+"cursáis" is the second person of "cursan".
+"curso" is the first person of "cursa".
+"cursas" is the second person of "cursa".
+"cursó" is the past of "cursa".
+"cursaron" is the past of "cursan".
+"cursamos" is the first person of "cursaron".
+"cursasteis" is the second person of "cursaron".
+"cursé" is the first person of "cursó".
+"cursaste" is the second person of "cursó".
+"cursaba" is the imperfect of "cursa".
+"cursaban" is the imperfect of "cursan".
+"cursábamos" is the first person of "cursaban".
+"cursabais" is the second person of "cursaban".
+"cursabas" is the second person of "cursaba".
+"cursará" is the future of "cursa".
+"cursarán" is the plural of "cursará".
+"cursaremos" is the first person of "cursarán".
+"cursaréis" is the second person of "cursarán".
+"cursaré" is the first person of "cursará".
+"cursarás" is the second person of "cursará".
+"cursaría" is the conditional of "cursa".
+"cursarían" is the plural of "cursaría".
+"cursaríamos" is the first person of "cursarían".
+"cursaríais" is the second person of "cursarían".
+"cursarías" is the second person of "cursaría".
+"curse" is the subjunctive of "cursa".
+"cursen" is the plural of "curse".
+"cursemos" is the first person of "cursen".
+"curses" is the second person of "curse".
+"cursara" is the past subjunctive of "cursa".
+"cursaran" is the plural of "cursara".
+"cursáramos" is the first person of "cursaran".
+"cursarais" is the second person of "cursaran".
+"cursaras" is the second person of "cursara".
+"cursa" is the imperative of "cursa".
+"curses" is the negative imperative of "cursa".
+"cursad" is the imperative of "cursan".
+"curséis" is the negative imperative of "cursan".
+"cursemos" is the hortative of "cursa".
+"cursado" is the participle of "cursa".
+"cursada" is the participle of "cursa".
+"cursada" is feminine.
+"cursados" is the participle of "cursa".
+"cursados" is the plural of "cursado".
+"cursadas" is the participle of "cursa".
+"cursadas" is feminine.
+"cursadas" is the plural of "cursada".
+"cursar" is the infinitive of "cursa".
+"cursando" is the gerund of "cursa".
+"submitted" is the past of "submits".
+"submitting" is the gerund of "submits".
+The verb "vocifera" means "shouts".
+"vociferan" is the plural of "vocifera".
+"vociferamos" is the first person of "vociferan".
+"vociferáis" is the second person of "vociferan".
+"vocifero" is the first person of "vocifera".
+"vociferas" is the second person of "vocifera".
+"vociferó" is the past of "vocifera".
+"vociferaron" is the past of "vociferan".
+"vociferamos" is the first person of "vociferaron".
+"vociferasteis" is the second person of "vociferaron".
+"vociferé" is the first person of "vociferó".
+"vociferaste" is the second person of "vociferó".
+"vociferaba" is the imperfect of "vocifera".
+"vociferaban" is the imperfect of "vociferan".
+"vociferábamos" is the first person of "vociferaban".
+"vociferabais" is the second person of "vociferaban".
+"vociferabas" is the second person of "vociferaba".
+"vociferará" is the future of "vocifera".
+"vociferarán" is the plural of "vociferará".
+"vociferaremos" is the first person of "vociferarán".
+"vociferaréis" is the second person of "vociferarán".
+"vociferaré" is the first person of "vociferará".
+"vociferarás" is the second person of "vociferará".
+"vociferaría" is the conditional of "vocifera".
+"vociferarían" is the plural of "vociferaría".
+"vociferaríamos" is the first person of "vociferarían".
+"vociferaríais" is the second person of "vociferarían".
+"vociferarías" is the second person of "vociferaría".
+"vocifere" is the subjunctive of "vocifera".
+"vociferen" is the plural of "vocifere".
+"vociferemos" is the first person of "vociferen".
+"vociferes" is the second person of "vocifere".
+"vociferara" is the past subjunctive of "vocifera".
+"vociferaran" is the plural of "vociferara".
+"vociferáramos" is the first person of "vociferaran".
+"vociferarais" is the second person of "vociferaran".
+"vociferaras" is the second person of "vociferara".
+"vocifera" is the imperative of "vocifera".
+"vociferes" is the negative imperative of "vocifera".
+"vociferad" is the imperative of "vociferan".
+"vociferéis" is the negative imperative of "vociferan".
+"vociferemos" is the hortative of "vocifera".
+"vociferado" is the participle of "vocifera".
+"vociferada" is the participle of "vocifera".
+"vociferada" is feminine.
+"vociferados" is the participle of "vocifera".
+"vociferados" is the plural of "vociferado".
+"vociferadas" is the participle of "vocifera".
+"vociferadas" is feminine.
+"vociferadas" is the plural of "vociferada".
+"vociferar" is the infinitive of "vocifera".
+"vociferando" is the gerund of "vocifera".
 The verb "impulsa" means "promotes".
 "impulsan" is the plural of "impulsa".
 "impulsamos" is the first person of "impulsan".
@@ -139477,9 +139752,6 @@ The verb "tacha" means "stripes".
 The verb "desnuda" means "strips".
 "stripped" is the past of "strips".
 "stripping" is the gerund of "strips".
-The verb "entrega" means "submits".
-"submitted" is the past of "submits".
-"submitting" is the gerund of "submits".
 The verb "asombra" means "astonishes".
 The verb "jura" means "vows".
 The verb "somete" means "tables".
