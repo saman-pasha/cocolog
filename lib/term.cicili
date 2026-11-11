@@ -207,6 +207,19 @@
              (set ,over 1)
              (set ,ncap (+ ,need (+ (/ ,need 16) 64)))))))
 
+;;; A LIST TOO LONG FOR THE STACK LIMIT (3.42.3): N list cells to build,
+;;; three heap cells each, whose bytes ALONE pass the machine's stack limit
+;;; -- no collection could make room for them. The builders ask it before
+;;; they build a cell and raise error(resource_error(stack), _), as swipl's
+;;; length/2 raises at once; a list the limit could hold is built, and the
+;;; step after asks what the stacks hold (3.32.0). N is compared, never
+;;; multiplied: a count of 2^62 cells is no overflow. Here, and no longer
+;;; in lib/lists.cicili, since 3.62.2: read_file_to_codes/2 asks it of a
+;;; file's codes (lib/files.cicili, which is read before the lists)
+(DEFMACRO coco-l-too-long (m n)
+  `(and (> (-> ,m slimit) 0)
+        (> (cast u64 ,n) (/ (cast u64 (-> ,m slimit)) 24))))
+
 ;;;; ------------------------------------------------------------------
 ;;;; The term DSL -- Prolog terms as s-expressions, built at compile time
 ;;;; ------------------------------------------------------------------

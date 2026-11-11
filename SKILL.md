@@ -12,7 +12,7 @@ ZiguratIP server, Zeytun over HTTP — in which a clause is a row, and a running
 proof is a term that can be frozen into rows and resumed by another process.
 It is one binary, written in **Cicili** (C in S-expressions).
 
-Version at the time of writing: cocolog 3.62.1, reasoning 1.0.33, built with
+Version at the time of writing: cocolog 3.62.2, reasoning 1.0.34, built with
 Cicili 3.3.0. `./cocolog --version` answers the first.
 
 **Part A** is for writing and running Prolog on cocolog. **Part B** is for
@@ -192,7 +192,7 @@ rows a port trips on most.
 | database | `assert/1 asserta/1 assertz/1 retract/1 retractall/1 abolish/1,2 clause/2 dynamic/1 discontiguous/1 multifile/1 listing/0,1 portray_clause/1 current_predicate/1 predicate_property/2 op/3 current_op/3` |
 | globals | `nb_setval/2 nb_getval/2 nb_current/2` (kept across backtracking), `b_setval/2 b_getval/2` (undone by it) |
 | output | `write/1 writeln/1 print/1 writeq/1 write_canonical/1 write_term/2 nl/0 tab/1 format/1,2,3 with_output_to/2 flush_output/0 print_message/2 message_to_string/2` |
-| files and the system | `exists_file exists_directory access_file size_file time_file delete_file rename_file make_directory make_directory_path delete_directory directory_files working_directory tmp_file read_file_to_codes/2 write_file_from_codes/2 append_file_from_codes/2 absolute_file_name/2,3 file_base_name file_directory_name file_name_extension same_file read_link/3 expand_file_name` `getenv/2 setenv/2 unsetenv/1 get_time/1 sleep/1 statistics/2 garbage_collect/0` |
+| files and the system | `exists_file exists_directory access_file size_file time_file delete_file rename_file make_directory make_directory_path delete_directory directory_files working_directory tmp_file read_file_to_codes/2 write_file_from_codes/2 append_file_from_codes/2 absolute_file_name/2,3 file_base_name file_directory_name file_name_extension same_file read_link/3 expand_file_name` `getenv/2 setenv/2 unsetenv/1 get_time/1 sleep/1 statistics/2 garbage_collect/0`. `read_file_to_codes/2` FAILS for a missing file or a directory (ask `exists_file/1` first), and raises `resource_error(stack)` for a file whose codes pass the stack limit: a code is 24 bytes of list, so the default 1 GB holds a file of 44 MB; read a bigger one a line at a time through `library(stream)` |
 | loading | `consult/1 load_files/2 ensure_loaded/1 use_module/1,2 include/1 initialization/1,2 module/2 source_location/2 prolog_load_context/2 expand_term/2 expand_goal/2 current_prolog_flag/2 set_prolog_flag/2` |
 | grammars | `-->` `phrase/2,3` `call_dcg/3` `dcg_translate_rule/2`; `library(dcg/basics)`: `blank blanks white whites digits//1 integer//1 float//1 number//1 string//1 string_without//2 nonblanks//1 xinteger//1 eos eol remainder//1`; `library(dcg/high_order)`: `sequence//2,3,5 optional//2 foreach//2,3` |
 | errors | `must_be/2 is_of_type/2 type_error/2 domain_error/2 instantiation_error/1` |
