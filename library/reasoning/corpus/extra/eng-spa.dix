@@ -733,3 +733,8 @@
 <e r="RL"><p><l>predict<s n="vblex"/></l><r>augurar<s n="vblex"/></r></p></e>
 # `el jubilado fallecido el día 13': the pensioner, read only (`pensionista' stays the one written)
 <e r="RL"><p><l>pensioner<s n="n"/></l><r>jubilado<s n="n"/><s n="GD"/></r></p></e>
+# the Air Europa report: `lincharla verbalmente', `se amotinó', `reclamaciones cursadas por el pasaje', `vociferó Joaquín Camp'
+<e><p><l>lynch<s n="vblex"/></l><r>linchar<s n="vblex"/></r></p></e>
+<e><p><l>mutiny<s n="vblex"/></l><r>amotinar<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>submit<s n="vblex"/></l><r>cursar<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>shout<s n="vblex"/></l><r>vociferar<s n="vblex"/></r></p></e>

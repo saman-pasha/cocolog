@@ -5771,3 +5771,64 @@ The feminine noun "sorta" means "sort".
 # `È proprio su quel carrello che si concentra l'interesse dei presenti': the interest is concentrated there, a
 # thing's reflexive the passive
 "concentra" takes the passive.
+# the Air Europa report (CESS-CAST-P-20000401-85): `un avión averiado': an aeroplane, which no Italian word meant
+The masculine noun "aereo" means "aeroplane".
+"aerei" is the plural of "aereo".
+# a passenger: the dictionary's own `passeggero' said first, where the writer's word was a cruise passenger, `crocierista'
+The masculine noun "passeggero" means "passenger".
+The masculine noun "anello" means "ring".
+The masculine noun "guasto" means "breakdown".
+The feminine noun "hostess" means "flight attendant".
+"hostess" is the plural of "hostess".
+"hostess" is a person.
+The feminine noun "ventina" means "twenty".
+"ventine" is the plural of "ventina".
+The preposition "in preda a" means "in the grip of".
+The preposition "alla volta di" means "bound for".
+The feminine noun "porta d'imbarco" means "boarding gate".
+"porte d'imbarco" is the plural of "porta d'imbarco".
+The adverb "in cambio" means "in return".
+# `cuando cruzó la puerta de embarque número 24 una patrulla': a patrol, a group, which does what it does
+"pattuglia" is a group.
+# `retrasos considerables': the dictionary's `considerabile' is no word, and has no plural
+The adjective "considerevole" means "considerable". "considerevoli" is the plural of "considerevole".
+# `ser testigos en una boda': the dictionary's `nozze' says no number, and the writer wrote `un nozze'
+The masculine noun "matrimonio" means "marriage".
+The masculine noun "matrimonio" means "wedding".
+The preposition "fino a dopo" means "until after".
+The masculine noun "maltempo" means "bad weather".
+The masculine noun "reclamo" means "complaint".
+The masculine adjective "milionario" means "multimillion".
+The feminine adjective "milionaria" means "multimillion".
+"milionari" is the plural of "milionario".
+"milionarie" is the plural of "milionaria".
+"massa" is a person.
+The masculine noun "nervosismo" means "nervousness".
+The verb "prende in giro" means "fools".
+"prendono in giro" is the plural of "prende in giro".
+"prendere in giro" is the infinitive of "prende in giro".
+"prese in giro" is the past of "prende in giro".
+"presero in giro" is the plural of "prese in giro".
+"preso in giro" is the participle of "prende in giro".
+The verb "guasta la festa" means "spoils the party".
+"guastano la festa" is the plural of "guasta la festa".
+"guastare la festa" is the infinitive of "guasta la festa".
+"guastò la festa" is the past of "guasta la festa".
+"guastarono la festa" is the plural of "guastò la festa".
+The intransitive verb "tarda" means "is late".
+"chiude" takes the passive.
+The determiner "un paio di" means "a couple of".
+# `tenía previsto despegar ayer': takes off, an English verb of two words, which the builder takes from no dictionary entry
+The verb "decolla" means "takes off".
+"decollano" is the plural of "decolla".
+"decollare" is the infinitive of "decolla".
+"decollò" is the past of "decolla".
+"decollarono" is the plural of "decollò".
+"decollava" is the imperfect of "decolla".
+"decollerà" is the future of "decolla".
+"decollato" is the participle of "decolla".
+"decollando" is the gerund of "decolla".
+"decolla" is intransitive.
+"decolla" takes "da" before the phrase.
+The verb "attende" means "expects".
+The durative verb "attende" means "waits for".

@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16619 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16622 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -3804,6 +3804,61 @@ The masculine noun "malcontento" means "dissatisfaction".
 "dura" is intransitive.
 The feminine noun "sorta" means "sort".
 "concentra" takes the passive.
+The masculine noun "aereo" means "aeroplane".
+"aerei" is the plural of "aereo".
+The masculine noun "passeggero" means "passenger".
+The masculine noun "anello" means "ring".
+The masculine noun "guasto" means "breakdown".
+The feminine noun "hostess" means "flight attendant".
+"hostess" is the plural of "hostess".
+"hostess" is a person.
+The feminine noun "ventina" means "twenty".
+"ventine" is the plural of "ventina".
+The preposition "in preda a" means "in the grip of".
+The preposition "alla volta di" means "bound for".
+The feminine noun "porta d'imbarco" means "boarding gate".
+"porte d'imbarco" is the plural of "porta d'imbarco".
+The adverb "in cambio" means "in return".
+"pattuglia" is a group.
+The adjective "considerevole" means "considerable". "considerevoli" is the plural of "considerevole".
+The masculine noun "matrimonio" means "marriage".
+The masculine noun "matrimonio" means "wedding".
+The preposition "fino a dopo" means "until after".
+The masculine noun "maltempo" means "bad weather".
+The masculine noun "reclamo" means "complaint".
+The masculine adjective "milionario" means "multimillion".
+The feminine adjective "milionaria" means "multimillion".
+"milionari" is the plural of "milionario".
+"milionarie" is the plural of "milionaria".
+"massa" is a person.
+The masculine noun "nervosismo" means "nervousness".
+The verb "prende in giro" means "fools".
+"prendono in giro" is the plural of "prende in giro".
+"prendere in giro" is the infinitive of "prende in giro".
+"prese in giro" is the past of "prende in giro".
+"presero in giro" is the plural of "prese in giro".
+"preso in giro" is the participle of "prende in giro".
+The verb "guasta la festa" means "spoils the party".
+"guastano la festa" is the plural of "guasta la festa".
+"guastare la festa" is the infinitive of "guasta la festa".
+"guastò la festa" is the past of "guasta la festa".
+"guastarono la festa" is the plural of "guastò la festa".
+The intransitive verb "tarda" means "is late".
+"chiude" takes the passive.
+The determiner "un paio di" means "a couple of".
+The verb "decolla" means "takes off".
+"decollano" is the plural of "decolla".
+"decollare" is the infinitive of "decolla".
+"decollò" is the past of "decolla".
+"decollarono" is the plural of "decollò".
+"decollava" is the imperfect of "decolla".
+"decollerà" is the future of "decolla".
+"decollato" is the participle of "decolla".
+"decollando" is the gerund of "decolla".
+"decolla" is intransitive.
+"decolla" takes "da" before the phrase.
+The verb "attende" means "expects".
+The durative verb "attende" means "waits for".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -28351,6 +28406,162 @@ The verb "rinuncia" means "renounces".
 "rinunciate" is the plural of "rinunciata".
 "rinunciare" is the infinitive of "rinuncia".
 "rinunciando" is the gerund of "rinuncia".
+The verb "lincia" means "lynches".
+"linciano" is the plural of "lincia".
+"linciamo" is the first person of "linciano".
+"lincio" is the first person of "lincia".
+"linci" is the second person of "lincia".
+"linciò" is the past of "lincia".
+"linciarono" is the past of "linciano".
+"linciammo" is the first person of "linciarono".
+"linciaste" is the second person of "linciarono".
+"linciai" is the first person of "linciò".
+"linciasti" is the second person of "linciò".
+"linciava" is the imperfect of "lincia".
+"linciavano" is the imperfect of "linciano".
+"linciavamo" is the first person of "linciavano".
+"linciavate" is the second person of "linciavano".
+"linciavo" is the first person of "linciava".
+"linciavi" is the second person of "linciava".
+"lincerà" is the future of "lincia".
+"linceranno" is the plural of "lincerà".
+"linceremo" is the first person of "linceranno".
+"lincerete" is the second person of "linceranno".
+"lincerò" is the first person of "lincerà".
+"lincerai" is the second person of "lincerà".
+"lincerebbe" is the conditional of "lincia".
+"lincerebbero" is the plural of "lincerebbe".
+"linceremmo" is the first person of "lincerebbero".
+"lincereste" is the second person of "lincerebbero".
+"lincerei" is the first person of "lincerebbe".
+"linceresti" is the second person of "lincerebbe".
+"linci" is the subjunctive of "lincia".
+"lincino" is the plural of "linci".
+"linciamo" is the first person of "lincino".
+"linciasse" is the past subjunctive of "lincia".
+"linciassero" is the plural of "linciasse".
+"linciassimo" is the first person of "linciassero".
+"linciaste" is the second person of "linciassero".
+"linciassi" is the first person of "linciasse".
+"linciassi" is the second person of "linciasse".
+"lincia" is the imperative of "lincia".
+"linciare" is the negative imperative of "lincia".
+"linciate" is the imperative of "linciano".
+"linciamo" is the hortative of "lincia".
+"linciato" is the participle of "lincia".
+"linciata" is the participle of "lincia".
+"linciata" is feminine.
+"linciati" is the participle of "lincia".
+"linciati" is the plural of "linciato".
+"linciate" is the participle of "lincia".
+"linciate" is feminine.
+"linciate" is the plural of "linciata".
+"linciare" is the infinitive of "lincia".
+"linciando" is the gerund of "lincia".
+The verb "ammutina" means "mutinies".
+"ammutinano" is the plural of "ammutina".
+"ammutiniamo" is the first person of "ammutinano".
+"ammutino" is the first person of "ammutina".
+"ammutini" is the second person of "ammutina".
+"ammutinò" is the past of "ammutina".
+"ammutinarono" is the past of "ammutinano".
+"ammutinammo" is the first person of "ammutinarono".
+"ammutinaste" is the second person of "ammutinarono".
+"ammutinai" is the first person of "ammutinò".
+"ammutinasti" is the second person of "ammutinò".
+"ammutinava" is the imperfect of "ammutina".
+"ammutinavano" is the imperfect of "ammutinano".
+"ammutinavamo" is the first person of "ammutinavano".
+"ammutinavate" is the second person of "ammutinavano".
+"ammutinavo" is the first person of "ammutinava".
+"ammutinavi" is the second person of "ammutinava".
+"ammutinerà" is the future of "ammutina".
+"ammutineranno" is the plural of "ammutinerà".
+"ammutineremo" is the first person of "ammutineranno".
+"ammutinerete" is the second person of "ammutineranno".
+"ammutinerò" is the first person of "ammutinerà".
+"ammutinerai" is the second person of "ammutinerà".
+"ammutinerebbe" is the conditional of "ammutina".
+"ammutinerebbero" is the plural of "ammutinerebbe".
+"ammutineremmo" is the first person of "ammutinerebbero".
+"ammutinereste" is the second person of "ammutinerebbero".
+"ammutinerei" is the first person of "ammutinerebbe".
+"ammutineresti" is the second person of "ammutinerebbe".
+"ammutini" is the subjunctive of "ammutina".
+"ammutinino" is the plural of "ammutini".
+"ammutiniamo" is the first person of "ammutinino".
+"ammutinasse" is the past subjunctive of "ammutina".
+"ammutinassero" is the plural of "ammutinasse".
+"ammutinassimo" is the first person of "ammutinassero".
+"ammutinaste" is the second person of "ammutinassero".
+"ammutinassi" is the first person of "ammutinasse".
+"ammutinassi" is the second person of "ammutinasse".
+"ammutina" is the imperative of "ammutina".
+"ammutinare" is the negative imperative of "ammutina".
+"ammutinate" is the imperative of "ammutinano".
+"ammutiniamo" is the hortative of "ammutina".
+"ammutinato" is the participle of "ammutina".
+"ammutinata" is the participle of "ammutina".
+"ammutinata" is feminine.
+"ammutinati" is the participle of "ammutina".
+"ammutinati" is the plural of "ammutinato".
+"ammutinate" is the participle of "ammutina".
+"ammutinate" is feminine.
+"ammutinate" is the plural of "ammutinata".
+"ammutinare" is the infinitive of "ammutina".
+"ammutinando" is the gerund of "ammutina".
+The verb "ricolloca" means "repositions".
+"ricollocano" is the plural of "ricolloca".
+"ricollochiamo" is the first person of "ricollocano".
+"ricolloco" is the first person of "ricolloca".
+"ricollochi" is the second person of "ricolloca".
+"ricollocò" is the past of "ricolloca".
+"ricollocarono" is the past of "ricollocano".
+"ricollocammo" is the first person of "ricollocarono".
+"ricollocaste" is the second person of "ricollocarono".
+"ricollocai" is the first person of "ricollocò".
+"ricollocasti" is the second person of "ricollocò".
+"ricollocava" is the imperfect of "ricolloca".
+"ricollocavano" is the imperfect of "ricollocano".
+"ricollocavamo" is the first person of "ricollocavano".
+"ricollocavate" is the second person of "ricollocavano".
+"ricollocavo" is the first person of "ricollocava".
+"ricollocavi" is the second person of "ricollocava".
+"ricollocherà" is the future of "ricolloca".
+"ricollocheranno" is the plural of "ricollocherà".
+"ricollocheremo" is the first person of "ricollocheranno".
+"ricollocherete" is the second person of "ricollocheranno".
+"ricollocherò" is the first person of "ricollocherà".
+"ricollocherai" is the second person of "ricollocherà".
+"ricollocherebbe" is the conditional of "ricolloca".
+"ricollocherebbero" is the plural of "ricollocherebbe".
+"ricollocheremmo" is the first person of "ricollocherebbero".
+"ricollochereste" is the second person of "ricollocherebbero".
+"ricollocherei" is the first person of "ricollocherebbe".
+"ricollocheresti" is the second person of "ricollocherebbe".
+"ricollochi" is the subjunctive of "ricolloca".
+"ricollochino" is the plural of "ricollochi".
+"ricollochiamo" is the first person of "ricollochino".
+"ricollocasse" is the past subjunctive of "ricolloca".
+"ricollocassero" is the plural of "ricollocasse".
+"ricollocassimo" is the first person of "ricollocassero".
+"ricollocaste" is the second person of "ricollocassero".
+"ricollocassi" is the first person of "ricollocasse".
+"ricollocassi" is the second person of "ricollocasse".
+"ricolloca" is the imperative of "ricolloca".
+"ricollocare" is the negative imperative of "ricolloca".
+"ricollocate" is the imperative of "ricollocano".
+"ricollochiamo" is the hortative of "ricolloca".
+"ricollocato" is the participle of "ricolloca".
+"ricollocata" is the participle of "ricolloca".
+"ricollocata" is feminine.
+"ricollocati" is the participle of "ricolloca".
+"ricollocati" is the plural of "ricollocato".
+"ricollocate" is the participle of "ricolloca".
+"ricollocate" is feminine.
+"ricollocate" is the plural of "ricollocata".
+"ricollocare" is the infinitive of "ricolloca".
+"ricollocando" is the gerund of "ricolloca".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".

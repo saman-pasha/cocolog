@@ -10748,6 +10748,176 @@ read into an English-worded IR and written into any lesson's language),
   Ospedale Maggiore, a name) and `the speech of the crown' (the inaugural speech); `insatisfacción para el estado' (17:
   `por') and `hacer gritar a la renovación' (`gridare al rinnovamento', to cry out for renewal, an idiom). The next
   sample's controls take this report in.
+  The Air Europa report (AnCora CESS-CAST-P-20000401-85, 19 sentences, the paper's report on an aeroplane seven hours
+  late at El Prat, Spanish into Italian and English: 19 of 19 and 19 of 19 on a fresh store, 18 and 17 with the new
+  store alone, 6 and 11 with the new code on the old store, 6 and 11 before; reasoning 1.0.34). The sample was taken
+  on the cocolog 3.62.0 binary, master's d4b5564 fast-forwarded onto the branch, and cocolog stays 3.62.0; master's
+  ed4e4ed (cocolog 3.62.1, the green world reviewed) came during the sample, changes nothing under
+  library/reasoning/, and is not merged: the next sample takes it. THE BOX WAS RESET BEFORE THIS SAMPLE, and the
+  controls were made again from their sources (the AnCora documents and VIT ranges of UD's es_ancora and it_vit, and
+  every (length/400)th Spanish sentence of 3 to 8 words of manythings' spa.txt): 132 count files, 3 498 sentences,
+  with the CNR report in, so no count below compares with the CNR sample's, and the baseline is the committed library
+  (reasoning 1.0.33) on a store taught from the committed vocabulary. THE BINARIES OF 3.33.0 AND 3.62.0 give the same
+  texts on these controls (0 differ) and 3.62.0 counts 0.174 % fewer inferences (6 747 835 285 to 6 736 088 337); a
+  store 3.33.0 taught reads the same to the unit on 3.62.0 as one 3.62.0 taught, and 3.33.0 cannot read a store
+  3.62.0 taught (3.35.0 writes an atom past ASCII bare, which 3.33.0's reader refuses). The article's sentences fall
+  from 26.5 million inferences into Italian and 26.3 into English to 22.0 and 21.6.
+  It needed these SHAPES, each with its arm red (test/translate.pl's `newspaper_air': 44 checks, 49 arms, 48 red and
+  one that makes the section raise; an arm is a library directory of symlinks whose reasoning/translate.pl is the
+  edited copy, `COCOLOG_LIBRARY=ARM cocolog query "use_module('test/translate.pl'), newspaper_air, checks_done"', a
+  second a run, and every arm is run in two minutes, four at a time): A CODE WITH DIGITS IN IT IS NO NAME'S FIRST WORD
+  (`el vuelo UX-9482 de Air Europa' is Air Europa's flight, and joined it was one name, `UX-9482 de Air Europa', with
+  its `de' untranslated: tr_particle_names/4), and WHAT IS ON A FLIGHT OR A VEHICLE ONE TRAVELS IN, WITH ITS
+  DETERMINER, IS ON IT (`in the flight', `in the train': tr_comp_out/7, en_on_vehicle/1), a vehicle with no determiner
+  never (`andar en tren' is by train) and a plane never, which a film's shot is too (`elementos contemporáneos que se
+  cuelan en el plano', found by the controls) -- four arms; A VERB WITH A SPAN OF TIME AND AN OBJECT CROSSES BY THE
+  MEANING THE LESSON GIVES IT THERE (`Un centenar de pasajeros esperó siete horas la salida de un avión averiado'
+  waited for it, where `espera' is `expects' first, and `expected seven hours the departure' was written: `The durative
+  verb "espera" means "waits for".', tr_mean_links/3, tr_verb_across/5), the source's span asked by its noun's
+  meaning, as the verb crosses before its complements do (tr_span_source/1), and English writes the span after the
+  object and its phrases of `of', with `for' (`waited for the departure of a damaged aeroplane for seven hours':
+  tr_comps_out/7), and a span the source put after the object takes its `for' there, `a couple of hours' among the
+  spans (`aguantaron con estoicismo su mala suerte un par de horas', tr_span_np/1) -- six arms; A NOUN OF A ROUND
+  COUNT BEFORE `de' AND A BARE PLURAL IS ABOUT THAT MANY (`Un centenar de pasajeros' was `A hundred of passengers' with
+  the singular verb, `una veintena de viajeros' `a twenty of travellers': tr_cross_np/2, en_round_count/1, as
+  `unos cien pasajeros' is, adv_num/2), with the article in English (`about a hundred', tr_num_out/3), after `the' the
+  count itself, an object too (`esgrimiendo el centenar de reclamaciones cursadas por el pasaje' is the hundred
+  complaints: tr_cross_comps/2, tr_count_head/4 for the participle after the plural's noun), a clause joined after it
+  with nobody named the plural's (`una veintena de viajeros rodeó a una azafata y estuvo a punto de lincharla' WERE on
+  the verge, and with the singular English refused the clause: tr_count_gap/3), and `almost' before it says how many
+  in its place, after the verb and inside the phrase of a preposition (`se compone de casi un millar de sellos
+  discográficos' is of almost a thousand record labels, where the count's own word wrote `almost about a thousand',
+  found by the controls: tr_cross_comps/2, each clause asking the count's shape before it crosses the adverb) -- eight
+  arms; A TIME IN DIGITS AND THE NOUN FOR HOURS AFTER IT ARE THE HOUR (`despegar ayer a las 11.10 horas' took off at
+  11.10, and it was `to the 11.10 hours' and `alle 11.10 ore': tr_cross_np/2), and an hour after a preposition of time
+  takes no article in English, with the part of the day after it (`el avión no partió hasta después de las seis de la
+  tarde' did not depart until after six in the afternoon, where it was `until after the six of the afternoon':
+  tr_comp_out/7, en_clock_preposition/1, en_clock_pp/1) -- three arms; A GROUP NOUN THAT DOES SOMETHING IS THE PEOPLE
+  IT IS (`el pasaje destiló tanta indignación' is the passengers, and it was `the passage distilled': `The collective
+  noun "pasaje" means "passengers".', tr_mean_links/3, tr_cross_np/2), the subject of a verb that is no reflexive, the
+  agent of a participle (`reclamaciones cursadas por el pasaje', by/1) and a share of such a subject (`Parte del
+  pasaje volaba por placer' was refused, `parte' read as the verb, departs: tr_part_of_group/1, tr_read_generic/4),
+  the doer told to the crossing as it goes in and put back as it comes out ('$tr_doer', tr_as_doer/1,
+  tr_as_doer_not/1), and never an object, the subject of a reflexive verb, which is a passive, the phrase of `of' of a
+  subject that does something (`el perro del pasaje') nor a complement of a clause in such a subject -- ten arms; A
+  CLAUSE OF `que' AFTER A PHRASE OF `so much' OR `so many' IS WHAT CAME OF IT (`el pasaje destiló tanta indignación que
+  se amotinó' is so much indignation that THEY mutinied, and read as a relative clause on the indignation it was
+  `that mutinied': tr_result_clause/4, res/2), English naming the clause's subject the lesson's languages leave out,
+  `he' for a person, `it' for a thing -- two arms; A CLAUSE WITH NOBODY NAMED AND TWO OBJECTS, A THING AND THEN A DOER,
+  HAS THE DOER FOR ITS SUBJECT (`Los ánimos se calmaron cuando cruzó la puerta de embarque número 24 una patrulla' --
+  a patrol crossed the gate, and read as two objects English refused the clause: tr_vos_subject/2, tr_thing_head/2,
+  tr_doer_head/2, `"patrulla" is a group.'), the thing's head through its phrases and its number, and a second phrase
+  that is no doer the object still (a guard) -- three arms; A NOUN, THE WORD FOR `number' AND DIGITS ARE THE NOUN AND
+  ITS NUMBER (`la puerta de embarque número 24' had its digits left a phrase of their own, and the sentence was
+  refused: tr_np/3, app/3's numbered, each writer its own word for the number), asked where the sentence has the word
+  for `number' with digits after it ('$tr_numbered', tr_numbered_note/1, a guard of cost whose arm stays green, below)
+  -- three arms; THE SECOND `ni' OF TWO CLAUSES IS `nor' IN ENGLISH (`Así que ni se cerró el suculento trato ni la
+  testigo entregó los anillos' was `neither the witness handed': tr_write/4, tr_opens_neither/1), where the first
+  clause opens on its own `neither' and where the first `ni' stands before both -- two arms; A QUOTATION THAT CLOSES
+  ON A VERB GROUP AND ITS OBJECT PRONOUNS CLOSES AFTER THEM IN ENGLISH (`"No es la primera vez que Air Europa me toma
+  el pelo"' was `fools" me': tr_write/4, tr_vqc_mark/3); A SENTENCE THE SOURCE BEGINS IN SMALL LETTERS WITH A VERB OF
+  SAYING IS NO COMMAND (`"¿Por Qué AENA no hace nada en estos casos?", pregunta Camp' is Camp asking, and the present
+  `pregunta' read as the command it is too, `Ask Camp': tr_into_ir/4, '$tr_small_head', tr_small_head_note/2), asked
+  of the words as the source wrote them, before the capital of a sentence's first word is taken off, in both ways a
+  sentence is read (tr_read_ir/5, and the page's tr_each/3), of a verb of saying alone (`"mettiamola la così: noi
+  crediamo ...', the treebank's own sentence in small letters, is the command it was, a guard the controls found) --
+  five arms; `makes' with nothing made is `does' in a question that asks why, when, where or how too (`"¿Por Qué AENA no
+  hace nada ...?"' was `not make anything': tr_makes_does/3); and `takes off' governs `from' (`despegar ... de
+  Barcelona', en_governs/2). A clause for a thing the reader made the subject, with the doer after it among its
+  complements, had an arm that stayed green on the section and on the store, the clause with nobody named reading the
+  article's sentence, and is gone.
+  It needed these WORDS in `extra/' (the two readers: a line moves the reader of one language and the writer of the
+  other; the dictionary's own word is said again first where it must stay the one written): Spanish `espera' (expects
+  said again first, and waits for with a span: the durative class, new here), `despega' (takes off, an English verb of
+  two words the builder takes from no entry, with its forms, intransitive, `de' before the phrase), `asegura' (ensures
+  said again first, and assures before a clause), `azafata' (a flight attendant, a person), `veintena' (twenty),
+  `cabreo' (anger, `rabia' said again first), `presa de' (in the grip of), `verbalmente', `avería' (a breakdown,
+  before the failure), `envía' said again first and `manda' (sends), the name `Palma de Mallorca', `rumbo a' (bound
+  for), `puerta de embarque' (a boarding gate), `a cambio' (in return), `"patrulla" is a group.', `así que' (so),
+  `hasta después de' (until after), `mal tiempo' (bad weather), `pasaje' (a passage said again first, and the
+  passengers, its collective meaning, the collective class new here, and a group), `reclamación' (a complaint, then a
+  claim; `queja' said again first, and `entrega' hands, then submits), `millonario' and `millonaria' (multimillion),
+  `"masa" is a person.', `toma el pelo' (fools, with its forms), `agua la fiesta' (spoils the party, with its forms),
+  the intransitive `tarda' (is late), `"cierra" takes the passive.', the name `Baleares' and the determiner `un par de'
+  (a couple of); Italian `aereo' (an aeroplane: no Italian word meant one), `passeggero' (a passenger, where the
+  writer's word was a cruise passenger, `crocierista'), `anello' (a ring), `guasto' (a breakdown), `hostess' (a flight
+  attendant, a person, its own plural), `ventina', `in preda a', `alla volta di', `porta d'imbarco', `in cambio',
+  `"pattuglia" is a group.', `considerevole' (considerable: the dictionary's `considerabile' is no word, and has no
+  plural), `matrimonio' (marriage said again first, and a wedding: the dictionary's `nozze' says no number, and the
+  writer wrote `un nozze'), `fino a dopo', `maltempo', `reclamo' (a complaint), `milionario' and `milionaria', `"massa"
+  is a person.', `prende in giro' (fools, with its forms), `guasta la festa' (with its forms), the intransitive `tarda',
+  `"chiude" takes the passive.', `un paio di', `decolla' (takes off, with its forms, intransitive, `da' before the
+  phrase) and `attende' (expects, and waits for with a span); and in the dictionaries' extras, for Italian `lynch'
+  (`linciare'), `mutiny' (`ammutinare') and `reposition' (`ricollocare'), and for Spanish `lynch' (`linchar'),
+  `mutiny' (`amotinar') and, read only, `submit' (`cursar') and `shout' (`vociferar'). The first meaning moved for 6
+  Spanish words and 5 Italian ones (Spanish `avería' a breakdown, `manda' sends, `millonario' and `millonaria'
+  multimillion, `reclamación' a complaint, `tarda' is late; Italian `aereo' an aeroplane, where it was an airplane,
+  `milionario' and `milionaria' multimillion, `reclamo' a complaint, `tarda' is late), the writer's first word for 1
+  Spanish meaning and 5 Italian ones (Spanish breakdown `avería', where it was `desglose'; Italian complaint `reclamo',
+  where it was `denuncia', considerable `considerevole', passenger `passeggero', ring `anello', where it was
+  `anellino', wedding `matrimonio'), and none was lost.
+  THE CONTROLS (cocolog 3.62.0, store KB_a4, 132 count files, 3 498 sentences: the earlier set with the CNR report in,
+  it_4883_4900, both directions; this report is not among them): the last version's translator against this one, on
+  the one store, 3 sentences in 3 files read differently, all better -- `almost a thousand record labels' and `quasi
+  mille etichette discografiche' (es_20010103-139 14, where they were `almost a thousand of' and `quasi un migliaio
+  d'') and Tatoeba's `You are on the mistaken train' -- and the inferences rise 0.033 % (6 736 866 187 to 6 739 058
+  634), the largest rises the Venice report's eighth (+14 463 of 251.3 million) and the Rognoni interview's nineteenth
+  (+9 586 of 176.4, refused both ways). Bytes and characters read every sentence alike (0 differ, the bytes 0.014 %
+  more). The DATA COLUMN (the last version's translator on its own store against this one on the new): 17 sentences in
+  14 files, all better but the two of `tardar' below, no worse, +0.044 % (6 736 088 337 to 6 739 058 634), and 3 114
+  read in both. THE CODE ALONE (this translator on the old store): the same 3 sentences, +0.033 % (to 6 738 286 465).
+  THE STORE ALONE (the last version's translator on the old store and on the new): 14 sentences in 11 files, +0.012 %
+  (to 6 736 866 187), each a word of the report's lines -- `assured' for `aseguró que' (6, where it was `ensured'), `a
+  couple of' (2: `shattered a couple of years after', `a couple of counters', where it was `a pair of'), `anelli' (2:
+  `il signore degli anelli', `la comunità dell'anello', where it was `anellini'), `multimillion bribes', `tardato' and
+  `have been late' for `han tardado' (where it was `preso' and `taken', no better and no worse: `tardar en' with `más
+  que nosotros' between is `took longer'), and Italian's `reclamo' for a complaint (`I reclami civici', `Il suo
+  principale reclamo', where it was `denuncia').
+  THE FIRST ROUNDS' REGRESSIONS, found by reading the texts of every column and mended, each with its arm red. Of the
+  code: the rule for a sentence in small letters first asked the words after the capital of a sentence's first word
+  was taken off, so it held for every sentence, and every command of the controls was refused (3 114 read to 3 077:
+  `Compare the own ones with analogous compiled charts', `Apply several statistical correctives', `If I err correct
+  me', `Therefore be consistent', `Let us talk again it among a year', `Give the impression that they wish ETA to
+  act', and the islands report's `Assicura il sindaco Costantino Federico ...' refused into English), and asked of any
+  word it refused the treebank's own sentence in small letters, `"mettiamola la così: noi crediamo al
+  presidenzialismo ...' (it_9714_9749 28, both languages); the vehicles took the film's shot, `que se cuelan en el
+  plano' (`sneak on the plane', es_20020102-112 1); and the count wrote `almost about a thousand' (es_20010103-139 14,
+  both languages). Of the store: `cabreo' became the Spanish writer's word for anger, `reclamación' for a complaint
+  and `cursar' for submits -- the dictionary's `entregar' for submits is an entry read only from English (r="LR"),
+  and with a line for submits from `cursar' the builder wrote it no more -- and the dictionary's words are said again
+  first now.
+  THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (23 sentences of the controls into English, the four heaviest
+  Italian risers of the first round and 19 picked at random of 0.1 to 2 million inferences, over a copy of the library
+  per rule on the new store): the first cut rose 250 090 inferences of 145.5 million (+0.172 %), and one rule was 91 %
+  of it, the noun and its number, whose clause of tr_np/3 walked every phrase it was asked with append/3 (226 486); its
+  last word asked first with last/2 saved nothing measurable, the clause being entered at each phrase, and a note
+  made once a sentence ('$tr_numbered') leaves +27 290 (+0.019 %), the note's own walk 11 193 of it, the doer told to
+  the crossing 1 372, the group's crossing 943, the doer put out of an infinitive's complements 568, the swap of a
+  thing and a doer 692, `almost' 402 (each clause asked the adverb's meaning before the count's shape, 7 657), no
+  other rule over 300. The note's arm, always yes, is +249 255 and green on the section, a guard of cost. Over the
+  controls the code alone is +0.033 %.
+  THE STATED COSTS: a first meaning that serves the news and not every text -- `avería' is a breakdown (a failure
+  second), `manda' sends (commands second), `millonario' multimillion (a millionaire second), `reclamación' and
+  `reclamo' a complaint (a claim second), `tarda' is late (takes second) -- and the writers' `avería' for a breakdown
+  (`desglose', a breakdown of figures, before) and Italian's `reclamo' for a complaint (`denuncia' before);
+  `pasaje' is a group now, so the Inter feature's doer rule reads `El perro que ve el pasaje duerme' as the dog that
+  the passengers see; the store's lines cost three sentences of the controls a reading for nothing, the texts the same
+  (it_9763_9774 10, +73 374 of 3.12 million, es_19991202-35 6, +46 556 of 0.27, Tatoeba's 383, +21 493 of 0.20); and
+  the inferences, +0.033 % on the one store and +0.012 % for the store alone.
+  The report LEAVES, of the 19 into Italian (English alike unless it says): `trattamenti milionari' and `multimillion
+  treatments' (3: `tratos' are deals) and `pretendevano chiudere' (`intendevano'); `In preda al nervosismo e della
+  rabbia' (10: the second phrase of a preposition of several words keeps the `of' it was read with, `alla rabbia');
+  `Gli incoraggiamenti' and `The encouragements' (11: `Los ánimos' are tempers), `con la sua sola presenza' and `with
+  his alone presence' (its mere presence) and `che placò le masse' after `guardie civili' (the relative clause hangs
+  on the patrol); `il danno era fatto' is right, and English writes `the damage was made' (12: done); `ebbero in mano'
+  and `held' for `aguantaron' (7: endured), `con stoicismo' before the object; `si credettero dopo che bisognasse
+  pulire l'aereo' (8: `credettero', the reflexive of `creerse' kept, and `poi'); `difese Hidalgo' and `Hidalgo
+  defended' (17: argued) and `senza lei' and `without her' (the piece: `senza di esso', the pronoun of a thing written
+  as a woman's); `il pezzo che modificava il fallimento' and `the piece that amended the failure' (16: that fixed the
+  fault); `"Perché non
+  fa AENA niente in questi casi?" Chiede Camp.' (19: `Perché AENA non fa niente', the subject after the verb, and the
+  reporting clause's comma and small letter lost); and English writes `yesterday' last (2, 18). The next sample's
+  controls take this report in.
 
 ## Tutorials are documentation that runs
 
