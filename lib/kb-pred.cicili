@@ -2215,7 +2215,13 @@
         (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
           ;; the dead gone first if no frame is open to want them
           (if (!= (-> p ntomb) 0) (coco_tomb_try_sweep st m pi))
-          (if (not (coco_pred_room st p 1)) (return 0))
+          ;; A PREDICATE WITH NO ROOM FOR ONE MORE CLAUSE FINISHES THE MACHINE
+          ;; THAT ASKED (3.62.3, `coco_oom'): its arrays were refused even
+          ;; the little that was needed. Through 3.62.2 the answer was 0 and
+          ;; no more, and assertz/1 FAILED -- a goal that failed, in a
+          ;; program that took its other branch (a task's `assertz' under two
+          ;; requests in a row refused: test/async.pl, `refusals')
+          (if (not (coco_pred_room st p 1)) (return (coco_oom m)))
           (if at_end
               (block (set (nth (-> p nclauses) (-> p clauses)) clause)
                      (set (nth (-> p nclauses) (-> p keys)) key)
@@ -2296,7 +2302,7 @@
                              (size_t clause) (u64 key) (u64 origin) (int muted)) (out int)
         (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
               (size_t i . 0))
-          (if (not (coco_pred_room st p 1)) (return 0))
+          (if (not (coco_pred_room st p 1)) (return (coco_oom m)))
           (set i (-> p nclauses))
           (while (> i k)
             (set (nth i (-> p clauses)) (nth (- i 1) (-> p clauses)))

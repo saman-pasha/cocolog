@@ -12,7 +12,7 @@ ZiguratIP server, Zeytun over HTTP — in which a clause is a row, and a running
 proof is a term that can be frozen into rows and resumed by another process.
 It is one binary, written in **Cicili** (C in S-expressions).
 
-Version at the time of writing: cocolog 3.62.2, reasoning 1.0.34, built with
+Version at the time of writing: cocolog 3.62.3, reasoning 1.0.34, built with
 Cicili 3.3.0. `./cocolog --version` answers the first.
 
 **Part A** is for writing and running Prolog on cocolog. **Part B** is for
@@ -329,6 +329,11 @@ conc_os(Status) :-                                % Status = true
   `main` returns: a task still running is stopped and one still ready is
   never run. `await/1,2` or `await_all/1` what must finish. `halt/0,1` in a
   task halts the process.
+- **Short of memory, a task is one task's affair**: it ends with
+  `resource_error(memory)` for its status, its `await` raises that, and the
+  world goes on. `go/1,2`, `channel_send/2` and `channel/2` raise it too
+  where a text or a buffer is what there is no room for. A host whose own
+  machine is refused memory outright ends its run, `out of memory`, exit 2.
 - An `await` or a blocking send or receive inside `findall/3` (any nested
   search) cannot suspend its task: it waits there and holds its worker.
   Wait outside the search where the program allows it.

@@ -1159,6 +1159,20 @@
     (member size_t  len)
     (member size_t  cap))
 
+  ;; MEMORY REFUSED, COUNTED A THREAD (3.62.3): `coco_refuse' counts a
+  ;; refusal, finishes the machine running on the thread unless a caller
+  ;; took it (`coco_refuse_take', given back with `coco_refuse_give'), and
+  ;; answers 0; `coco_refuse_count' counts one whose caller fails by its
+  ;; own road; `coco_refusals' is the count, which a caller reads before
+  ;; and after a stretch of work whose pieces cannot each say they were
+  ;; refused (a text written, a term read)
+  (decl) (func coco_refuse () (out int))
+  (decl) (func coco_refuse_count () (out int))
+  (decl) (func coco_refuse_short () (out int))
+  (decl) (func coco_refuse_take () (out coco_machine *))
+  (decl) (func coco_refuse_give ((coco_machine * was)))
+  (decl) (func coco_oom ((coco_machine * m)) (out int))
+  (decl) (func coco_refusals () (out size_t))
   (decl) (func coco_sb_init ((coco_strbuf * b)))
   (decl) (func coco_sb_free ((coco_strbuf * b)))
   (decl) (func coco_sb_reset ((coco_strbuf * b)))
@@ -1453,7 +1467,13 @@
     (member size_t * to)
     (member size_t   len)
     (member size_t   cap)
-    (member u64      epoch))
+    (member u64      epoch)
+    ;; A VARIABLE THE TABLE HAD NO ROOM TO ENTER (3.62.3,
+    ;; `coco_varmap_intern'): the walk that asked goes on with a variable
+    ;; of its own for it, so what it makes is not the term it was given,
+    ;; and the map says so to the machine as it goes back
+    ;; (`coco_varmap_give')
+    (member int      lost))
 
   (decl) (func coco_varmap_get ((coco_varmap * vm) (size_t from) (size_t * out_to)) (out int))
   (decl) (func coco_varmap_put ((coco_varmap * vm) (size_t from) (size_t to)) (out int))
@@ -1532,6 +1552,26 @@
 (generic impl-term
   ()
 
+  ;;; THE MACHINE IS FINISHED, AND WHAT RUNS ON IT STOPS (3.62.3). `oom' says
+  ;;; an array of the machine was refused even the little that was needed;
+  ;;; the caller goes on, writing over cell 0 what it could not push. Through
+  ;;; 3.62.2 the ENGINE went on too, until a builder of its continuation
+  ;;; happened to find no room (`coco_k_room'): a step later, or never --
+  ;;; with the trail refused and the heap not, it ran on a machine whose
+  ;;; bindings were no longer undone, and a goal built over cell 0 was
+  ;;; raised as no goal, its ball put into a store that had no cells
+  ;;; either (a SIGSEGV, in a green task under an address-space ceiling:
+  ;;; test/async.pl, `ceiling'). The running engine is stopped as a growth
+  ;;; given short stops it (`haltp', 2), and with `oom' set its next step
+  ;;; raises nothing: the run ends `out of memory' (`coco_engine_next').
+  ;;; Answers 0, the refusal's own answer. Cold: only a refusal comes here.
+  (cold)
+  (func coco_oom ((coco_machine * m)) (out int)
+        (set (-> m oom) 1)
+        (if (!= (-> m haltp) nil)
+            (if (== (cof (-> m haltp)) 0) (set (cof (-> m haltp)) 2)))
+        (return 0))
+
   ;;; A DOUBLING REFUSED (1.10.28): ask for what is needed and a sixteenth
   ;;; more, and if that is given, stop the running engine (`haltp'), whose
   ;;; next step raises error(resource_error(memory), _) for a catch/3 to
@@ -1546,8 +1586,7 @@
         (out int)
         (let ((size_t ncap . #'(+ need (+ (/ need 16) 64)))
               (void * nbuf . #'(realloc (cof buf) (* ncap esize))))
-          (if (== nbuf nil)
-              (block (set (-> m oom) 1) (return 0)))
+          (if (== nbuf nil) (return (coco_oom m)))
           (set (cof buf) nbuf)
           (set (cof cap) ncap)
           (if (!= (-> m haltp) nil)
@@ -1603,10 +1642,13 @@
   ;;; static function taking the array by pointer-to-pointer and the element
   ;;; size: the test inlined where it is asked, the growth out of line
   ;;; (`coco_grow_slow'). A doubling refused is tried again smaller
-  ;;; (`coco_grow_short'); a failure of that sets `oom' on the machine and
-  ;;; leaves the array as it was: the caller can carry on writing nonsense
-  ;;; into a machine that is already finished, and nothing dereferences a
-  ;;; null on the way there.
+  ;;; (`coco_grow_short'); a failure of that sets `oom' on the machine,
+  ;;; stops the engine that runs on it (`coco_oom', 3.62.3) and leaves the
+  ;;; array as it was: the caller can carry on writing nonsense into a
+  ;;; machine that is already finished for the rest of its step, and
+  ;;; nothing dereferences a null on the way there -- where the array has
+  ;;; its first cells, which the heap of a machine made beside a world
+  ;;; has from its making (`coco_machine_init_alias').
   (static)
   (func coco_grow ((coco_machine * m) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
         (out int)
@@ -1642,7 +1684,7 @@
         (set (-> m atom_buckets)
              (cast (size_t *) (calloc (-> m atom_bucket_cap) (sizeof size_t))))
         (if (== (-> m atom_buckets) nil)
-            (block (set (-> m oom) 1) (return 0)))
+            (block (coco_oom m) (return 0)))
         (set (-> m tlimit) 65536)
         (set (-> m treq) 65536)
         (set (-> m wdeep) 1024)
@@ -1818,16 +1860,26 @@
               (void * nbuf . nil))
           (while (< ncap need) (set ncap (* ncap 2)))
           (set nbuf (malloc (* ncap esize)))
-          (if (== nbuf nil)
-              (block (set (-> m oom) 1) (return 0)))
+          (if (== nbuf nil) (return (coco_oom m)))
           (if (> (cof cap) 0)
               (memcpy nbuf (cof buf) (* (cof cap) esize)))
           (set (cof buf) nbuf)
           (set (cof cap) ncap)
           (return 1)))
 
+  ;;; AN ALIAS HAS ITS HEAP'S FIRST CELLS BEFORE IT IS ANYBODY'S (3.62.3):
+  ;;; 0, and the machine linked nowhere, where they are refused. A growth
+  ;;; refused later leaves the array as it was and says `oom', and a
+  ;;; builder that did not ask writes its nonsense into cell 0 of a machine
+  ;;; that is finished -- but a machine whose FIRST growth was refused has
+  ;;; no cell 0: `coco_new_var' pushed, was answered 0 and wrote through a
+  ;;; null (a green task made under an address-space ceiling: SIGSEGV,
+  ;;; test/async.pl, `ceiling'). The 64 are what the first push asks for.
   (func coco_machine_init_alias ((coco_machine * m) (coco_machine * base)) (out int)
         (memset m 0 (sizeof coco_machine))
+        (set (-> m heap) (cast (u64 *) (malloc (* 64 (sizeof u64)))))
+        (if (== (-> m heap) nil) (return 0))
+        (set (-> m heap_cap) 64)
         (set (-> m tlimit) 65536)
         (set (-> m treq) 65536)
         (set (-> m wdeep) 1024)
@@ -1914,6 +1966,82 @@
         (free (-> m gvb))
         (memset m 0 (sizeof coco_machine)))
 
+  ;;; ---- memory refused, counted -----------------------------------------
+  ;;;
+  ;;; A CHARACTER BUFFER THAT IS REFUSED ROOM KEEPS WHAT IT HAD, and the put
+  ;;; that asked answers 0 -- which the writer and the lexer, a put a
+  ;;; character, do not read. So a text written under a ceiling could be
+  ;;; short of a piece and still be a text, and a token read under one short
+  ;;; of its end and still a name: `foo(bar)' with no room for `bar' is
+  ;;; `foo()', which reads. Nothing in a `coco_strbuf' can say so (the SDK's
+  ;;; modules hold its three words), so THE THREAD COUNTS ITS REFUSALS
+  ;;; (3.62.3): a caller that must have the whole text, or the term the text
+  ;;; says, reads the count before and after and takes a count that moved as
+  ;;; no text and no term (lib/green.cicili: a task's goal, its status and a
+  ;;; channel's message; and the reader's three entries, `coco_read_clause',
+  ;;; `coco_read_goal' and `coco_read_term_from', whose own tables count
+  ;;; theirs: lib/syntax.cicili). A machine's arrays say `oom' on the
+  ;;; machine, as they always have. Out of line and cold: only a refusal
+  ;;; comes here.
+  ;;;
+  ;;; AND A REFUSAL NOBODY WATCHES FINISHES THE MACHINE RUNNING ON THE
+  ;;; THREAD. Most of the buffer's callers read no count: atom_concat/3
+  ;;; made the atom of a text short of its second half, atom_length/2
+  ;;; counted it, and a task's goal failed for it with nothing said (each
+  ;;; allocation of a run refused in turn: test/async.pl, `refusals', the
+  ;;; walks). There is no telling a builtin its text is short, so the
+  ;;; machine it runs on is told (`coco_refuse_m', set by
+  ;;; `coco_engine_next' for the run it starts and put back after it): it
+  ;;; is finished as an array refused outright finishes it (`coco_oom'),
+  ;;; and its run ends `out of memory' at its next step, whatever the
+  ;;; builtin answered. A caller that reads the count takes the machine
+  ;;; away for its stretch (`coco_refuse_take') and gives it back
+  ;;; (`coco_refuse_give'): its own road says what was refused, and the
+  ;;; machine is sound. With no engine running on the thread -- a load's
+  ;;; own reads, a thread before its goal starts -- there is the count
+  ;;; alone.
+  (thread-local) (var size_t coco_refused . 0)
+  (thread-local) (var coco_machine * coco_refuse_m . nil)
+
+  ;;; a refusal whose caller fails by its own road (the reader's `out of
+  ;;; memory', a read that is no term): counted, and nothing finished
+  (weak) (cold)
+  (func coco_refuse_count () (out int)
+        (set coco_refused (+ coco_refused 1))
+        (return 0))
+
+  (weak) (cold)
+  (func coco_refuse () (out int)
+        (set coco_refused (+ coco_refused 1))
+        (if (!= coco_refuse_m nil) (coco_oom coco_refuse_m))
+        (return 0))
+
+  ;;; A BUFFER'S DOUBLING REFUSED AND WHAT IT NEEDED GIVEN (`coco_sb_room'):
+  ;;; the text is whole, and the engine running on the thread is stopped as
+  ;;; an array given short stops it (`coco_grow_short', `haltp', 2): its
+  ;;; next step raises error(resource_error(memory), _) for a catch/3 to
+  ;;; take, while there is room for the ball. A run that ends at a solution
+  ;;; or a failure first drops it (`coco_engine_next'): nothing was wrong.
+  ;;; Answers 1, the put's own answer.
+  (weak) (cold)
+  (func coco_refuse_short () (out int)
+        (let ((coco_machine * m . coco_refuse_m))
+          (if (!= m nil)
+              (if (!= (-> m haltp) nil)
+                  (if (== (cof (-> m haltp)) 0) (set (cof (-> m haltp)) 2))))
+          (return 1)))
+
+  (func coco_refuse_take () (out coco_machine *)
+        (let ((coco_machine * was . coco_refuse_m))
+          (set coco_refuse_m nil)
+          (return was)))
+
+  (func coco_refuse_give ((coco_machine * was))
+        (set coco_refuse_m was))
+
+  (func coco_refusals () (out size_t)
+        (return coco_refused))
+
   ;;; ---- the character buffer ------------------------------------------
 
   (func coco_sb_init ((coco_strbuf * b))
@@ -1929,17 +2057,38 @@
   ;;; Room for N more characters AND the terminator. The buffer keeps a NUL at
   ;;; `len' at all times, so `b->s' is a C string the moment anything has been
   ;;; put in it and no caller has to remember to terminate it.
+  ;;;
+  ;;; A DOUBLING REFUSED ASKS AGAIN FOR WHAT IS NEEDED (3.62.3), as a
+  ;;; machine's arrays have since 1.10.28 (`coco_grow_short'): the
+  ;;; characters, the terminator and a sixteenth more, never as much as was
+  ;;; just refused. Given, the text is whole and the running engine is told
+  ;;; (`coco_refuse_short'); refused too, the thread counts it and the
+  ;;; machine running on it is finished (`coco_refuse'). Through 3.62.2 the
+  ;;; doubling was all there was, and its refusal a text short of a piece
+  ;;; that nothing said. The slow half is out of line and cold, so a put
+  ;;; pays the one test it always paid.
+  (cold)
+  (func coco_sb_grow ((coco_strbuf * b) (size_t n)) (out int)
+        (let ((size_t need . #'(+ (-> b len) (+ n 1)))
+              (size_t ncap . #'(? (== (-> b cap) 0) 64 (-> b cap)))
+              (size_t less . 0)
+              (char * ns))
+          (while (<= ncap need) (set ncap (* ncap 2)))
+          (set ns (cast (char *) (realloc (-> b s) ncap)))
+          (if (!= ns nil)
+              (block (set (-> b s) ns) (set (-> b cap) ncap) (return 1)))
+          (set less (+ need (/ need 16)))
+          (if (>= less ncap) (set less need))
+          (set ns (cast (char *) (realloc (-> b s) less)))
+          (if (== ns nil) (return (coco_refuse)))
+          (set (-> b s) ns)
+          (set (-> b cap) less)
+          (return (coco_refuse_short))))
+
   (static)
   (func coco_sb_room ((coco_strbuf * b) (size_t n)) (out int)
         (if (< (+ (-> b len) (+ n 1)) (-> b cap)) (return 1))
-        (let ((size_t ncap . #'(? (== (-> b cap) 0) 64 (-> b cap)))
-              (char * ns))
-          (while (<= ncap (+ (-> b len) (+ n 1))) (set ncap (* ncap 2)))
-          (set ns (cast (char *) (realloc (-> b s) ncap)))
-          (if (== ns nil) (return 0))
-          (set (-> b s) ns)
-          (set (-> b cap) ncap)
-          (return 1)))
+        (return (coco_sb_grow b n)))
 
   (func coco_sb_putc ((coco_strbuf * b) (char c)) (out int)
         (if (not (coco_sb_room b 1)) (return 0))
@@ -2445,7 +2594,7 @@
               (size_t lst . tail))
           (if (== n 0) (return lst))
           (set cps (cast (i64 *) (malloc (* n (sizeof i64)))))
-          (if (== cps nil) (block (set (-> m oom) 1) (return lst)))
+          (if (== cps nil) (block (coco_oom m) (return lst)))
           (while (< i n)
             (set (nth k cps) (coco_utf8_get s n (aof i)))
             (set k (+ k 1)))
@@ -2687,7 +2836,7 @@
   (func coco_atoms_rehash ((coco_machine * m)) (out int)
         (let ((size_t ncap . #'(* (-> m atom_bucket_cap) 2))
               (size_t * nb . #'(cast (size_t *) (calloc ncap (sizeof size_t)))))
-          (if (== nb nil) (block (set (-> m oom) 1) (return 0)))
+          (if (== nb nil) (block (coco_oom m) (return 0)))
           (for ((size_t i . 0)) (< i (-> m atoms_len)) ((++ i))
             (let ((size_t j . #'(cast size_t (bitand ($ (nth i (-> m atoms)) hash)
                                                      (cast u64 (- ncap 1))))))
@@ -2746,7 +2895,7 @@
                               (sizeof coco_atom)))
                 (block (coco_tbl_end m) (return 0)))
             (let ((char * copy . #'(cast (char *) (malloc (+ len 1)))))
-              (if (== copy nil) (block (set (-> m oom) 1) (coco_tbl_end m) (return 0)))
+              (if (== copy nil) (block (coco_oom m) (coco_tbl_end m) (return 0)))
               (memcpy copy name len)
               (set (nth len copy) (cast char 0))
               (let ((size_t id . #'(-> m atoms_len)))
@@ -2825,7 +2974,7 @@
         (let ((size_t ncap . #'(? (== (-> m functor_bucket_cap) 0) 256
                                   (* (-> m functor_bucket_cap) 2)))
               (size_t * nb . #'(cast (size_t *) (calloc ncap (sizeof size_t)))))
-          (if (== nb nil) (block (set (-> m oom) 1) (return 0)))
+          (if (== nb nil) (block (coco_oom m) (return 0)))
           (for ((size_t i . 0)) (< i (-> m functors_len)) ((++ i))
             (let ((size_t j . #'(cast size_t
                                       (bitand (coco_name_arity_hash ($ (nth i (-> m functors)) name)
@@ -2963,7 +3112,7 @@
           ;; it: the extra NUL lets coco_string_text hand the bytes to C code
           ;; that wants a C string, for the strings that do not contain one.
           (set copy (cast (char *) (malloc (+ n 1))))
-          (if (== copy nil) (block (set (-> m oom) 1) (coco_tbl_end m) (return 0)))
+          (if (== copy nil) (block (coco_oom m) (coco_tbl_end m) (return 0)))
           (if (> n 0) (memcpy copy p n))
           (set (nth n copy) (cast char 0))
           (if (> (-> m nsfree) 0)

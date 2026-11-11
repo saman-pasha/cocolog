@@ -510,14 +510,85 @@ now (`coco_tbl_live`, kept by `coco_tbl_set`; a worker clears its lock as
 its thread ends), a word of the process again: 4 inside a world of four
 workers and 0 after it, read with gdb.
 
-**Not fixed, recorded.** Under an address-space ceiling a task's creation
-writes through a null in three places (the reader's token buffer, a write's
-record in `coco_g_write_begin`, a fresh machine's first heap cell), and a
-channel's buffer of a size the allocator refuses is used unchecked;
-`coco_functor_id` takes the names' lock and moves the generation on every
-lookup, a hit too, where `coco_intern_len` has a lock-free hit; a send and
-a receive write and read their term's text with the world lock held; and
-the world's end waits for a worker inside a long foreign call.
+**Not fixed, recorded.** `coco_functor_id` takes the names' lock and moves
+the generation on every lookup, a hit too, where `coco_intern_len` has a
+lock-free hit; and the world's end waits for a worker inside a long
+foreign call. (The other two of this list as 3.62.1 left it -- a task's
+making under an address-space ceiling, and a message written and read
+with the world's lock held -- are the next section's.)
+
+## A world short of memory (3.62.3)
+
+3.62.1's review left a task's making under an address-space ceiling
+recorded and not done. Taken as one question -- what does a program see
+when the allocator answers nothing? -- the answer through 3.62.2 was too
+often something no program should see. With ONE allocation refused, each
+allocation of five small worlds in turn (1,708 runs on 3.62.1), more than
+one run in four did it: a SIGSEGV, a goal that `failed` though its clauses
+were there, an `await` of a FAILED task that succeeded, `async_run/2` come
+back with nothing bound, a variable written twice read back as two. Now a
+program sees one of three things:
+
+* **its answer**;
+* **`error(resource_error(memory), _)`**, which a `catch/3` takes, from
+  the builtin that could not be given what it asked for: `go/1,2` (the
+  goal's text), `channel_send/2` (the message's), `channel/2` (the
+  buffer), `await/1,2` of a task there was no memory to make, to run or
+  to answer for, and `async_run/1,2` itself;
+* **the end of its run**, `out of memory` and exit 2, where the HOST's own
+  machine was refused memory outright.
+
+**A task short of memory is one task's affair.** Its machine is finished,
+the task ends with `resource_error(memory)` for its status, and whoever
+awaits it raises that; the world, the one store and the other tasks go on.
+A growth that was *given less than it asked for* is still the catchable
+`resource_error(memory)` inside the task, as in any program since 1.10.28:
+that is what one refused allocation comes to, and a task that catches it
+goes on.
+
+What was wrong, as a program met it:
+
+| what happened | the rule now |
+|---|---|
+| an `await` of a task that had failed succeeded; `async_run/2` returned with nothing bound | a status is never nil, the nine that never change are literals nobody allocates, and library(async) refuses an unbound status by name (`error(system_error, _)`) |
+| a status or a message read as another term, or as nothing: its text had been written, or read, across a refused allocation | such a text is no text: `resource_error(memory)` |
+| SIGSEGV as a task was made | a task's machine has its first cells before it is anybody's, the reader's token buffer is there before a token is asked, and a write's record is the world's own |
+| a channel whose buffer the allocator refused was used; one of a million million had the room its low 32 bits said | `channel/2` raises `resource_error(memory)` |
+| an `await` of a task whose receive, send, await or yield was the last step of its quantum FAILED, and a world whose sender it was went dead (since 2.8.0): the quantum's stop came first, and the task's next run stopped on its stale block | a stop already asked for at a step is the stop: the block is the block, and no task ends on a channel's list |
+| `async_run/1` of a dead world FAILED, or crashed, where it raises the deadlock (since 2.8.1): an idle worker finished the main task while that task's own worker was still inside its run | a blocked task whose worker has not come back is not counted dead; that worker asks again when it has |
+| 60 bytes a round never freed: the answers a send and a closed receive give at once were copies | literals |
+
+Under the world, in the engine, the same sweep found faults that are any
+program's (STATUS.md has them): a machine marked out of memory went on
+running, a term put into the store by halves, a variable copied as two,
+`assertz/1` and a unification that FAILED for want of room, a text builtin
+that answered for a text short of a piece. A machine refused memory
+outright is finished and stops now, and a put, a read and a written text
+are each all or nothing.
+
+**A message is written once and read once** (the other item 3.62.1 left).
+A send wrote its term twice and a receive read its message three times,
+with the world's lock held; the text is written before the lock is taken
+and read with the lock given back, and the receiver builds its answer
+around the term it reads.
+
+**How it is held.** `test/async.pl`'s six sections `ceiling`, `refusals`,
+`channel_room`, `no_status`, `dead_running` and `quantum_block`: fixtures
+run under rows of `ulimit -v` ceilings, and under `test/refuse.c`, a shim
+before glibc's allocator that refuses the N-th allocation of a marked
+stretch -- every allocation of a fixture in turn, one at a time, two in a
+row, three and four (one refusal never refuses a growth of the machine's
+arrays, the store's or a buffer: each asks again for less and is given
+it; two is the growth refused outright, three a cell refused and then a
+growth given short, four a text and the error named in its place both
+refused their read). The fixtures are worlds on one worker and on two,
+and runs of the HOST's own, which show what no world can: a task whose
+machine was marked ends with `resource_error(memory)` whatever its engine
+did after the mark, so an engine that ran on is seen only where the host
+runs it. Every run must print its answer or `memory`, say the row's own
+word, or end as a host out of memory ends. `quantum_block` walks a
+receive, a send, a yield and an await across the last step of a
+quantum: 2,412 worlds on one worker, every one answering.
 
 ## What a finished `async_run` leaves in its host
 
@@ -584,6 +655,16 @@ host state to leave.
   store's hook, so a task may fetch and write under `--embed`; against a
   server the one socket is still shared, and a task's write through it
   is untested.
+* SHORT OF MEMORY (3.62.3) a program sees its answer,
+  `resource_error(memory)` or the end of its run, in what the sweeps reach:
+  the world's own builtins, and the engine's puts, copies, unifications,
+  reads and text builtins under them. Not swept, and not claimed: the
+  engine's own start under a ceiling; a builtin's scratch other than a
+  text's; the store's backends (a predicate's write to an `--embed` store
+  or a server sends the text it has); `library(stream)`'s reads, which say
+  a syntax error where the text builtins say `resource_error(memory)`; and
+  a consult a task runs, which goes on past a clause there was no memory
+  to read, its ERROR said and the clause left out.
 * 1024 tasks and 64 channels a world; a spawn copies nothing; a deadlock is
   the world's error. A world is as wide as the threads the system gave it
   (3.62.1): a worker refused its thread ends the count, and

@@ -2390,6 +2390,16 @@
                (set pmark (-> bst len))))
 
           (set cell (coco_store_put bst m (coco_ball_storable m ball)))
+          ;; A BALL THE STORE HAD NO ROOM FOR IS NOT THROWN (3.62.3): the
+          ;; put wrote nothing and stopped the run (`coco_store_put_short'),
+          ;; which ends `out of memory' with nothing unwound. Through
+          ;; 3.62.2 the cell was read back all the same, for each catcher
+          ;; and for the message -- whatever the store held there, or a
+          ;; null where it held nothing. Every error of a machine short of
+          ;; memory comes this way
+          (if (coco_store_put_refused m)
+              (block (set (-> e has_ball) 0)
+                     (return (coco_fail_err e "out of memory"))))
           (set size (- (-> bst len) cell))
 
           ;; a window records the raise, and a journal keeps a portal call's,
@@ -2481,6 +2491,10 @@
                    (set size (- (-> st len) cell))
                    (set (-> bst len) pmark)
                    (coco_store_shrink_empty bst)
+                   ;; and one the shared store had no room for (3.62.3)
+                   (if (coco_store_put_refused m)
+                       (block (set (-> e has_ball) 0)
+                              (return (coco_fail_err e "out of memory"))))
                    (set (-> e ball_st) (cast (void *) st))
                    (set (-> e ball_mark) 0))
                 (block

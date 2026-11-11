@@ -364,6 +364,13 @@
             ;; to be wound back past this point -- the template where the
             ;; collector left it
             (set (nth n kept) (coco_store_put fst m (nth 0 hold)))
+            ;; AN ANSWER THE STORE HAD NO ROOM FOR ENDS THE SEARCH (3.62.3):
+            ;; the put wrote nothing and stopped the run, which ends `out
+            ;; of memory' (`coco_store_put_short'). Through 3.62.2 the
+            ;; search went on and every answer was read back at its end,
+            ;; from cells that were never written
+            (if (coco_store_put_refused m)
+                (block (set ok 0) break))
             (set n (+ n 1))
             ;; FORALL/2'S SEARCH ENDS AT ITS FIRST COUNTEREXAMPLE (3.16.0,
             ;; swipl's `\+ (C, \+ A)'): through 3.15.2 it went on, and every
@@ -2439,8 +2446,22 @@
         ;; flushed as a yield's stop flushes it, and let the scheduler run
         ;; the task again. NOT the inference-limit path: a direct resume
         ;; after "inference limit reached" restarts the clause.
+        ;;
+        ;; A STOP ALREADY ASKED FOR AT THIS STEP IS THE STOP (3.62.3): the
+        ;; loop asks the limit before the halt, and a task whose receive,
+        ;; send, await or yield was the last step of its quantum had its
+        ;; block (128, the green module's) unread when the quantum ended
+        ;; the run. The scheduler made it ready; its next run stopped at
+        ;; once on the stale 128 with nothing to wait for, and that was
+        ;; read as a goal that failed -- an await of the task failed, and
+        ;; a world whose sender it was went dead. One block in ten
+        ;; thousand of a task that ran its quantum out, since 2.8.0
+        ;; (test/async.pl, `quantum_block'). The halt is asked next, and a
+        ;; signal or a memory stop pending here is raised now, not a run
+        ;; later.
         (if (-> e greenq)
             (block
+             (if (!= (-> e halted) 0) (return 1))
              (set (-> e gstop) 1)
              (coco_k_flush e)
              (return 0)))
@@ -3303,7 +3324,13 @@
   ;;; comes back through here, which is the reason it is a wrapper and not a
   ;;; counter bumped at each `return' -- there are forty of those.
   (func coco_engine_next ((coco_engine * e)) (out int)
-        (let ((coco_machine * m . #'(-> e m)) (int rc . 0))
+        (let ((coco_machine * m . #'(-> e m)) (int rc . 0)
+              ;; THE MACHINE RUNNING ON THIS THREAD (3.62.3, `coco_refuse'):
+              ;; a text the allocator refuses room for cannot tell the
+              ;; builtin that asked, so it tells this machine; the one that
+              ;; was running, the starter's or none, is put back after
+              (coco_machine * was . coco_refuse_m))
+          (set coco_refuse_m m)
           ;; the first run on the machine sets the threshold; after it a
           ;; threshold of 0 is `garbage_collect/0''s request, kept
           (if (== (-> m gc_floor) 0)
@@ -3316,6 +3343,7 @@
           (set (-> m eng) (cast (void *) e))
           (set (-> m haltp) (aof (-> e halted)))
           (set rc (coco_engine_run e))
+          (set coco_refuse_m was)
           (set (-> m eng) (-> e outer))
           (let ((coco_engine * o . #'(cast (coco_engine *) (-> e outer))))
             (set (-> m haltp) (? (== o nil) nil (aof (-> o halted)))))

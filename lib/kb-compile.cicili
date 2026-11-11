@@ -182,11 +182,29 @@
 
   ;;; The frame index of the store variable at S, numbering it if this is
   ;;; its first occurrence; FIRST says which it was.
+  ;;;
+  ;;; A VARIABLE THE MAP HAS NO ROOM FOR MAKES THE CLAUSE ONE THE COMPILER
+  ;;; DOES NOT TAKE (3.62.3). The map's -1 was read as a first occurrence,
+  ;;; at every occurrence: the variable had a frame slot each time it was
+  ;;; written, and the program compiled was another clause's -- `p(X, X)'
+  ;;; ran as `p(_, _)', installed for every call after it and, in a green
+  ;;; world, for every task (a task's answer `lk_world(50, 0)' where it was
+  ;;; `lk_world(50, 50)', under one refused allocation of 256 bytes:
+  ;;; test/async.pl, `refusals'). The count is pushed past what a frame
+  ;;; index holds, which is how a clause with too many variables is
+  ;;; refused already (`coco_clause_code'), and the clause is matched in
+  ;;; the store and copied, as any clause the compiler cannot take; the
+  ;;; map's own word for the loss is taken back, since nothing was lost
+  ;;; that is kept (`coco_varmap_give').
   (static)
   (func cc_var ((coco_varmap * vm) (size_t s) (u32 * nvars) (int * first)) (out size_t)
-        (let ((size_t k . 0))
-          (if (== 1 (coco_varmap_intern vm s (cast size_t (cof nvars)) (aof k)))
+        (let ((size_t k . 0)
+              (int got . #'(coco_varmap_intern vm s (cast size_t (cof nvars)) (aof k))))
+          (if (== got 1)
               (block (set (cof first) 0) (return k)))
+          (if (< got 0)
+              (block (set (cof nvars) (bitor (cof nvars) 16777216))
+                     (set (-> vm lost) 0)))
           (set (cof first) 1)
           (set k (cast size_t (cof nvars)))
           (set (cof nvars) (+ (cof nvars) 1))
@@ -1970,7 +1988,12 @@
                                (cc_regs_worth st m rfid)))
                      (block (free ($ rb w)) (set ($ rb w) nil) (set ($ rb len) 0)))))
             ;; a frame index is K's twenty-four bits; a clause with more
-            ;; variables and temporaries than that is matched and copied
+            ;; variables and temporaries than that is matched and copied --
+            ;; and so is one with a variable the map had no room for, which
+            ;; `cc_var' counts past that bound (3.62.3). The guards and the
+            ;; registers above read words whose every index is masked to
+            ;; its field (`cc_word'), so a count that is no count costs them
+            ;; nothing but their work
             (if (> nvars 16777215) (set ok 0))
             (coco_varmap_give m (aof vm))
             (if (not ok)

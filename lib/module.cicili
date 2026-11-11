@@ -1212,7 +1212,7 @@
                  (set lst (coco_cons m (coco_new_int m (cast i64 (cast uchar (nth n s)))) lst)))
                (return lst)))
           (set cp (cast (char *) (malloc (+ n 1))))
-          (if (== cp nil) (block (set (-> m oom) 1) (return lst)))
+          (if (== cp nil) (block (coco_oom m) (return lst)))
           (if (> n 0) (memcpy cp s n))
           (while (> n 0)
             (set n (- n 1))

@@ -183,7 +183,17 @@ lesson_failures :-
     ),
     must('a deadlock is caught at async_run/1', W2, caught),
     ( async_run(case_main_ends) -> W3 = returned ; W3 = failed ),
-    must('the world ends with its main task, a task still running on every worker', W3, returned).
+    must('the world ends with its main task, a task still running on every worker', W3, returned),
+    %% SHORT OF MEMORY IS SAID (3.62.3): the builtin that cannot be given
+    %% what it asks for raises resource_error(memory), which a catch/3
+    %% takes -- here a channel with more room than there is. A task there
+    %% is no memory for ends with the same error for its status, its
+    %% await raises it, and the world goes on.
+    ( catch(async_run(channel(1000000000000, _)), error(resource_error(memory), _), fail)
+    ->  W4 = made
+    ;   W4 = refused
+    ),
+    must('a channel with room for a million million is refused by name', W4, refused).
 
 %% ---- the store ----------------------------------------------------------
 lesson_store :-

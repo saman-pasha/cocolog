@@ -10,6 +10,8 @@ cocolog
 # Cicili writes the generated C beside the target it came from
 cocolog.c
 test/*.c
+# ...but for the one C source a case builds itself (test/async.pl, `refusals')
+!test/refuse.c
 test/cocolog_*_test
 # test/run.sh keeps each case's build log next to it
 test/.*.build

@@ -230,6 +230,16 @@
 
   ;;; The pending pairs of an iterative unify or compare: one flat array,
   ;;; a and b side by side, popped two at a time.
+  ;;;
+  ;;; A WALK WITH NO ROOM FOR ITS PAIRS FINISHES ITS MACHINE (3.62.3,
+  ;;; `coco_oom'). The walk answers 0 all the same, which to a unify is `no',
+  ;;; and through 3.62.2 that was all: the machine was marked and the engine
+  ;;; went on, so a unification that had no memory FAILED -- a clause that
+  ;;; did not match, a program's other branch taken, with nothing said (a
+  ;;; world's answer `mx_world(done)' printed as no answer of its fixture,
+  ;;; and `failed' for a goal whose clause was there: test/async.pl,
+  ;;; `refusals', two requests in a row refused). The step it fails in is
+  ;;; the machine's last.
   (static)
   (func coco_pairs_push ((coco_machine * m) (size_t ** wl) (size_t * wlen) (size_t * wcap)
                          (size_t a) (size_t b)) (out int)
@@ -237,7 +247,7 @@
             (let ((size_t ncap . #'(? (== (cof wcap) 0) 64 (* (cof wcap) 2)))
                   (void * nb))
               (set nb (realloc (cast (void *) (cof wl)) (* ncap (sizeof size_t))))
-              (if (== nb nil) (block (set (-> m oom) 1) (return 0)))
+              (if (== nb nil) (return (coco_oom m)))
               (set (cof wl) (cast (size_t *) nb))
               (set (cof wcap) ncap)))
         (set (nth (cof wlen) (cof wl)) a)
@@ -298,7 +308,7 @@
                          (set ok 0)
                          (let ((u32 n . #'(coco_arity m a)))
                            (if (not (coco_cells_push (aof lk) (aof nl) (aof lcap) a))
-                               (block (set (-> m oom) 1) (set ok 0))
+                               (block (coco_oom m) (set ok 0))
                              (block
                               (set (nth a (-> m heap)) (coco-cell REF b))
                               (for ((u32 i . n)) (> i 0) ((set i (- i 1)))
@@ -513,7 +523,7 @@
                             (size_t * out_to)) (out int)
         (if (> (* (+ (-> vm len) 1) 2) (-> vm cap))
             (if (not (coco_varmap_grow vm (? (== (-> vm cap) 0) 32 (* (-> vm cap) 2))))
-                (return -1)))
+                (block (set (-> vm lost) 1) (return -1))))
         (let ((size_t mask . #'(- (-> vm cap) 1))
               (u64 want . #'(coco_varmap_entry vm from))
               (size_t i . #'(coco_varmap_slot (-> vm cap) from)))
@@ -539,12 +549,27 @@
         (set (-> vm to) (-> m vmap_to))
         (set (-> vm cap) (-> m vmap_cap))
         (set (-> vm len) 0)
+        (set (-> vm lost) 0)
         (set (-> vm epoch) (-> m vmap_epoch))
         (set (-> m vmap_from) nil) (set (-> m vmap_to) nil) (set (-> m vmap_cap) 0))
 
   ;;; 65536 slots is a megabyte of table kept, for a term of thirty thousand
   ;;; variables copied once; past that it goes back.
+  ;;;
+  ;;; A WALK THAT LOST A VARIABLE FINISHES ITS MACHINE (3.62.3). The copy
+  ;;; and the store's read enter each variable as they meet it
+  ;;; (`coco_varmap_intern'), and a table that could not grow answered -1,
+  ;;; which none of them read: the variable was taken for a new one at
+  ;;; every occurrence, and `f(X, X)' came out `f(A, B)' -- a copy, a
+  ;;; clause read from the store, a findall's answer, with nothing said
+  ;;; (a green task's result under a refused allocation of 256 bytes:
+  ;;; test/async.pl, `refusals'). Asked here once a walk, where the map
+  ;;; goes back and the machine is in hand, and not at each variable: the
+  ;;; term is nonsense, the machine is finished and what runs on it stops
+  ;;; (`coco_oom'). The clause compiler asks for itself and takes the flag
+  ;;; back (`cc_var': a clause it cannot number is one it does not take).
   (func coco_varmap_give ((coco_machine * m) (coco_varmap * vm))
+        (if (-> vm lost) (block (set (-> vm lost) 0) (coco_oom m)))
         (if (and (== (-> m vmap_from) nil) (!= (-> vm from) nil) (<= (-> vm cap) 65536))
             (block (set (-> m vmap_from) (-> vm from))
                    (set (-> m vmap_to) (-> vm to))
@@ -612,7 +637,7 @@
                (for ((u32 i . 0)) (< i n) ((++ i)) (coco_new_var m))
                (if (> n 0)
                    (if (not (coco_frames_push fs flen fcap t (+ h 1) n))
-                       (set (-> m oom) 1)))
+                       (coco_oom m)))
                (return h)))
             (#t
              ;; atoms, integers and floats are their own copy -- a FLT payload
@@ -674,10 +699,10 @@
                (let ((u32 n . #'(coco_arity m t))
                      (size_t h . #'(coco_push m c)))
                  (for ((u32 i . 0)) (< i n) ((++ i)) (coco_new_var m))
-                 (if (not (coco_varmap_put vm t h)) (set (-> m oom) 1))
+                 (if (not (coco_varmap_put vm t h)) (coco_oom m))
                  (if (> n 0)
                      (if (not (coco_frames_push fs flen fcap t (+ h 1) n))
-                         (set (-> m oom) 1)))
+                         (coco_oom m)))
                  (return h))))
             (#t (return (coco_push m c))))))
 
@@ -810,7 +835,7 @@
           ;; 0 is a heap that could not grow (`oom' is set): no frame, or
           ;; the fill would write its slots over the heap's first cells
           (if (and (> n 0) (!= h 0))
-              (if (not (coco_frames_push fs flen fcap a (+ h 1) n)) (set (-> m oom) 1)))
+              (if (not (coco_frames_push fs flen fcap a (+ h 1) n)) (coco_oom m)))
           (return h)))
 
   (static)
@@ -1240,7 +1265,7 @@
                                             (coco_atom_name m (coco_name_of m b))))
                              (if (== r 0)
                                  (if (not (coco_cells_push (aof lk) (aof nl) (aof lcap) a))
-                                     (block (set (-> m oom) 1) (set r 2))
+                                     (block (coco_oom m) (set r 2))
                                    (block
                                     (set (nth a (-> m heap)) (coco-cell REF b))
                                     (for ((u32 i . na)) (> i 0) ((set i (- i 1)))

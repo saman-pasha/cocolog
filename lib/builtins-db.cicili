@@ -1161,6 +1161,12 @@
                 ;; have, and is copied at every read.
                 (int ground . #'(== (-> st put_vars) 0))
                 (i64 at . #'(coco_global_find st name)))
+            ;; A VALUE THE STORE HAD NO ROOM FOR IS NOT SET (3.62.3): the
+            ;; put wrote nothing (`coco_store_put_short'), and the global
+            ;; keeps what it had. Through 3.62.2 it was pointed at the cell
+            ;; the put answered all the same -- the store's end, where the
+            ;; next term put, anybody's in a green world, became its value
+            (if (coco_store_put_refused m) (return 0))
             (set (-> st gver) (+ (-> st gver) 1))
             (if (>= at 0)
                 (let ((size_t i . #'(cast size_t at)))
@@ -1177,7 +1183,10 @@
                       (coco_global * nb))
                   (set nb (cast (coco_global *)
                                 (realloc (-> st globals) (* ncap (sizeof coco_global)))))
-                  (if (== nb nil) (return 0))
+                  ;; no room for the table is resource_error(memory), not a
+                  ;; failure (3.62.3): nb_setval/2 that failed was a goal
+                  ;; that failed, and a program took its other branch
+                  (if (== nb nil) (return (coco_mem_error e)))
                   (set (-> st globals) nb)
                   (set (-> st gcap) ncap)))
             (set ($ (nth (-> st nglobals) (-> st globals)) name) name)
@@ -1185,7 +1194,7 @@
             (set ($ (nth (-> st nglobals) (-> st globals)) size) (- (-> st len) cell))
             (set ($ (nth (-> st nglobals) (-> st globals)) ver) (-> st gver))
             (set ($ (nth (-> st nglobals) (-> st globals)) ground) ground)
-            (if (not (coco_global_hash st (-> st nglobals))) (return 0))
+            (if (not (coco_global_hash st (-> st nglobals))) (return (coco_mem_error e)))
             (set (-> st nglobals) (+ (-> st nglobals) 1))
             (coco_store_maybe_compact st m)
             (return 1)))))

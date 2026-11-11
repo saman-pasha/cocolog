@@ -1821,7 +1821,14 @@
                   (size_t base . #'(-> st len)))
               (set stored (coco_store_put st m clause))
               (if (!= cp (-> m cyc_puts))
-                  (block (set (-> st len) base) (return 0))))
+                  (block (set (-> st len) base) (return 0)))
+              ;; A CLAUSE THE STORE HAD NO ROOM FOR IS NOT ADDED (3.62.3):
+              ;; the put wrote nothing (`coco_store_put_short'). Through
+              ;; 3.62.2 the predicate was given the cell the put answered
+              ;; all the same -- the store's end, so that the next term
+              ;; put there, anybody's in a green world, was a clause of
+              ;; this predicate from then on
+              (if (coco_store_put_refused m) (return 0)))
             ;; THE KEY IS TAKEN FROM THE HEAP HEAD, before the clause is a
             ;; store term: the accessors here read the machine's heap, the
             ;; head has just been dereferenced, and what goes into the store

@@ -1566,6 +1566,14 @@
           (if (-> rd cshort)
               (block (coco_reader_free rd)
                      (return (coco_raise e (coco_make1 m "resource_error" (coco_new_atom m "c_stack"))))))
+          ;; AND A TEXT THERE WAS NO MEMORY TO READ (3.62.3):
+          ;; resource_error(memory), where through 3.62.2 the reader's `out
+          ;; of memory' was a syntax error with no id swipl has. Every such
+          ;; failure begins with those words (`coco_fail'), a read across a
+          ;; refusal among them (`coco_read_goal').
+          (if (and (!= (-> rd ewhat) nil) (== 0 (strncmp (-> rd ewhat) "out of memory" 13)))
+              (block (coco_reader_free rd)
+                     (return (coco_mem_error e))))
           (coco_sb_init (aof raw))
           (coco_raw_walk s n 0 (aof raw) chars (aof kind) (aof q) (aof at0))
           (cond

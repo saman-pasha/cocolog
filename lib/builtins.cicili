@@ -2052,7 +2052,7 @@
                 (#t (block)))))
           (free wl)
           (coco_varmap_give m (aof vm))
-          (if (== r -1) (block (set (-> m oom) 1) (return 0)))
+          (if (== r -1) (block (coco_oom m) (return 0)))
           (return r)))
 
   ;;; A LOOP (1.10.19): it was a recursion, and `X = f(X), ground(X)' took
@@ -2077,7 +2077,7 @@
                     (block (coco_wpairs_give m wl wcap) (return 0)))
                 (if (coco-tag-is FUN (nth a (-> m heap)))
                     (if (not (coco_cells_push (aof wl) (aof wlen) (aof wcap) a))
-                        (block (set (-> m oom) 1) (coco_wpairs_give m wl wcap) (return 0))))))
+                        (block (coco_oom m) (coco_wpairs_give m wl wcap) (return 0))))))
             (if (== wlen 0) (block (coco_wpairs_give m wl wcap) (return 1)))
             (set wlen (- wlen 1))
             (set t (nth wlen wl)))
@@ -2183,7 +2183,7 @@
           (if (== r 0)
               (block (set n 0)
                      (set r (coco_b_collect_vars m (coco_m_arg e g 0) 1 (aof v) (aof n) (aof cap)))))
-          (if (== r -1) (set (-> m oom) 1))
+          (if (== r -1) (coco_oom m))
           (set out (coco_m_list e v n))
           (free v)
           (return (coco_m_unify e (coco_m_arg e g 1) out))))

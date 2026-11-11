@@ -1052,6 +1052,12 @@
     (member size_t       sfloor)
     (member int          cshort)
     (member int          sprobe)
+    ;; THE TOKEN IN HAND WAS READ ACROSS A REFUSAL (3.62.3,
+    ;; `coco_next_first'): the first token of the clause or goal about to
+    ;; be read, which the read before it, the init or a resync took. The
+    ;; read that begins with it is no term (`coco_read_clause',
+    ;; `coco_read_goal')
+    (member int          lexref)
     ;; THE FIRST SIXTEEN FRAMES (3.60.0), in the reader: RF names them
     ;; until a term pends more, so a read of a text (term_to_atom/2) takes
     ;; no memory for them -- 1 408 bytes are a large request to glibc's
@@ -1626,8 +1632,13 @@
   ;;; which a load turns into SWI's FILE:LINE:COL (`coco_reader_load_error')
   ;;; and swipl's id (`coco_reader_id'): every WHAT here is a literal, so
   ;;; the pointer outlives the reader.
+  ;;; A READ THAT STOPS FOR WANT OF MEMORY COUNTS A REFUSAL (3.62.3,
+  ;;; `coco_refuse'): every such WHAT begins `out of memory', and a caller
+  ;;; with no reader in hand (`coco_read_term_from') tells a text that is
+  ;;; none from one there was no memory to read by the thread's count.
   (static)
   (func coco_fail ((coco_reader * r) (const char * what)) (out int)
+        (if (== 0 (strncmp what "out of memory" 13)) (coco_refuse_count))
         (snprintf (-> r err) 192 "syntax error at offset %lu: %s"
                   (cast ulong (-> r pos)) what)
         (set (-> r epos) (? (<= (-> r tstart) (-> r pos)) (-> r tstart) (-> r pos)))
@@ -2890,14 +2901,24 @@
             (let ((size_t ncap . #'(? (== (-> r var_cap) 0) 8 (* (-> r var_cap) 2)))
                   (char ** nn) (size_t * nc))
               (set nn (cast (char **) (realloc (-> r var_names) (* ncap (sizeof (char *))))))
-              (if (== nn nil) (return (coco_new_var (-> r m))))
+              (if (== nn nil) (block (coco_refuse_count) (return (coco_new_var (-> r m)))))
               (set (-> r var_names) nn)
               (set nc (cast (size_t *) (realloc (-> r var_cells) (* ncap (sizeof size_t)))))
-              (if (== nc nil) (return (coco_new_var (-> r m))))
+              (if (== nc nil) (block (coco_refuse_count) (return (coco_new_var (-> r m)))))
               (set (-> r var_cells) nc)
               (set (-> r var_cap) ncap)))
-        (let ((size_t v . #'(coco_new_var (-> r m))))
-          (set (nth (-> r nvars) (-> r var_names)) (strdup name))
+        ;; A NAME WITH NO MEMORY FOR ITS COPY IS NOT RECORDED (3.62.3), and
+        ;; the refusal is counted as the table's is (`coco_refuse_count'):
+        ;; the variable is a new one at its next occurrence, which is no
+        ;; term the text says, and the read that holds it asks the count
+        ;; and is no term (`coco_read_clause', `coco_read_goal',
+        ;; `coco_read_term_from'). Recorded as it was, a nil among the
+        ;; names, the next variable's search compared its name with it and
+        ;; read through it.
+        (let ((size_t v . #'(coco_new_var (-> r m)))
+              (char * copy . #'(strdup name)))
+          (if (== copy nil) (block (coco_refuse_count) (return v)))
+          (set (nth (-> r nvars) (-> r var_names)) copy)
           (set (nth (-> r nvars) (-> r var_cells)) v)
           (set (-> r nvars) (+ (-> r nvars) 1))
           (return v)))
@@ -3070,6 +3091,18 @@
 
   ;;; ---- the reader's own surface -----------------------------------------
 
+  ;;; THE FIRST TOKEN OF THE NEXT READ, and whether the thread counted a
+  ;;; refusal while it was taken (3.62.3, `coco_refuse'): a token's buffer
+  ;;; refused room is a token short of its end, which is a name all the
+  ;;; same, and the read that begins with it asks LEXREF. The tokens after
+  ;;; it are inside that read, which asks the count itself.
+  (static)
+  (func coco_next_first ((coco_reader * r)) (out int)
+        (let ((size_t r0 . coco_refused)
+              (int rc . #'(coco_next_token r)))
+          (set (-> r lexref) (? (!= coco_refused r0) 1 0))
+          (return rc)))
+
   (func coco_reader_init_nul ((coco_reader * r) (coco_machine * m) (const char * src) (int nul))
         (memset r 0 (coco_reader_head r))
         (set (-> r m) m)
@@ -3086,7 +3119,20 @@
         (set (-> r len) (strlen src))
         (set (-> r nul) nul)
         (coco_sb_init (aof (-> r text)))
-        (coco_next_token r))
+        ;; THE TOKEN'S BUFFER IS THERE BEFORE A TOKEN IS ASKED (3.62.3). It
+        ;; was made by the first character put in it, and a put the
+        ;; allocator refuses leaves the buffer nil with a token in hand
+        ;; all the same: `coco_is_punct' read that token's first character
+        ;; through the null (a green task's status read under an
+        ;; address-space ceiling: SIGSEGV in `coco_parse_named',
+        ;; test/async.pl, `ceiling'). Refused here, the reader has failed
+        ;; before it began, with no token to ask anything of.
+        (if (not (coco_sb_putc (aof (-> r text)) (cast char 0)))
+            (block (set (-> r tok) COCO_TK_EOF)
+                   (coco_fail r "out of memory")
+                   (return)))
+        (coco_sb_reset (aof (-> r text)))
+        (coco_next_first r))
 
   (func coco_reader_init ((coco_reader * r) (coco_machine * m) (const char * src))
         (coco_reader_init_nul r m src 0))
@@ -3110,7 +3156,7 @@
         (set (-> r esyn) nil)
         (set (-> r ecomment) 0)
         (set (-> r stop) 0)
-        (coco_next_token r))
+        (coco_next_first r))
 
   (func coco_reader_free ((coco_reader * r))
         (coco_reader_clear_vars r)
@@ -3130,7 +3176,7 @@
         (set (-> r stop) 0)
         (if (-> r failed) (return -1))
         (if (== (-> r tok) COCO_TK_EOF) (return 0))
-        (let ((size_t t) (int ok . 0))
+        (let ((size_t t) (int ok . 0) (size_t r0 . coco_refused))
           ;; the family that builds positions, only when they were asked for
           (if (-> r want_pos)
               (set ok (coco_parse_term_p r 1200 (aof t)))
@@ -3138,12 +3184,20 @@
           (if (not ok) (block (coco_term_close r 0 "") (return -1)))
           (if (!= (-> r tok) COCO_TK_END)
               (block (coco_reader_junk r) (return -1)))
+          ;; A CLAUSE READ ACROSS A REFUSAL IS NO CLAUSE (3.62.3): a token
+          ;; short of its end, or a variable the table had no room to
+          ;; record, read as a term all the same -- another term than the
+          ;; text's. The thread's count says so (`coco_refuse'), its first
+          ;; token's among it (LEXREF), and the clause fails as the
+          ;; reader's own arrays fail one, `out of memory'.
+          (if (or (-> r lexref) (!= coco_refused r0))
+              (block (coco_fail r "out of memory") (return -1)))
           ;; THE CLAUSE IS READ WHOLE ONCE ITS FULL STOP IS (3.1.0): a token
           ;; after it that will not read is the NEXT clause's error, which
           ;; the next call answers -- through 3.0.4 it took this clause
           ;; with it (`p(1). "a\q".' lost `p(1)'), as swipl's does not
           (set (-> r fend) (-> r pos))
-          (coco_next_token r)
+          (coco_next_first r)
           (set (cof out) t)
           (return 1)))
 
@@ -3384,27 +3438,40 @@
           (set (nth 0 (-> r err)) (cast char 0))
           (set (-> r ewhat) nil)
           (coco_reader_fresh r)
-          (return (coco_next_token r))))
+          (return (coco_next_first r))))
 
   (func coco_read_goal ((coco_reader * r) (size_t * out)) (out int)
         (coco_reader_clear_vars r)
         (set (-> r stop) 0)
         (if (-> r failed) (return 0))
         (if (== (-> r tok) COCO_TK_EOF) (return 0))
-        (let ((size_t t))
+        (let ((size_t t) (size_t r0 . coco_refused))
           (if (not (coco_parse_term r 1200 (aof t))) (return 0))
+          ;; a goal read across a refusal is no goal (3.62.3, as a clause)
+          (if (or (-> r lexref) (!= coco_refused r0))
+              (return (coco_fail r "out of memory")))
           (set (cof out) t)
           (return 1)))
 
+  ;;; A TEXT READ ACROSS A REFUSAL IS NO TERM (3.62.3): 0, as a text that
+  ;;; does not read, and the thread's count moved for a caller that asks
+  ;;; why (`coco_refusals'). The machine running on the thread is taken
+  ;;; away for the read and given back (`coco_refuse_m', in place: a store's
+  ;;; fetch comes here once a clause): every caller reads the 0, so nothing
+  ;;; is wrong on it.
   (func coco_read_term_from ((coco_machine * m) (const char * src) (size_t * out)) (out int)
-        (let ((coco_reader r) (int rc))
+        (let ((coco_reader r) (int rc . 0)
+              (size_t r0 . coco_refused)
+              (coco_machine * was . coco_refuse_m))
+          (set coco_refuse_m nil)
           (coco_reader_init (aof r) m src)
-          (if ($ r failed) (block (coco_reader_free (aof r)) (return 0)))
-          (if (== ($ r tok) COCO_TK_EOF) (block (coco_reader_free (aof r)) (return 0)))
-          (let ((size_t t))
-            (set rc (coco_parse_term (aof r) 1200 (aof t)))
-            (if rc (set (cof out) t)))
+          (if (and (not ($ r failed)) (!= ($ r tok) COCO_TK_EOF))
+              (let ((size_t t))
+                (set rc (coco_parse_term (aof r) 1200 (aof t)))
+                (if (!= coco_refused r0) (set rc 0))
+                (if rc (set (cof out) t))))
           (coco_reader_free (aof r))
+          (set coco_refuse_m was)
           (return rc)))
 
   ;;; A NUMBER AND NOTHING ELSE (2.5.0), for number_codes/2 and its kin.
@@ -4645,7 +4712,7 @@
         (let ((coco_varmap vm . '{ nil nil 0 0 0 }) (int rc . 0))
           (coco_varmap_take m (aof vm))
           (if (not (coco_canon_vars m t (aof vm)))
-              (block (coco_varmap_give m (aof vm)) (set (-> m oom) 1) (return 0)))
+              (block (coco_varmap_give m (aof vm)) (coco_oom m) (return 0)))
           (set (-> m wcanon) (cast (void *) (aof vm)))
           (set (-> m nwnames) 1)
           (set rc (coco_write_top m b t 147 0))

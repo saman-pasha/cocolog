@@ -124,14 +124,27 @@ async_workers(N) :-
     '$async_workers'(N).
 
 %% The three answers a thread's or a channel's status can carry.
+%%
+%% A STATUS IS NEVER UNBOUND, AND ONE THAT IS IS AN ERROR (3.62.3). The C
+%% half binds a status or raises (lib/green.cicili: a text there was no
+%% memory to write or to read is resource_error(memory)), so the first
+%% clause of each of these never meets a variable. Through 3.62.2 it could:
+%% a status lost on the way left the variable as it was, the first clause
+%% matched it, and an await of a task that had failed SUCCEEDED with its
+%% result unbound, a send that was never taken read as sent, a receive
+%% answered a variable for its message. The test costs each of them one
+%% clause tried.
+async_done(S, _) :- var(S), !, throw(error(system_error, _)).
 async_done('$async'(ok, Result), Result) :- !.
 async_done('$async'(failed), _) :- !, fail.
 async_done('$async'(error, Ball), _) :- throw(Ball).
 async_done('$async'(closed), _) :- !, fail.
 
+async_sent(S) :- var(S), !, throw(error(system_error, _)).
 async_sent('$async'(ok)) :- !.
 async_sent('$async'(error, Ball)) :- throw(Ball).
 
+async_recv(S, _) :- var(S), !, throw(error(system_error, _)).
 async_recv('$async'(ok, Term), Term) :- !.
 async_recv('$async'(closed), _) :- !, fail.
 async_recv('$async'(error, Ball), _) :- throw(Ball).

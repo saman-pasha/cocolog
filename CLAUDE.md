@@ -16,7 +16,8 @@ full story goes in its commit message or STATUS.md.
 * **Commit or push only when asked.** Push with
   `git push git@github.com:saman-pasha/cocolog.git master:master`.
 * **GitHub's CI only when the owner asks** (owner, 2026-11-11: "only do
-  github CI when i ask"): start no run by hand and watch none. `ci.yml`
+  github CI when i ask", and again the same day, "Do not run github CI
+  after each change"): start no run by hand and watch none. `ci.yml`
   starts by itself on every push to master, so a pushed commit's message
   carries `[skip ci]` and the push starts none (the session's reading of
   the rule, 3.62.0's commit the first); a run the owner asks for is
@@ -984,6 +985,14 @@ line said only `BUILD FAILED`, over a tail ending on clang's command line.
   invocation. A start is counted with each binary swapped in at the
   checkout's own path: from the scratchpad, realpath and strcmp count
   some 31 000 more.
+* **An inference count moves with where the binary stands too** (3.62.3):
+  a program that takes the executable's path apart counts its components.
+  library(reasoning)'s `ng_library_dirs/1` does, with append/3, an
+  inference a component each time it is asked: lesson 44 counts
+  3 458 375 from the checkout and 3 458 381 from a copy three directories
+  deeper, lesson 46 three more -- on one binary. Two binaries' inferences
+  are compared from paths of one depth, where 3.62.2 and 3.62.3 count
+  lesson 46 alike, 245 746 056.
 * **A process's speed can depend on where the kernel loads it.** 2.14.1's
   counting loop runs about 30 % slower whenever the binary's base has
   address bits 12 and 13 both set -- one load in four, 60 runs of 60 sorted
@@ -3600,6 +3609,143 @@ cocolint index offers no import of it.
   (`(weak) (cold)`, and `coco_grow_short` `(cold)`): against 2.11.1 nrev
   -1.22 %, queens -0.30 %, lookup -0.58 %, and `coco_clause_run_r` 2.0 %
   fewer instructions on nrev -- 1.10.28's +0.63 % taken back and more.
+* **A machine refused memory outright is FINISHED, and its engine stops**
+  (3.62.3; STATUS.md). `coco_oom` (lib/term.cicili, cold) sets `oom` AND
+  stops the engine running on the machine (`haltp`, 2), whose next step
+  raises nothing: the run ends `out of memory`. Through 3.62.2 a mark was
+  the flag alone and the engine ran on -- on a trail that undid nothing,
+  over a goal built on cell 0 -- until a builder of its continuation
+  happened to find no room. **Every mark of a machine goes through
+  `coco_oom`, never `(set (-> m oom) 1)`** (the store's own `st->oom` and
+  the recorder's `r->oom` still stop nothing). What stands on it:
+  - **A put is all of its term or none** (`coco_store_put`): a compound's
+    header and slots are reserved in one growth, a refusal leaves no
+    frame, and the put's end winds the store back to where it began,
+    finishes the machine and answers a cell that is not there
+    (`coco_store_put_short`). **A caller that reads its cell back, or
+    links it where others read, in the same step asks
+    `coco_store_put_refused` first** (a throw, findall/3, assertz/1,
+    nb_setval/2) -- of the MACHINE, never of the store's length, which in
+    a green world another task has moved by then.
+  - **A variable the map has no room for is a loss the map keeps**
+    (`lost`), and `coco_varmap_give` finishes the machine for it: entered
+    again at its next occurrence, `f(X, X)` came out `f(A, B)` of a copy,
+    of a store's read and of findall/3. The clause compiler takes no
+    clause whose variables the map lost (`cc_var`), takes the map's word
+    back, and the clause is matched in the store and copied, as any
+    clause it cannot take; through 3.62.2 `p(X, X)` ran as `p(_, _)` for
+    every call after it.
+  - **A machine whose construct mask was refused is finished** (the mask's
+    making in lib/solve.cicili): with a mask of no length `!`, `,` and
+    `;` were unknown procedures.
+  - **A growth refused where its caller would FAIL finishes the machine**:
+    a predicate's room for one more clause (`coco_pred_room`: assertz/1
+    failed), a unification's and the store matcher's pairs (a clause that
+    was there not matched). nb_setval/2 raises resource_error(memory)
+    where its table or its hash cannot grow. A new growth whose refusal
+    would read as a failure does the same: a goal that fails for want of
+    memory takes a program's other branch.
+* **A text the buffer had no room for is no text, and a read across a
+  refusal is no term** (3.62.3; STATUS.md). A put that is refused leaves a
+  `coco_strbuf` as it was and its writer goes on, so the text came out
+  short of a piece, and through 3.62.2 was used as it stood: an atom made
+  of it, a length taken, a status sent. Nothing in the buffer can say so
+  (a module holds its three words), so THE THREAD COUNTS ITS REFUSALS
+  (`coco_refused`, lib/term.cicili) and the buffer's growth decides
+  (`coco_sb_grow`, cold and out of line; `coco_sb_room` is the test
+  alone): a doubling refused asks again for what is needed and a
+  sixteenth, and given, the text is whole and the engine running on the
+  thread is stopped as any growth given short stops it
+  (`coco_refuse_short`: halted 2, the catchable resource_error(memory));
+  refused too, `coco_refuse` counts it and FINISHES THE MACHINE RUNNING ON
+  THE THREAD (`coco_refuse_m`, which `coco_engine_next` sets around its
+  run and puts back after). What a session must keep:
+  - **A caller that answers a refusal itself takes the machine away for
+    its stretch** (`coco_refuse_take`, `coco_refuse_give`) and reads the
+    count before and after (`coco_refusals`): the green world's two
+    writers (`coco_g_write`, `coco_g_kind_text`), which answer no text so
+    that the task raises resource_error(memory), and
+    `coco_read_term_from`. Any other writer leaves the machine where it
+    is, and a text short of a piece ends the run.
+  - **A caller that fails by its own road counts and no more**
+    (`coco_refuse_count`): the reader's `coco_fail` of `out of memory`,
+    its variable table (a variable not recorded is a new variable at its
+    next occurrence, no term the text says) and a variable name's copy.
+  - **A read is all of its term or none**: the reader's three entries
+    (`coco_read_clause`, `coco_read_goal`, `coco_read_term_from`) compare
+    the thread's count across the parse and fail `out of memory`, and the
+    first token of the NEXT term, which the last read's tail has already
+    asked, is the reader's `lexref` (`coco_next_first`: **a new site that
+    asks the first token of a term asks it there, never
+    `coco_next_token`**). The text builtins raise resource_error(memory)
+    for such a read (`coco_tx_syntax`), where they said a syntax error.
+  - **A request with no smaller one to make finishes the machine on ONE
+    refusal**, by design: a scratch `malloc` (`coco_text_list`,
+    `coco_new_string`, a name's copy), a walk's stack of pairs or frames
+    (`coco_pairs_push`, `coco_su_push`, `coco_cells_push`) and a
+    builtin's own array (term_variables/2's). The run ends `out of
+    memory`, where atom_codes/2 answered the tail it was given and a
+    unification failed.
+  - Not done: the writers that persist a text in flight (the store's
+    sync in lib/zigurat-kb.cicili, `coco_freeze`, the journal, the seam's
+    `coco_m_term_text`) act on it, though the machine is finished at its
+    next step; a load goes on past a clause there was no memory to read,
+    its ERROR said and the clause left out; library(stream)'s reads say
+    a syntax error; the store's and the recorder's marks stop nothing.
+* **`test/refuse.c` refuses each allocation in turn** (3.62.3; an
+  LD_PRELOAD shim before glibc's allocator, built by test/async.pl's
+  `refusals` with the suite's compiler, `-O3`; glibc only). It counts the
+  requests a program makes between two marks -- a `getenv` of `REFUSE_ON`
+  and one of `REFUSE_OFF`, names nobody sets, which to a run without the
+  shim are nothing -- and answers the `REFUSE_N`-th with nothing,
+  `REFUSE_RUN` of them in a row (0: every one to the stretch's end), only
+  requests of `REFUSE_SIZE` bytes, or of `REFUSE_MIN` bytes or more
+  (`REFUSE_MIN=4096 REFUSE_N=1 REFUSE_RUN=0` is a ceiling on what is big
+  alone); `REFUSE_REPORT=1` writes the count and `REFUSE_BT=1` the
+  backtrace of the request refused. A fixture is run once to count and
+  then once for EVERY request it made. What bites:
+  - **One refusal never refuses a growth of the machine's arrays, the
+    store's or a buffer** (a buffer since 3.62.3): each asks again for
+    less and is given it. Two in a row is the growth refused outright, the
+    state a real shortage leaves: a sweep is run at both, and the first
+    sweeps of one refusal came back clean of every fault two in a row then
+    found. A walk's stack and a builtin's scratch ask once (above).
+  - **Three and four in a row are states of their own**: three is a cell
+    the store refused and then a growth given short after it (the put is
+    still none of its term: `memreq` keeps the refusal), four a text
+    refused its read and the error named in its place refused its read
+    too (a buffer's two requests each), where nothing can be put in a
+    status cell. test/async.pl has a row of each: the arms that let the
+    second refusal pass unasked were green at one and at two.
+  - **An uncaught error under `cocolog run FILE main` is exit 2 with
+    nothing on stdout**, which is how a host out of memory ends and what
+    a sweep accepts: a fixture's own checks are wrapped in catch/3 and
+    print what they found, or a check that raised is a pass.
+  - **A world hides what a host's own run shows**: the world's loop asks
+    a task's machine for `oom` when its run is back (`coco_g_run`) and
+    ends the task with the memory status whatever its engine did after
+    the mark, so a rule of the form "mark AND stop" is red only in a
+    fixture the HOST runs (`cocolog run FILE main`: test/async.pl's
+    `fx_host`), where an engine that ran on says `failed` or dies.
+  - **Under `REFUSE_MIN=4096` an engine's first choice frames are a
+    page** (64 frames, 4 608 bytes): a fixture that is to refuse a big
+    TEXT pushes a choice point in every engine it uses before the mark
+    (`bg_warm`), or the page refused is the engine's and the check passes
+    by another road.
+  - **A ceiling (`ulimit -v`) refuses what is big, and the shim what is
+    small**: the thirty-two bytes of a status's copy are never refused by
+    a ceiling, a thread's stack never by the shim. A fault of memory wants
+    a row of ceilings (which allocation is refused moves with every
+    kilobyte) and a sweep of requests.
+  - **With one worker the N-th request is the same request in every run**;
+    with two a run's verdict is its outcome's kind, never its text.
+  - **What a run may do**: print its answer, print `memory` (a task caught
+    resource_error(memory) and went on), say the row's own word (`died`:
+    the error came out through the world; `deadlock`), or end as a host
+    out of memory ends, exit 2 and nothing printed. Anything else is a
+    fault: `failed`, `lost` (a world that succeeded and bound nothing),
+    `broken` (a store whose clauses are not the ones asserted), `wrong`
+    (a status that is another term), a signal.
 * **A read of the knowledge base is all of a predicate or none, and one
   that failed raises** (2.11.1; STATUS.md). `coco_pred_ensure` answers 0,
   takes back what the fetch put in (`coco_pred_cut_back`), leaves `loaded`
@@ -4195,6 +4341,71 @@ cocolint index offers no import of it.
     ceiling**: a hang is the usual failure, and it must cost the case a
     red line, not the suite its run. The arms are one build each
     (STATUS.md lists the nineteen).
+  **3.62.3: A WORLD SHORT OF MEMORY SAYS SO** (STATUS.md; test/async.pl's
+  `ceiling`, `refusals`, `channel_room`, `no_status` and `dead_running`).
+  What a session must keep:
+  - **A status is never nil, and the nine that never change are nobody's
+    to allocate**: `*green-texts*`, one array of literals taken by name
+    with `coco-g-text` (a new fixed status is a row of it), told from a
+    text somebody owns by its address (`coco_g_text_free`, through which
+    every status and resume text is freed). `coco_g_finish` writes
+    resource_error(memory) for a status there was no memory to write, and
+    a waiter woken by a task's end is handed the mark `awaited`, never a
+    copy: it reads the status where the task left it, with the world's
+    lock given back. Through 3.62.2 each was a `strdup` at every use, a
+    refused one a nil, and an await of a task that had FAILED succeeded.
+  - **A text that does not read is the error its reader raises, never
+    nothing**: `coco_g_resume` answers 1, 0 (the unify refused) or -1
+    (nothing could be put in the cell), and EVERY caller asks the -1 -- a
+    builtin through `coco_g_answer`, which raises resource_error(memory),
+    and a task that cannot be handed its text ends with it for its status.
+    A text written or read across a refusal is none (`coco_g_refused`:
+    the machine's `oom` or the thread's count), and a goal read across
+    one is not run as it came out.
+  - **A message is written ONCE, before the world's lock is taken, and
+    read once with the lock given back**: the waiter builds `'$async'(ok,
+    T)` around the term it reads (`resume_msg`). A new builtin that hands
+    a term to another task writes it before it locks; under the lock a
+    write that fails leaves a waiter served nothing.
+  - **Everything the world allocates is asked**: a task's machine, its
+    engine and its first 64 cells (`coco_machine_init_alias`: an alias
+    has a heap cell before anybody pushes), the world's four blocks, a
+    channel's buffer (`coco_g_chan_new`; its size is an i64 held to an
+    int's, and `channel/2` raises resource_error(memory)), and a write's
+    record is the world's own (`op_one`: one write is in flight at a time,
+    told from the next by its sequence), no `calloc` at every write. A
+    task there was no memory for ends with resource_error(memory) for its
+    status, whichever piece was refused.
+  - **A stop already asked for at a step is the stop** (`coco_limit_go`,
+    lib/solve-loop.cicili): the loop asks the limit before the halt, so a
+    task whose receive, send, await or yield was the LAST STEP OF ITS
+    QUANTUM had its block (`halted` 128) unread when the quantum ended
+    the run. It was made ready, its next run stopped at once on the stale
+    128 with nothing to wait for, and that was read as a goal that failed:
+    an await of the task failed, and a world whose sender it was went
+    dead -- one block in ten thousand of a task that ran its quantum out,
+    since 2.8.0, found by an arm that would not go red. test/async.pl's
+    `quantum_block` walks each of the four across the boundary. **A new
+    stop a green builtin asks for is a value of `halted`**, which the
+    quantum now leaves to the halt's own test.
+  - **No task ends on a channel's list**: a machine that is finished
+    stops before its next step, so it reaches no receive after the mark,
+    and a block is a block. A nested waiter that gives up takes itself
+    off (`coco_g_wait_leave`).
+  - **The world is dead only when no blocked task's worker is still
+    inside its run** (`coco_g_deadlock`). A builtin that blocks sets its
+    task's state under the lock, and its thread is then on its way out of
+    the engine: such a task is its worker's still (`cur`), the check
+    passes it by, and that worker asks again when its run is back
+    (`coco_g_run`). Through 3.62.2 a worker with nothing to run that
+    asked in that moment finished the main task under its own worker --
+    its machine freed under a thread still returning through it, `failed`
+    written over the deadlock.
+  - **library(async) refuses an unbound status by name** (`async_done/2`,
+    `async_sent/1`, `async_recv/2`: error(system_error, _)). The engine
+    binds a status or raises, so the clauses never fire; they are there
+    because every fault above was silent only for as long as the library
+    took a variable for an answer.
   `test/async.pl`, lesson 54, `bench/concurrency.sh`,
   `library/async/README.md` (the model, the Run G numbers and the limits).
   A library predicate with a choice point per answer (`between/3`) is slow

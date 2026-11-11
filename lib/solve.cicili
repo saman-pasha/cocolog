@@ -400,6 +400,14 @@
      ;; a construct, and its id is past the mask's end.
      (free (-> m cmask))
      (set (-> m cmask) (cast (u8 *) (calloc (-> m atoms_len) 1)))
+     ;; A MACHINE WITH NO MASK KNOWS NO CONSTRUCT, AND IS FINISHED (3.62.3).
+     ;; Through 3.62.2 a mask the allocator refused was a mask of no
+     ;; length, and the machine ran: `!', `,' and `;' were predicates
+     ;; nobody had defined, and a green task made under an address-space
+     ;; ceiling ended with existence_error(procedure, !/0) for its status
+     ;; (one run in eight of a thousand tasks at one ceiling:
+     ;; test/async.pl, `ceiling')
+     (if (== (-> m cmask) nil) (coco_oom m))
      (set (-> m cmask_len) (? (== (-> m cmask) nil) 0 (-> m atoms_len)))
      ,@(LOOP FOR name IN *construct-names* FOR i FROM 0
              COLLECT `(if (< (nth ,i (-> m ids)) (-> m cmask_len))
