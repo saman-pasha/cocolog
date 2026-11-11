@@ -2011,7 +2011,7 @@ compiled(D) :-
     ( current_predicate(atom/A3), A3 == 1 -> R3 = declared ; R3 = not_declared ),
     check('retractall/1 of a builtin\'s name declares nothing', R3, not_declared),
     retractall(cc_static(2)),
-    ( predicate_property(cc_static(_), dynamic) -> R4 = dynamic ; R4 = static ),
+    ( predicate_property(cc_static(_), dynamic) -> R4 = (dynamic) ; R4 = static ),
     check('retractall/1 that takes no clause of a static predicate leaves it static', R4, static),
     %% a dynamic predicate's clause is stored as written, and a second
     %% process that reads it back keeps it so, though the predicate's

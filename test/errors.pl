@@ -120,11 +120,14 @@ text_read_own :-
     check('a letter past ASCII before 16\' makes no radix of it', R3,
           end_of_file_in_quoted('\'')-"é"-0),
     %% a prefix operator's atom too high for an infix operator is swipl's
-    %% operator_expected, no clash; swipl places it a token later
-    own_read('\\+ = a', Id4-_-_),
-    check('a prefix operator\'s atom before = is no clash', Id4, operator_expected),
-    own_read('dynamic ; a', Id5-_-_),
-    check('dynamic before ; is no clash either', Id5, operator_expected).
+    %% operator_expected, no clash -- and since 3.62.0 at swipl's place, the
+    %% term after the infix operator, whose name is the prefix operator's
+    %% operand (through 3.61.0 a token sooner; test/files/op_reduce.pl holds
+    %% both balls to swipl)
+    own_read('\\+ = a', Id4-_-Pos4),
+    check('a prefix operator\'s atom before = is no clash', Id4-Pos4, operator_expected-4),
+    own_read('dynamic ; a', Id5-_-Pos5),
+    check('dynamic before ; is no clash either', Id5-Pos5, operator_expected-9).
 
 %% the ball's id, its raw text's codes and its place
 own_read(Text, Id-Codes-Pos) :-

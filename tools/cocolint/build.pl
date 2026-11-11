@@ -244,7 +244,7 @@ bd_fragments(Codes, Texts) :-
             ( member(Kind-Region, Regions),
               bd_strings(Region, Raw),
               findall(Text, ( member(R, Raw), bd_unescape(R, U), bd_strip(U, Text) ), Texts0),
-              (   Kind == table -> bd_join_clauses(Texts0, Texts1) ; Texts1 = Texts0 ),
+              (   Kind == (table) -> bd_join_clauses(Texts0, Texts1) ; Texts1 = Texts0 ),
               member(Text, Texts1),
               bd_region_text(Kind, Text, T)
             ),

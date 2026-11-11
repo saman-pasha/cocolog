@@ -15,6 +15,12 @@ full story goes in its commit message or STATUS.md.
   one-goal query, one section) unless told otherwise.
 * **Commit or push only when asked.** Push with
   `git push git@github.com:saman-pasha/cocolog.git master:master`.
+* **GitHub's CI only when the owner asks** (owner, 2026-11-11: "only do
+  github CI when i ask"): start no run by hand and watch none. `ci.yml`
+  starts by itself on every push to master, so a pushed commit's message
+  carries `[skip ci]` and the push starts none (the session's reading of
+  the rule, 3.62.0's commit the first); a run the owner asks for is
+  started by hand (Actions, Run workflow).
 * **Every binary is built in release mode** (owner, 2026-10-08): Cicili's
   `--release` (`-O3`, plus `-falign-loops=32` for C) for the interpreter,
   the embedded store, every module and the `test/*.cicili` binaries, and
@@ -2343,12 +2349,17 @@ cocolint index offers no import of it.
   term`) at the token. **Swipl's id is decided where the reader fails**,
   as pl-read.c's complex_term decides it (the reader's `esyn`, `eopen`,
   `eops`, `eopc`, `epn`, `clash_*`): a term wanted and not there is settled
-  at its bracket (`coco_term_close`: punct(Op, Next), operator_balance,
-  end_of_clause, cannot_start_term, quoted_punctuation), a bracket that
-  does not close at its token (`coco_close_fail`: operator_clash,
-  list_rest, cannot_start_term, operator_expected), a clash placed at the
-  end of the operator before it, and the lexer's reasons named by
-  `coco_reader_id`. **A new way for the parser to fail decides its id
+  at its bracket (`coco_term_close`: a clash among the operators pending,
+  punct(Op, Next), operator_balance, end_of_clause, cannot_start_term,
+  quoted_punctuation), a bracket that does not close at its token
+  (`coco_close_fail`: list_rest, cannot_start_term, operator_expected),
+  a clash where the term ENDS, at the operator whose operand is too much
+  (3.62.0, `coco_term_misfit`, `coco_term_pending`: the bullet on the
+  reader's operators below), and the lexer's reasons named by
+  `coco_reader_id`. **A clash is placed at its operator, never at the
+  token that ended the term**: a text read's place of an error at the end
+  of a text with no full stop is the `.` swipl puts there, but a clash's
+  (`a , rr b *` clashes at the `*` the text ends on: `coco_tx_syntax`). **A new way for the parser to fail decides its id
   there too**, or it says operator_expected. **ONE raw walk serves the
   resync, a load's place and a text read's Raw** (`coco_raw_walk`,
   pl-read.c's raw_read2): a quoted item walked with swipl's escapes (an
@@ -3733,14 +3744,43 @@ cocolint index offers no import of it.
   2, the operator in the reader's `px*`), suspends the frame in hand on
   `rf` (`coco_rframe`), and its operand is the next frame's; the frame
   holds its operator's functor, interned as the operator is passed (the
-  token's text is the next token's after it), and a failure is each
-  pending operator's, from the frame in hand down to the call's
-  (`coco_parse_unwind`, out of line, over `coco_op_failed`). Two loops,
-  an operand's and the operators' after it, with a return where the read
-  ends: through a state word asked at each step, and with its frames
-  malloc'd at each reader and the operators' names copied, the first cut
-  cost a read of a clause of fifteen operators some 1 700 instructions
-  more than 3.59.0's calls, and every process's start 1.36 million. **The
+  token's text is the next token's after it). **THEY ARE SHIFTED AND
+  REDUCED AS SWIPL'S** (3.62.0, test/files/op_reduce.pl): ONE loop, an
+  operand and then the token after it. An infix operator there first
+  reduces each frame whose operator's priority is no more than its left
+  side takes and whose own operand fits (`oprec <= lmax` and `leftprec <=
+  maxprec`, swipl's reduce_op()), then suspends the frame in hand WHATEVER
+  THE PRIORITIES; a prefix operator is pushed whatever its priority. So
+  no operator is refused where it stands: an operand past its operator's
+  priority is that operator's clash WHERE THE TERM ENDS
+  (`coco_term_misfit`, asked as the frames are read back, only where the
+  token in hand ends the term, `coco_term_ends`, by the reader's `stop`),
+  placed at the operator's end, which the frame it suspended keeps
+  (`lopt`, `oplen`); any other token there is the read's own failure, as
+  swipl's never reaches its exit (`a = b = c d` is operator_expected at
+  `d`, `(a = b = c]` cannot_start_term). Through 3.61.0 an operator was
+  read only where its priority fitted and the clash said at it: `a = \+ b
+  = c = d` at 2 where swipl's is 9, and `a => b <= c`, an xfy and a yfx
+  operator of one priority, read `a => (b <= c)` where swipl's is `(a =>
+  b) <= c`. **The operators pending where a term was wanted are settled
+  as swipl's exit settles them** (`coco_term_pending`, from
+  `coco_parse_unwind`, out of line): its reduce pairs each operator from
+  the right with the operands at the top of the out stack, a wrong
+  pairing by one, so the first operator an operand is too much for is a
+  clash (`eclash`: at its start for a left operand, its end for a right
+  one, bad_operator()'s rule), and else the operators that find no two
+  operands are left -- one, a comma or a semicolon, is punct(Op, Next),
+  anything else an unbalanced operator (`a , b , c *` is punct(',', '.'),
+  `a + b + c *` a clash at 9, `a = b =` unbalanced; through 3.61.0 every
+  pending operator was counted). **Every way out of the loop that fails
+  goes through `coco_parse_unwind`**, which takes the call's frames off
+  and settles the pending. With its frames malloc'd at each reader and
+  the operators' names copied, 3.60.0's first cut cost a read of a clause
+  of fifteen operators some 1 700 instructions more than 3.59.0's calls,
+  and every process's start 1.36 million; 3.62.0's first cut, which still
+  handed every term read an `outprec` to write, cost a start 57 000 and
+  88 000 of padding in `coco_parse_term`, where the loop without it is
+  224 000 cheaper than 3.61.0's. **The
   first sixteen frames are in the reader** (`rfs`, last in the struct,
   which the init and the free clear up to, `coco_reader_head`): 1 408
   bytes are a large request to glibc, which consolidated its fast bins at
@@ -3774,13 +3814,40 @@ cocolint index offers no import of it.
   what glibc made of it, less the arguments and environment above it.
   **An argument, a list element and a curly
   term are read to 1200** (3.2.0, swipl's non-ISO reader; 999 through
-  3.1.0), and what ends them is the reader's `stop`: 1 in an argument (a
-  comma ends the term), 2 in a list (a comma or a bar), 0 inside `(` and
-  `{`, each put back after; the comma and the bar are operators only where
-  `stop` lets them be. **An unquoted prefix operator's atom, read as a plain
-  atom, is a left operand at its prefix priority** (`outprec`: `- = a`
-  reads, `\+ = a` and `dynamic ; a` do not), quoted or bracketed at 0, and
-  never before an infix bar. **A quoted name is an operator only where it
+  3.1.0), and what ends them is the reader's `stop`: 0 the clause's term,
+  1 in an argument (a comma ends the term), 2 in a list (a comma or a
+  bar), and since 3.62.0 4 inside `(` and 8 inside `{` (0 through 3.61.0:
+  `coco_term_ends` asks which closing bracket ends the term), each put
+  back after; the comma is an operator where `stop & 3` is 0 and the bar
+  where `stop` is not 2 (`coco-term-op-token`, the one test of the token
+  as an infix operator's name). **AN UNQUOTED PREFIX OPERATOR'S ATOM IS AN
+  ATOM ONLY BEFORE AN INFIX OPERATOR WHOSE LEFT SIDE ADMITS MORE THAN THE
+  OPERATOR'S OWN OPERAND MAY BE** (3.62.0, swipl's modify_op():
+  `coco-parse-named-body` answers 3 for such an atom, its priorities and
+  place in `px*`, and the loop asks `coco_term_px_atom` of the token after
+  it): `- = a` and `x == - -> y` read, `=` admitting 699 where `-` takes
+  200. Before any other infix operator the operator stays one and the
+  infix operator's NAME is its operand -- `\+ = a` is `\+(=)` and then
+  `a`, operator_expected after the `=` -- and a comma there is
+  quoted_punctuation. **So `X == dynamic -> A ; B`, `K = table, G` and
+  `X = - ^ Y` are syntax errors, as in swipl: write `(dynamic)`,
+  `(table)`, `(-)`.** (fx 1150 is admitted by `-->` and `=>` alone, `\+`
+  by `,`, `->`, `;` and above, `-` and `+` by all but `^` and `**`.)
+  Where the term ends after it the atom reads: an
+  argument, a list element, before a closing bracket or the full stop
+  (`f(dynamic, y)`, `[dynamic|T]`, `X == dynamic`). Through 3.61.0 the
+  atom read as a right operand whatever followed -- five atoms of the tree
+  were bracketed for 3.62.0, in library/flow/analyse.pl, test/engine.pl
+  and tools/cocolint/build.pl -- and as a left one by the priority an
+  `outprec` carried out of every term read, gone (`pp vv a` read, `pp` fy
+  and `vv` yfx at one priority). The atom's functor as an operator is made
+  only where it is applied, from the atom's cell. Never before an infix
+  bar, at any priority. **Inside a bracket the clause's end is that
+  operand too, and no term**: swipl's operator is still waiting when its
+  simple_term() meets the full stop, so `( ff` and `f(a = \+` are
+  end_of_clause, where the atom read and the bracket then said an operator
+  expected (`coco_term_px_atom` answers 3, the failure said as a term
+  wanted and not there is). **A quoted name is an operator only where it
   cannot be written without its quotes** (3.15.1, swipl's; `coco_quoted_op`,
   asked by the primary's prefix test, the term loop's infix test and
   `coco_starts_term`): `'p\'q' a`, `a 'x\'y' b`, `a ',' b`, `'[]' x`; `'-' a`

@@ -266,6 +266,34 @@ fixtures(expand_module, Sandbox) :- !,
                              'xu_t :- ufoo(2).',
                              'xu_body(B) :- clause(xu_t, B).'] ]),
            ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
+%% the clauses whose operators clash, stay with an operand missing or want
+%% their brackets, for a load's place and a stream's read of each (3.62.0)
+fixtures(op_reduce, Sandbox) :- !,
+    atom_concat(Sandbox, '/o1.pl', P),
+    fixture(P, [ ':- op(700, xfy, =>).', ':- op(700, yfx, <=).', ':- op(200, xfx, xx).',
+                 ':- op(200, yfx, vv).', ':- op(1150, fx, zz).',
+                 'o1a(1).', 'o1b :- a = b = c.', 'o1c :- a = b = c = d.', 'o1d :- a :- b.',
+                 'o1e(a = b = c = d).', 'o1f([x, a = b = c]).', 'o1g :- x, a = b = c, y.',
+                 'o1h :- a = b,', '       c = d = e.', 'o1i :- a , .', 'o1j :- a ; .', 'o1k :- a + .',
+                 'o1l :- a = b + .', 'o1m(a , ).', 'o1n([a , ]).',
+                 'o1o :- X == dynamic -> a ; b.', 'o1p :- _ == (dynamic) -> a ; b.',
+                 'o1q :- X = \\+ = Y.', 'o1r :- _ = - , a.', 'o1s :- X = zz , Y.',
+                 'o1t(a => b <= c).', 'o1u(a <= b => c).', 'o1v(1 xx 2 xx 3).', 'o1w(1 xx 2 vv 3).',
+                 'o1x(a = \\+ b = c).', 'o1y(- = a, \\+ =).',
+                 '  o1z :- a,', '    b = c = d = e,', '    f.',
+                 %% a clash where a term was wanted, and the clause after it
+                 'o1za :- a = b , c = d = .', 'o1zb :- a + .',
+                 %% what reads, for its positions: xfy against yfx, a prefix
+                 %% operator's atom and the infix name it takes for an operand
+                 'o1zc(a => b <= c => d, 1 xx 2 vv 3 vv 4, - a vv b).',
+                 'o1zd(\\+ = , - = \\+, [- , \\+ - , \\+ = | zz], {- - = a}).',
+                 'o1ze :- _ = \\+ , \\+ a = b , - - c.',
+                 % a prefix operator waiting for its operand at the clause's
+                 % end inside a bracket: the full stop is no term
+                 'o1zf :- f(a = \\+ .',
+                 'o1zg([a, - .',
+                 'o1zh :- ( a , dynamic .',
+                 'o1zz(2).' ]).
 fixtures(_, _).
 
 %% what makes a file read once a source file, as swipl's, and what leaves it

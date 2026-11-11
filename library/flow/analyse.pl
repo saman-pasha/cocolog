@@ -26,10 +26,10 @@ flow_kind(G, Ctx, Kind) :-
     %% retract/1 and clause/2 (3.28.0) as they were in the C table
     ;   flow_t_construct(N, A, _)       -> Kind = builtin
     ;   flow_portal_row(Mod, N, A, _)    -> Kind = portal(Mod)
-    ;   get_assoc(N/A, Prog, V)         -> ( V = dyn(_) -> Kind = dynamic ; Kind = user )
+    ;   get_assoc(N/A, Prog, V)         -> ( V = dyn(_) -> Kind = (dynamic) ; Kind = user )
     ;   flow_t_lib(N, A, L, _)          -> Kind = library(L)
     ;   flow_has_clauses(N, A)          -> Kind = library(loaded)
-    ;   catch(current_predicate(N/A), _, fail) -> Kind = dynamic
+    ;   catch(current_predicate(N/A), _, fail) -> Kind = (dynamic)
     ;   Kind = unknown
     ).
 
@@ -207,7 +207,7 @@ flow_pair(Key, CM, Kind, Ctx, SP, Det, Rows, Needs) :-
     flow_clauses(Key, Kind, Ctx, Cls),
     flow_rows(Cls, 1, CM, Ctx, [], Needs0, Rows, SPs),
     length(CM, Ar),
-    (   Kind == dynamic -> SP = any, Det = nondet
+    (   Kind == (dynamic) -> SP = any, Det = nondet
     ;   Cls == [], Kind \== user -> SP = any, Det = semidet
     ;   flow_combine_sps(SPs, Ar, SP),
         (   SP == bot

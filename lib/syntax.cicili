@@ -293,12 +293,12 @@
      ;; is (`coco-parse-args-body'), ending at a comma or a bar: `[a:-b]' is
      ;; [(a:-b)] and `[(a|b)]' ['|'(a,b)]
      (let ((size_t * items . nil) (size_t * ps . nil) (size_t n . 0) (size_t cap . 0)
-           (size_t tail) (int prec) (int ok . 1) (int bar . 0) (int oom . 0)
+           (size_t tail) (int ok . 1) (int bar . 0) (int oom . 0)
            (int ostop . #'(-> r stop)))
        (set (-> r stop) 2)
        (while 1
          (let ((size_t item))
-           (if (not (,TERM r 1200 (aof item) (aof prec)))
+           (if (not (,TERM r 1200 (aof item)))
                (block (coco_term_close r 93 ",|]") (set ok 0) break))
            ;; GROWN THROUGH A SECOND POINTER (2.11.1): set from `realloc'
            ;; itself, a refusal left nil where the old block was -- leaked,
@@ -326,7 +326,7 @@
        (set tail (cast size_t 0))
        (if (coco_is_punct r (coco-ch "|"))
            (block (if (not (coco_next_token r)) (block (free items) (if ,P (free ps)) (return 0)))
-                  (if (not (,TERM r 1200 (aof tail) (aof prec)))
+                  (if (not (,TERM r 1200 (aof tail)))
                       (block (coco_term_close r 93 "]") (free items) (if ,P (free ps)) (return 0)))
                   (set bar 1))
          (set tail (coco_new_nil (-> r m))))
@@ -358,7 +358,7 @@
 ;;; 3.1.0 an argument was read to 999, ISO's, and both were syntax errors.
 (DEFMACRO coco-parse-args-body (P TERM)
   `(let ((size_t * args . nil) (size_t * ps . nil) (size_t n . 0) (size_t cap . 0)
-         (int prec) (int ok . 1) (int oom . 0) (int ostop . #'(-> r stop))
+         (int ok . 1) (int oom . 0) (int ostop . #'(-> r stop))
          (int bnil . #'(-> r bnil)))
      (set (-> r bnil) 0)
      ;; `f()', A COMPOUND OF NO ARGUMENTS (3.12.0), swipl 7's: its functor
@@ -371,7 +371,7 @@
      (set (-> r stop) 1)
      (while 1
        (let ((size_t a))
-         (if (not (,TERM r 1200 (aof a) (aof prec)))
+         (if (not (,TERM r 1200 (aof a)))
              (block (coco_term_close r 41 ",)") (set ok 0) break))
          ;; grown through a second pointer, as the list's are (2.11.1)
          (if (>= n cap)
@@ -404,7 +404,6 @@
 
 (DEFMACRO coco-parse-primary-body (P TERM LIST NAMED)
   `(block
-     (set (cof outprec) 0)
      (cond
        ((== (-> r tok) COCO_TK_INT)
         ;; AN INTEGER IS 64 BITS (2.0.0; 61 through 1.15.0): a literal
@@ -438,13 +437,14 @@
         (return (coco_next_token r)))
 
        ;; a bracket reads its term whole, its commas and bars operators
-       ;; whatever term it stands in (`stop' 0, 3.2.0)
+       ;; whatever term it stands in (3.2.0; `stop' 4, and 8 for a brace's,
+       ;; which say what ends the term)
        ((coco_is_punct r (coco-ch "("))
         (let ((size_t f . #'(-> r tstart)))
           (if (not (coco_next_token r)) (return 0))
-          (let ((int p) (int ostop . #'(-> r stop)))
-            (set (-> r stop) 0)
-            (if (not (,TERM r 1200 out (aof p))) (block (coco_term_close r 41 ")") (return 0)))
+          (let ((int ostop . #'(-> r stop)))
+            (set (-> r stop) 4)
+            (if (not (,TERM r 1200 out)) (block (coco_term_close r 41 ")") (return 0)))
             (set (-> r stop) ostop))
           (if (not (coco_is_punct r (coco-ch ")"))) (return (coco_close_fail r "expected )" 0)))
           (if ,P (coco_pos_wrap r "parentheses_term_position" f (-> r pos)))
@@ -457,7 +457,7 @@
           ;; 7's): a compound named by the list's end, as `{}(' makes one
           (if (and (coco_is_punct r (coco-ch "]")) (== (coco_peek r) (coco-ch "(")))
               (block (set (-> r bnil) 1)
-                     (return (,NAMED r maxprec "[]" 0 f (-> r pos) out outprec))))
+                     (return (,NAMED r maxprec "[]" 0 f (-> r pos) out))))
           (return (,LIST r f out))))
 
        ((coco_is_punct r (coco-ch "{"))
@@ -468,13 +468,13 @@
                ;; `{}(a,b)', the two against a `(' (3.1.0, swipl's): a
                ;; compound named `{}', as `f(' makes one -- `{}(x)' is `{x}'
                (if (== (coco_peek r) (coco-ch "("))
-                   (return (,NAMED r maxprec "{}" 0 f (-> r pos) out outprec)))
+                   (return (,NAMED r maxprec "{}" 0 f (-> r pos) out)))
                (set (cof out) (coco_new_atom (-> r m) "{}"))
                (if ,P (coco_pos_leaf r f (-> r pos)))
                (return (coco_next_token r))))
-          (let ((size_t inner) (int p) (int ostop . #'(-> r stop)))
-            (set (-> r stop) 0)
-            (if (not (,TERM r 1200 (aof inner) (aof p))) (block (coco_term_close r 125 "}") (return 0)))
+          (let ((size_t inner) (int ostop . #'(-> r stop)))
+            (set (-> r stop) 8)
+            (if (not (,TERM r 1200 (aof inner))) (block (coco_term_close r 125 "}") (return 0)))
             (set (-> r stop) ostop)
             (if (not (coco_is_punct r (coco-ch "}"))) (return (coco_close_fail r "expected }" 0)))
             (if ,P (coco_pos_wrap r "brace_term_position" f (-> r pos)))
@@ -495,7 +495,7 @@
               (int was_quoted . #'(-> r quoted)) (int ok . 0)
               (size_t nf . #'(-> r tstart)) (size_t nt . #'(-> r pos)))
           (if (== name nil) (return (coco_fail r "out of memory")))
-          (set ok (,NAMED r maxprec name was_quoted nf nt out outprec))
+          (set ok (,NAMED r maxprec name was_quoted nf nt out))
           (free heap)
           (return ok)))
 
@@ -559,60 +559,108 @@
        ;; there, read in a frame of its own -- answered 2, the operator in
        ;; PX*, its functor named as an application is (3.15.1: a quoted
        ;; `'[]'' the atom), where through 3.59.0 its operand was a call of
-       ;; `coco_parse_term' here
-       (if (and prefix (and (<= prec maxprec) (coco_starts_term r)))
+       ;; `coco_parse_term' here. WHATEVER ITS PRIORITY (3.62.0), as swipl's
+       ;; complex_term pushes it: over the priority here -- `a = \+ b',
+       ;; `a :- :- b' -- its term is more than the operator before it takes,
+       ;; which is that operator's clash where the term ends
+       ;; (`coco_term_misfit'), after any token that will not read on the
+       ;; way. Through 3.61.0 the clash was said at the operator
+       (if (and prefix (coco_starts_term r))
            (block
              (set (-> r pxfid) (coco_parse_fid r name 0 1))
              (set (-> r pxprec) prec)
              (set (-> r pxmax) (? (== type COCO_FY) prec (- prec 1)))
              (set (-> r pxnf) nf)
              (set (-> r pxnt) nt)
-             ;; its operand is what an operator clash in it is placed after
-             (set (-> r lopend) nt)
              (return 2)))
 
-       ;; A PREFIX OPERATOR OVER THE PRIORITY HERE, BEFORE A TERM (3.10.0):
-       ;; `a = \+ b', `a :- :- b' -- swipl's operator clash, at the token
-       ;; after it and placed after the operator before it; the read fails
-       ;; at that token, which no operator here can take
-       (if (and prefix (and (> prec maxprec) (coco_starts_term r)))
-           (coco_clash r (-> r lopend)))
-
-       ;; Otherwise a plain atom -- AT ITS PREFIX PRIORITY when it is an
-       ;; unquoted prefix operator, and 0 else (3.2.0, swipl's): so it is
-       ;; the left operand only of an infix operator that admits that
-       ;; much, `- = a' and `\+ -> a' read and `\+ = a', `dynamic ; a'
-       ;; and `:- = a' are `operator expected', where `(\+) = a' and
-       ;; `'\+' = a' read. Nothing else reads the priority back: a prefix
-       ;; operator's operand, an argument and the right operand take the
-       ;; atom whatever it is (`- dynamic', `a = \+'), as swipl's do.
-       ;; Through 3.1.0 every such atom was 0. (Carrying the INFIX
-       ;; priority, once tried, made `- * a' unreadable: `-' came back at
-       ;; 500, over `*''s 400; its prefix priority is 200.) The WRITER
-       ;; brackets such an atom when it stands as an operand. Before an
-       ;; infix bar it is refused at any priority, as swipl refuses
-       ;; `- | a' and `f(\+ | a)' (where `[- | a]''s bar ends the element)
+       ;; Otherwise a plain atom. A PREFIX OPERATOR'S ATOM IS THE LEFT
+       ;; OPERAND ONLY OF AN INFIX OPERATOR WHOSE LEFT SIDE ADMITS MORE THAN
+       ;; THE OPERATOR'S OWN OPERAND MAY BE (3.62.0), swipl's modify_op():
+       ;; `- = a' and `\+ -> a' read, `=' admitting 699 where `-' takes
+       ;; 200, and `\+ = a', `dynamic ; a' and `:- = a' do not -- there the
+       ;; operator stays one and the infix operator's NAME is its operand
+       ;; (`coco-parse-term-body': `\+ =' is \+(=), and a term after it is
+       ;; swipl's operator_expected). THE ANSWER 3 SAYS SO, 1 for any
+       ;; other atom, and PX* keep the operator's priorities and place for
+       ;; the term being read to apply (`coco_term_px_atom'; its functor is
+       ;; made only then, from the atom). Through 3.61.0 the atom carried
+       ;; its prefix priority (3.2.0) out of an OUTPREC every term read
+       ;; wrote, which let `pp vv a' read, `pp' fy and `vv' yfx at one
+       ;; priority, and the read failed at the infix operator, not after
+       ;; it. As an operand the atom weighs nothing (`- dynamic',
+       ;; `a = \+'), as swipl's does. The WRITER brackets such an atom when
+       ;; it stands as an operand. Before an infix bar it is refused at any
+       ;; priority, as swipl refuses `- | a' and `f(\+ | a)' (where
+       ;; `[- | a]''s bar ends the element)
        (if (and prefix (and (coco_is_punct r (coco-ch "|")) (!= (-> r stop) 2)))
            (return (coco_fail r "operator expected")))
        (set (cof out) (coco_new_atom (-> r m) name))
-       (set (cof outprec) (? prefix prec 0))
        (if ,P (coco_pos_leaf r nf nt))
+       (if prefix
+           (block
+             (set (-> r pxprec) prec)
+             (set (-> r pxmax) (? (== type COCO_FY) prec (- prec 1)))
+             (set (-> r pxnf) nf)
+             (set (-> r pxnt) nt)
+             (return 3)))
        (return 1))))
+
+;;; THE TOKEN IN HAND AS AN INFIX OPERATOR'S NAME: NAME it and HAVE 1 where
+;;; it may be one here. `,' and `|' arrive as punctuation but are
+;;; operators: the comma is ','/2 and the bar '|'/2 (3.2.0; `;' through
+;;; 3.1.0), each as the operator table has it -- save where they END the
+;;; term read: an argument's comma (`stop' 1) or a list element's comma or
+;;; bar (2), whatever priority it is read to (`coco_parse_args'). A QUOTED
+;;; NAME IS AN INFIX OPERATOR ONLY WHERE IT CANNOT BE WRITTEN WITHOUT ITS
+;;; QUOTES (3.15.1, swipl's): `a 'x\'y' b' and `a ',' b' apply it,
+;;; `a '-' b' is no term. Asked where an operand has been read
+;;; (`coco-parse-term-body') and of the token after a prefix operator's
+;;; atom (`coco_term_px_atom').
+(DEFMACRO coco-term-op-token (NAME HAVE)
+  `(cond
+     ((== (-> r tok) COCO_TK_NAME)
+      (if (!= ($ (-> r text) s) nil) (set ,NAME ($ (-> r text) s)))
+      (if (or (not (-> r quoted)) (coco_quoted_op ,NAME)) (set ,HAVE 1)))
+     ((coco_is_punct r (coco-ch ","))
+      (if (== 0 (bitand (-> r stop) 3)) (block (set ,NAME ",") (set ,HAVE 1))))
+     ((coco_is_punct r (coco-ch "|"))
+      (if (!= (-> r stop) 2) (block (set ,NAME "|") (set ,HAVE 1))))))
 
 ;;; A FRAME SUSPENDED ON THE READER'S STACK (3.60.0), the frame in hand's
 ;;; locals stored -- its positions only in the family that builds them, P
-;;; asked as the macro expands (Lisp's 0 is true: `eql') -- PUSHED set;
+;;; asked as the macro expands (Lisp's 0 is true: `eql') -- with the two
+;;; ends of the operator that suspends it, OPF to OPT (3.62.0); PUSHED set;
 ;;; the frames grown out of line (`coco_rframe_grow').
-(DEFMACRO coco-rframe-push (P)
+(DEFMACRO coco-rframe-push (P OPF OPT)
   `(if (or (< (-> r rfn) (-> r rfcap)) (coco_rframe_grow r))
        (let ((coco_rframe * f . #'(+ (-> r rf) (-> r rfn))))
          (set (-> f kind) kind) (set (-> f maxprec) maxprec)
-         (set (-> f left) left) (set (-> f leftprec) leftprec) (set (-> f lopt) lopt)
+         (set (-> f left) left) (set (-> f leftprec) leftprec)
+         (set (-> f lopt) ,OPT) (set (-> f oplen) (cast int (- ,OPT ,OPF)))
          (set (-> f fid) ofid) (set (-> f prec) oprec)
          ,@(IF (EQL P 1)
                '((set (-> f a) pa) (set (-> f b) pb) (set (-> f c) pc) (set (-> f d) pd)))
          (set (-> r rfn) (+ (-> r rfn) 1))
          (set pushed 1))))
+
+;;; THE FRAME IN HAND IS READ (3.60.0): its operator's term is the term read
+;;; so far of the frame below it, which is the frame in hand again -- swipl's
+;;; build_op_term(). Written once and expanded where an operator reduces it
+;;; and where the term ends (3.62.0).
+(DEFMACRO coco-rframe-pop (P)
+  `(let ((coco_rframe * f . #'(+ (-> r rf) (- (-> r rfn) 1))))
+     (if (== kind 1)
+         (block (set left (coco_make2_f (-> r m) ofid (-> f left) left))
+                (if ,P (coco_pos_infix r pa pb pc pd)))
+       (block (set left (coco_make1_f (-> r m) ofid left))
+              (if ,P (coco_pos_prefix r pa pa pb))))
+     (set leftprec oprec)
+     (set kind (-> f kind)) (set maxprec (-> f maxprec))
+     (set ofid (-> f fid)) (set oprec (-> f prec))
+     ,@(IF (EQL P 1)
+           '((set pa (-> f a)) (set pb (-> f b)) (set pc (-> f c)) (set pd (-> f d))))
+     (set (-> r rfn) (- (-> r rfn) 1))))
 
 ;;; A TERM'S OPERATORS ARE READ WITH A STACK OF THE READER'S OWN (3.60.0),
 ;;; as pl-read.c's complex_term keeps one, where through 3.59.0 each
@@ -621,116 +669,141 @@
 ;;; any. An infix operator that takes the term read so far, or a prefix
 ;;; operator where an operand stands (the named term's answer 2, the
 ;;; operator in the reader's PX*), suspends the frame in hand
-;;; (`coco_rframe', on RF), and its operand is the next frame's, read to the
-;;; priority the operator gives it; a frame read is its operator's term
-;;; and the term read so far of the frame below it, whose operators are
-;;; asked next. The frame in hand is in locals: KIND what it is to the
-;;; frame below it (0 the term this call reads, 1 an infix operator's
-;;; right operand, 2 a prefix operator's operand), OFID its operator's
-;;; functor -- named as an application is (3.15.1), as the operator is
-;;; passed, so no name is kept -- OPREC its priority, and PA to PD where it
+;;; (`coco_rframe', on RF), and its operand is the next frame's; a frame
+;;; read is its operator's term and the term read so far of the frame below
+;;; it. The frame in hand is in locals: KIND what it is to the frame below
+;;; it (0 the term this call reads, 1 an infix operator's right operand, 2
+;;; a prefix operator's operand), OFID its operator's functor -- named as an
+;;; application is (3.15.1), as the operator is passed, so no name is kept
+;;; -- OPREC its priority (1201 at the call's own frame, which no operator
+;;; reduces), MAXPREC the most its operand may be, and PA to PD where it
 ;;; stands, for the positions. A BRACKET'S TERM IS A CALL OF THIS FUNCTION
 ;;; STILL, as swipl's complex_term is a call for each: it asks the C stack
 ;;; first, and below the reader's floor (`sfloor': 64 KB above the
 ;;; thread's, or a probe until a read goes that deep, `coco_read_deep') the
 ;;; read stops for want of it (`coco_read_cshort'), for its builtin to raise
 ;;; resource_error(c_stack), as swipl's raises it for a bracket some 17 000
-;;; deep. Two loops: the outer reads an operand -- a prefix operator's
-;;; pushed, and its operand read next -- and the inner asks the operators
-;;; after it, an infix operator pushed and its operand read next (`break'),
-;;; else the frame in hand read and the operators of the frame below it
-;;; asked. A failure is each operator's whose operand would not read, from
-;;; the frame in hand down to this call's (`coco_parse_unwind', out of
-;;; line), as each call's caller said it through 3.59.0. Through a state
-;;; word the first cut asked at each step it cost a read of a clause of
+;;; deep.
+;;;
+;;; WHICH OPERATOR TAKES WHAT IS SWIPL'S SHIFT AND REDUCE (3.62.0,
+;;; complex_term's reduce_op() and push). At an infix operator after an
+;;; operand, each pending operator whose priority is no more than the new
+;;; one's left side admits, and whose own operand fits it, is applied
+;;; first -- the frame in hand read, then the one below it -- and the new
+;;; operator then takes the term read so far and is pushed, WHATEVER ITS
+;;; PRIORITY: nothing is refused there. So `a => b <= c', `=>' xfy and `<='
+;;; yfx at one priority, is (a => b) <= c, and `- a vv b', `vv' yfx at 200,
+;;; (-a) vv b: through 3.61.0 an operator went inside the operand of the
+;;; one before it whenever its priority was no more than that operand's,
+;;; a => (b <= c). And an operator its neighbour cannot take -- the second
+;;; `=' of `a = b = c' -- is pushed all the same, inside the first one's
+;;; operand, which is then more than the first admits: THE CLASH IS SAID
+;;; WHERE THE TERM ENDS, at the first operator from the right whose operand
+;;; is too much (`coco_term_misfit': the second to last of a chain of equal
+;;; xfx operators), and only when the token there ends the term; a token
+;;; that will not read before that is the failure, as swipl's is. Through
+;;; 3.61.0 the clash was said at the first operator that met it.
+;;;
+;;; ONE LOOP: an operand is read -- a prefix operator's pushed, and its
+;;; operand read next -- and the token after it asked. An infix operator is
+;;; pushed and its operand read next (`continue'); else the term ends and
+;;; each frame is read down to this call's. LEFTPREC is what the term read
+;;; so far weighs as an operand, nothing for what the primary read. A
+;;; PREFIX OPERATOR'S ATOM (the primary's answer 3) is asked about once,
+;;; out of line, before the token after it is taken (`coco_term_px_atom'):
+;;; where that token is an infix operator that does not admit the atom,
+;;; the operator is pushed after all and the token's NAME is its operand.
+;;; The first cut asked every infix operator whether the operand before it
+;;; was such an atom, two instructions an operator, out of a priority every
+;;; primary wrote through a pointer. A failure takes the call's frames off
+;;; (`coco_parse_unwind', out of line), the operators pending settled first
+;;; where a term was wanted (`coco_term_pending'). Through a state word the
+;;; first cut of 3.60.0 asked at each step it cost a read of a clause of
 ;;; fifteen operators some 1 200 instructions more than 3.59.0's calls.
 (DEFMACRO coco-parse-term-body (P PRIMARY)
-  `(let ((size_t left . 0) (int leftprec . 0) (size_t lopt . 0)
-         (int kind . 0) (u64 ofid . 0) (int oprec . 0)
+  `(let ((size_t left . 0) (int leftprec . 0)
+         (int kind . 0) (u64 ofid . 0) (int oprec . 1201)
          (size_t pa . 0) (size_t pb . 0) (size_t pc . 0) (size_t pd . 0)
          (size_t base . #'(-> r rfn)))
      (if (and (< (cast size_t (aof left)) (-> r sfloor))
               (not (coco_read_deep r (cast size_t (aof left)))))
          (return 0))
      (while 1
-       ;; AN OPERAND for the frame in hand, to its MAXPREC; a prefix
-       ;; operator's operand is the next frame's
-       (let ((int rc . #'(,PRIMARY r maxprec (aof left) (aof leftprec))))
-         (if (== rc 0) (return (coco_parse_unwind r base kind ofid 0)))
+       ;; AN OPERAND for the frame in hand; a prefix operator's operand is
+       ;; the next frame's
+       (let ((int rc . #'(,PRIMARY r maxprec (aof left))))
+         (if (== rc 0) (return (coco_parse_unwind r base kind ofid oprec maxprec 0)))
          (if (!= rc 1)
-             (let ((int pushed . 0))
-               (coco-rframe-push ,P)
-               (if (not pushed) (return (coco_parse_unwind r base kind ofid 1)))
-               (set kind 2) (set maxprec (-> r pxmax)) (set lopt 0)
-               (set ofid (-> r pxfid)) (set oprec (-> r pxprec))
-               (set pa (-> r pxnf)) (set pb (-> r pxnt))
-               continue)))
-       ;; THE OPERATORS AFTER IT
-       (while 1
-         ;; AN INFIX OPERATOR THAT TAKES THE TERM READ SO FAR, its right
-         ;; operand the next frame's (`break', for the outer loop to read)
-         (let ((const char * name . "") (int prec . 0) (int type . 0) (int have . 0)
-               (int took . 0))
-           ;; `,' and `|' arrive as punctuation but are operators: the
-           ;; comma is ','/2 and the bar '|'/2 (3.2.0; `;' through 3.1.0),
-           ;; each as the operator table has it -- save where they END the
-           ;; term read: an argument's comma (`stop' 1) or a list element's
-           ;; comma or bar (2), whatever priority it is read to
-           ;; (`coco_parse_args')
-           (cond
-             ((== (-> r tok) COCO_TK_NAME)
-              (if (!= ($ (-> r text) s) nil) (set name ($ (-> r text) s)))
-              ;; A QUOTED NAME IS AN INFIX OPERATOR ONLY WHERE IT CANNOT BE
-              ;; WRITTEN WITHOUT ITS QUOTES (3.15.1, swipl's): `a 'x\'y' b'
-              ;; and `a ',' b' apply it, `a '-' b' is no term
-              (if (or (not (-> r quoted)) (coco_quoted_op name)) (set have 1)))
-             ((coco_is_punct r (coco-ch ","))
-              (if (== (-> r stop) 0) (block (set name ",") (set have 1))))
-             ((coco_is_punct r (coco-ch "|"))
-              (if (!= (-> r stop) 2) (block (set name "|") (set have 1)))))
-           (if (and have (and (coco_op_infix name (aof prec) (aof type)) (<= prec maxprec)))
-               (let ((int lmax . #'(? (== type COCO_YFX) prec (- prec 1)))
-                     (int rmax . #'(? (== type COCO_XFY) prec (- prec 1))))
-                 (if (> leftprec lmax)
-                     ;; a clash (3.10.0), placed after this frame's last
-                     ;; operator -- or none, when the left came from the
-                     ;; primary: `\+ = a' is swipl's operator_expected
-                     (block (if (!= lopt 0) (coco_clash r lopt)))
-                   ;; for positions: where the operator stands, and the
-                   ;; left operand's position and start, which the term
-                   ;; built on it begins with -- the term parsed last, so
-                   ;; far; and its functor, from the token's text before
-                   ;; the next token takes it
-                   (let ((size_t opf . #'(-> r tstart)) (size_t opt . #'(-> r pos))
-                         (size_t lp . #'(-> r lpos)) (size_t lf . #'(-> r lfrom))
-                         (u64 nfid . #'(coco_parse_fid r name 0 2)) (int pushed . 0))
-                     (set lopt opt) (set (-> r lopend) opt)
-                     (if (not (coco_next_token r)) (return (coco_parse_unwind r base kind ofid 0)))
-                     (coco-rframe-push ,P)
-                     (if (not pushed) (return (coco_parse_unwind r base kind ofid 1)))
-                     (set kind 1) (set maxprec rmax) (set lopt 0)
-                     (set ofid nfid) (set oprec prec)
-                     (set pa lp) (set pb lf) (set pc opf) (set pd opt)
-                     (set took 1)))))
-           (if took break))
-         ;; ELSE THE FRAME IN HAND IS READ: this call's term, or an operand
-         ;; whose operator's term is the term read so far below it
-         (if (== (-> r rfn) base)
-             (block (set (cof out) left)
-                    (set (cof outprec) leftprec)
-                    (return 1)))
-         (let ((coco_rframe * f . #'(+ (-> r rf) (- (-> r rfn) 1))))
-           (if (== kind 1)
-               (block (set left (coco_make2_f (-> r m) ofid (-> f left) left))
-                      (if ,P (coco_pos_infix r pa pb pc pd)))
-             (block (set left (coco_make1_f (-> r m) ofid left))
-                    (if ,P (coco_pos_prefix r pa pa pb))))
-           (set leftprec oprec)
-           (set kind (-> f kind)) (set maxprec (-> f maxprec)) (set lopt (-> f lopt))
-           (set ofid (-> f fid)) (set oprec (-> f prec))
-           ,@(IF (EQL P 1)
-                 '((set pa (-> f a)) (set pb (-> f b)) (set pc (-> f c)) (set pd (-> f d))))
-           (set (-> r rfn) (- (-> r rfn) 1)))))))
+             ;; 2 A PREFIX OPERATOR, pushed. 3 A PREFIX OPERATOR'S ATOM
+             ;; (3.62.0): the operator after all where the token after it is
+             ;; an infix operator that does not admit it, as swipl's
+             ;; modify_op() leaves it, and that token its operand, read as
+             ;; swipl's simple_term() reads it -- a name the atom, a comma
+             ;; no term (2), and no more the clause's end inside a bracket
+             ;; (3, the failure said). The atom read is let go, its functor
+             ;; made of it
+             (let ((const char * oname . "") (int pushed . 0)
+                   (int px . #'(? (== rc 2) 1 (coco_term_px_atom r (aof oname)))))
+               (if (== px 2)
+                   (block (coco_term_nostart r)
+                          (return (coco_parse_unwind r base kind ofid oprec maxprec 0))))
+               (if (== px 3)
+                   (return (coco_parse_unwind r base kind ofid oprec maxprec 0)))
+               (if (== px 1)
+                   (block
+                     (coco-rframe-push ,P (-> r pxnf) (-> r pxnt))
+                     (if (not pushed) (return (coco_parse_unwind r base kind ofid oprec maxprec 1)))
+                     (set kind 2) (set maxprec (-> r pxmax)) (set oprec (-> r pxprec))
+                     (set pa (-> r pxnf)) (set pb (-> r pxnt))
+                     (if (== rc 2)
+                         (block (set ofid (-> r pxfid)) continue))
+                     (set ofid (coco_functor_id (-> r m)
+                                                (coco-payload (nth left (-> (-> r m) heap))) 1))
+                     (let ((size_t opf . #'(-> r tstart)) (size_t opt . #'(-> r pos)))
+                       (set left (coco_new_atom (-> r m) oname))
+                       (if ,P (coco_pos_leaf r opf opt))
+                       (if (not (coco_next_token r))
+                           (return (coco_parse_unwind r base kind ofid oprec maxprec 0)))))))))
+       (set leftprec 0)
+       ;; THE TOKEN AFTER IT: an infix operator, pushed, its operand read
+       ;; next, or the term ends
+       (let ((const char * name . "") (int prec . 0) (int type . 0) (int have . 0))
+         (coco-term-op-token name have)
+         (if (and have (coco_op_infix name (aof prec) (aof type)))
+             (let ((int lmax . #'(? (== type COCO_YFX) prec (- prec 1)))
+                   (int rmax . #'(? (== type COCO_XFY) prec (- prec 1)))
+                   (size_t opf . #'(-> r tstart)) (size_t opt . #'(-> r pos))
+                   (int pushed . 0))
+               ;; swipl's reduce_op(): each pending operator this one's left
+               ;; side admits, and whose own operand fits it ...
+               (while (and (<= oprec lmax) (<= leftprec maxprec))
+                 (coco-rframe-pop ,P))
+               ;; ...and the operator is pushed, its right operand the next
+               ;; frame's. For positions: where the operator stands, and the
+               ;; left operand's position and start, which the term built on
+               ;; it begins with -- the term parsed last, so far; and its
+               ;; functor, from the token's text before the next token takes
+               ;; it
+               (let ((size_t lp . #'(-> r lpos)) (size_t lf . #'(-> r lfrom))
+                     (u64 nfid . #'(coco_parse_fid r name 0 2)))
+                 (if (not (coco_next_token r))
+                     (return (coco_parse_unwind r base kind ofid oprec maxprec 0)))
+                 (coco-rframe-push ,P opf opt)
+                 (if (not pushed) (return (coco_parse_unwind r base kind ofid oprec maxprec 1)))
+                 (set kind 1) (set maxprec rmax)
+                 (set ofid nfid) (set oprec prec)
+                 (set pa lp) (set pb lf) (set pc opf) (set pd opt)
+                 continue))))
+       ;; THE TERM ENDS HERE: each frame is read, down to this call's -- an
+       ;; operand past its operator's priority is that operator's clash,
+       ;; where the token in hand ends the term (`coco_term_misfit')
+       (while (!= (-> r rfn) base)
+         (if (> leftprec maxprec)
+             (if (not (coco_term_misfit r))
+                 (return (coco_parse_unwind r base kind ofid oprec maxprec 0))))
+         (coco-rframe-pop ,P))
+       (set (cof out) left)
+       (return 1))))
 
 ;;;; ------------------------------------------------------------------
 ;;;; Declarations
@@ -813,12 +886,17 @@
   ;;; an infix operator's right operand, 2 a prefix operator's operand --
   ;;; FID its operator's functor, PREC its priority, and A to D where it
   ;;; stands: an infix operator's left operand's position and start and its
-  ;;; own two ends, a prefix operator's two ends.
+  ;;; own two ends, a prefix operator's two ends. LEFT and LEFTPREC are the
+  ;;; term it had read, an infix operator's left operand, and LOPT and OPLEN
+  ;;; where THE OPERATOR THAT SUSPENDED IT ends and how long it is (3.62.0),
+  ;;; which a clash at that operator is placed by (`coco_term_misfit',
+  ;;; `coco_term_pending').
   (struct coco_rframe
     (member int    kind)
     (member int    maxprec)
     (member size_t left)
     (member int    leftprec)
+    (member int    oplen)
     (member size_t lopt)
     (member u64    fid)
     (member int    prec)
@@ -898,9 +976,13 @@
     ;; `coco_reader_resync' walks from after a syntax error, as swipl's raw
     ;; read of a clause's text walks from there
     (member size_t       cstart)
-    ;; WHAT ENDS THE TERM BEING READ (3.2.0), past its priority: 0 nothing,
-    ;; 1 a comma (an argument), 2 a comma or a bar (a list element); each
-    ;; bracket sets its own and puts the one around it back
+    ;; WHAT ENDS THE TERM BEING READ (3.2.0), past its priority: 0 the
+    ;; clause's full stop, 1 a comma or `)' (an argument), 2 a comma, a bar
+    ;; or `]' (a list element or tail), 4 `)' and 8 `}' (a bracket's term:
+    ;; 0 through 3.61.0, 4 and 8 since a clash asks whether the token in
+    ;; hand ends the term, `coco_term_ends'); each bracket sets its own and
+    ;; puts the one around it back. A comma is an operator where bits 1 and
+    ;; 2 are clear, a bar where it is not 2
     (member int          stop)
     ;; WHAT SWIPL WOULD CALL THE FAILURE (3.10.0), decided where the reader
     ;; failed, as pl-read.c's complex_term decides it -- nil for a reason
@@ -909,19 +991,22 @@
     ;; (`coco_term_close'): EOPS operators were passed on the way up to it,
     ;; EOPC the innermost's character when it is a comma or a semicolon,
     ;; and EPN the token it stopped at, for punct(Op, Next). An operator
-    ;; that could not take what came before it is a CLASH at CLASH_TOK,
-    ;; placed at CLASH_AT, the end of the operator before it (swipl's
-    ;; last_token_start there); LOPEND is the end of the last operator
-    ;; whose operand is being read. ECOMMENT is a block comment the text
-    ;; ended in, at its first byte plus one.
+    ;; whose operand is past its priority is a CLASH, decided where the
+    ;; term ends (3.62.0, swipl's reduce_op() at its exit) and placed at
+    ;; CLASH_AT: the operator's end, or its start when it is the left
+    ;; operand that is too much (swipl's bad_operator()). ECLASH and
+    ;; ECLASH_AT are a clash among the operators pending where a term was
+    ;; wanted (`coco_term_pending'), which its bracket takes when the token
+    ;; ends its term. ECOMMENT is a block comment the text ended in, at its
+    ;; first byte plus one.
     (member const char * esyn)
     (member int          eopen)
     (member int          eops)
     (member int          eopc)
     (member int          epn)
-    (member int          clash_set)
+    (member int          eclash)
+    (member size_t       eclash_at)
     (member size_t       clash_at)
-    (member size_t       lopend)
     (member size_t       ecomment)
     ;; A NAME `[]' THE BRACKETS MADE (3.12.0): set by `[]' or `[ ]' before a
     ;; `(' as the application is read, and taken by its arguments' read, so
@@ -2456,21 +2541,21 @@
   ;;; argument.
 
   (static) (decl) (func coco_parse_term ((coco_reader * r) (int maxprec)
-                                       (size_t * out) (int * outprec)) (out int))
+                                       (size_t * out)) (out int))
   (static) (decl) (func coco_parse_primary ((coco_reader * r) (int maxprec)
-                                          (size_t * out) (int * outprec)) (out int))
+                                          (size_t * out)) (out int))
   (static) (decl) (func coco_parse_named ((coco_reader * r) (int maxprec)
                                         (const char * name) (int was_quoted)
                                         (size_t nf) (size_t nt)
-                                        (size_t * out) (int * outprec)) (out int))
+                                        (size_t * out)) (out int))
   (static) (decl) (func coco_parse_term_p ((coco_reader * r) (int maxprec)
-                                       (size_t * out) (int * outprec)) (out int))
+                                       (size_t * out)) (out int))
   (static) (decl) (func coco_parse_primary_p ((coco_reader * r) (int maxprec)
-                                          (size_t * out) (int * outprec)) (out int))
+                                          (size_t * out)) (out int))
   (static) (decl) (func coco_parse_named_p ((coco_reader * r) (int maxprec)
                                         (const char * name) (int was_quoted)
                                         (size_t nf) (size_t nt)
-                                        (size_t * out) (int * outprec)) (out int))
+                                        (size_t * out)) (out int))
 
   ;;; THE TOKEN IN HAND, COPIED, AT WHATEVER LENGTH IT IS.
   ;;;
@@ -2513,7 +2598,7 @@
   ;;; THE OPERATORS PENDING (3.60.0, `coco-parse-term-body'): the frames
   ;;; grown out of line (0 where memory was refused), and a pending
   ;;; operator's name, from its functor, for the failure that names it
-  ;;; (`coco_op_failed')
+  ;;; (`coco_term_pending')
   (weak) (cold)
   (func coco_rfid_name ((coco_reader * r) (u64 fid)) (out const char *)
         (return (coco_atom_name (-> r m) ($ (nth (cast size_t fid) (-> (-> r m) functors)) name))))
@@ -2590,39 +2675,134 @@
         (if (!= (-> r tok) COCO_TK_PUNCT) (return 0))
         (return (cast int (nth 0 ($ (-> r text) s)))))
 
-  ;;; An operator whose operand failed, on the way up to the bracket: one
-  ;;; more pending (swipl's side stack), its mark kept when it is a comma
-  ;;; or a semicolon -- read only when it is the one pending
+  ;;; WHETHER THE TOKEN IN HAND ENDS THE TERM BEING READ (3.62.0), swipl's
+  ;;; `exit' of complex_term: the clause's full stop at the top (`stop' 0),
+  ;;; a comma or `)' in an argument (1), a comma, a bar or `]' in a list (2,
+  ;;; its tail too, as swipl reads one), `)' in a bracket (4), `}' in a
+  ;;; brace (8). Any other token is no end: the read fails at it, whatever
+  ;;; the operators before it would have made.
+  (static)
+  (func coco_term_ends ((coco_reader * r)) (out int)
+        (let ((int p . #'(coco_tok_punct r)) (int s . #'(-> r stop)))
+          (if (or (== (-> r tok) COCO_TK_END) (== (-> r tok) COCO_TK_EOF))
+              (return (? (== s 0) 1 0)))
+          (cond ((== p 44)  (return (? (!= 0 (bitand s 3)) 1 0)))
+                ((== p 124) (return (? (== s 2) 1 0)))
+                ((== p 41)  (return (? (or (== s 4) (== s 1)) 1 0)))
+                ((== p 93)  (return (? (== s 2) 1 0)))
+                ((== p 125) (return (? (== s 8) 1 0))))
+          (return 0)))
+
+  ;;; A COMMA WHERE A PREFIX OPERATOR'S OPERAND STANDS (3.62.0,
+  ;;; `coco-parse-term-body'): `:- , a' and `a = dynamic , b', the comma no
+  ;;; infix operator the prefix operator's atom could be the left side of --
+  ;;; swipl's simple_term() of it, quoted_punctuation, at the comma.
+  (weak) (cold)
+  (func coco_term_nostart ((coco_reader * r))
+        (coco_fail r "a term cannot start here")
+        (set (-> r esyn) "quoted_punctuation")
+        (set (-> r eopen) 0))
+
+  ;;; AN OPERAND PAST ITS OPERATOR'S PRIORITY, WHERE THE TERM ENDS (3.62.0,
+  ;;; `coco-parse-term-body'): the frame in hand's term is more than its
+  ;;; operator admits on its right -- the second `=' of `a = b = c' took
+  ;;; `b' and stands inside the first one's operand -- which is swipl's
+  ;;; can_reduce() failing as reduce_op() empties the stack at complex_term's
+  ;;; exit. The frames are read from the right, so this is the first that
+  ;;; fails, the clash swipl names: placed at that operator's end, which the
+  ;;; frame it suspended keeps. Only where the token in hand ends the term:
+  ;;; at any other the read fails for that token, as swipl's never reaches
+  ;;; its exit, and 1 is answered for the frames to be read on. 0 with the
+  ;;; clash said.
+  (weak) (cold)
+  (func coco_term_misfit ((coco_reader * r)) (out int)
+        (if (not (coco_term_ends r)) (return 1))
+        (coco_fail r "operator priority clash")
+        (set (-> r esyn) "operator_clash")
+        (set (-> r clash_at) ($ (nth (- (-> r rfn) 1) (-> r rf)) lopt))
+        (set (-> r eopen) 0)
+        (return 0))
+
+  ;;; THE OPERATORS PENDING WHERE A TERM WAS WANTED (3.62.0): the frames of
+  ;;; this call, BASE up, and the frame in hand -- swipl's side stack, with
+  ;;; an operand short, as its exit finds it. reduce_op() then pairs each
+  ;;; operator from the right with the operands at the top of the out stack,
+  ;;; which are the left operands of the infix operators pending, a wrong
+  ;;; pairing by one: `a, b +' applies `+' to a and b and leaves the comma.
+  ;;; So: the first operator from the right an operand is too much for is a
+  ;;; clash (ECLASH, at its start when it is the left operand, else its end,
+  ;;; bad_operator()'s rule); else the operators that find no two operands
+  ;;; are left, EOPS of them, EOPC the comma or the semicolon when the one
+  ;;; left is one (punct(Op, Next), else an unbalanced operator). Through
+  ;;; 3.61.0 every pending operator was counted, and `a, b,' was an
+  ;;; unbalanced operator where swipl says punct(',', '.'). What is decided
+  ;;; is the bracket's to take, where the token ends its term
   ;;; (`coco_term_close').
   (weak) (cold)
-  (func coco_op_failed ((coco_reader * r) (const char * name))
-        (if (not (-> r eopen)) (return))
-        (set (-> r eops) (+ (-> r eops) 1))
-        (set (-> r eopc) (? (== 0 (strcmp name ",")) 44
-                              (? (== 0 (strcmp name ";")) 59 0))))
+  (func coco_term_pending ((coco_reader * r) (size_t base) (int kind) (u64 ofid)
+                           (int oprec) (int maxprec))
+        (let ((size_t n . #'(- (-> r rfn) base)) (size_t on . 0) (size_t sn . 0)
+              (int * out . nil) (coco_rframe * f . #'(-> r rf)))
+          (set (-> r eops) (cast int n))
+          (set (-> r eopc) 0)
+          (set (-> r eclash) 0)
+          (set out (cast (int *) (malloc (* (+ n 1) (sizeof int)))))
+          (if (== out nil) (return))
+          ;; the out stack: each infix operator's left operand, in order.
+          ;; Operator J is the one that suspended frame BASE + J: the frame
+          ;; above it says what it is, the frame in hand for the last
+          (for ((size_t j . 0)) (< j n) ((++ j))
+            (if (== (? (< (+ j 1) n) ($ (nth (+ base (+ j 1)) f) kind) kind) 1)
+                (block (set (nth on out) ($ (nth (+ base j) f) leftprec)) (set on (+ on 1)))))
+          (set sn n)
+          (while (and (> sn 0) (> on 0))
+            (let ((size_t j . #'(- sn 1))
+                  (int k . 0) (int pr . 0) (int rmax . 0) (u64 fid . 0)
+                  (size_t oend . 0) (size_t ostart . 0))
+              (if (< (+ j 1) n)
+                  (block (set k ($ (nth (+ base (+ j 1)) f) kind))
+                         (set pr ($ (nth (+ base (+ j 1)) f) prec))
+                         (set rmax ($ (nth (+ base (+ j 1)) f) maxprec))
+                         (set fid ($ (nth (+ base (+ j 1)) f) fid)))
+                (block (set k kind) (set pr oprec) (set rmax maxprec) (set fid ofid)))
+              (set oend ($ (nth (+ base j) f) lopt))
+              (set ostart (- oend (cast size_t ($ (nth (+ base j) f) oplen))))
+              (if (== k 1)
+                  (let ((int p2 . 0) (int t2 . 0) (int lmax . 0))
+                    (if (< on 2) break)
+                    (coco_op_infix (coco_rfid_name r fid) (aof p2) (aof t2))
+                    (set lmax (? (== t2 COCO_YFX) pr (- pr 1)))
+                    (if (< lmax (nth (- on 2) out))
+                        (block (set (-> r eclash) 1) (set (-> r eclash_at) ostart) break))
+                    (if (< rmax (nth (- on 1) out))
+                        (block (set (-> r eclash) 1) (set (-> r eclash_at) oend) break))
+                    (set on (- on 1))
+                    (set (nth (- on 1) out) pr))
+                (block
+                  (if (< rmax (nth (- on 1) out))
+                      (block (set (-> r eclash) 1) (set (-> r eclash_at) oend) break))
+                  (set (nth (- on 1) out) pr)))
+              (set sn (- sn 1))))
+          (free out)
+          (if (-> r eclash) (return))
+          (set (-> r eops) (cast int sn))
+          (if (== sn 1)
+              (let ((const char * name . #'(coco_rfid_name r (? (> n 1) ($ (nth (+ base 1) f) fid) ofid))))
+                (set (-> r eopc) (? (== 0 (strcmp name ",")) 44
+                                      (? (== 0 (strcmp name ";")) 59 0)))))))
 
-  ;;; An operator that cannot take what is before it, at the token in hand:
-  ;;; swipl places the clash at the end of the operator before it (AT). The
-  ;;; first one a read meets is kept -- the innermost, which fails the read.
+  ;;; A TERM THAT WOULD NOT READ (3.60.0, `coco-parse-term-body'): the
+  ;;; call's frames are taken off, down to BASE; where a term was wanted and
+  ;;; not there (EOPEN) the operators pending are swipl's to settle first
+  ;;; (`coco_term_pending'); OOM says the read failed for want of memory. 0,
+  ;;; as `coco_fail' answers.
   (weak) (cold)
-  (func coco_clash ((coco_reader * r) (size_t at))
-        (if (-> r clash_set) (return))
-        (set (-> r clash_set) 1)
-        (set (-> r clash_at) at))
-
-  ;;; A TERM THAT WOULD NOT READ (3.60.0, `coco-parse-term-body'): each
-  ;;; pending operator's failure, from the frame in hand -- KIND and OFID --
-  ;;; down to the call's at BASE, its frames taken off; OOM says the read
-  ;;; failed for want of memory first. 0, as `coco_fail' answers.
-  (weak) (cold)
-  (func coco_parse_unwind ((coco_reader * r) (size_t base) (int kind) (u64 ofid) (int oom)) (out int)
+  (func coco_parse_unwind ((coco_reader * r) (size_t base) (int kind) (u64 ofid)
+                           (int oprec) (int maxprec) (int oom)) (out int)
         (if oom (coco_fail r "out of memory"))
-        (while 1
-          (if (!= kind 0) (coco_op_failed r (coco_rfid_name r ofid)))
-          (if (== (-> r rfn) base) break)
-          (set (-> r rfn) (- (-> r rfn) 1))
-          (set kind ($ (nth (-> r rfn) (-> r rf)) kind))
-          (set ofid ($ (nth (-> r rfn) (-> r rf)) fid)))
+        (if (and (-> r eopen) (> (-> r rfn) base))
+            (coco_term_pending r base kind ofid oprec maxprec))
+        (set (-> r rfn) base)
         (return 0))
 
   ;;; A BRACKET'S TERM THAT FAILED (swipl's complex_term with STOPS, the
@@ -2648,26 +2828,28 @@
             ((!= p 0) (set ends (!= (strchr stops p) nil))))
           (cond
             ((and (> (-> r eops) 0) ends)
-             (if (and (== (-> r eops) 1) (!= (-> r eopc) 0))
-                 (block (set (-> r esyn) "punct")
-                        (set (-> r epn) (? fin 46 p)))
-               (set (-> r esyn) "operator_balance")))
+             (cond
+               ((-> r eclash)
+                (set (-> r esyn) "operator_clash")
+                (set (-> r clash_at) (-> r eclash_at)))
+               ((and (== (-> r eops) 1) (!= (-> r eopc) 0))
+                (set (-> r esyn) "punct")
+                (set (-> r epn) (? fin 46 p)))
+               (#t (set (-> r esyn) "operator_balance"))))
             (fin (set (-> r esyn) "end_of_clause"))
             ((or (== p 41) (or (== p 93) (== p 125))) (set (-> r esyn) "cannot_start_term"))
             ((or (== p 44) (== p 124)) (set (-> r esyn) "quoted_punctuation")))))
 
   ;;; A BRACKET THAT DID NOT CLOSE, at the token in hand (WHAT the reader's
-  ;;; own words): a priority clash there, a comma or a bar after a list's
-  ;;; tail (REST), a closing bracket of another kind, else an operator
-  ;;; expected. 0, as `coco_fail' answers.
+  ;;; own words): a comma or a bar after a list's tail (REST), a closing
+  ;;; bracket of another kind, else an operator expected -- and never a
+  ;;; clash (3.62.0), which is said only where the token ends the term
+  ;;; (`coco_term_misfit'). 0, as `coco_fail' answers.
   (weak) (cold)
   (func coco_close_fail ((coco_reader * r) (const char * what) (int rest)) (out int)
         (let ((int p . #'(coco_tok_punct r)))
           (coco_fail r what)
           (cond
-            ;; a clash breaks the term at its token, and nothing after it
-            ;; takes that token: the bracket fails there
-            ((-> r clash_set) (set (-> r esyn) "operator_clash"))
             ((and rest (or (== p 44) (== p 124))) (set (-> r esyn) "list_rest"))
             ((or (== p 41) (or (== p 93) (== p 125))) (set (-> r esyn) "cannot_start_term"))
             (#t (set (-> r esyn) "operator_expected")))
@@ -2688,8 +2870,7 @@
   (static)
   (func coco_reader_fresh ((coco_reader * r))
         (set (-> r esyn) nil)
-        (set (-> r eopen) 0)
-        (set (-> r clash_set) 0))
+        (set (-> r eopen) 0))
 
   ;;; INLINE, because both parser families call these three: with one caller
   ;;; each clang inlined them, with two it left them out of line, and the
@@ -2807,6 +2988,35 @@
           (return 1)))
 
 
+  ;;; A PREFIX OPERATOR'S ATOM AND THE TOKEN AFTER IT (3.62.0), swipl's
+  ;;; modify_op(): the atom was read because that token begins no term (the
+  ;;; named term's answer 3, the operator's priorities in PX*). Where the
+  ;;; token is an infix operator whose left side admits no more than the
+  ;;; prefix operator's own operand may be, the operator stays one and the
+  ;;; token is its operand: answered 1 for a name, NAME its text -- the atom
+  ;;; of that name is the operand -- and 2 for a comma or a bar, which is no
+  ;;; term; 0 where the atom stays the atom it was read as. THE CLAUSE'S END
+  ;;; INSIDE A BRACKET IS THE OPERAND TOO, and no term: the full stop ends
+  ;;; no bracket's term, so swipl's operator is still waiting and its
+  ;;; simple_term() meets the full stop -- end_of_clause, where the atom
+  ;;; read and the bracket then said an operator expected (`( ff' and
+  ;;; `f(a = \+'). Answered 3, the failure said as a term wanted and not
+  ;;; there is (`coco_term_close' names it).
+  (weak) (cold)
+  (func coco_term_px_atom ((coco_reader * r) (const char ** oname)) (out int)
+        (let ((const char * name . "") (int prec . 0) (int type . 0) (int have . 0))
+          (if (and (!= (-> r stop) 0)
+                   (or (== (-> r tok) COCO_TK_END) (== (-> r tok) COCO_TK_EOF)))
+              (block (coco_fail r "expected a term")
+                     (set (-> r eopen) 1) (set (-> r eops) 0) (set (-> r eopc) 0)
+                     (return 3)))
+          (coco-term-op-token name have)
+          (if (not (and have (coco_op_infix name (aof prec) (aof type)))) (return 0))
+          (if (< (-> r pxmax) (? (== type COCO_YFX) prec (- prec 1))) (return 0))
+          (if (!= (-> r tok) COCO_TK_NAME) (return 2))
+          (set (cof oname) name)
+          (return 1)))
+
   ;;; THE FUNCTOR AN APPLICATION READS (3.12.0): its name and its arity --
   ;;; a quoted `'[]'' the atom of those two characters, and `[]' the list's
   ;;; end only when the brackets made it (BNIL), as swipl 7 tells
@@ -2828,15 +3038,15 @@
                          (size_t * out)) (out int)
         (coco-parse-args-body 0 coco_parse_term))
   (static)
-  (func coco_parse_primary ((coco_reader * r) (int maxprec) (size_t * out) (int * outprec)) (out int)
+  (func coco_parse_primary ((coco_reader * r) (int maxprec) (size_t * out)) (out int)
         (coco-parse-primary-body 0 coco_parse_term coco_parse_list coco_parse_named))
   (static)
   (func coco_parse_named ((coco_reader * r) (int maxprec) (const char * name)
                           (int was_quoted) (size_t nf) (size_t nt)
-                          (size_t * out) (int * outprec)) (out int)
+                          (size_t * out)) (out int)
         (coco-parse-named-body 0 coco_parse_args))
   (static)
-  (func coco_parse_term ((coco_reader * r) (int maxprec) (size_t * out) (int * outprec)) (out int)
+  (func coco_parse_term ((coco_reader * r) (int maxprec) (size_t * out)) (out int)
         (coco-parse-term-body 0 coco_parse_primary))
 
   (static)
@@ -2847,15 +3057,15 @@
                          (size_t * out)) (out int)
         (coco-parse-args-body 1 coco_parse_term_p))
   (static)
-  (func coco_parse_primary_p ((coco_reader * r) (int maxprec) (size_t * out) (int * outprec)) (out int)
+  (func coco_parse_primary_p ((coco_reader * r) (int maxprec) (size_t * out)) (out int)
         (coco-parse-primary-body 1 coco_parse_term_p coco_parse_list_p coco_parse_named_p))
   (static)
   (func coco_parse_named_p ((coco_reader * r) (int maxprec) (const char * name)
                           (int was_quoted) (size_t nf) (size_t nt)
-                          (size_t * out) (int * outprec)) (out int)
+                          (size_t * out)) (out int)
         (coco-parse-named-body 1 coco_parse_args_p))
   (static)
-  (func coco_parse_term_p ((coco_reader * r) (int maxprec) (size_t * out) (int * outprec)) (out int)
+  (func coco_parse_term_p ((coco_reader * r) (int maxprec) (size_t * out)) (out int)
         (coco-parse-term-body 1 coco_parse_primary_p))
 
   ;;; ---- the reader's own surface -----------------------------------------
@@ -2899,7 +3109,6 @@
         (set (-> r ewhat) nil)
         (set (-> r esyn) nil)
         (set (-> r ecomment) 0)
-        (set (-> r clash_set) 0)
         (set (-> r stop) 0)
         (coco_next_token r))
 
@@ -2921,11 +3130,11 @@
         (set (-> r stop) 0)
         (if (-> r failed) (return -1))
         (if (== (-> r tok) COCO_TK_EOF) (return 0))
-        (let ((size_t t) (int p) (int ok . 0))
+        (let ((size_t t) (int ok . 0))
           ;; the family that builds positions, only when they were asked for
           (if (-> r want_pos)
-              (set ok (coco_parse_term_p r 1200 (aof t) (aof p)))
-            (set ok (coco_parse_term r 1200 (aof t) (aof p))))
+              (set ok (coco_parse_term_p r 1200 (aof t)))
+            (set ok (coco_parse_term r 1200 (aof t))))
           (if (not ok) (block (coco_term_close r 0 "") (return -1)))
           (if (!= (-> r tok) COCO_TK_END)
               (block (coco_reader_junk r) (return -1)))
@@ -3182,8 +3391,8 @@
         (set (-> r stop) 0)
         (if (-> r failed) (return 0))
         (if (== (-> r tok) COCO_TK_EOF) (return 0))
-        (let ((size_t t) (int p))
-          (if (not (coco_parse_term r 1200 (aof t) (aof p))) (return 0))
+        (let ((size_t t))
+          (if (not (coco_parse_term r 1200 (aof t))) (return 0))
           (set (cof out) t)
           (return 1)))
 
@@ -3192,8 +3401,8 @@
           (coco_reader_init (aof r) m src)
           (if ($ r failed) (block (coco_reader_free (aof r)) (return 0)))
           (if (== ($ r tok) COCO_TK_EOF) (block (coco_reader_free (aof r)) (return 0)))
-          (let ((size_t t) (int p))
-            (set rc (coco_parse_term (aof r) 1200 (aof t) (aof p)))
+          (let ((size_t t))
+            (set rc (coco_parse_term (aof r) 1200 (aof t)))
             (if rc (set (cof out) t)))
           (coco_reader_free (aof r))
           (return rc)))

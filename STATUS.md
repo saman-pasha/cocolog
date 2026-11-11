@@ -17770,3 +17770,268 @@ with no library/torch.so built. The thirteen basics lessons and library
 03, 18, 48, 50, 51, 54 and 56, each run as the suite runs it. Memcheck
 over test/files/arith_depth.pl names no error.
 Reasoning stays 1.0.33.
+
+## The reader's operators shifted and reduced as swipl's, and a prefix operator's atom (3.62.0)
+
+swipl's complex_term() in pl-read.c keeps two stacks, the operators met and
+the operands read. An infix operator first reduces every operator before it
+whose priority is no more than its own left side takes and whose operands
+fit, and is then pushed, whatever the priorities. A prefix operator is
+pushed whatever its priority. Whether an operand is too much for its
+operator is asked once, when the term ends: reduce_op() empties the stack
+from the right and the first operator an operand does not fit is the
+clash, bad_operator() placing it at that operator -- its start where the
+left operand is too much, its end where the right one is. A token that will
+not read where it stands ends the read before that, so it is the error
+whatever stands to its left.
+
+cocolog's reader, since 3.60.0 a loop over a stack of its own, still read
+each operator's operand only up to the priority the operator gave it, as
+the recursive reader had. An operator that would not fit where it stood
+was refused there. Over the 689 texts of the new case 3.61.0 differed from
+swipl 9.0.4 in 257:
+
+- 21 read as another term: at one priority an xfy operator before a yfx one
+  is reduced first, so with `=>` xfy and `<=` yfx at 700 `a => b <= c` is
+  `(a => b) <= c`, where cocolog read `a => (b <= c)`;
+- 20 read where swipl's does not, and 2 the other way round: a prefix
+  operator's atom before an infix operator (below);
+- 59 clashes were placed elsewhere: `a = \+ b = c = d` at 2, the first `=`,
+  where swipl's is 9, the second one's end;
+- 54 were a clash where swipl names what stopped the read first: 27 an
+  operator expected (`a = \+ b c`, `(a = b = c` with no closing bracket),
+  12 a closing bracket that starts no term (`(a = b = c]`), 15 an
+  unbalanced operator (`a = b = c ,`);
+- 33 were an unbalanced operator where swipl says punct(Op, End), the one
+  operator left a comma or a semicolon (`a , b , c *`, `(a, b,)`, `a; b;`),
+  and 19 where it says a clash (`a + b + c *`, at 9);
+- 18 were an operator expected where swipl says the clause ended: a prefix
+  operator still waiting for its operand when the text ends inside a
+  bracket (`( ff`, `f(a = \+`);
+- the other 31 an operator expected at another place (`\+ = a` at 2, swipl's
+  4, the `a`), a clash swipl places at a prefix operator (`gg a = b`, gg fx
+  700, at 1, its end), and a comma where an operand stands, swipl's
+  quoted_punctuation (`:- , a`, `dynamic ,`).
+
+A PREFIX OPERATOR'S ATOM. Where an operand is expected and the token is a
+prefix operator's name, swipl pushes the operator. If the next token is an
+infix operator, modify_op() makes the pushed operator an atom only when
+that infix operator's left side admits more than the prefix operator's own
+operand may be. Else the operator stays one, and the infix operator's NAME
+is its operand:
+
+    - = a                 reads, =(-, a): `=` admits 699, `-` takes 200
+    x == - -> y           reads
+    \+ = a                operator_expected: \+(=), and then `a`
+    \+ =                  reads, \+(=)
+    x == dynamic -> y     operator_expected, after the `->`
+    x == dynamic , y      quoted_punctuation, at the comma
+    x == dynamic          reads
+    f(dynamic, y)         reads: the comma ends the argument
+    [dynamic|T]           reads
+
+cocolog through 3.61.0 read such an atom as a right operand whatever
+followed, and as a left one by a priority every term read handed back
+(`outprec`, 3.2.0), which also let `pp vv a` read, `pp` fy and `vv` yfx at
+one priority.
+
+SO A PROGRAM THAT 3.61.0 READ CAN STOP AT A SYNTAX ERROR IN 3.62.0, as it
+does in swipl: an unbracketed `dynamic`, `table`, `multifile`,
+`discontiguous`, `public`, `volatile`, `initialization`, `meta_predicate`,
+`module_transparent`, `thread_local` or `thread_initialization` (fx 1150)
+before any infix operator under 1200 -- `->`, `;`, `=`, and a comma that
+is an operator -- so anywhere but before `-->` and `=>` (`:-` after it is
+the prefix operator, a clash); `\+` (fy 900) before an infix operator
+whose left side takes 900 or less (`=`, `==`, `is`, `:`); `-`, `+` and `\`
+(fy 200) before `^` and `**`. A token that is a prefix operator too is read
+as that prefix operator there, as it always was: `- - a` is -(-(a)),
+`dynamic - a` dynamic(-(a)), and `x = dynamic - a` a clash. Where the term
+ends after it the atom reads: an argument, a list element, before a closing
+bracket or the full stop. It wants its brackets anywhere else:
+`K == (dynamic) -> ...`. Five atoms of the tree did, found by reading every
+clause of the 483 tracked `.pl` files, lib/swipl's eight among them, with
+both binaries (the only difference left is the case's new fixture):
+library/flow/analyse.pl (three), test/engine.pl and
+tools/cocolint/build.pl. The Prolog halves in the `.cicili` sources have
+none.
+
+WHAT COCOLOG WRITES IT READS BACK. The writer needed nothing: it brackets
+an operator's atom where an operand stands, as swipl's does --
+`x=(dynamic)`, `(-)=a`, `x=(-),y`, `a:-(dynamic)`, `(dynamic)-->a` -- and
+write_canonical/1 writes no operator at all. A probe of twenty-three terms
+with such atoms in every place has each written by writeq/1, print/1 and
+write_canonical/1 to swipl's text to the letter, and read back by
+term_to_atom/2 as itself; and clauses holding them, consulted and asserted
+into an embedded store by one process, are listed and proved by a second.
+Only text a person wrote is at stake.
+
+Now (`coco-parse-term-body` in lib/syntax.cicili):
+
+- ONE loop: an operand, then the token after it. An infix operator there
+  first reduces each frame whose operator's priority is no more than its
+  left side takes and whose own operand fits (`oprec <= lmax` and
+  `leftprec <= maxprec`), then suspends the frame in hand whatever the
+  priorities. The call's own frame is reduced by none (its `oprec` 1201);
+- a prefix operator where an operand stands is pushed whatever its
+  priority (`coco-parse-named-body` answers 2);
+- an operand past its operator's priority is that operator's clash where
+  the term ends: as the frames are read back, the first whose term is more
+  than its operator takes (`coco_term_misfit`), placed at the operator's
+  end, which the frame it suspended keeps (`lopt`, `oplen`). Only where
+  the token in hand ends the term (`coco_term_ends`): the clause's full
+  stop at the top, a comma or `)` in an argument, a comma, a bar or `]` in
+  a list, `)` in a bracket, `}` in a brace. The reader's `stop` says which
+  -- 0, 1, 2, and now 4 inside `(` and 8 inside `{`, both 0 through 3.61.0;
+- THE OPERATORS PENDING WHERE A TERM WAS WANTED (`coco_term_pending`): the
+  term ended an operand short, and swipl's reduce_op() pairs each operator
+  from the right with the operands at the top of its out stack, which are
+  the LEFT operands of the infix operators pending -- a wrong pairing by
+  one. `a , b *` applies `*` to a and b and leaves the comma alone:
+  punct(',', '.'). `a + b + c *` applies `*` to `a + b` and c, and `a + b`
+  is too much for its left side: a clash, at the `*`. The function does
+  the same over the frames' priorities: the first operator an operand is
+  too much for is the clash (at its start for a left operand, its end for
+  a right one), else the operators that find no two operands are counted,
+  and one alone that is a comma or a semicolon is punct(Op, End). Through
+  3.61.0 every pending operator was counted, an unbalanced operator;
+- a prefix operator's atom: `coco-parse-named-body` answers 3 for it, the
+  operator's priorities and place in the reader's `px*`, and the loop asks
+  `coco_term_px_atom` of the token after it. An infix operator whose left
+  side is above the prefix operator's operand: the atom is the operand.
+  Any other infix operator: the prefix operator is pushed and that
+  operator's name is its operand, an atom. A comma: quoted_punctuation.
+  The clause's end inside a bracket: the full stop ends no bracket's
+  term, so it is the operand, and no term -- end_of_clause, where the atom
+  read and the bracket then said an operator expected;
+- no term read hands back a priority: `coco_parse_term`, `_primary` and
+  `_named` lost their `outprec`, and a frame's term weighs what its
+  operator does, a primary nothing;
+- a text read's place: an error at the end of a text with no full stop is
+  placed at the `.` swipl's raw read puts there, but a clash, which is at
+  its operator (`a , rr b *`, rr fx 400, is a clash at the `*` the text
+  ends on, 9; the full stop's place is 10). `coco_tx_syntax`.
+
+Every syntax error's id and place over the case are swipl's, in a text
+read, a load and a stream's read.
+
+test/files/op_reduce.pl holds 773 lines to swipl: 689 texts read by
+term_to_atom/2, each answered with its term written canonically or its
+error whole -- one priority both ways round, a prefix operator at and over
+the priority of the operator before it, a prefix operator's atom before
+each kind of token, brackets of each kind, a term that ends an operand
+short, a token that will not read before a clash, chains with commas, a
+clash at the operator a text ends on, and a prefix operator waiting when
+the clause ends inside a bracket -- and a file of clauses consulted, each
+error's place in a load and what reads asked for, and read again from a
+stream with every term's subterm positions. 285 of the lines differ on
+3.61.0.
+
+A RANDOM COMPARISON found the last of those rules, and nothing after it:
+22 869 texts of one to seven tokens drawn from atoms, the operators above,
+brackets, commas and bars, each read by term_to_atom/2 in swipl and in
+cocolog and the answers compared -- the term, or the error's id and
+place. 3.61.0 differs in 4 225. 3.62.0's first build differed in 576: 540
+the clause's end after a waiting prefix operator inside a bracket, nine of
+which 3.61.0 had right by another road, and 36 a bar right after an
+opening bracket, which swipl reads as its quasi-quotation's
+(`double_bar_outside_quasiquotation`; cocolog has none, COMPAT.md). With
+the rule in, the 36 are all that differ. A second set of 31 974 texts
+with variables, numbers, strings, quoted atoms and more operators differs
+in 488, none of them an operator's: 453 hold `.(` or a float right after
+a number, swipl 7's dict and digit-group syntax, and 35 are `1 0'a`,
+where swipl's raw read says end_of_file_in_string and cocolog's
+end_of_file_in_quoted.
+
+THE COST. Callgrind, each binary at the checkout's own path, 3.61.0 and
+3.62.0:
+
+    cocolog query true                   36 177 794    35 953 498   (-224 296)
+    cocolog -s, a file of one clause     36 058 631    35 816 806   (-241 825)
+    a read of library/reasoning/
+      translate.pl, 5 128 clauses       585 316 035   582 402 239   (-0.50 %)
+
+In a start `coco_parse_term` is 2 709 591 instructions and now 2 624 044,
+`coco_parse_named` 887 229 and 782 107, the infix operator's lookup 209 538
+and 183 481: 14 831 terms, 19 042 operands, 4 211 infix operators and 129
+prefix operators. The loop no longer writes a priority for each operand
+read and asks the token after an operand once. tools/flow/zero.sh at like
+paths, work less padding: nrev -132, queens +42, lookup +148, of 40 to 66
+million -- the engine is not touched.
+
+How it came to that: the first cut kept the two loops and the `outprec`
+every term read wrote, added the reduce rule and the atom's test at each
+operand, and cost a start 57 028 instructions (the one-clause file 81 691):
+`coco_parse_term`'s work up 50 334 and its jump padding 88 041. The
+per-line counts (callgrind over a `-g` twin of each binary) put it on the
+operand's exit, where the priority was written and read back. One loop,
+the answer 3 in place of a priority, and the atom's functor made only
+where the atom is applied took it away.
+
+THE ARMS. Fifty-two, one build each on the final code, run through
+test/files.pl's op_reduce and, where that is green, the reader's seven
+other files cases (syntax_text, syntax_load, syntax_stream, read_priority,
+reader, read_depth, wide_names). The arm of no edit is green in all eight.
+Each of the fifty-one rules is red: forty-eight where op_reduce's lines stop
+agreeing with swipl's, and three before the case can run, the binary no
+longer reading its own libraries (the first, the fourth and the fifth
+group's first below):
+
+- an operator before the new one reduced where its priority is no more
+  than the new one's left side takes, and only where its own operand fits;
+- an operand past its operator's priority a clash where the term ends, and
+  only where the token in hand ends the term;
+- what ends a term: a comma an argument's or an element's, a bar an
+  element's, a closing parenthesis a bracket's and an argument's, a
+  closing square bracket a list's, a closing brace a curly term's, the
+  full stop the clause's and no bracket's, and no other token;
+- a bracket's and a brace's term saying what ends it, and a comma an
+  operator inside them;
+- what the primary read weighing nothing, a term built its operator's
+  priority, a suspended frame keeping what its left operand weighs, and
+  the call's own frame reduced by no operator;
+- a prefix operator pushed whatever its priority;
+- a prefix operator's atom: the operator after all before an infix
+  operator that does not admit it, admitted only above the operator's own
+  operand, which for fx is one less than its priority, the infix
+  operator's left side as its type says, a comma there no term, the infix
+  operator's name the operand, and the operator made of the atom the
+  atom's own;
+- the clause's end inside a bracket after such an atom no term, only
+  inside a bracket, and said as a term wanted and not there is;
+- the operators pending where a term was wanted: only an infix operator
+  with a left operand waiting, a left operand too much a clash, at the
+  operator's start, a right one at its end, a prefix operator's too, an
+  infix operator with one operand left where it is, a term a pending
+  operator makes weighing its priority, infix and prefix, its left side
+  as its type says, only the operators left counted, a comma and a
+  semicolon left alone punct, the one left the bottom one, each settling
+  beginning with no clash, a clash among them the bracket's to say, and
+  the settling done where the call's frames come off;
+- the clash at a term's end at its operator's end, a prefix operator's
+  frame and an infix operator's keeping where the operator ends;
+- a clash at the operator a text ends on placed there, not at the full
+  stop added.
+
+The tree read whole again on the final binary: every clause of the 483
+tracked `.pl` files is the term 3.61.0 read, but the two clauses this
+release changed in test/errors.pl and test/files.pl.
+
+A lead, not this release's: cocolint cuts a file into clauses by its own
+scanner and matches patterns, so a clause that does not read lints clean
+(`p(K) :- K == dynamic -> a ; b.` is `0 HARD, 0 WARN`), and only the load
+says it. A rule for it would have named the five atoms above.
+
+Narrow cases green on the final build, with a server up and none skipped:
+lint first, then syntax, term, solve, module, state, zigurat and shared
+(the test binaries), files, directives, errors, repl, script, reconsult,
+library, stream, engine, trace, backtrace, cyclic, flowchart, string,
+units, serialize, static, argv, rationals, template, hex, astar, journal,
+vacuum, bigint, text, regex, os, process, signal, reason, normalise,
+translate, gc, meter, kbs, zigurat-lib, tunnel, store-lock, clay, tokens,
+crypto, tls, zigurat-tls, tcp, http, curl and websocket, and with nothing
+else running window, flowdebug, thread, async, cowork, httpd, httpd-tls,
+groups, ruler, colab and langs. The thirteen basics lessons and library
+03, 18, 32, 37, 43, 48, 50, 51, 54 and 56, each run as the suite runs it
+(`cocolog run FILE main`). The binary the cases ran on and the one built
+last from the committed source are one file, byte for byte.
+Reasoning stays 1.0.33.

@@ -21,9 +21,10 @@
 %% Each line is r(Text, What): ok(Term) for a ground term, ok_var for one
 %% with a variable (the two systems name variables apart), or the ball.
 %% Left out, stated in COMPAT.md: a letter past ASCII outside quotes,
-%% swipl's dicts (`a.b', `1.e'), `[|]', an integer past 64 bits, and
-%% `\+ = a' and `dynamic ; a', which both refuse with the id, at another
-%% place.
+%% swipl's dicts (`a.b', `1.e'), `[|]' and an integer past 64 bits. An
+%% operator's clash, its missing operand and a prefix operator's atom
+%% (`\+ = a', `dynamic ; a') are test/files/op_reduce.pl's since 3.62.0:
+%% through 3.61.0 those two were refused with the id, at another place.
 
 :- set_prolog_flag(double_quotes, codes).
 

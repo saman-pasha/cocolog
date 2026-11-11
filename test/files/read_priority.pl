@@ -8,16 +8,19 @@
 %  f(dynamic(-1)).
 %
 %  A PREFIX OPERATOR'S ATOM, read as a plain atom because what follows it
-%  begins no term, is a LEFT operand only where its priority fits: `- = a'
-%  reads (200 under 699), `\+ = a' and `dynamic ; a' do not (900 and 1150),
-%  and `\+ -> a' does (under 1049). Quoted or bracketed it is priority 0,
-%  and a right operand, an argument or an element takes any atom. Before an
-%  infix bar it is refused whatever its priority, as swipl's is.
+%  begins no term, is an operand before an infix operator only where its
+%  priority fits: `- = a' reads (200 under 699), `\+ = a' and `dynamic ; a'
+%  do not (900 and 1150), and `\+ -> a' does (under 1049). Quoted or
+%  bracketed it is priority 0, and an argument or an element that ends on it
+%  takes any atom. Before an infix bar it is refused whatever its priority,
+%  as swipl's is. (Through 3.61.0 a RIGHT operand took any atom whatever
+%  followed, `x == dynamic -> y' among them, which swipl refuses:
+%  test/files/op_reduce.pl, 3.62.0.)
 %
 %  Each text is read by term_to_atom/2 and written canonically, or `refused'
-%  for a syntax error: the error's class is not compared (swipl names some
-%  of these operator_clash or quoted_punctuation where cocolog says
-%  operator_expected).
+%  for a syntax error: the error's class is not compared here (through
+%  3.61.0 swipl named some of these operator_clash or quoted_punctuation
+%  where cocolog said operator_expected; op_reduce.pl compares the ball).
 
 t(S) :-
     write(S), write('  =>  '),

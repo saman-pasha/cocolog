@@ -1588,8 +1588,12 @@
              (set id (coco_reader_id rd (aof a1) (aof a2)))
              (set at (coco_reader_errat rd))
              (cond
-               ;; at the end of a text with no full stop: at the `.' swipl put there
-               ((and (>= at n) (== kind 1))
+               ;; at the end of a text with no full stop: at the `.' swipl put
+               ;; there -- but a clash, which is placed at its operator and
+               ;; not at the token that ended the term (3.62.0: `a , rr b *'
+               ;; clashes at the `*' the text ends on, swipl's 9, where the
+               ;; full stop's place is 10)
+               ((and (>= at n) (and (== kind 1) (!= 0 (strcmp id "operator_clash"))))
                 (set pos (- (coco_tx_count (coco_tx_s (aof raw)) 0 ($ raw len) chars) 2)))
                ((> at at0) (set pos (coco_tx_count s at0 at chars))))
              (set pos (- pos 1))))
