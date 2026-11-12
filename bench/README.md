@@ -272,6 +272,30 @@ the other four tasks have none. The first sitting's one unsteady row is it,
 and which part of the core keys on those bits is not found (Run Z's
 section).
 
+**Run AA**, on 3.62.3 -- 98 releases since Run Z, 2.15.0 to 3.62.3: the
+reader, the loads, the library and the rules of errors, determinism and
+writing made swipl's, the stack and C-stack limits, and the green world
+reviewed and its paths short of memory, with no engine stage -- on **Run
+U's kind of box**, the 2.10 GHz Emerald Rapids, in two steady sittings:
+steal 0.21 % and 0.19 %, `2R/R` 1.83-2.17 on every row but three, the
+arrangements within 1.21 times of one another. Read through Runs W to Z's
+rotation, cocolog --local is 0.8-2.8 times CPython and 1.0-1.8 times
+SWI-Prolog with `-O` (Run U, on such a box: 0.9-2.9 and 1.0-2.0), naive
+reverse 0.79x and 1.77x where Run U read 0.88x and 2.00x, and every lane
+ran faster than at Run U (cocolog --local 0.69-0.95 times its per rep,
+CPython 0.76-0.94, SWI-Prolog with `-O` 0.71-0.95). Against python +
+sqlite3, at the second sitting's per rep, the embedded store is 20 times
+faster at the keyed probes (21x over the socket), 4.8 times on the
+counting loop (5.4x), 1.3 times on nrev (1.4x) and 1.4 times on sortnums
+(1.3x), and 1.92 times slower on queens (2.04x). Counted less the jump
+padding, the untraced engine runs 0.18 % more instructions than 2.14.1's
+on nrev, 5.22 % fewer on queens (3.22.0's select/3) and 0.49 % more on
+lookup, and the counting loop 0.66 % fewer; a start counts 65 % more, the
+libraries' Prolog halves being swipl's clauses now, and takes 9.8 ms where
+2.14.1's takes 7.2. In ten alternating pairs 3.62.3 takes 0.92-1.02 times
+2.14.1's time, and Run Z's slow mode is not on this box, for either binary
+(Run AA's section).
+
 ## The rules
 
 `langs.sh`'s header is the authority; in short:
@@ -2804,6 +2828,345 @@ the shape of the lookup gap -- a thousand probes, three sizes:
 
 ```
 
+### Run AA: 3.62.3, on Run U's kind of box, and the engine since Run Z counted
+
+cocolog 3.62.3, the tree this section was committed with (master at
+`bf956d1`, the 3.62.3 commit; this section is the commit after it). What
+came between Run Z and it is 98 releases, 2.15.0 to 3.62.3, and no engine
+stage of the kind Runs P to S measured: 2.15 and 2.16's async_workers/1,
+folds that evaluate and print_message/2 preloaded at start-up; 3.0.0's
+errors that name their predicate, `[]` that is no atom and text read as
+swipl reads it; 3.1.0's definitions that take a system predicate over;
+3.2.0 to 3.14.0's reader, loads, includes, grammar rules and expansion
+hooks as swipl's; 3.15.0's clause stored as swipl's compiler keeps it;
+3.17.0's stream encodings and load warnings; 3.19.0's single-sided rules;
+3.20.0 and 3.21.0's `$/1`, `@/2` and the `$/0` guard carried through last
+calls; 3.22.0 to 3.26.1's library predicates that leave no choice point at
+their last answer, written as swipl's clauses; 3.24.0's index on another
+argument where the first cannot choose; 3.28.0's retract/1 and clause/2 as
+walks under the logical update view; 3.29.0 to 3.31.0's arg/3,
+char_type/2 and get_assoc/3 as swipl's; 3.32.0's stack limit; 3.33.0 and
+3.34.0's format/2 columns and `~@`; 3.35.0's names past ASCII; 3.36.0 to
+3.48.3's abolish/1, listing/1, repeat/0, numbervars/3,
+predicate_property/2, current_predicate/1, the meta-calls and
+meta_predicate/1 as swipl's; 3.49.0 to 3.56.0's write_term/2 options and
+portray/1; 3.57.0's halt in a nested search; 3.58.0's source encodings;
+3.59.0 to 3.62.0's C-stack guards in the writer, the reader and the
+evaluator, and the reader's operators shifted and reduced as swipl's;
+3.62.1's green world reviewed; 3.62.2's read_file_to_codes/2 under the
+stack limit; and 3.62.3's paths short of memory. Each was counted against
+the untraced engine as it landed (STATUS.md); this section counts them
+together against Run Z's 2.14.1.
+
+Built by clang 18.1.3 in release mode with every jump padded, by Cicili
+`3ba2ca4` (3.3.0's `9b825b7` and a `.gitignore`); ZiguratIP's MVCCS engine
+at `2a65f81` (1.0.2) linked in, the embedded lane's store made fresh on 64
+KiB pages; the zigurat lane is ZiguratIP 1.0.2 started 5 min 57 s before
+the first sitting, on the suites' store of 64 KiB pages. **Run U's kind of
+box**: a four-vCPU Intel Xeon microVM at 2.10 GHz, family 6, model 207,
+stepping 2 (an Emerald Rapids), Linux 6.18, 16 GB, with Python 3.11.18 and
+SWI-Prolog 9.0.4, which had come up nine minutes before. 2026-11-12, two
+sittings back to back, 10 min 38 s and 10 min 58 s, the harness the only
+busy process in each (a one-minute load of 0.43 and 1.00 at their starts).
+Every answer passed the gate in both.
+
+**Both sittings are steady.** Steal was 0.21 % and 0.19 % of their CPU
+time (537 of 255 886 jiffies and 489 of 264 137, `/proc/stat` read at each
+sitting's start and end), against Run Z's 0.32 % and 0.27 %. `2R/R` read
+1.83 to 2.17 on every row but three of the first sitting -- the
+as-installed SWI-Prolog lane's queens at 1.69, and python + sqlite3's
+queens and lookup at 1.76 and 1.79 -- and 1.83 to 2.13 on every row of the
+second. cocolog's three arrangements spread 1.21 times at most (queens and
+the loop in the first sitting, the loop in the second). Each lane's per
+rep in the second sitting is 0.78-1.42 times its first: cocolog --local
+0.97-1.01, CPython 0.93-1.14, SWI-Prolog with `-O` 0.86-1.05, and the 1.42
+is the first sitting's one unsettled row, the as-installed lane's queens.
+Runs W to Z's rotation was run after the sittings with the same commands
+-- cocolog `--local`, `swipl -O` and CPython in a rotating order, six
+rounds a task at Run W's second sitting's reps, each lane's median user
+time over its reps, its fixed cost included -- in 73 s, every run of a task
+giving the same answer, and steal was 0.24 % over it.
+
+**As a language**, cocolog --local against CPython and against SWI-Prolog
+with `-O`, in each reading:
+
+| task | 1st sitting | 2nd sitting | rotating, user time | Run U |
+|---|---|---|---|---|
+| nrev, 400-element list | 0.82x, 1.52x | 0.72x, 1.73x | 0.79x, 1.77x | 0.88x, 2.00x |
+| queens, all 92 solutions | 1.89x, 1.43x | 1.61x, 1.54x | 1.61x, 1.60x | 1.86x, 1.70x |
+| loop, 100 000 additions | 1.64x, 1.34x | 1.58x, 1.35x | 1.58x, 1.39x | 1.63x, 1.39x |
+| lookup, 1000 probes / 200 facts | 2.56x, 1.56x | 2.67x, 1.45x | 2.80x, 1.57x | 2.87x, 1.52x |
+| sortnums, 5000 integers | 1.46x, 1.19x | 1.35x, 1.17x | 1.24x, 0.99x | 1.35x, 1.04x |
+
+Read through the rotation, cocolog --local is 0.8-2.8 times CPython and
+1.0-1.8 times SWI-Prolog with `-O` (Run U, on this kind of box: 0.9-2.9
+and 1.0-2.0; Run Z, on the Cascade Lake: 0.6-2.4 and 1.0-1.5). Against Run
+U's ratios: naive reverse moved cocolog's way in every reading (0.72-0.82x
+CPython and 1.52-1.77x SWI-Prolog with `-O`, against 0.88x and 2.00x),
+queens against SWI-Prolog in every reading (1.43-1.60x against 1.70x) and
+against CPython in two of three (1.61x against 1.86x; the first sitting
+read 1.89x), the loop and the lookup are level within a tenth (1.58-1.64x
+and 1.34-1.39x, against 1.63x and 1.39x; 2.56-2.80x and 1.45-1.57x,
+against 2.87x and 1.52x), and sortnums moved the rivals' way in both
+sittings (1.35-1.46x and 1.17-1.19x, against 1.35x and 1.04x) and
+cocolog's in the rotation (1.24x and 0.99x). The rotation's sortnums row
+is again its least certain: SWI's lane there is 256 reps in 0.40 s, so its
+consult and start-up weigh in every per rep, and the rotation reads user
+time where the sittings read the wall, on the task that grows the heap
+most. Every lane ran faster than at Run U, cocolog's most on naive
+reverse: against its own Run U per rep, over both sittings, cocolog
+--local ran 0.69-0.95 times (nrev 0.69-0.71), CPython 0.76-0.94 and
+SWI-Prolog with `-O` 0.71-0.95, where 3.62.3 executes 2.2.5's instructions
+to within 4 % on each task counted (below). Against `swipl` as installed
+cocolog is faster on four tasks of five in both sittings (the second:
+queens 1.98x, loop 2.76x, lookup 2.36x, sortnums 2.54x) and slower on naive
+reverse, 1.58 times in the second sitting and 1.54 in the first (Run U:
+1.81).
+
+**As a state machine**, against python + sqlite3 -- faster on four tasks of
+five in both sittings, as in Runs S to Z (the second sitting's per rep):
+
+| task (one rep) | cocolog --embed | cocolog zigurat | cpython + sqlite3 | cocolog against it | 1st sitting | Run U |
+|---|---:|---:|---:|---|---|---|
+| lookup, 1000 probes / 200 facts | 0.000144 s | 0.000138 s | 0.002908 s | **20.2x faster** (21.1x) | 14.8x (14.1x) | 19.4x (19.5x) |
+| loop, 100 000 additions | 0.003881 s | 0.003513 s | 0.018794 s | **4.84x faster** (5.35x) | 4.77x (5.42x) | 4.97x (4.96x) |
+| nrev, 400-element list | 0.002934 s | 0.002712 s | 0.003811 s | **1.30x faster** (1.41x) | 1.65x (1.45x) | 1.16x (1.16x) |
+| sortnums, 5000 integers | 0.001518 s | 0.001627 s | 0.002117 s | **1.39x faster** (1.30x) | 1.27x (1.27x) | 1.30x (1.37x) |
+| queens, all 92 solutions | 0.002665 s | 0.002829 s | 0.001388 s | 1.92x slower (2.04x) | 1.80x slower (2.18x) | 1.95x slower (2.32x) |
+
+The first sitting's lookup lead is the lower because its sqlite lane ran
+0.86 times its second sitting's per rep (0.002506 s against 0.002908, at a
+`2R/R` of 1.79) and its embedded lane 1.17 times (0.000169 against
+0.000144); Run U's 19.4x stands between the two. In the second sitting
+every row is Run U's within an eighth, nrev's 1.30x against 1.16x the
+farthest; the first sitting's 1.65x there is its embedded lane, the fastest
+of the three arrangements on that row by 12 % (0.002532 s against
+`--local`'s 0.002828).
+
+**The engine since Run Z, counted.** `sh tools/flow/zero.sh` over Run Z's
+2.14.1, built again from `1e48013` with the same Cicili and clang, and this
+3.62.3, in one invocation from a directory with no `library/` (each binary
+reads its own), the two at paths of one length. The rebuilt 2.14.1 counts
+what Run Z's counted -- its padding to the instruction (5 098 826,
+2 493 399 and 2 509 127), its work within 30 044 instructions of Run Z's on
+nrev, 230 on queens and 1 249 on lookup, from a longer path (CLAUDE.md,
+Measuring) -- so 3.62.3 can be read along Runs U to Z's chain. In work less
+its jump padding:
+
+| step | nrev | queens | lookup |
+|---|---|---|---|
+| 2.2.5 to 2.14.1 (Run Z) | −1.10 % | +1.66 % | +0.47 % |
+| 2.14.1 to 3.62.3, this invocation | +0.18 % | −5.22 % | +0.49 % |
+| **2.2.5 to 3.62.3** | **−0.92 %** | **−3.65 %** | **+0.96 %** |
+
+That is 65 780 225 instructions to 65 901 582 for nrev, 42 471 462 to
+40 253 083 for queens, and 47 815 200 to 48 049 237 for lookup, where
+3.62.3's padding is 3 616 175, 2 305 272 and 2 094 239 -- 29 %, 7.5 % and
+16.5 % fewer no-ops than 2.14.1's -- so with the padding 3.62.3 counts
+1.92 %, 5.35 % and 0.36 % fewer. Queens' fall is 3.22.0's select/3,
+swipl's clause with the rest of the list first in its helper so that the
+last element leaves no choice point (43 342 109 instructions to
+40 342 889 there, 6.92 %, STATUS.md), less about 1.8 % the other releases
+gave back; nrev and lookup moved by under half a per cent in all of them.
+The counting loop, counted as Runs U to Z
+counted it (`main(100000,4)` less `main(100000,0)`, with its padding, a
+quarter of it a rep): 77 540 941 instructions a rep on 2.14.1, 28 fewer
+than Run Z's figure, and 77 027 691 on 3.62.3, 0.66 % fewer -- and 0.90 %
+fewer than 2.2.5's 77 724 239.
+
+**A start counts 65 % more.** `main(100000,0)`, the start, the consult of
+loop.pl and its answer, took 21 687 526 instructions on 2.14.1 and
+35 831 215 on 3.62.3, and `cocolog query true` 21 482 781 and 35 555 214.
+Most of it is the compiled-in libraries' Prolog halves, read at every
+start, which 3.x made swipl's clauses (library(error)'s types,
+library(lists) and library(apply) with their helpers, the grammar
+translation), and 2.16.0's preloaded library(print_message): a start reads
+1 719 clauses where 2.14.1 read 1 131, lexes 42 895 tokens where it lexed
+28 873, and stores 1 466 where it stored 883 -- the reading 18.2 million
+instructions where it was 12.4, the storing 8.9 million where it was 3.7,
+3.1 of them 3.15.0's clause compiled as swipl's compiler keeps it. On the
+clock a start is 9.8 ms where 2.14.1's is 7.2 (the medians of twenty
+alternating pairs, `query true` from the same directory), and the
+harness's start-up rows read 0.01 s for every lane, as in Runs W to Z.
+
+**On the clock, 3.62.3 takes 0.92-1.02 times 2.14.1's time.** Ten
+alternating pairs of the two at the rotation's cocolog reps, user time, the
+start and the consult included, every answer the same: nrev 0.924, queens
+1.002, the loop 0.962, lookup 1.015 and sortnums 0.969, each the ratio of
+the two medians. Ten pairs settle a ratio no closer than about a tenth, so
+nothing larger moved -- and queens' 5 % fewer instructions are under the
+clock's reach.
+
+**And Run Z's slow mode is not on this box.** Run Z found 2.14.1's
+counting loop about 30 % slower whenever the kernel loaded the binary at a
+base with address bits 12 and 13 both set, on the Cascade Lake. The same
+probe here -- the loop at 256 reps under `--local`, 40 runs, each run's
+base read from `/proc/PID/maps` as it ran -- finds one cluster for each
+binary. 3.62.3 took 0.883 to 1.142 s, its eight runs at those bits
+0.924-1.134 (a median of 1.045, where the 32 others' medians at the other
+three values are 0.964-1.097); 2.14.1 0.884 to 1.256 s, its nine runs at
+those bits 0.926-1.140 (a median of 1.031, the others' 1.027-1.111). So
+the slow mode is that core's, or that box's, and not 2.14.1's code
+wherever it runs.
+
+Start-up is 0.01 s for every lane, the stores' too, and the lookup-shape
+table is flat for all three (0.01-0.03 s at each size; the `ratio` column
+is the rounding of hundredths).
+
+The first sitting, as `sh bench/langs.sh` printed it:
+
+```
+
+cocolog vs CPython and SWI-Prolog -- same task, same answer, four arrangements
+python3 3.11.18 at /usr/local/bin/python3, cocolog 3.62.3 at /home/user/cocolog/cocolog
+SWI-Prolog version 9.0.4 for x86_64-linux at /usr/bin/swipl
+wall clock, median of three timed runs at each of two sizes
+a lane calibrated to ONE rep prints its wall time instead of a rate:
+at one rep the fixed cost and the work cannot be told apart
+
+-- nrev: one naive reverse of a 400-element list
+   lane         reps   fixed    per rep s     vs py vs swi-O    2R/R  arrangement
+   python        512    0.21     0.003442      1.0x        -    1.90  cpython_process
+   swi-O        1024    0.00     0.001862      0.5x     1.0x    2.04  swi_prolog_process_optimised
+   swi          1024    0.00     0.001848      0.5x     1.0x    2.01  swi_prolog_process_as_installed
+   local         512    0.13     0.002828      0.8x     1.5x    1.92  cocolog_local_in_memory_no_database
+   embed         512    0.23     0.002532      0.7x     1.4x    1.85  cocolog_embedded_mvccs_fresh_store
+   zigurat       512    0.00     0.002877      0.8x     1.5x    2.13  cocolog_server_one_kb_emptied
+   sqlite        512    0.00     0.004185      1.2x        -    2.09  cpython_sqlite3_file_indexed_committed
+
+-- queens: one full 8-queens search, all 92 solutions
+   lane         reps   fixed    per rep s     vs py vs swi-O    2R/R  arrangement
+   python       1024    0.30     0.001389      1.0x        -    1.83  cpython_process
+   swi-O        1024    0.00     0.001832      1.3x     1.0x    2.15  swi_prolog_process_optimised
+   swi           256    0.40     0.003563      2.6x     1.9x    1.69  swi_prolog_process_as_installed
+   local        1024    0.00     0.002620      1.9x     1.4x    2.01  cocolog_local_in_memory_no_database
+   embed         512    0.19     0.002281      1.6x     1.2x    1.86  cocolog_embedded_mvccs_fresh_store
+   zigurat       512    0.00     0.002769      2.0x     1.5x    2.08  cocolog_server_one_kb_emptied
+   sqlite       1024    0.40     0.001268      0.9x        -    1.76  cpython_sqlite3_file_indexed_committed
+
+-- loop: one hundred thousand additions, one at a time
+   lane         reps   fixed    per rep s     vs py vs swi-O    2R/R  arrangement
+   python        512    0.21     0.002560      1.0x        -    1.86  cpython_process
+   swi-O         512    0.00     0.003148      1.2x     1.0x    2.17  swi_prolog_process_optimised
+   swi           128    0.00     0.013328      5.2x     4.2x    2.03  swi_prolog_process_as_installed
+   local         512    0.00     0.004210      1.6x     1.3x    2.09  cocolog_local_in_memory_no_database
+   embed         512    0.12     0.003957      1.5x     1.3x    1.94  cocolog_embedded_mvccs_fresh_store
+   zigurat       256    0.17     0.003487      1.4x     1.1x    1.84  cocolog_server_one_kb_emptied
+   sqlite         64    0.11     0.018887      7.4x        -    1.92  cpython_sqlite3_file_indexed_committed
+
+-- lookup: a thousand key lookups over 200 facts
+   lane         reps   fixed    per rep s     vs py vs swi-O    2R/R  arrangement
+   python      32768    0.00     0.000061      1.0x        -    2.02  cpython_process
+   swi-O       16384    0.18     0.000100      1.6x     1.0x    1.90  swi_prolog_process_optimised
+   swi          4096    0.07     0.000388      6.4x     3.9x    1.96  swi_prolog_process_as_installed
+   local        8192    0.18     0.000156      2.6x     1.6x    1.87  cocolog_local_in_memory_no_database
+   embed        8192    0.14     0.000169      2.8x     1.7x    1.91  cocolog_embedded_mvccs_fresh_store
+   zigurat      8192    0.00     0.000178      2.9x     1.8x    2.02  cocolog_server_one_kb_emptied
+   sqlite        512    0.33     0.002506     41.1x        -    1.79  cpython_sqlite3_file_indexed_committed
+
+-- sortnums: one generate-and-sort of 5000 integers
+   lane         reps   fixed    per rep s     vs py vs swi-O    2R/R  arrangement
+   python       1024    0.06     0.001112      1.0x        -    1.95  cpython_process
+   swi-O        1024    0.15     0.001359      1.2x     1.0x    1.90  swi_prolog_process_optimised
+   swi           512    0.36     0.003373      3.0x     2.5x    1.83  swi_prolog_process_as_installed
+   local        1024    0.00     0.001620      1.5x     1.2x    2.09  cocolog_local_in_memory_no_database
+   embed        1024    0.00     0.001527      1.4x     1.1x    2.04  cocolog_embedded_mvccs_fresh_store
+   zigurat      1024    0.05     0.001529      1.4x     1.1x    1.97  cocolog_server_one_kb_emptied
+   sqlite       1024    0.00     0.001940      1.7x        -    2.00  cpython_sqlite3_file_indexed_committed
+
+start-up alone, the same wall clock, nothing but boot and exit:
+   python         0.01 s
+   swi-O          0.01 s
+   swi            0.01 s
+   local          0.01 s
+   embed          0.01 s
+   zigurat        0.01 s
+
+the shape of the lookup gap -- a thousand probes, three sizes:
+      facts     python s      swi-O s    cocolog s      ratio
+        200         0.01         0.02         0.02         1x
+       2000         0.01         0.01         0.02         1x
+      20000         0.02         0.02         0.02         1x
+
+```
+
+The second sitting, as `sh bench/langs.sh` printed it:
+
+```
+
+cocolog vs CPython and SWI-Prolog -- same task, same answer, four arrangements
+python3 3.11.18 at /usr/local/bin/python3, cocolog 3.62.3 at /home/user/cocolog/cocolog
+SWI-Prolog version 9.0.4 for x86_64-linux at /usr/bin/swipl
+wall clock, median of three timed runs at each of two sizes
+a lane calibrated to ONE rep prints its wall time instead of a rate:
+at one rep the fixed cost and the work cannot be told apart
+
+-- nrev: one naive reverse of a 400-element list
+   lane         reps   fixed    per rep s     vs py vs swi-O    2R/R  arrangement
+   python        512    0.00     0.003850      1.0x        -    2.05  cpython_process
+   swi-O        1024    0.17     0.001602      0.4x     1.0x    1.91  swi_prolog_process_optimised
+   swi          1024    0.13     0.001760      0.5x     1.1x    1.93  swi_prolog_process_as_installed
+   local         512    0.13     0.002777      0.7x     1.7x    1.92  cocolog_local_in_memory_no_database
+   embed         512    0.08     0.002934      0.8x     1.8x    1.95  cocolog_embedded_mvccs_fresh_store
+   zigurat       512    0.25     0.002712      0.7x     1.7x    1.85  cocolog_server_one_kb_emptied
+   sqlite        512    0.09     0.003811      1.0x        -    1.95  cpython_sqlite3_file_indexed_committed
+
+-- queens: one full 8-queens search, all 92 solutions
+   lane         reps   fixed    per rep s     vs py vs swi-O    2R/R  arrangement
+   python       1024    0.00     0.001585      1.0x        -    2.01  cpython_process
+   swi-O        1024    0.04     0.001657      1.0x     1.0x    1.97  swi_prolog_process_optimised
+   swi           256    0.00     0.005065      3.2x     3.1x    2.06  swi_prolog_process_as_installed
+   local         512    0.01     0.002553      1.6x     1.5x    1.99  cocolog_local_in_memory_no_database
+   embed        1024    0.00     0.002665      1.7x     1.6x    2.04  cocolog_embedded_mvccs_fresh_store
+   zigurat       512    0.00     0.002829      1.8x     1.7x    2.03  cocolog_server_one_kb_emptied
+   sqlite       1024    0.27     0.001388      0.9x        -    1.84  cpython_sqlite3_file_indexed_committed
+
+-- loop: one hundred thousand additions, one at a time
+   lane         reps   fixed    per rep s     vs py vs swi-O    2R/R  arrangement
+   python        512    0.00     0.002678      1.0x        -    2.05  cpython_process
+   swi-O         512    0.00     0.003150      1.2x     1.0x    2.11  swi_prolog_process_optimised
+   swi           128    0.13     0.011727      4.4x     3.7x    1.92  swi_prolog_process_as_installed
+   local         512    0.00     0.004243      1.6x     1.3x    2.09  cocolog_local_in_memory_no_database
+   embed         512    0.00     0.003881      1.4x     1.2x    2.01  cocolog_embedded_mvccs_fresh_store
+   zigurat       512    0.37     0.003513      1.3x     1.1x    1.83  cocolog_server_one_kb_emptied
+   sqlite         64    0.10     0.018794      7.0x        -    1.92  cpython_sqlite3_file_indexed_committed
+
+-- lookup: a thousand key lookups over 200 facts
+   lane         reps   fixed    per rep s     vs py vs swi-O    2R/R  arrangement
+   python      32768    0.06     0.000057      1.0x        -    1.97  cpython_process
+   swi-O       16384    0.08     0.000105      1.8x     1.0x    1.95  swi_prolog_process_optimised
+   swi          4096    0.29     0.000359      6.3x     3.4x    1.84  swi_prolog_process_as_installed
+   local       16384    0.00     0.000152      2.7x     1.4x    2.00  cocolog_local_in_memory_no_database
+   embed        8192    0.14     0.000144      2.5x     1.4x    1.89  cocolog_embedded_mvccs_fresh_store
+   zigurat      8192    0.16     0.000138      2.4x     1.3x    1.87  cocolog_server_one_kb_emptied
+   sqlite        512    0.17     0.002908     51.0x        -    1.90  cpython_sqlite3_file_indexed_committed
+
+-- sortnums: one generate-and-sort of 5000 integers
+   lane         reps   fixed    per rep s     vs py vs swi-O    2R/R  arrangement
+   python       1024    0.00     0.001188      1.0x        -    2.04  cpython_process
+   swi-O        1024    0.17     0.001370      1.2x     1.0x    1.89  swi_prolog_process_optimised
+   swi           512    0.00     0.004079      3.4x     3.0x    2.04  swi_prolog_process_as_installed
+   local        1024    0.00     0.001604      1.4x     1.2x    2.13  cocolog_local_in_memory_no_database
+   embed        1024    0.06     0.001518      1.3x     1.1x    1.96  cocolog_embedded_mvccs_fresh_store
+   zigurat      1024    0.00     0.001627      1.4x     1.2x    2.10  cocolog_server_one_kb_emptied
+   sqlite       1024    0.00     0.002117      1.8x        -    2.11  cpython_sqlite3_file_indexed_committed
+
+start-up alone, the same wall clock, nothing but boot and exit:
+   python         0.01 s
+   swi-O          0.01 s
+   swi            0.01 s
+   local          0.01 s
+   embed          0.01 s
+   zigurat        0.01 s
+
+the shape of the lookup gap -- a thousand probes, three sizes:
+      facts     python s      swi-O s    cocolog s      ratio
+        200         0.01         0.02         0.01         1x
+       2000         0.01         0.02         0.02         1x
+      20000         0.02         0.03         0.03         1x
+
+```
+
 ## The concurrency benchmark
 
 `bench/concurrency.sh` puts the concurrency models through two questions in
@@ -2818,9 +3181,9 @@ lane that fails, throws or answers anything else is REFUSED and no number
 appears; the first run of each lane is the warm-up, and the minimum of
 three timed runs is printed.
 The wall is around the whole process, as in the language benchmark; real
-threads, Go goroutines and Rust threads may use the cores, green threads
-and the Python coroutines share one, and the core count is printed by the
-harness.
+threads, Go goroutines, Rust threads and, since 2.8.0's world (Run C),
+green threads may use the cores, the Python coroutines share one, and the
+core count is printed by the harness.
 
 **CONCURRENCY RUN A** -- 2026-10-20, the working tree's build (cocolog
 2.6.0; the numbers were taken on its 2.5.2 build, a version-only
@@ -3227,6 +3590,154 @@ not comparable to Run G's and are kept as what they were.
 reads are unaffected (the work and light lanes and every store lane here).
 A program that warms a store before `async_run/1` should take every
 solution it means to warm, not one.
+
+**CONCURRENCY RUN H** -- 2026-11-12, cocolog 3.62.3, THE FIRST ON LINUX,
+and the first since Run G's 2.9.3: 3.62.1's review of the green world and
+3.62.3's paths short of memory came between, among the 98 releases Run AA
+lists. Run AA's box, a four-vCPU Emerald Rapids microVM (Linux 6.18,
+16 GB), after Run AA's sittings and pairs, the harness the only busy
+process.
+The same command `sh bench/concurrency.sh` with its defaults (work N=8,
+M=1,000,000; light 10,000 tasks, 1,000 OS threads, 10 yields; store 8
+units x 20,000 lookups over 10,000 rows; REPS=3), run three times back to
+back, 13 to 15 s each (steal 0.28 % over the first); Go 1.24.7, rustc
+1.97.0, Python 3.11.18; the `--kb` lane is ZiguratIP 1.0.2 on
+127.0.0.1:2160. The world is FOUR workers here, one a core (Run G's was
+sixteen), and the work lanes' eight units are eight OS threads, eight
+goroutines and eight std::threads over the same four cores. Every lane
+answered `answer(done)` in every run. Each figure is the median of the
+three runs' printed figures -- each run's the minimum of three timed runs
+after a warm-up -- with the three's range beside it.
+
+Work lanes, N=8, M=1,000,000:
+
+| lane | wall | Run G (Mac, 16 cores) |
+|---|---|---|
+| serial | 256.1 ms (222.3-267.2) | 444.9 ms |
+| real threads (8 OS threads) | 97.7 ms (96.4-115.3) | 174.3 ms |
+| green threads (8 green threads on 4 workers) | 85.8 ms (83.4-94.3) | 172.6 ms |
+| goroutines (Go, 8) | 3.4 ms (3.4-3.6) | 98.0 ms |
+| rust threads (std::thread, 8) | 3.3 ms (3.0-4.1) | 94.9 ms |
+| coroutines (asyncio, 8) | 272.5 ms (246.6-293.2) | 588.8 ms |
+
+Store lanes, 8 units x 20,000 keyed lookups over 10,000 rows:
+
+| lane | wall | per lookup |
+|---|---|---|
+| goroutines over SQLite (8 connections, one transaction each) | 32.5 ms (28.6-36.4) | 0.20 us |
+| green threads over `--embed` | 72.5 ms (70.7-72.9) | 0.45 us |
+| green threads over `--kb` | 83.0 ms (73.4-93.3) | 0.52 us |
+
+Light lanes (10,000 tasks, 1,000 OS threads, 10 yields):
+
+| lane | per task | per yield |
+|---|---|---|
+| real threads | 256.71 us (248.55-304.19) | 38.08 us (23.46-41.04) |
+| green threads | 11.84 us (11.60-12.31) | 3.63 us (3.63-3.73) |
+| goroutines | 0.78 us (0.78-0.88) | 0.51 us (0.45-0.58) |
+| rust threads | 36.40 us (34.24-38.98) | 4.05 us (3.92-4.23) |
+| coroutines | 8.76 us (8.43-8.99) | 1.83 us (1.82-2.19) |
+
+One core, the real work lane under `taskset -c 0` (`real1`): 271.6 ms
+(271.0-322.4).
+
+**THE GREEN WORK LANE BEATS THE OS THREADS ON FOUR CORES** (85.8 against
+97.7 ms, 0.88 of their time, where Run G's Mac had the two level, 172.6
+against 174.3): 2.98 times the serial lane's speed, the OS threads 2.62.
+Ten rounds of the work lanes in rotation after the harness agree (medians,
+the process start included): serial 243.1 ms, the OS threads 111.5 (2.18x)
+and green 94.8 (2.56x), green 0.85 of the OS threads. One unit alone takes
+the green world 50.1 ms and the serial lane 37.1 (the harness's rule, a
+warm-up and the least of three timed runs each): the world's start and end
+with its four workers is about 13 ms, and the rest of the lane is the work
+spread over the cores. The Go and Rust work lanes measure
+their loops, not a scheduler, as on the Mac (Runs D and F): both compile
+`spin(M)` to about a cycle a step, and a Linux process starts in a few
+milliseconds, so the whole lane is 3 to 4 ms where the Mac's process start
+made it 95 to 98. Python's asyncio is one core and the GIL, the serial
+lane's time (272.5 against 256.1).
+
+**THE STORE LANES' WALLS ARE THEIR FIXED COSTS ON LINUX.** By the harness's
+measure, the wall over the 160,000 lookups, SQLite's goroutines are 2.2
+times cheaper a lookup than the green tasks over `--embed` (0.20 against
+0.45 us), where on the Mac the two were level (1.03 against 1.00): a Linux
+process starts cheaply, so most of a cocolog lane's wall is what comes
+before its probes. Five alternating rounds of each lane at 20,000 lookups
+a unit and at none (medians, the minima in brackets) take the two apart:
+
+| lane | fixed cost, no lookups | at 20,000 a unit | per lookup, the fixed cost apart |
+|---|---|---|---|
+| goroutines over SQLite | 5.9 ms | 35.7 ms | 0.19 us (0.18) |
+| green threads over `--embed` | 32.2 ms | 68.6 ms | 0.23 us (0.19) |
+| green threads over `--kb` | 54.2 ms | 105.2 ms | 0.32 us (0.24) |
+
+So A KEYED LOOKUP COSTS A GREEN TASK OVER THE EMBEDDED STORE WHAT IT COSTS A
+SQLITE GOROUTINE, within a fifth, as Run G found on the Mac; what differs
+is the fixed cost -- cocolog's start, the store's open, the host's fetch
+and compile of the 10,000 rows (`store_warm`) and the world -- 32 ms in
+the process and 54 over the socket against Go's and SQLite's 6. Every
+round's cocolog run at 20,000 lookups a unit summed its probes to
+79,920,000.
+
+**A GREEN TASK IS 22 TIMES CHEAPER THAN A COCOLOG OS THREAD AND 3.1 TIMES
+CHEAPER THAN A RUST THREAD** (11.84 us a task against 256.71 and 36.40),
+and a yield 10.5 times cheaper than the OS threads' mutex handoff (3.63
+against 38.08 us); Go's goroutines are 15 times cheaper a task than green's
+(0.78 us) and 7 times a yield (0.51), and Python's asyncio 1.35 and 2.0
+times (8.76 and 1.83). Against Run G's Mac, a green task costs less than
+half (25.99 us there) and a yield 0.56 of it (6.54), where a cocolog OS
+thread costs twice the Mac's (125.97 us), Rust's thread 0.30 of it
+(120.17) and Go's goroutine 0.08 (10.02): the Mac's per-task figures
+carried its process starts, tens of milliseconds a process there (Rust's
+binary alone answered its work lane in 0.05 s, Run F).
+
+The harness's per-task and per-yield columns divide a lane's whole wall --
+its process start and, for a yield, its tasks' creation -- by the tasks or
+the yields. Ten rounds of each light lane in rotation, at one task, at the
+harness's count and with the harness's ten yields (medians), take those
+apart:
+
+| lane | at one task | per task, the start apart | per yield, the creation apart |
+|---|---|---|---|
+| real threads (1,000) | 18.4 ms | 410 us | none to read |
+| green threads (10,000) | 12.4 ms | 11.95 us | 2.64 us |
+| goroutines (10,000) | 3.4 ms | 0.56 us | 0.50 us |
+| rust threads (1,000) | 3.6 ms | 42.76 us | 0.10 us |
+| coroutines (10,000) | 58.1 ms | 4.73 us | 1.18 us |
+
+On this box the OS threads' yields cost nothing a wall can see beside
+their creation: the cocolog lane's 1,000 threads took 340-601 ms in the
+rotation (the harness's minima were 249-304) and with their ten yields
+207-538 ms, and Rust's yields added 1 ms to 46 -- `yield_now` on a core
+with nothing else to run returns at once. So their per-yield columns are
+their creation spread over ten yields, and the switches that can be read
+are green's 2.64 us, Go's 0.50 and asyncio's 1.18. With the starts apart a
+green task is 34 times cheaper than a cocolog OS thread and 3.6 times
+cheaper than a Rust thread, and a goroutine 21 times cheaper than a green
+task and 5.3 times a switch; asyncio is 2.5 times cheaper a task than
+green and 2.2 times a switch, its interpreter's start, 58 ms, having been
+most of its harness figure.
+
+**One core**, the lane the Mac could not run, and beside it the comparisons
+the harness does not make -- ten rounds in rotation after it, each lane's
+median and range, the process start included:
+
+| lane | wall | against serial on one core |
+|---|---|---|
+| serial, `taskset -c 0` | 265.6 ms (217.0-333.8) | 1.00 |
+| real threads, `taskset -c 0` (`real1`) | 319.8 ms (274.6-372.3) | 1.20 |
+| green, `taskset -c 0`, the world's four workers on the one core | 279.8 ms (240.7-335.5) | 1.05 |
+| green, `taskset -c 0` and `COCOLOG_GREEN_WORKERS=1` | 281.6 ms (237.9-301.3) | 1.06 |
+| serial, unpinned | 243.1 ms (216.6-282.5) | |
+| real threads, unpinned | 111.5 ms (92.5-124.1) | |
+| green, unpinned | 94.8 ms (85.4-144.0) | |
+
+**ON ONE CORE EIGHT OS THREADS COST A FIFTH MORE THAN THE SERIAL RUN, AND
+EIGHT GREEN TASKS A TWENTIETH**, whether the world's four workers share the
+core or it has one (at the minima of the ten, 1.27, 1.11 and 1.10): the
+quantum's stops, the world's lock at each run and its workers' turns on one
+core cost the work a twentieth, and eight OS threads, each a machine and a
+store of its own, cost it a fifth.
 
 ## The token benchmark
 

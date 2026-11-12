@@ -247,10 +247,27 @@ user-process limit is 2,784, and a cocolog thread carries a machine and a
 store), so the per-task and per-yield columns are the comparison, not the
 wall alone.
 
+**On Linux** (Concurrency Run H, cocolog 3.62.3, a four-vCPU Emerald
+Rapids microVM, a world of four workers, the median of three harness runs):
+the green work lane BEATS the OS threads' (85.8 against 97.7 ms; serial
+256.1), a green task costs 11.84 us and a yield 3.63 -- 22 and 10.5 times
+cheaper than a cocolog OS thread's 256.71 and its mutex handoff's 38.08, a
+task 3.1 times cheaper than a Rust thread's 36.40 -- and Go's goroutines
+are 15 times cheaper a task still (0.78 us). A Linux process starts in a
+few milliseconds, so the store lanes' walls there are mostly what comes
+before the probes (SQLite's goroutines 32.5 ms, the green tasks over
+`--embed` 72.5): with the fixed cost apart a lookup costs a green task
+0.23 us against a SQLite goroutine's 0.19, and the fixed cost is cocolog's
+start, the store's open, the warm and the world, 32 ms against 6.
+
 **One core**: `real1` runs the real work lane under `taskset -c 0` on Linux,
-the like-for-like scheduler comparison with the world's workers. The Mac
-has no taskset and the lane says SKIP; the green work lane above is the
-sixteen-worker number on this box, and its CPU says the cores are used.
+the like-for-like scheduler comparison with the world's workers. In Run H's
+ten rounds in rotation, on one core eight OS threads take 1.20 times the
+serial lane's time (319.8 against 265.6 ms, medians) and eight green tasks
+1.05 times with the world's four workers sharing the core and 1.06 with
+one (279.8 and 281.6 ms). The Mac has no taskset and the lane says SKIP
+there; the green work lane above is the sixteen-worker number on that box,
+and its CPU says the cores are used.
 
 The harness rebuilds the Go and Rust binaries once (`go build`; `rustc
 -O`, and the Rust lane SKIPs by name without it), resolves the Python
