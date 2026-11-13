@@ -138,7 +138,7 @@ the_index(Agent) :-
     %% AND IT SAYS NOTHING SOFT. A `thin' library documents almost none of
     %% its heads and an `unrouted' one no topic reaches; both are reports and
     %% not failures of the index, and both are defects of the tree, which
-    %% has none (2.2.1: four reasoning programs whose headers named nothing,
+    %% has none (2.2.1: four library programs whose headers named nothing,
     %% and library(cowork), which no row named).
     atom_codes(Out, OCs), codes_lines(OCs, OLs),
     findall(N, ( member(L, OLs), atom_codes(N, L),
@@ -435,7 +435,7 @@ the_findings(Agent) :-
     lint_corpus(Corpus), length(Corpus, NFiles),
     atomic_list_concat(Corpus, ' ', CorpusText),
     %% FIVE MINUTES, NOT THE TWO shell/3 GIVES, because this step reads the
-    %% whole tree and the tree grows with every sample the translator takes.
+    %% whole tree and the tree grows with every sample a large program takes.
     %% It ran PAST two minutes unnoticed for a stretch of versions -- 243 s on
     %% 1.8.31, 160 s on 1.8.32 -- and a step that times out hands back an
     %% empty output, which this case would read as a clean tree: the summary

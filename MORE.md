@@ -90,9 +90,9 @@ FILE:LINE:COL.
   small window recorded around that step reads the call with its
   arguments. For the WHOLE run's own time, predicate by predicate,
   however long the run, there is `flow_run_time/3` (`profile=run`).
-* **Built for a program the size of a real one**: the translator in
-  `library/reasoning/` (20 899 lines, 2 755 panels) is charted once and the
-  chart kept, so a debug run of it takes 4 seconds where it took 57, and the
+* **Built for a program the size of a real one**: a library program of
+  20 899 lines (2 755 panels) is charted once and the chart kept, so a debug
+  run of it takes 4 seconds where it took 57, and the
   39 of its predicates whose clauses stand apart are named by the chart.
 
 ```console
@@ -200,10 +200,8 @@ library/               THE LIBRARY PATH, and what ships on it: http.pl
                        async.pl (Go's go, yield, await and channels as
                        green threads on eight workers over one shared
                        store -- tier 1 since 2.8.0, preloaded),
-                       clay_ray.pl and llm.pl,
-                       reasoning/ (controlled English, a tagger and a
-                       translator), and the .so's and flow/tables.pl that
-                       `make modules' builds
+                       clay_ray.pl and llm.pl, and the .so's and
+                       flow/tables.pl that `make modules' builds
 modules/               the LOADABLE modules, twenty, one directory each --
                        tcp, thread, process, text, os, signal (POSIX
                        signals as catchable errors at the next step),
@@ -505,10 +503,7 @@ to stderr the way a usage message should. The number goes up with every
 change that produces a new binary — the patch by default, the minor when
 something new is reachable from a program, the major when a program that
 worked stops working. A documentation-only commit does not bump it: there is
-no new binary for the number to describe. The reasoning library under
-`library/reasoning/` has a number of its own, so that a change to the
-translator does not move `--version`: `reason_version/1` answers it as an atom
-(`X.Y.Z`) and `reason_version/3` as the three integers.
+no new binary for the number to describe.
 
 There is one `cocolog` binary and it is the full one: the interpreter and the
 embedded MVCCS engine, both in it, and every module beside it in `library/`,
@@ -526,7 +521,7 @@ chooses the server arrangement.
 
 ## Learning it: `tutorials/`, in four categories
 
-Documentation that RUNS. **129 files**, and `cocolog -s test/tutorials.pl`
+Documentation that RUNS. **131 files**, and `cocolog -s test/tutorials.pl`
 runs every one of them as a case of the suite.
 
 ```sh
@@ -594,7 +589,6 @@ a tool rather than a library.
 | [39-tensor-expr](tutorials/library/39-tensor-expr.pl) | tier 2 | `tensor_expr`: an expression is a list of tensor goals, `:=` runs it, and the list is the same program under both execution paths |
 | [40-numpy](tutorials/library/40-numpy.pl) [41-opencv](tutorials/library/41-opencv.pl) | tier 2 | numpy arrays as clauses, and OpenCV's images as handles -- the doorway to `opencv/` |
 | [42-cowork](tutorials/library/42-cowork.pl) | tier 2 | a crew of workers that outlives the turn |
-| [43-reason](tutorials/library/43-reason.pl) [44-normalise](tutorials/library/44-normalise.pl) [45-tagger](tutorials/library/45-tagger.pl) [46-translate](tutorials/library/46-translate.pl) | tier 2 | `reasoning`: controlled English as predicates and its explanations, the tagger's training data, the tagger, and a translator whose lessons are knowledge bases |
 | [47-clay](tutorials/library/47-clay.pl) | tier 2 | `clay`: a user interface as a TERM — a tree of boxes laid out by Clay into render commands, held to the coordinate with no window; `library(clay_ray)` draws them with raylib |
 | [48-stream](tutorials/library/48-stream.pl) | tier 2 | `stream`: files as streams — bytes, UTF-8 characters, lines, terms a clause at a time, and formatted text through the engine's own formatter; stdin, stdout and stderr among them; and ISO's `open/4`, `read_term/3`, `write/2` and `set_output/1` over the same table |
 | [49-websocket](tutorials/library/49-websocket.pl) | tier 2 | `websocket`: RFC 6455 — the handshake's arithmetic, a frame byte by byte as the RFC prints one, masking, and a session talking to itself over loopback; a server is an httpd page that answers `websocket(Goal)`, a client is `ws_open/2` |
@@ -893,7 +887,6 @@ code.
 | `library(template)` | `.pl` | text with holes: values, conditions, loops, ranges and queries, escaped for text, HTML, XML or JSON |
 | `library(cowork)` | `.pl` | a crew of worker threads that outlives a turn |
 | `library(llm)` | `.pl` | a language model as a goal: a chat completion over `library(curl)` and `library(json)` |
-| `library(reasoning/...)` | `.pl` | controlled English read into predicates and explained (`reason`); the generator and the tagger that turn typed prose into it (`normalise`, `tagger`); a translator whose lessons are knowledge bases (`translate`, with the `teach.pl` and `page.pl` programs) |
 
 The cryptography libraries have a table of their own below, and
 `library(process)`, `library(text)`, `library(os)` and `library(kbs)` are in
@@ -1630,7 +1623,7 @@ fitted Q-iteration reinforcement learning -- and, in 42, object detection
 on real photographs, the Penn-Fudan pedestrians, trained on a T4 with the
 boxes-to-cells assignment, the suppression and the matching written as
 clauses, its results drawn in [tutorials/tensor/](tutorials/tensor/README.md). They are the fourth
-tutorial category — `cocolog -s test/tutorials.pl` runs all 129 files,
+tutorial category — `cocolog -s test/tutorials.pl` runs all 131 files,
 the hundred and twenty-six torch processes included, green and deterministically
 in about eleven minutes on this Mac before tutorials 32 to 41 joined -- up
 from forty-five seconds before the transformer lessons did -- and those ten

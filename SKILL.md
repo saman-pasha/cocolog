@@ -12,8 +12,8 @@ ZiguratIP server, Zeytun over HTTP — in which a clause is a row, and a running
 proof is a term that can be frozen into rows and resumed by another process.
 It is one binary, written in **Cicili** (C in S-expressions).
 
-Version at the time of writing: cocolog 3.62.3, reasoning 1.0.34, built with
-Cicili 3.3.0. `./cocolog --version` answers the first.
+Version at the time of writing: cocolog 3.62.3, built with
+Cicili 3.3.0. `./cocolog --version` answers it.
 
 **Part A** is for writing and running Prolog on cocolog. **Part B** is for
 changing cocolog itself. Each section stands alone: go to the one the task
@@ -44,7 +44,7 @@ The documents, and what each one answers:
 | [`TRACING.md`](TRACING.md) | the tracer, backtraces, a recorded window, the journal |
 | [`STATUS.md`](STATUS.md) | what is proven, release by release, with its numbers |
 | [`DESIGN-flow.md`](DESIGN-flow.md), [`DESIGN-compiling.md`](DESIGN-compiling.md) | the plans behind the flow libraries and the clause compiler |
-| [`tutorials/`](tutorials) | 133 lessons that run: the fastest way to learn one library |
+| [`tutorials/`](tutorials) | 131 lessons that run: the fastest way to learn one library |
 | [`tools/cocolint/GUIDE.md`](tools/cocolint/GUIDE.md) | the linter, the dialect card, the retrieval index |
 | [`../cicili/SKILL.md`](../cicili/SKILL.md), [`../cicili/lib/README.md`](../cicili/lib/README.md) | the language of the C half, and its declarations |
 
@@ -219,7 +219,6 @@ rows a port trips on most.
 | `clay_ray` | Clay's render commands drawn with `ray` | 47 |
 | `tensor_expr` | tensors as expressions over `torch` or `tensorflow` | §7, 39 |
 | `flow/chart`, `flow/debug` | a predicate drawn; a query explained | §8, §9, 50, 51 |
-| `reasoning/reason`, `normalise`, `tagger`, `translate` | controlled English into predicates, and a translator between the lessons' languages; a version of its own | 43 to 46 |
 
 ### Tier 2 — loadable modules
 
@@ -754,7 +753,7 @@ wrong guess there compiles to something that fails much later.
 | `lib/zigurat-kb.cicili`, `zeytun-kb`, `zigurat-mod` | the two remote backends; `library(zigurat)` |
 | [`client/`](client), [`embed/`](embed), [`parsi/`](parsi) | the wire client in C (`client/tls.c` the one TLS unit); the embedded store; the schema `make schema` compiles |
 | [`modules/`](modules) | the twenty-one loadable modules, one directory each |
-| [`library/`](library) | tier-2 Prolog libraries and the built `.so` files; `library/flow/`, `library/reasoning/` |
+| [`library/`](library) | tier-2 Prolog libraries and the built `.so` files; `library/flow/` |
 | [`tools/`](tools) | `cocolint/` the linter; `flow/` chart, debug, `zero.sh`; `cc/` the compiler wrappers; `ci/`, `cloud/` |
 | [`test/`](test), [`tutorials/`](tutorials), [`bench/`](bench) | the suite; the lessons; the benchmarks |
 
@@ -964,10 +963,7 @@ function**: each bullet is there because its fact has already cost a day.
   `coco_version_text` in `cocolog.cicili`, and README's closing line names it
   too: a patch for any change to the binary or to a library, a minor for
   something new reachable from a program, a major for a program that stops
-  working. The
-  reasoning library has its own, `reason_version/3` in
-  `library/reasoning/reason.pl`, for anything under `library/reasoning/`. Read
-  master's number first: two lines of work bump the same one.
+  working. Read master's number first: two lines of work bump the same one.
 - **A documentation-only commit bumps nothing** and says `cocolog stays X.Y.Z`
   in its message.
 - **Commit or push only when the owner asks.** Push with
@@ -982,7 +978,6 @@ function**: each bullet is there because its fact has already cost a day.
 - **Wait for a background job by what it writes** (a `DONE` line in its log),
   never by `pgrep -f` of its script's name: the pattern matches the waiting
   shell's own command line, and the wait never ends.
-- `library/` must not change while a reasoning teach or control round runs.
 - Never ask for an API key in chat, and never write one into a file: a key is
   read from the environment. A live run of the token benchmark wants the
   owner's go-ahead.

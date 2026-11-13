@@ -2,7 +2,7 @@
 %% time.
 %%
 %% library(xml) makes a document as ONE code list, which is right for a
-%% page and wrong for a chart of a big program: the translator's XML is 45
+%% page and wrong for a chart of a big program: the sample program's XML is 45
 %% million codes, 52 s and 251 M inferences to make, and its SVG ran the
 %% process out of memory before a byte was written. This writes the same
 %% bytes -- library(xml)'s header, its escaping, and its rule that only
@@ -67,7 +67,7 @@ flow_w_break(S, Step, D) :-
 
 %% an attribute is ONE format/3 when its value is a number or a short atom
 %% with nothing to escape, which is nearly every one: the eight splits
-%% of an escape, run on every value, made the translator's XML 211 M
+%% of an escape, run on every value, made the sample program's XML 211 M
 %% inferences to write
 flow_w_attrs([], _).
 flow_w_attrs([A|As], S) :-

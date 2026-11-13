@@ -234,7 +234,7 @@ atom_table(D) :-
 
 %% sort/4 was an insertion sort -- "n is small in every use this has" --
 %% and keysort/2 is sort/4 at key 1, so a keysort was quadratic: 20 000
-%% pairs in a second, 35 000 in ten, and the reasoning tagger's judge
+%% pairs in a second, 35 000 in ten, and the tagger's judge
 %% paid 42 seconds a process to build its lexicon. A merge sort since
 %% 1.2.40; the guard is the same shape as the ones above, a child under
 %% a timeout with a wide margin -- 60 000 pairs sort in about 20 ms and
@@ -259,7 +259,7 @@ sorting(D) :-
 %% head by head, and a table whose first argument most clauses share walked
 %% that argument's whole chain -- from its head at every retry, so even
 %% backtracking through one key's clauses was quadratic -- which once cost
-%% the translator four minutes a sentence. Children under a timeout with a
+%% a program four minutes a sentence. Children under a timeout with a
 %% wide margin again: 50 000 lookups by the second argument take a fraction
 %% of a second and took about forty, the same through a shared first
 %% argument hours, and the walk through one key's 200 000 clauses minutes.

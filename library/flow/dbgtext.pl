@@ -12,8 +12,8 @@
 %% The first line says how the run ended, as tools/flow/debug.pl's summary
 %% does; the second, `% file: FILE', names the file every place below is in,
 %% when they are all in one (1.11.0: through 1.10.28 each line carried it,
-%% and on the translator its path was 93 of a line's 213 bytes -- reported
-%% from the reasoning session). Then each call the window saw, in the order
+%% and on the sample program its path was 93 of a line's 213 bytes -- reported
+%% from the profiling session). Then each call the window saw, in the order
 %% it was made:
 %%
 %%     S INDENT GOAL FATE [CLAUSES] BOX WHERE
@@ -138,7 +138,7 @@ flow_dbg_text_value(V, V).
 %% atom_concat/3 a level, which is quadratic in the depth -- and a window
 %% far along a recursion that does not return (a loop of last calls) is
 %% hundreds of levels deep: BASE.txt of a 20 000-step window took
-%% 10.4 s, of 100 000 minutes (the reasoning session's point 8)
+%% 10.4 s, of 100 000 minutes (the profiling session's point 8)
 flow_dbg_text_spaces(N, S) :-
     format(atom(S), '~*c', [N, 0' ]).
 

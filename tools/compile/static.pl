@@ -117,7 +117,7 @@ sf_read_terms(S, F) :-
     ).
 
 %% A FILE READ BEFORE THE LIBRARY THAT DEFINES ITS OPERATORS -- name order
-%% puts library/reasoning/ before library/tensor_expr.pl -- is read again
+%% puts a file of `library/flow/' before library/tensor_expr.pl -- is read again
 %% once every file has been, from the start, what it gave the first time
 %% forgotten
 sf_reread :-
@@ -435,7 +435,7 @@ sf_changed(F, Key) :- sf_mod(F, Key), !.
 %% FIXED, read two ways: a change the file cannot name may reach any of
 %% its predicates (sf_fixed/2, the count a compiler could rely on), or
 %% only the ones it does not define -- the data it builds and asserts,
-%% which is what the translator's turn out to be (sf_fixed_named/2)
+%% which is what a large program's turn out to be (sf_fixed_named/2)
 sf_fixed(F, Key) :- \+ sf_unknown_change(F), \+ sf_changed(F, Key).
 
 sf_fixed_named(F, Key) :- \+ sf_changed(F, Key).

@@ -42,7 +42,7 @@
 %% call itself, which is the whole of a predicate's own (self) cost.
 %%
 %% flow_steps_text/2 writes the same profile as the window's steps by
-%% what took them (1.11.10, the reasoning session's point 7): each
+%% what took them (1.11.10, the profiling session's point 7): each
 %% predicate's calls, a step each, and the steps of the control
 %% constructs, which make no call -- `true/0' 4.1 %, `=/2' 4.2 % and the
 %% constructs' share, where a run's time goes step by step.
@@ -52,7 +52,7 @@
 %% most called first, its callers the most calling first: the predicate of
 %% the call each call was made in, `(the query)' for the query's own goal,
 %% or `(outside the window)' for one whose caller began before the window
-%% opened (1.11.10, the reasoning session's point 7: `tr_class_of/2' 648
+%% opened (1.11.10, the profiling session's point 7: `tr_class_of/2' 648
 %% calls, of them `tr_determiner/3' 234).
 %%
 %% repeats(R) binds R to repeats(From, To, Rows), a repeats(Name/Arity,
@@ -135,7 +135,7 @@ flow_dbg_profile(Facts, profile(From, To, Spent, Rows)) :-
 %% neither in the window, to the last step under it -- the latest
 %% call made below it. Sorted and walked down the call tree (1.11.10):
 %% through 1.11.9 each first Exit and each call's last went into an AVL
-%% tree, 6.3 s of a window of 100 000 steps of the translator
+%% tree, 6.3 s of a window of 100 000 steps of the sample program
 flow_dbg_prof_spans(SEs, Calls, PSE) :-
     findall(S-I, ( member(ev(I, Port, S, _, _, _), SEs), ( Port == exit ; Port == fail ) ), SIs0),
     keysort(SIs0, SIs),
@@ -739,7 +739,7 @@ flow_dbg_prof_span(windows(Ws), _, Span) :- !,
 flow_dbg_prof_span(F, T, Span) :-
     format(atom(Span), 'the window ~w to ~w', [F, T]).
 
-%% THE STEPS THAT WERE NO INFERENCE (1.13.5, the reasoning session's point):
+%% THE STEPS THAT WERE NO INFERENCE (1.13.5, the profiling session's point):
 %% the window's numbers are the engine's steps, and since 1.12.2 a call of
 %% true/0 or =/2 is a step and no inference -- statistics/2 leaves it out,
 %% as SWI counts none for either in a compiled body. A replay records each
@@ -774,7 +774,7 @@ flow_profile_text(profile(From, To, W, Rows), Text) :-
     atomic_list_concat([H, T|Ls], '\n', T0),
     atom_concat(T0, '\n', Text).
 
-%% THE WINDOW'S STEPS BY WHAT TOOK THEM (1.11.10, the reasoning
+%% THE WINDOW'S STEPS BY WHAT TOOK THEM (1.11.10, the profiling
 %% session's point 7c): every step is a step, and a step is either a
 %% call -- one step, the whole of a predicate's own (self) cost -- or
 %% a control construct's, which has no port and is no call: an if-then-
@@ -976,7 +976,7 @@ flow_dbg_time_at(at(F-T, S), Wins, A) :-
     ).
 flow_dbg_time_at(_, _, '').
 
-%% A LOAD, NOT A CALL (1.13.7, the reasoning session's point): of a
+%% A LOAD, NOT A CALL (1.13.7, the profiling session's point): of a
 %% predicate's OUTERMOST calls -- ON of them, OSum their time -- the
 %% largest, M, took ten times the mean of the others or more, and the
 %% others took some time: a first call that fetched the clauses from the

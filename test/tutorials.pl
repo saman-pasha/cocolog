@@ -144,7 +144,7 @@ basics_and_library(Torch, Crypto, Ray, Numpy, Opencv, Clay, Stream, Signal, Flow
     forall(member(Path, All),
            ( ( sub_atom(Path, _, _, _, 'tutorials/basics/') -> lesson_name('tutorials/basics', Path, Name)
              ; lesson_name('tutorials/library', Path, Name) ),
-             (   member(Name, ['tutorials/library/22-torch', 'tutorials/library/39-tensor-expr', 'tutorials/library/45-tagger']), Torch == no
+             (   member(Name, ['tutorials/library/22-torch', 'tutorials/library/39-tensor-expr']), Torch == no
              ->  skip_lesson(Name, 'no torch module')
              ;   member(Name, ['tutorials/library/23-sha', 'tutorials/library/24-aes', 'tutorials/library/25-der',
                                'tutorials/library/26-x509', 'tutorials/library/27-ca', 'tutorials/library/28-tls']), Crypto == no
@@ -171,21 +171,8 @@ basics_and_library(Torch, Crypto, Ray, Numpy, Opencv, Clay, Stream, Signal, Flow
                  lesson_budget(Name, Ms), one_lesson(Name, Path, Ms)
              ) )).
 
-%% A LESSON THAT TRAINS A NETWORK NEEDS LONGER THAN ONE THAT PRINTS A LIST,
-%% and 45-tagger is the only one of the 49: it fits the shipped tagger with
-%% the shipped defaults -- 32 768 pairs generated inside the process and 500
-%% Adam steps -- which measured 308 s on this box against the 300 s every
-%% other library lesson gets, and came back exit 124 with no `done' line and
-%% nothing else, because a killed process never flushes.
-%%
-%% IT WAS INSIDE THE BUDGET UNTIL 1.2.39 doubled the pairs and took the steps
-%% from 400 to 500, and no full suite ran between then and this one -- which
-%% is the suite proving a contract a standalone run cannot: `cocolog run
-%% tutorials/library/45-tagger.pl main' by hand is GREEN at 308 s and says
-%% nothing whatever about a budget. The number is 900 s rather than 400 so
-%% that this box's ~20 % drift and a slower one have room; the opencv
-%% category already takes 600 s for the same kind of reason.
-lesson_budget('tutorials/library/45-tagger', 900000) :- !.
+%% A LESSON'S BUDGET IS THE 300 S EVERY OTHER LIBRARY LESSON GETS; the opencv
+%% category takes 600 s for the same kind of reason.
 lesson_budget(_, 300000).
 
 opencv(Opencv) :-

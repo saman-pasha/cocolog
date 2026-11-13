@@ -72,7 +72,7 @@ flow_dbg_facts(graph(_, _, Panels, _, _), Run, Calls0, Names, Opts,
     %% the values that crossed are drawn and written in the XML, and nothing
     %% else reads them: with neither document (svg(false), xml(false)) they
     %% are not worked out, and the run's Bindings are [] -- 8.7 s of a
-    %% window of 100 000 steps of the translator (1.11.10)
+    %% window of 100 000 steps of the sample program (1.11.10)
     (   memberchk(svg(false), Opts), memberchk(xml(false), Opts)
     ->  Xs = []
     ;   flow_dbg_crossings(SEs, Goals, Xs)

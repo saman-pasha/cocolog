@@ -262,19 +262,18 @@ rest of what changes at run time is predicates no file defines — a lesson's
 vocabulary, a certificate authority's grants, the assert tutorial's counter,
 the grammar rule the DCG tutorial asserts to show that it is translated. The
 whole gap between the two columns is four files that assert a clause they
-build: the reasoner's and the translator's learning paths (`reason_learn/2`,
-`tr_learn_term/2`, `assert_once/1` and two more) and the two tutorials that
-use them, whose 1 283 predicates a compiler that cannot see what such a
-clause will be must treat as changeable. What they assert is what they are
-taught — facts, and the reasoner's rules read from English (`Every employee
-has a badge`) — and never their own code.
+build: two libraries' learning paths (four predicates such as `assert_once/1`
+and two more) and the two tutorials that use them, whose 1 283 predicates a
+compiler that cannot see what such a clause will be must treat as
+changeable. What they assert is what they are taught — facts, and rules read
+from English (`Every employee has a badge`) — and never their own code.
 
 Of the 40 661 calls in bodies (a cut and `true` are none), 34.7 % are of
 their own file's predicates, 42.4 % of builtins and 20.5 % of a library's; 81
 call a predicate their file asserts by name and defines nowhere, 76 an
 argument of the clause's head (a closure, which the caller knows) and 14 a
 goal built at run time; 2.0 % name nothing a file defines — almost all the
-vocabulary a lesson teaches (`mean/2`, `plural_of/2`), which the translator
+vocabulary a lesson teaches (`mean/2`, `plural_of/2`), which a library
 reaches through a goal it builds. 92.9 % of the predicates are reached from
 their file's directives, `main/0` or exports by literal calls.
 
@@ -282,10 +281,10 @@ their file's directives, `main/0` or exports by literal calls.
 counted, per predicate, the clauses the engine entered and the asserts and
 retracts a run made (the counters were not committed). The linter's 12.5
 million clause entries all went to predicates whose clauses never changed
-after loading. The translator's lesson made 54.2 million: 88.2 % into
+after loading. A lesson program made 54.2 million: 88.2 % into
 predicates fixed since load, and 11.7 % into the 184 that its 45 139 asserts
-and retracts changed — each one something a lesson taught it (`lesson/2`,
-`lesson_predicate/3`, `italian:mean/2` and the like). None of its own
+and retracts changed — each one something a lesson taught it (a `lesson/2`
+fact, a `lesson_predicate/3`, a word's meaning, and the like). None of its own
 predicates changed.
 
 So the obstacle is real and smaller than this section feared: in this corpus
@@ -317,7 +316,7 @@ learns where it is, in the store and indexed, which is what the store is for.
    predicates have clauses nothing changes by name, 66.1 % even when a
    clause built at run time is read as able to change anything in its file,
    and of the two real workloads' clause entries 100 % (the linter) and
-   88 % (the translator; the rest went to what its lessons taught it) went
+   88 % (a language-lesson program; the rest went to what its lessons taught it) went
    to code fixed since load. It came back high, which is step 4's
    condition.
 3. **Packaging (3A)**, if a single-file deliverable is what is wanted. It is

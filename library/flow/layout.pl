@@ -1114,7 +1114,7 @@ flow_pair_names([N|Ns], [V|Vs], [N=V|R]) :- flow_pair_names(Ns, Vs, R).
 %% always drawn when its caller is: it is where the chart ends. With
 %% neither option, a chart of more than flow_panel_budget/1 panels is drawn
 %% to the deepest level that fits with its stubs, and says so under its
-%% title: the translator's is 2898 panels, a 148 MB SVG nobody can read.
+%% title: the sample program's is 2898 panels, a 148 MB SVG nobody can read.
 
 flow_panel_budget(150).
 

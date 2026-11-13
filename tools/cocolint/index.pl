@@ -106,9 +106,9 @@ ix_part_file(Abs) :-
     append(_, [0'), 0',, 0' , 0'p, 0'a, 0'r, 0't, 0':|_], After), !.
 
 %% Sorted by name within a directory, which is what os.listdir + sorted gave.
-%% ONE LEVEL OF SUBDIRECTORY TOO: library/reasoning/reason.pl ships, and a
-%% program loads it as library(reasoning/reason), so its module is named
-%% `reasoning/reason' -- the path under the tier directory with .pl off --
+%% ONE LEVEL OF SUBDIRECTORY TOO: library/flow/chart.pl ships, and a
+%% program loads it as library(flow/chart), so its module is named
+%% `flow/chart' -- the path under the tier directory with .pl off --
 %% which is what ix_module_of/3 answers for the flat case as well.
 ix_pl_files(Dir, Files) :-
     ix_path(Dir, Full),
@@ -578,34 +578,6 @@ ix_capability('templating or rendering a page',
               [template], ['tier-2 library'], local).
 ix_capability('search or pathfinding', ['shortest path', 'a*', astar, route, search, graph],
               [astar], ['tier-2 library'], local).
-ix_capability('text to predicates',
-              ['natural language', text, sentence, paragraph, 'controlled english',
-               'plain english', predicates, 'knowledge from text', extract, 'read a paragraph'],
-              ['reasoning/reason'], ['tier-2 library'], local).
-ix_capability('training data for a text normaliser',
-              [normalise, normalize, normaliser, tagger, 'training data', corpus, 'noisy text',
-               'gold tags', 'sequence labelling', 'data generator', 'quoted word', 'mentioned word',
-               'quotation marks', 'lesson corpus', 'lesson typed bare'],
-              ['reasoning/normalise'], ['tier-2 library'], local).
-ix_capability('a text normaliser, the network',
-              ['label tokens', 'sequence tagger', 'prose to predicates', 'typed text', 'unseen word',
-               'train a tagger', 'bigru', 'tag accuracy', 'quote a word', 'lesson as prose', 'add quotation marks'],
-              ['reasoning/tagger'], ['tier-2 library'], local).
-ix_capability('the shipped tagger''s data and training, as programs',
-              ['training data files', 'generate training data', 'regenerate the corpus', 'retrain the shipped model',
-               'model.rows', 'generated pairs', 'reproducible training'],
-              ['reasoning/generate', 'reasoning/train'], ['tier-2 library'], local).
-ix_capability('a language lesson as a knowledge base, and translation over it',
-              [translate, translation, spanish, italian, 'language lesson', vocabulary, 'grammar rules',
-               gender, article, 'adjective agreement', 'word order', plural, negation, question, 'past tense', 'future tense',
-               'perfect tense', pronoun, possessive, 'prepositional phrase', adverb, 'second language', whom, 'personal a', contraction, 'learn a language', 'mentioned word',
-               'intermediate representation', 'pivot language', interlingua, 'italian into spanish', 'between two languages', 'add a language',
-               elision, apostrophe, 'elided article', 'impersonal pronoun', impersonal, 'si and se', 'one eats'],
-              ['reasoning/translate'], ['tier-2 library'], local).
-ix_capability('a vocabulary as lesson lines, and a page translated over a taught store',
-              ['vocabulary file', 'dictionary as lesson', apertium, 'teach a language', 'learn the vocabulary',
-               'translate a page', 'translate a file', 'sentence by sentence', 'taught store', 'build the vocabulary'],
-              ['reasoning/teach', 'reasoning/page'], ['tier-2 library'], local).
 ix_capability('hex grids', [hex, hexagonal, tile, map],
               [hex], ['tier-2 library'], local).
 ix_capability('big integers', [bignum, 'big integer', 'arbitrary precision', rsa],
@@ -703,10 +675,9 @@ ix_cap_complaint(Mods, Tags, B) :-
 %% missing the index cannot invent it -- so the honest thing is to say which
 %% library will be under-served rather than to quietly serve one name.
 %%
-%% ONE NAME IS ALMOST NOTHING ONLY WHEN THERE ARE MORE. A program of one
-%% predicate -- library/reasoning/train.pl is main/0 and nothing else --
-%% whose header names it documents all of its surface, and was reported
-%% thin beside one that names one head of thirty.
+%% ONE NAME IS ALMOST NOTHING ONLY WHEN THERE ARE MORE. A library of one
+%% predicate, whose header names it, documents all of its surface, and was
+%% reported thin beside one that names one head of thirty.
 ix_thin(Surf, Thin) :-
     findall(m(Mod, ND, NH),
             ( member(json(R), Surf),

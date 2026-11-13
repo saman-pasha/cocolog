@@ -24,9 +24,8 @@ Two libraries, one prefix:
 
 Each has three readers: a person reads the SVG, an agent reads the XML, and a
 test reads the graph as a Prolog term. The owner's aim for the second reader:
-agents that write large programs and grammars -- the translator in
-`library/reasoning/`, the owner's cicilang compiler -- read the XML to find
-what is wrong and where.
+agents that write large programs and grammars -- the owner's cicilang
+compiler among them -- read the XML to find what is wrong and where.
 
 That is the thesis, *a language that talks to its developer*: both pictures
 come from facts the system already holds, with no annotations and no
@@ -209,22 +208,22 @@ for every C builtin the generated table names.
   clause counts for nothing past it), and again whenever one of those answers
   changes, until none does.
 * **A worklist, not rounds.** F1 first analysed every pair again each round;
-  on the translator that took 26 rounds, 2.1 G inferences, 244 s and 6.6 GB,
+  on the program that took 26 rounds, 2.1 G inferences, 244 s and 6.6 GB,
   the set of pairs swinging between 3000 and 5500 because calls past a goal
   not yet known to succeed made pairs of their own. Now a pair is analysed
   again only when an answer it read has changed -- new pairs first, so
   callees settle before their callers come round, re-analyses last -- and a
-  call past a goal not known to succeed makes no pair. On the translator:
+  call past a goal not known to succeed makes no pair. On the program:
   6887 analyses of 2978 pairs, 266 M inferences, 28 s, 1 GB. A pair whose
   answer changes 16 times is widened to the answer that says least, so the
-  analysis ends whatever the program; the translator's most changed 5 times.
+  analysis ends whatever the program; the program's most changed 5 times.
 * **A goal past a call that never succeeds is drawn, unreached**: the XML
   says `reached="false"`, its tooltip says why, and what it would call gets
   no panel.
 * **A predicate met with two call patterns gets a panel for each**, since its
   modes, its determinism and its lanes differ.
 * **What a test says, and what never runs** (1.10.4, from F3: the
-  translator's first findings were three false ones from these gaps). A
+  program's first findings were three false ones from these gaps). A
   type test that succeeds says what it holds of is bound -- `atom/1`,
   `number/1`, `atomic/1`, `string/1`, `ground/1` and their kin -- or at
   least partly -- `nonvar/1`, `compound/1`, `callable/1`, `is_list/1` -- and
@@ -239,7 +238,7 @@ for every C builtin the generated table names.
   `G =.. [C, W]` with `W` free is the `(-, +)` line, so `G` is bound after
   it -- and where it stands for an output the answer is unified with it, so
   a det line can fail there (`A =.. [K, which(W)]` tests what `A` is). On the
-  translator the same 999 predicates have 2554 call patterns where they had
+  program the same 999 predicates have 2554 call patterns where they had
   2897: patterns merged where a test now binds.
 * **A recovery runs with the ball in its catcher** (1.10.28, from
   cicili-lang): `catch(G, E, R)` analyses R with E bound, and with a
@@ -259,8 +258,7 @@ for every C builtin the generated table names.
 
 ### 4.5 Scale
 
-The yardstick is the translator: `reason_translate(+, -)` over
-`library/reasoning/translate.pl`, 1066 predicates and 3255 clauses in 19 815
+The yardstick is a large library program: 1066 predicates and 3255 clauses in 19 815
 lines, reaches 2897 panels.
 
 * **The XML is never pruned; the SVG may be.** `depth(D)` draws panels at
@@ -272,14 +270,13 @@ lines, reaches 2897 panels.
   stubs, and says so under its title.
 * **Both files are written a piece at a time** (`library/flow/write.pl`),
   the bytes `library(xml)` writes (the case checks it), because
-  `library(xml)` makes a document as one code list: the translator's XML is
+  `library(xml)` makes a document as one code list: the program's XML is
   45.6 million codes (52 s, 251 M inferences) and its SVG ran the process out
-  of memory -- the first chart of the translator ended with exit 1 and no
+  of memory -- the first chart of the program ended with exit 1 and no
   word after 334 s at 9 GB. The writer escapes a value with one
   `split_string/4` to see whether there is anything to escape, and an
   attribute is one `format/3`: the XML takes 8.8 s and 51 M inferences.
-* **Measured** (`cocolog -s tools/flow/chart.pl -- 'reason_translate(+,-)'
-  library/reasoning/translate.pl out/tr`, this box): 45.5 s and 1.69 GB at
+* **Measured** (this box, a chart of the whole program): 45.5 s and 1.69 GB at
   the peak; the SVG is 1.28 MB, 57 of 2897 panels drawn to depth 4 with 83
   stubs; the XML is 45.6 MB. Reading the file takes about 4 s, the analysis
   about 28 s, the XML about 15 s to build and write (separate runs, so the
@@ -297,7 +294,7 @@ information".
 
 1.10.2 had read the first as keeping builtin work off the flow line: each run
 of builtins, tests, unifications and library calls was folded into one `⋯ N`
-box, its goals only in the tooltip. Half of the translator's 87 389 goals
+box, its goals only in the tooltip. Half of the program's 87 389 goals
 are such work, so half of what the chart says was hidden. 1.10.5 takes that
 out, and does what was asked:
 
@@ -321,7 +318,7 @@ out, and does what was asked:
   (section 2: the chart ends there, naming its module, its C function and
   its table row).
 
-The translator's chart on 1.10.5: 21 051 by 8072 px (15 157 wide folded in
+The program's chart on 1.10.5: 21 051 by 8072 px (15 157 wide folded in
 1.10.2), the SVG 1.28 MB and the XML 38.6 MB, in 51 s on this box.
 
 ## 5. Grammar rules are predicates
@@ -345,7 +342,7 @@ The translator's chart on 1.10.5: 21 051 by 8072 px (15 157 wide folded in
   nonterminal's call, with the list in and `[]` or the rest out.
 * **In the XML**, a goal from a grammar body carries its grammar form --
   `dcg="terminal"`, `dcg="nonterminal word//1"`, `dcg="goal"` for a `{}`, and
-  `dcg="pass"` for the `S1 = S0` the translator puts after a `{}` or a `!` --
+  `dcg="pass"` for the `S1 = S0` the program puts after a `{}` or a `!` --
   and the clause carries `dcg="true"` and its source text.
 * **Grammar findings** (section 8): left recursion -- a nonterminal that can
   reach itself before consuming input, which loops when parsing -- and a
@@ -552,7 +549,7 @@ section of its own.
   the chart cannot know which.
 * **What it costs a program with no thread in it**: one walk of every goal,
   indexed on the node and then its kind, finds the clauses anything links
-  (`link_rows`), and every later pass reads only those. The translator
+  (`link_rows`), and every later pass reads only those. The program
   charts in the same time and 3 MB more, for 0.84 % more
   inferences -- the analysis 0.7 %, the findings 1.9 %, the XML 1.3 %, the
   picture 2 %. The first version cost 7.4 %: channel following built an
@@ -614,7 +611,7 @@ question down one channel and its answer down another.
 * **The XML is version 4**: `<job n>` (and `rest="true"`) in a jobs root,
   a `<meta name="httpd_serve">` whose goal's failure goes to `X:next`, and
   on a `<channel>` `via=` and `pairs="true"`, on its ends `n=`.
-* **What it costs a program with no thread in it**: the translator charts
+* **What it costs a program with no thread in it**: the program charts
   the same graph, findings, XML and picture, byte for byte, for 0.001 % more
   inferences (the `httpd_serve` clause first cost 0.22 % of the analysis,
   tried for every goal, until its heads let the index pass it by). Each of
@@ -737,13 +734,13 @@ and the count beside the title.
 IN: TEXT [KIND ID]`, and still exits 0: a finding is no failure of the
 command.
 
-**What the translator taught.** Its first findings were three, all false:
+**What the program taught.** Its first findings were three, all false:
 two `atom_concat/3` calls past an `atom(W)` the analysis did not take to bind
 `W`, and a `tr_solve/1` handed a `G` from `G =.. [C, W]`, which no mode line
 of `=..` met. Tests that bind and modes met loosely (section 4.4) took them
 away; the loose meet's own false finding -- `A0 =.. [Kind, which(Ws, C)]`
 taken to succeed, so the clause after it was "never tried" -- went with the
-rule that a partly bound output is compared. The translator now has none:
+rule that a partly bound output is compared. The program now has none:
 `test/flowchart/faults.pl` keeps those three as near misses that must find
 nothing, with eight others (the same goals in the right order, a variable
 bound on one path only, a recursion on the tail, a test before the cut, a
@@ -1138,8 +1135,8 @@ the last failure and the failures it came from.
   library. Per function the untraced engine runs the same instructions as
   1.10.15's on nrev, queens and lookup.
 
-**After D4: what debugging the translator asked for** (1.10.24-1.10.26),
-from a session that used the library on `library/reasoning/translate.pl`:
+**After D4: what debugging a large library program asked for** (1.10.24-1.10.26),
+from a session that used it:
 
 * **A cut that is followed by a failure**: the tracer printed no Fail for a
   call whose clause cut and then failed (the cut took the frame the Fail is
@@ -1153,23 +1150,23 @@ from a session that used the library on `library/reasoning/translate.pl`:
   the box is written: `:LINE:COL` in the file a `% file:` line names once,
   under the head (1.11.0; a window with places in several files keeps
   each line's `FILE:LINE:COL`). Through 1.10.28 every line carried the
-  path, 93 of the 213 bytes a line of a failing translator run took
-  (8.99 MB; reported from the reasoning session).
-* **The chart kept** (`cache(Dir)`): the translator's chart took 52 of a
+  path, 93 of the 213 bytes a line of a failing program run took
+  (8.99 MB; reported from the profiling session).
+* **The chart kept** (`cache(Dir)`): the program's chart took 52 of a
   run's 57 seconds and 26 MB of its XML, and is the same for every run of
   one program. It is built once for a call pattern of a file and a cocolog
   version and kept as KEY.chart (the graph, a term a part: one term of the
   whole graph read slower than building it) and KEY.xml; KEY.chart names
   each file it holds a clause of with its sha256, and a changed file builds
   it again. The run's XML is then its `<run>` alone, under a root naming
-  KEY.xml: on the translator a hit takes 4.6 s, and the run's XML 54 KB.
+  KEY.xml: on the program a hit takes 4.6 s, and the run's XML 54 KB.
 * **Over a store** (`embed(Dir)`, `kb(Name)`): each child runs `cocolog
   --embed Dir [--kb Name] query`, the file loaded as `-s` loads it -- its
   clauses never written through -- where `run` would consult them into the
   store.
 * **What it found**: `term_to_atom(T, '''''')` ended the process -- the
   reader copied the terminator of a token buffer nothing had been put in
-  (section 11) -- and the translator's run met it in the text of an argument
+  (section 11) -- and the program's run met it in the text of an argument
   `atomic_list_concat/3` exited with.
 * **Two runs compared** (`flow_diff/3`, `library/flow/dbgdiff.pl`, 1.10.27;
   `diff=FILE`, `diff_goal=GOAL`): the session's regression hunt, ported from
@@ -1185,7 +1182,7 @@ from a session that used the library on `library/reasoning/translate.pl`:
   back over: the session's first profile added to over 100 %), a call with
   neither up to the last inference under it, and a predicate with the union
   of its calls' spans, so a recursion is counted once.
-* **Three more views, and windows along a run** (1.11.10, the reasoning
+* **Three more views, and windows along a run** (1.11.10, the profiling
   session's points 7 and 8): `callers(C)`, each predicate's callers and
   how many calls each made; `repeats(R)`, the goals asked more than once, a
   goal's variables named in the order they come (`look(even,_1)`); and
@@ -1197,7 +1194,7 @@ from a session that used the library on `library/reasoning/translate.pl`:
   `flow_profile_merge/4` adds their `profile_rows` up into BASE.prof. What
   a window FAR ALONG a long run cost was the library's, not the run's: one
   of 100 000 inferences at inference 15 000 000 of a 46 M-inference
-  refusal of the translator took 100 s here -- the matching 36 (each event
+  refusal of the program took 100 s here -- the matching 36 (each event
   put into three AVL trees, and each child call finding its box's node
   again over the chart's 2 792 panels), the facts 13.5, the profile 6, the
   XML 23, BASE.txt's indentation a space at a time. Sorted instead of
@@ -1230,7 +1227,7 @@ from a session that used the library on `library/reasoning/translate.pl`:
   MAX_STEPS, which the clock moves to every step, and ran no guard. No
   third process: the default window is the run's last N, which the probe
   keeps in a ring, and with `from(I)` the probe times from I on.
-  **A retry is the retried predicate's** (1.13.7, the reasoning session's
+  **A retry is the retried predicate's** (1.13.7, the profiling session's
   point): backtracking into a call for its next clause -- the heads, the
   guards of the clause entered -- ran inside the step whose failure led
   there, and its time was that goal's: `==/2` in a generate-and-test loop
@@ -1245,7 +1242,7 @@ from a session that used the library on `library/reasoning/translate.pl`:
   row whose largest call holds P % of its inclusive time, ten times its
   other calls' mean or more and the others outside it, ends `(one call: P
   %)` -- the first call of a predicate held in the store, which fetches its
-  clauses (the translator's `'italian:noun'/1`, "5 calls, 252 ms", one of
+  clauses (the program's `'italian:noun'/1`, "5 calls, 252 ms", one of
   them the load). **Each window is its own profile too** (`windows=N`
   writes `BASE.K.prof` beside the sum), so a cold window shows apart from
   a warm one; and **the CPU a run took** is on the command's line (`; CPU:
@@ -1294,7 +1291,7 @@ from a session that used the library on `library/reasoning/translate.pl`:
   whose body got the most calls done, then the most inferences spent, then
   the earlier -- in the XML's `<furthest>`, at the foot of Base.txt and
   above the why on the picture. **Within that clause, the call that spent
-  the most** (1.13.7, the reasoning session's rule): the path went into
+  the most** (1.13.7, the profiling session's rule): the path went into
   the clause's LAST call that did not exit, and `tr_read_ir/5` is one
   clause ending in a disjunction whose second branch, the byline fallback,
   fails at once -- 7 of 11 refusals ended there, the first branch's read
@@ -1310,14 +1307,14 @@ from a session that used the library on `library/reasoning/translate.pl`:
   `discontiguous`, 1.10.27): cocolog joins a predicate's clauses wherever
   they stand, without a word (SWI warns), so a helper given a name already
   taken joins that predicate. The file is read again for each clause's line
-  and predicate (0.1 s over the translator's 3485) and its `:- discontiguous`
+  and predicate (0.1 s over the program's 3485) and its `:- discontiguous`
   declarations; a predicate with a panel whose clauses stand in more than
   one place has one finding, at the first clause that stands apart. The
-  translator has 39, the number the session counted from the XML's clause
+  program has 39, the number the session counted from the XML's clause
   lines.
 * **The heads a call TRIED, and a matcher that grows with them** (1.11.2,
-  the reasoning session's finding E): a window of 2000 inferences of the
-  translator (1,379 calls) took 292 s and wrote 31.2 MB of XML, 215,525 of
+  the profiling session's finding E): a window of 2000 inferences of the
+  program (1,379 calls) took 292 s and wrote 31.2 MB of XML, 215,525 of
   its events heads that did not unify -- every clause before the one a call
   entered, the index's skips among them: one failed call of a 32,046-fact
   table listed all 32,046. A head the index passes over is never tried, and
@@ -1416,7 +1413,7 @@ from a session that used the library on `library/reasoning/translate.pl`:
   A reader that has read anything else first has a buffer, which is why a
   consult never met it. library(flow/debug) reads every argument text a
   window wrote back with `term_to_atom/2`, and a call that exited with `''`
-  -- `atomic_list_concat([], ' ', S)` in the translator -- ended the run's
+  -- `atomic_list_concat([], ' ', S)` in the program -- ended the run's
   drawing. `test/syntax.cicili` reads `''` first.
 
 * **Fixed in 1.10.6: `format/2`'s `~a` and `~s` copied their text through an
@@ -1452,7 +1449,7 @@ from a session that used the library on `library/reasoning/translate.pl`:
   consult uses builds nothing, and a second family builds the positions;
   `library(stream)` counts characters, lines and columns over every byte it
   reads, and counts again from the start when a seek moved the file. With
-  positions off, consulting the translator runs `coco_next_token`'s
+  positions off, consulting the program runs `coco_next_token`'s
   instructions exactly and the parser's within 0.13 %.
 * **`predicate_property/2` exists since 1.10.28** (cicili-lang asked), and
   `current_predicate/1` answers about the program -- its own files too
@@ -1482,11 +1479,11 @@ from a session that used the library on `library/reasoning/translate.pl`:
   Body) (`assertz((foo :- 3))` STORED the clause), a clause for a control
   construct permission_error(modify, static_procedure, N/A). A fact under a
   core builtin's name is kept, where SWI refuses it: the store is a database
-  of terms as well as a program, and `library(reasoning)` keeps a lesson's
+  of terms as well as a program, and a library keeps a lesson's
   word classes there -- `number(dos)` among them, read with `clause/2` --
-  so the first build that refused it stopped `test/translate.pl` at its
-  lesson. A module's predicate is kept likewise, since a module may decline
-  a goal and send it on to the store, so `assertz(findall(a, b, c))`
+  so the first build that refused it stopped the library's tests at their
+  lesson. A module's predicate is kept likewise, since a module may
+  decline a goal and send it on to the store, so `assertz(findall(a, b, c))`
   succeeds where SWI refuses it. `arg/3` raises for an unbound or atomic term
   and an index that is not an integer, and domain_error for one below 0.
   `test/files/catch.pl` holds all of it to SWI's answers. No mode stays

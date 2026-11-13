@@ -99,7 +99,7 @@ states in the code why it does not.
   losses in: syntax errors, tabling, strings, ecosystem. See
   [bench/README.md](bench/README.md).
 * **Documentation that runs.** Every tutorial is a program whose claims are
-  `must/3` checks; the suite runs all 133 lessons. A lesson that stops being
+  `must/3` checks; the suite runs all 131 lessons. A lesson that stops being
   true fails and names both answers. The whole tree lints clean, held there by
   `cocolint` and `test/lint.pl`.
 * **One mechanism, not two.** Errors are catchable and carry the raised ball; a
@@ -150,7 +150,7 @@ held to swipl 9.0.4. Tier 2 is loaded on demand from
 `$COCOLOG_LIBRARY`:
 `http`, `httpd`, `websocket`, `json`, `xml`, `html`, `ca`, `kbs`, `cowork`,
 `main`, `astar`, `hex`, `template`, `clay_ray`, `tensor_expr`, `llm`, plus the
-two families below -- `library/flow/` and `library/reasoning/`.
+family below -- `library/flow/`.
 
 **The modules** (twenty; `sh modules/NAME/build.sh`, not part of `make`):
 
@@ -166,7 +166,7 @@ wrappers every build uses); `bench/langs.sh` and `bench/concurrency.sh` (the
 benchmarks against CPython, Go, Rust, asyncio and the reference Prolog),
 and `bench/tokens.pl` (what a model spends writing the same programs in
 cocolog and in Python);
-`tutorials/` (133 lessons that run); `test/` (the suite).
+`tutorials/` (131 lessons that run); `test/` (the suite).
 
 ## Solutions to real problems
 
@@ -185,14 +185,6 @@ hundred-thousand-addend counting loop, where every addend is a row, is 2.1x
 faster. Level on naive reverse; 1.3-2.4x behind where the work is computation
 over data read once. The table and the method are in
 [bench/README.md](bench/README.md), and Run N is the run above.
-
-**Text and language at corpus scale.** `library(reasoning)` reads controlled
-English into an IR and writes it into a lesson's language; its translator
-crosses Italian, Spanish and English newspaper prose, the tagger is a GRU over
-`tensor_expr`, and the corpus, lexicon and model are all in the repository. New
-articles are taken through a fixed loop -- shapes, `extra/` lines, a fresh
-store, controls against every earlier article, a data column against the old
-store -- and every inference count is recorded. Lessons 43-46.
 
 **Concurrency with one truth.** Green threads share one store: an `assertz` in
 one task is seen by the next, because it is their store, and writes take the

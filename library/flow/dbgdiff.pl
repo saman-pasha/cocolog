@@ -28,7 +28,7 @@
 %%            ones are its consequences -- the program's inputs first, then
 %%            those of a predicate whose name begins with $, the engine's
 %%            or a library's own, deepest first among themselves (1.11.0:
-%%            on the translator four '$pred_count'/3 inputs, 22 and 16
+%%            on the sample program four '$pred_count'/3 inputs, 22 and 16
 %%            deep, hid the cause under them)
 %%   OnlyA    only(P, N, S, Box, Panel) for each predicate RunA called and
 %%            RunB never did: how many calls, and the first's step,

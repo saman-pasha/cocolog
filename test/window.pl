@@ -440,7 +440,7 @@ window :-
 %% every clause before the one entered was a head that did not match, the
 %% ones the index passed over too: a failed call of a table of 32,046 facts
 %% recorded 32,046 of them, most of a translator window's 31 MB of XML
-%% (reported from the reasoning session). The heads are walked again with
+%% (reported from the profiling session). The heads are walked again with
 %% the key the selection read, kept before it bound the call -- the clause
 %% entered may bind the argument the call is keyed on.
 

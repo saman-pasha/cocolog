@@ -93,7 +93,7 @@
   ;;; refuses it: permission_error(modify, static_procedure, Name/Arity).
   ;;; A CORE BUILTIN'S NAME IS NOT REFUSED, where SWI refuses it: the store
   ;;; is a database of terms as well as a program, and what is kept there may
-  ;;; share a builtin's name -- library(reasoning) keeps a lesson's word
+  ;;; share a builtin's name -- a library keeps a lesson's word
   ;;; classes as facts, `number(dos)' among them, and reads them with
   ;;; clause/2, which a call to number/1 never reaches. Nor is a module's
   ;;; predicate refused: a module may decline a goal and send it on.
@@ -457,7 +457,7 @@
   ;;; of the system's as listing/1 writes one, `%   Foreign:' -- what
   ;;; cocolog writes in C, and a library's clauses where swipl writes it in
   ;;; C (between/3, sub_atom/5) -- unless the program defines the name
-  ;;; itself (msort/2 a file took over, the facts library(reasoning) asserts
+  ;;; itself (msort/2 a file took over, the facts a library asserts
   ;;; under number/1's); 2 nothing at all, a name of no system predicate
   ;;; under `system:' (SYSQ); 0 the store's clauses
   (static)

@@ -3291,7 +3291,7 @@
                              ;; ONCE PER PREDICATE. The comment above says this
                              ;; path "is not a path anything runs in a loop",
                              ;; and that is exactly what a caller which catches
-                             ;; the error does: `library(reasoning/translate)'
+                             ;; the error does: a translator
                              ;; asks a lesson for a relation the language does
                              ;; not state -- `elision_of/2' in Spanish -- on
                              ;; nearly every word, and paid a whole warm for

@@ -141,8 +141,8 @@ cl_wire_bytes(65535).
 %% EVERY PHASE IS COPIED OUT THROUGH cl_kept/2, BECAUSE A DETERMINISTIC PROOF
 %% NEVER GIVES ITS HEAP BACK. Each phase is a walk with no choice point in it,
 %% cocolog reclaims the heap only on backtracking, and so every phase left
-%% every frame it made behind it: library/reasoning/translate.pl (1.1 MB,
-%% 3 042 clauses) took one process to 9.7 GB, a third of test/lint.pl's corpus
+%% every frame it made behind it: a 1.1 MB library file
+%% (3 042 clauses) took one process to 9.7 GB, a third of test/lint.pl's corpus
 %% lint was the kernel handing that heap fresh pages, and a second lint beside
 %% it was killed for want of memory. Copied out, the same file holds the heap
 %% at 58 MB and the same inferences take a third of the time.
@@ -555,8 +555,8 @@ cl_rule_z1(File, Regions, Pairs, Findings) :-
 %% every later one: it is dropped here, once, and each clause shifts only the
 %% regions that begin inside it. The first version shifted the WHOLE region
 %% list for every clause, which is clauses times regions -- measured 233
-%% million inferences and fifty seconds on library/reasoning/translate.pl's
-%% 3 042 clauses, the largest single cost of test/lint.pl's corpus lint.
+%% million inferences and fifty seconds on the 3 042 clauses
+%% of a 1.1 MB library file, the largest single cost of test/lint.pl's corpus lint.
 cl_z1_walk([], _, _, []).
 cl_z1_walk([cc_clause(Span, _, _)-Text|Ps], Regions0, File, Findings) :-
     Span = at(Off, _, _, _),

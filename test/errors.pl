@@ -385,11 +385,11 @@ mem_child(C, File, Text, Exit) :-
 %% 1.10.6 made assert and retract refuse what SWI refuses -- test/files/
 %% catch.pl holds that to SWI's answers -- with one difference made on
 %% purpose: a fact may share a CORE BUILTIN's name. The store is a database
-%% of terms as well as a program, and library(reasoning) keeps a lesson's
+%% of terms as well as a program, and a library keeps a lesson's
 %% word classes there, `number(dos)' among them, read back with clause/2; a
 %% call to number/1 is the builtin's and never reaches them. SWI raises
 %% permission_error there, and the first build of 1.10.6 did too, which
-%% stopped test/translate.pl at its lesson. A control construct is refused:
+%% stopped a library's tests at their lesson. A control construct is refused:
 %% no one keeps data under `,'/2, and `assertz((a, b))' is a slip.
 
 data_under_a_builtin_name :-
@@ -587,7 +587,7 @@ long_atom(N, A) :- length(L, N), maplist(=(0'x), L), atom_codes(A, L).
 %% elements and then read the one that was no character out of it to name
 %% in the error -- the bug of atomic_list_concat/2,3 above, a second time,
 %% and ITS fix did not reach these two. Reported by the
-%% reasoning session: `atom_chars(X, [d,'á',r])' took the process down
+%% profiling session: `atom_chars(X, [d,'á',r])' took the process down
 %% (SIGSEGV, exit status 139), and so did any element that is not ONE
 %% CHARACTER, which under bytes is one byte (`á' is two in UTF-8; SWI, whose
 %% characters are letters, answers 'dár', as cocolog does in characters, the

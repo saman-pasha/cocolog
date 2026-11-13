@@ -20,7 +20,7 @@
 %%               predicates (one declared by notes.pl, which it loads) and
 %%               call/N, with a closure named and with one that is not
 %%   faults.pl   one of each finding, and eleven near misses that are not --
-%%               three of them false findings the translator once had
+%%               three of them false findings a large program once had
 %%   gram.pl     grammar rules, drawn as the predicates they are
 %%   threads.pl  threads, a pool, an isolated proof, a crew and an httpd
 %%               pool; a channel, locks, child processes, writes to the
@@ -242,7 +242,7 @@ findings :-
     findall(N-K-At-In, member(finding(N, K, _, At, In, _, _, _), Fs), Got1),
     %% eleven near misses find nothing: the same goals in the right order, a
     %% variable bound on one path only, recursion on the tail, a test before
-    %% the cut, a kept semidet promise, a dynamic call, the translator's
+    %% the cut, a kept semidet promise, a dynamic call, a large program's
     %% three, a head with one variable in two inputs, and a variable a clause
     %% head binds
     check('faults.pl: every finding, in document order -- and nothing from the near misses', Got1,

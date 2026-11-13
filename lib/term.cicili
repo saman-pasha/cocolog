@@ -2991,9 +2991,9 @@
   (func coco_functor_id ((coco_machine * m) (u64 name) (u32 arity)) (out u64)
         (coco_tbl_begin m)
         ;; HASHED. It was a scan, on the argument that a program has tens of
-        ;; functors and not thousands -- and the reasoning library has two
+        ;; functors and not thousands -- and a large library has two
         ;; thousand once it is loaded, so the scan was a quarter of every
-        ;; instruction the translator ran, and every functor a library added
+        ;; instruction the program ran, and every functor a library added
         ;; was paid for by every lookup after it (CLAUDE.md, 1.8.31 and
         ;; 1.8.32). The table is the atom table's shape -- open addressing, an
         ;; entry is its id plus one -- and it is kept under half full, which
@@ -3472,7 +3472,7 @@
 
   ;;; THE LIST FUNCTOR BY ID. `coco_cons' built every cell by name, so a
   ;;; code list of N characters interned "." and probed the functor table N
-  ;;; times: 2 % of the translator's lesson and 2.1 % of the linter, in
+  ;;; times: 2 % of the program's lesson and 2.1 % of the linter, in
   ;;; `atom_codes/2', `read_file_to_codes/3', `=..' and `split_string/4'. An
   ;;; id kept only when nothing ran out of memory on the way, since a failed
   ;;; intern answers 0, which is somebody else's id.

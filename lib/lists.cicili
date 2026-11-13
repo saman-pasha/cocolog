@@ -500,7 +500,7 @@
 
           ;; a STABLE merge sort, bottom-up. This was an insertion sort,
           ;; "n is small in every use this has" -- and keysort/2 is this
-          ;; at key 1, which the reasoning tagger's judge put a table of
+          ;; at key 1, which the tagger's judge put a table of
           ;; thirty-five thousand words through: 10.6 s where msort/2 took
           ;; 0.02, and a process that tagged one sentence paid 42 s before
           ;; its first answer. Equal keys keep their arrival order, which

@@ -295,7 +295,7 @@
 
   ;;; HASHED, as the functor table is and for the same reason: a store that
   ;;; holds a library has hundreds of predicates, and this is asked on every
-  ;;; call -- as a scan it was 15 % of the translator's instructions. It
+  ;;; call -- as a scan it was 15 % of the program's instructions. It
   ;;; answers NPREDS for a predicate the store does not have, as it always
   ;;; did, and a store with no table yet has no predicate yet.
   (func coco_pred_find ((coco_store * st) (u64 name) (u32 arity)) (out size_t)
@@ -1859,9 +1859,9 @@
   ;;; first argument is unbound -- `mean(W, house)', a lookup read the
   ;;; other way -- walked the whole predicate head by head, and so did a
   ;;; call whose first argument most clauses share: a table of one language
-  ;;; keyed on the language did exactly that to the translator, four
-  ;;; minutes a sentence, until its facts were renamed per language
-  ;;; (library/reasoning/translate.pl). The second to the eighth argument
+  ;;; keyed on the language did exactly that to the program, four
+  ;;; minutes a sentence, until its facts were renamed per language.
+  ;;; The second to the eighth argument
   ;;; can each have an index of their own now, built the first time a call
   ;;; wants one and chosen by how few candidates it leaves.
 

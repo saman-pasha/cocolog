@@ -222,7 +222,7 @@
   ;;; anonymous mappings with the same flags MERGE into one, so a
   ;;; process that maps a lot -- a torch training, whose allocator
   ;;; mmaps block after block -- ends up with one mapping the size of
-  ;;; its arena. test/tagger.pl found it: at 19.2 GB of address space
+  ;;; its arena. a suite case found it: at 19.2 GB of address space
   ;;; (10.4 GB resident) on a 16 GB box, every proc_run/4 in the process
   ;;; came back `Cannot allocate memory', and a probe that maps 17
   ;;; untouched gigabytes fails its fork the same way where 12 succeed.
@@ -306,7 +306,7 @@
   ;;; because data waits is one 4096-byte read: the budget was
   ;;; TimeoutMs/200 reads, about 20 bytes a millisecond, and a child that
   ;;; printed more was killed within milliseconds (a megabyte in five
-  ;;; seconds kept 102400 bytes; reported from the reasoning session).
+  ;;; seconds kept 102400 bytes; reported from the profiling session).
   ;;; Charging nothing for an early return would not do either: a child
   ;;; that writes every 100 ms would never time out (test/process.pl).
   (func coco_p_run ((coco_engine * e) (size_t g)) (out int)

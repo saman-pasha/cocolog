@@ -83,7 +83,7 @@ flow_portal_row(Mod, N, A, info(CFun, Rel, Line, Modes, Names)) :-
 %% read has changed. A pair met for the first time goes to the front, so
 %% callees settle before their callers come round again; a pair to be
 %% analysed again goes to the back. Rounds that analysed every pair each
-%% time took 26 of them, 2.1 G inferences and 6.6 GB on the translator. A
+%% time took 26 of them, 2.1 G inferences and 6.6 GB on the sample program. A
 %% call past one not known to succeed makes no pair: nothing there runs
 %% yet, and what it would be called with is not known either.
 %%

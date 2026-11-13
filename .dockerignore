@@ -96,4 +96,3 @@ tools/cocolint/capabilities.json
 **/*.pyc
 tutorials/tensor/data
 tutorials/opencv/models
-library/reasoning/corpus/raw

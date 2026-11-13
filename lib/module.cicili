@@ -74,7 +74,7 @@
 ;;; with `strcmp' only against the few that start as it does. The builtins
 ;;; module has 23 predicates of arity 2, and `nb_getval/2' walked down them
 ;;; at about 12 `strcmp's a call: with the lists module, 1.3 % of the
-;;; translator's lesson, which calls the builtins module 4.3 million times
+;;; program's lesson, which calls the builtins module 4.3 million times
 ;;; and the lists module 0.7 million. The engine already
 ;;; knows which module owns a functor (`dmod'); this is the module finding
 ;;; its own row. lib/sdk.cicili keeps the plain chain for a module built out

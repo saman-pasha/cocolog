@@ -98,8 +98,8 @@ lower(X, Y) :- ( lowerable(X) -> Y = low(X) ; note(X), fail ).
 lowerable(X) :- atom(X), X \== bad.
 note(_).
 
-%% ONE clause holding a disjunction, as the translator's tr_read_ir/5 (1.13.7,
-%% the reasoning session's report): the first branch's read gets furthest
+%% ONE clause holding a disjunction, as the sample program's reader (1.13.7,
+%% the profiling session's report): the first branch's read gets furthest
 %% -- three words read, the fourth no word -- and the second branch, the
 %% fallback for a byline, fails at once and last
 read_ir(Ws) :- ( into_ir(Ws) ; byline(Ws, Ws2), into_ir(Ws2) ).

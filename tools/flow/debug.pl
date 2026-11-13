@@ -197,7 +197,7 @@ fd_line(GT, run(How, At, _, window(F, T), _, _, Div, J), Cpu) :-
     fd_cpu(Cpu, CT),
     format("~w: ~w; recorded ~w to ~w; diverged ~w~w~w~n", [GT, HT, F, T, DT, JT, CT]).
 
-%% THE CPU A RUN TOOK (1.13.7, the reasoning session's point): the probe's,
+%% THE CPU A RUN TOOK (1.13.7, the profiling session's point): the probe's,
 %% the program run untraced to its end or the window's, and the replay's
 %% before its window opened -- where the window lies in the run's time,
 %% so that a window over a cold start shows as one

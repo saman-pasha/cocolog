@@ -433,7 +433,7 @@ had 122, and they went four ways:
   colliding with themselves. The linter leaves them alone and its count line
   says so.
 
-The index's soft notes went the same way: four reasoning programs whose
+The index's soft notes went the same way: four library programs whose
 headers had no signature list (and a program of one predicate that names it
 is no longer "thin"), and library(cowork), which the threads row now routes.
 

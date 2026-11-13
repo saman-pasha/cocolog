@@ -1010,7 +1010,7 @@
   ;;; (`gbuckets'): an open table of an entry's index plus one, kept under
   ;;; half full and probed in a line from the name's hash. Through 1.9.3
   ;;; every read and every write scanned from the first global made, and
-  ;;; the translator keeps one per word it has looked up -- its lesson made
+  ;;; the program keeps one per word it has looked up -- its lesson made
   ;;; 1 710 and read them 3.7 million times. Answers the index, or -1.
   (static)
   (func coco_global_find ((coco_store * st) (u64 name)) (out i64)
@@ -1202,7 +1202,7 @@
   ;;; A GLOBAL'S VALUE ON THE HEAP (1.12.1). Every read copies the value
   ;;; as its block (`coco_store_read_block'): through 1.12.0 a read walked
   ;;; it a cell at a time, 98 us for a list of 3 000 entries against 26
-  ;;; now, and the translator's reads (one per word it looks up) were 12 %
+  ;;; now, and the program's reads (one per word it looks up) were 12 %
   ;;; of its instructions. A GROUND value is then kept by the machine
   ;;; (`gcache', a root of the collector, by the global's index and
   ;;; version, for the store whose serial it names) and handed out shared,
@@ -1218,7 +1218,7 @@
   ;;; here, and every other wind-back undoes the trail with it or runs no
   ;;; goal. Raising EVERY mark instead, as SWI freezes its global stack at
   ;;; nb_setval/2, kept what backtracking had always given back, and the
-  ;;; translator's case ran 12 % slower for twice the collections (16 to
+  ;;; program's case ran 12 % slower for twice the collections (16 to
   ;;; 34). nb_setarg/3 on a copy pins it (`coco_gcache_pin'), and its
   ;;; write lasts as SWI's. A value with a variable in it is a fresh copy
   ;;; at every read -- each read's variables its own, where SWI shares them

@@ -84,7 +84,7 @@
 %% patterns has a panel for each. A grammar rule is the predicate it stands
 %% for, translated by the engine's own translator, its leading terminal in
 %% the head as the store keeps it. A goal past a call that never succeeds
-%% is drawn and marked unreached. The translator, 1066 predicates and 3255
+%% is drawn and marked unreached. The sample program, 1066 predicates and 3255
 %% clauses, charts in about 50 s.
 %%
 %% THE PARTS, each a file under library/flow/: read (the program, its

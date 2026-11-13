@@ -817,8 +817,8 @@ bd_library_of(File, Mod) :-
 %% library/flowchart.pl and library/flowdebug.pl until the owner moved them
 %% (2026-10-11) -- without the PARTS beside them, a file whose first line
 %% reads `%% library(NAME), part: ...', which its library loads and no
-%% program does (index.pl's ix_part_file/1). library/reasoning/ was never
-%% read here, and is not now.
+%% program does (index.pl's ix_part_file/1). A library's other
+%% subdirectories are not read here.
 bd_library_files(Files) :-
     bd_glob('library/*.pl', Flat),
     bd_glob('library/flow/*.pl', Flow0),

@@ -117,7 +117,7 @@
 %%                      worked out either, the run's Bindings are [], and a
 %%                      window costs its matching, its facts and what is
 %%                      asked of it (1.11.10: 100 000 steps of the
-%%                      translator, 31 s where all of it took 73)
+%%                      sample program, 31 s where all of it took 73)
 %%     own(Whose)       whose failed calls the why explains, on the picture,
 %%                      in the XML and in Base.txt: chart (the default), a
 %%                      call with a panel; all, a call of any predicate with
@@ -148,9 +148,9 @@
 %% before it -- no earlier call set the globals, asserted the facts or
 %% opened the streams a goal from the middle of a program may stand on. So
 %% such a goal can fail in the child where it succeeds in the program: the
-%% translator's tr_write_ir(english, IR, 46, Out) alone fails at step
+%% sample program's writer alone fails at step
 %% 330, the language it writes having been set by the reading that comes
-%% first in any real run. Give the entry goal (reason_translate/4 there),
+%% first in any real run. Give the entry goal (its own there),
 %% and choose the part of its run to record with from(I) and to(J) -- the
 %% steps are the untraced run's, the same in every run -- or let
 %% flow_when/4 find the step at which something first holds.
@@ -190,7 +190,7 @@
 %% failed last, and with what.
 %%
 %% THE CHART, KEPT (cache(Dir)). Building the chart of a large program is
-%% most of a run's cost -- the translator's, 52 of a run's 57 seconds --
+%% most of a run's cost -- the sample program's, 52 of a run's 57 seconds --
 %% and the chart is most of the XML (26 MB of it). With cache(Dir) it is
 %% built once for a call pattern of a file and kept in Dir as KEY.chart
 %% (the graph) and KEY.xml (its XML), and a run that reads them takes 4.6
@@ -422,9 +422,9 @@ flow_dbg_run_time_add([S1-N1-R1|Vs], S0, N0, R0, S, N, R) :-
 %% the replay), at full speed, and records only its window. With
 %% cache(Dir) the chart is built once, before any window's process starts,
 %% and each reads it (tools/flow/debug.pl gives BASE.charts when no cache=
-%% is given); without, each window's process builds its own. The reasoning
+%% is given); without, each window's process builds its own. The profiling
 %% session's point 8: windows of 100 000 steps far along the
-%% translator's runs took 71 s and 127 s each, and one at a time.
+%% sample program's runs took 71 s and 127 s each, and one at a time.
 flow_debug_windows(Goal, Base0, Opts, windows(End, Ws)) :-
     flow_base(Base0, Base),
     (   memberchk(windows(N), Opts), integer(N), N >= 1 -> true
@@ -560,7 +560,7 @@ flow_dbg_jobs(Todo, Run, J, Ex0, Ex) :-
 %% WITHOUT cache(Dir) the chart is built for every run, and written into
 %% the run's XML; WITH it, it is kept (the header says how). KEY.chart is
 %% the graph ONE TERM A PART -- a panel, an id, a finding, where a box is
-%% written: the translator's whole graph as one term took longer to read
+%% written: the sample program's whole graph as one term took longer to read
 %% than to build, which the reader's cost per term (superlinear in its
 %% size) makes so.
 flow_dbg_chart(Spec, File, Opts, Graph, Fs, Chart) :-
@@ -706,9 +706,9 @@ flow_dbg_src_file(File, File).
 
 %% the child's command line, for GoalText, the driver. Over a store it is
 %% `query', which writes the goal back as it was proved, and the driver's
-%% goal holds the events it recorded -- 12.5 MB of them on the translator,
+%% goal holds the events it recorded -- 12.5 MB of them on the sample program,
 %% which proc_run/4 kept as codes and threw away (reported from the
-%% reasoning session). Under \+ \+ the answer it writes is the goal with
+%% profiling session). Under \+ \+ the answer it writes is the goal with
 %% its variables as they were: a line, whatever the run recorded (1.11.0).
 flow_dbg_cmd(Src, GoalText, Cmd) :-
     current_prolog_flag(executable, Exe),

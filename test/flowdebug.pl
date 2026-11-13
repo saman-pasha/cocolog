@@ -771,7 +771,7 @@ command(D) :-
                     '%      member(z-_,[a-1,b-2,c-3]): failed, nothing of the program''s to say why (call 4)',
                     '' ]),
     %% the file is named once when every place is in it (1.11.0: the
-    %% translator's path was 93 of a line's 213 bytes); places in several
+    %% sample program's path was 93 of a line's 213 bytes); places in several
     %% files keep their FILE:LINE:COL, and a colon in a file's name stays
     list_to_assoc(['p1.c1.g1'-'/a/x.pl:3:5', 'p2.c1.g1'-'/b/y.pl:4:1', 'p3.c1.g1'-'/c:d/z.pl:7:2'], Ps8),
     findall(F8, ( member(Bs8, [['p1.c1.g1'], ['p1.c1.g1', 'p2.c1.g1'], ['p3.c1.g1'], [none]]),
@@ -902,7 +902,7 @@ stored_(D) :-
     check('kb(other) is the store''s knowledge base of that name: limit(4), and 5', How2-O2, answer-['5']),
     %% the child over a store is `query', which writes its goal back proved;
     %% the driver's goal holds every event recorded, so through 1.10.28 the
-    %% child wrote them all (12.5 MB on the translator) -- a goal that binds
+    %% child wrote them all (12.5 MB on the sample program) -- a goal that binds
     %% a list of 20000 numbers stands in for them here
     flow_dbg_cmd(embedded(P, KB, none), 'numlist(1, 20000, L5), length(L5, _)', Cmd5),
     proc_run(Cmd5, 60000, Out5, Rc5), length(Out5, N5),
@@ -980,8 +980,8 @@ compared(D) :-
 
 %% a predicate whose name begins with $ is the engine's or a library's own
 %% ('$pred_count'/3), and listed after the program's (1.11.0): on the
-%% translator four of them came first, 22 and 16 deep, over the cause
-%% (reported from the reasoning session). Here '$level'/1 answers
+%% sample program four of them came first, 22 and 16 deep, over the cause
+%% (reported from the profiling session). Here '$level'/1 answers
 %% differently two calls under the program's own.
 compared_own(D) :-
     section('flow_diff/3: a predicate named $... comes after the program''s, however deep'),
@@ -1062,7 +1062,7 @@ viewed(D) :-
           ['% the 20 steps of the window 1 to 20, 20 of them inferences (true/0 and =/2 are none), by what took them: 19 calls of 9 predicates, a step each, and 1 by control constructs, which make no call (an if-then-else, a cut, catch/3 and its exit, \\+, call/N)',
            '        7    35.0  leaf/1',
            '        1     5.0  (control constructs)']),
-    %% THE STEPS THAT WERE NO INFERENCE (1.13.5, the reasoning session's
+    %% THE STEPS THAT WERE NO INFERENCE (1.13.5, the profiling session's
     %% point): a call of true/0 or =/2 is a step the window numbers and no
     %% inference, and the header says both -- the inferences as statistics/2
     %% counts the same goal run in a child
@@ -1108,7 +1108,7 @@ viewed(D) :-
     Run2 = run(_, _, _, _, Cs2, _, _, _),
     findall(S2-Pa2, ( member(call(S2, _, _, Pa2, _, _, _, _, _, _), Cs2), Pa2 >= S2 ), Own2),
     check('every call''s caller was made before it', Own2, []),
-    %% the translator records a Call made with its caller's own cell (a
+    %% the sample program records a Call made with its caller's own cell (a
     %% retry in a recursion, append/3's): the matcher asks which call the
     %% parent's cell names BEFORE the Call names its own cell (1.11.10), or
     %% the call is its own caller
@@ -1507,8 +1507,8 @@ furthest(D) :-
     findall(X-P, ( member(S, F7), functor(S, X, _), arg(2, S, P) ), F7s),
     check('lower(bad, Y): past the explicit fail/0, into the condition that failed, lowerable/1',
           F7s, [step-lower/2, step-lowerable/1, failed-(\==)/2]),
-    %% ONE clause holding a disjunction (1.13.7, the reasoning session's
-    %% report, the translator's tr_read_ir/5): the last call that failed is
+    %% ONE clause holding a disjunction (1.13.7, the profiling session's
+    %% report, the sample program's reader): the last call that failed is
     %% the fallback's, which failed at once; the first branch's read spent
     %% the most, and is where the clause got furthest
     debugged(D, far8, read_ir([the, dog, sleeps, loudly]), [], [], R8),
@@ -1839,7 +1839,7 @@ raised_undrawn(D) :-
 many_heads :-
     section('a call that tried many heads costs the matcher their number, not its square'),
     %% through 1.11.1 each head was appended to the call's list: n heads
-    %% copied n * n / 2 cells (the reasoning session's 20,000 took 19 s
+    %% copied n * n / 2 cells (the profiling session's 20,000 took 19 s
     %% more than none), and the list is now built backwards and turned
     %% round once
     many_heads_cost(5000, I1, F1-L1),

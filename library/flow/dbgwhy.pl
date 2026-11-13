@@ -190,7 +190,7 @@ flow_dbg_why_next([_|Cs], At) :-
 %% WHERE A SEARCH GOT FURTHEST, the one path through the tree a reader of a
 %% failed search wants first. Following the LAST failure at each level leads
 %% to the last alternative tried, which in a reader that backtracks is its
-%% fallback (the translator's tr_byline/3), not the cause. So at each failed
+%% fallback (its byline rule), not the cause. So at each failed
 %% call this takes the clause that got furthest: the most calls of its body
 %% that exited, then the most steps spent before it gave up (its span,
 %% from its first call to the last step under its last), then the
@@ -204,12 +204,12 @@ flow_dbg_why_next([_|Cs], At) :-
 %% exited failed at something that is not a call (a unification in its
 %% body). [] when no call of the window's top failed.
 %%
-%% THE CALL A CLAUSE FAILED AT (1.13.7, the reasoning session's report and
+%% THE CALL A CLAUSE FAILED AT (1.13.7, the profiling session's report and
 %% rule). Through 1.13.6 it was the last call that did not exit, and a
 %% clause holding a disjunction tries its branches in order: the
-%% translator's tr_read_ir/5 is ONE clause ending `( tr_into_ir(...) ;
-%% tr_byline(...), tr_into_ir(...) )', and 7 of 11 refusals ended in
-%% tr_byline/3, the fallback for a byline, which fails at once -- the
+%% sample program's reader is ONE clause ending in a disjunction whose
+%% second branch is its fallback for a byline, and 7 of 11 refusals
+%% ended there, at once -- the
 %% first branch's read had spent 43 302 of the 58 690 steps. Of the
 %% clause's calls that did not exit, the path goes into the one that spent
 %% the most before it failed -- the steps from it to the clause's next
@@ -273,7 +273,7 @@ flow_why_last_unexited(Gs, G) :-
     member(G, Rev),
     \+ G = exited(_, _, _, _), !.
 
-%% the call a clause failed at (1.13.7, the reasoning session's rule): of
+%% the call a clause failed at (1.13.7, the profiling session's rule): of
 %% its calls that did not exit, past an explicit fail/0 or false/0 and an
 %% exception a catch took, the one that spent the most before it failed --
 %% the steps from it to the clause's next call, the last's to the last step

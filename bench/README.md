@@ -1460,7 +1460,7 @@ the shape of the lookup gap -- a thousand probes, three sizes:
 ### Run U: 2.2.5, on Run M's kind of host again
 
 cocolog 2.2.5, the tree this section was committed with (master at
-`0bc517d`, whose last two merges changed the reasoning library alone). What
+`0bc517d`, whose last two merges changed one library alone). What
 came between Run T and it -- 1.10.28's growths out of line, which raise
 resource_error(memory), 1.12's trail of values, one-step builtins and two
 clocks, 1.13's text in characters and catch/3's frame dropped, 1.14's

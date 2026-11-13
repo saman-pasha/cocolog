@@ -78,8 +78,8 @@ flow_dbg_match(graph(_, _, Panels, Ids, _), Events, Bodies, Calls) :-
 %% events, then each stream's items, each a walk down a sorted list.
 %% Through 1.11.9 one pass kept three AVL trees -- the cells, the calls,
 %% the streams -- and put into them at every event: a window of 100 000
-%% steps of the translator, 268 339 events, took 14 s here (the
-%% reasoning session's point 8). A call's clauses and heads come in the
+%% steps of the sample program, 268 339 events, took 14 s here (the
+%% profiling session's point 8). A call's clauses and heads come in the
 %% order they were tried (through 1.11.1 each was appended to the list
 %% before it, and a call with n heads cost n * n / 2 cells).
 flow_dbg_index(Events, Calls, Streams) :-
@@ -354,7 +354,7 @@ flow_dbg_plan_branches([B|Bs], J, Id, K, F, Es, First) :-
 %% were taken in the order they were made and every place went into one
 %% AVL tree of them all, put into and read at each port of a child: 6 of
 %% the 12 seconds the matching of a window of 100 000 steps of the
-%% translator still took.
+%% sample program still took.
 flow_dbg_place(Calls0, Streams, Rows, Panels, Ids, VAt, Calls) :-
     %% the query's own goal: the box query.g1 and the panel it calls
     flow_dbg_query_panel(Panels, Ids, QPanel),
@@ -546,7 +546,7 @@ flow_dbg_is_query(S, Pr, QPanel, Panels) :-
 %% a call with no clause of its caller to be matched in: a panel of its
 %% predicate, the one whose call pattern its arguments fit best -- among
 %% its predicate's panels alone (ByPred, 1.11.10: each such call walked
-%% every panel, 2 792 of them on the translator)
+%% every panel, 2 792 of them on the sample program)
 flow_dbg_panel_for(Pr, In, ByPred, PId) :-
     (   get_assoc(Pr, ByPred, IdCMs) -> true ; IdCMs = [] ),
     findall(Score-Id, ( member(Id-CM, IdCMs), flow_dbg_fit(CM, In, Score) ), Cands),
@@ -568,7 +568,7 @@ flow_dbg_panels_by_pred(Panels, ByPred) :-
 %% for every box of the chart (1.11.10): through 1.11.9 each call made in a
 %% clause found its box's node again, walking the chart's panels and
 %% naming every item on the way -- 18 of a window's 33 seconds of matching
-%% on the translator, whose chart has 2 792 panels
+%% on the sample program, whose chart has 2 792 panels
 flow_dbg_callees(Panels, Ids, Callees) :-
     findall(Box-Panel,
             ( member(panel(N, _, _, _, _, rows(Rs), _, _), Panels),

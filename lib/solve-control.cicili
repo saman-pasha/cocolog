@@ -1288,7 +1288,7 @@
   ;;; before the entered one was a head that did not match, and a failed
   ;;; call of a table of 32,046 facts recorded 32,046 heads whose first
   ;;; argument was never asked -- 215,525 of them in one window of the
-  ;;; translator's, most of its 31 MB of XML (reported from the reasoning
+  ;;; program's, most of its 31 MB of XML (reported from the profiling
   ;;; session).
   (weak)
   (func coco_rec_heads ((coco_engine * e) (size_t ci) (size_t start) (int entered))

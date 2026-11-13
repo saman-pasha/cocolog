@@ -445,7 +445,7 @@
   ;;; (`gbody'), and they are run as the clause is entered, right after the
   ;;; head: no term, no frame, no step. The proposal's Stage 4 made the
   ;;; whole body lazy to get here; that changes the continuation's shape
-  ;;; and a frozen machine's format, and counted on the translator its
+  ;;; and a frozen machine's format, and counted on the program its
   ;;; bodies average 1.9 goals -- the lazy body had little else to save.
   ;;; The leading goals need none of it: nothing runs between a clause's
   ;;; entry and its first goal, so running them there is running them when

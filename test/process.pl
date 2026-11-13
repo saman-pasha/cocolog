@@ -59,7 +59,7 @@ run_and_capture :-
 %% 20 bytes per millisecond, and a child that printed more was killed with
 %% 124 inside milliseconds (a megabyte in five seconds: 102400 bytes kept,
 %% 6 ms; the prelude's shell/3 stopped near 2.4 MB). Reported from the
-%% reasoning session. Charging nothing for an early return would not do
+%% profiling session. Charging nothing for an early return would not do
 %% either: a child that writes every 100 ms would never time out. So both
 %% are held: a megabyte inside its time is read whole, and a child that
 %% keeps writing is killed AT its deadline, not before.
