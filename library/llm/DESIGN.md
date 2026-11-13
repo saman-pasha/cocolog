@@ -1107,7 +1107,7 @@ There is no measurement of what the same task costs a competent human. The hones
 | RAG / embeddings | tier-2 surface index exceeds ~4k tokens (today ~1.2k) or exemplars exceed ~10 files | try `grep` over header blocks first |
 | machines / KB as agent memory | more than one agent process must **agree** on something | copy `coworker/`'s chunk-plus-mark pattern |
 | K>1 generation lanes | never on this evidence — see §1 | — |
-| the agent written **in** cocolog | `library(llm)` has its tutorial (`tutorials/library/36-llm.pl`, owed and absent) and is green in `make test` | the driver becomes `llm_json/4` + `proc_run/4` + the same `lint.py` port; writing tutorial 36 is a good first task to *give* this agent |
+| the agent written **in** cocolog | `library(llm)` has its tutorial (`tutorials/library/36-llm.pl`), green in `make test`, and both wire shapes have been run against DeepSeek | the driver becomes `llm_json/4` + `proc_run/4` + the same `lint.py` port; the tutorial is the first thing it exercises |
 | a `library(agent)` collecting `check/3` | measured rounds-to-green shows `must/3`'s stop-at-first-failure roughly doubling repair rounds | ~40 lines of tier-2 Prolog + `tutorials/library/NN-agent.pl` in the same commit |
 
 **Every threshold above is invented**, and item 14 of the build order is what replaces them with

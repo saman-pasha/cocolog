@@ -12,7 +12,7 @@ ZiguratIP server, Zeytun over HTTP — in which a clause is a row, and a running
 proof is a term that can be frozen into rows and resumed by another process.
 It is one binary, written in **Cicili** (C in S-expressions).
 
-Version at the time of writing: cocolog 3.62.3, built with
+Version at the time of writing: cocolog 3.62.4, built with
 Cicili 3.3.0. `./cocolog --version` answers it.
 
 **Part A** is for writing and running Prolog on cocolog. **Part B** is for

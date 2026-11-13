@@ -75,12 +75,12 @@
 %% SKIPping, which inverts the suite's own rule that "not built here" and
 %% "wrong" are different findings. Not this file's to fix.)
 %%
-%% AND library(llm) IS AN UNRUN SKELETON. Its own header says so: it was
-%% written in a tree with no built cocolog, so nothing in it had ever been
-%% executed. This file is the first thing that runs it. Every claim below
-%% was read out of `library/llm.pl' rather than observed, which means a
-%% red line here is news -- it is the library being wrong, not the lesson
-%% drifting.
+%% AND library(llm) HAS NOW BEEN RUN. Its header once called itself an
+%% unrun skeleton; on 2026-11-14 both wire shapes were exercised against
+%% DeepSeek's endpoints, with reasoning off. The suite still makes no
+%% network call, so every claim below is read out of `library/llm.pl'
+%% rather than observed here; a red line here is still news -- it is the
+%% library being wrong, not the lesson drifting.
 
 :- use_module(library(llm)).
 
@@ -255,6 +255,42 @@ l36_body :-
     must('an asked-for temperature, and only then',
          WireT,
          '{"temperature":0,"model":"demo","max_tokens":64,"messages":[{"role":"user","content":"Hello"}]}'),
+    %% `effort(L)' and `reasoning_effort(L)' are the same level in two
+    %% names; the provider decides where it goes. Anthropic carries it
+    %% inside output_config, OpenAI at the top level -- and either name
+    %% works for either provider.
+    llm_request_body(anthropic, [msg(user, 'Hello')],
+                     [model(demo), max_tokens(64), effort(low)], BodyAE),
+    json_atom(BodyAE, WireAE),
+    must('anthropic answers effort as output_config.effort',
+         WireAE,
+         '{"output_config":{"effort":"low"},"model":"demo","max_tokens":64,"messages":[{"role":"user","content":"Hello"}]}'),
+    llm_request_body(openai, [msg(user, 'Hello')],
+                     [model(demo), max_tokens(64), reasoning_effort(none)], BodyOR),
+    json_atom(BodyOR, WireOR),
+    must('openai answers reasoning_effort as its own field',
+         WireOR,
+         '{"reasoning_effort":"none","model":"demo","max_completion_tokens":64,"messages":[{"role":"user","content":"Hello"}]}'),
+    llm_request_body(anthropic, [msg(user, 'Hello')],
+                     [model(demo), max_tokens(64), reasoning_effort(none)], BodyAR),
+    json_atom(BodyAR, WireAR),
+    must('reasoning_effort on anthropic is still output_config.effort',
+         WireAR,
+         '{"output_config":{"effort":"none"},"model":"demo","max_tokens":64,"messages":[{"role":"user","content":"Hello"}]}'),
+    llm_request_body(openai, [msg(user, 'Hello')],
+                     [model(demo), max_tokens(64), effort(low)], BodyOE),
+    json_atom(BodyOE, WireOE),
+    must('and effort on openai is still reasoning_effort',
+         WireOE,
+         '{"reasoning_effort":"low","model":"demo","max_completion_tokens":64,"messages":[{"role":"user","content":"Hello"}]}'),
+    (   catch(llm_request_body(openai, [msg(user, 'Hello')],
+                               [model(demo), effort(low), reasoning_effort(none)], _),
+              error(llm_error(conflicting_effort, low-none), _),
+              Conflict = yes)
+    ->  true
+    ;   Conflict = no
+    ),
+    must('two different levels are refused, not guessed at', Conflict, yes),
     %% ADDING A PROVIDER IS TWO FACTS AND THREE CLAUSES: `llm_provider/3'
     %% and `llm_model_default/2', then `llm_request_body/4',
     %% `llm_reply_of/3' and `llm_headers/3'. Miss any of the three and the

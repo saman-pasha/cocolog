@@ -53,6 +53,13 @@
 %%     timeout(S)      default 600  -- SEE BELOW, this one matters
 %%     max_tokens(N)   default 4096
 %%     temperature(T)  default: the provider's (omitted from the body)
+%%     effort(L)       Anthropic: `output_config.effort'; OpenAI:
+%%                     `reasoning_effort'. Either name is accepted for
+%%                     either provider; L is the provider's own level
+%%                     (low, high, max, none, ...), and the field is
+%%                     omitted when neither name is given, so the
+%%                     provider's default applies.
+%%     reasoning_effort(L)  the same setting under OpenAI's name.
 %%     system(Text)    convenience; prepends msg(system, Text)
 %%     retries(N)      default 0
 %%     max_size(B)     default 16777216 (curl's own)
@@ -75,6 +82,7 @@
 %%     error(llm_error(no_reply, Json),        llm_chat/3)
 %%     error(llm_error(unknown_provider, P),   llm_chat/3)
 %%     error(llm_error(bad_message, M),        llm_chat/3)
+%%     error(llm_error(conflicting_effort, E-R), llm_request_body/4)
 %%
 %% A refusal a reader cannot tell from an empty answer is not a refusal,
 %% and "the model said nothing" and "the endpoint 500'd" are different
@@ -116,19 +124,22 @@
 %%
 %% ---- STATUS -----------------------------------------------------------
 %%
-%% THIS IS A SKELETON. Nothing in it has been RUN: there is no built
-%% cocolog in the tree it was written in. Every predicate it calls was
-%% checked against source, and the three marked `NOT IMPLEMENTED' throw
-%% rather than pretending. Before trusting it, check in this order:
+%% RUN. The body builders and both wire shapes were exercised against
+%% DeepSeek's OpenAI-compatible and Anthropic-compatible endpoints on
+%% 2026-11-14, with `reasoning_effort(none)' and `effort(none)': both
+%% answered, with no thinking tokens. The suite still makes no network
+%% call -- tutorial 36 -- so the live check is a manual one. The three
+%% predicates marked `NOT IMPLEMENTED' throw rather than pretending.
+%% Before trusting a new provider, check in this order:
 %%   1. that `curl_post/6' really is +Url,+Type,+Data,+Opts,-Status,-Body
 %%      (modules/curl/curl.cicili:75-76 says so)
 %%   2. that a `json([k-v])' with an atom value writes `"k":"v"'
 %%   3. that the response shape below matches the provider you point at
 %%
-%% A NEW LIBRARY GETS A TUTORIAL IN THE SAME COMMIT -- the convention in
-%% tutorials/README.md. `tutorials/library/36-llm.pl' is the next free
-%% number, and it must make NO NETWORK CALL, the way 20-curl.pl does not:
-%% a tutorial the suite runs cannot depend on somebody else's server.
+%% THE LIBRARY HAS ITS TUTORIAL: `tutorials/library/36-llm.pl', the
+%% convention in tutorials/README.md. It makes NO NETWORK CALL, the way
+%% 20-curl.pl does not: a tutorial the suite runs cannot depend on
+%% somebody else's server.
 
 :- use_module(library(curl)).
 :- use_module(library(json)).
@@ -240,14 +251,16 @@ llm_request_body(anthropic, Messages, Options, json(Pairs)) :-
     ->  Pairs0 = Base
     ;   Pairs0 = [system-System|Base]
     ),
-    llm_add_temperature(Options, Pairs0, Pairs).
+    llm_add_temperature(Options, Pairs0, Pairs1),
+    llm_add_effort(anthropic, Options, Pairs1, Pairs).
 
 llm_request_body(openai, Messages, Options, json(Pairs)) :-
     llm_opt(Options, model, Model),
     llm_opt(Options, max_tokens, MaxTokens),
     llm_wire_messages(openai, Messages, Wire),
     Pairs0 = [model-Model, max_completion_tokens-MaxTokens, messages-Wire],
-    llm_add_temperature(Options, Pairs0, Pairs).
+    llm_add_temperature(Options, Pairs0, Pairs1),
+    llm_add_effort(openai, Options, Pairs1, Pairs).
 
 %% llm_reply_of(+Provider, +Json, -Reply)
 %%
@@ -403,6 +416,35 @@ llm_add_temperature(Options, Pairs0, Pairs) :-
     (   memberchk(temperature(T), Options)
     ->  Pairs = [temperature-T|Pairs0]
     ;   Pairs = Pairs0
+    ).
+
+%% llm_add_effort(+Provider, +Options, +Pairs0, -Pairs)
+%%
+%% `effort(L)' and `reasoning_effort(L)' are the same request in two
+%% names. Anthropic carries the level inside output_config; OpenAI has
+%% the top-level reasoning_effort. Omitted entirely when neither is
+%% given, so the provider's own default applies. Two different levels
+%% are refused rather than guessed at.
+llm_add_effort(anthropic, Options, Pairs0, Pairs) :-
+    (   llm_effort_level(Options, Level)
+    ->  Pairs = [output_config-json([effort-Level])|Pairs0]
+    ;   Pairs = Pairs0
+    ).
+llm_add_effort(openai, Options, Pairs0, Pairs) :-
+    (   llm_effort_level(Options, Level)
+    ->  Pairs = [reasoning_effort-Level|Pairs0]
+    ;   Pairs = Pairs0
+    ).
+
+llm_effort_level(Options, Level) :-
+    (   memberchk(effort(E), Options)
+    ->  (   memberchk(reasoning_effort(R), Options),
+            E \== R
+        ->  throw(error(llm_error(conflicting_effort, E-R), llm_request_body/4))
+        ;   Level = E
+        )
+    ;   memberchk(reasoning_effort(R), Options)
+    ->  Level = R
     ).
 
 %% llm_remember_usage(+Provider, +Json)
