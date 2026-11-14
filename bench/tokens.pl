@@ -388,6 +388,7 @@ tk_header(Root, Backend, Opts, Arms, Tasks, json(Pairs)) :-
     tk_opt(Opts, model, Model), tk_opt(Opts, effort, Effort),
     tk_opt(Opts, rounds, Rounds), tk_opt(Opts, reps, Reps),
     tk_opt(Opts, fallbacks, Fb),
+    tk_base_url(Opts, BaseUrl), tk_auth_style(Style),
     findall(A-N, ( member(A, Arms), tk_system(Root, A, S), atom_length(S, N) ), Sizes),
     sh_join(['git -C ''', Root, ''' rev-parse --short HEAD 2>/dev/null'], Git),
     proc_run(Git, 30000, GitCs, _),
@@ -398,8 +399,8 @@ tk_header(Root, Backend, Opts, Arms, Tasks, json(Pairs)) :-
     ( append(V, [10], VerCs) -> atom_codes(Version, V) ; atom_codes(Version, VerCs) ),
     get_time(T),
     Pairs = [kind-run, backend-B, model-Model, effort-Effort, rounds-Rounds, reps-Reps,
-             fallbacks-Fb, arms-Arms, tasks-Tasks, system_chars-json(Sizes),
-             commit-Commit, cocolog-Version, started-T].
+             fallbacks-Fb, base_url-BaseUrl, auth-Style, arms-Arms, tasks-Tasks,
+             system_chars-json(Sizes), commit-Commit, cocolog-Version, started-T].
 
 %% One episode: rounds until a pass, a refusal or the last round.
 tk_episode(Root, Backend, Opts, Task, Arm, Rep) :-
@@ -570,7 +571,8 @@ tk_pre_fallback(json(B)) :-
 tk_ask(api, Opts, System, Messages, _, Reply) :-
     tk_request(Opts, System, Messages, Body, Betas),
     json_codes(Body, BodyCs),
-    tk_post(Opts, 'https://api.anthropic.com/v1/messages', Betas, BodyCs, Json),
+    tk_api_url(Opts, '/messages', Url),
+    tk_post(Opts, Url, Betas, BodyCs, Json),
     tk_reply(Json, Reply).
 tk_ask(replay(Dir), Opts, System, Messages, Task-Arm-Rep-K, Reply) :-
     tk_request(Opts, System, Messages, Body, _),
@@ -622,7 +624,44 @@ tk_request(Opts, System, Messages, json(Pairs), Betas) :-
 tk_key(Key) :-
     (   getenv('ANTHROPIC_API_KEY', Key), Key \== ''
     ->  true
+    ;   getenv('ANTHROPIC_AUTH_TOKEN', Key), Key \== ''
+    ->  true
     ;   throw(error(existence_error(environment_variable, 'ANTHROPIC_API_KEY'), tk_key/1))
+    ).
+
+%% The endpoint: the run's base_url option, else ANTHROPIC_BASE_URL, else
+%% Anthropic's own. The token is x-api-key for an API key and a bearer
+%% token for ANTHROPIC_AUTH_TOKEN, which an Anthropic-compatible gateway
+%% takes; neither is ever logged.
+tk_base_url(Opts, Base) :-
+    (   memberchk(base_url-B0, Opts)
+    ->  Base = B0
+    ;   getenv('ANTHROPIC_BASE_URL', B0), B0 \== ''
+    ->  Base = B0
+    ;   Base = 'https://api.anthropic.com'
+    ).
+
+tk_auth_style(api_key) :-
+    getenv('ANTHROPIC_API_KEY', K), K \== '', !.
+tk_auth_style(bearer).
+
+tk_auth_header(H) :-
+    tk_auth_style(Style),
+    tk_key(Key),
+    (   Style == api_key
+    ->  atom_concat('x-api-key: ', Key, H)
+    ;   atom_concat('Authorization: Bearer ', Key, H)
+    ).
+
+tk_api_url(Opts, Tail, Url) :-
+    tk_base_url(Opts, B0),
+    (   sub_atom(B0, _, 1, 0, '/')
+    ->  sub_atom(B0, 0, _, 1, B)
+    ;   B = B0
+    ),
+    (   sub_atom(B, _, _, 0, '/v1')
+    ->  atom_concat(B, Tail, Url)
+    ;   atom_concat(B, '/v1', V1), atom_concat(V1, Tail, Url)
     ).
 
 %% POST with the key read at the call, never logged. A 429 or a 5xx, or a
@@ -631,8 +670,7 @@ tk_key(Key) :-
 %% again is a 400 again.
 tk_post(Opts, Url, Betas, BodyCs, Json) :-
     use_module(library(curl)),
-    tk_key(Key),
-    atom_concat('x-api-key: ', Key, KeyH),
+    tk_auth_header(KeyH),
     findall(header(H), ( member(B, Betas), atom_concat('anthropic-beta: ', B, H) ), BetaHs),
     append([header(KeyH), header('anthropic-version: 2026-10-21')|BetaHs],
            [timeout(600), max_size(16777216)], CurlOpts),
@@ -679,7 +717,8 @@ tk_usage(U, K, N) :- ( memberchk(K-N0, U), integer(N0) -> N = N0 ; N = 0 ).
 %% count_tokens: the input tokens of a one-message request holding Text.
 tk_count(Model, Text, N) :-
     json_codes(json([model-Model, messages-[json([role-user, content-Text])]]), Body),
-    tk_post([], 'https://api.anthropic.com/v1/messages/count_tokens', [], Body, json(Pairs)),
+    tk_api_url([], '/messages/count_tokens', Url),
+    tk_post([], Url, [], Body, json(Pairs)),
     memberchk(input_tokens-N, Pairs).
 
 %% ---- prices: dollars per million tokens ---------------------------------
@@ -735,8 +774,10 @@ tk_report_header(H) :-
     ( memberchk(rounds-Ro, H) -> true ; Ro = '?' ),
     ( memberchk(cocolog-V, H) -> true ; V = '?' ),
     ( memberchk(commit-C, H) -> true ; C = '?' ),
+    ( memberchk(base_url-U, H) -> true ; U = '?' ),
     format("~w backend, model ~w, effort ~w, ~w rep(s), at most ~w round(s); ~w at ~w~n",
            [B, M, E, R, Ro, V, C]),
+    format("endpoint ~w~n", [U]),
     (   B == replay
     ->  format("REPLAY: no model was asked, and every token below is a length / 4~n")
     ;   true

@@ -30,7 +30,14 @@ and tasks by name (all ten when none is named):
 | `timeout` | `10` | seconds a program has for one case |
 | `fallbacks` | `off` | `default` turns on the API's server-side fallback (below) |
 | `retries` | `5` | for a 429, a 5xx or no answer, after 2, 4, 8, ... seconds |
+| `base_url` | `ANTHROPIC_BASE_URL`, else Anthropic's | an Anthropic-compatible endpoint |
 | `out` | `bench/tokens/runs/run-STAMP.jsonl` | the log (`DIR/replay.jsonl` for a replay) |
+
+The token is `ANTHROPIC_API_KEY`, sent as `x-api-key`; when that is empty,
+`ANTHROPIC_AUTH_TOKEN` is sent as a bearer token, which an
+Anthropic-compatible gateway takes. The log records the endpoint and which
+header was used, never the token. A model outside `tk_price/5` is reported
+in tokens and `no price`.
 
 `test/tokens.pl` holds the harness to all of this without a key: every
 reference passing every case, a replay end to end, the request it builds,
@@ -117,10 +124,11 @@ names the model that served it, and the echo leaves out the thinking and
 
 ## What a run needs, and costs
 
-* `ANTHROPIC_API_KEY` in the environment, read at each call and never
-  written anywhere. On a Claude Code cloud session that is an environment
+* `ANTHROPIC_API_KEY`, or `ANTHROPIC_AUTH_TOKEN` with `ANTHROPIC_BASE_URL`
+  for a gateway, in the environment; read at each call and never written
+  anywhere. On a Claude Code cloud session the key is an environment
   secret, set in the environment's settings, which a new session picks up.
-* `python3`, and the network to `api.anthropic.com`.
+* `python3`, and the network to the endpoint.
 * **A box you would let a stranger's program run on.** The harness runs
   what the model wrote, as the user running it, each case in a scratch
   directory under the timeout. Run it in a container or a VM.
@@ -129,10 +137,21 @@ names the model that served it, and the echo leaves out the thinking and
   effort `high`, three reps of ten tasks on three arms, 90 episodes) is
   $5 to $30. Run `reps=1` first; its log says what the rest will cost.
 
+## A first, partial live run
+
+2026-11-14, `deepseek-chat` at effort `high` through an
+Anthropic-compatible gateway: 16 of 90 episodes, all passing, before the
+run was stopped in the first rep. On the five tasks with all three arms,
+`cocolog` used 1.46 times Python's tokens per task solved and
+`cocolog-card` 3.65 times. The model is outside `tk_price/5`, so the run
+reports tokens and no dollars. The full table, the generated report and
+the raw JSONL are in
+[`reports/2026-11-14-deepseek-chat-partial.md`](reports/2026-11-14-deepseek-chat-partial.md).
+
 ## What building it found
 
-No live run has been made yet (2026-10-30: the box that built it has no
-key). Building it found three places where cocolog answered SWI-Prolog code
+This partial run is the first live run. Building the harness found three
+places where cocolog answered SWI-Prolog code
 otherwise than SWI does -- exactly what an agent writing cocolog from what
 it knows of SWI pays for in rounds -- and a row of the card that told the
 model something false:

@@ -1,0 +1,29 @@
+api backend, model deepseek-chat, effort high, 3 rep(s), at most 4 round(s); cocolog 3.62.4 at 5e33a87
+endpoint https://api.deepseek.com/anthropic
+
+task       arm            solved  rounds    input  cache_w   cache_r   output     total      cost$
+bank       python            1/1     1.0      498        0         0     1359      1857      none
+bank       cocolog           1/1     3.0     2255        0      1792    17459     21506      none
+bank       cocolog-card      1/1     2.0      651        0     10112    30155     40918      none
+calc       python            1/1     2.0      721        0       256    30648     31625      none
+calc       cocolog           1/1     2.0     1866        0       512    25082     27460      none
+calc       cocolog-card      1/1     3.0     1287        0     15232    44158     60677      none
+family     python            1/1     1.0      470        0         0    12367     12837      none
+family     cocolog           1/1     1.0      528        0         0    11315     11843      none
+family     cocolog-card      1/1     4.0     3831        0     22016    29794     55641      none
+jsonsum    python            1/1     1.0      346        0         0     3892      4238      none
+jsonsum    cocolog           1/1     1.0      148        0       256     4746      5150      none
+jsonsum    cocolog-card      1/1     1.0      350        0      4864    10395     15609      none
+knapsack   python            1/1     1.0      336        0         0      248       584      none
+knapsack   cocolog           1/1     1.0      394        0         0     8468      8862      none
+knapsack   cocolog-card      1/1     1.0      340        0      4864     8795     13999      none
+paths      python            1/1     2.0      579        0       256    24329     25164      none
+
+every task, summed over its episodes:
+  python         solved 6 of 6 in 8 rounds: 76305 tokens (72843 output), no price; 12717 tokens and no price per task solved
+  cocolog        solved 5 of 5 in 8 rounds: 74821 tokens (67070 output), no price; 14964 tokens and no price per task solved
+  cocolog-card   solved 5 of 5 in 11 rounds: 186844 tokens (123297 output), no price; 37368 tokens and no price per task solved
+
+against python, per task solved:
+  cocolog 1.18x the tokens, no price
+  cocolog-card 2.94x the tokens, no price
