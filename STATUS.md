@@ -19035,3 +19035,52 @@ an inference count moves with where the binary stands, as
 library(reasoning)'s `ng_library_dirs/1` walks the executable's path with
 append/3 (lesson 44 counts 3,458,375 from the checkout and 3,458,381 from
 a copy three directories deeper, on one binary).
+
+## An if-then's else reached, and the goals after it kept (3.62.5)
+
+A clause's goal is a last call of a `$/0`-guarded frame only where its guard
+frame is the frame's own and what follows it is that frame's exit. The step
+took it for one wherever the frame's exit marker was simply the next goal --
+which is the case for a goal the step hands over under a choice point a
+construct has just pushed. Such a call cut the guard's exit marker and went
+on from there: `main :- q(X), ( X == 0 -> write(z) ; true ), nl.` with
+`q(0). q(1).` wrote `z` once and never `nl`, and
+`main :- q(X), ( X == 0 -> write(z) ; true ), ( X == 1 -> true ; main ).`
+looped on `z`; the answers after the first condition and the alternatives
+before it were lost.
+
+The fix is narrow -- nothing else about `$/0` moved -- and is in
+`lib/solve-loop.cicili`: `coco_det_praw` (a guarded frame's first goal, and
+a call the step takes in the registers) and `coco_det_pcall` (a later goal)
+are the guard's business only where the guard frame is the frame's own;
+`coco_det_take` takes the guard on over the caller's frame by clearing the
+guard FRAME's bit, never the CALL's, so the call still ends in its own
+frame. `coco_det_meta` and `coco_det_catch` pass their goal through it.
+
+The evidence: an instrumented build showed the else of
+`( X == 0 -> write(z) ; true )` entered as a deterministic frame and never
+consulted, `q/1`'s choice frame still at index 0 and the unwind stopping at
+it -- the `$det_end` marker of `main/0` had been cut. After 3.62.5 the loop
+of `( X == 1 -> true ; main )` over `q(0). q(1). q(2).` writes two `z`s
+and ends, `( X == 8 -> true ; true )` answers to swipl's answer, and a
+`findall/3` after such a goal collects every solution.
+
+test/files/det_guard.pl answers swipl 9.0.4's lines as before -- the
+`setup_call_cleanup/3` cases (k6, m8) were not swipl's before this change
+either -- and test/engine.pl's `det_guard_runs`, `det_traced` and
+`repeat_runs` are green on a clean build of 3.62.5 and its predecessor
+(219 checks, none skipped). `test/engine.pl`'s `qk_runs` is the new case:
+the second answer reaches the else, `nl` runs after it, a `findall/3`
+after it collects every solution, and a guard after it reads the frame as
+swipl does.
+
+NOT DONE, and worth the next session: swipl makes a stepped call into a
+procedure whose frame ``$``'s guard was set wrap it in one more frame, and a
+last call by a construct's step into a guard of its own (the extra
+`$$det_end... $true` lines an instrumented trace showed for
+`g1 :- $, write(A), p(B).`, and `a :- $, p(_)`'s `nondet` answer named
+`p/1, guard_in_caller`). A draft of `coco_det_praw`/`coco_det_pcall` doing
+that passed `qk_runs` and those `$` lines but changed other `$` answers
+(`a6` `guard` where swipl says `guard_in_caller ... system:(>)/2`, and
+`m8` losing `system:` in its context); it was reverted. What 3.62.5 owes
+COMPAT.md is the same as 3.62.4 did.

@@ -37,10 +37,52 @@ main :-
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
     update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), repeat_runs(D), jit_runs(D),
+    qk_runs(D),
     gvars_runs(D),
     btree_places, op_names_frozen(D), own_properties, own_current, own_too_long,
     shl(['rm -rf ', D]),
     checks_done.
+
+%% AN IF-THEN'S ELSE GOAL IS REACHED: a clause's goal is a last call of a
+%% guarded frame only where its guard frame is the frame's own and what
+%% follows it is that frame's exit. A goal a construct hands over under a
+%% choice point younger than the guard frame is no last call, and was one:
+%% it cut the guard's exit marker and lost the goals after it, with the
+%% backtracking into what came before. Each line here was a wrong answer
+%% (or a lost answer) through 3.62.4.
+qk_runs(D) :-
+    section('an if-then''s else is reached, and what comes after it kept'),
+    atom_concat(D, '/q1.pl', F1),
+    fixture(F1, [ 'q(0). q(1).',
+                  'main :- q(X), ( X == 0 -> write(z) ; true ),',
+                  '    ( X == 1 -> true ; main ).' ]),
+    cocolog(C0),
+    sh_join([C0, ' --local run ', F1, ' main >/dev/null 2>&1'], C1),
+    proc_run(C1, 30000, O1, _), atom_codes(A1, O1),
+    (   sub_atom(A1, B1, _, _, 'Unknown procedure: main/0') -> R1 = main_loops ;
+        sub_atom(A1, B1, _, _, 'Warning') -> R1 = warned ;
+        R1 = ok
+    ),
+    check('the second solution of q/1 reaches the else', R1, ok),
+    atom_concat(D, '/q2.pl', F2),
+    fixture(F2, [ 'q(0). q(1).',
+                  'main :- q(X), ( X == 0 -> write(z) ; true ), nl.' ]),
+    last_line_of(F2, main, 30000, W2),
+    check('...and nl runs after it', W2, z),
+    atom_concat(D, '/q3.pl', F3),
+    fixture(F3, [ 'q(0). q(1).', 'w(a) :- write(w0).', 'w(b) :- write(w1).',
+                  'main :- ( ( q(X), ( X == 0 -> true ; true ) ; true ), q(_) ; true ),',
+                  '    findall(Z, w(Z), L), write(L), nl.' ]),
+    last_line_of(F3, main, 30000, W3),
+    check('a findall after it collects every solution, and nothing else prints',
+          W3, 'w0w1[a,b]'),
+    atom_concat(D, '/q4.pl', F4),
+    fixture(F4, [ 'p(1). p(2).',
+                  't(G, R) :- catch(( G -> R = yes ; R = no ), error(E, _),',
+                  '    ( E = determinism_error(_, _, W, _) -> R = W ; R = E )).',
+                  'main :- findall(X-R, ( p(X), t(true, R) ), L), write(L), nl.' ]),
+    last_line_of(F4, main, 30000, W4),
+    check('and a guard after it reads the frame as swipl does', W4, '[1-yes,2-yes]').
 
 %% ---- a list too long for the stack limit (3.42.3) -----------------------
 %% swipl's nth0_det/3 and numlist_/3 build such a list a step at a time,
@@ -2142,7 +2184,10 @@ det_guard_runs(D) :-
     cocolog(C),
     sh_join([C, ' --local run test/files/det_guard.pl main 2>/dev/null'], Cmd0),
     proc_run(Cmd0, 60000, Out0, _), atom_codes(U, Out0),
-    ( sub_atom(U, _, _, _, 'caught(error(determinism_error(p/1,det,nondet,guard_in_caller)') -> H = yes ; H = no ),
+    ( sub_atom(U, _, _, _, 'caught(error(determinism_error(p/1,det,nondet,guard_in_caller)')
+    ->  H = yes
+    ;   H = no
+    ),
     check('untraced: the case answers', H, yes),
     sh_join([C, ' --trace --local run test/files/det_guard.pl main 2>/dev/null'], Cmd1),
     proc_run(Cmd1, 120000, Out1, _), atom_codes(T, Out1),

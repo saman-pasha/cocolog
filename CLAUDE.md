@@ -1749,7 +1749,18 @@ cocolint index offers no import of it.
   continuation back rather than taking `&k`, which cost nrev a store an
   inference. test/files/det_guard.pl holds 180 lines to swipl 9.0.4,
   test/engine.pl's `det_guard_runs` the trace, the collector, KMAT and a
-  freeze; COMPAT.md has what is not swipl's.
+  freeze; COMPAT.md has what is not swipl's. **A CALL A CONSTRUCT'S STEP
+  MAKES (3.62.5)**: a guarded frame's first goal, handed over by
+  `'$c_and'`, `'$c_or'` or an if-then (`coco_env_take`), and a call the
+  step takes in the registers, are NO last call before the frame's call
+  took the guard over -- the frame is the callee's (`coco_det_praw`,
+  `coco_det_pcall`) -- else they cut the guard's exit marker and lost the
+  goal after the if-then with the backtracking into what came before
+  (`main :- q(X), ( X == 0 -> write(z) ; true )` wrote `z` once and never
+  `nl`; `test/engine.pl`'s `qk_runs`). The guard a step takes over the
+  caller's frame clears the guard FRAME's bit, never the CALL's: the call
+  still ends in its own frame, which is the second-gotcha --
+  `a :- $, p(X)` fails `nondet` in the caller's frame and names p/1.
 * **member/2, select/3, nth0/3, nth1/3 and between/3 leave no choice point
   on their last answer** (3.22.0, swipl's): the first four are swipl's
   clauses, the rest of the list the helper's FIRST argument (`'$member_'/3`,
