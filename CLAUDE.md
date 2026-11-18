@@ -815,6 +815,48 @@ line said only `BUILD FAILED`, over a tail ending on clang's command line.
   is settled before the whole run; and when a case goes red and is fixed,
   rerun that case -- do not run the suite again for it.
 
+## Debugging detail: Cicili's log levels
+
+Cicili has four compile-time log macros -- `info!`, `warn!`, `debug!` and
+`syslog!` -- and `error!`, which sends its body to stderr while it runs.
+They are gated by `*debug-warnings*` when Cicili compiles: `--info` keeps
+`info!`, `--warn` adds `warn!`, `--debug` adds `debug!`, `--syslog` adds
+all four. **With no flag the form compiles to nothing**, so a diagnostic
+may be left in the source and costs the shipped binary no instruction and
+no output (owner, 2026-11-18: "those clauses can be remained in code
+because they won't be exist in output if flag won't sent").
+
+The levels stack, and each adds the one above it to the C: `--info` keeps
+`info!` alone, `--warn` keeps `info!` and `warn!`, `--debug` keeps
+`info!`, `warn!` and `debug!` (and `-g`), `--syslog` keeps all four
+(and the C library's own `!syslog` traces). So finer detail takes a
+deeper level and the same log says more, never a different flag per
+kind of message.
+
+To trace the engine, put an `info!` around the suspect call and rebuild
+that target with the flag -- `make` does not pass one, and a plain `make`
+after the generate REGENERATES `cocolog.c` without it, dropping the probe.
+So the generate and the compile are separate steps:
+
+```sh
+# 1. generate the C with the flag, and keep it
+PATH=$PWD/tools/cc:$PATH sh -c \\
+  'cd "$CICILI" && sbcl --script cicili.lisp --release --info "$PWD/cocolog.cicili"'
+cp cocolog.c /tmp/cocolog.info.c
+# 2. build everything else, then compile that C and link by hand
+make EMBED=0
+cp /tmp/cocolog.info.c cocolog.c
+./tools/cc/cc -O3 -falign-loops=32 -I"$CICILI/" -DCOCO_GREEN -Iclient \\
+  -Wno-parentheses-equality -Wno-dangling-else -Wno-format-truncation \\
+  -c cocolog.c -o .libs/cocolog.o
+./tools/cc/cxx -O3 .libs/cocolog.o -o cocolog -rdynamic -ldl \\
+  build/tls.o -Lbuild -lcocologc -lssl -lcrypto -lm -lpthread
+```
+
+What survives is only what is written INSIDE the form; the `info!` itself
+becomes nothing. `--separate` (Cicili) puts the generated C where a form's
+expansion can be read.
+
 ## Hazards, each of which has already cost a day
 
 * **A slow suite is usually the server's uptime.** Restart the server first

@@ -680,6 +680,40 @@ cocolint: 2 HARD, 1 WARN over 1 file(s)
 - The dialect card cites engine lines. After touching `lib/` or
   `cocolog.cicili`: `sh tools/cocolint/tool.sh card --check`.
 
+## Logging detail in Cicili
+
+Cicili's `info!`, `warn!`, `debug!` and `syslog!` are compile-time
+macros gated by `*debug-warnings*`: `--info` compiles `info!`, `--warn`
+adds `warn!`, `--debug` adds `debug!`, `--syslog` adds all four. Without
+the flag the form compiles to nothing, so a diagnostic may be left in the
+source -- it costs the shipped binary no instruction and no output.
+The levels stack: `--info` keeps `info!` alone, `--warn` keeps `info!`
+and `warn!`, `--debug` keeps `info!`, `warn!` and `debug!`, and
+`--syslog` keeps all four. A deeper level shows more of the same log,
+never a different log.
+`error!` sends its body to stderr instead of stdout.
+
+To trace the engine, put an `info!` around the suspect call and rebuild
+with the flag. `make` does not pass one, and a plain `make` after the
+generate REGENERATES `cocolog.c` without it, dropping the probe; so the
+generate and the compile are separate steps:
+
+```sh
+PATH=$PWD/tools/cc:$PATH sh -c \
+  'cd "$CICILI" && sbcl --script cicili.lisp --release --info "$PWD/cocolog.cicili"'
+cp cocolog.c /tmp/cocolog.info.c
+make EMBED=0
+cp /tmp/cocolog.info.c cocolog.c
+./tools/cc/cc -O3 -falign-loops=32 -I"$CICILI/" -DCOCO_GREEN -Iclient \
+  -Wno-parentheses-equality -Wno-dangling-else -Wno-format-truncation \
+  -c cocolog.c -o .libs/cocolog.o
+./tools/cc/cxx -O3 .libs/cocolog.o -o cocolog -rdynamic -ldl \
+  build/tls.o -Lbuild -lcocologc -lssl -lcrypto -lm -lpthread
+```
+
+Only what is written inside the form survives; the `info!` itself becomes
+nothing.
+
 ## 12. A lesson, a suite case
 
 - **A lesson is a test.** Every claim is a `must(Label, Got, Want)`; the
