@@ -567,7 +567,10 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   machine's and the process's default; the bullet on the stack limit,
   below), as a goal since 2.2.2, and refuses every other flag in swipl's
   words. `library(main)` parses the tail.
-* **Exit status is SWI's**: 0 proved, 1 failed silently, 2 threw; `halt(N)`
+* **Exit status is SWI's**: 0 proved, 1 failed, 2 threw. A failed `-s main`
+  or `run FILE GOAL` says swipl's `ERROR: -s main: false` / `ERROR: -g GOAL:
+  false` on stderr (3.63.0; silent through 3.62.7, swipl -q's), and `-q`
+  (`--quiet`, the `verbose` flag silent) says nothing, as swipl -q; `halt(N)`
   is N from `-s`, `run` and `query` alike -- **and from a nested search**
   (3.57.0, as swipl's halt/1 ends the process from whatever C called
   Prolog): findall/3 and what is built on it (forall/2, aggregate_all/3,

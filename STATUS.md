@@ -19576,3 +19576,62 @@ zigurat-lib, zigurat-tls, reconsult, vacuum, thread, cowork and async, every
 one GREEN; tensors SKIPPED (`no library/torch.so'). One server (`pgrep
 ziguratip'), 1.0.4's. ZiguratIP's own contention, carry-over, ageing,
 defer, log and tail checks are green; the card check passes.
+
+## A goal that failed says so, as swipl's does, and -q keeps it quiet (3.63.0)
+
+Through 3.62.7 a `-s main` or a `run FILE GOAL` that FAILED ended 1 and said
+nothing. The comment above `say_goal_error' named the reason: it was
+measured against `swipl -q -g main -t halt', and the silence was kept as
+swipl's. It is swipl -q's alone. Without -q, swipl 9.0.4 says so (the
+owner's call, to be swipl's):
+
+| swipl 9.0.4 | stderr | exit |
+|---|---|---|
+| `-g main -t halt f.pl`, main fails | `ERROR: -g main: false` | 1 |
+| the same with `-q` | nothing | 1 |
+| `-g 'member(X, [])'` | `ERROR: -g member(X, []): false`, the goal as typed | 1 |
+| main throws `oops`, `-q` or not | `ERROR: -g main: Unknown message: oops` | 2 |
+| `:- initialization(main, main).`, main fails | `ERROR: FILE:1: user:main: false`; nothing under `-q` | 1 |
+| `-q`, then `current_prolog_flag(verbose, V)` | `V = silent` | |
+| `-q`, a load's singleton warning | said | |
+
+3.63.0 answers each as swipl does:
+
+- **A failed `-s main` says `ERROR: -s main: false`, and `run FILE GOAL`
+  `ERROR: -g GOAL: false`** (`say_goal_failed' in cocolog.cicili), on a line
+  of its own (`coco_out_fresh'), with the WHERE an error of the same goal
+  already said: `-s main', and the goal as it was typed. A goal that halted
+  is no failure, `halt(1)' says nothing, as swipl's. `query' is as it was:
+  `false.' on stdout, exit 0.
+- **`-q` (`--quiet`) is the `verbose` flag silent from the command line**
+  (`coco_verbose_silent_set'): a failure says nothing, nor a load's failed
+  `initialization(main, main)' (whose line has followed the flag since
+  3.1.0), nor print_message/2's informational and banner kinds; an error
+  still says its message, and a warning is still said. The flag answers
+  `silent', and a program that sets it to `normal' has its failure said: the
+  flag is read when the goal has failed, as swipl's '$run_init_goal'/2 reads
+  it.
+- **The tree's tools whose goal FAILS as their verdict pass -q**:
+  tools/cocolint/lint.sh (`cl_main', a HARD finding), tool.sh (`card
+  --check''s complaints) and agent.sh's `ak_main' (exit 5), each of which
+  has said why itself. A tool that ends by halt(N) (tools/flow/chart.pl,
+  tools/flow/debug.pl) is as it was; a child that library(flow/debug) runs
+  and that fails says so now in the `Said' of its flow_debug_run(File, Exit,
+  Said) error, where it said nothing.
+
+The first cut of the lint case was red, and for the card, not the message:
+the three lines the flag's answer grew in lib/library.cicili moved three
+cites whose anchors repeat (N1, D3, P1), which the card refuses until their
+ranges are put right; the ranges are corrected and the ten moved cites
+renumbered.
+
+Held by test/script.pl's `red/1' (the message, -q, --quiet, `run''s `-g
+GOAL', the flag, a halt) and test/directives.pl's `exit_status' (the
+message, the goal as typed, -q), each against swipl 9.0.4's words above.
+Nothing changes for a goal that proves: the test is one compare at the
+run's end.
+
+THE RUN: the lint case first, then script, directives, argv, errors,
+backtrace, repl, trace, window, library, reconsult, cyclic, signal, units,
+files, engine, flowchart and flowdebug, each alone; lessons 09, 37 and 38
+alone.

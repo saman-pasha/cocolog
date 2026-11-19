@@ -81,8 +81,10 @@ else
     run "$HERE/generate.pl" coco_generate \
     || { echo "   the model call failed"; exit 4; }
   CAND="$WS/candidate.pl"
+  # -q: ak_main prints the reply and FAILS for anything but code (exit 5);
+  # it adds no `ERROR: -g ak_main: false' (cocolog 3.63.0, swipl -q's)
   COCOLOG_LIBRARY="$ROOT/library:$COCOLOG_LIBRARY" \
-  "$BIN" --local run "$HERE/clauses.pl" "$HERE/ask.pl" ak_main \
+  "$BIN" -q --local run "$HERE/clauses.pl" "$HERE/ask.pl" ak_main \
     -- candidate "$WS/out.json" "$CAND" || exit 5
 fi
 echo

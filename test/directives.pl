@@ -599,15 +599,21 @@ in_a_module(D) :-
 
 exit_status(D) :-
     section('the exit status of a goal, and what is said about it'),
-    %% `swipl -q -g GOAL -t halt': 0 proved, 1 failed -- SILENTLY, measured
-    %% -- and 2 threw. cocolog answers the same three.
+    %% `swipl -g GOAL -t halt': 0 proved, 1 failed, saying `ERROR: -g GOAL:
+    %% false' -- the goal as it was typed -- and 2 threw; under -q a failure
+    %% says nothing, measured. cocolog answers the same three (3.63.0;
+    %% through 3.62.7 a failure was silent whatever was asked, swipl -q's).
     atom_concat(D, '/g.pl', F),
     fixture(F, ['ok.', 'bad :- throw(my_ball).', 'typed :- atom_length(1, _).']),
     ran(F, ok, _, Rc1),
     check('a proved goal exits 0', Rc1, 0),
     ran(F, fail, Out2, Rc2),
     check('a failed goal exits 1', Rc2, 1),
-    check('...and says nothing about it', Out2, ''),
+    check('...and says so, as swipl''s -g does', Out2, 'ERROR: -g fail: false'),
+    ran(F, 'member(X, [])', Out2b),
+    check('...naming the goal as it was typed', Out2b, 'ERROR: -g member(X, []): false'),
+    sh_join(['-q --local run ', F, ' fail 2>&1'], Aq), cocolog_run(Aq, Outq, Rcq),
+    check('...and under -q says nothing and exits 1, as swipl -q''s', Outq-Rcq, ''-1),
     ran(F, bad, Out3, Rc3),
     check('a goal that throws exits 2', Rc3, 2),
     has('the message names the goal it was asked', '-g bad:', Out3),

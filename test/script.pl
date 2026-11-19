@@ -67,7 +67,29 @@ red(D) :-
     fixture(F, ['main :- 1 =:= 2.']),
     sh_join(['-s ', F, ' >/dev/null 2>&1'], Args),
     cocolog_run(Args, _, Rc),
-    check('a failed main exits 1 -- where query says 0', Rc, 1).
+    check('a failed main exits 1 -- where query says 0', Rc, 1),
+    %% AND SAYS SO AS SWIPL'S DOES (3.63.0): `swipl -g main -t halt' says
+    %% `ERROR: -g main: false', and -q nothing, as `swipl -q''s; through
+    %% 3.62.7 cocolog was always -q's
+    sh_join(['-s ', F, ' 2>&1 >/dev/null'], Args1),
+    cocolog_run(Args1, Err1, _),
+    check('a failed main says so on stderr, as swipl''s -g', Err1, 'ERROR: -s main: false'),
+    sh_join(['-q -s ', F, ' 2>&1 >/dev/null'], Args2),
+    cocolog_run(Args2, Err2, Rc2),
+    check('...and under -q says nothing, as swipl -q, and exits 1', Err2-Rc2, ''-1),
+    sh_join(['run ', F, ' main 2>&1 >/dev/null'], Args3),
+    cocolog_run(Args3, Err3, Rc3),
+    check('run FILE GOAL names the goal asked, -g GOAL, as swipl''s', Err3-Rc3, 'ERROR: -g main: false'-1),
+    sh_join(['--quiet run ', F, ' main 2>&1 >/dev/null'], Args4),
+    cocolog_run(Args4, Err4, _),
+    check('...and --quiet is -q', Err4, ''),
+    cocolog_run('-q query "current_prolog_flag(verbose, V), write(V), nl" 2>/dev/null', Out5, _),
+    has('-q is the verbose flag silent, as swipl -q''s', silent, Out5),
+    atom_concat(D, '/halt1.pl', F6),
+    fixture(F6, ['main :- halt(1).']),
+    sh_join(['-s ', F6, ' 2>&1 >/dev/null'], Args6),
+    cocolog_run(Args6, Err6, Rc6),
+    check('a main that halts is no failure: halt(1) says nothing', Err6-Rc6, ''-1).
 
 thrown(D) :-
     section('an exception is 2, said on stderr'),

@@ -427,9 +427,12 @@
           ;; `verbose' (2.16.0): swipl's `normal', which `swipl -q' makes
           ;; `silent' and print_message/2 reads -- under `silent' an
           ;; informational or banner message prints nothing
+          ;; and `silent' where -q set it before any program did (3.63.0)
           (if (== 0 (strcmp flag "verbose"))
               (return (coco_m_unify_atom e (coco_m_arg e g 1)
-                                         (? (== (nth 0 lb_verbose) (cast char 0)) "normal" lb_verbose))))
+                                         (? (== (nth 0 lb_verbose) (cast char 0))
+                                            (? (coco_verbose_silent) "silent" "normal")
+                                            lb_verbose))))
           ;; `optimise_unify' (3.15.0): swipl's, the process's -- whether a store puts
           ;; the unifications that begin a clause's body into its head
           (if (== 0 (strcmp flag "optimise_unify"))

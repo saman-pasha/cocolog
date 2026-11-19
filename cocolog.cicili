@@ -418,7 +418,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.62.7"))
+  (func coco_version_text () (out const char *) (return "3.63.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -430,7 +430,8 @@
         (fprintf stderr "  cocolog [options] run FILE [FILE... GOAL]\n")
         (fprintf stderr "                                consult each FILE, prove GOAL (main\n")
         (fprintf stderr "                                where one FILE is all there is);\n")
-        (fprintf stderr "                                exit 0 proved, 1 failed, 2 threw\n")
+        (fprintf stderr "                                exit 0 proved, 1 failed (`-g GOAL:\n")
+        (fprintf stderr "                                false' on stderr), 2 threw\n")
         (fprintf stderr "  cocolog [options] -s SCRIPT   load SCRIPT as a module, prove main;\n")
         (fprintf stderr "                                exit 0 only when main proved\n")
         (fprintf stderr "  cocolog [options] query GOAL\n")
@@ -487,6 +488,8 @@
         (fprintf stderr "                slower. Without it the backtrace is the goal\n")
         (fprintf stderr "                that raised and the goals left to run\n")
         (fprintf stderr "  --no-backtrace  the error's message alone\n")
+        (fprintf stderr "  -q, --quiet   the `verbose' flag silent, swipl -q's: a goal that\n")
+        (fprintf stderr "                failed says nothing, nor an informational message\n")
         (fprintf stderr "  --version     the version, on stdout, and nothing else\n"))
 
   ;;; Reads a whole file as a load reads a source file (3.58.0,
@@ -831,20 +834,22 @@
   ;;; is right for a query and wrong for a suite: a test script's
   ;;; caller wants the verdict where the shell looks for it. Nothing
   ;;; is printed by the runner itself -- the script's own output IS
-  ;;; the report -- except the engine's error, on stderr, where an
-  ;;; error always goes.
+  ;;; the report -- but the engine's error, and a main that failed, on
+  ;;; stderr, where an error always goes.
   ;;; ---- what a goal that did not prove says --------------------------
   ;;;
   ;;; SWI'S SHAPE, and SWI'S EXIT CODES with it: an uncaught exception is
   ;;;
   ;;;     ERROR: -g main: Unknown procedure: main/0
   ;;;
-  ;;; and the process ends 2, while a goal that merely FAILED says nothing
-  ;;; at all and ends 1 -- measured against `swipl -q -g main -t halt', not
-  ;;; remembered. The silence on failure is deliberate there and worth
-  ;;; keeping here: a goal that fails has answered the question it was
-  ;;; asked, and a program whose caller reads exit codes does not want a
-  ;;; line of prose in the middle of its output.
+  ;;; and the process ends 2, while a goal that merely FAILED says
+  ;;;
+  ;;;     ERROR: -g main: false
+  ;;;
+  ;;; and ends 1 -- measured against `swipl -g main -t halt', not
+  ;;; remembered; under -q (`verbose' silent) the failure says nothing,
+  ;;; as `swipl -q''s does, and the exception all the same (3.63.0;
+  ;;; through 3.62.7 a failure said nothing whatever the flag).
   ;;;
   ;;; WHERE names the goal the way the caller gave it -- `-g main' for a
   ;;; run, `?-' for a query typed at the toplevel -- because a message
@@ -868,6 +873,16 @@
         ;; AND WHERE IT WAS RAISED (1.10.17), for a ball: the lines its
         ;; throw wrote (lib/solve-control.cicili's `coco_bt_capture'), SWI's shape
         (coco_bt_say (-> e m) (-> e has_ball)))
+
+  ;;; A GOAL THAT FAILED, as swipl's '$run_init_goal'/2 says it: an error's
+  ;;; line, WHERE as `say_goal_error' names it, unless `verbose' is silent
+  ;;; (-q, or the program set the flag). A halted goal is no failure
+  (func say_goal_failed ((coco_engine * e) (const char * where))
+        (if (or (-> e halted) (coco_verbose_silent)) (return))
+        (fflush nil)
+        (coco_out_fresh stderr)
+        (fprintf stderr "ERROR: %s: false\n" where)
+        (coco_out_note stderr "\n" 1))
 
   ;;; 0 proved, 1 failed, 2 threw -- `swipl -g' ends this way and so does a
   ;;; `main' initialization goal, so the three answers agree wherever they
@@ -949,6 +964,7 @@
                ;; its output and before the commit (3.1.0), as swipl's
                ;; toplevel cuts
                (if (== rc 1) (coco_engine_cut (aof e)))
+               (if (== rc 0) (say_goal_failed (aof e) "-s main"))
                (if (== rc -1) (say_goal_error (aof e) "-s main")))
             (if (== rc -1)
                 (if (script_load_ended (aof e))
@@ -2523,11 +2539,12 @@
           ;; one answer: what it left is cut, a cleanup run with `!' (3.1.0)
           (if (== rc 1) (coco_engine_cut (aof e)))
           ;; NAMED BY THE GOAL ASKED, `-g GOAL', as swipl's message names it
-          ;; (3.1.0; through 3.0 `-g main' whatever the goal)
-          (if (== rc -1)
+          ;; (3.1.0; through 3.0 `-g main' whatever the goal), a failure too
+          ;; (3.63.0)
+          (if (or (== rc 0) (== rc -1))
               (let ((char tag [4200]))
                 (snprintf tag (sizeof tag) "-g %s" goal)
-                (say_goal_error (aof e) tag)))
+                (if (== rc 0) (say_goal_failed (aof e) tag) (say_goal_error (aof e) tag))))
           ;; a halted goal ends as a proved one does -- its writes kept, its
           ;; `halt(N)' the exit status -- the rule cmd_script states
           (if ($ e halted) (block (set halted 1) (set halt_code ($ e halt_code))))
@@ -2641,6 +2658,12 @@
                  (if (!= coco_trace_default 1) (set coco_trace_default 3))
                  (set i (+ i 1)))
                 ((== 0 (strcmp a "--no-backtrace")) (set coco_backtrace 0) (set i (+ i 1)))
+                ;; QUIET (3.63.0, swipl's -q): `verbose' silent from the start,
+                ;; so a goal that failed says nothing, nor a load's failed
+                ;; initialization(main, main), nor print_message/2's
+                ;; informational and banner kinds; an error still speaks
+                ((or (== 0 (strcmp a "-q")) (== 0 (strcmp a "--quiet")))
+                 (coco_verbose_silent_set 1) (set i (+ i 1)))
                 ((== 0 (strcmp a "--help")) (usage) (return 0))
                 ;; ON STDOUT, and alone on its line. `--help' explains and
                 ;; goes to stderr; a version is an ANSWER, and a script

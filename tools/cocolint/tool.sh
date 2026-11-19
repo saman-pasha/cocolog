@@ -44,6 +44,8 @@ case "$TOOL" in
   *) echo "cocolint: no tool named $TOOL" >&2; exit 2 ;;
 esac
 
+# -q: a tool that FAILS has said why itself (`card --check''s complaints);
+# without it cocolog 3.63.0 adds swipl's `ERROR: -g GOAL: false'.
 COCOLOG_LIBRARY="$ROOT/library:$COCOLOG_LIBRARY" \
 COCOLOG_ROOT="${COCOLOG_ROOT:-$ROOT}" \
-  exec "$BIN" --local run $FILES "$GOAL" -- "$@"
+  exec "$BIN" -q --local run $FILES "$GOAL" -- "$@"

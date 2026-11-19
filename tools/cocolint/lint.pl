@@ -888,8 +888,9 @@ cl_main :-
 
 %% cl_lint(+Files) is semidet.
 %% FAILS when there is a HARD finding, and that is the exit code. `cocolog
-%% --local run FILE GOAL' exits 1 with empty stderr when the goal fails --
-%% verified -- so no halt is needed.
+%% -q --local run FILE GOAL' exits 1 with empty stderr when the goal fails --
+%% verified -- so no halt is needed; lint.sh passes -q, as without it a goal
+%% that fails says `ERROR: -g cl_main: false' (3.63.0, swipl's -g).
 cl_lint(Files0) :-
     findall(F, ( member(F, Files0), \+ cl_vendored(F) ), Files),
     length(Files0, NF0), length(Files, NF1), NVend is NF0 - NF1,

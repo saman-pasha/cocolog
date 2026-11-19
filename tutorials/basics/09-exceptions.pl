@@ -223,7 +223,7 @@ main :-
     format("~n-- and what an UNCAUGHT ball costs~n"),
     format("   It reaches the toplevel, which prints it in SWI's words and~n"),
     format("   exits 2 -- not 1, which is what a goal that merely FAILED~n"),
-    format("   exits with, silently:~n"),
+    format("   exits with, saying `ERROR: -g main: false' (nothing under -q):~n"),
     format("~n     ERROR: -g main: Unknown message: my_ball~n"),
     format("     ERROR: -g main: catch/3: Unknown procedure: nosuch/0~n~n"),
     format("   0 proved, 1 failed, 2 threw. A script that reads exit codes~n"),

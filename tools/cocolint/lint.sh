@@ -168,10 +168,13 @@ fi
 sh "$HERE/tool.sh" build --if-stale >/dev/null || exit 2
 sh "$HERE/tool.sh" card --facts --if-stale >/dev/null || exit 2
 
+# -q: cl_main FAILS for a HARD finding, and the findings are the report. A
+# goal that fails says `ERROR: -g cl_main: false' on stderr since cocolog
+# 3.63.0, as swipl's -g does, unless the verbose flag is silent, swipl -q's.
 COCOLOG_LIBRARY="$ROOT/library:$COCOLOG_LIBRARY" \
 COCOLOG_ROOT="$ROOT" \
 COCO_LINT_FILES="$LIST" \
-  "$BIN" --local run \
+  "$BIN" -q --local run \
     "$HERE/blocklist.pl" "$HERE/traps.pl" "$HERE/clauses.pl" "$HERE/lint.pl" \
     cl_main
 LINT_RC=$?

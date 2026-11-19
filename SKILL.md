@@ -12,7 +12,7 @@ ZiguratIP server, Zeytun over HTTP — in which a clause is a row, and a running
 proof is a term that can be frozen into rows and resumed by another process.
 It is one binary, written in **Cicili** (C in S-expressions).
 
-Version at the time of writing: cocolog 3.62.7, built with
+Version at the time of writing: cocolog 3.63.0, built with
 Cicili 3.3.0. `./cocolog --version` answers it.
 
 **Part A** is for writing and running Prolog on cocolog. **Part B** is for
@@ -78,10 +78,11 @@ and swipl 9.0.4 disagree and `COMPAT.md` has no row for it, that is a bug.
   b/0`). Name the goal when there is more than one file.
 - `run` and `-s` print only what the program prints. `query` prints each
   answer as the goal instantiated, ten at most (`--answers N`, 0 for all).
-- **Exit status** of `run` and `-s`: 0 proved, 1 failed (nothing is said), 2
-  an uncaught error (its message and a backtrace on stderr), N after
-  `halt(N)`. `query` exits 0 whether it answered or printed `false.`, and 1
-  on an error.
+- **Exit status** of `run` and `-s`: 0 proved, 1 failed (swipl's `ERROR: -s
+  main: false` or `ERROR: -g GOAL: false` on stderr; `-q` before the command
+  says nothing, as `swipl -q`), 2 an uncaught error (its message and a
+  backtrace on stderr, `-q` or not), N after `halt(N)`. `query` exits 0
+  whether it answered or printed `false.`, and 1 on an error.
 - **A program's arguments come after `--`**:
   `current_prolog_flag(argv, [Exe|Args])`. `library(main)` parses them: define
   `main(Argv)` and `opt_type/3`, one row for each spelling of a flag
