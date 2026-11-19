@@ -1019,6 +1019,22 @@
     ;; process only. Appended.
     (member char *   pmq))
 
+  ;;; WHAT THE KNOWLEDGE BASE'S ROWS HOLD OF A PREDICATE (3.63.1, read and
+  ;;; set by lib/zigurat-kb.cicili alone, `coco_zg_rows_hold'): OK while the
+  ;;; backend knows its rows are the clauses of the slots before W that are
+  ;;; no module's and not dead, in their order, every ordinal no more than
+  ;;; MAX, and every slot from W on an assertz it was told of -- so long as
+  ;;; the predicate's TVER is VER, its NCLAUSES N and the connection's
+  ;;; `zg_unsure' RB. A sync then writes the slots from W alone, where it
+  ;;; wrote the whole predicate again.
+  (struct coco_wrows
+    (member int      ok)
+    (member u32      ver)
+    (member u32      rb)
+    (member size_t   n)
+    (member size_t   w)
+    (member i64      max))
+
   ;;; Forward-declared, because the two hooks below are members of the store
   ;;; and take a pointer to it -- the typedef has to exist before the struct
   ;;; that carries them is written out.
@@ -1362,7 +1378,15 @@
     ;; which costs each later load its expansion pass and moves no answer.
     ;; Appended.
     (member u64       xlib [4])
-    (member int       nxlib))
+    (member int       nxlib)
+    ;; WHAT THE KNOWLEDGE BASE'S ROWS HOLD OF EACH PREDICATE (3.63.1,
+    ;; `coco_wrows'), indexed as `preds' is, WRCAP of them: grown by the
+    ;; backend as it asks (`coco_zg_wr'), dropped at every attachment of
+    ;; one, nil none. NOT A FIELD OF THE PREDICATE: the step indexes
+    ;; `preds', and 40 bytes more on each made every index of it dearer
+    ;; (naive reverse +0.32 % of tools/flow/zero.sh's work). Appended.
+    (member coco_wrows * wr)
+    (member size_t       wrcap))
 
   (decl) (func coco_store_init ((coco_store * st)))
   (decl) (func coco_store_free ((coco_store * st)))
@@ -2700,6 +2724,8 @@
         (for ((size_t i . 0)) (< i (-> st nloads)) ((++ i))
           (free ($ (nth i (-> st loads)) path)))
         (free (cast (void *) (-> st loads)))
+        ;; and what the backend knew of their rows
+        (free (cast (void *) (-> st wr)))
         (memset st 0 (sizeof coco_store)))
 
   (func coco_store_loaded ((coco_store * st) (const char * path) (double * t)) (out int)

@@ -235,6 +235,14 @@ int zg_isolate(zg_conn *c, zg_isolation_t level);
 int zg_commit(zg_conn *c);
 int zg_rollback(zg_conn *c);
 
+/* How often what was written down this connection may not be there (3.63.1):
+ * it moves at every rollback, every commit that failed, and every
+ * zg_unsettle -- a call a program made of a procedure of its own, which may
+ * have changed any row. A caller that remembers what the rows hold believes
+ * it only while this stands where it read it. */
+uint32_t zg_unsure(zg_conn *c);
+void zg_unsettle(zg_conn *c);
+
 /* Reads the next result byte. An EXCEPTION_THROWN is turned into a failure
  * with the server's message in zg_error(), and the exception's message is
  * consumed -- so the stream is left in step and the connection may be used

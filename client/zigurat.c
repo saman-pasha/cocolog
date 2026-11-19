@@ -138,6 +138,13 @@ struct zg_conn {
    * consumed and `nin' how far the socket has filled. */
   unsigned char in[ZG_IN_SIZE];
   size_t nin, pin;
+  /* HOW OFTEN WHAT WAS WRITTEN DOWN THIS CONNECTION MAY NOT BE THERE
+   * (3.63.1): every rollback, every commit that failed, and every call a
+   * program made of a procedure of its own (zg_unsettle). The knowledge
+   * base's write-through (lib/zigurat-kb.cicili) believes it knows what a
+   * predicate's rows hold only while this has not moved. Atomic: a green
+   * world's workers each have a session on the one connection. */
+  uint32_t unsure;
 };
 
 /* ------------------------------------------------------------------ */
@@ -975,19 +982,31 @@ static int simple_verb(zg_conn *c, const char *name)
   return ok;
 }
 
+uint32_t zg_unsure(zg_conn *c)
+{
+  return c ? __atomic_load_n(&c->unsure, __ATOMIC_ACQUIRE) : 0;
+}
+
+void zg_unsettle(zg_conn *c)
+{
+  if (c) __atomic_add_fetch(&c->unsure, 1, __ATOMIC_ACQ_REL);
+}
+
 int zg_commit(zg_conn *c)
 {
+  int ok;
   if (c && c->embed) {
     void *sess = ce_of(c);
-    int ok;
-    if (!sess) return say(c, ce_no_session);
-    ok = ce_commit(sess);
-    return emb(c, ok);
-  }
-  return simple_verb(c, "commit");
+    if (!sess) { zg_unsettle(c); return say(c, ce_no_session); }
+    ok = emb(c, ce_commit(sess));
+  } else
+    ok = simple_verb(c, "commit");
+  if (!ok) zg_unsettle(c);
+  return ok;
 }
 int zg_rollback(zg_conn *c)
 {
+  zg_unsettle(c);
   if (c && c->embed) {
     void *sess = ce_of(c);
     if (!sess) return say(c, ce_no_session);

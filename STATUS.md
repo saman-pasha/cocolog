@@ -19635,3 +19635,107 @@ THE RUN: the lint case first, then script, directives, argv, errors,
 backtrace, repl, trace, window, library, reconsult, cyclic, signal, units,
 files, engine, flowchart and flowdebug, each alone; lessons 09, 37 and 38
 alone.
+
+## A green task's assertz is its own row, and no task waits on its host (3.63.1)
+
+The Ambitious session's finding 4: four green tasks' 2 000 assertz into a
+fresh embedded store took 153 s and grew it to 454 MB, the process at 100 %
+of a core and the store's lock held all the while. Two faults, the second
+found on the way to the first's fix.
+
+**The writes were quadratic.** A thread that is not the connection's owner
+-- every green worker but the host's -- never batches (2.9.1's rule: a dirty
+list it left would be flushed on its thread and never committed), so it
+writes where each assert is made, and the write was `coco_zg_sync_pred`'s:
+`cocolog::forget_clauses`, then every clause of the predicate again, a row
+each, the rows it forgot dead under MVCC for the next forget to walk. N
+asserts were N rewrites of up to N rows.
+
+**A host's turn locked its tasks out.** The host's writes are its turn's,
+written at the turn's end. But `coco_zg_fetch` wrote EVERY predicate the turn
+had changed before it read any predicate not read yet -- a library's,
+member/2's, async_run/2's own -- and `coco_zg_warm` (current_predicate/1,
+listing/0) the same, into the host's open transaction, and the rows those
+rewrites deleted stayed locked to the turn's commit. A task that then
+rewrote one of those predicates waited on the locks while the host awaited
+the task: `lock wait timeout` ten seconds later. An assertz raised
+resource_error(knowledge_base) (`forget_clauses: the store refused it: lock
+wait timeout`); a retract's write-through said nothing, and the retract was
+gone from every later process.
+
+3.63.1:
+
+- **The store keeps what a predicate's committed rows hold**
+  (`coco_wrows`, the store's `wr`, one record a predicate;
+  `coco_zg_rows` in lib/zigurat-kb.cicili, its four acts): the clauses of
+  the slots before W, in their order, no ordinal past MAX -- believed while
+  the predicate's `tver` and `nclauses` stand where the assertz's it was told
+  of left them and the connection's `zg_unsure` where it was. A sync that
+  wrote the predicate sets it, and so does a fetch (a write fetches first,
+  `coco_assert_from`, so every clause the store then holds of it came out of
+  the rows). An assertz that appends -- one slot more, its clause the last,
+  one change more -- keeps it; an asserta, a re-read's insert, a sweep of the
+  dead, a retract or a declaration ends it.
+- **A worker whose record holds writes the slots from W alone** and forgets
+  nothing, each row's ordinal its slot or one past the greatest there is.
+  The owner's sync is the whole predicate, as it always was: it is the
+  turn's, once a predicate, and it levels what the turn's workers committed
+  with what the store holds.
+- **A fetch writes only the predicate it reads** (`coco_zg_flush_one`),
+  which a write's own fetch never finds dirty, and `warm` writes nothing:
+  what it answers is names and declarations, and its callers walk the store
+  after it, where the turn's own predicates already are.
+- **`zg_unsure`** (client/zigurat.c): a count that every rollback, every
+  failed commit and `zg_unsettle` move; zigurat_call/2 unsettles before it
+  calls the program's procedure, which may change any row.
+- **The record is not a field of `coco_pred`.** There it made the
+  predicate 384 bytes from 344, and every predicate the step indexes paid:
+  nrev +0.32 %, queens +0.35 %, lookup +0.21 % of tools/flow/zero.sh's work
+  less its padding. In the store, beside `preds`, coco_pred is 344 bytes
+  again and zero.sh counts 3.63.0's: nrev and lookup the same instructions,
+  queens 71 more of 40 253 276.
+
+| | 3.63.0 | 3.63.1 |
+|---|---|---|
+| four tasks' 1 000 assertz, 250 each, into a fresh embedded store | 21.4 s (26.6 s in an earlier run) | 1.4 s |
+| its data.bin after | 105 MB (118 MB) | 1.1 MB |
+| 36 random programs of a host and its tasks writing one predicate (assertz, asserta, retract, a task's append beside the host's), each read back by a second process | 1 answered, 35 `lock wait timeout` | 36 answered, each as its reader reads it |
+| the same 36 with no async_run/2 before the first write | 1 answered, 35 timed out | 36 |
+| 60 wider ones, thirty steps each: listing/0, a task's retract, retractall/1 | none answered, 60 timed out | 60 |
+
+WHAT IS LEFT is the design's: about a millisecond a worker's assert, its
+own commit's and the write barrier's.
+
+THE ARMS, one build each, the section run on each: the tail write off
+(every worker's sync the whole predicate) is red at the store's size
+alone; a fetch writing every dirty predicate again, at both retracts'
+read-backs; `warm` writing them again, at current_predicate/1's; and
+zigurat_call/2 without `zg_unsettle`, at its read-back.
+
+ONE CHECK OF 3.62.7'S MOVED. `rr_cursor` ("a REPL query whose walks were
+refused their memory is refused its commit") went red, its commit made.
+Its twenty fetches are refused their walks still -- forty page snapshots,
+past the sixteen cursors a thread holds, so its second check, the cursors
+given back, holds what it held -- but a transaction that has written
+nothing holds no commit (3.62.6's rule), and through 3.63.0 each fetch had
+written the asserts before it first. The query writes first now, by a
+procedure call of its own (a forget_clauses), and is green on 3.63.0 and
+3.63.1 alike.
+
+THE RUN, on the binary that ships: the lint case first; then store-lock,
+zigurat, shared, tunnel, kbs, groups, ruler, zigurat-lib, zigurat-tls,
+reconsult, vacuum, thread, cowork, async, httpd, journal, state, module
+and solve, each alone, with a server up (restarted first); tensors skips,
+no libtorch here. The card check passes, its I1 and Z1 cites renumbered.
+
+NOT DONE: vacuum_kb/0,1 still writes the host's dirty list before its pass
+(`coco_zg_vacuum`), so a task that then writes a predicate the turn changed
+by anything but an append -- its retract, an asserta -- can wait on it as
+3.63.0's did. And a retract whose write-through the store refuses is still
+silent, where an assertz's raises (3.62.6).
+
+Held by test/store-lock.pl's `tasks_write` section: the 1 000 rows and the
+store's size (under 16 MB: over 100 MB through 3.63.0), a fetch and a
+current_predicate/1 in the host's turn before a task's retract (each read
+back [2,3] by a second process: [1,2,3] through 3.63.0, after ten seconds),
+and a task's zigurat_call/2 between two assertz.

@@ -292,6 +292,11 @@
                   (if (== tbuf nil)
                       (block (free items)
                              (return (coco_m_resource_error e "memory"))))
+                  ;; A PROCEDURE OF THE PROGRAM'S MAY CHANGE ANY ROW
+                  ;; (3.63.1): what the store's write-through knew of a
+                  ;; predicate's rows is asked again at its next write
+                  ;; (`coco_zg_rows' in lib/zigurat-kb.cicili)
+                  (zg_unsettle db)
                   (if (not (zg_call db pname))
                       (block (free items) (free tbuf) (return (zm_wire e db))))
                   (for ((size_t i . 0)) (< i nargs) ((++ i))

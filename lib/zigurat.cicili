@@ -108,6 +108,10 @@
      (decl) (func zg_isolate ((zg_conn * c) (zg_isolation_t level)) (out int))
      (decl) (func zg_commit ((zg_conn * c)) (out int))
      (decl) (func zg_rollback ((zg_conn * c)) (out int))
+     ;; how often what was written down C may not be there (3.63.1): every
+     ;; rollback, failed commit and zg_unsettle moves it (client/zigurat.h)
+     (decl) (func zg_unsure ((zg_conn * c)) (out u32))
+     (decl) (func zg_unsettle ((zg_conn * c)))
      (decl) (func zg_result ((zg_conn * c) (zg_result_t * out)) (out int))
      (decl) (func zg_columns ((zg_conn * c) (char * out) (size_t outcap)) (out int))
      (decl) (func zg_drain ((zg_conn * c) (unsigned row_fields)) (out int))

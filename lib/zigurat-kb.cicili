@@ -252,6 +252,11 @@
         (set (-> z write_through) 1)
         (snprintf (-> z kb) 64 "%s" kb)
         (set (-> st ctx) (cast (void *) z))
+        ;; ANOTHER CONNECTION, OR ANOTHER KNOWLEDGE BASE: nothing the store
+        ;; knew of what rows hold is known of these (3.63.1)
+        (free (cast (void *) (-> st wr)))
+        (set (-> st wr) nil)
+        (set (-> st wrcap) 0)
         ;; WHAT A ROW WILL HOLD, MEASURED AND NOT GUESSED.
         ;;
         ;; Zigurat allocates a row inside ONE page and throws `allocation
@@ -384,11 +389,97 @@
   ;;; AND THE ROWS' ARRAY GROWS THROUGH A SECOND POINTER: `rows' set from
   ;;; `realloc' was nil when the growth was refused, and the cleanup then
   ;;; walked N bodies through it -- a crash where memory ran short.
+  ;;; ---- what the rows hold (3.63.1) ----------------------------------
+  ;;;
+  ;;; THE ROWS ARE KNOWN TO BE THE CLAUSES BEFORE W (the store's record of
+  ;;; the predicate, `coco_wrows' in lib/kb.cicili) so long as nothing has
+  ;;; changed the predicate since but the assertz's ACT 2 was told of -- its
+  ;;; count of changes, `tver', and its count of slots stand where the last
+  ;;; of them left them -- and nothing written down the connection may have
+  ;;; been lost since: a rollback, a commit that failed, a program's own
+  ;;; call of a procedure (`zg_unsure'). What is done with predicate PI's
+  ;;; record is ACT's:
+  ;;;
+  ;;;   0  ASK whether they are: 1 or 0.
+  ;;;   1  NOW THEY ARE: every slot, ARG the greatest ordinal among the rows
+  ;;;      (-1 for none) -- once the whole predicate is written, or its
+  ;;;      slots from W, or its rows fetched.
+  ;;;   2  AN ASSERTZ THE ROWS CAN FOLLOW, ARG its clause: one slot more
+  ;;;      than they knew of, its clause the last, and one change more, the
+  ;;;      append's own (`coco_pred_add_clause'); its slot is then one a
+  ;;;      sync writes on its own. Anything else -- an asserta, a re-read's
+  ;;;      insert, a module's clause it was not told of, a sweep of the dead
+  ;;;      -- and the rows are known no more: the next sync writes the whole
+  ;;;      predicate.
+  ;;;   3  KNOWN NO MORE: a retract, a declaration, a sync under way.
+  ;;;
+  ;;; The records grow only to be set (1), as the store's predicates do,
+  ;;; and a growth refused leaves the rows not known: the next sync writes
+  ;;; the whole predicate, as it always did. Every act runs under the green
+  ;;; world's write barrier, or with no world: the hooks' callers hold it.
+  (static)
+  (func coco_zg_rows ((coco_zg * z) (size_t pi) (int act) (i64 arg)) (out int)
+        (let ((coco_store * st . #'(-> z st))
+              (coco_pred * p)
+              (coco_wrows * r))
+          (if (>= pi ($ (cof st) npreds)) (return 0))
+          (set p (aof (nth pi (-> st preds))))
+          (if (>= pi (-> st wrcap))
+              (block
+                (if (!= act 1) (return 0))
+                (let ((size_t cap . #'(+ (+ (-> st npreds) (/ (-> st npreds) 2)) 16))
+                      (coco_wrows * grown . #'(cast (coco_wrows *)
+                                                (realloc (cast (void *) (-> st wr))
+                                                         (* cap (sizeof coco_wrows))))))
+                  (if (== grown nil) (return 0))
+                  (memset (cast (void *) (aof (nth (-> st wrcap) grown))) 0
+                          (* (- cap (-> st wrcap)) (sizeof coco_wrows)))
+                  (set (-> st wr) grown)
+                  (set (-> st wrcap) cap))))
+          (set r (aof (nth pi (-> st wr))))
+          (if (== act 1)
+              (block (set (-> r ok) 1)
+                     (set (-> r rb) (zg_unsure (-> z db)))
+                     (set (-> r ver) (-> p tver))
+                     (set (-> r n) (-> p nclauses))
+                     (set (-> r w) (-> p nclauses))
+                     (set (-> r max) arg)
+                     (return 1)))
+          (if (== act 3) (block (set (-> r ok) 0) (return 0)))
+          (if (not (and (-> r ok) (== (-> r rb) (zg_unsure (-> z db)))))
+              (block (set (-> r ok) 0) (return 0)))
+          (if (== act 0)
+              (return (and (== (-> r ver) (-> p tver)) (== (-> r n) (-> p nclauses)))))
+          (if (and (== (cast u32 (+ (-> r ver) 1)) (-> p tver))
+                   (and (== (+ (-> r n) 1) (-> p nclauses))
+                        (== (nth (- (-> p nclauses) 1) (-> p clauses)) (cast size_t arg))))
+              (block (set (-> r ver) (-> p tver))
+                     (set (-> r n) (-> p nclauses))
+                     (return 1)))
+          (set (-> r ok) 0)
+          (return 0)))
+
+  ;;; ONE PREDICATE OF THE OWNER'S LIST, written now and taken off it
+  ;;; (3.63.1): a fetch's, which levels with the database on what it reads
+  ;;; and on nothing else. A thread that is not the owner has no list
+  (static)
+  (func coco_zg_flush_one ((coco_zg * z) (size_t pi)) (out int)
+        (if (not (zg_owns (-> z db))) (return 1))
+        (for ((size_t i . 0)) (< i (-> z ndirty)) ((++ i))
+          (if (== (nth i (-> z dirty)) pi)
+              (block
+                (set (nth i (-> z dirty)) (nth (- (-> z ndirty) 1) (-> z dirty)))
+                (set (-> z ndirty) (- (-> z ndirty) 1))
+                (return (coco_zg_sync_pred z pi)))))
+        (return 1))
+
   (func coco_zg_fetch ((coco_store * st) (void * ctx) (u64 name) (u32 arity)) (out int)
         (let ((coco_zg * z . #'(cast (coco_zg *) ctx))
               (coco_machine * m)
               (coco_zg_row * rows . nil)
               (size_t n . 0) (size_t cap . 0)
+              ;; the greatest ordinal read (3.63.1, `coco_zg_rows')
+              (i64 top . -1)
               ;; OK until the first failure; WHY says it, WIRE when the
               ;; connection is what failed, OOM when memory did; GONE when the
               ;; connection is closed and nothing more can be read
@@ -405,7 +496,20 @@
           ;; process already knows are stale. A fetch is once per predicate,
           ;; so this costs at most one flush per predicate and never sits in
           ;; a loop.
-          (coco_zg_flush z)
+          ;;
+          ;; ON THE PREDICATE READ, AND NO OTHER (3.63.1). Through 3.63.0 every
+          ;; predicate the turn had changed was written here, into the owner's
+          ;; open transaction, at the first call of any predicate not read yet
+          ;; -- a library's, member/2's, async_run/2's -- and the rows that
+          ;; rewrite deleted stayed locked to the turn's commit. A green task
+          ;; that then rewrote one of those predicates waited on the locks,
+          ;; the owner waited on the task, and the write ended in `lock wait
+          ;; timeout': 35 of 36 runs of a host and its tasks writing one
+          ;; predicate. What another predicate's rows hold is no part of this
+          ;; read, and the one read is never one the turn has changed (a
+          ;; write fetches first, `coco_assert_from'): it is written if it is
+          ;; dirty all the same.
+          (coco_zg_flush_one z (coco_pred_find st name arity))
 
           (if (not (zg_call (-> z db) "cocolog::clauses_of"))
               (return (coco_zg_fetch_fail st z "calling cocolog::clauses_of" 1 0)))
@@ -479,6 +583,7 @@
           (if ok
               (block
                (qsort rows n (sizeof coco_zg_row) coco_zg_row_cmp)
+               (if (> n 0) (set top ($ (nth (- n 1) rows) ordinal)))
                ;; The clauses are going INTO the store, so write-through is off
                ;; for the duration: otherwise every clause read out of the
                ;; database would immediately be written back to it.
@@ -503,6 +608,11 @@
           (for ((size_t i . 0)) (< i n) ((++ i)) (free ($ (nth i rows) body)))
           (free (cast (void *) rows))
           (if (not ok) (return (coco_zg_fetch_fail st z why wire oom)))
+          ;; THE ROWS ARE WHAT THE STORE NOW HOLDS (3.63.1): every clause of
+          ;; the predicate that is no module's came out of them (a write
+          ;; fetches first, `coco_assert_from'), so an assertz after this
+          ;; writes its own row and no other
+          (coco_zg_rows z (coco_pred_find st name arity) 1 top)
           (return 1)))
 
   ;;; ---- writing a predicate back ----------------------------------------
@@ -511,8 +621,21 @@
   ;;; clause at the FRONT, which changes the ordinal of every clause after it;
   ;;; writing only the new one would leave the database holding two clauses
   ;;; that both claim to be first. Rewriting the predicate is O(n) per assert
-  ;;; and always right, and a predicate with enough clauses for that to hurt is
-  ;;; not one a program should be asserting into in a loop.
+  ;;; and always right.
+  ;;;
+  ;;; BUT WHAT WAS ONLY APPENDED IS WRITTEN ALONE (3.63.1, the Ambitious
+  ;;; session's finding 4). The batch keeps an owner's turn to one rewrite of
+  ;;; each predicate it changed, and a thread that is not the connection's
+  ;;; owner -- a green task's worker -- has no turn: it writes where each
+  ;;; assert is made, so N asserts were N rewrites of up to N rows, each
+  ;;; leaving the last one's rows dead under MVCC for the next forget to walk.
+  ;;; Four tasks' 2 000 asserts into an embedded store took 153 s and grew it
+  ;;; to 454 MB, the process at 100 % of a core and the store's lock held.
+  ;;; Where a worker finds the committed rows known to hold every clause
+  ;;; before the record's W and the rest assertz's (`coco_zg_rows'), the
+  ;;; slots from W are written, a row each, and nothing is forgotten; the
+  ;;; owner's sync, and anything else, is the whole predicate, as it always
+  ;;; was (the owner's is a turn's: one rewrite of each predicate it changed).
   (func coco_zg_sync_pred ((coco_zg * z) (size_t pi)) (out int)
         (let ((coco_store * st . #'(-> z st))
               (coco_machine * m . #'(-> z m))
@@ -520,18 +643,36 @@
           (if (>= pi ($ (cof (-> z st)) npreds)) (return 0))
           (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
                 (const char * nm . #'(coco_atom_name m ($ (nth pi (-> st preds)) name)))
-                (u32 ar . #'($ (nth pi (-> st preds)) arity)))
+                (u32 ar . #'($ (nth pi (-> st preds)) arity))
+                ;; the first slot written, and the greatest ordinal so far: a
+                ;; row takes its slot for its ordinal, as the whole predicate
+                ;; always has, or one past the greatest where a fetch read a
+                ;; greater (another process's numbering). THE OWNER WRITES
+                ;; THE WHOLE PREDICATE, AS IT ALWAYS HAS: its sync is the
+                ;; turn's, once a predicate at the turn's end, and levels
+                ;; what the turn's workers committed with what the store holds
+                (int only . #'(and (not (zg_owns (-> z db))) (coco_zg_rows z pi 0 0)))
+                (size_t from . 0)
+                (i64 last . -1))
+            ;; the record is there where it was asked
+            (if only
+                (block (set from ($ (nth pi (-> st wr)) w))
+                       (set last ($ (nth pi (-> st wr)) max))))
+            ;; known no more until this sync has written all it means to
+            (coco_zg_rows z pi 3 0)
 
             ;; the CLAUSES, not the predicate: `cocolog::forget' would take the
             ;; `:- dynamic' declaration with them, and this runs on every
             ;; assert and every retract
-            (if (not (zg_call (-> z db) "cocolog::forget_clauses"))
-                (return (coco_zg_fail z "forget_clauses")))
-            (if (not (zg_write_string (-> z db) (-> z kb))) (return 0))
-            (if (not (zg_write_string (-> z db) nm)) (return 0))
-            (if (not (zg_write_int (-> z db) (cast i32 ar))) (return 0))
-            (if (not (coco_zg_finish z (aof ignored)))
-                (return (coco_zg_fail z "forget_clauses")))
+            (if (not only)
+                (block
+                  (if (not (zg_call (-> z db) "cocolog::forget_clauses"))
+                      (return (coco_zg_fail z "forget_clauses")))
+                  (if (not (zg_write_string (-> z db) (-> z kb))) (return 0))
+                  (if (not (zg_write_string (-> z db) nm)) (return 0))
+                  (if (not (zg_write_int (-> z db) (cast i32 ar))) (return 0))
+                  (if (not (coco_zg_finish z (aof ignored)))
+                      (return (coco_zg_fail z "forget_clauses")))))
 
             ;; THE CLAUSES GO DOWN IN A WINDOW, NOT ONE ROUND TRIP EACH. A
             ;; call is three waits on the wire before the procedure has done
@@ -549,8 +690,8 @@
             ;; second call sent before the first is answered lost its answer
             ;; ("writing the consulted clauses: nothing left to read") --
             ;; and there is no wire to pipeline anyway: its window is one.
-            (let ((size_t head . 0)
-                  (size_t tail . 0)
+            (let ((size_t head . #'(+ from 0))
+                  (size_t tail . #'(+ from 0))
                   (size_t window . #'(? (zg_embedded (-> z db)) 1 128)))
               (while (< tail (-> p nclauses))
                 (if (and (< head (-> p nclauses)) (< (- head tail) window))
@@ -589,13 +730,14 @@
                           (set t (coco_make2 m "$from"
                                              (coco_new_atom m (coco_atom_name m (- from 1))) t)))
                       (coco_write_storable m (aof b) t)
+                      (set last (? (> (cast i64 head) last) (cast i64 head) (+ last 1)))
                       (if (not (zg_call_send (-> z db) "cocolog::assert_clause"))
                           (block (coco_sb_free (aof b)) (set (-> m heap_len) mark)
                                  (return (coco_zg_fail z "assert_clause"))))
                       (if (and (zg_write_string (-> z db) (-> z kb))
                                (and (zg_write_string (-> z db) nm)
                                     (and (zg_write_int (-> z db) (cast i32 ar))
-                                         (and (zg_write_long (-> z db) (cast i64 head))
+                                         (and (zg_write_long (-> z db) last)
                                               (zg_write_text (-> z db)
                                                              (? (== ($ b s) nil) "" ($ b s)))))))
                           (block)
@@ -612,6 +754,11 @@
                       (if (not (coco_zg_finish z (aof ignored)))
                           (return (coco_zg_fail z "assert_clause")))
                       (set tail (+ tail 1)))))))
+            ;; THE ROWS NOW HOLD EVERY SLOT (3.63.1), and a worker's next
+            ;; assertz is its own row -- until the connection says otherwise:
+            ;; the owner's rows are the turn's, and a rollback of it moves
+            ;; `zg_unsure'
+            (coco_zg_rows z pi 1 last)
             (return 1))))
 
   (func coco_zg_on_assert ((coco_store * st) (void * ctx) (size_t clause)) (out int)
@@ -630,6 +777,10 @@
             (if (coco_is_callable m head)
                 (let ((size_t pi . #'(coco_pred_find (-> z st) (coco_name_of m head)
                                                    (coco_arity m head))))
+                  ;; an assertz the rows can follow, or the end of knowing them
+                  ;; (3.63.1): asked of every write, batched or not, as the
+                  ;; next sync reads it
+                  (coco_zg_rows z pi 2 (cast i64 clause))
                   (if (< pi ($ (cof (-> z st)) npreds))
                       ;; A THREAD THAT IS NOT THE STORE'S NEVER BATCHES: its
                       ;; session's transaction is committed where the write
@@ -727,11 +878,15 @@
               (char cols [256]))
           (set m (-> z m))
 
-          ;; and the same before this one: a predicate first asserted into
-          ;; during this turn exists only in the store until it is flushed,
-          ;; and `listing' asking the database what there is would not be
-          ;; told about it.
-          (coco_zg_flush z)
+          ;; NOTHING IS FLUSHED FIRST (3.63.1). Through 3.63.0 every
+          ;; predicate the turn had changed was written here, so `listing'
+          ;; would be told of one first asserted into this turn -- but what
+          ;; this answers is names and declarations, and every caller walks
+          ;; the store after it (current_predicate/1, listing/0, the program's
+          ;; predicates), where the turn's own are already. The writes went
+          ;; into the owner's open transaction and kept the rows they deleted
+          ;; locked to its commit, so a green task that then rewrote one of
+          ;; them waited for a lock its owner never gave (`coco_zg_fetch').
 
           (if (not (zg_call (-> z db) "cocolog::predicates_of"))
               (return (coco_zg_fail z "predicates")))
@@ -813,6 +968,9 @@
               (const char * what . "declare_dynamic"))
           (if (not (-> z write_through)) (return 1))
           (if (>= pi ($ (cof st) npreds)) (return 0))
+          ;; a declaration, or its withdrawal and the rows with it: what
+          ;; the rows hold is asked again at the next write (3.63.1)
+          (coco_zg_rows z pi 3 0)
           ;; A FAILURE NAMES THE PROCEDURE AS THE HOOK'S OTHER CALLS DO,
           ;; without its package (3.36.1: 3.36.0 said
           ;; `cocolog::declare_dynamic', and test/store-lock.pl went red)
@@ -946,6 +1104,8 @@
   (func coco_zg_on_retract ((coco_store * st) (void * ctx) (size_t pi)) (out int)
         (let ((coco_zg * z . #'(cast (coco_zg *) ctx)))
           (if (not (-> z write_through)) (return 1))
+          ;; a clause gone: the rows are the whole predicate again (3.63.1)
+          (coco_zg_rows z pi 3 0)
           (if (and (-> z batch) (zg_owns (-> z db)))
               (return (coco_zg_mark_dirty z pi)))
           (if (not (coco_zg_sync_pred z pi)) (return 0))

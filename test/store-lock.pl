@@ -73,6 +73,17 @@
 %%     store reads back. A REPL whose walks were refused their memory commits
 %%     its next query's write, a B-tree hint refused is no write refused, and
 %%     a commit refused a request after its intention is a commit made.
+%%   - A GREEN TASK'S ASSERTZ IS ITS OWN ROW, AND NO TASK WAITS ON ITS HOST
+%%     (3.63.1; the Ambitious session's finding 4). Four tasks' 1 000 assertz
+%%     grow a fresh store as 1 000 rows do -- through 3.63.0 each rewrote
+%%     its whole predicate, 21 to 27 s and 105 to 118 MB at 100 % of a
+%%     core, the store's lock held -- and a second process reads each
+%%     task's rows back in its order. A task that retracts from a predicate its host has written this
+%%     turn, after the first call of a predicate not read yet or a
+%%     current_predicate/1 had the host write the turn's changes into its
+%%     open transaction, waits on no lock of the host's: through 3.63.0 it
+%%     waited ten seconds and its retract was lost. And rows a program's own
+%%     zigurat_call/2 took away are written again at the next assertz.
 %%
 %%     cocolog -s test/store-lock.pl        from the checkout root
 
@@ -82,7 +93,7 @@ main :-
     scratch(D),
     (   embedded(D)
     ->  writers(D), holder(D), reader(D), gone(D), damaged(D), limited(D),
-        refused_read(D)
+        refused_read(D), tasks_write(D)
     ;   skip('(this build carries no embedded store: make EMBED=0)')
     ),
     shl(['rm -rf ', D]),
@@ -844,14 +855,18 @@ rr_any(D, Shim) :-
 %% this small -- is refused while the first query of a REPL asserts twenty
 %% new predicates, which leaves its transaction refused; the second query's
 %% write, made after the refusals, is committed and read back by a second
-%% process
+%% process. THE QUERY WRITES FIRST, by a procedure call of its own: a
+%% transaction that has written nothing holds no commit (3.62.6), and since
+%% 3.63.1 a fetch writes nothing of the turn's (`coco_zg_fetch') -- through
+%% 3.63.0 each fetch wrote the asserts before it, and the walks after them
+%% found a transaction that had written
 rr_cursor(D, Shim) :-
     cocolog(C),
     atom_concat(D, '/rcw.pl', Fx),
     fixture(Fx, ['rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
                  'rf_off :- rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF'').',
                  'wr(I) :- atom_concat(q, I, P), T =.. [P, I], catch(assertz(T), _, true).',
-                 'main :- rf_mark(''REFUSE_ON''), forall(between(1, 20, I), wr(I)), rf_off.']),
+                 'main :- zigurat_call(''cocolog::forget_clauses'', [main, rs, 1]), rf_mark(''REFUSE_ON''), forall(between(1, 20, I), wr(I)), rf_off.']),
     atom_concat(D, '/kbcw', KB),
     format(atom(Cmd), 'printf ''%s\\n'' "use_module(''~w''), main." "assertz(zc(1))." | env LD_PRELOAD=~w REFUSE_SIZE=16 REFUSE_N=1 REFUSE_RUN=0 ~w --embed ~w 2>&1',
            [Fx, Shim, C, KB]),
@@ -1010,3 +1025,99 @@ rr_answer(rr, 'rr(len(60000))').
 rr_answer(rw, 'rw(').
 rr_answer(rd, 'rd(').
 rr_answer(rc, 'rc(').
+
+%% ---- a green task's writes (3.63.1) ----------------------------------------
+%%
+%% A TASK ON A WORKER THAT IS NOT THE CONNECTION'S OWNER WRITES WHERE EACH
+%% WRITE IS MADE (it has no turn to batch them over), and through 3.63.0 each
+%% assertz rewrote its whole predicate: N asserts were N rewrites of up to N
+%% rows, each leaving the last one's rows dead (lib/zigurat-kb.cicili's
+%% `coco_zg_sync_pred'). And a fetch -- the first call of any predicate not
+%% read yet: a library's, async_run/2's -- or current_predicate/1 wrote every
+%% predicate the host's turn had changed into the host's open transaction,
+%% whose deleted rows stayed locked to its commit: a task that then rewrote
+%% one of them waited for a lock its host, awaiting the task, never gave
+%% (`coco_zg_flush_one', `coco_zg_warm').
+tasks_write(D) :-
+    section('a green task''s writes'),
+    tw_growth(D), tw_fetch(D), tw_current(D), tw_call(D).
+
+tw_cmd(C, KB, F, Cmd) :-
+    sh_join(['COCOLOG_GREEN_WORKERS=4 ', C, ' --embed ', KB, ' -s ', F, ' 2>&1'], Cmd).
+
+tw_read(C, KB, Goal, Out) :-
+    sh_join([C, ' --embed ', KB, ' query "', Goal, '" 2>&1'], Cmd),
+    shell(Cmd, Out, _).
+
+%% four tasks' 250 assertz each, on workers the connection is not
+tw_growth(D) :-
+    cocolog(C),
+    atom_concat(D, '/tw.pl', F),
+    fixture(F, [':- dynamic tw/2.',
+                'tw_fill(W) :- forall(between(1, 250, I), assertz(tw(W, I))).',
+                'main :- async_run(( findall(T, ( between(1, 4, W), go(tw_fill(W), T) ), Ts), await_all(Ts) ), _), aggregate_all(count, tw(_, _), N), format("tw(~w)~n", [N]).']),
+    atom_concat(D, '/kbtw', KB),
+    tw_cmd(C, KB, F, Cmd),
+    shell(Cmd, Out, Exit, 600000),
+    check('four green tasks'' 1 000 assertz into a fresh embedded store', Out-Exit, 'tw(1000)'-0),
+    atom_concat(KB, '/data.bin', Data),
+    size_file(Data, Size),
+    ( Size < 16777216 -> Grew = rows ; Grew = Size ),
+    check('...grow it as 1 000 rows do, not 1 000 rewrites of the predicate (over 100 MB through 3.63.0)', Grew, rows),
+    tw_read(C, KB, 'forall(between(1, 4, W), ( findall(I, tw(W, I), Is), numlist(1, 250, Is) -> write(ok) ; write(bad(W)) )), nl', ROut),
+    has('...and a second process reads each task''s 250 rows back in its order', okokokok, ROut).
+
+%% THE FETCH: the host's assertz(tl(3)) waits in its turn's batch, and the
+%% first call of async_run/2 fetches it -- which through 3.63.0 wrote tl/1
+%% into the host's transaction, deleting the committed rows of tl(1) and
+%% tl(2) under locks the task's rewrite for its retract then waited on
+tw_fetch(D) :-
+    cocolog(C),
+    atom_concat(D, '/kbtl', KB),
+    tw_read(C, KB, 'assertz(tl(1)), assertz(tl(2))', _),
+    atom_concat(D, '/tl.pl', F),
+    fixture(F, ['tl_rt :- retract(tl(1)).',
+                'main :- assertz(tl(3)), async_run(( go(tl_rt, T), await(T) ), _), findall(X, tl(X), L), format("tl(~w)~n", [L]).']),
+    tw_cmd(C, KB, F, Cmd),
+    shell(Cmd, Out, Exit, 120000),
+    check('a task retracts from a predicate its host wrote this turn, after a first call fetched',
+          Out-Exit, 'tl([2,3])'-0),
+    tw_read(C, KB, 'findall(X, tl(X), L), write(L), nl', ROut),
+    has('...and its retract is kept: a second process reads [2,3] (through 3.63.0 the task waited ten seconds for the host''s lock, and [1,2,3])',
+        '[2,3]', ROut).
+
+%% CURRENT_PREDICATE/1 asks the knowledge base what predicates it holds
+%% (`warm'), which through 3.63.0 wrote the turn's changes first, as the
+%% fetch did; async_run/2 is called once before anything is written, so its
+%% own fetch has nothing to write
+tw_current(D) :-
+    cocolog(C),
+    atom_concat(D, '/kbtc', KB),
+    tw_read(C, KB, 'assertz(tc(1)), assertz(tc(2))', _),
+    atom_concat(D, '/tc.pl', F),
+    fixture(F, ['tc_rt :- retract(tc(1)).',
+                'main :- async_run(true, _), assertz(tc(3)), ( current_predicate(tc_none/0) -> true ; true ), async_run(( go(tc_rt, T), await(T) ), _), findall(X, tc(X), L), format("tc(~w)~n", [L]).']),
+    tw_cmd(C, KB, F, Cmd),
+    shell(Cmd, Out, Exit, 120000),
+    check('a task retracts from a predicate its host wrote this turn, after a current_predicate/1',
+          Out-Exit, 'tc([2,3])'-0),
+    tw_read(C, KB, 'findall(X, tc(X), L), write(L), nl', ROut),
+    has('...and a second process reads [2,3]', '[2,3]', ROut).
+
+%% A PROGRAM'S OWN CALL OF A PROCEDURE MAY CHANGE ANY ROW (`zg_unsettle'):
+%% the task's first assertz is a row of its own, its zigurat_call/2 takes the
+%% predicate's rows away, and its second assertz writes the whole predicate
+%% again -- a row of its own there would have left zc(1) in this process and
+%% in no row
+tw_call(D) :-
+    cocolog(C),
+    atom_concat(D, '/kbzc', KB),
+    atom_concat(D, '/zc.pl', F),
+    fixture(F, [':- dynamic zc/1.',
+                'zc_t :- assertz(zc(1)), zigurat_call(''cocolog::forget_clauses'', [main, zc, 1]), assertz(zc(2)).',
+                'main :- async_run(( go(zc_t, T), await(T) ), _), findall(X, zc(X), L), format("zc(~w)~n", [L]).']),
+    tw_cmd(C, KB, F, Cmd),
+    shell(Cmd, Out, Exit, 120000),
+    check('a task''s zigurat_call/2 takes its predicate''s rows away between two assertz', Out-Exit, 'zc([1,2])'-0),
+    tw_read(C, KB, 'findall(X, zc(X), L), write(L), nl', ROut),
+    has('...and the second writes them again: a second process reads [1,2]', '[1,2]', ROut).

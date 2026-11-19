@@ -975,7 +975,27 @@ expansion can be read.
   first call walks its dead rows at ~0.2 us each (1.13.7: five appends of
   one lesson noun added ~10 ms to its 14-17). `cocolog vacuum` after the
   write bounds it. `garbage_collect/0` is unrelated: it compacts this
-  process's cell array, not the disk.
+  process's cell array, not the disk. **A green task's assertz is its own
+  row** (3.63.1, Ambitious's finding 4): a worker that is not the
+  connection's owner has no turn and writes where each assert is made, and
+  through 3.63.0 each was a rewrite -- four tasks' 1 000 asserts took 21
+  to 27 s and 105 to 118 MB, now 1.4 s and 1.1 MB. The store keeps a
+  record a predicate of what its committed rows hold (`coco_zg_rows`, the
+  store's `wr`, NOT a field of `coco_pred`: 40 bytes more there cost every
+  predicate the step indexes, nrev +0.32 %), and where they are its
+  clauses up to W and every slot after W an assertz it was told of, the
+  worker writes those slots alone; the owner's sync is the turn's and the
+  whole predicate, as it always was. **Nothing flushes the owner's whole dirty list mid-turn**:
+  a fetch writes only the predicate it reads, `warm` nothing -- through
+  3.63.0 each wrote every predicate the turn had changed into the owner's
+  open transaction, the rows it deleted stayed locked to the turn's
+  commit, and a task that rewrote one waited on them while the owner
+  waited on the task, `lock wait timeout` after ten seconds (35 of 36
+  runs of a host and its tasks writing one predicate). **What changes rows
+  outside the hooks moves `zg_unsure`** (client/zigurat.c: a rollback, a
+  failed commit, `zg_unsettle` -- zigurat_call/2's procedure): a new
+  writer of rows there calls `zg_unsettle`, or a worker's next write
+  appends to rows that are not the ones it believes.
 * **The first call of a big predicate under `--embed` is a fetch of all
   its clauses**, ~12 k instructions a clause after 1.13.7 (the row walk
   6 k, the parse 4 k): 30-60 ms for a lesson predicate of 10-30 k
