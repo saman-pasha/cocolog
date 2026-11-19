@@ -301,7 +301,7 @@
           (if (== coco_portray_hook nil) (return 0))
           (set pi (coco_pred_find st ($ (nth (coco-fid m "portray" 1) (-> m functors)) name) 1))
           (if (>= pi (-> st npreds)) (return 0))
-          (return (> (coco_pred_count st pi) ($ (nth pi (-> st preds)) ntomb)))))
+          (return (> (coco_pred_count st pi) ($ (coco-pred-at (-> st predp) pi) ntomb)))))
 
   ;;; WRITE_TERM/2'S PARTIAL(TRUE) (3.56.0, swipl's): the write begins
   ;;; where its stream stands -- after PREV, the last character there (-1

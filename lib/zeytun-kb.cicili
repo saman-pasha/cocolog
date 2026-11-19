@@ -198,7 +198,7 @@
                              (let ((size_t pi . #'(coco_pred_intern st (coco_intern m cur)
                                                                   (cast u32 ar))))
                                (if (and declared (< pi (-> st npreds)))
-                                   (set ($ (nth pi (-> st preds)) dynamic) 1))))
+                                   (set ($ (coco-pred-at (-> st predp) pi) dynamic) 1))))
                            (set (nth 0 sp) (cast char 32))))))
                 (if (== eol nil) break)
                 (set (nth 0 eol) (cast char 10))

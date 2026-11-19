@@ -3024,8 +3024,8 @@
           (if (-> st fetch_oom) (return (coco_mem_error e)))
           (let ((size_t ind . 0) (size_t why . 0) (size_t ball . 0))
             (if (< (-> st fetch_pi) (-> st npreds))
-                (set ind (coco_indicator m ($ (nth (-> st fetch_pi) (-> st preds)) name)
-                                         ($ (nth (-> st fetch_pi) (-> st preds)) arity)))
+                (set ind (coco_indicator m ($ (coco-pred-at (-> st predp) (-> st fetch_pi)) name)
+                                         ($ (coco-pred-at (-> st predp) (-> st fetch_pi)) arity)))
               (set ind (coco_new_var m)))
             (set why (coco_new_atom m (-> st fetch_err)))
             (set ball (coco_make2 m "error"

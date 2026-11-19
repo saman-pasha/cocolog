@@ -664,15 +664,18 @@ w_pk(a). w_pk(b). w_pk(c).
 w_rt :- w_pk(X), X == c.
 w_rs :- w_pk(X), numlist(1, 20000, _), X == c.
 w_rtf(L) :- findall(X, ( w_pk(X), X \== a ), L).
-%% w_pm/2's and w_pq/2's heads differ inside a compound both share, which
-%% no index looks into (COMPAT.md): keyed on n and m, as through 3.23.0,
-%% their calls are keyed on the second argument since 3.24.0 and their
-%% second clause is never tried
-w_pm(X, s(n)) :- between(1, 20000, X).
-w_pm(none, s(m)).
-w_rtb(L) :- findall(X, w_pm(X, s(n)), L).
-w_pq(a, s(n)). w_pq(b, s(m)).
-w_rte :- w_pq(X, s(n)), X == z.
+%% w_pm/2's and w_pq/2's second heads hold one variable twice, s(Z, Z),
+%% which the calls' s(n, m) does not unify and no index tells apart: a
+%% variable is a candidate for every key. Keyed on n and m, as through
+%% 3.23.0, their calls were keyed on the second argument from 3.24.0, and
+%% the heads s(n) and s(m) of 3.24.0 to 3.63.2 differed inside a compound
+%% no index looked into, until the deep index (3.64.0) keyed the calls
+%% there: each time the second clause was never tried
+w_pm(X, s(n, m)) :- between(1, 20000, X).
+w_pm(none, s(Z, Z)).
+w_rtb(L) :- findall(X, w_pm(X, s(n, m)), L).
+w_pq(a, s(n, m)). w_pq(b, s(Z, Z)).
+w_rte :- w_pq(X, s(n, m)), X == z.
 w_rtn(0) :- !.
 w_rtn(N) :- w_rt, N1 is N - 1, w_rtn(N1).
 

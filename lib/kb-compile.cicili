@@ -733,7 +733,7 @@
               (size_t pi . #'(coco_pred_find st (-> f name) (-> f arity)))
               (size_t nv . 0))
           (if (>= pi (-> st npreds)) (return 1))
-          (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+          (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi))))
             (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
               (if (== (nth i (-> p keys)) 0)
                   (block (set nv (+ nv 1))
@@ -1778,7 +1778,7 @@
   ;;; through it).
   (func coco_code_forget_all ((coco_store * st))
         (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
-          (let ((coco_pred * p . #'(aof (nth i (-> st preds)))))
+          (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) i))))
             (if (!= (-> p codes) nil)
                 (for ((size_t j . 0)) (< j (-> p nclauses)) ((++ j))
                   (let ((coco_code * cd . #'(cast (coco_code *) (nth j (-> p codes)))))

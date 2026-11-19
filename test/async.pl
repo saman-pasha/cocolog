@@ -21,8 +21,10 @@
 %%   knowledge base, and the main green thread and the host see the clause
 %%   because it is their store; a write stops the world before it lands and
 %%   releases it after. Terms still cross between threads in canonical
-%%   text. The last section is the predicate-creation race, made likely by
-%%   shape: a writer's first assert and a call both intern a predicate.
+%%   text. shared_store_concurrent is the predicate-creation race, made
+%%   likely by shape: a writer's first assert and a call both intern a
+%%   predicate. The last six sections are what a task holds across a
+%%   write barrier while another writes (3.64.0).
 %%
 %%     cocolog -s test/async.pl        from the checkout root
 %%
@@ -208,6 +210,12 @@ main :-
     no_status,
     dead_running,
     quantum_block,
+    moved_preds,
+    table_count,
+    deep_build,
+    deep_unbuild,
+    reindex_barrier,
+    retry_walks,
     checks_done.
 
 %% ---- values ------------------------------------------------------------
@@ -2235,3 +2243,252 @@ quantum_block :-
     check('2412 worlds, a task of each blocking on a step about its quantum''s last: every one answers',
           Out-Exit, done-0),
     shl(['rm -rf ', D]).
+
+%% ---- what a task holds across a write barrier (3.64.0) -----------------
+%%
+%% A WORKER WAITING AT A WRITE BARRIER ANSWERS THE OTHER WORKERS' WRITES
+%% (`coco_g_write_begin'), so what it read before the barrier may have
+%% changed by the time it holds the barrier: nothing read before one is
+%% used after it. Each section below is one way to break that rule, one
+%% task writing while another calls, in a child process of four workers
+%% under a ceiling of time and of memory (a run that broke the rule took
+%% the box's memory once). Each fails on 3.63.2 but the third, whose deep
+%% index 3.63.2 does not have; it fails with its node's build taken from
+%% under its barrier.
+
+%% A PREDICATE HELD ACROSS A BARRIER STAYS WHERE IT WAS. A task's first
+%% call of a rule compiles its clause under the barrier; an assertz
+%% acknowledged in that wait made a new predicate past the store's room,
+%% the array of predicates grew by realloc, and the caller's pointer named
+%% freed memory -- a SIGSEGV, six runs in six of 3.63.2. Each predicate is
+%% in a chunk of 256 that never moves now, the store's table a pointer
+%% each (`coco-pred-at'). One task asserts a rule of a new name 12,000
+%% times, another calls each one as it appears.
+moved_preds :-
+    section('a predicate held across a barrier while another task makes new ones'),
+    scratch(D),
+    atom_concat(D, '/moved.pl', Path),
+    fixture(Path,
+            [ 'mv_name(R, N) :- atom_concat(mv_, R, N).',
+              'mv_writer(R, R) :- !.',
+              'mv_writer(R0, R) :- mv_name(R0, N), H =.. [N, X], assertz((H :- X = R0, true)),',
+              '    R1 is R0 + 1, mv_writer(R1, R).',
+              'mv_reader(R, R) :- !.',
+              'mv_reader(R0, R) :- mv_name(R0, N),',
+              '    ( current_predicate(N/1) -> G =.. [N, X], ( call(G) -> X == R0 ; true ), R1 is R0 + 1',
+              '    ; R1 = R0 ),',
+              '    mv_reader(R1, R).',
+              'main :- async_run(( go(mv_writer(0, 12000), A), go(mv_reader(0, 12000), B),',
+              '                    await(A), await(B) )),',
+              '    write(done), nl.' ]),
+    barrier_run(Path, Out-Exit),
+    check('12,000 new predicates beside the first calls of each', Out-Exit, done-0),
+    shl(['rm -rf ', D]).
+
+%% AN ARGUMENT'S TABLE IS BUILT FROM THE CLAUSES THE BARRIER LEAVES. A
+%% call keyed on its second argument builds that argument's table under
+%% the barrier; through 3.63.2 the clause count was read before it, and a
+%% fact an assertz acknowledged in the wait put there had no row in the
+%% table, so no call found it again (218 to 278 rounds of 2,000 lost, and
+%% a SIGSEGV). One task asserts twelve facts of a new name a round; another
+%% waits for each name's second fact and then calls the name keyed on its
+%% second argument, which builds the table while the round's other facts
+%% are being asserted (a call over one clause builds none); the writer
+%% waits for the reader at each round's end (a channel), or a reader that
+%% fell behind met only rounds written whole. Every fact is found after.
+table_count :-
+    section('an argument''s table built while another task asserts'),
+    scratch(D),
+    atom_concat(D, '/count.pl', Path),
+    fixture(Path,
+            [ 'tc_name(R, N) :- atom_concat(tc_, R, N).',
+              'tc_writer(R, R, _) :- !.',
+              'tc_writer(R0, R, C) :- tc_name(R0, N),',
+              '    forall(between(1, 12, I), ( G =.. [N, I, k], assertz(G) )),',
+              '    channel_recv(C, _), R1 is R0 + 1, tc_writer(R1, R, C).',
+              'tc_reader(R, R, _) :- !.',
+              'tc_reader(R0, R, C) :- tc_name(R0, N),',
+              '    (   current_predicate(N/2), G2 =.. [N, 2, k], call(G2)',
+              '    ->  G =.. [N, _, k], ( call(G) -> true ; true ), channel_send(C, R0), R1 is R0 + 1',
+              '    ;   R1 = R0',
+              '    ),',
+              '    tc_reader(R1, R, C).',
+              'tc_lost(R) :- tc_name(R, N), G =.. [N, I, k], findall(I, G, Is), length(Is, C), C < 12.',
+              'main :- async_run(( channel(C), go(tc_writer(0, 2000, C), A), go(tc_reader(0, 2000, C), B),',
+              '                    await(A), await(B) )),',
+              '    findall(R, ( between(0, 1999, R), tc_lost(R) ), Ls), length(Ls, K),',
+              '    write(lost_rounds(K)), nl.' ]),
+    barrier_run(Path, Out-Exit),
+    check('2,000 rounds of twelve facts, every one found by its second argument', Out-Exit,
+          'lost_rounds(0)'-0),
+    shl(['rm -rf ', D]).
+
+%% A NODE OF THE DEEP INDEX IS BUILT FROM WHAT THE BARRIER LEAVES: the
+%% level above, its keys and its count all read under the one barrier
+%% (`coco_dnode_ensure'), as an assertz acknowledged in the wait grows the
+%% keys and may leave the level above to be built again. One task asserts
+%% twelve facts f(I, a_I) of a new name a round; another waits for each
+%% name's f(2, a_2), whose call builds the node while the round goes on,
+%% and calls the name keyed inside the compound, the two in step a round
+%% at a time; every fact is found after.
+deep_build :-
+    section('a node of the deep index built while another task asserts'),
+    scratch(D),
+    atom_concat(D, '/deep.pl', Path),
+    fixture(Path,
+            [ 'db_name(R, N) :- atom_concat(db_, R, N).',
+              'db_key(I, K) :- atom_concat(a_, I, K).',
+              'db_writer(R, R, _) :- !.',
+              'db_writer(R0, R, C) :- db_name(R0, N),',
+              '    forall(between(1, 12, I), ( db_key(I, K), G =.. [N, f(I, K)], assertz(G) )),',
+              '    channel_recv(C, _), R1 is R0 + 1, db_writer(R1, R, C).',
+              'db_reader(R, R, _) :- !.',
+              'db_reader(R0, R, C) :- db_name(R0, N),',
+              '    (   current_predicate(N/1), G2 =.. [N, f(2, a_2)], call(G2)',
+              '    ->  G =.. [N, f(_, a_5)], ( call(G) -> true ; true ), channel_send(C, R0), R1 is R0 + 1',
+              '    ;   R1 = R0',
+              '    ),',
+              '    db_reader(R1, R, C).',
+              'db_lost(R) :- db_name(R, N), between(1, 12, I), db_key(I, K), G =.. [N, f(_, K)], \\+ call(G), !.',
+              'main :- async_run(( channel(C), go(db_writer(0, 2000, C), A), go(db_reader(0, 2000, C), B),',
+              '                    await(A), await(B) )),',
+              '    findall(R, ( between(0, 1999, R), db_lost(R) ), Ls), length(Ls, K),',
+              '    write(lost_rounds(K)), nl.' ]),
+    barrier_run(Path, Out-Exit),
+    check('2,000 rounds of twelve facts, every one found inside its compound', Out-Exit,
+          'lost_rounds(0)'-0),
+    shl(['rm -rf ', D]).
+
+%% A WRITE THAT LEAVES THE DEEP INDEX TO BE BUILT AGAIN while a task is
+%% between a node and its table: the table's build asks the node again
+%% under its barrier (`coco_dtab_get'). And a
+%% clause's program goes into its slot only where the slot still holds
+%% that clause (`coco_pred_code_set'): an asserta acknowledged while the
+%% program was made had moved every clause up one, and through 3.63.2 the
+%% program went to its neighbour's slot -- that call ran the other
+%% clause's code, and at the neighbour's death the program was freed
+%% twice. One task puts a clause in front of twelve and takes it out
+%% again, 20,000 times; another calls the predicate keyed inside the
+%% compound 60,000 times.
+deep_unbuild :-
+    section('the deep index left to be built again under a task''s call'),
+    scratch(D),
+    atom_concat(D, '/unbuild.pl', Path),
+    fixture(Path,
+            [ ':- dynamic ub_d/1.',
+              'ub_fill :- forall(between(1, 12, I), ( atom_concat(a_, I, K), assertz(ub_d(f(I, K))) )).',
+              'ub_writer(0, M, M) :- !.',
+              'ub_writer(N, M0, M) :- asserta(ub_d(f(z, zz))),',
+              '    ( retract(ub_d(f(z, zz))) -> M1 = M0 ; M1 is M0 + 1 ),',
+              '    N1 is N - 1, ub_writer(N1, M1, M).',
+              'ub_reader(0, B, B) :- !.',
+              'ub_reader(N, B0, B) :- K is N mod 12 + 1, atom_concat(a_, K, A),',
+              '    findall(X, ub_d(f(X, A)), L),',
+              '    ( L == [K] -> B1 = B0 ; B1 is B0 + 1 ),',
+              '    N1 is N - 1, ub_reader(N1, B1, B).',
+              'ub_world(M, B) :- go(ub_writer(20000, 0, _), W), go(ub_reader(60000, 0, _), R),',
+              '    await(W, ub_writer(_, _, M)), await(R, ub_reader(_, _, B)).',
+              'main :- ub_fill, async_run(ub_world(_, _), ub_world(M, B)),',
+              '    findall(C, ub_d(C), Cs), length(Cs, Len), write(M-B-Len), nl.' ]),
+    barrier_run(Path, Out-Exit),
+    check('20,000 clauses put in front and taken out, 60,000 calls each finding its one: none left, none wrong, twelve after',
+          Out-Exit, '0-0-12'-0),
+    shl(['rm -rf ', D]).
+
+%% THE FIRST ARGUMENT'S INDEX IS REBUILT UNDER THE BARRIER
+%% (`coco_pred_reindex'). A write leaves the index to be rebuilt by the
+%% next call that wants it, and through 3.63.2 that took no barrier:
+%% three tasks' first calls after a write rebuilt its slots and chains at
+%% once -- wrong answers, and a slot array that grew until memory ran
+%% out. One task puts a clause in front of forty and takes it out, 20,000
+%% times; three call the predicate by its first argument, 30,000 times
+%% each.
+reindex_barrier :-
+    section('three tasks'' first calls after a write rebuild one index'),
+    scratch(D),
+    atom_concat(D, '/reindex.pl', Path),
+    fixture(Path,
+            [ ':- dynamic ri_q/2.',
+              'ri_fill :- forall(between(1, 40, I), ( atom_concat(k_, I, K), assertz(ri_q(K, I)) )).',
+              'ri_writer(0) :- !.',
+              'ri_writer(N) :- asserta(ri_q(zz, 0)), retract(ri_q(zz, 0)), N1 is N - 1, ri_writer(N1).',
+              'ri_reader(0, B, B) :- !.',
+              'ri_reader(N, B0, B) :- I is N mod 40 + 1, atom_concat(k_, I, K),',
+              '    findall(X, ri_q(K, X), L), ( L == [I] -> B1 = B0 ; B1 is B0 + 1 ),',
+              '    N1 is N - 1, ri_reader(N1, B1, B).',
+              'ri_world(B1, B2, B3) :- go(ri_writer(20000), W),',
+              '    go(ri_reader(30000, 0, _), R1), go(ri_reader(30000, 0, _), R2),',
+              '    go(ri_reader(30000, 0, _), R3), await(W),',
+              '    await(R1, ri_reader(_, _, B1)), await(R2, ri_reader(_, _, B2)),',
+              '    await(R3, ri_reader(_, _, B3)).',
+              'main :- ri_fill, async_run(ri_world(_, _, _), ri_world(B1, B2, B3)),',
+              '    findall(C, ri_q(C, _), Cs), length(Cs, Len), write(B1-B2-B3-Len), nl.' ]),
+    barrier_run(Path, Out-Exit),
+    check('20,000 writes beside three readers'' 90,000 calls: none wrong, forty after',
+          Out-Exit, '0-0-0-40'-0),
+    shl(['rm -rf ', D]).
+
+%% A RETRY IN A WORLD BUILDS NO INDEX (`coco_pred_next_clause',
+%% `coco_aix_walk', `coco_deep_next'). A write leaves an index to be built
+%% again, and a retry that built it waited at the barrier, where an
+%% asserta could land and move every clause on by one -- the frame's place
+%% with it, not the place the retry had read: it tried the clause it had
+%% just tried again. A retry walks an index it finds dropped as none now,
+%% as it would walk a small predicate. Three readers walk a key's four
+%% clauses -- by the first argument, by the second, inside a compound --
+%% yielding at each answer, so the writer's asserta and retract of a
+%% clause in front land between their retries. 3.63.2 corrupts its heap
+%% here every run (`double free or corruption', the program slot's fault
+%% above); with that one fixed, the first cut of 3.64.0 had 1 to 14 walks
+%% of the 12 000 of each kind wrong, every run.
+retry_walks :-
+    section('retries along one key while another task writes in front'),
+    scratch(D),
+    atom_concat(D, '/retry.pl', Path),
+    fixture(Path,
+            [ ':- dynamic rw1/2, rw2/2, rw3/1.',
+              'rw_fill :- forall(between(1, 40, I),',
+              '                  ( K is (I - 1) // 4, atom_concat(k_, K, A),',
+              '                    assertz(rw1(A, I)), assertz(rw2(I, A)), assertz(rw3(f(I, A))) )).',
+              'rw_writer(0) :- !.',
+              'rw_writer(N) :- asserta(rw1(zz, 0)), retract(rw1(zz, 0)),',
+              '    asserta(rw2(0, zz)), retract(rw2(0, zz)),',
+              '    asserta(rw3(f(0, zz))), retract(rw3(f(0, zz))),',
+              '    N1 is N - 1, rw_writer(N1).',
+              'rw_goal(1, A, X, rw1(A, X)).',
+              'rw_goal(2, A, X, rw2(X, A)).',
+              'rw_goal(3, A, X, rw3(f(X, A))).',
+              'rw_walk(G, X, N, S) :- T = c(0, 0),',
+              '    (   call(G), arg(1, T, N0), N1 is N0 + 1, nb_setarg(1, T, N1),',
+              '        arg(2, T, S0), S1 is S0 + X, nb_setarg(2, T, S1), yield, fail',
+              '    ;   true',
+              '    ),',
+              '    T = c(N, S).',
+              'rw_reader(0, B, B) :- !.',
+              'rw_reader(N, w(B1, B2, B3), B) :- K is N mod 10, atom_concat(k_, K, A),',
+              '    rw_one(1, A, K, B1, C1), rw_one(2, A, K, B2, C2), rw_one(3, A, K, B3, C3),',
+              '    N1 is N - 1, rw_reader(N1, w(C1, C2, C3), B).',
+              'rw_one(W, A, K, B0, B) :- rw_goal(W, A, X, G), rw_walk(G, X, C, S),',
+              '    ( C =:= 4, S =:= 16 * K + 10 -> B = B0 ; B is B0 + 1 ).',
+              'rw_world(B1, B2, B3) :- go(rw_writer(20000), W),',
+              '    go(rw_reader(4000, w(0, 0, 0), _), R1), go(rw_reader(4000, w(0, 0, 0), _), R2),',
+              '    go(rw_reader(4000, w(0, 0, 0), _), R3), await(W),',
+              '    await(R1, rw_reader(_, _, B1)), await(R2, rw_reader(_, _, B2)),',
+              '    await(R3, rw_reader(_, _, B3)).',
+              'rw_sum(w(A1, A2, A3), w(B1, B2, B3), w(C1, C2, C3), W1-W2-W3) :-',
+              '    W1 is A1 + B1 + C1, W2 is A2 + B2 + C2, W3 is A3 + B3 + C3.',
+              'main :- rw_fill, async_run(rw_world(_, _, _), rw_world(B1, B2, B3)),',
+              '    rw_sum(B1, B2, B3, W),',
+              '    findall(x, ( rw1(_, _) ; rw2(_, _) ; rw3(_) ), L), length(L, Len),',
+              '    write(W-Len), nl.' ]),
+    barrier_run(Path, Out-Exit),
+    check('36 000 walks of four answers each beside 120 000 writes: none wrong, 120 clauses after',
+          Out-Exit, '0-0-0-120'-0),
+    shl(['rm -rf ', D]).
+
+%% Each of the six in a world of four workers, under four gigabytes of
+%% address space and a minute
+barrier_run(Path, Out-Exit) :-
+    cocolog(C),
+    sh_join(['ulimit -v 4194304; COCOLOG_GREEN_WORKERS=4 ', C, ' run ', Path, ' main 2>&1'], Cmd),
+    shell(Cmd, Out, Exit, 60000).

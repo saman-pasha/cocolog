@@ -402,8 +402,8 @@
         (if (coco_listing_sys m nid n) (return 1))
         (if (not (coco_det_foreign_name (coco_atom_name m nid) n)) (return 0))
         (let ((size_t pi . #'(coco_pred_find st nid n)))
-          (return (and (< pi (-> st npreds)) ($ (nth pi (-> st preds)) library)
-                       (> (coco_pred_live (aof (nth pi (-> st preds)))) 0)))))
+          (return (and (< pi (-> st npreds)) ($ (coco-pred-at (-> st predp) pi) library)
+                       (> (coco_pred_live (aof (coco-pred-at (-> st predp) pi))) 0)))))
 
   ;;; WHETHER THE STORE'S PREDICATE PI IS ONE A LISTING FINDS: a live clause,
   ;;; or a dynamic, discontiguous or multifile declaration, as swipl's
@@ -412,7 +412,7 @@
   ;;; between/3's), which is listed as the system's alone
   (static)
   (func coco_listing_found ((coco_machine * m) (coco_store * st) (size_t pi)) (out int)
-        (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+        (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi))))
           (if (not (or (> (coco_pred_live p) 0) (or (-> p dynamic) (-> p declared))))
               (return 0))
           (if (and (-> p library) (not (-> p own)))
@@ -563,7 +563,7 @@
               (size_t span . 0) (size_t nx . 0) (u32 fera . 0))
           (if fr (set fera ($ (nth ci (-> e choices)) fera)))
           (while (< ix (cast size_t cend))
-            (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+            (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi))))
               (set nx (coco_db_next st m p kpos key (+ ix 1) cend fera))
               (if fr (set ($ (nth ci (-> e choices)) clause_ix) (+ ix 1)))
               (if (coco_db_try e p ix mode h bd (aof span))
@@ -639,15 +639,15 @@
                  ;; with none swept counted nothing dead and never
                  ;; compacted the store (test/gc.pl), though it was 38 %
                  ;; faster
-                 (if (!= ($ (nth pi (-> st preds)) ntomb) 0) (coco_tomb_try_sweep st m pi))
-                 (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
+                 (if (!= ($ (coco-pred-at (-> st predp) pi) ntomb) 0) (coco_tomb_try_sweep st m pi))
+                 (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi)))
                        ;; none to walk where the system's is no store's
-                       (u32 cend . #'(? (== pv 2) 0 (cast u32 ($ (nth pi (-> st preds)) nclauses))))
+                       (u32 cend . #'(? (== pv 2) 0 (cast u32 ($ (coco-pred-at (-> st predp) pi) nclauses))))
                        (u32 kpos . 0) (u64 key . 0) (size_t ix . 0) (int fr . 0) (size_t ci . 0))
                    (if (> cend 0)
                        (block
                         (set kpos (coco_trace_kpos e p h))
-                        (set key (? (== kpos 0) (coco_arg_key m h) (coco_call_arg_key m h kpos)))
+                        (set key (? (== kpos 0) (coco_arg_key m h) (coco_call_arg_key m p h kpos)))
                         (set ix (coco_db_next st m p kpos key 0 cend 0))
                         ;; a second candidate: a frame to come back to, at the
                         ;; machine's marks before anything is tried
@@ -663,7 +663,7 @@
                              (set ($ (nth ci (-> e choices)) ixpos) kpos)
                              (set ($ (nth ci (-> e choices)) clause_ix) ix)
                              (set ($ (nth ci (-> e tchoices)) printr) tport)
-                             (set ($ (nth pi (-> st preds)) framed) 1)))
+                             (set ($ (coco-pred-at (-> st predp) pi) framed) 1)))
                         (set r (coco_db_from e pi kpos key ix cend mode h bd fr ci))))))))
           (if (== tport 1) (coco_trace_port e (? r "Exit" "Fail") td g))
           (if r (set (-> e goals) k) (set (cof ok) 0))
@@ -697,7 +697,8 @@
                            (coco_trace_reopen e ci td)))
                 (if (== tport 2) (coco_trace_goal_own e ci))))
           (coco_db_parts m g mode (aof h) (aof bd) (aof ssu) (aof sysq))
-          (set key (? (== kpos 0) (coco_arg_key m h) (coco_call_arg_key m h kpos)))
+          (set key (? (== kpos 0) (coco_arg_key m h)
+                          (coco_call_arg_key m (aof (coco-pred-at (-> (-> e st) predp) pi)) h kpos)))
           (set r (coco_db_from e pi kpos key ix cend mode h bd 1 ci))
           (if (== tport 1) (coco_trace_port e (? r "Exit" "Fail") td g))
           (if r (set (-> e goals) k))
@@ -753,8 +754,8 @@
           (if (!= (coco_claim_kind m (coco_name_of m h) (coco_arity m h)) 0) (return 0))
           (set pi (coco_pred_find st (coco_name_of m h) (coco_arity m h)))
           (if (< pi (-> st npreds))
-              (if (or ($ (nth pi (-> st preds)) dynamic)
-                      (> (coco_pred_live (aof (nth pi (-> st preds)))) 0))
+              (if (or ($ (coco-pred-at (-> st predp) pi) dynamic)
+                      (> (coco_pred_live (aof (coco-pred-at (-> st predp) pi))) 0))
                   (return 0)))
           (set rc (coco_decl_put e 0 (coco_name_of m h) (coco_arity m h)))
           (return (? (== rc 1) 0 rc))))
@@ -786,8 +787,8 @@
         (let ((coco_store * st . #'(-> e st))
               (size_t pi . #'(coco_pred_find (-> e st) nid n)))
           (if (>= pi (-> st npreds)) (return 0))
-          (if (bitand ($ (nth pi (-> st preds)) pattrs) 8) (return 0))
-          (return (> (coco_pred_live (aof (nth pi (-> st preds)))) 0))))
+          (if (bitand ($ (coco-pred-at (-> st predp) pi) pattrs) 8) (return 0))
+          (return (> (coco_pred_live (aof (coco-pred-at (-> st predp) pi))) 0))))
 
   ;;; A DECLARATION'S SPEC WALKED (3.1.0): dynamic/1's, discontiguous/1's
   ;;; and multifile/1's -- KIND 0, 1, 2 -- as swipl 9.0.4 walks it, a list
@@ -951,7 +952,7 @@
                 (with-green-write e
                  (let ((int lib . 0))
                   (if (not (coco_pred_ensure st ap)) (return (coco_fetch_error e)))
-                  (set lib (and ($ (nth ap (-> st preds)) library) (not ($ (nth ap (-> st preds)) own))))
+                  (set lib (and ($ (coco-pred-at (-> st predp) ap) library) (not ($ (coco-pred-at (-> st predp) ap) own))))
                   (coco_pred_forget_where st m ap 0 (? lib 3 4))
                   (coco_store_maybe_compact st m)
                   (if (and (not lib) (< (coco_pred_undeclare st ap) 0))
@@ -959,7 +960,7 @@
                                                         (coco_new_atom m "knowledge_base"))))))))
             (if (and (== (coco_claim_kind m nid n) 2) (not (coco_is_construct m nid)))
                 (let ((size_t pi . #'(coco_pred_make st nid n)))
-                  (if (< pi (-> st npreds)) (set ($ (nth pi (-> st preds)) redef) 1))))
+                  (if (< pi (-> st npreds)) (set ($ (coco-pred-at (-> st predp) pi) redef) 1))))
             (return 1))))
 
   ;;; `'$decl_report'(Kind, Ball)' (3.1.0): what a directive's part raised,
@@ -993,6 +994,7 @@
   (func coco_g_write_begin ((void * e)) (out int) (return 0))
   (func coco_g_write_end () (return))
   (func coco_g_write_end_cleanup ((int * began)) (return))
+  (func coco_g_here () (out int) (return 0))
   (@endif)
 
   ;;; ---- laying a clause out as swipl does (3.18.0) -----------------------
@@ -1620,11 +1622,11 @@
               (coco_store * st . #'(-> e st))
               (coco_strbuf b))
           (if (not (coco_pred_ensure st pi)) (return -1))
-          (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
-                (int dyn . #'($ (nth pi (-> st preds)) dynamic))
-                (int dcl . #'($ (nth pi (-> st preds)) declared))
-                (int pat . #'($ (nth pi (-> st preds)) pattrs))
-                (u64 mod . #'($ (nth pi (-> st preds)) pmod))
+          (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi)))
+                (int dyn . #'($ (coco-pred-at (-> st predp) pi) dynamic))
+                (int dcl . #'($ (coco-pred-at (-> st predp) pi) declared))
+                (int pat . #'($ (coco-pred-at (-> st predp) pi) pattrs))
+                (u64 mod . #'($ (coco-pred-at (-> st predp) pi) pmod))
                 (u64 uid . #'(cast u64 (+ (coco_intern m "user") 1)))
                 (size_t hmark . #'(-> m heap_len))
                 (size_t pit . 0))
@@ -1736,7 +1738,7 @@
         ;; inside the listing can intern predicates the clauses it fetches
         ;; mention, and the loop should reach those too.
         (for ((size_t i . 0)) (< i ($ (cof (-> e st)) npreds)) ((++ i))
-          (let ((coco_pred * p . #'(aof (nth i ($ (cof (-> e st)) preds))))
+          (let ((coco_pred * p . #'(aof (coco-pred-at ($ (cof (-> e st)) predp) i)))
                 (int prog . #'(or (not (-> p library)) (-> p own))))
             ;; (36, `$')
             (if (and (!= (nth 0 (coco_atom_name (-> e m) (-> p name))) 36)
@@ -1790,8 +1792,8 @@
   (static)
   (func coco_listing_mod ((coco_machine * m) (coco_store * st) (size_t pi)) (out const char *)
         (if (== pi (cast size_t -1)) (return "system"))
-        (if (!= ($ (nth pi (-> st preds)) pmod) 0)
-            (return (coco_atom_name m (- ($ (nth pi (-> st preds)) pmod) 1))))
+        (if (!= ($ (coco-pred-at (-> st predp) pi) pmod) 0)
+            (return (coco_atom_name m (- ($ (coco-pred-at (-> st predp) pi) pmod) 1))))
         (return "user"))
 
   ;;; ENTRY A BEFORE ENTRY B: Module, then Name, then Arity. An entry is two
@@ -1804,9 +1806,9 @@
                                  (coco_listing_mod m st (nth 0 b)))))
           (if (!= c 0) (return (< c 0)))
           (set c (strcmp (coco_atom_name m (? (== (nth 0 a) (cast size_t -1)) nid
-                                              ($ (nth (nth 0 a) (-> st preds)) name)))
+                                              ($ (coco-pred-at (-> st predp) (nth 0 a)) name)))
                          (coco_atom_name m (? (== (nth 0 b) (cast size_t -1)) nid
-                                              ($ (nth (nth 0 b) (-> st preds)) name)))))
+                                              ($ (coco-pred-at (-> st predp) (nth 0 b)) name)))))
           (if (!= c 0) (return (< c 0)))
           (return (< (nth 1 a) (nth 1 b)))))
 
@@ -1817,12 +1819,12 @@
   (static)
   (func coco_listing_cand ((coco_machine * m) (coco_store * st) (size_t nm) (i64 a) (int anyar)
                            (u64 smod) (size_t pi)) (out int)
-        (if (not (or anyar (== (cast i64 ($ (nth pi (-> st preds)) arity)) a))) (return 0))
+        (if (not (or anyar (== (cast i64 ($ (coco-pred-at (-> st predp) pi) arity)) a))) (return 0))
         (if (coco-tag-is REF (nth nm (-> m heap)))
-            (return (? smod (== ($ (nth pi (-> st preds)) pmod) smod)
-                       (or (not ($ (nth pi (-> st preds)) library)) ($ (nth pi (-> st preds)) own)))))
+            (return (? smod (== ($ (coco-pred-at (-> st predp) pi) pmod) smod)
+                       (or (not ($ (coco-pred-at (-> st predp) pi) library)) ($ (coco-pred-at (-> st predp) pi) own)))))
         (return (and (coco-tag-is ATOM (nth nm (-> m heap))) (not (coco_is_nil m nm))
-                     (== ($ (nth pi (-> st preds)) name) (coco_name_of m nm)))))
+                     (== ($ (coco-pred-at (-> st predp) pi) name) (coco_name_of m nm)))))
 
   ;;; ONE SPEC S, listing_/2's last clause, searched under the qualifier
   ;;; MQ (-1 user's, as for none): its name and arity, the predicates they
@@ -1916,7 +1918,7 @@
                 (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
                   (if (and (coco_listing_cand m st nm a anyar smod i) (== (coco_listing_found m st i) 1))
                       (block (set (nth (* 2 n) es) i)
-                             (set (nth (+ (* 2 n) 1) es) ($ (nth i (-> st preds)) arity))
+                             (set (nth (+ (* 2 n) 1) es) ($ (coco-pred-at (-> st predp) i) arity))
                              (set n (+ n 1)))))
                 ;; the system's, a program's own definition of the name
                 ;; beside it, as swipl finds user:msort/2 and system:msort/2
@@ -2098,7 +2100,7 @@
                 ;; library predicate is empty until then.
                 (set (-> c cend) 4294967295)
                 (set (-> e cunbound) 1)
-                (set ($ (nth pi ($ (cof (-> e st)) preds)) framed) 1)))
+                (set ($ (coco-pred-at ($ (cof (-> e st)) predp) pi) framed) 1)))
           (set (-> e nchoices) (+ (-> e nchoices) 1))
           ;; a setup_call_cleanup/3 frame is counted again (3.1.0): the heap
           ;; it names is the thawed one, read before the frames
@@ -2120,7 +2122,7 @@
   (func coco_frames_on ((coco_machine * m) (coco_store * st) (size_t pi)
                         (int act) (u32 era) (size_t at)) (out size_t)
         (if (or (== m nil) (>= pi (-> st npreds))) (return 0))
-        (if (not ($ (nth pi (-> st preds)) framed)) (return 0))
+        (if (not ($ (coco-pred-at (-> st predp) pi) framed)) (return 0))
         ;; N is the answer, the frames open (or ACT 3's that see AT), and
         ;; OPEN every one open, which says whether the next walk is needed
         (let ((size_t n . 0) (size_t open . 0)
@@ -2168,7 +2170,7 @@
                 (set e (cast (coco_engine *) (-> e outer)))))
             (set mm (cast (coco_machine *) (-> mm st_next))))
           ;; none open: no walk until a frame is pushed on it again
-          (if (== open 0) (set ($ (nth pi (-> st preds)) framed) 0))
+          (if (== open 0) (set ($ (coco-pred-at (-> st predp) pi) framed) 0))
           (return n)))
 
   ;;; The dispatcher comes last because it names every builtin above it, and a
@@ -2206,7 +2208,7 @@
   ;;; or the guard in place.
   (func coco_pred_take_over ((coco_store * st) (coco_machine * m) (size_t pi) (size_t head)
                              (u32 kattrs))
-        (set ($ (nth pi (-> st preds)) taken) 1)
+        (set ($ (coco-pred-at (-> st predp) pi) taken) 1)
         (set (-> st ntaken) (+ (-> st ntaken) 1))
         ;; the library's own clauses of it are the library's module's in
         ;; swipl, which the program's definition does not see -- kept under

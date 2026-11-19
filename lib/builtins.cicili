@@ -1351,8 +1351,8 @@
           ;; retried was called, so the key is one the clock charged
           (for ((size_t p . 0)) (< p (-> r pcap)) ((++ p))
             (if (and (> (nth p (-> r pret)) 0) (< p (-> st npreds)))
-                (let ((u64 nm . #'($ (nth p (-> st preds)) name))
-                      (u32 ar . #'($ (nth p (-> st preds)) arity))
+                (let ((u64 nm . #'($ (coco-pred-at (-> st predp) p) name))
+                      (u32 ar . #'($ (coco-pred-at (-> st predp) p) arity))
                       (u64 key . 0))
                   (set key (? (== ar 0) (+ (bitor (<< nm 1) 1) 1)
                               (+ (<< (coco_functor_id m nm ar) 1) 1)))

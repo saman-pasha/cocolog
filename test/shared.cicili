@@ -451,16 +451,16 @@
                  (cast llong (< pq ($ stb npreds))) 1)
           (check "which comes back marked dynamic"
                  (cast llong (? (< pq ($ stb npreds))
-                                ($ (nth pq ($ stb preds)) dynamic) 0)) 1)
+                                ($ (coco-pred-at ($ stb predp) pq) dynamic) 0)) 1)
           (check "and so does the second of the pair"
                  (cast llong (? (< ps ($ stb npreds))
-                                ($ (nth ps ($ stb preds)) dynamic) 0)) 1)
+                                ($ (coco-pred-at ($ stb predp) ps) dynamic) 0)) 1)
           ;; a predicate that merely has clauses was never declared, and
           ;; warming must not claim it was. `ancestor/2' is the honest subject
           ;; for that: it was consulted and nothing has ever asserted into it.
           (check "a predicate nobody declared is not dynamic"
                  (cast llong (? (< pp ($ stb npreds))
-                                ($ (nth pp ($ stb preds)) dynamic) 0)) 0)
+                                ($ (coco-pred-at ($ stb predp) pp) dynamic) 0)) 0)
           ;; `parent/2' was consulted the same way -- but an `assertz' upstream
           ;; added a clause to it, and asserting into a predicate is what makes
           ;; it dynamic, in SWI and now here. So the flag on it is not warming
@@ -469,7 +469,7 @@
           ;; make.
           (check "but one an assert wrote to is, and stays so across processes"
                  (cast llong (? (< pa ($ stb npreds))
-                                ($ (nth pa ($ stb preds)) dynamic) 0)) 1))
+                                ($ (coco-pred-at ($ stb predp) pa) dynamic) 0)) 1))
 
         (check "the declared predicate has no clauses and still fails"
                (cast llong (count (aof eb) "queue(X)" 10)) 0)

@@ -854,6 +854,12 @@
              (pthread_cond_broadcast (aof (-> green_now op_done)))))
         (pthread_mutex_unlock (aof (-> green_now lock))))
 
+  ;;; WHETHER THIS THREAD RUNS A WORLD'S TASK (3.64.0), asked by the walks
+  ;;; a retry makes before one would build an index, which none does in a
+  ;;; world (`coco_pred_next_clause', lib/kb-pred.cicili)
+  (func coco_g_here () (out int)
+        (return (and (!= green_now nil) (!= green_me nil))))
+
   ;;; THE CLEANUP-ATTRIBUTE FORM: bound with `(defer () ...)' on the
   ;;; barrier's let variable, the C runs it on EVERY exit from the scope,
   ;;; the early returns included; the plain `(defer () (forms))' form ran

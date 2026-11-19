@@ -772,7 +772,7 @@
           (while (coco_is_compound2 m h ":") (set h (coco_deref m (coco_arg m h 1))))
           (if (not (coco_is_callable m h)) (return 0))
           (set pi (coco_pred_find st (coco_name_of m h) (coco_arity m h)))
-          (return (? (and (< pi (-> st npreds)) (bitand ($ (nth pi (-> st preds)) pattrs) 16)) 1 0))))
+          (return (? (and (< pi (-> st npreds)) (bitand ($ (coco-pred-at (-> st predp) pi) pattrs) 16)) 1 0))))
 
   (static) (coco-emit-module-dispatch coco_dcg_dispatch *dcg-predicates*)
 

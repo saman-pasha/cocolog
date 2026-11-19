@@ -305,7 +305,7 @@
                 (set seen (+ seen (coco_tables_mark_code
                                    m fb sb bb rb (cast (coco_code *) (nth i (-> st code_vals))))))))
           (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
-            (let ((coco_pred * p . #'(aof (nth i (-> st preds)))))
+            (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) i))))
               (if (!= (-> p codes) nil)
                   (for ((size_t j . 0)) (< j (-> p nclauses)) ((++ j))
                     (set seen (+ seen (coco_tables_mark_code

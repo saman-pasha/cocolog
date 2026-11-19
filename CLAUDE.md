@@ -2541,12 +2541,49 @@ cocolint index offers no import of it.
   the trace's own arm of the test: a test at the frame's push cost queens
   0.2 %), so a `$` answers under trace as without. **A new caller of
   `coco_pred_probe` reads its 3 as 2, or asks `coco_pred_jit`.** Not
-  swipl's (COMPAT.md): no deep index, no index of two arguments, a float's
-  or a string's key is none, each call chooses afresh where swipl walks an
-  index it built, and swipl 9.0.4's misreading of a key after two
-  anonymous variables in a row is not copied. test/files/jit_index.pl
-  holds 78 lines to swipl, test/engine.pl's `jit_runs` the trace, the
-  collector and the choice made again.
+  swipl's (COMPAT.md): no index of two arguments, a float's or a string's
+  key is none, each call chooses afresh where swipl walks an index it
+  built, and swipl 9.0.4's misreading of a key after two anonymous
+  variables in a row is not copied. test/files/jit_index.pl holds 78 lines
+  to swipl, test/engine.pl's `jit_runs` the trace, the collector and the
+  choice made again.
+* **A call is keyed inside its compound where swipl's deep index keys it**
+  (3.64.0, `coco_deep_select` in lib/kb-pred.cicili; Ambitious's finding
+  13). Where the argument a call is keyed on is one swipl would make a
+  LIST INDEX -- its speedup under 0.8 of its clauses, no clause with no key
+  there, and a functor whose first run of clauses holds two compounds
+  swipl's compiler makes indexable (`coco_store_indexable`: an argument
+  that is no variable, or a variable met once before one met again; a list
+  cell of two fresh variables is H_LIST_FF, which reads what follows it)
+  -- and the call's key there is that functor, the call goes down into a
+  NODE (`coco_dnode`, lib/kb.cicili: the clauses of the level above whose
+  term there is the functor's compound or a variable, a table for each of
+  the compound's arguments) and is keyed there as nextClauseFromBucket
+  keys it: a list of ten or fewer walks its first argument and asks the
+  others only where its first two candidates are both of the call's key,
+  else the bound argument that promises the most (`coco_slots_assess`),
+  deeper while that one is a list index again and its key a functor, seven
+  levels at most. Under the floor the JIT index goes down
+  (`coco_pred_jit`), over it `coco_pred_select` where the argument it keys
+  on leaves more than four candidates (COMPAT.md); a one-argument
+  predicate is asked too. Through 3.63.2 a call over `p(f(a)). p(f(b)).`
+  left a choice point where swipl's leaves none, and a lookup by a handle
+  `n(D, I, G)` over 100 000 facts walked every fact of the handle's
+  functor, 1.4 ms a lookup against swipl's 0.0055 (0.0050 now with the
+  index built in the run, 0.0008 once built, swipl's 0.0010).
+  test/files/deep_index.pl holds 105 lines to swipl, 33 of them 3.63.2's
+  wrong. What a session must keep:
+  - **A choice frame names a node's table with bit 31 of `ixpos`**
+    (`coco_deep_pos`, the node above the table's three bits), read back by
+    `coco_call_arg_key` and `coco_pred_next_at`, the two readers of a
+    frame's `ixpos`: **a new reader of `ixpos` asks bit 31**, and
+    `coco_term_jit` answers in 64 bits (an int shifted by eight lost it).
+  - **An assertz puts its clause into every built node** (`coco_deep_add`,
+    beside the argument tables'); what renumbers the clauses leaves every
+    node to be built again (`coco_pred_unindex`) and keeps its place,
+    functor and tables, as a frame names a node by its index.
+  - The assessment and the list rule are kept until `tver` moves (`aver`,
+    `lver` on a table, `l0ver` on the predicate's `aix`), as the JIT's are.
 * **A call sees the clauses that stood when it began** (ISO's logical update
   view, swipl's; through 2.2.5 a retry read the live list). A clause frame
   carries `cend`, the clause count at its push (both push sites), so what is
@@ -4360,9 +4397,43 @@ cocolint index offers no import of it.
   no second find inside the barrier, so a reader's CALL to a name the
   store lacked (a call interns it too) and a writer's first assert each
   created the entry -- the second creation hid the first and its clauses
-  (`coco_clause_code` has the same recheck). `test/async.pl`'s last
-  section makes the third likely by shape and goes red without the
-  recheck. **THE 2.8.0 SCHEDULER BUGS ARE FIXED (2.8.1)**: the block was
+  (`coco_clause_code` has the same recheck). `test/async.pl`'s
+  `shared_store_concurrent` makes the third likely by shape and goes red
+  without the recheck. **NOTHING READ BEFORE A BARRIER IS USED AFTER IT**
+  (3.64.0): waiting at one, a worker answers the other workers' writes, so
+  a count, a position, a key array, a slot or a pointer into the store read
+  before it may be stale once the barrier is held -- the fourth bug, six
+  ways, each a section of test/async.pl (red on 3.63.2 but the deep
+  index's node, which 3.63.2 has not): **a predicate
+  never moves** (`predp`, read through `coco-pred-at`: a pointer a
+  predicate, each in a chunk of 256 that lives as long as the store,
+  `coco_preds_block`), where through 3.63.2 one array grew by realloc when
+  a write made a predicate past its room, and a `coco_pred *` held across
+  the barrier of a clause's first compile named freed memory (a SIGSEGV, 6
+  runs in 6; a table of blocks with its shift, mask and multiply cost naive
+  reverse 0.8 %, the pointer table nothing); an argument table's clause
+  count is read under its barrier (`coco_aix_get`), a node's table asks the
+  node again under its own (`coco_dtab_get`), a node's build reads the
+  level above, its keys and its count under one (`coco_dnode_ensure`);
+  a clause's program goes into its slot only where the
+  slot still holds that clause (`coco_pred_code_set`: an asserta
+  acknowledged during the compile moved every clause up one, the program
+  went to the neighbour's slot, ran as its code and was freed twice at its
+  death); the first argument's index is rebuilt under a barrier
+  (`coco_pred_reindex`: three tasks rebuilt its slots and chains at once,
+  wrong answers and a slot array grown until memory ran out); and **a
+  retry in a world builds no index** (`coco_pred_reindex_walk`,
+  `coco_aix_walk`, `coco_deep_next`): the selection reads the frame's
+  place before its walk, and an asserta acknowledged while the walk's
+  build waited moved the frame's place on, not the one the walk had -- it
+  tried its last clause again (test/async.pl's `retry_walks`, wrong walks
+  every run). A walk that finds an index dropped walks the clauses as a
+  small predicate's are walked; a call's probe still builds, before any
+  place is read. **A new reader of the store that waits at a barrier
+  reads what it uses after the barrier, and takes a predicate by its
+  `coco_pred *` or its index, never by an address into an array that
+  grows; and nothing a retry calls waits at one.**
+  **THE 2.8.0 SCHEDULER BUGS ARE FIXED (2.8.1)**: the block was
   set under the world lock but the task's state only later, in the run's
   rc-0 handler, so a target finishing in the window woke nobody and the
   waiter slept on a done task -- a false deadlock in the light lane; and

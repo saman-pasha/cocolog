@@ -169,8 +169,8 @@
             (let ((coco_choice * c . #'(aof (nth i (-> e choices))))
                   (u64 pname . 0) (u32 parity . 0))
               (if (or (== (-> c kind) COCO_CH_CLAUSE) (== (-> c kind) COCO_CH_DB))
-                  (block (set pname ($ (nth (-> c pred) ($ (cof (-> e st)) preds)) name))
-                         (set parity ($ (nth (-> c pred) ($ (cof (-> e st)) preds)) arity))))
+                  (block (set pname ($ (coco-pred-at ($ (cof (-> e st)) predp) (-> c pred)) name))
+                         (set parity ($ (coco-pred-at ($ (cof (-> e st)) predp) (-> c pred)) arity))))
               (coco_sb_put_sz b (cast size_t (-> c kind)))       (coco_sb_putc b (cast char 32))
               (coco_sb_put_sz b (-> c goals))                    (coco_sb_putc b (cast char 32))
               (coco_sb_put_sz b (-> c trail_mark))               (coco_sb_putc b (cast char 32))
@@ -182,7 +182,7 @@
               ;; lib/kb.cicili), and the call goes on where it stood in it
               (coco_sb_put_sz b (? (or (== (-> c kind) COCO_CH_CLAUSE) (== (-> c kind) COCO_CH_DB))
                                    (coco_pred_live_before
-                                    (aof (nth (-> c pred) ($ (cof (-> e st)) preds)))
+                                    (aof (coco-pred-at ($ (cof (-> e st)) predp) (-> c pred)))
                                     (-> c clause_ix))
                                    (-> c clause_ix)))
               (coco_sb_putc b (cast char 32))
@@ -265,7 +265,7 @@
               (coco_sb_put_sz b (? (and (!= (-> c kind) COCO_CH_CLAUSE) (!= (-> c kind) COCO_CH_DB)) 0
                                    (? (== (-> c cend) 4294967295) 4294967295
                                       (coco_pred_live_before
-                                       (aof (nth (-> c pred) ($ (cof (-> e st)) preds)))
+                                       (aof (coco-pred-at ($ (cof (-> e st)) predp) (-> c pred)))
                                        (cast size_t (-> c cend))))))
               (coco_sb_putc b (cast char (? (== 15 (% i 16)) 10 32)))))
           (coco_sb_putc b (cast char 10))

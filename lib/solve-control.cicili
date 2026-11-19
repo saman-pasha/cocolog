@@ -693,6 +693,20 @@
           (if (!= args nil) (return -1))
           (return (coco_try_store e cl call goals barrier tmark hmark))))
 
+  ;;; CLAUSE CL's PROGRAM CD INTO P's SLOT IX, where the slot still names CL
+  ;;; (3.64.0). Compiling it took the green barrier (`coco_clause_code'),
+  ;;; where this worker acknowledges the other tasks' writes, and an asserta
+  ;;; among them moves every clause up one: IX then names the clause before
+  ;;; CL. Through 3.63.2 that clause's calls ran CL's program from then on,
+  ;;; and failed its head, and the two slots naming one program freed it
+  ;;; twice once retracts dropped them. Where the slot names another, the
+  ;;; store's table hands CL its program at its next call. Out of line: the
+  ;;; clause entry's registers are the step's.
+  (weak) (cold)
+  (func coco_pred_code_set ((coco_pred * p) (size_t ix) (size_t cl) (coco_code * cd))
+        (if (and (< ix (-> p nclauses)) (== (nth ix (-> p clauses)) cl))
+            (set (nth ix (-> p codes)) (cast (void *) cd))))
+
   ;;; A CLAUSE WHOSE CODE IS NO PLAIN ONE, ENTERED WHERE $/0 HAS A PART IN
   ;;; IT (3.21.0): a body that holds `$' (`ex' 4), one not compiled yet, and
   ;;; any while a guard is on, one whose last goal swipl compiles in place
@@ -729,7 +743,7 @@
           ;; matched in the store
           (if (== cd nil)
               (block (set cd (coco_clause_code st m cl))
-                     (set (nth ix (-> p codes)) (cast (void *) cd))))
+                     (coco_pred_code_set p ix cl cd)))
           (if (== cd nil)
               (block (if (!= args nil) (return -1))
                      (return (coco_try_store e cl call goals barrier tmark hmark))))
@@ -820,7 +834,7 @@
           ;; table (which compiles it the first time) and into the slot
           (if (== cd nil)
               (block (set cd (coco_clause_code st m cl))
-                     (set (nth ix (-> p codes)) (cast (void *) cd))))
+                     (coco_pred_code_set p ix cl cd)))
           (if (!= cd nil)
               (let ((size_t roots [64]) (size_t ng . 0)
                     (int nxt . #'(- 1 (-> e acur)))
@@ -972,11 +986,11 @@
               (coco_store * st . #'(-> e st)))
           (while 1
             (let ((coco_choice * c . #'(aof (nth ci (-> e choices))))
-                  (coco_pred * p . #'(aof (nth (-> c pred) (-> st preds))))
+                  (coco_pred * p . #'(aof (coco-pred-at (-> st predp) (-> c pred))))
                   (u32 kpos . #'(-> c ixpos))
                   (u64 key . 0) (size_t ix . 0) (int last . 0)
                   (size_t call . #'(-> c call)) (size_t goals . #'(-> c goals)))
-              (set key (? (== kpos 0) (coco_arg_key m call) (coco_call_arg_key m call kpos)))
+              (set key (? (== kpos 0) (coco_arg_key m call) (coco_call_arg_key m p call kpos)))
               (set ix (coco_frame_next st m p kpos key (-> c clause_ix) (-> c cend) (-> c fera)))
               (if (>= ix (cast size_t (-> c cend)))
                   (block (set (-> e nchoices) ci) (return 0)))
@@ -998,7 +1012,7 @@
               (coco_store * st . #'(-> e st)))
           (while 1
             (let ((coco_choice * c . #'(aof (nth ci (-> e choices))))
-                  (coco_pred * p . #'(aof (nth (-> c pred) (-> st preds)))))
+                  (coco_pred * p . #'(aof (coco-pred-at (-> st predp) (-> c pred)))))
               ;; THE LOGICAL UPDATE VIEW: a predicate with dead clauses
               ;; selects out of line, and every other bounds what it tries by
               ;; the clause count its call began with (`cend'), past which
@@ -1016,7 +1030,7 @@
                     (u64 key . 0)
                     (size_t ix . 0))
                 (set key (? (== kpos 0) (coco_arg_key m (-> c call))
-                            (coco_call_arg_key m (-> c call) kpos)))
+                            (coco_call_arg_key m p (-> c call) kpos)))
                 (set ix (? (== kpos 0) (coco_pred_next_clause st p key (-> c clause_ix))
                            (coco_pred_next_at st m p kpos key (-> c clause_ix))))
                 (if (>= ix (cast size_t (-> c cend)))
@@ -1100,7 +1114,7 @@
               (return 1))
           (set pi (coco_pred_find st nid n))
           (if (< pi (-> st npreds))
-              (return (!= (bitand ($ (nth pi (-> st preds)) pattrs) 32) 0)))
+              (return (!= (bitand ($ (coco-pred-at (-> st predp) pi) pattrs) 32) 0)))
           (return 0)))
 
   ;;; whether the printer hides a call of G: its predicate hides its
@@ -1132,7 +1146,7 @@
         (let ((coco_store * st . #'(-> e st))
               (size_t pi . #'($ (nth ci (-> e choices)) pred)))
           (return (and (< pi (-> st npreds))
-                       (!= (bitand ($ (nth pi (-> st preds)) pattrs) 32) 0)))))
+                       (!= (bitand ($ (coco-pred-at (-> st predp) pi) pattrs) 32) 0)))))
 
   ;;; THE FRAME A RETRY IS REPORTED ON (swipl's dbgRedoFrame), for the call
   ;;; at frame CI, which hides its children or was hidden: the outermost of
@@ -1275,7 +1289,7 @@
         (let ((coco_rec * r . #'(cast (coco_rec *) ($ (cof (-> e m)) rec)))
               (coco_choice * c . #'(aof (nth ci (-> e choices)))))
           (if (!= r nil)
-              (set (-> r hkey) (coco_call_arg_key (-> e m) (-> c call) (-> c ixpos))))))
+              (set (-> r hkey) (coco_call_arg_key (-> e m) (aof (coco-pred-at (-> (-> e st) predp) (-> c pred))) (-> c call) (-> c ixpos))))))
 
   ;;; THE HEADS, AFTER THE SELECTION: in a window, the clauses from START
   ;;; that the selection tried up to the one the frame at CI entered -- or
@@ -1297,7 +1311,7 @@
               (coco_rec * r . #'(cast (coco_rec *) ($ (cof m) rec)))
               (coco_store * st . #'(-> e st))
               (coco_choice * c . #'(aof (nth ci (-> e choices))))
-              (coco_pred * p . #'(aof (nth (-> c pred) ($ (cof st) preds))))
+              (coco_pred * p . #'(aof (coco-pred-at ($ (cof st) predp) (-> c pred))))
               (int depth . #'($ (nth ci (-> e tchoices)) depth))
               (size_t upto . 0)
               (size_t ix . 0))
@@ -1454,8 +1468,8 @@
           (set (-> r rpi) (-> r tcur))
           (set (-> r rpk) (-> r tkcur))
           (set (-> r rpp) (-> c pred))
-          (set (-> r rpname) ($ (nth (-> c pred) ($ (cof (-> e st)) preds)) name))
-          (set (-> r rparity) ($ (nth (-> c pred) ($ (cof (-> e st)) preds)) arity))))
+          (set (-> r rpname) ($ (coco-pred-at ($ (cof (-> e st)) predp) (-> c pred)) name))
+          (set (-> r rparity) ($ (coco-pred-at ($ (cof (-> e st)) predp) (-> c pred)) arity))))
 
   ;;; `'$catch_exit'(CI)': the goal of the catch frame at CI has EXITED. From
   ;;; here on a throw is somebody else's, so the frame stops being a catch --
@@ -1653,7 +1667,7 @@
             (set ($ (nth ci (-> e choices)) ixpos) 0)
             ;; what the call may try: the clauses there are now (the logical
             ;; update view)
-            (let ((coco_pred * p . #'(aof (nth pi ($ (cof (-> e st)) preds)))))
+            (let ((coco_pred * p . #'(aof (coco-pred-at ($ (cof (-> e st)) predp) pi))))
               (set ($ (nth ci (-> e choices)) cend) (cast u32 (-> p nclauses)))
               (set (-> p framed) 1))
             (return (? (coco_select_clause e ci) 1 0)))))
@@ -1664,12 +1678,14 @@
   ;;; and, above its low eight bits, the argument chosen, so the step loop
   ;;; takes the address of no local of its own for it. Weak, so the loop
   ;;; keeps its registers.
+  ;;; In 64 bits since 3.64.0: a table of the deep index is a position with
+  ;;; bit 31 set (`coco_deep_pos'), which an int shifted by eight lost.
   (weak)
   (func coco_term_jit ((coco_store * st) (coco_machine * m) (coco_pred * p) (size_t g)
-                       (size_t * ix)) (out int)
+                       (size_t * ix)) (out i64)
         (let ((u32 kpos . 0) (int det . 0))
           (set det (coco_pred_jit st m p g nil ix (aof kpos)))
-          (return (bitor det (<< (cast int kpos) 8)))))
+          (return (bitor (cast i64 det) (<< (cast i64 kpos) 8)))))
 
   ;;; THE BUILTINS IN PLACE (Stage 7): unit U of the environment at ENV
   ;;; (whose code is CD), NK the continuation after it and BAR its barrier
@@ -2136,7 +2152,7 @@
   (static)
   (func coco_bt_clause ((coco_store * st) (void * cd) (size_t * pi) (size_t * ci)) (out int)
         (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
-          (let ((coco_pred * p . #'(aof (nth i (-> st preds)))))
+          (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) i))))
             (if (!= (-> p codes) nil)
                 (for ((size_t j . 0)) (and (< j (-> p nclauses)) (< j (-> p codes_cap))) ((++ j))
                   (if (and (== (nth j (-> p codes)) cd) (not (coco_pred_dead p j)))
@@ -2226,7 +2242,7 @@
                 (let ((size_t pi . 0) (size_t ci . 0))
                   (set (cof lastenv) env)
                   (if (coco_bt_clause (-> x st) (cast (void *) cd) (aof pi) (aof ci))
-                      (let ((coco_pred * p . #'(aof (nth pi ($ (cof (-> x st)) preds))))
+                      (let ((coco_pred * p . #'(aof (coco-pred-at ($ (cof (-> x st)) predp) pi)))
                             (size_t a . #'(coco_new_atom_id m (-> p name)))
                             (size_t n . #'(coco_new_int m (cast i64 (-> p arity)))))
                         (coco_sb_put b "   (clause ")
@@ -3092,8 +3108,8 @@
           (if (== st nil) (return nil))
           (let ((size_t i . #'(coco_pred_find st nid n)))
             (if (>= i (-> st npreds)) (return nil))
-            (if (== ($ (nth i (-> st preds)) pmod) 0) (return nil))
-            (return (coco_atom_name (-> e m) (- ($ (nth i (-> st preds)) pmod) 1))))))
+            (if (== ($ (coco-pred-at (-> st predp) i) pmod) 0) (return nil))
+            (return (coco_atom_name (-> e m) (- ($ (coco-pred-at (-> st predp) i) pmod) 1))))))
 
   ;;; context(system:Name/Arity, _) for a frame of swipl's own,
   ;;; context(Name/Arity, _) for a clause's predicate, as swipl names a user
@@ -3184,10 +3200,10 @@
                 ;; a predicate whose meta spec names a module keeps its
                 ;; own, a module_transparent/1 after the spec too (3.48.2)
                 (if (and (< i (-> st npreds))
-                         (or (== (bitand ($ (nth i (-> st preds)) pattrs) 4) 0)
-                             (coco_meta_spec_module ($ (nth i (-> st preds)) pmeta))))
-                    (return (? (!= ($ (nth i (-> st preds)) pmod) 0)
-                               (- ($ (nth i (-> st preds)) pmod) 1)
+                         (or (== (bitand ($ (coco-pred-at (-> st predp) i) pattrs) 4) 0)
+                             (coco_meta_spec_module ($ (coco-pred-at (-> st predp) i) pmeta))))
+                    (return (? (!= ($ (coco-pred-at (-> st predp) i) pmod) 0)
+                               (- ($ (coco-pred-at (-> st predp) i) pmod) 1)
                                user)))))
           (if (!= (-> m ssu_mod) 0) (return (- (-> m ssu_mod) 1)))
           (return user)))
@@ -3210,7 +3226,7 @@
               (set pi ($ (nth fi (-> m functors)) pidx))
               (set pi (coco_pred_find st (coco_name_of m g) (coco_arity m g))))
           (if (or (>= pi (-> st npreds)) (not (coco_pred_meta_q st pi))) (return g))
-          (return (coco_meta_qualify m g ($ (nth pi (-> st preds)) pmq) (coco_name_of m mo)))))
+          (return (coco_meta_qualify m g ($ (coco-pred-at (-> st predp) pi) pmq) (coco_name_of m mo)))))
 
   ;;; A META-CALL'S GOAL D, user:G, AS G WHERE G IS KNOWN A PLAIN PREDICATE
   ;;; (3.45.0): its functor stamped for the store as the step's fast path
@@ -3250,7 +3266,7 @@
   ;;; whatever it took
   (weak) (cold)
   (func coco_step_meta ((coco_engine * e) (size_t pi) (size_t g) (size_t b)) (out size_t)
-        (return (coco_meta_qualify (-> e m) g ($ (nth pi (-> (-> e st) preds)) pmq)
+        (return (coco_meta_qualify (-> e m) g ($ (coco-pred-at (-> (-> e st) predp) pi) pmq)
                                    (coco_meta_ctx e b))))
 
   ;;; the frame a search was asked from: a frame of its goal with no owner

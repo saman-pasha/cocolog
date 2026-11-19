@@ -12,7 +12,7 @@ ZiguratIP server, Zeytun over HTTP — in which a clause is a row, and a running
 proof is a term that can be frozen into rows and resumed by another process.
 It is one binary, written in **Cicili** (C in S-expressions).
 
-Version at the time of writing: cocolog 3.63.2, built with
+Version at the time of writing: cocolog 3.64.0, built with
 Cicili 3.3.0. `./cocolog --version` answers it.
 
 **Part A** is for writing and running Prolog on cocolog. **Part B** is for
@@ -138,8 +138,8 @@ Three more facts hold everywhere:
 
 What is swipl's and worth knowing it is: error terms with their contexts
 (`error(type_error(integer, a), context(system:succ/2, _))`) and the messages
-printed for them; the logical update view; first-argument and just-in-time
-indexing; `setup_call_cleanup/3`; single-sided rules (`Head => Body`); the
+printed for them; the logical update view; first-argument, just-in-time and
+deep indexing; `setup_call_cleanup/3`; single-sided rules (`Head => Body`); the
 determinism guards `$/0` and `$/1`; `print_message/2` with `message_hook/3`;
 `term_expansion/2` and `goal_expansion/2`; `:- include/1`, `:- encoding/1`;
 cyclic terms; every option of `write_term/2`; `listing/1`'s layout; a float's

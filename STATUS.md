@@ -19840,3 +19840,172 @@ Held by test/errors.pl's `load_short` (the big consult, the script's
 consult/1, the start-up sweep) and `load_refused` (each request of a host's
 load refused, once and twice in a row; glibc only, test/refuse.c), both
 red on 3.63.1.
+
+## A call keyed inside its compound, as swipl's deep index keys it, and nothing held across a barrier (3.64.0)
+
+Ambitious's finding 13: a lookup of a fact by its handle, `node(n(Doc,
+Index, Gen), V)` over 100 000 facts, took some 280 times swipl's time. The
+handle is one functor's compound in every clause, so its key chose nothing
+and the call walked every fact; swipl's JIT index makes that argument a
+LIST INDEX and keys the call inside the compound (pl-index.c's deep index,
+read at 9.0.4). The stresses written for it then found seven places where
+the green world's write barrier let a task use what it had read before the
+barrier, held by six sections of test/async.pl: four that 3.63.2 had, each
+a crash, lost rows or wrong answers there (the predicate array, an
+argument table's count, a clause's program slot, the first argument's
+rebuild), and three that the deep index and the first fixes brought out (a
+node's build, a node's table, a retry's walk).
+
+| | 3.63.2 | 3.64.0 |
+|---|---|---|
+| a lookup by `n(D, I, G)` over 100 000 facts, 10 000 of them, three runs | 1.38 to 1.49 ms a lookup | 0.0043 to 0.0056 ms with the index built in the run, 0.0007 to 0.0010 once built (swipl 9.0.4: 0.0052 to 0.0059, and 0.0009 to 0.0011) |
+| `$, dp([a], X), true` over `dp([a\|_], x). dp([b\|_], y).` | determinism_error(dd/1, det, nondet, guard) | det, as swipl's |
+| test/files/deep_index.pl's 105 lines held to swipl | 33 wrong | none |
+| test/async.pl's `moved_preds`: a task's first call of a rule while another makes 12 000 new predicates | SIGSEGV, 6 runs in 6 | done |
+| `table_count`: 2 000 rounds of twelve facts asserted beside calls keyed on their second argument | 218 to 278 rounds lost, and a SIGSEGV | none lost |
+| `deep_unbuild`: a clause put in front of twelve and taken out 20 000 times beside 60 000 calls keyed inside the compound | 9 999 to 29 999 calls wrong, or `double free or corruption` | none wrong |
+| `reindex_barrier`: three tasks' first calls after each of 20 000 writes, 30 000 each | 6 744 to 6 748 wrong each, out of memory, or no end in its minute | none wrong |
+| `retry_walks`: three tasks walking a key's four clauses, 36 000 walks, beside 120 000 writes | the heap corrupted, every run (`double free or corruption`, `free(): invalid pointer`) | none wrong |
+
+3.64.0:
+
+- **The deep index** (`coco_deep_select`, its nodes and tables in
+  lib/kb-pred.cicili, `coco_dnode` and `coco_aixs` in lib/kb.cicili). Where
+  the argument a call is keyed on is one swipl would make a list index --
+  its speedup under 0.8 of the clauses (`coco_slots_assess`, bestHash's),
+  no clause with no key there, and a functor whose first run of clauses
+  holds two compounds swipl's compiler makes indexable
+  (`coco_deep_functs`, `coco_store_indexable`: an argument that is no
+  variable, or a variable met once before one met again; a list cell of
+  two fresh variables H_LIST_FF, which reads what follows it; 9.0.4's own
+  count, which merges a functor's later runs into its first and keeps the
+  first's) -- and the call's key there is that functor, the call goes
+  down into a NODE: the clauses of the level above whose term there is the
+  functor's compound or a variable, a table for each argument of the
+  compound. There a list of ten or fewer walks its first argument and asks
+  the others only where its first two candidates are both of the call's
+  key (nextClauseArg1); else the bound argument that promises the most,
+  the first on a tie, deeper while that one is a list index again and its
+  key a functor, seven levels at most (MAXINDEXDEPTH). A choice frame
+  names a node's table with bit 31 of its `ixpos` (`coco_deep_pos`), which
+  a retry reads back (`coco_pred_next_at`, `coco_deep_next`); an assertz
+  puts its clause into every built node (`coco_deep_add`), and what
+  renumbers the clauses leaves the nodes to be built again by the next
+  call that wants them. Under the floor of eight clauses the JIT index
+  goes down (`coco_pred_jit`); over it `coco_pred_select` does, where the
+  argument it keys on leaves more than four candidates. A one-argument
+  predicate is asked too: through 3.63.2 the probe's duplicate rule and
+  the select passed it by.
+- **One value that is no compound promises nothing** (`coco_jit_assess`,
+  `coco_slots_assess`), swipl's: through 3.63.2 it promised 1, and
+  `dn(x, f(a))` keyed on the atom where swipl keys inside the compound.
+- **A predicate never moves** (`predp`, `coco-pred-at`,
+  `coco_preds_block`): the store's table is a pointer a predicate, each in
+  a chunk of 256 that lives as long as the store. Through 3.63.2 the
+  predicates were one array grown by realloc, and a task waiting at the
+  barrier of a clause's first compile acknowledged another's assertz of a
+  new predicate past the array's room: its `coco_pred *` named freed
+  memory. The realloc's memcpy of every predicate at each growth is gone
+  from every start too (below).
+- **Nothing read before a barrier is used after it.** An argument table's
+  clause count is read under its barrier (`coco_aix_get`); a node's table
+  asks the node again under its own (`coco_dtab_get`); a node's build
+  reads the level above, its keys and its count under one
+  (`coco_dnode_ensure`); a clause's program goes into its slot only where
+  the slot still holds that clause (`coco_pred_code_set`: an asserta
+  acknowledged during the compile moved every clause up one, and through
+  3.63.2 the program went to the neighbour's slot, ran as its code, and
+  was freed twice at the neighbour's death); and the first argument's
+  index is rebuilt under a barrier (`coco_pred_reindex`: three tasks'
+  first calls after a write rebuilt its slots and chains at once).
+- **A retry in a world builds no index** (`coco_pred_reindex_walk`,
+  `coco_aix_walk`, `coco_deep_next`, over `coco_g_here`, lib/green.cicili).
+  `coco_select_clause` reads the frame's place and its end before the
+  walk; a walk that built an index waited at the barrier, where this
+  worker answered another's asserta, which moved every clause on by one
+  and the open frames' places with them (`coco_frames_on`) -- not the
+  place the walk had read, so the retry tried the clause it had just tried
+  again. A walk that finds an index not built walks the clauses as a small
+  predicate's are walked, every one from its place a candidate, and a
+  call's probe, which reads no place before it, still builds. Outside a
+  world nothing changes. The question is a function of its own, out of
+  line: asked inside the first argument's walk, the test cost queens
+  0.97 % and lookup 0.37 % of their work; asked where the walk would
+  rebuild, nothing.
+
+THE ARMS, one build each, every one red. Round two, on the code that
+ships, test/async.pl's six sections three times each, test/files.pl's
+deep_index for D17:
+
+- R1, a retry in a world rebuilding the first argument's index:
+  `retry_walks`' first walk wrong in two runs of three (1 and 3 walks);
+- R2, a retry building an argument's table: its second walk, every run
+  (44, 5 and 1);
+- R3, a retry building a node of the deep index or its table: its third
+  walk, every run (2, 6 and 3) -- each retry rule caught by its own walk;
+- A1, the predicates one array again: `moved_preds` SIGSEGV, three in
+  three;
+- A2, an argument table's count read before its barrier: `table_count` 9,
+  13 and 16 rounds lost, and two runs of the second walk;
+- A3, a node's level above, keys and count read before its barrier:
+  `deep_build` 131 to 183 rounds of 2 000 lost (the section 3.63.2, with
+  no deep index, has no node for), and `deep_unbuild` once;
+- A4, a node's table built though the barrier's wait left the node
+  unbuilt: `deep_unbuild` 61 to 241 wrong, the third walk 19 to 30;
+- A6, a clause's program put in its slot whatever the slot holds now:
+  `deep_unbuild` 9 998 to 19 991 wrong, `reindex_barrier` 7 438 to 14 989,
+  `retry_walks` up to 3 600;
+- A7, the first argument's index rebuilt with no barrier:
+  `reindex_barrier` out of memory and `retry_walks` failing, three in
+  three;
+- D17, what renumbers the clauses leaving the nodes built as they were:
+  deep_index.pl's lines 78, 79 and 84 to 86, answers a stale node lost.
+
+Round one, on the code before the retry rule, each of the deep index's
+rules out on deep_index.pl, all red: under the floor or over it no descent
+(D1, D2), no walk of ten (D3), no first run of two indexable compounds
+(D4), a compound of void arguments indexable (D5a), a list cell of two
+variables no H_LIST_FF (D5b), eight levels (D6), one value promising 1
+under the floor or at a node (D7a, D7b), the duplicate rule over a
+one-argument predicate (D8), the JIT's answer packed in an int (D9), an
+assertz leaving the built nodes alone (D10), a one-argument predicate not
+asked over the floor (D11), a list index holding clauses with no key
+there (D12) or at any speedup (D13), every run of a functor counting
+(D14), a node with nothing indexable keying nothing (D15), the walk of
+ten deciding on its first argument whatever its candidates (D16). Five of
+them -- D7b and D12 to D15 -- were green on the case as it then stood, 95
+lines, and the ten lines written for them make each red. And A1 to A7 of
+the barrier's rules as in round two but A5, a retry's walk reading a
+node's members before its table's barrier, which was green: no stress
+made a retry walk a node. The stress written to make one found the retry
+fault, whose rule leaves that walk no barrier in a world.
+
+COST, tools/flow/zero.sh against 3.63.2, the work less its padding: nrev
+66 132 397 to 66 124 499 (-0.01 %), queens 40 253 373 to 39 970 269
+(-0.70 %, `coco_select_clause`'s code laid out anew), lookup 48 040 614 to
+48 067 374 (+0.06 %). A start runs 169 115 instructions fewer of 35.6
+million (35 552 386 to 35 383 271, -0.48 %), 153 500 of them the
+predicate array's realloc.
+
+ONE FIXTURE MOVED. test/window.pl's `w_pm/2` and `w_pq/2` are retries
+the window must see: two clauses, of which the call matches the first
+alone, so that the second is tried and fails. Their heads told `s(n)` from
+`s(m)` inside a compound no index looked into, and the deep index now keys
+the call there: the second clause was never tried, and the window saw no
+retry. The second heads are `s(Z, Z)` now, against the calls' `s(n, m)`:
+a variable is a candidate for every key, and the head fails to unify.
+
+THE RUN, on the binary that ships, with a server up: the lint case first;
+then files, engine, gc, trace, window, flowdebug, reconsult, errors,
+directives, cyclic, script, backtrace, journal, meter, library, static,
+flowchart, async, thread, cowork, string, units, repl, argv, store-lock,
+process, text, stream, serialize, template, rationals, tunnel, kbs,
+zigurat-lib, groups and ruler, and the zigurat, shared, solve, module,
+state, term and syntax binaries, each alone, every one green with no SKIP;
+and lessons basics/05 and 08 and library/01, 37, 51 and 54, each ending
+`done`. The card check passes, N1's, S2's and X1's lib/kb-pred.cicili
+cites renumbered.
+
+Held by test/files/deep_index.pl (105 lines to swipl, 33 of them wrong on
+3.63.2) and test/async.pl's last six sections, five of them red on 3.63.2
+and `deep_build`, whose node 3.63.2 has not, red without its rule.

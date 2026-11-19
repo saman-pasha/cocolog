@@ -9,8 +9,9 @@
 %  call whose body's first goal is the one asked (a call from the registers,
 %  which no guard of $/0 takes), and by the answers and their order. Run by
 %  BOTH SWI-Prolog and cocolog, output compared byte for byte; each line is
-%  one of swipl 9.0.4's answers. Not here (COMPAT.md): swipl's deep index
-%  inside a compound every clause shares, an index of two arguments
+%  one of swipl 9.0.4's answers. Not here: the deep index inside a compound
+%  every clause shares, test/files/deep_index.pl's (3.64.0). Nor
+%  (COMPAT.md): an index of two arguments
 %  together, keys of floats and strings, what swipl's index kept from the
 %  calls made before decides -- an argument it found unfit while a dynamic
 %  predicate had one clause stays so until the count reaches a power of

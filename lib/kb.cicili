@@ -55,6 +55,17 @@
          (int began . #'(coco_g_write_begin ,e)))
      ,@body))
 
+;;; PREDICATE I OF A STORE (3.64.0), TAB its table (`predp'): a pointer a
+;;; predicate, each predicate in a chunk of 256 that never moves, so a
+;;; `coco_pred *' held across a green barrier still names its predicate
+;;; after the writes this worker acknowledged waiting there -- through
+;;; 3.63.2 the predicates were one array, which a write that made one grew
+;;; by realloc, and the pointer named freed memory (`coco_preds_block').
+;;; One load more than the array's own address and no multiply: a table of
+;;; blocks, its shift, mask and multiply, cost naive reverse 0.8 %.
+(DEFMACRO coco-pred-at (tab i)
+  `(cof (nth ,i ,tab)))
+
 ;;; A LOAD SHORT OF MEMORY ENDS WHERE IT STANDS (3.63.2,
 ;;; `coco_consult_owned'): ERR says so, the heap is wound back to the term
 ;;; in hand's mark, the goals the load put off are dropped where it keeps
@@ -67,6 +78,35 @@
           (if (== up nil) (coco_inits_free ip))
           (coco_reader_free (aof r))
           (return -1)))
+
+;;; A TABLE OF N KEYS FILLED (3.64.0): X's arrays grown to hold N, its
+;;; slots to stay under half full, and entry I's key -- KEY, an expression
+;;; of I -- linked into its chain (`coco_aix_add'). Answers nil from the
+;;; function it stands in where memory would not grow; ST is the store.
+;;; Written once for the other arguments' tables (`coco_aix_get') and the
+;;; deep index's (`coco_dtab_get'), whose entries are a node's members.
+(DEFMACRO coco-argix-fill (x n i key)
+  `(let ((size_t want . 16))
+     (if (not (coco_store_grow st (cast (void **) (aof (-> ,x keys))) (aof (-> ,x key_cap))
+                               (+ ,n 1) (sizeof u64)))
+         (return nil))
+     (if (not (coco_store_grow st (cast (void **) (aof (-> ,x chain))) (aof (-> ,x chain_cap))
+                               (+ ,n 1) (sizeof size_t)))
+         (return nil))
+     (while (< want (* (+ ,n 1) 2)) (set want (* want 2)))
+     (if (!= (-> ,x nslots) want)
+         (let ((void * ns . #'(realloc (cast (void *) (-> ,x slots)) (* want (sizeof coco_kslot)))))
+           (if (== ns nil) (block (set (-> st oom) 1) (return nil)))
+           (set (-> ,x slots) (cast (coco_kslot *) ns))
+           (set (-> ,x nslots) want)))
+     (memset (cast (void *) (-> ,x slots)) 0 (* (-> ,x nslots) (sizeof coco_kslot)))
+     (set (-> ,x varhead) (coco_no_clause))
+     (set (-> ,x vartail) (coco_no_clause))
+     (set (-> ,x nvar) 0)
+     (for ((size_t ,i . 0)) (< ,i ,n) ((++ ,i))
+       (set (nth ,i (-> ,x keys)) ,key)
+       (coco_aix_add ,x (nth ,i (-> ,x keys)) ,i))
+     (set (-> ,x indexed) 1)))
 
 ;;; THE CLAUSE COMPILER'S OPCODES, one table read two ways -- the `cc_NAME'
 ;;; functions the compiler calls (emitted beside it), and `(cc-op "NAME")',
@@ -779,7 +819,57 @@
     ;; expected speedup as an index, for the clauses as they stood at
     ;; `tver' AVER names (bit 32 set, 0 for none). Appended.
     (member u64          aver)
-    (member double       aspd))
+    (member double       aspd)
+    ;; AND WHETHER SWIPL WOULD MAKE IT A LIST INDEX (3.64.0, `coco_deep_list'):
+    ;; a functor's bucket a clause list of its own, indexed inside the
+    ;; compound -- as the clauses stood at the `tver' LVER names. Appended.
+    (member u64          lver)
+    (member int          alist))
+
+  ;;; A DEEP INDEX NODE (3.64.0, swipl's deep index: pl-index.c's list
+  ;;; index, whose bucket of a functor holds a clause list of its own,
+  ;;; indexed on the compound's arguments, at most seven deep). The clauses
+  ;;; of the level above -- the predicate's own, or node PARENT's members --
+  ;;; whose argument APOS there is FKEY's compound, or a variable, which any
+  ;;; compound matches: MEM their positions, ascending. TABS is a table a
+  ;;; compound's argument, the first eight, each over the members' indices
+  ;;; (its `keys' and `chain' a member each), built the first time a call
+  ;;; wants it. PATH and PFUN are the argument positions and the functors
+  ;;; from the head down to the node, DEPTH of them, so a call's key and a
+  ;;; clause's are read without the nodes above. A node is made the first
+  ;;; time a call descends to it and lives as long as its predicate; what
+  ;;; renumbers the clauses leaves it unbuilt (`coco_pred_unindex'), and a
+  ;;; choice frame names it by its index (`coco_deep_pos').
+  (struct coco_dnode
+    (member u32          parent)
+    (member u32          apos)
+    (member u64          fkey)
+    (member u32          arity)
+    (member u32          depth)
+    (member u32          path [7])
+    (member u64          pfun [7])
+    (member int          built)
+    (member size_t *     mem)
+    (member size_t       nmem)
+    (member size_t       mcap)
+    (member coco_argix * tabs))
+
+  ;;; WHAT A PREDICATE'S `aix' NAMES (3.64.0): the tables of its arguments
+  ;;; past the first (`args'), what `aix' was through 3.63; the list flag
+  ;;; of its first argument (`coco_deep_list'), whose table is the
+  ;;; predicate's own; and its deep index nodes, a block each, so a node's
+  ;;; address outlives the array's growth, found by parent, argument and
+  ;;; functor through NHASH (a node's index plus one, open-addressed, kept
+  ;;; under half full).
+  (struct coco_aixs
+    (member coco_argix   args [7])
+    (member u64          l0ver)
+    (member int          l0list)
+    (member coco_dnode ** nodes)
+    (member u32          nnodes)
+    (member u32          ncap)
+    (member u32 *        nhash)
+    (member u32          nhcap))
 
   ;;; One predicate: a name, an arity, and the clauses under it in the order
   ;;; they were asserted. `loaded' says the fetch hook has already been asked
@@ -923,8 +1013,10 @@
     ;; whose first argument is unbound, or keyed on a value most clauses
     ;; share, is indexed on the bound argument that leaves the fewest
     ;; candidates -- `edge(X, b)', or `word(es, casa, M)' in a table of
-    ;; one language. nil until then.
-    (member coco_argix * aix)
+    ;; one language. nil until then. Since 3.64.0 a `coco_aixs', which
+    ;; holds the deep index's nodes beside them: a pointer either way, so
+    ;; no member here moved.
+    (member coco_aixs * aix)
 
     ;; ---- the logical update view (ISO's, swipl's) ---------------------
     ;;
@@ -1143,7 +1235,10 @@
     ;; a machine may keep and hand out shared, and the put knows it free
     (member int       put_vars)
 
-    (member coco_pred * preds)
+    ;; THE PREDICATES, a pointer each, in chunks of 256 that never move
+    ;; (`coco-pred-at', 3.64.0): PRED_CAP the predicates the chunks hold and
+    ;; the table's entries; the chunks and their room are appended below
+    (member coco_pred ** predp)
     (member size_t    npreds)
     (member size_t    pred_cap)
     ;; THE PREDICATES WITH DEAD CLAUSES (`tomb' on the predicate), by index,
@@ -1393,13 +1488,18 @@
     (member u64       xlib [4])
     (member int       nxlib)
     ;; WHAT THE KNOWLEDGE BASE'S ROWS HOLD OF EACH PREDICATE (3.63.1,
-    ;; `coco_wrows'), indexed as `preds' is, WRCAP of them: grown by the
+    ;; `coco_wrows'), indexed as `predp' is, WRCAP of them: grown by the
     ;; backend as it asks (`coco_zg_wr'), dropped at every attachment of
-    ;; one, nil none. NOT A FIELD OF THE PREDICATE: the step indexes
-    ;; `preds', and 40 bytes more on each made every index of it dearer
+    ;; one, nil none. NOT A FIELD OF THE PREDICATE: the step indexed an
+    ;; array of them, and 40 bytes more on each made every index dearer
     ;; (naive reverse +0.32 % of tools/flow/zero.sh's work). Appended.
     (member coco_wrows * wr)
-    (member size_t       wrcap))
+    (member size_t       wrcap)
+    ;; THE CHUNKS OF 256 PREDICATES `predp' points into (3.64.0), PCHUNK_CAP
+    ;; their table's room, PREDP_CAP the room of `predp'. Appended.
+    (member coco_pred ** pchunk)
+    (member size_t       pchunk_cap)
+    (member size_t       predp_cap))
 
   (decl) (func coco_store_init ((coco_store * st)))
   (decl) (func coco_store_free ((coco_store * st)))
@@ -1442,6 +1542,7 @@
   (decl) (func coco_g_write_begin ((void * e)) (out int))
   (decl) (func coco_g_write_end () (out void))
   (decl) (func coco_g_write_end_cleanup ((int * began)) (out void))
+  (decl) (func coco_g_here () (out int))
   (decl) (func coco_store_get ((coco_machine * m) (coco_store * st) (size_t t)) (out size_t))
   ;;; WHAT A PROGRAM PUT, READ BACK (1.10.19): `coco_store_get', and -- once
   ;;; a cyclic term has been put as its factors (`cyc_puts' on the machine)
@@ -2028,8 +2129,20 @@
     (member u32 pos))
   (decl) (func coco_pred_select ((coco_store * st) (coco_machine * m) (coco_pred * p)
                                  (size_t call)) (out coco_ixsel))
-  ;;; The key of argument POS of a call, as `coco_arg_key' reads the first's.
-  (decl) (func coco_call_arg_key ((coco_machine * m) (size_t call) (u32 pos)) (out u64))
+  ;;; The key of argument POS of a call, as `coco_arg_key' reads the first's
+  ;;; -- or, for a POS of P's deep index (`coco_deep_pos', 3.64.0), of the
+  ;;; call's term at its node's place.
+  (decl) (func coco_call_arg_key ((coco_machine * m) (coco_pred * p) (size_t call) (u32 pos)) (out u64))
+  ;;; THE PLACE A CALL IS KEYED ON INSIDE ITS ARGUMENT APOS, the compound
+  ;;; at heap cell T whose cell is FKEY, as swipl's deep index keys it
+  ;;; (3.64.0): a POS of P's deep index and the call's key there, or APOS
+  ;;; and FKEY themselves where nothing deeper chooses.
+  (decl) (func coco_deep_select ((coco_store * st) (coco_machine * m) (coco_pred * p)
+                                 (u32 apos) (u64 fkey) (size_t t)) (out coco_ixsel))
+  ;;; WHETHER SWIPL WOULD MAKE P'S ARGUMENT POS A LIST INDEX (3.64.0), its
+  ;;; speedup S (below 0 to have it read from the argument's table)
+  (decl) (func coco_root_list ((coco_store * st) (coco_machine * m) (coco_pred * p)
+                               (u32 pos) (double s)) (out int))
   ;;; `coco_pred_next_clause' and `coco_pred_probe' on argument POS
   (decl) (func coco_pred_next_at ((coco_store * st) (coco_machine * m) (coco_pred * p)
                                   (u32 pos) (u64 key) (size_t from)) (out size_t))
@@ -2437,7 +2550,7 @@
         (if (== (-> st ntaken) 0) (return 0))
         (let ((size_t pi . #'(coco_pred_find st name arity)))
           (if (>= pi (-> st npreds)) (return 0))
-          (return ($ (nth pi (-> st preds)) taken))))
+          (return ($ (coco-pred-at (-> st predp) pi) taken))))
 
   ;;; WHAT A PROGRAM FILE'S CLAUSE FOR A BUILTIN'S NAME DOES (3.1.0), asked
   ;;; by `coco_assert_from' of a clause a file of the program's own gives
@@ -2495,7 +2608,7 @@
           (coco_store_warm st)
           (let ((size_t pi . #'(coco_pred_find st nid n)))
             (if (< pi (-> st npreds))
-                (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+                (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi))))
                   (if (or (> (coco_pred_live p) 0) (or (-> p dynamic) (-> p declared)))
                       (block
                         (if (or (not (-> p library)) (-> p own)) (return 1))
@@ -2692,6 +2805,19 @@
   ;;; (`coco_argix'): the second to the eighth.
   (static) (func coco_aix_count () (out u32) (return 7))
 
+  ;;; A table's three arrays, freed
+  (static)
+  (func coco_argix_free ((coco_argix * x))
+        (free (-> x keys))
+        (free (-> x chain))
+        (free (cast (void *) (-> x slots))))
+
+  ;;; How many tables a deep index node has: one an argument of its
+  ;;; compound, the first eight (3.64.0)
+  (static) (inline)
+  (func coco_dnode_ntabs ((coco_dnode * d)) (out u32)
+        (return (? (> (-> d arity) 8) 8 (-> d arity))))
+
   (func coco_store_init ((coco_store * st))
         (memset st 0 (sizeof coco_store))
         (set coco_store_serials (+ coco_store_serials 1))
@@ -2699,27 +2825,40 @@
 
   (func coco_store_free ((coco_store * st))
         (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
-          (free ($ (nth i (-> st preds)) clauses))
-          (free ($ (nth i (-> st preds)) origins))
-          (free ($ (nth i (-> st preds)) muted))
-          (free (cast (void *) ($ (nth i (-> st preds)) codes)))
-          (free (cast (void *) ($ (nth i (-> st preds)) tomb)))
-          (free ($ (nth i (-> st preds)) pmeta))
-          (free ($ (nth i (-> st preds)) pmq))
+          (free ($ (coco-pred-at (-> st predp) i) clauses))
+          (free ($ (coco-pred-at (-> st predp) i) origins))
+          (free ($ (coco-pred-at (-> st predp) i) muted))
+          (free (cast (void *) ($ (coco-pred-at (-> st predp) i) codes)))
+          (free (cast (void *) ($ (coco-pred-at (-> st predp) i) tomb)))
+          (free ($ (coco-pred-at (-> st predp) i) pmeta))
+          (free ($ (coco-pred-at (-> st predp) i) pmq))
           ;; the index's three arrays go with the clause list they describe,
           ;; and so do the other arguments' tables
-          (free ($ (nth i (-> st preds)) keys))
-          (free ($ (nth i (-> st preds)) chain))
-          (free (cast (void *) ($ (nth i (-> st preds)) slots)))
-          (let ((coco_argix * x . #'($ (nth i (-> st preds)) aix)))
-            (if (!= x nil)
+          (free ($ (coco-pred-at (-> st predp) i) keys))
+          (free ($ (coco-pred-at (-> st predp) i) chain))
+          (free (cast (void *) ($ (coco-pred-at (-> st predp) i) slots)))
+          (let ((coco_aixs * a . #'($ (coco-pred-at (-> st predp) i) aix)))
+            (if (!= a nil)
                 (block
                  (for ((u32 j . 0)) (< j (coco_aix_count)) ((++ j))
-                   (free ($ (nth j x) keys))
-                   (free ($ (nth j x) chain))
-                   (free (cast (void *) ($ (nth j x) slots))))
-                 (free (cast (void *) x))))))
-        (free (-> st preds))
+                   (coco_argix_free (aof (nth j (-> a args)))))
+                 ;; and the deep index's nodes, each its tables and its
+                 ;; members (3.64.0)
+                 (for ((u32 j . 0)) (< j (-> a nnodes)) ((++ j))
+                   (let ((coco_dnode * d . #'(nth j (-> a nodes))))
+                     (if (!= (-> d tabs) nil)
+                         (for ((u32 t . 0)) (< t (coco_dnode_ntabs d)) ((++ t))
+                           (coco_argix_free (aof (nth t (-> d tabs))))))
+                     (free (cast (void *) (-> d tabs)))
+                     (free (cast (void *) (-> d mem)))
+                     (free (cast (void *) d))))
+                 (free (cast (void *) (-> a nodes)))
+                 (free (cast (void *) (-> a nhash)))
+                 (free (cast (void *) a))))))
+        (for ((size_t b . 0)) (< (* b 256) (-> st pred_cap)) ((++ b))
+          (free (cast (void *) (nth b (-> st pchunk)))))
+        (free (cast (void *) (-> st pchunk)))
+        (free (cast (void *) (-> st predp)))
         (free (-> st tpreds))
         (free (-> st pred_buckets))
         (coco_code_table_clear st)
