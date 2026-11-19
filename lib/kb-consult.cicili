@@ -2126,10 +2126,24 @@
             ;; sets as it begins: no read but a nested one reads it)
             (set (-> m lreads) (+ (-> m lreads) 1))
             ;; a read sets the floor of each term it holds, and the term
-            ;; around it has its own back (3.52.0, `lfloor')
-            (let ((size_t lfl . #'(-> m lfloor)))
+            ;; around it has its own back (3.52.0, `lfloor').
+            ;; THE LOAD'S MACHINE IS TOLD OF A REFUSAL (3.63.2): a text the
+            ;; allocator refuses room for tells the machine running on the
+            ;; thread (`coco_refuse'), and a host's load -- `run', `consult',
+            ;; the preload -- runs no engine, so a refusal there was counted
+            ;; and no more: a warning came out short of a piece
+            ;; (`Warning:    Z]') and the load went on. Its machine is the
+            ;; one told for the read's length, an included file's inside
+            ;; it, and the one before put back; an engine a directive starts
+            ;; sets its own for its run, as it always did. Set here, not in
+            ;; `coco_consult_owned': a local there cost a start 1 500
+            ;; instructions in that function's registers
+            (let ((size_t lfl . #'(-> m lfloor))
+                  (coco_machine * rwas . coco_refuse_m))
+              (coco_refuse_give m)
               (set n (coco_consult_owned st m text origin oid (aof seen) err errlen
                                          nil nil 0))
+              (coco_refuse_give rwas)
               (set (-> m lfloor) lfl))
             ;; its end puts the last clause after each of its predicates'
             ;; rules, a read's own as the rules are
@@ -2908,6 +2922,44 @@
             (set (-> m lball_size) (- (-> st len) c)))
           (set (-> m heap_len) mark)))
 
+  ;;; A LOAD SHORT OF MEMORY ENDS (3.63.2), as one too deep for the C
+  ;;; stack does: the clauses read before it stand, the rest of the text is
+  ;;; not read, ERR is swipl's words for resource_error(memory), and the
+  ;;; machine is FINISHED (`coco_oom'), its run ending `out of memory': a
+  ;;; load that lost a clause, a declaration or a term has left a program
+  ;;; that is not its text's. No ball: nothing a finished machine runs
+  ;;; could catch one, and whoever reports ERR puts its own context to it
+  ;;; (`run' and `consult' a line, consult/1 a line and then its run's
+  ;;; `out of memory'). Through 3.63.1 the load went on past each refusal,
+  ;;; and every clause after it was a syntax error or `not a clause': at
+  ;;; start-up under an address-space limit near the floor 306 to 2 618
+  ;;; lines of them, the preload's, and a consult of 400 000 facts 276 138
+  ;;; lines under 100 MB.
+  (weak) (cold)
+  (func coco_consult_memory_refused ((coco_store * st) (coco_machine * m) (char * err) (size_t errlen))
+        (snprintf err errlen "%s" "Not enough resources: memory")
+        (coco_oom m))
+
+  ;;; WHETHER THE LOAD HAS BEEN REFUSED MEMORY (3.63.2): its machine is
+  ;;; finished, or the store refused a growth outright since the load
+  ;;; began (SOOM0 its mark then). A refusal a goal's builtin answered
+  ;;; itself, catchably, is no refusal of the load's: the load's own read
+  ;;; says its own (`coco_consult_read_short'). Asked where a step of the
+  ;;; load failed, never at every term: a machine finished by a step that
+  ;;; answered is the next read's failure (`coco-read-refused' asks the
+  ;;; machine), and a test at each term's top moved nothing an arm could see
+  (static) (inline)
+  (func coco_consult_short ((coco_store * st) (coco_machine * m) (int soom0)) (out int)
+        (return (or (!= (-> m oom) 0) (and (!= (-> st oom) 0) (== soom0 0)))))
+
+  ;;; WHETHER THE READ THAT FAILED WAS REFUSED MEMORY: the reader says so
+  ;;; in the words every such failure of its begins with (`coco_fail') --
+  ;;; its own arrays', and a read across a refusal or a finished machine
+  ;;; (`coco-read-refused')
+  (static) (inline)
+  (func coco_consult_read_short ((coco_reader * r)) (out int)
+        (return (and (!= (-> r ewhat) nil) (== 0 (strncmp (-> r ewhat) "out of memory" 13)))))
+
   ;;; THE TEXT READ AGAIN FROM AT (3.58.0), `:- encoding(E)''s: TEXT's
   ;;; bytes up to AT as they are, and the rest written back in the class
   ;;; CLS it was decoded from (`coco_text_raw') and decoded in TO's -- the
@@ -3681,10 +3733,13 @@
                        (if any (coco_sb_putc (aof b) (cast char 44)))
                        (coco_sb_put (aof b) nm)
                        (set any 1)))))
-          (if any
-              (block
-                (coco_sb_put (aof b) "]")
-                (coco_load_message "Warning" origin at ($ b s))))
+          (if any (coco_sb_put (aof b) "]"))
+          ;; A WARNING SHORT OF A PIECE IS NONE (3.63.2): a buffer refused
+          ;; outright finished the machine (`coco_consult_oid' tells it),
+          ;; and the load ends at its next read (`coco-read-refused'),
+          ;; saying why
+          (if (and any (== (-> m oom) 0))
+              (coco_load_message "Warning" origin at ($ b s)))
           (coco_sb_reset (aof b))
           (if (and (not dir) ($ a ok))
               (block
@@ -3694,7 +3749,7 @@
                       (coco_cwc_mark m r st h)
                       (if hasg (coco_cwc_walk m r (aof a) st g 0 (aof b)))
                       (if hasb (coco_cwc_walk m r (aof a) st body dcg (aof b)))))))
-          (if (> ($ b len) 0)
+          (if (and (> ($ b len) 0) (== (-> m oom) 0))
               (set (nth 0 cw) ($ b s))
             (coco_sb_free (aof b)))
           (free ($ a bi))
@@ -3766,7 +3821,10 @@
               ;; exit. Its bit 16 says the text may hold a NUL the file held
               ;; (`coco_source_text'), which the reader is told of (`nul')
               (int cls . #'(bitand (-> m lcls) 15)) (int lnul . #'(bitand (-> m lcls) 16))
-              (defer () coco_cw_cleanup) (char * tbuf . nil))
+              (defer () coco_cw_cleanup) (char * tbuf . nil)
+              ;; THE STORE'S REFUSAL MARK WHEN THE LOAD BEGAN (3.63.2,
+              ;; `coco_consult_short')
+              (int lsoom . #'(-> st oom)))
           (set (-> m dgc) 0)
           (set (-> m lcls) 0)
           ;; a backtrace no report took (a window's, whose ball it handed
@@ -3844,6 +3902,16 @@
                              (if (== up nil) (coco_inits_free ip))
                              (coco_reader_free (aof r))
                              (return -1)))
+                  ;; AND SO DOES ONE SHORT OF MEMORY (3.63.2): a read the
+                  ;; reader says was refused -- its text short of a piece, a
+                  ;; variable it had no room to record, the first token the
+                  ;; read before asked for, its machine finished
+                  ;; (`coco_read_clause') -- is no syntax error of the
+                  ;; text's, and neither is a parse a refusal broke, which
+                  ;; finished the machine. Asked of a read that failed
+                  ;; alone: a read that answers pays nothing for it
+                  (if (or (coco_consult_short st m lsoom) (coco_consult_read_short (aof r)))
+                      (coco-consult-short-end))
                   (coco_consult_syntax_say m (aof r) origin)
                   (set (-> m heap_len) mark)
                   (coco_reader_resync (aof r))
@@ -4206,6 +4274,11 @@
                              (if vheld (coco_heap_root_pop m))
                              (if theld (coco_heap_root_pop m))
                              (if pushed (coco_heap_root_pop m))
+                             ;; a declaration the store had no room for, or
+                             ;; a goal that finished the machine, ends the
+                             ;; load short of memory (3.63.2), saying so once
+                             (if (and (!= dr 1) (coco_consult_short st m lsoom))
+                                 (coco-consult-short-end))
                              (if (== dr 2) (coco_load_message "Warning" origin at err))
                              (if (or (== dr 0) (== dr 3)) (coco_load_message "ERROR" origin at err))
                              ;; and where it was raised, when its goal raised
@@ -4318,8 +4391,11 @@
                                                  "No permission to modify static procedure `(',')/2'"))
                              ((not (coco_assert_from st m t 1 oid origin at seen))
                               ;; the store's reason, or the knowledge base's
-                              ;; (3.62.6: a write it refused), or none
+                              ;; (3.62.6: a write it refused), or none -- or
+                              ;; no room to store it, which ends the load
+                              ;; (3.63.2: through 3.63.1 `not a clause')
                               (cond
+                                ((coco_consult_short st m lsoom) (coco-consult-short-end))
                                 ((!= (nth 0 (-> st assert_err)) (cast char 0))
                                  (block (snprintf err errlen "%s" (-> st assert_err))
                                         (coco_load_message "ERROR" origin at err)

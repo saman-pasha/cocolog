@@ -3167,6 +3167,16 @@
         (coco_sb_free (aof (-> r text)))
         (memset r 0 (coco_reader_head r)))
 
+  ;;; WHETHER A READ WAS REFUSED MEMORY ON THE WAY (3.62.3): its first
+  ;;; token (LEXREF, `coco_next_first'), or anything since R0, the
+  ;;; thread's count of refusals when it began (`coco_refuse') -- AND ITS
+  ;;; MACHINE FINISHED (3.63.2): a heap growth refused outright finishes it
+  ;;; (`coco_oom') and counts nothing, and the read went on building on
+  ;;; cell 0 and answered a term -- one that a declaration then walked for
+  ;;; ever (test/errors.pl's `load_refused', two requests refused in a row)
+  (DEFMACRO coco-read-refused (r r0)
+    `(or (-> ,r lexref) (!= coco_refused ,r0) (!= (-> (-> ,r m) oom) 0)))
+
   (func coco_read_clause ((coco_reader * r) (size_t * out)) (out int)
         (coco_reader_clear_vars r)
         ;; the token in hand is this clause's first, or the one that would
@@ -3190,7 +3200,7 @@
           ;; text's. The thread's count says so (`coco_refuse'), its first
           ;; token's among it (LEXREF), and the clause fails as the
           ;; reader's own arrays fail one, `out of memory'.
-          (if (or (-> r lexref) (!= coco_refused r0))
+          (if (coco-read-refused r r0)
               (block (coco_fail r "out of memory") (return -1)))
           ;; THE CLAUSE IS READ WHOLE ONCE ITS FULL STOP IS (3.1.0): a token
           ;; after it that will not read is the NEXT clause's error, which
@@ -3447,8 +3457,9 @@
         (if (== (-> r tok) COCO_TK_EOF) (return 0))
         (let ((size_t t) (size_t r0 . coco_refused))
           (if (not (coco_parse_term r 1200 (aof t))) (return 0))
-          ;; a goal read across a refusal is no goal (3.62.3, as a clause)
-          (if (or (-> r lexref) (!= coco_refused r0))
+          ;; a goal read across a refusal is no goal (3.62.3, as a clause),
+          ;; nor one its machine was finished across (3.63.2)
+          (if (coco-read-refused r r0)
               (return (coco_fail r "out of memory")))
           (set (cof out) t)
           (return 1)))
@@ -3468,7 +3479,8 @@
           (if (and (not ($ r failed)) (!= ($ r tok) COCO_TK_EOF))
               (let ((size_t t))
                 (set rc (coco_parse_term (aof r) 1200 (aof t)))
-                (if (!= coco_refused r0) (set rc 0))
+                ;; nor across its machine finished (3.63.2, `coco-read-refused')
+                (if (or (!= coco_refused r0) (!= (-> m oom) 0)) (set rc 0))
                 (if rc (set (cof out) t))))
           (coco_reader_free (aof r))
           (set coco_refuse_m was)

@@ -3778,6 +3778,10 @@ cocolint index offers no import of it.
     asks the first token of a term asks it there, never
     `coco_next_token`**). The text builtins raise resource_error(memory)
     for such a read (`coco_tx_syntax`), where they said a syntax error.
+    **They ask the machine too** (3.63.2, `coco-read-refused`): a heap
+    growth refused outright finishes it (`coco_oom`) and COUNTS NOTHING,
+    and through 3.63.1 the read answered the term it went on building over
+    cell 0 -- a cyclic one a `:- dynamic` then walked for ever.
   - **A request with no smaller one to make finishes the machine on ONE
     refusal**, by design: a scratch `malloc` (`coco_text_list`,
     `coco_new_string`, a name's copy), a walk's stack of pairs or frames
@@ -3788,13 +3792,42 @@ cocolint index offers no import of it.
   - Not done: the writers that persist a text in flight (the store's
     sync in lib/zigurat-kb.cicili, `coco_freeze`, the journal, the seam's
     `coco_m_term_text`) act on it, though the machine is finished at its
-    next step; a load goes on past a clause there was no memory to read,
-    its ERROR said and the clause left out; library(stream)'s reads say
-    a syntax error; the store's and the recorder's marks stop nothing.
+    next step; library(stream)'s reads say a syntax error; the store's
+    and the recorder's marks stop nothing.
+* **A load short of memory ends where it stands, saying so once**
+  (3.63.2; `coco_consult_short`, `coco-consult-short-end` in lib/kb.cicili,
+  lib/kb-consult.cicili): its read refused, a clause's or a declaration's
+  store refused, or its machine finished by anything a term did -- the
+  clauses before it kept, the rest of the text not read, ERR `Not enough
+  resources: memory`, the machine finished (`coco_consult_memory_refused`):
+  `run` and `consult` say the line and exit 1, consult/1 says it and its
+  run is `out of memory`. Through 3.63.1 every clause after the refusal
+  was a syntax error or `not a clause` -- 306 to 2 618 lines of the
+  preload near the floor, 276 138 of a big consult -- and the load went on
+  without what was refused. What a session must keep:
+  - **The short is asked where a step of the load failed**: a read, a
+    store, a directive. A machine finished by a step that answered is the
+    next read's failure (`coco-read-refused` asks the machine), so no test
+    runs at each term: one at each term's top, the store's growth marking
+    a refused declaration and the reader saying `out of memory` of a broken
+    parse were each green when taken out, and are not there.
+  - **A load's machine is the refusal's machine for the read's length**
+    (`coco_consult_oid` sets `coco_refuse_m` around `coco_consult_owned`,
+    an included file's read inside it, and puts the one before back): a
+    host's load (`run`, `consult`, the preload) runs no engine, and a
+    refusal there was counted and no more -- a warning came out short of a
+    piece (`Warning:    Z]`) and the load went on. **A text the load builds
+    asks `oom` before it is said** (the singletons and the compiler's
+    block, `coco_consult_singletons`): a new report a load builds in a
+    buffer does the same.
+  - **Its cost is register allocation**: a start is 17 106 instructions
+    more (0.05 %), some twelve a term in `coco_consult_owned`, where the
+    new code moved what lives in registers across the per-term path, and
+    one a read in `coco_read_clause` (STATUS.md, 3.63.2).
 * **`test/refuse.c` refuses each allocation in turn** (3.62.3; an
   LD_PRELOAD shim before glibc's allocator, built by test/async.pl's
-  `refusals` and test/store-lock.pl's `refused_read` with the suite's
-  compiler, `-O3`; glibc only). It counts the
+  `refusals`, test/store-lock.pl's `refused_read` and test/errors.pl's
+  `load_refused` with the suite's compiler, `-O3`; glibc only). It counts the
   requests a program makes between two marks -- a `getenv` of `REFUSE_ON`
   and one of `REFUSE_OFF`, names nobody sets, which to a run without the
   shim are nothing -- and answers the `REFUSE_N`-th with nothing,

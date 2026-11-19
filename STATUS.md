@@ -19739,3 +19739,104 @@ store's size (under 16 MB: over 100 MB through 3.63.0), a fetch and a
 current_predicate/1 in the host's turn before a task's retract (each read
 back [2,3] by a second process: [1,2,3] through 3.63.0, after ten seconds),
 and a task's zigurat_call/2 between two assertz.
+
+## A load short of memory ends where it stands, saying so once (3.63.2)
+
+Under an address-space ceiling near the floor, a start said 306 to 2 618
+lines of `not a clause` and syntax errors, all of them the preload's, and a
+consult of a big file said one for every clause after the first refusal:
+the load went on past each, and the program it left was not its text's.
+
+| | 3.63.1 | 3.63.2 |
+|---|---|---|
+| `cocolog consult` of 400 000 facts under `ulimit -v 100000` | 276 138 lines, exit 0 | `ERROR: Not enough resources: memory`, exit 1 |
+| a script's consult/1 of them, the same ceiling | 308 193 lines, exit 2 | that line and `ERROR: -s main: out of memory`, exit 2 |
+| 301 starts from 40 MB down to 10 MB, a ceiling every 100 KB (`--no-backtrace`) | 39 said a syntax error, `not a clause` or more than three lines, up to 2 618; three ended by SIGSEGV (14 800, 14 700 and 14 600 KB) | none; at most two lines |
+| a host's load of a file (a declaration of 600 predicates, clauses with a singleton, an atom of 300 characters, ten variables) with each of its 1 300 requests refused in turn, once and twice in a row (test/refuse.c) | from the first request on, `not a clause` and the load going on; refused at #609 and #610, a run that never ended | every run the file loaded whole, or its load ended where it was refused, saying so once |
+
+3.63.2:
+
+- **A load short of memory ends** (`coco_consult_short` and
+  `coco-consult-short-end` in lib/kb-consult.cicili and lib/kb.cicili): a
+  read refused, the store of a clause or of a declaration refused, or a
+  machine finished by anything a term did -- the clauses before it kept,
+  the rest of the text not read, its error swipl's words for
+  resource_error(memory), its machine finished
+  (`coco_consult_memory_refused`, `coco_oom`): a load that lost a clause or
+  a declaration has left a program that is not its text's. `run` and
+  `consult` say the line and exit 1, as a load too deep for the C stack
+  does (3.60.0); consult/1 says it, and its run ends `out of memory`. It is
+  asked where a step of the load failed -- its read, its store, a
+  directive -- and nowhere else.
+- **A read across a machine finished is no term** (`coco-read-refused`,
+  the three entries of lib/syntax.cicili): a heap growth refused outright
+  finishes the machine and counts nothing, and through 3.63.1 the read went
+  on building on cell 0 and answered a term -- the run in the table that
+  never ended was a `:- dynamic` walking a cyclic one (3.63.1 hangs at the
+  same pair of requests). So a machine finished by a step that answered is
+  the next read's failure, and the load ends there.
+- **A load's machine is the refusal's** (`coco_consult_oid` sets
+  `coco_refuse_m` around the read and puts the one before back): a text
+  the allocator refuses room for finishes the machine running on the
+  thread (3.62.3), and a host's load -- `run`, `consult`, the preload --
+  runs no engine, so there was none: a refusal there was counted and no
+  more, and a singleton warning came out short of a piece
+  (`Warning:    Z]`) while the load went on. The two texts a load builds
+  in a buffer, the singleton warning and the compiler's block, are not
+  said once the machine is finished.
+
+THE ARMS, one build each, test/errors.pl's `load_refused` and `load_short`
+run on each, every one red: the read's check off, its syntax error said
+before the memory line (both refusal rows, the big consult, the script's
+consult/1, a start at 15 600 KB); the store's check off, `not a clause`
+(two in a row, and 38 of the starts); the directive's, `dynamic: out of
+memory` (both rows); the reader's machine, the hang (exit 124 at #609);
+the load's machine, the short warnings said and the load going on (`ok`
+and `Warning:    Y]`); the warnings' test, a short warning said before the
+load ended. NOT SHIPPED, each green when taken out: a check at each term's
+top (the next read's failure is the same end), a refused declaration
+marking the store (the store's own growth marks it), and the reader saying
+`out of memory` of a parse a refusal broke (its machine is finished, which
+the load's check asks).
+
+COST: a start runs 17 106 instructions more of 35.6 million (0.05 %),
+callgrind, work less padding 34 427 098 against 34 444 204 -- some twelve a
+term in `coco_consult_owned`, of a start's 1 719 terms, none of them a test
+(the same per-clause path with other registers and two or three more
+spills: the code added to that function moved its register allocation),
+and one a read in `coco_read_clause`, the machine's mark. Set in the
+caller, the load's machine saves 1 500 of it against a `defer` inside.
+
+test/async.pl's two host-consult refusal rows take the short load's
+answer: nothing printed, exit 1, the memory line last (`fx_sweep`, host
+rows only), where 3.63.1's load went on and its main answered.
+
+FOUND, NOT FIXED: under 14 500 KB a start dies before main(), on 3.63.1
+and 3.63.2 alike: ZiguratIP libCore's static initializer
+(`Zigurat::Polynomial`'s global, polynomial.cpp) is refused memory and
+std::terminate aborts (`terminate called without an active exception`).
+And a directive's goal that a growth given short stopped is reported as its
+error and then as failed (`ERROR: out of memory`, `Goal (directive)
+failed`), swipl's two reports for a directive that raised, with cocolog's
+words where swipl's are `Not enough resources: memory`.
+
+ONE CHECK OF 1.9.4'S MOVED. test/solve.cicili's continuation builders
+with no room are made by a lie, a heap told it is full at 2^45 cells, and
+each growth it refuses finishes the machine (3.62.3); its next two checks
+then read their goals on that finished machine, which no read answers now.
+Each goal is read on a machine that is not, and the run that is stopped
+for room takes the machine as the lie left it: the checks hold what they
+held, and `call/1 with no room for its frame' sees the oom its own run
+set.
+
+THE RUN, on the binary that ships: the lint case first; then errors,
+directives, script, library, reconsult, cyclic, files, trace, repl, argv,
+backtrace, engine, units, string, stream, store-lock, async, zigurat,
+shared, kbs, zigurat-lib, groups and tunnel, and the syntax, solve,
+module, state and term binaries, each alone, with a server up. The card
+check passes, I1's lib/kb.cicili cite and H2's renumbered.
+
+Held by test/errors.pl's `load_short` (the big consult, the script's
+consult/1, the start-up sweep) and `load_refused` (each request of a host's
+load refused, once and twice in a row; glibc only, test/refuse.c), both
+red on 3.63.1.

@@ -783,12 +783,19 @@
         (check "and stops the run"                  (cast llong ($ e halted)) 2)
         (set ($ e halted) 0)
 
+        ;; THE LIE FINISHED THE MACHINE (`coco_oom', 3.62.3), and a read on
+        ;; a finished machine is no term (3.63.2, `coco-read-refused'): each
+        ;; goal is read on a machine that is not, and the run below takes the
+        ;; machine as the lie left it
+        (set ($ m oom) 0)
         (coco_engine_ask_text (aof e) "true")
+        (set ($ m oom) 1)
         (set ($ e halted) 2)
         (check "a run stopped for room is an error" (cast llong (coco_engine_next (aof e))) -1)
         (check_str "named so"                       ($ e err) "out of memory")
         (check "and no halt for the host"           (cast llong ($ e halted)) 0)
 
+        (set ($ m oom) 0)
         (coco_engine_ask_text (aof e) "call(true)")
         (set len0 ($ m heap_len))
         (set cap0 ($ m heap_cap))

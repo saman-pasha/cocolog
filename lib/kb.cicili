@@ -55,6 +55,19 @@
          (int began . #'(coco_g_write_begin ,e)))
      ,@body))
 
+;;; A LOAD SHORT OF MEMORY ENDS WHERE IT STANDS (3.63.2,
+;;; `coco_consult_owned'): ERR says so, the heap is wound back to the term
+;;; in hand's mark, the goals the load put off are dropped where it keeps
+;;; them, and its reader is freed. Written once for the load's three places
+;;; that ask: a read that failed, a clause's store that failed, a directive
+;;; that failed.
+(DEFMACRO coco-consult-short-end ()
+  `(block (coco_consult_memory_refused st m err errlen)
+          (set (-> m heap_len) mark)
+          (if (== up nil) (coco_inits_free ip))
+          (coco_reader_free (aof r))
+          (return -1)))
+
 ;;; THE CLAUSE COMPILER'S OPCODES, one table read two ways -- the `cc_NAME'
 ;;; functions the compiler calls (emitted beside it), and `(cc-op "NAME")',
 ;;; a number at expansion time, for a `case' label in the executor's switch,

@@ -64,6 +64,8 @@ main :-
     list_cell_is_dot_2,
     data_under_a_builtin_name,
     memory_refused,
+    load_short,
+    load_refused,
     read_that_failed,
     recursive_message,
     near_names,
@@ -379,6 +381,185 @@ memory_refused :-
 mem_child(C, File, Text, Exit) :-
     sh_join(['ulimit -v 600000; ulimit -t 60; ', C, ' -s ', File, ' 2>&1'], Cmd),
     shell(Cmd, Text, Exit, 120000).
+
+%% ---- a load short of memory ends, saying so once (3.63.2) -------------------
+%%
+%% A load refused memory -- its read, the store of a clause or of a
+%% declaration, a machine a goal finished -- ends where it stands and says
+%% `Not enough resources: memory' once, its machine finished
+%% (lib/kb-consult.cicili, `coco_consult_short'). Through 3.63.1 it went on,
+%% and every clause after the refusal was a syntax error or `not a clause':
+%% `cocolog consult' of 400 000 facts under 100 MB said 276 141 lines and
+%% exited 0, and the start-up's preload near the floor said 306 to 2 618.
+%% Each child runs under an address-space ceiling this process must not
+%% share; macOS does not enforce `ulimit -v'.
+load_short :-
+    section('a load short of memory ends, saying so once'),
+    shell('uname -s', Sys, _),
+    (   Sys == 'Darwin'
+    ->  format("   SKIP (macOS does not enforce ulimit -v)~n", [])
+    ;   scratch(D),
+        atom_concat(D, '/big.awk', Awk),
+        fixture(Awk, ['BEGIN { for (i = 1; i <= 400000; i++) printf "f(%d, ''a long atom to fill the store with text %d'').\\n", i, i }']),
+        atom_concat(D, '/big.pl', Big),
+        sh_join(['awk -f ', Awk, ' > ', Big], Gen),
+        shell(Gen, _, GenExit),
+        check('the 400 000 facts are written', GenExit, 0),
+        atom_concat(D, '/lb.pl', Lb),
+        fixture(Lb, ['main :- consult(''big.pl''), aggregate_all(count, f(_, _), N), write(N), nl.']),
+        cocolog(C),
+        sh_join(['cd ', D, ' && ulimit -v 100000 && ulimit -t 60 && ', C, ' consult big.pl 2>&1'], Cmd1),
+        shell(Cmd1, T1, X1, 120000),
+        check('cocolog consult of them under 100 MB says why once', T1-X1,
+              'ERROR: Not enough resources: memory'-1),
+        sh_join(['cd ', D, ' && ulimit -v 100000 && ulimit -t 60 && ', C, ' -s lb.pl 2>&1'], Cmd2),
+        shell(Cmd2, T2, X2, 120000),
+        check('...and a script''s consult/1 of them says it, and its run is out of memory', T2-X2,
+              'ERROR: Not enough resources: memory\nERROR: -s main: out of memory'-2),
+        %% the start-up's preload near the floor, a ceiling every 100 KB
+        findall(L-T, ( between(0, 300, K), L is 40000 - 100 * K, ls_start(C, L, T) ), Starts),
+        findall(L, ( member(L-T, Starts), ls_said_more(T) ), Bad),
+        check('no start-up from 40 MB down to 10 MB says a syntax error, `not a clause'' or more than three lines',
+              Bad, []),
+        findall(L, ( member(L-T, Starts), sub_atom(T, _, _, _, 'out of memory') ), Short),
+        length(Short, NShort),
+        yes_no(NShort > 0, V3),
+        check('...and some of them were the preload short of memory', V3, yes),
+        shl(['rm -rf ', D])
+    ).
+
+%% --no-backtrace: a query a growth given short stopped says its one error
+%% with no backtrace under it, and what is counted is the load's reports
+ls_start(C, L, T) :-
+    sh_join(['ulimit -v ', L, '; ulimit -t 10; ', C, ' --no-backtrace query true 2>&1'], Cmd),
+    shell(Cmd, T, _, 60000).
+
+ls_said_more(T) :-
+    (   sub_atom(T, _, _, _, 'Syntax error')
+    ->  true
+    ;   sub_atom(T, _, _, _, 'not a clause')
+    ->  true
+    ;   split_string(T, "\n", "", Ls), length(Ls, N), N > 3
+    ).
+
+%% ---- a load each of whose allocations is refused in turn (3.63.2) -----------
+%%
+%% A ceiling refuses what is big; test/refuse.c refuses each request of a
+%% load in turn, once (a growth asks again for less and is given it: the load
+%% is whole) and twice in a row (a growth refused outright). The host loads
+%% the file between the shim's marks -- `cocolog run FILE main', where no
+%% engine runs while it is read -- a declaration of six hundred predicates,
+%% clauses with a singleton, an atom of three hundred characters and ten
+%% variables: every run must load the whole file (`ok', exit 0) or end the
+%% load where it was refused (nothing printed, exit 1, `Not enough
+%% resources: memory' its last line), and every other line it says must be
+%% one of the file's two warnings, whole, or a report of one of the marks'
+%% own goals. Through 3.63.1 a refusal there was a syntax error, `not a
+%% clause' or `dynamic: out of memory' and the load went on without what was
+%% refused, or a warning came out short of a piece (`Warning:    Z]') -- the
+%% load has no engine to finish, and the count was all.
+load_refused :-
+    section('a load each of whose allocations is refused in turn'),
+    shell('uname -s', Sys, _),
+    shell('getconf GNU_LIBC_VERSION 2>/dev/null', Libc, _),
+    (   ( Sys == 'Darwin' ; \+ sub_atom(Libc, 0, _, _, glibc) )
+    ->  format("   SKIP (test/refuse.c interposes glibc's allocator)~n", [])
+    ;   ( exists_file('tools/cc/cc') -> Compiler = 'tools/cc/cc' ; Compiler = clang ),
+        sh_join(['command -v ', Compiler, ' >/dev/null 2>&1 || test -x ', Compiler], HaveCc),
+        (   sh_exit(HaveCc, 0)
+        ->  scratch(D),
+            atom_concat(D, '/refuse.so', Shim),
+            sh_join([Compiler, ' -shared -fPIC -O3 -o ', Shim, ' test/refuse.c 2>&1'], Cc),
+            shell(Cc, Why, CcExit),
+            check('test/refuse.c compiles', CcExit-Why, 0-''),
+            (   CcExit =:= 0
+            ->  atom_concat(D, '/lr.sh', Sweep), lr_sweep(Sweep),
+                atom_concat(D, '/lr.pl', File), lr_fixture(File),
+                cocolog(C),
+                forall(member(Run-Title,
+                              [1-'each request refused once: the file loaded whole, or its load ended saying so once',
+                               2-'...and two in a row, a growth refused outright: the same']),
+                       ( sh_join(['sh ', Sweep, ' ', C, ' ', Shim, ' ', File, ' ', Run], Cmd),
+                         shell(Cmd, Out, _, 600000),
+                         check(Title, Out, clean) ))
+            ;   true
+            ),
+            shl(['rm -rf ', D])
+        ;   format("   SKIP (no C compiler for test/refuse.c)~n", [])
+        )
+    ).
+
+%% the file: its lines are numbered, as the sweep's warnings name them (4
+%% and 6) and the marks' own goals (2 and 9)
+lr_fixture(Path) :-
+    numlist(1, 600, Ks),
+    findall(PI, ( member(K, Ks), atom_concat(lr_d, K, N), atom_concat(N, '/1', PI) ), PIs),
+    atomic_list_concat(PIs, ', ', Decls),
+    atomic_list_concat([':- dynamic((', Decls, ')).'], Dynamic),
+    length(As, 300), maplist(=(0'a), As), atom_codes(Long, As),
+    atomic_list_concat(['lr_c(2, ', Long, ').'], LongClause),
+    fixture(Path,
+            [ 'rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
+              ':- rf_mark(''REFUSE_ON'').',
+              Dynamic,
+              'lr_c(1, t(X, Y, X)).',
+              LongClause,
+              'lr_c(3, t(A1, A2, A3, A4, A5, A6, A7, A8, A9, A1)).',
+              'lr_sound :- findall(I, lr_c(I, _), [1, 2, 3]), lr_c(1, t(P, _, Q)), P == Q, lr_c(2, A), atom_length(A, 300), lr_c(3, t(B1, _, _, _, _, _, _, _, _, B2)), B1 == B2, forall(between(1, 600, K), ( atom_concat(lr_d, K, N), functor(H, N, 1), predicate_property(H, dynamic) )).',
+              'main :- ( lr_sound -> write(ok) ; write(wrong) ), nl.',
+              ':- rf_mark(''REFUSE_OFF'').' ]).
+
+lr_sweep(Path) :-
+    fixture(Path,
+            [ '# lr.sh COCOLOG SHIM FILE RUN: `COCOLOG run FILE main'' once for each',
+              '# allocation its load makes between its marks, that one and the RUN - 1',
+              '# after it refused (test/refuse.c). Each run must say ok and exit 0, its',
+              '# stderr the file''s warnings whole, or end its load short: nothing on',
+              '# stdout, exit 1, the memory line last and every other line a warning',
+              '# whole or a report at a mark''s line (2 or 9). Prints clean when both',
+              '# were seen, ok or short when one was, else the runs that were neither.',
+              'c=$1; shim=$2; f=$3; run=$4; e=$f.err',
+              'n=$( REFUSE_REPORT=1 LD_PRELOAD=$shim $c run $f main 2>&1 >/dev/null | sed -n ''s/^REFUSE count //p'' )',
+              '[ -n "$n" ] && [ "$n" -gt 0 ] || { echo nocount; exit 0; }',
+              'bad=""; ok=0; short=0; i=1',
+              'while [ $i -le $((n + 8)) ]; do',
+              '  o=$( timeout 30 env REFUSE_N=$i REFUSE_RUN=$run LD_PRELOAD=$shim $c run $f main 2>$e ); x=$?',
+              '  v=$( awk -v f="$f" -f ${0%.sh}.awk $e )',
+              '  case "$o $x $v" in',
+              '    "ok 0 whole") ok=1;;',
+              '    " 1 short") short=1;;',
+              '    *) bad="$bad #$i:$o $x $v";;',
+              '  esac',
+              '  i=$((i + 1))',
+              'done',
+              'if [ -n "$bad" ]; then echo "wrong of $n:$bad" | cut -c1-400',
+              'elif [ $ok = 1 ] && [ $short = 1 ]; then echo clean',
+              'elif [ $ok = 1 ]; then echo ok',
+              'else echo short; fi' ]),
+    sub_atom(Path, 0, _, 3, Base), atom_concat(Base, '.awk', Awk),
+    fixture(Awk,
+            [ '# what a run said on stderr: whole (the file''s warnings, each whole, and',
+              '# reports at the marks'' lines), short (and the memory line last), or',
+              '# the first line that is neither',
+              'BEGIN { w[4] = "Warning:    Singleton variables: [Y]"',
+              '        w[6] = "Warning:    Singleton variables: [A2,A3,A4,A5,A6,A7,A8,A9]" }',
+              '{ s[NR] = $0 }',
+              'END { v = "whole"',
+              '      for (k = 1; k <= NR; k++) {',
+              '        if (s[k] == "ERROR: Not enough resources: memory") {',
+              '          if (k == NR) { v = "short"; break }',
+              '          v = "memory_not_last"; break }',
+              '        h = s[k]; tag = h; sub(/: .*/, "", tag)',
+              '        if (tag != "Warning" && tag != "ERROR") { v = "line:" s[k]; break }',
+              '        sub(/^(Warning|ERROR): /, "", h)',
+              '        if (substr(h, 1, length(f) + 1) != f ":") { v = "line:" s[k]; break }',
+              '        r = substr(h, length(f) + 2)',
+              '        if (r !~ /^[0-9]+:$/) { v = "line:" s[k]; break }',
+              '        n = r + 0; b = s[k + 1]; k++',
+              '        if (n == 2 || n == 9) continue',
+              '        if (tag == "Warning" && (n in w) && b == w[n]) continue',
+              '        v = "report:" n ":" b; break }',
+              '      gsub(/ /, "_", v); print v }' ]).
 
 %% ---- what assert keeps, and what it refuses ---------------------------------
 %%
