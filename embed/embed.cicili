@@ -1200,6 +1200,33 @@
         (snprintf buf cap "%s: the store in %s is damaged: %s" head ce_dir what)
         (snprintf buf cap "%s: %s" head what)))
 
+  ;;; THE NEXT TRANSACTION, BEGUN OR NOTED UNBEGUN (3.62.7). A begin
+  ;;; allocates -- the thread's record, the transaction's row -- and one
+  ;;; refused memory leaves the thread with none, which `ce_exec' begins
+  ;;; before its next call. Through 3.62.6 a begin ran bare in `ce_exec''s
+  ;;; catches and after a commit, and a refusal there was a C++ exception in
+  ;;; a C caller: the process aborted (the sweep of refused requests,
+  ;;; ZiguratIP 1.0.4's README).
+  (thread-local) (var int ce_unbegun . 0)
+
+  (func ce_begin () (out int)
+    (try
+      (block
+        (begin_transaction (aof ce_mem))
+        (set ce_unbegun 0)
+        (return 1))
+      (catch ((const ZiguratException & e)) (cast void e))
+      (catch ((const std::bad_alloc & e)) (cast void e)))
+    (set ce_unbegun 1)
+    (return 0))
+
+  ;;; rolled back whatever the rollback says, and begun again
+  (func ce_restart () (out int)
+    (try (rollback_transaction (aof ce_mem))
+         (catch ((const ZiguratException & e)) (cast void e))
+         (catch ((const std::bad_alloc & e)) (cast void e)))
+    (return (ce_begin)))
+
   ;; runs the buffered call. An exception rolls the transaction back and
   ;; fails the call, which is what the server's request loop does -- and a
   ;; server's client has lost its connection then: every later verb on it
@@ -1211,6 +1238,15 @@
   ;; writes were refused their growth answered true, and kept none of them.
   (func ce_exec ((CeSess * s)) (out int)
     (set (-> s executed) 1)
+    ;; a thread whose last begin was refused memory begins first, and is
+    ;; refused this call where it is refused again
+    (if (and ce_unbegun (not (ce_begin)))
+        (block
+          (ce_toks_clear s)
+          (snprintf (-> s err) 512 "%s"
+                    "out of memory: no transaction could be begun for the call")
+          (ce_args_clear s)
+          (return 0)))
     (let ((int ok . 0))
       (try
         (block
@@ -1221,24 +1257,23 @@
               (snprintf (-> s err) 512 "the store in %s is damaged: %s" ce_dir (($ e what)))
               (snprintf (-> s err) 512 "the store refused it: %s" (($ e what))))
           (ce_refused_note (-> s err))
-          (try (rollback_transaction (aof ce_mem))
-               (catch ((const ZiguratException & e2)) (cast void e2)))
-          (begin_transaction (aof ce_mem))
+          (ce_restart)
           (set ce_wrote 0)
           (set ok 0))
-        ;; MEMORY REFUSED, by this file (`ce_tok') or by the engine's own
-        ;; strings: the call fails as a refused one does, its half-made
-        ;; answer dropped and its half-made writes with the transaction.
-        ;; Through 2.11.0 nothing caught it and the process ended.
+        ;; MEMORY REFUSED, by this file (`ce_tok') or by the engine -- its
+        ;; strings, its lists' entries, a walk's snapshot: the call fails as
+        ;; a refused one does, its half-made answer dropped and its half-made
+        ;; writes with the transaction. Through 2.11.0 nothing caught it and
+        ;; the process ended; through 3.62.6 (ZiguratIP 1.0.3) a refusal
+        ;; under the engine's page-list and free-list locks left them held,
+        ;; and the rollback here waited for ever on them
         (catch ((const std::bad_alloc & e))
           (cast void e)
           (ce_toks_clear s)
           (snprintf (-> s err) 512 "%s"
                     "out of memory: the call was not answered, and its transaction was rolled back")
           (ce_refused_note (-> s err))
-          (try (rollback_transaction (aof ce_mem))
-               (catch ((const ZiguratException & e2)) (cast void e2)))
-          (begin_transaction (aof ce_mem))
+          (ce_restart)
           (set ce_wrote 0)
           (set ok 0)))
       (ce_args_clear s)
@@ -1750,14 +1785,13 @@
               (set ok 0))
             ;; THE STORE NOT LOADED FOR WANT OF MEMORY IS REFUSED (3.62.6),
             ;; as one that cannot be mapped is: an open the engine could not
-            ;; finish is the process's last use of it, so a lock the throw
-            ;; left held is never asked for again. Through 3.62.5 nothing
-            ;; caught it and the process aborted. Not so at a commit or a
-            ;; rollback: the engine takes its page-list and free-list mutexes
-            ;; with no guard, a throw between the two leaves them held, and
-            ;; a call caught there hangs at the next rollback -- which the
-            ;; first cut of this change did, under `ulimit -v 24576' with
-            ;; the scratch of 1.0.2's fill_n (ZiguratIP 1.0.3's README)
+            ;; finish is the process's last use of it. Through 3.62.5 nothing
+            ;; caught it and the process aborted. A commit's and a rollback's
+            ;; are caught since 3.62.7, on ZiguratIP 1.0.4, whose locks a
+            ;; throw gives back: through 1.0.3 the page-list and free-list
+            ;; mutexes had no guard, and a call caught there hung at the next
+            ;; rollback -- which 3.62.6's first cut did, under `ulimit -v
+            ;; 24576' with the scratch of 1.0.2's fill_n
             (catch ((const std::bad_alloc & e))
               (cast void e)
               (if (and (!= err nil) (> errcap 0))
@@ -1792,14 +1826,21 @@
           (catch ((const ZiguratException & e))
             (cast void e)
             (free (cast (void *) s))
+            (return nil))
+          (catch ((const std::bad_alloc & e))
+            (cast void e)
+            (free (cast (void *) s))
             (return nil)))
+        (set ce_unbegun 0)
         (return (cast (void *) s))))
 
     (func ce_session_free ((void * sp)) (out void)
       (let ((CeSess * s . #'(cast (CeSess *) sp)))
         (if (== s nil) (return))
         (try (rollback_transaction (aof ce_mem))
-             (catch ((const ZiguratException & e)) (cast void e)))
+             (catch ((const ZiguratException & e)) (cast void e))
+             (catch ((const std::bad_alloc & e)) (cast void e)))
+        (set ce_unbegun 0)
         ;; the thread's transaction is gone, and the refusal with it
         (set ce_refused 0)
         (set ce_wrote 0)
@@ -1977,20 +2018,37 @@
               (snprintf (-> s err) 512
                         "a call earlier in the transaction was refused, and the store rolled the transaction back: %s"
                         ce_refused_why)
-              (try
-                (block
-                  (rollback_transaction (aof ce_mem))
-                  (begin_transaction (aof ce_mem)))
-                (catch ((const ZiguratException & e)) (cast void e)))
+              (ce_restart)
+              (return 0)))
+        ;; nothing begun to commit: a begin refused memory, and the call
+        ;; after it refused too; what the thread wrote before went with the
+        ;; rollback that came first
+        (if ce_unbegun
+            (block
+              (snprintf (-> s err) 512 "%s"
+                        "out of memory: no transaction was begun, so none was committed")
+              (ce_begin)
               (return 0)))
         (try
-          (block
-            (commit_transaction (aof ce_mem))
-            (begin_transaction (aof ce_mem)))
+          (commit_transaction (aof ce_mem))
           (catch ((const ZiguratException & e))
             (ce_say (-> s err) 512 "commit" (($ e what)))
+            (return 0))
+          ;; A COMMIT REFUSED MEMORY IS REFUSED AND ROLLED BACK (3.62.7). The
+          ;; engine allocates only in the index entries it maps before its
+          ;; intention is written (ZiguratIP 1.0.4's README), so a refusal is
+          ;; a commit that never began, and a rollback takes every row it
+          ;; staged; through 3.62.6 nothing caught it and the process aborted
+          (catch ((const std::bad_alloc & e))
+            (cast void e)
+            (snprintf (-> s err) 512 "%s"
+                      "out of memory: the commit was refused, and its transaction was rolled back")
+            (set ce_wrote 0)
+            (ce_restart)
             (return 0)))
         (set ce_wrote 0)
+        ;; the commit stands whatever the begin after it is told
+        (ce_begin)
         (return 1)))
 
     (func ce_rollback ((void * sp)) (out int)
@@ -1998,12 +2056,16 @@
         (set ce_refused 0)
         (set ce_wrote 0)
         (try
-          (block
-            (rollback_transaction (aof ce_mem))
-            (begin_transaction (aof ce_mem)))
+          (rollback_transaction (aof ce_mem))
           (catch ((const ZiguratException & e))
             (ce_say (-> s err) 512 "rollback" (($ e what)))
+            (return 0))
+          (catch ((const std::bad_alloc & e))
+            (cast void e)
+            (snprintf (-> s err) 512 "%s" "rollback: out of memory")
+            (ce_begin)
             (return 0)))
+        (ce_begin)
         (return 1)))
 
     (func ce_isolate ((void * sp) (int level)) (out int)
@@ -2012,6 +2074,10 @@
           (set_isolation_level (txn) (cast IsolationLevel level))
           (catch ((const ZiguratException & e))
             (ce_say (-> s err) 512 "isolate" (($ e what)))
+            (return 0))
+          (catch ((const std::bad_alloc & e))
+            (cast void e)
+            (snprintf (-> s err) 512 "%s" "isolate: out of memory")
             (return 0)))
         (return 1)))
 
@@ -2026,12 +2092,16 @@
         (set ce_refused 0)
         (set ce_wrote 0)
         (try
-          (block
-            (rollback_transaction (aof ce_mem))
-            (begin_transaction (aof ce_mem)))
+          (rollback_transaction (aof ce_mem))
           (catch ((const ZiguratException & e))
             (ce_say (-> s err) 512 "reopen" (($ e what)))
+            (return 0))
+          (catch ((const std::bad_alloc & e))
+            (cast void e)
+            (snprintf (-> s err) 512 "%s" "reopen: out of memory")
+            (ce_begin)
             (return 0)))
+        (ce_begin)
         (return 1))))
 
   )

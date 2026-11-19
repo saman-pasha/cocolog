@@ -52,18 +52,15 @@ main :-
 %% (or a lost answer) through 3.62.4.
 qk_runs(D) :-
     section('an if-then''s else is reached, and what comes after it kept'),
+    %% THE ELSE OF THE SECOND ANSWER (3.62.7): through 3.62.6 this check ran
+    %% `( X == 1 -> true ; main )' -- a last call swipl runs for ever too --
+    %% with the child's output sent to /dev/null, and read that output: it
+    %% could not fail
     atom_concat(D, '/q1.pl', F1),
     fixture(F1, [ 'q(0). q(1).',
-                  'main :- q(X), ( X == 0 -> write(z) ; true ),',
-                  '    ( X == 1 -> true ; main ).' ]),
-    cocolog(C0),
-    sh_join([C0, ' --local run ', F1, ' main >/dev/null 2>&1'], C1),
-    proc_run(C1, 30000, O1, _), atom_codes(A1, O1),
-    (   sub_atom(A1, B1, _, _, 'Unknown procedure: main/0') -> R1 = main_loops ;
-        sub_atom(A1, B1, _, _, 'Warning') -> R1 = warned ;
-        R1 = ok
-    ),
-    check('the second solution of q/1 reaches the else', R1, ok),
+                  'main :- q(X), ( X == 0 -> write(z) ; write(e) ), X == 1, nl.' ]),
+    last_line_of(F1, main, 30000, W1),
+    check('the second solution of q/1 reaches the else', W1, ze),
     atom_concat(D, '/q2.pl', F2),
     fixture(F2, [ 'q(0). q(1).',
                   'main :- q(X), ( X == 0 -> write(z) ; true ), nl.' ]),

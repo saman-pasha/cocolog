@@ -65,6 +65,14 @@
 %%     is not the connection's owner, its write-through refused, raises in
 %%     assertz/1, and the worker's next write is made; and the host's note of
 %%     a changed predicate refused raises in memory's words.
+%%   - A WRITE REFUSED ANY REQUEST ENDS WITH NO SIGNAL (3.62.7, ZiguratIP
+%%     1.0.4): each request of any size a write makes, refused in turn, once
+%%     and up to four times in a row, and the run answers, says memory or
+%%     ends as a host out of memory ends -- no hang under the engine's locks,
+%%     no abort at a commit or a begin, no SIGSEGV in a page walk -- and its
+%%     store reads back. A REPL whose walks were refused their memory commits
+%%     its next query's write, a B-tree hint refused is no write refused, and
+%%     a commit refused a request after its intention is a commit made.
 %%
 %%     cocolog -s test/store-lock.pl        from the checkout root
 
@@ -685,7 +693,11 @@ refused_read(D) :-
         format(atom(Build), '~w -shared -fPIC -O3 -o ~w test/refuse.c 2>&1', [Cc, Shim]),
         shell(Build, Why, CcExit),
         check('test/refuse.c compiles', CcExit-Why, 0-''),
-        ( CcExit =:= 0 -> rr_rows(D, Shim), rr_green(D, Shim), rr_dirty(D, Shim) ; true )
+        (   CcExit =:= 0
+        ->  rr_rows(D, Shim), rr_green(D, Shim), rr_dirty(D, Shim), rr_any(D, Shim),
+            rr_cursor(D, Shim), rr_hint(D, Shim), rr_tail(D, Shim)
+        ;   true
+        )
     ).
 
 rr_rows(D, Shim) :-
@@ -717,16 +729,11 @@ rr_rows(D, Shim) :-
 %% the task's two writes make is refused in turn, once and twice in a row;
 %% the first write (60 000 characters) is refused or made, and the second
 %% (gw2(1), after the refusals) is made every time. Refusals of any size
-%% are not swept here: the engine's cursor_walk takes an unchecked calloc
-%% under its page list's lock, which a refused 16 bytes makes a SIGSEGV
-%% (a finding of its own, not 3.62.6's)
+%% are `rr_any''s, below
 rr_green(D, Shim) :-
     cocolog(C),
     atom_concat(D, '/rw.pl', Fx),
-    fixture(Fx, ['rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
-                 'rf_off :- rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF'').',
-                 'w :- format(atom(A), ''~*c'', [60000, 120]), rf_mark(''REFUSE_ON''), catch(( assertz(gw1(A)), R1 = ok ), E1, R1 = E1), rf_off, catch(( assertz(gw2(1)), R2 = ok ), E2, R2 = E2), ( R1 == ok -> S1 = ok ; R1 = error(F, _) -> S1 = F ; S1 = R1 ), format("rw(~q, ~q)~n", [S1, R2]).',
-                 'main :- async_run(( go(w, T), await(T) )).']),
+    rr_rw_fixture(Fx),
     atom_concat(D, '/kbw', KB),
     atom_concat(KB, '_count', KBc),
     rr_envs(Shim, C, KBc, Fx, 'COCOLOG_GREEN_WORKERS=2', 'REFUSE_MIN=4096', Envs),
@@ -736,6 +743,14 @@ rr_green(D, Shim) :-
           Bad, []),
     rr_said(Runs, 'rw(resource_error(knowledge_base), ok)', Raised),
     check('...and a write-through refused there raises resource_error(knowledge_base) in assertz/1', Raised, said).
+
+%% the green task's two writes, the first 60 000 characters inside the
+%% shim's stretch, the second after it
+rr_rw_fixture(Fx) :-
+    fixture(Fx, ['rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
+                 'rf_off :- rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF'').',
+                 'w :- format(atom(A), ''~*c'', [60000, 120]), rf_mark(''REFUSE_ON''), catch(( assertz(gw1(A)), R1 = ok ), E1, R1 = E1), rf_off, catch(( assertz(gw2(1)), R2 = ok ), E2, R2 = E2), ( R1 == ok -> S1 = ok ; R1 = error(F, _) -> S1 = F ; S1 = R1 ), format("rw(~q, ~q)~n", [S1, R2]).',
+                 'main :- async_run(( go(w, T), await(T) )).']).
 
 %% THE OWNER'S NOTE OF A CHANGED PREDICATE REFUSED IS SAID IN MEMORY'S WORDS
 %% (3.62.6, `coco_zg_mark_dirty', `D'): the host batches its writes, and
@@ -748,9 +763,7 @@ rr_green(D, Shim) :-
 rr_dirty(D, Shim) :-
     cocolog(C),
     atom_concat(D, '/rd.pl', Fx),
-    fixture(Fx, ['rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
-                 'rf_off :- rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF'').',
-                 'main :- rf_mark(''REFUSE_ON''), catch(( assertz(gd(1)), R = ok ), E, R = E), rf_off, format("rd(~q)~n", [R]).']),
+    rr_rd_fixture(Fx),
     atom_concat(D, '/kbd', KB),
     atom_concat(KB, '_count', KBc),
     rr_envs(Shim, C, KBc, Fx, '', 'REFUSE_SIZE=128', Envs),
@@ -782,11 +795,168 @@ rr_dirty(D, Shim) :-
     rr_said(CRuns, 'the knowledge base refused the clause: ', CSaid),
     check('...and the consult says the clause it could not write', CSaid, said).
 
+%% the owner's assert inside the shim's stretch
+rr_rd_fixture(Fx) :-
+    fixture(Fx, ['rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
+                 'rf_off :- rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF'').',
+                 'main :- rf_mark(''REFUSE_ON''), catch(( assertz(gd(1)), R = ok ), E, R = E), rf_off, format("rd(~q)~n", [R]).']).
+
+%% A WRITE REFUSED ANY REQUEST, UNDER THE ENGINE'S LOCKS OR NOT, ENDS WITH NO
+%% SIGNAL AND LEAVES A STORE THAT READS (3.62.7, ZiguratIP 1.0.4). Each
+%% request of any size the green non-owner's two writes make (rw.pl, from
+%% `rr_green') and the owner's assert (rd.pl, from `rr_dirty') is refused in
+%% turn, once and two, three and four times in a row, each run over a store
+%% of its own, which a second process then reads: it answers, says memory,
+%% or ends as a host out of memory ends, and the store reads back. Through
+%% 3.62.6, on ZiguratIP 1.0.3, 16 of rw.pl's 93 requests refused once hung:
+%% a `new' refused under the page list's and the free list's locks left both
+%% held, and the rollback after it waited for ever on them. 14 aborted, a
+%% refusal in the commit's index entries a bad_alloc nothing caught; and 6
+%% were a SIGSEGV, cursor_walk writing its page snapshot through the null a
+%% calloc answered. Four in a row reach a begin refused after a rollback
+%% (`ce_begin'): bare, its bad_alloc aborted 11 of rw.pl's runs
+rr_any(D, Shim) :-
+    cocolog(C),
+    atom_concat(D, '/rwa.pl', Fw),
+    rr_rw_fixture(Fw),
+    atom_concat(D, '/rda.pl', Fd),
+    rr_rd_fixture(Fd),
+    atom_concat(D, '/kba', KA),
+    atom_concat(KA, '_count', KAc),
+    rr_envs(Shim, C, KAc, Fw, 'COCOLOG_GREEN_WORKERS=2', '', [1, 2, 3, 4], EnvsW),
+    rr_back_runs(Shim, C, KA, Fw, EnvsW, 0, RunsW),
+    findall(Why, ( member(run(Env, Text, Exit, Back), RunsW), rr_any_bad(rw, Env, Text, Exit, Back, Why) ), BadW),
+    check('each request of any size a green non-owner''s writes make, refused in turn: no hang, no signal, an answer or memory said, and the store reads back',
+          BadW, []),
+    atom_concat(D, '/kbo', KO),
+    atom_concat(KO, '_count', KOc),
+    rr_envs(Shim, C, KOc, Fd, '', '', [1, 2, 3, 4], EnvsD),
+    rr_back_runs(Shim, C, KO, Fd, EnvsD, 0, RunsD),
+    findall(Why, ( member(run(Env, Text, Exit, Back), RunsD), rr_any_bad(rd, Env, Text, Exit, Back, Why) ), BadD),
+    check('...and each of any size the owner''s assert makes: the same',
+          BadD, []).
+
+%% A PAGE WALK REFUSED ITS SNAPSHOT GIVES ITS CURSOR BACK (3.62.7, ZiguratIP
+%% 1.0.4, `CursorCount'): a thread holds sixteen cursors at most, and a walk
+%% that threw kept the one it took, so after sixteen refused walks every
+%% walk on the thread was refused, `maximum cursor count', with memory to
+%% spare. Every request of 16 bytes -- a walk's page snapshot over a store
+%% this small -- is refused while the first query of a REPL asserts twenty
+%% new predicates, which leaves its transaction refused; the second query's
+%% write, made after the refusals, is committed and read back by a second
+%% process
+rr_cursor(D, Shim) :-
+    cocolog(C),
+    atom_concat(D, '/rcw.pl', Fx),
+    fixture(Fx, ['rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
+                 'rf_off :- rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF'').',
+                 'wr(I) :- atom_concat(q, I, P), T =.. [P, I], catch(assertz(T), _, true).',
+                 'main :- rf_mark(''REFUSE_ON''), forall(between(1, 20, I), wr(I)), rf_off.']),
+    atom_concat(D, '/kbcw', KB),
+    format(atom(Cmd), 'printf ''%s\\n'' "use_module(''~w''), main." "assertz(zc(1))." | env LD_PRELOAD=~w REFUSE_SIZE=16 REFUSE_N=1 REFUSE_RUN=0 ~w --embed ~w 2>&1',
+           [Fx, Shim, C, KB]),
+    shell(Cmd, Text, _, 60000),
+    ( sub_atom(Text, _, _, _, 'commit failed') -> Refused = refused ; Refused = Text ),
+    check('a REPL query whose walks were refused their memory is refused its commit', Refused, refused),
+    format(atom(Rd), '~w --embed ~w query "findall(X, catch(zc(X), _, fail), L), write(L), nl" 2>&1', [C, KB]),
+    shell(Rd, Back, _, 15000),
+    ( sub_atom(Back, 0, _, _, '[1]') -> Kept = kept ; Kept = Text-Back ),
+    check('...and the next query''s write, its memory back, is committed: no walk is refused the cursor a refused walk took',
+          Kept, kept).
+
+%% A B-TREE'S APPEND HINT THERE IS NO MEMORY FOR IS NO HINT (3.62.7,
+%% ZiguratIP 1.0.4, `bt_tail_put'): the hint is a cache, and its refusal
+%% threw out of the map of an entry already in the tree, which refused the
+%% write. Its first two growths, of 56 and 112 bytes, are the only requests
+%% of those sizes the writes make; each refused, the writes are made and
+%% read back
+rr_hint(D, Shim) :-
+    cocolog(C),
+    atom_concat(D, '/rwh.pl', Fw),
+    rr_rw_fixture(Fw),
+    atom_concat(D, '/rdh.pl', Fd),
+    rr_rd_fixture(Fd),
+    findall(Why, ( member(Kind-Fx-World-Want, [rw-Fw-'COCOLOG_GREEN_WORKERS=2'-'rows(2)', rd-Fd-''-'rows(1)']),
+                   member(Size, [56, 112]),
+                   rr_size_bad(C, Shim, D, Kind, Fx, World, Size, Want, Why) ), Bad),
+    check('each of a B-tree hint''s two requests refused, the writes are made and read back', Bad, []).
+
+%% A COMMIT'S TAIL THERE IS NO MEMORY FOR REFUSES NO COMMIT (3.62.7,
+%% ZiguratIP 1.0.4, `log_after_sync'): once a commit's intention is on disk
+%% nothing throws, and the list of the store's log indexes it makes there is
+%% the one request of 8 bytes and the one of 16 that a green task's second
+%% write to a predicate makes; each refused, the write is made and reads
+%% back. Unguarded, its throw came after the intention: the commit was
+%% refused and rolled back, and through 3.62.6, which caught nothing at a
+%% commit, the process aborted
+rr_tail(D, Shim) :-
+    cocolog(C),
+    atom_concat(D, '/rwt.pl', Ft),
+    fixture(Ft, ['rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
+                 'rf_off :- rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF'').',
+                 'w :- assertz(gw1(0)), rf_mark(''REFUSE_ON''), catch(( assertz(gw1(1)), R = ok ), E, R = E), rf_off, format("rt(~q)~n", [R]).',
+                 'main :- async_run(( go(w, T), await(T) )).']),
+    findall(Why, ( member(Size, [8, 16]),
+                   rr_size_bad(C, Shim, D, rt, Ft, 'COCOLOG_GREEN_WORKERS=2', Size, 'rows(2)', Why) ), Bad),
+    check('each of a commit tail''s two requests refused after its intention, the write is made and read back', Bad, []).
+
+%% the run of fixture FX with every request of SIZE bytes refused, when its
+%% store does not read back WANT
+rr_size_bad(C, Shim, D, Kind, Fx, World, Size, Want, sized(Kind, Size, Text, Back)) :-
+    format(atom(KB), '~w/kbh_~w_~w', [D, Kind, Size]),
+    format(atom(Cmd), 'env ~w LD_PRELOAD=~w REFUSE_SIZE=~w REFUSE_N=1 REFUSE_RUN=1 ~w --embed ~w query "use_module(''~w''), main" 2>&1',
+           [World, Shim, Size, C, KB, Fx]),
+    shell(Cmd, Text, _, 15000),
+    format(atom(Rd), '~w --embed ~w query "findall(P, ( member(P, [gw1(_), gw2(_), gd(_)]), catch(P, _, fail) ), L), length(L, N), write(rows(N)), nl" 2>&1',
+           [C, KB]),
+    shell(Rd, Back, _, 15000),
+    \+ sub_atom(Back, 0, _, _, Want).
+
+%% each ENV of ENVS run over the fixture FX in a store of its own, and that
+%% store read by a second process after: the run's text, its exit status and
+%% the reader's text
+rr_back_runs(_, _, _, _, [], _, []).
+rr_back_runs(Shim, C, KB0, Fx, [Env|Envs], I, [run(Env, Text, Exit, Back)|Runs]) :-
+    format(atom(KB), '~w_~w', [KB0, I]),
+    format(atom(Cmd), 'env ~w LD_PRELOAD=~w ~w --embed ~w query "use_module(''~w''), main" 2>&1',
+           [Env, Shim, C, KB, Fx]),
+    shell(Cmd, Text, Exit, 15000),
+    format(atom(Rd), '~w --embed ~w query "findall(P, ( member(P, [gw1(_), gw2(_), gd(_)]), catch(P, _, fail) ), L), length(L, N), write(rows(N)), nl" 2>&1',
+           [C, KB]),
+    shell(Rd, Back, _, 15000),
+    I1 is I + 1,
+    rr_back_runs(Shim, C, KB0, Fx, Envs, I1, Runs).
+
+%% what is wrong with a run of `rr_any': a hang or a signal, a run that
+%% neither answers nor says memory -- an uncaught resource_error(memory) is
+%% `Not enough resources: memory' -- an owner's refusal not said as memory,
+%% a store its reader cannot read. Not the second write's answer: a growth
+%% given less than it asked stops the engine at its next step, which can be
+%% that write's (1.10.28's rule), the row there all the same
+rr_any_bad(_, Env, _, Exit, _, signal(Env, Exit)) :- Exit >= 124.
+rr_any_bad(Kind, Env, Text, Exit, _, unsaid(Env, Exit, Text)) :-
+    Exit < 124,
+    rr_answer(Kind, Answer),
+    \+ sub_atom(Text, _, _, _, Answer),
+    \+ ( member(Word, ['resource_error(memory)', 'out of memory', 'Not enough resources: memory']),
+         sub_atom(Text, _, _, _, Word) ).
+rr_any_bad(rd, Env, Text, Exit, _, not_memory(Env, Text)) :-
+    Exit < 124,
+    sub_atom(Text, _, _, _, 'rd(error(resource_error(knowledge_base)'),
+    \+ sub_atom(Text, _, _, _, 'out of memory').
+rr_any_bad(_, Env, _, Exit, Back, unread(Env, Back)) :-
+    Exit < 124,
+    \+ sub_atom(Back, _, _, _, 'rows(').
+
 %% the ENV of each run of a sweep: each request the fixture FX makes under
 %% the shim's SHIM_ENV, refused in turn, once and twice in a row, the
 %% fixture's own WORLD before each (`REFUSE count' of a run over the store
 %% KB says how many)
 rr_envs(Shim, C, KB, Fx, World, ShimEnv, Envs) :-
+    rr_envs(Shim, C, KB, Fx, World, ShimEnv, [1, 2], Envs).
+
+%% ...each refused RUNS (a list of lengths) in a row
+rr_envs(Shim, C, KB, Fx, World, ShimEnv, Runs, Envs) :-
     format(atom(Cmd), 'env ~w ~w REFUSE_REPORT=1 LD_PRELOAD=~w ~w --embed ~w query "use_module(''~w''), main" 2>&1 >/dev/null',
            [World, ShimEnv, Shim, C, KB, Fx]),
     shell(Cmd, Text, _),
@@ -795,7 +965,7 @@ rr_envs(Shim, C, KB, Fx, World, ShimEnv, Envs) :-
     ->  N = N0
     ;   N = 0
     ),
-    findall(Env, ( member(Run, [1, 2]), between(1, N, K),
+    findall(Env, ( member(Run, Runs), between(1, N, K),
                    format(atom(Env), '~w ~w REFUSE_N=~w REFUSE_RUN=~w', [World, ShimEnv, K, Run]) ), Envs).
 
 %% each ENV of ENVS run over the fixture FX, in the store KB0 (SAME) or in

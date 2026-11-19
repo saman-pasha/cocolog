@@ -926,13 +926,27 @@ expansion can be read.
   (`coco_assert_take_back`); **a call refused in a transaction holds its
   commit** (`ce_refused`, once the transaction has written: `ce_wrote`); and
   **a green worker that is not the connection's owner rolls back where a
-  call failed** (`coco_zg_fail`). **Never catch the engine's exceptions at a
-  commit or a rollback**: it takes its page-list and free-list mutexes with
-  no guard, a throw between a lock and its unlock leaves them held, and the
-  first cut, which caught bad_alloc there, hung at the next rollback. Nor is
-  every small allocation of the engine's asked: `cursor_walk` callocs under
-  its lock unasked, and a refused 16 bytes is a SIGSEGV -- why
-  test/store-lock.pl's green sweep refuses a page or more alone. **The
+  call failed** (`coco_zg_fail`). **A refused allocation in the engine is a
+  bad_alloc the embedded store catches** (3.62.7, ZiguratIP 1.0.4): every lock
+  a throw can cross is a `MutexGuard`, given back as the throw unwinds; the
+  walks' snapshots ask their callocs, and a walk that throws gives its cursor
+  back (`CursorCount`: sixteen kept ones refused every walk on the thread
+  after them); and a B-tree's append hint there is no memory for is no hint.
+  So the embed catches bad_alloc at every call, commit, rollback and begin
+  (`ce_restart`, `ce_begin`; a begin refused leaves the thread `ce_unbegun`,
+  which its next call begins first). **What the commit may refuse is before
+  its intention**: the index entries it maps (`idx_pending_apply`); after
+  the intention nothing throws (`log_after_sync` lists or waits, and the
+  frees it makes list a span or leave it out, `free_list_insert`). Through
+  1.0.3 a `new` refused under the page list's and the free list's locks
+  left both held and the rollback after it waited for ever, which is why
+  3.62.6 caught nothing there: a throw-safe rule for a new lock in the
+  engine is a `MutexGuard`, never a bare pthread_mutex_lock. A page's entry
+  is still made after the page is in the files: refused, the files hold a
+  page no list names until the next open (a leak; making it first moved
+  nothing measurable). test/store-lock.pl's `rr_any` refuses each request of
+  any size a write makes, `rr_cursor` a REPL's walks, `rr_hint` the hint's
+  two growths. **The
   first thread's stack is reserved under the limit** (`coco_cstack_reserve`
   in lib/syntax.cicili): the kernel grows that stack a page at a time and
   RLIMIT_AS counts each, so a growth the limit refused -- a load's own
@@ -1825,18 +1839,18 @@ cocolint index offers no import of it.
   continuation back rather than taking `&k`, which cost nrev a store an
   inference. test/files/det_guard.pl holds 180 lines to swipl 9.0.4,
   test/engine.pl's `det_guard_runs` the trace, the collector, KMAT and a
-  freeze; COMPAT.md has what is not swipl's. **A CALL A CONSTRUCT'S STEP
-  MAKES (3.62.5)**: a guarded frame's first goal, handed over by
-  `'$c_and'`, `'$c_or'` or an if-then (`coco_env_take`), and a call the
-  step takes in the registers, are NO last call before the frame's call
-  took the guard over -- the frame is the callee's (`coco_det_praw`,
-  `coco_det_pcall`) -- else they cut the guard's exit marker and lost the
-  goal after the if-then with the backtracking into what came before
-  (`main :- q(X), ( X == 0 -> write(z) ; true )` wrote `z` once and never
-  `nl`; `test/engine.pl`'s `qk_runs`). The guard a step takes over the
-  caller's frame clears the guard FRAME's bit, never the CALL's: the call
-  still ends in its own frame, which is the second-gotcha --
-  `a :- $, p(X)` fails `nondet` in the caller's frame and names p/1.
+  freeze; COMPAT.md has what is not swipl's. **3.62.5 changed no engine
+  code** (3.62.7's reading): its commit touched the notes and
+  test/engine.pl alone, and the functions its notes named
+  (`coco_det_praw`, `coco_det_take`) are in no tree. The engine it shipped
+  is 3.62.4's, which already answers `qk_runs`' programs as swipl 9.0.4
+  does -- an if-then's else reached on a second answer, `nl` after it, a
+  findall/3 after it, a guard after it, and `a :- $, p(_)` over two clauses
+  of p/1 determinism_error(p/1, det, nondet, guard_in_caller). The loop it
+  read as the bug, `main :- q(X), ( X == 0 -> write(z) ; true ), ( X == 1
+  -> true ; main )`, is a last call swipl runs for ever too, and its check
+  read an output it had sent to /dev/null; since 3.62.7 it is `( X == 0 ->
+  write(z) ; write(e) ), X == 1, nl`, `ze` in both.
 * **member/2, select/3, nth0/3, nth1/3 and between/3 leave no choice point
   on their last answer** (3.22.0, swipl's): the first four are swipl's
   clauses, the rest of the list the helper's FIRST argument (`'$member_'/3`,

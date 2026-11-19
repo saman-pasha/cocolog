@@ -19038,6 +19038,20 @@ a copy three directories deeper, on one binary).
 
 ## An if-then's else reached, and the goals after it kept (3.62.5)
 
+CORRECTED IN 3.62.7: this entry describes a change the commit does not
+hold. 0b55373 touched CLAUDE.md, README.md, STATUS.md, the version and
+test/engine.pl, and no engine file; `coco_det_praw` and `coco_det_take`
+are in no tree, and the binary it shipped is 3.62.4's. That binary already
+answers what the entry calls wrong as swipl 9.0.4 does: the `nl` program
+writes `z` and the newline, the findall/3 and the guard programs are
+swipl's lines, and `a :- $, p(_)` over two clauses of p/1 raises
+determinism_error(p/1, det, nondet, guard_in_caller) in both. The loop
+over `( X == 1 -> true ; main )` writes `z` for ever in swipl too -- a last
+call, run in constant space -- and `qk_runs`' first check could not fail:
+it sent the child's output to /dev/null and then read it. 3.62.7 gives that
+check a program that can, `( X == 0 -> write(z) ; write(e) ), X == 1, nl`
+(`ze` in both), and leaves the rest of the entry as it was written.
+
 A clause's goal is a last call of a `$/0`-guarded frame only where its guard
 frame is the frame's own and what follows it is that frame's exit. The step
 took it for one wherever the frame's exit marker was simply the next goal --
@@ -19403,3 +19417,162 @@ GREEN and tensors SKIPPED (`no library/torch.so'). One server
 (`pgrep ziguratip'), 1.0.3's. `cowork' is back in `pl_names/1': the
 commit that moved the reasoning library out took it off with the four
 reasoning cases on its line, though it is library(cowork)'s and green.
+
+## A refused allocation under the engine's locks hangs nothing, and the embedded store catches it (3.62.7, ZiguratIP 1.0.4)
+
+3.62.6 left two faults standing under the engine's own locks, and said so:
+the page list's and the free list's mutexes were taken bare, so a throw
+between a lock and its unlock left them held; and `cursor_walk' wrote its
+page snapshot through a calloc it never asked. Because of the first, 3.62.6
+caught nothing at a commit or a rollback -- its first cut did, and hung at
+the next rollback. 3.62.7 makes the engine throw-safe (ZiguratIP 1.0.4) and
+has the embedded store catch what the engine throws.
+
+WHAT WAS WRONG, as the sweep found it. test/store-lock.pl's `rr_any' refuses
+each request of any size a write makes, in turn (test/refuse.c): rw.pl, a
+green task's two writes on a worker that commits each where it is made, 93
+requests; rd.pl, the host's assert, committed at the query's end, 80. On
+3.62.6's embedded store over ZiguratIP 1.0.3 (linked with 3.62.7's
+interpreter, so the store layer alone differs):
+
+| refused | rw.pl hung | aborted | SIGSEGV | rd.pl hung | SIGSEGV |
+|---|---|---|---|---|---|
+| once | 16 | 14 | 6 | 24 | 6 |
+| twice in a row | 19 | 25 | 6 | 28 | 6 |
+
+150 of the 346 runs. THE HANG: a `new' refused under `allocate''s two locks
+-- a fresh page's entry, a free span's, a key's interned copy -- threw with
+both held, and the rollback 3.62.6's call catch ran next took the page
+list's again, a mutex its own thread held: a wait for ever. The server's
+connection teardown is such a rollback. THE ABORT: a refusal in the index
+entries a commit maps before its intention (`idx_pending_apply'), a
+bad_alloc `ce_commit' did not catch. THE SIGSEGV: `cursor_walk''s two
+snapshot arrays and the walked set's growth, written through the null a
+refused 16 bytes gave.
+
+ZIGURATIP 1.0.4 (MVCCS-cicili/README.md, `A refused allocation, under the
+engine's locks or not'):
+
+- **Every lock a throw can cross is a `MutexGuard'** -- the sequences' guard,
+  moved to the top of the file -- given back as the throw unwinds:
+  `intern_key', `allocate', `free_pointer', `drop_key_pages', the walks'
+  snapshots, `key_records', the tail cache's put, the log index's registry
+  and runs.
+- **The walks ask their callocs** (`cursor_walk', `dead_pointers'), and throw
+  std::bad_alloc where they wrote through null.
+- **A walk that throws gives its cursor back** (`CursorCount'). A thread
+  holds sixteen; a refused walk kept the one it took, and after sixteen
+  every walk on the thread was refused, `maximum cursor count', with memory
+  to spare.
+- **A freed span there is no memory to list is left out of the free list**
+  (`free_list_insert' throws nothing): the list is a cache over the hexmap,
+  which the next open lists again. A fresh page's tail is such a span, so a
+  write whose tail entry is refused is made, its span leaked until the next
+  open; `FREE_HASHKEY' is interned at the open, so a page's return to
+  `__FREE__' interns nothing either.
+- **Nothing throws after a commit's intention**: `log_after_sync' lists the
+  store's log indexes under a try (a list refused frees nothing now: the
+  doomed runs wait for the next sync), and the frees it makes are the frees
+  above. What a commit may refuse is before its intention: the index
+  entries it maps.
+- **A tail hint there is no memory for is no hint**: the next append reads
+  the tree.
+- NOT KEPT: making a fresh page's entry and its tail's free entry before
+  anything changed. It refused the write whenever the tail's entry was
+  refused, where the engine without it lists no span for the tail -- a leak
+  until the next open -- and makes the write: taken out, 24 runs of the
+  sweep at one and two in a row make a write they refused (rw.pl's requests
+  23, 38, 42, 48 and 50, rd.pl's 37, 39, 48, 56, 59, 67 and 69). A page's
+  entry refused still throws after the page is in the files, which then
+  hold a page no list names until the next open.
+
+COCOLOG 3.62.7, embed/embed.cicili:
+
+- **A begin catches** (`ce_begin'): ZiguratException and bad_alloc. A begin
+  refused leaves the thread `ce_unbegun', and its next call begins first or
+  says `out of memory: no transaction could be begun for the call'.
+- **A commit refused memory is refused and rolled back** (`ce_commit'): `out
+  of memory: the commit was refused, and its transaction was rolled back';
+  a commit with no transaction begun says so.
+- **`ce_restart''s rollback, `ce_rollback', `ce_reset', `ce_isolate' and a
+  session's making and freeing catch bad_alloc**, and begin again.
+- **3.62.5's notes are corrected** (CLAUDE.md, the entry above): 3.62.5
+  changed no engine code, and its loop is one swipl runs for ever too;
+  test/engine.pl's `qk_runs' checks `ze' in both.
+- test/store-lock.pl's `refused_read': `rr_any' refuses up to four in a row;
+  `rr_cursor' runs a REPL whose first query's walks are all refused their
+  16 bytes and whose second query writes; `rr_hint' refuses the hint's two
+  growths (56 and 112 bytes, the only requests of those sizes the writes
+  make); `rr_tail' a second write's commit tail (the one request of 8 bytes
+  and the one of 16 it makes, both after its intention).
+
+THE SWEEP ON 3.62.7, each request of the two fixtures refused in turn, once,
+two, three and four times in a row and every one to the stretch's end, 865
+runs, each over a store of its own that a second process reads back:
+
+| refused | rw.pl answered | memory said | rd.pl answered | memory said |
+|---|---|---|---|---|
+| once | 89 | 4 | 51 | 29 |
+| two in a row | 78 | 15 | 39 | 41 |
+| three | 69 | 24 | 22 | 58 |
+| four | 68 | 25 | 21 | 59 |
+| to the end | 0 | 93 | 0 | 80 |
+
+No hang, no signal, every store read back. rd.pl's 41st refused once is
+`Not enough resources: memory': the assert made its row, the growth it was
+given short stopped the engine at its next step (1.10.28's rule), and the
+query committed nothing.
+
+THE ARMS, each a build of the final code with one rule taken out, and
+`refused_read''s sweeps run on it (A's before four in a row and `rr_tail' were
+added):
+
+| arm | taken out | what went red |
+|---|---|---|
+| A | `allocate''s holds, made bare for a throw | rr_any: 84 hangs, one to three in a row |
+| B | `cursor_walk''s callocs, unasked | rr_any: 40 SIGSEGVs; rr_cursor |
+| C | `ce_commit''s bad_alloc catch | rr_any: 22 aborts of rw.pl |
+| E | `ce_begin''s catch | rr_any: 11 aborts of rw.pl, four in a row |
+| F | `log_after_sync''s try | rr_tail: the commit refused after its intention |
+| H | `CursorCount' | rr_cursor: the second query's commit refused, `maximum cursor count' |
+| I | the hint's try | rr_hint: rw.pl's first write refused, rd.pl's commit |
+| D | `free_list_insert''s try | no check; the sweep refuses the 24 writes above |
+
+E on the code before the page entries came out first aborted at three in a
+row; the order of the requests moved with them, and four in a row is where
+it aborts now.
+
+COST, against the binary with 3.62.6's embedded store over 1.0.3's engine,
+each at a path of one length:
+
+| what | 3.62.6's store | 3.62.7's |
+|---|---|---|
+| a start, no store (instructions) | 35,547,862 | 35,547,880 |
+| an open of a store of a megabyte and a read | 41,020,181 | 40,919,260 |
+| 20 000 asserts in one query | 1,277,353,659 | 1,277,311,480 |
+| the same, user time, median of five alternating pairs | 0.123 s | 0.122 s |
+| the same, wall | 0.268 s | 0.267 s |
+
+Eighteen instructions a start, and the rest within what the counts move
+for any change to the store layer; the clock pairs are level.
+
+WHAT IS NOT DONE:
+
+- **A fresh page's entry refused leaks the page** until the next open (above).
+- **A B-tree map that a refusal stops part way** is rolled back as any staged
+  row; the sweep holds that for the indexes cocolog's writes reach, and
+  nothing holds it for a split of a root.
+- **The sweep's fixtures reach no log merge**: 72 commits of one predicate
+  asked for no free-list entry, so the frees after a commit's intention are
+  held by reading, and by `rr_tail' for the list alone.
+- **A growth given short stops the engine at its next step** (1.10.28): an
+  assert whose row was written can raise after it, as rd.pl's 41st did.
+
+THE RUN, on the binary that ships (3.62.7 over ZiguratIP 1.0.4; the server,
+its System and demo objects and cocolog's schema rebuilt, the server up):
+the lint case first, then engine, store-lock (`refused_read''s nine sweeps
+among its checks, 59 s), zigurat, shared, tunnel, kbs, groups, ruler,
+zigurat-lib, zigurat-tls, reconsult, vacuum, thread, cowork and async, every
+one GREEN; tensors SKIPPED (`no library/torch.so'). One server (`pgrep
+ziguratip'), 1.0.4's. ZiguratIP's own contention, carry-over, ageing,
+defer, log and tail checks are green; the card check passes.
