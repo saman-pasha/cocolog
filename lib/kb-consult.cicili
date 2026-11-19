@@ -1328,6 +1328,39 @@
           (set (-> st nomove) was)
           (return ok)))
 
+  ;;; ONE ROW'S CLAUSE, READ AND PUT IN THE STORE (3.62.6), for both
+  ;;; backends' fetches: 1 in, 0 not, WHY saying why, OOM set where it was
+  ;;; memory (OOM0, the store's `oom' before the fetch began). A TEXT THE
+  ;;; READER STOPPED ON FOR WANT OF MEMORY IS MEMORY'S -- the thread's count
+  ;;; of refusals moved (`coco_refusals', which `coco_read_term_from' leaves
+  ;;; for a caller to ask) -- never a row that does not read: under `ulimit
+  ;;; -v' the second run_isolated/2 on a thread fetched rows of 60 000
+  ;;; characters whose reads were refused their buffers, and said `the row
+  ;;; at ordinal 0 does not read as a clause' of rows the next read read
+  ;;; whole (test/store-lock.pl, `refused_read', each request refused in
+  ;;; turn).
+  (func coco_row_into_store ((coco_store * st) (coco_machine * m) (const char * body)
+                             (i64 ord) (char * why) (size_t whylen) (int oom0) (int * oom))
+        (out int)
+        (let ((size_t t) (size_t mark . #'(-> m heap_len)) (size_t r0 . #'(coco_refusals))
+              (int ok . 1))
+          (cond
+            ((not (coco_read_term_from m body (aof t)))
+             (if (!= (coco_refusals) r0)
+                 (block (snprintf why whylen "no memory to read the row at ordinal %lld" (cast llong ord))
+                        (set (cof oom) 1))
+               (snprintf why whylen "the row at ordinal %lld does not read as a clause" (cast llong ord)))
+             (set ok 0))
+            ((not (coco_assert_stored st m t))
+             (snprintf why whylen "the row at ordinal %lld did not go into the store" (cast llong ord))
+             (if (and (== oom0 0) (!= (-> st oom) 0)) (set (cof oom) 1))
+             (set ok 0))
+            (#t (block)))
+          ;; the clause now lives in the store, so the copy that was parsed
+          ;; on to the heap is not needed
+          (set (-> m heap_len) mark)
+          (return ok)))
+
   ;;; ---- a single-sided predicate's rules (3.19.0, `Head => Body') ------
 
   ;;; whether the term on the heap is a rule as `coco_assert_from' stores
@@ -1514,13 +1547,37 @@
                   (coco_atom_name m (coco_name_of m head)) (coco_arity m head))
         (return 0))
 
+  ;;; A CLAUSE THE KNOWLEDGE BASE REFUSED TO WRITE IS TAKEN BACK (3.62.6),
+  ;;; from where `coco_pred_add_clause' put it -- the last place, or the
+  ;;; first for an asserta -- as retract/1 takes one, the store muted around
+  ;;; it: the backend's transaction went with the refusal, and telling it is
+  ;;; one more write it would refuse. A call open on the predicate began
+  ;;; before the clause was there and never sees it (`coco_retract_at' marks
+  ;;; it dead in place then). What the add and the retract change of the
+  ;;; predicate besides is put back as it was: DYNAMIC, which a retract sets,
+  ;;; and an asserta's FILE and LINE, which it clears.
+  (weak) (cold)
+  (func coco_assert_take_back ((coco_store * st) (coco_machine * m) (size_t pi) (int at_end)
+                               (size_t span) (u64 file) (u64 line) (int dyn))
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+          (if (== (-> p nclauses) 0) (return))
+          (coco_store_mute st)
+          (coco_retract_at st m pi (? at_end (- (-> p nclauses) 1) 0) span)
+          (coco_store_unmute st)
+          (set p (aof (nth pi (-> st preds))))
+          (set (-> p dynamic) dyn)
+          (set (-> p pfile) file)
+          (set (-> p pline) line)))
+
   (func coco_assert_from ((coco_store * st) (coco_machine * m) (size_t clause)
                           (int at_end) (u64 origin) (const char * origin_path)
                           (int at) (coco_origin_seen * seen)) (out int)
         (set clause (coco_deref m clause))
         (set (nth 0 (-> st assert_err)) (cast char 0))
-        ;; and the last read's reason, so a refusal below is this one's
+        ;; and the last read's reason, so a refusal below is this one's, and
+        ;; the last write's (3.62.6)
         (set (nth 0 (-> st fetch_err)) (cast char 0))
+        (set (nth 0 (-> st write_err)) (cast char 0))
 
         ;; A GRAMMAR RULE IS NOT REWRITTEN HERE (3.13.0): the consult
         ;; translates what a file holds (`coco_consult_owned'), and an
@@ -1688,7 +1745,8 @@
                          (return 0)))))))
 
           (let ((size_t pi . #'(coco_pred_make st (coco_name_of m head) (coco_arity m head)))
-                (size_t stored) (coco_reload * rl . nil))
+                (size_t stored) (size_t span . 0) (coco_reload * rl . nil)
+                (u64 kfile . 0) (u64 kline . 0) (int kdyn . 0))
             (if (>= pi (-> st npreds)) (return 0))
             ;; a read under a module/2 (its `ssu_mod', 0 outside every read)
             ;; names the predicate's module, if its first clause is that
@@ -1820,6 +1878,7 @@
             (let ((size_t cp . #'(-> m cyc_puts))
                   (size_t base . #'(-> st len)))
               (set stored (coco_store_put st m clause))
+              (set span (- (-> st len) base))
               (if (!= cp (-> m cyc_puts))
                   (block (set (-> st len) base) (return 0)))
               ;; A CLAUSE THE STORE HAD NO ROOM FOR IS NOT ADDED (3.62.3):
@@ -1835,6 +1894,11 @@
             ;; is a copy of exactly this term. Doing it on the way in is what
             ;; keeps the index free -- nothing ever walks the clauses to
             ;; work out what they are keyed on.
+            ;; (What an asserta takes of the predicate is kept, for a write
+            ;; refused below to give back: `coco_assert_take_back'.)
+            (set kfile ($ (nth pi (-> st preds)) pfile))
+            (set kline ($ (nth pi (-> st preds)) pline))
+            (set kdyn ($ (nth pi (-> st preds)) dynamic))
             (if (not (? (!= rl nil)
                         (coco_reload_insert st m rl pi stored (coco_arg_key m head) origin
                                             (? (coco_store_is_muted st) 1 0))
@@ -1857,8 +1921,24 @@
                   (if (coco_prewarm_has (coco_atom_name m ($ (nth pi (-> st preds)) name))
                                         ($ (nth pi (-> st preds)) arity))
                       (set ($ (nth pi (-> st preds)) loaded) 1))))
+            ;; A WRITE THE KNOWLEDGE BASE REFUSED IS NO WRITE (3.62.6): its
+            ;; reason on the store (`write_err', the backend's words), the
+            ;; caller raising it -- resource_error(knowledge_base) out of
+            ;; assertz/1 (`coco_assert_goal'), a consult's ERROR at the
+            ;; clause -- and the clause taken back, muted, for the backend's
+            ;; transaction went with the refusal. Through 3.62.5 the hook's
+            ;; answer was dropped: a write-through refused its growth under
+            ;; `ulimit -v' (an unbatched store's, run_isolated/2's) and the
+            ;; assert succeeded, its clause in this process and in no row. A
+            ;; re-read's place (RL) keeps it, said all the same.
             (if (and (not (coco_store_is_muted st)) (!= (-> st on_assert) nil))
-                ((-> st on_assert) st (-> st ctx) stored))
+                (if (not ((-> st on_assert) st (-> st ctx) stored))
+                    (block
+                      (if (== (nth 0 (-> st write_err)) (cast char 0))
+                          (snprintf (-> st write_err) 256 "%s" "the knowledge base refused the write"))
+                      (if (== rl nil)
+                          (coco_assert_take_back st m pi at_end span kfile kline kdyn))
+                      (return 0))))
             ;; and one a program asserts keeps the last clause last
             (if (and (== (-> m lreads) 0) (coco_ssu_clause m clause)) (coco_ssu_keep_last st m pi))
             (return 1))))
@@ -4237,11 +4317,19 @@
                               (coco_load_message "ERROR" origin at
                                                  "No permission to modify static procedure `(',')/2'"))
                              ((not (coco_assert_from st m t 1 oid origin at seen))
-                              (if (!= (nth 0 (-> st assert_err)) (cast char 0))
-                                  (block (snprintf err errlen "%s" (-> st assert_err))
-                                         (coco_load_message "ERROR" origin at err)
-                                         (set (nth 0 err) (cast char 0)))
-                                (coco_load_message "ERROR" origin at "not a clause")))
+                              ;; the store's reason, or the knowledge base's
+                              ;; (3.62.6: a write it refused), or none
+                              (cond
+                                ((!= (nth 0 (-> st assert_err)) (cast char 0))
+                                 (block (snprintf err errlen "%s" (-> st assert_err))
+                                        (coco_load_message "ERROR" origin at err)
+                                        (set (nth 0 err) (cast char 0))))
+                                ((!= (nth 0 (-> st write_err)) (cast char 0))
+                                 (block (snprintf err errlen "the knowledge base refused the clause: %s"
+                                                  (-> st write_err))
+                                        (coco_load_message "ERROR" origin at err)
+                                        (set (nth 0 err) (cast char 0))))
+                                (#t (coco_load_message "ERROR" origin at "not a clause"))))
                              (#t (set n (+ n 1))
                                  ;; THE COMPILER'S WARNINGS OF IT (3.19.1),
                                  ;; after any not-together warning its store

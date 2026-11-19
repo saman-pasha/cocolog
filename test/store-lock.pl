@@ -35,6 +35,36 @@
 %%     `dynamic' directive, where cicilang's later processes said `dynamic:
 %%     out of memory', and in dynamic/1 as a goal, which raised
 %%     representation_error(max_arity).
+%%   - A STORE UNDER AN ADDRESS-SPACE LIMIT IS READ OR REFUSED, NEVER READ
+%%     EMPTY (3.62.6, ZiguratIP 1.0.3; Ambitious's finding 41). `ulimit -v'
+%%     counts what a mapping reserves, and through 3.62.5 each of a store's
+%%     files reserved a gigabyte -- two for the canonical pair and two more
+%%     for each thread's private reader -- and a mapping the limit refused
+%%     was read as an empty file: under 4 GB a store of a megabyte read as
+%%     empty (`Unknown procedure'), under 2 GB a write said it was damaged,
+%%     under 1 GB the open did. Under 1.5 GB a small store reads and takes a
+%%     write; a store whose data file cannot be mapped is refused at its
+%%     open, saying so; one whose private reader cannot be mapped reads
+%%     through its canonical pair; and across the limits near cocolog's
+%%     floor, and those where a store of 256 MB loses its mappings one by
+%%     one, no read finds the store empty or damaged, no refusal is silent,
+%%     no process ends by a signal, and the store holds exactly the writes
+%%     that said they were made. A read 800 brackets deep near the floor
+%%     ends by no signal -- the first thread's stack is reserved under the
+%%     limit as main() begins -- and one 30 000 deep raises
+%%     resource_error(c_stack). A write that grows the store is kept whole
+%%     or refused whole, saying so; a run_isolated/2 whose write through its
+%%     own connection is refused raises it in assertz/1, keeps nothing and
+%%     says so as its status; and the rows one run wrote read back whole in
+%%     the next run on the thread, or it says of each why, in memory's words.
+%%   - A ROW WHOSE READ IS REFUSED ITS MEMORY IS SAID AS MEMORY (3.62.6):
+%%     each request of a fetch refused in turn (test/refuse.c), the answer is
+%%     the row, resource_error(memory) or the host out of memory -- never
+%%     `the row at ordinal 0 does not read as a clause' -- and a query that
+%%     wrote nothing keeps its commit. A green task's write on a worker that
+%%     is not the connection's owner, its write-through refused, raises in
+%%     assertz/1, and the worker's next write is made; and the host's note of
+%%     a changed predicate refused raises in memory's words.
 %%
 %%     cocolog -s test/store-lock.pl        from the checkout root
 
@@ -43,7 +73,8 @@
 main :-
     scratch(D),
     (   embedded(D)
-    ->  writers(D), holder(D), reader(D), gone(D), damaged(D)
+    ->  writers(D), holder(D), reader(D), gone(D), damaged(D), limited(D),
+        refused_read(D)
     ;   skip('(this build carries no embedded store: make EMBED=0)')
     ),
     shl(['rm -rf ', D]),
@@ -253,3 +284,559 @@ torn(D, KB, F) :-
            [C, Copy]),
     shell(Goal, GText, _, 60000),
     has('...and dynamic/1 as a goal raises resource_error(knowledge_base), naming dynamic/1 and why', Named, GText).
+
+%% A STORE UNDER AN ADDRESS-SPACE LIMIT (3.62.6, ZiguratIP 1.0.3). Each
+%% check names the layer whose arm makes it red: the reservation that asks
+%% for what it needs (mapbuf::reserve, `C'), the private reader that falls
+%% back when it cannot be mapped (reader_ensure, `B'), the store refused at
+%% its open when a file cannot be mapped or loaded (ce_map_open and the
+%% open's catch, `A'), and the rollback whose fill asks for no memory
+%% (mapstream::fill_n: on 1.0.2's, which made a vector of 64 KB, a query
+%% that ran out of memory near the floor aborted at its rollback); and past
+%% the floor the growth refused whole (`G', lim_grow) and the writes and
+%% reads of a connection of a run's own (`W', `T', `R', `S', `C4',
+%% lim_isolated). macOS enforces no `ulimit -v'
+limited(D) :-
+    section('a store under an address-space limit'),
+    shell('uname -s', Sys, _),
+    (   Sys == 'Darwin'
+    ->  format("   SKIP (macOS does not enforce ulimit -v)~n", [])
+    ;   cocolog(C),
+        atom_concat(D, '/kb6', KB),
+        format(atom(Make), '~w --embed ~w query "assertz(foo(1))" >/dev/null 2>&1', [C, KB]),
+        shl([Make]),
+        lim_run(1536000, KB, 'foo(X)', T1, E1),
+        check('under ulimit -v 1536000 a store of a megabyte reads (C)', E1, 0),
+        has('...what it holds', 'foo(1)', T1),
+        lim_run(1536000, KB, 'assertz(bar(wide))', _, E2),
+        check('...and takes a write (C)', E2, 0),
+        %% A MAPPING ASKS FOR WHAT IT NEEDS UNDER A LIMIT, never the
+        %% gigabyte it reserves without one: under 1100000 the data file's
+        %% gigabyte left the program some 70 MB, and four million list cells
+        %% were out of memory (the list is made under \+ \+, or `query'
+        %% writes its four million cells back)
+        lim_run(1100000, KB, '\\+ \\+ (length(_, 4000000), write(room), nl)', T3, E3),
+        ( lim_answered(E3, T3) -> Room = room ; Room = T3 ),
+        check('...and under 1100000 its mappings leave the program its memory: four million cells (C)', Room, room),
+        lim_floor(KB, 8192, 1536000, lim_reads, F),
+        Lo is max(8192, F - 8192), Hi is F + 8192, Fine is F - 2048,
+        findall(V, ( between(0, 64, I), V is Lo + I * 1024, V =< Hi ), Coarse),
+        findall(V, ( between(0, 15, I), V is Fine + I * 128 ), Fines),
+        append(Coarse, Fines, Vs0), msort(Vs0, Vs),
+        lim_sweep(KB, Vs, write, ['Unknown procedure', damaged], Bad, Written, _),
+        check('near cocolog''s floor no read finds the store empty or damaged, none is silent, no process ends by a signal (A, fill_n)',
+              Bad, []),
+        lim_holds(KB, [wide|Written], 'the store holds foo(1) and exactly the writes that answered'),
+        lim_deep(KB, F),
+        lim_grow(D, KB, F),
+        lim_isolated(D, KB, F),
+        lim_big(D, KB, F, [wide|Written])
+    ).
+
+%% THE FIRST THREAD'S STACK, RESERVED UNDER THE LIMIT (3.62.6): RLIMIT_AS
+%% counts the stack as the kernel grows it, and a growth the limit refuses
+%% is a SIGSEGV. Through 3.62.5 a read of 800 brackets -- `((...(a)...))',
+%% some 360 KB of C stack and next to no heap -- just under the floor, where
+%% the heap had the last pages, ended so across 192 KB of limits, one of 30
+%% 000 across every limit past it, and a load's own stack now and then (14
+%% runs in 100 of one build at one limit: the stack's start is drawn at
+%% random, and the load's peak is a page past what exec maps). The thread
+%% grows its stack's mapping as main() begins now, a sixteenth of the limit
+%% (`coco_cstack_reserve', `stack'), and the reserve is the stack a read or
+%% a write may use: a read too deep for it raises resource_error(c_stack),
+%% where past it the kernel could refuse the page (`bounds')
+lim_deep(KB, F) :-
+    findall(V, ( between(0, 64, I), V is F - 1024 + I * 32 ), Vs),
+    lim_deep_sweep(KB, Vs, 800, B1, S1),
+    check('a read 800 brackets deep across the limits around the floor ends by no signal, and says what stopped it (stack)',
+          B1, []),
+    ( member(T, S1), sub_atom(T, _, _, _, 'deep(ok)') -> R1 = read ; R1 = none ),
+    check('...and reads where the limit leaves it room (stack)', R1, read),
+    findall(V, ( between(0, 16, I), V is F + I * 128 ), Ws),
+    lim_deep_sweep(KB, Ws, 30000, B2, S2),
+    check('a read 30 000 brackets deep across the limits past the floor ends by no signal (stack, bounds)', B2, []),
+    (   member(T2, S2), sub_atom(T2, _, _, _, 'deep(error(resource_error(c_stack)')
+    ->  R2 = raised
+    ;   R2 = none
+    ),
+    check('...and raises resource_error(c_stack) where it is read (bounds)', R2, raised).
+
+lim_deep_sweep(_, [], _, [], []).
+lim_deep_sweep(KB, [V|Vs], N, Bad, [Text|Said]) :-
+    format(atom(G), 'format(atom(A), ''~~*ca~~*c'', [~w, 0''(, ~w, 0'')]), catch(( term_to_atom(T, A), T == a, R = ok ), E, R = E), write(deep(R)), nl',
+           [N, N]),
+    lim_run(V, KB, G, Text, Exit),
+    findall(Why, lim_deep_bad(V, N, Text, Exit, Why), B0),
+    lim_deep_sweep(KB, Vs, N, B1, Said),
+    append(B0, B1, Bad).
+
+lim_deep_bad(V, N, _, Exit, signal(V, N, Exit)) :- Exit >= 128.
+lim_deep_bad(V, N, '', Exit, silent(V, N)) :- Exit =\= 0.
+lim_deep_bad(V, N, Text, 0, unread(V, N)) :- \+ sub_atom(Text, _, _, _, 'deep(').
+
+%% A WRITE THROUGH A CONNECTION OF ITS OWN, run_isolated/2's (3.62.6): its
+%% store writes each clause through as it is asserted, where a query's
+%% writes its predicates at the end. Under the limits past the floor where
+%% the growth is refused, a write the knowledge base refused raises
+%% resource_error(knowledge_base) in assertz/1, saying why (`W'), its clause
+%% is not in the run's own store (`T'), and a run that caught it and went on
+%% keeps nothing and says so as its status: the store holds the commit of a
+%% thread a call was refused in (`R'), and the run's close answers the
+%% refusal (`S'). Through 3.62.5 the assert succeeded, and the run answered
+%% true and kept what it wrote after the refusal alone. And under the
+%% limits where the writes fit and the thread's private reader, mapped when
+%% the store was small, cannot widen for them, what lies past its mapping
+%% is read by pread (mapbuf::read_at, `C4')
+lim_isolated(D, KB, F) :-
+    atom_concat(D, '/iso.pl', Fx),
+    fixture(Fx, [':- use_module(library(thread)).',
+                 'row(A) :- format(atom(A), ''~*c'', [60000, 120]).',
+                 'fill(N, K, W) :- row(A), fill(1, N, A, K, W).',
+                 'fill(I, N, _, 0, none) :- I > N, !.',
+                 'fill(I, N, A, K, W) :- atom_concat(big, I, P), T =.. [P, A], catch(( assertz(T), R = ok ), E, R = E), ( R == ok -> I1 is I + 1, fill(I1, N, A, K, W) ; K = I, W = R ).',
+                 'held(0, none) :- !.',
+                 'held(K, H) :- atom_concat(big, K, P), ( catch(call(P, _), _, fail) -> H = present ; H = absent ).',
+                 'said(none, none) :- !.',
+                 'said(error(resource_error(knowledge_base), context(system:assertz/1, Why)), kb(Why)) :- !.',
+                 'said(E, other(E)).',
+                 'writes :- run_isolated(( assertz(small(1)), fill(400, K, W), held(K, H), said(W, Y), assertz(small(2)), format("iso(~q,~q,~q)~n", [K, H, Y]) ), S), format("status(~q)~n", [S]).',
+                 'bigs(N) :- aggregate_all(count, ( between(1, 400, I), atom_concat(big, I, P), catch(call(P, X), _, fail), atom_length(X, 60000) ), N).',
+                 'why(I, W) :- atom_concat(big, I, P), catch(( call(P, X), atom_length(X, L), W = len(L) ), E, W = E).',
+                 'whys :- forall(between(1, 40, I), ( why(I, W), ( W == len(60000) -> true ; format("row(~w, ~q)~n", [I, W]) ) )).',
+                 'reads :- foo(_), run_isolated(( row(A), forall(between(1, 40, I), ( atom_concat(big, I, P), T =.. [P, A], assertz(T) )) ), S1), run_isolated(( bigs(N), format("read(~q)~n", [N]), whys ), S2), format("status(~q, ~q)~n", [S1, S2]).',
+                 'back :- catch(findall(X, small(X), Ss), error(existence_error(_, _), _), Ss = []), bigs(N), write(back(Ss, N)), nl.']),
+    atom_concat(D, '/kb9', G),
+    findall(V, ( member(M, [2048, 4096, 8192, 16384, 32768]), V is F + M ), Vs),
+    lim_iso_writes(KB, G, Fx, Vs, Bad, Refused),
+    check('a run_isolated/2 whose write is refused near the floor raises it, keeps nothing and says so, and a run that is not refused keeps it all (W, T, R, S)',
+          Bad, []),
+    (   Refused = [_|_] -> Seen = refused ; Seen = none ),
+    check('...and a write through it was refused its growth, saying why (W)', Seen, refused),
+    lim_floor_iso(KB, G, Fx, F, W),
+    findall(V, ( between(0, 16, I), V is W + I * 256 ), Rs),
+    lim_iso_reads(KB, G, Fx, Rs, RBad),
+    check('across the limits past where forty rows fit, the rows a run wrote read back whole in the next run on the thread, or the run says why not (C4)',
+          RBad, []).
+
+%% the fixture's goal Goal, in a query over a fresh copy of KB in G under V
+lim_iso_run(KB, G, Fx, V, Goal, Text, Exit) :-
+    format(atom(Cp), 'rm -rf ~w; cp -R ~w ~w', [G, KB, G]),
+    shl([Cp]),
+    format(atom(Q), 'use_module(''~w''), ~w', [Fx, Goal]),
+    lim_run(V, G, Q, Text, Exit).
+
+%% the store in G read back with no limit
+lim_iso_back(G, Fx, Text) :-
+    cocolog(C),
+    format(atom(Cmd), '~w --embed ~w query "use_module(''~w''), back" 2>&1', [C, G, Fx]),
+    shell(Cmd, Text, _).
+
+lim_iso_writes(_, _, _, [], [], []).
+lim_iso_writes(KB, G, Fx, [V|Vs], Bad, Refused) :-
+    lim_iso_run(KB, G, Fx, V, writes, Text, Exit),
+    lim_iso_back(G, Fx, Back),
+    findall(Why, lim_iso_bad(V, Text, Exit, Back, Why), B0),
+    ( sub_atom(Text, _, _, _, 'could not grow') -> Refused = [V|Refused1] ; Refused = Refused1 ),
+    lim_iso_writes(KB, G, Fx, Vs, B1, Refused1),
+    append(B0, B1, Bad).
+
+lim_iso_bad(V, _, Exit, _, signal(V, Exit)) :- Exit >= 128.
+lim_iso_bad(V, Text, _, Back, said(V, Word)) :-
+    member(Word, ['does not read as a clause', damaged]),
+    once(( sub_atom(Text, _, _, _, Word) ; sub_atom(Back, _, _, _, Word) )).
+%% not refused: the run answered true, and its 402 rows are there
+lim_iso_bad(V, Text, _, Back, kept(V, Text, Back)) :-
+    sub_atom(Text, _, _, _, 'iso(0,none,none)'),
+    \+ ( sub_atom(Text, _, _, _, 'status(true)'), sub_atom(Back, _, _, _, 'back([1,2],400)') ).
+%% refused: in assertz/1's context, saying why -- the growth refused, or an
+%% allocation the engine's call was refused (W) -- the clause not in the
+%% run's store (T), the run's status the commit's refusal and nothing of it
+%% kept (R, S)
+lim_iso_bad(V, Text, _, Back, refused(V, Text, Back)) :-
+    sub_atom(Text, B, _, _, 'iso('), \+ sub_atom(Text, _, _, _, 'iso(0,none,none)'),
+    sub_atom(Text, B, _, 0, Rest),
+    \+ ( sub_atom(Rest, _, _, _, ',absent,kb('),
+         once(( sub_atom(Rest, _, _, _, 'could not grow') ; sub_atom(Rest, _, _, _, 'out of memory') )),
+         sub_atom(Text, _, _, _, 'status(''the knowledge base refused the commit: '),
+         sub_atom(Back, _, _, _, 'back([],0)') ).
+%% neither: the run answered nothing of itself, nor said why
+lim_iso_bad(V, Text, Exit, _, nothing(V, Exit, Text)) :-
+    \+ sub_atom(Text, _, _, _, 'iso('),
+    \+ sub_atom(Text, _, _, _, 'out of memory'),
+    \+ sub_atom(Text, _, _, _, 'could not grow').
+
+%% the least limit, to 256 KB, past F under which the run's forty rows are
+%% written (`status(true,'), the first status of `reads')
+lim_floor_iso(KB, G, Fx, F, W) :-
+    Hi is F + 65536,
+    lim_floor_iso(KB, G, Fx, F, Hi, W).
+lim_floor_iso(KB, G, Fx, Lo, Hi, W) :-
+    (   Hi - Lo =< 256
+    ->  W = Hi
+    ;   Mid is (Lo + Hi) // 2 // 256 * 256,
+        lim_iso_run(KB, G, Fx, Mid, reads, Text, _),
+        (   sub_atom(Text, _, _, _, 'status(true,')
+        ->  lim_floor_iso(KB, G, Fx, Lo, Mid, W)
+        ;   lim_floor_iso(KB, G, Fx, Mid, Hi, W)
+        )
+    ).
+
+lim_iso_reads(_, _, _, [], []).
+lim_iso_reads(KB, G, Fx, [V|Vs], Bad) :-
+    lim_iso_run(KB, G, Fx, V, reads, Text, Exit),
+    findall(Why, lim_iso_read_bad(V, Text, Exit, Why), B0),
+    lim_iso_reads(KB, G, Fx, Vs, B1),
+    append(B0, B1, Bad).
+
+lim_iso_read_bad(V, _, Exit, signal(V, Exit)) :- Exit >= 128.
+lim_iso_read_bad(V, Text, _, said(V, Word)) :-
+    member(Word, ['does not read as a clause', damaged]),
+    sub_atom(Text, _, _, _, Word).
+%% the rows were written: the next run read all forty of them, or said of
+%% each it did not why, in memory's words (`row(I, Error)')
+lim_iso_read_bad(V, Text, _, read(V, Line)) :-
+    sub_atom(Text, _, _, _, 'status(true,'),
+    \+ sub_atom(Text, _, _, _, 'read(40)'),
+    split_string(Text, '\n', '', Lines),
+    member(L, Lines), sub_string(L, 0, _, _, 'row('),
+    \+ sub_string(L, _, _, _, 'resource_error(memory)'),
+    \+ sub_string(L, _, _, _, 'out of memory'),
+    atom_string(Line, L).
+%% and never found a row missing without a word: a row past where the
+%% reader's mapping could widen read as no row at all, its predicate's call
+%% failed and the run answered false (`C4': through 1.0.2 a reader read
+%% only what its mapping covered, 15 rows of the 40 under the least limits)
+lim_iso_read_bad(V, Text, _, silent(V, Text)) :-
+    sub_atom(Text, _, _, _, 'status(true, false)').
+
+%% A WRITE THAT GROWS THE STORE, under the limits just past the floor where
+%% the mapping cannot widen for the growth: forty rows of 60 000
+%% characters, 37 fresh pages. The engine's first write of a fresh page is
+%% the one that grows the files, and a grow the address space refused was a
+%% write of nothing that the engine never saw -- the writer exited 0 and the
+%% next process read `the row at ordinal 33 does not read as a clause'. The
+%% room is asked for first now, of both files, for the whole page
+%% (allocate_new_page's make_room, `G'). Each write starts from a copy of
+%% the same store: one that answers holds its forty rows, one that does not
+%% holds none of them and says why, and every one holds foo(1)
+lim_grow(D, KB, F) :-
+    atom_concat(D, '/kb8', G),
+    findall(V, ( between(0, 16, I), V is F + I * 256 ), Vs),
+    lim_grow_sweep(KB, G, Vs, Bad, Said),
+    check('a write that grows the store near the floor is kept whole or refused whole, saying so, and never damages it (G)',
+          Bad, []),
+    (   member(S, Said), sub_atom(S, _, _, _, 'could not grow') -> Grew = refused ; Grew = none ),
+    check('...and a growth the address space refused is said (G)', Grew, refused).
+
+lim_grow_sweep(_, _, [], [], []).
+lim_grow_sweep(KB, G, [V|Vs], Bad, [WText|Said]) :-
+    cocolog(C),
+    format(atom(Cp), 'rm -rf ~w; cp -R ~w ~w', [G, KB, G]),
+    shl([Cp]),
+    lim_run(V, G, 'format(atom(A), \'~*c\', [60000, 120]), forall(between(1, 40, I), assertz(big(I, A)))',
+            WText, WExit),
+    format(atom(Back), '~w --embed ~w query "catch(aggregate_all(count, (big(_, A), atom_length(A, 60000)), N), error(existence_error(_, _), _), N = 0), findall(X, foo(X), Fs), write(back(N, Fs)), nl" 2>&1',
+           [C, G]),
+    shell(Back, BText, _),
+    ( lim_answered(WExit, WText) -> Want = 'back(40,[1])' ; Want = 'back(0,[1])' ),
+    findall(Why, lim_grow_bad(V, WText, WExit, BText, Want, Why), B0),
+    lim_grow_sweep(KB, G, Vs, B1, Said),
+    append(B0, B1, Bad).
+
+lim_grow_bad(V, _, WExit, _, _, signal(V, write, WExit)) :- WExit >= 128.
+lim_grow_bad(V, '', WExit, _, _, silent(V, write)) :- WExit =\= 0.
+lim_grow_bad(V, WText, _, BText, _, said(V, Word)) :-
+    member(Word, ['does not read as a clause', damaged]),
+    once(( sub_atom(WText, _, _, _, Word) ; sub_atom(BText, _, _, _, Word) )).
+lim_grow_bad(V, _, WExit, BText, Want, held(V, WExit, Want)) :- \+ sub_atom(BText, _, _, _, Want).
+
+%% `cocolog --embed KB query GOAL' under `ulimit -v V' (kilobytes): its
+%% output and its exit status
+lim_run(V, KB, Goal, Text, Exit) :-
+    cocolog(C),
+    format(atom(Cmd), 'ulimit -v ~w; ~w --embed ~w query "~w" 2>&1', [V, C, KB, Goal]),
+    shell(Cmd, Text, Exit, 60000).
+
+%% the store in KB reads, under V
+lim_reads(KB, V) :-
+    lim_run(V, KB, 'foo(X)', Text, 0),
+    sub_atom(Text, _, _, _, 'foo(1)').
+
+%% the store's files are mapped, under V: whatever happens after
+lim_maps(KB, V) :-
+    lim_run(V, KB, 'foo(X)', Text, _),
+    \+ sub_atom(Text, _, _, _, 'could not be mapped').
+
+%% the least limit, to a megabyte, under which Holds holds of the store in
+%% KB, between Lo, under which it does not, and Hi, under which it does, both
+%% multiples of 1024
+lim_floor(KB, Lo, Hi, Holds, F) :-
+    (   Hi - Lo =< 1024
+    ->  F = Hi
+    ;   Mid is (Lo + Hi) // 2 // 1024 * 1024,
+        (   call(Holds, KB, Mid) -> lim_floor(KB, Lo, Mid, Holds, F) ; lim_floor(KB, Mid, Hi, Holds, F) )
+    ).
+
+%% a read and, where How is `write', a write `assertz(bar(V))' of KB under
+%% each limit V of Vs. Bad: what went wrong, a word of Not said among it;
+%% Written: the limits whose writes answered (lim_answered); Said: every read's text
+lim_sweep(_, [], _, _, [], [], []).
+lim_sweep(KB, [V|Vs], How, Not, Bad, Written, [RText|Said]) :-
+    lim_run(V, KB, 'foo(X)', RText, RExit),
+    (   How == write
+    ->  format(atom(W), 'assertz(bar(~w))', [V]),
+        lim_run(V, KB, W, WText, WExit)
+    ;   WText = none, WExit = none
+    ),
+    findall(Why, lim_bad(V, Not, RText, RExit, WText, WExit, Why), B0),
+    ( lim_answered(WExit, WText) -> Written = [V|Written1] ; Written = Written1 ),
+    lim_sweep(KB, Vs, How, Not, B1, Written1, Said),
+    append(B0, B1, Bad).
+
+%% a write said it was made: its query answered and exited 0. Exit 0 alone
+%% is not that -- a query that answers `false.' exits 0 too, by `query''s
+%% contract (test/argv.pl), and under a limit that broke the preload one
+%% answered so having written nothing
+lim_answered(0, Text) :- sub_atom(Text, _, _, _, '1 answer(s).').
+
+lim_bad(V, _, _, RExit, _, _, signal(V, read, RExit)) :- RExit >= 128.
+lim_bad(V, _, _, _, _, WExit, signal(V, write, WExit)) :- integer(WExit), WExit >= 128.
+lim_bad(V, Not, RText, _, WText, _, said(V, Word)) :-
+    member(Word, Not),
+    once(( sub_atom(RText, _, _, _, Word) ; WText \== none, sub_atom(WText, _, _, _, Word) )).
+lim_bad(V, _, RText, 0, _, _, read_wrong(V)) :- \+ sub_atom(RText, _, _, _, 'foo(1)').
+lim_bad(V, _, '', RExit, _, _, silent(V, read)) :- RExit =\= 0.
+lim_bad(V, _, _, _, '', WExit, silent(V, write)) :- WExit =\= 0.
+
+%% KB, read with no limit, holds foo(1) and the facts bar(B) for B of Bs, in
+%% that order, and no other
+lim_holds(KB, Bs, Label) :-
+    cocolog(C),
+    format(atom(Back), '~w --embed ~w query "findall(X, foo(X), Fs), findall(Y, bar(Y), Bs), write(back(Fs/Bs)), nl" 2>&1',
+           [C, KB]),
+    shell(Back, Text, _),
+    format(atom(Want), 'back(~w)', [[1]/Bs]),
+    has(Label, Want, Text).
+
+%% THE SAME STORE GROWN TO 256 MB, its data file extended by truncate(1)
+%% and opened once with no limit, which makes its hexmap cover the pages
+%% (16 MB): a mapping of it is then near the size of a limit cocolog runs
+%% under, and the limits a megabyte past the floor take the store's
+%% mappings away one by one -- the canonical pair's data file first, then
+%% the private reader's
+lim_big(D, KB, F, Before) :-
+    cocolog(C),
+    atom_concat(D, '/kb7', Big),
+    format(atom(Cp), 'rm -rf ~w; cp -R ~w ~w && truncate -s 268435456 ~w/data.bin', [Big, KB, Big, Big]),
+    shl([Cp]),
+    format(atom(Open), '~w --embed ~w query true >/dev/null 2>&1', [C, Big]),
+    shell(Open, _, OE),
+    check('a store of 256 MB opens with no limit', OE, 0),
+    V1 is F + 131072,
+    lim_run(V1, Big, 'foo(X)', T1, E1),
+    check('under the floor and 128 MB its data file cannot be mapped, and the store is refused (A)', E1, 1),
+    has('...saying so', 'its data.bin of 268435456 bytes could not be mapped', T1),
+    has('...and why', 'under an address-space limit of', T1),
+    V2 is F + 409600,
+    lim_run(V2, Big, 'foo(X)', T2, E2),
+    check('under the floor and 400 MB its canonical pair maps and its private reader does not: it reads (B, C)', E2, 0),
+    has('...what it holds', 'foo(1)', T2),
+    findall(V, ( between(0, 10, I), V is F + 65536 + I * 65536 ), Vs),
+    lim_sweep(Big, Vs, write, ['Unknown procedure', damaged], Bad, Written, _),
+    check('across the limits where its mappings are refused no read finds it empty or damaged, none is silent, no process ends by a signal (A, B)',
+          Bad, []),
+    append(Before, Written, All),
+    lim_holds(Big, All, '...and it holds foo(1) and exactly the writes that answered'),
+    %% AND JUST PAST WHERE ITS FILES FIRST MAP the open's own allocations
+    %% are refused: the engine's open threw std::bad_alloc, which nothing
+    %% caught through 3.62.5 -- the process aborted
+    lim_floor(Big, F, V2, lim_maps, M),
+    findall(V, ( between(0, 16, I), V is M + I * 256 ), Ms),
+    lim_sweep(Big, Ms, read, ['Unknown procedure', damaged], MBad, _, Said),
+    check('just past where its files map no read finds it empty or damaged, none is silent, no process ends by a signal (A)',
+          MBad, []),
+    (   member(S, Said), sub_atom(S, _, _, _, ': out of memory, under an address-space limit of')
+    ->  Loaded = refused
+    ;   Loaded = none
+    ),
+    check('...and a store the open could not load for want of memory is refused, saying so (A)', Loaded, refused).
+
+%% A ROW'S READ REFUSED ITS MEMORY IS SAID AS MEMORY, AND A QUERY THAT WROTE
+%% NOTHING KEEPS ITS COMMIT (3.62.6). test/refuse.c refuses each request
+%% the fetch of a row of 60 000 characters makes, in turn -- each of a page
+%% or more, then each of any size, once and twice in a row (a growth
+%% refused outright) -- and every run reads the row whole, or says memory
+%% (resource_error(memory) for a catch to take, or the knowledge base's
+%% refusal in memory's words), or ends as a host out of memory ends. Never
+%% `the row at ordinal 0 does not read as a clause', which a fetch said of a
+%% row the reader stopped on for want of memory (`coco_row_into_store',
+%% `P': under `ulimit -v' the second run_isolated/2 on a thread, above, at
+%% the limits where its fetch fell short), and never `commit failed', which
+%% the query's end said for a read refused in a transaction that had
+%% written nothing (`ce_wrote', `Q')
+refused_read(D) :-
+    section('a row whose read is refused its memory'),
+    shell('uname -s', Sys, _),
+    shell('getconf GNU_LIBC_VERSION 2>/dev/null', Libc, _),
+    (   ( Sys == 'Darwin' ; \+ sub_atom(Libc, 0, _, _, glibc) )
+    ->  format("   SKIP (test/refuse.c interposes glibc's allocator)~n", [])
+    ;   atom_concat(D, '/refuse.so', Shim),
+        ( exists_file('tools/cc/cc') -> Cc = 'tools/cc/cc' ; Cc = clang ),
+        format(atom(Build), '~w -shared -fPIC -O3 -o ~w test/refuse.c 2>&1', [Cc, Shim]),
+        shell(Build, Why, CcExit),
+        check('test/refuse.c compiles', CcExit-Why, 0-''),
+        ( CcExit =:= 0 -> rr_rows(D, Shim), rr_green(D, Shim), rr_dirty(D, Shim) ; true )
+    ).
+
+rr_rows(D, Shim) :-
+    cocolog(C),
+    atom_concat(D, '/rr.pl', Fx),
+    fixture(Fx, ['rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
+                 'rf_off :- rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF'').',
+                 'mk :- format(atom(A), ''~*c'', [60000, 120]), assertz(big1(A)).',
+                 'main :- rf_mark(''REFUSE_ON''), catch(( big1(X), atom_length(X, L), R = len(L) ), E, R = E), rf_off, format("rr(~q)~n", [R]).']),
+    atom_concat(D, '/kbr', KB),
+    format(atom(Mk), '~w --embed ~w query "use_module(''~w''), mk" >/dev/null 2>&1', [C, KB, Fx]),
+    shl([Mk]),
+    rr_envs(Shim, C, KB, Fx, '', 'REFUSE_MIN=4096', E4),
+    rr_envs(Shim, C, KB, Fx, '', '', E0),
+    append(E4, E0, Envs),
+    rr_runs(Shim, C, KB, same, Fx, Envs, 0, Runs),
+    findall(Why, ( member(run(Env, Text, Exit), Runs), rr_bad(rr, Env, Text, Exit, Why) ), Bad),
+    check('each request of a row''s fetch refused in turn: the row read whole, memory said, or the host out of memory; never a row that does not read, never a commit refused (P, Q)',
+          Bad, []),
+    rr_said(Runs, 'rr(error(resource_error(memory)', Mem),
+    check('...and a fetch refused its memory raises resource_error(memory) for a catch to take', Mem, said).
+
+%% A GREEN TASK'S WRITE ON A WORKER THAT IS NOT THE CONNECTION'S OWNER, ITS
+%% WRITE-THROUGH REFUSED, RAISES, AND THE NEXT WRITE ON THAT WORKER GOES
+%% THROUGH (3.62.6): such a worker commits each write where it is made, and
+%% a call the embedded store refused leaves the session's transaction
+%% rolled back under it, which the store's commit refuses until the session
+%% says so (`coco_zg_fail's rollback, `N'). Each request of a page or more
+%% the task's two writes make is refused in turn, once and twice in a row;
+%% the first write (60 000 characters) is refused or made, and the second
+%% (gw2(1), after the refusals) is made every time. Refusals of any size
+%% are not swept here: the engine's cursor_walk takes an unchecked calloc
+%% under its page list's lock, which a refused 16 bytes makes a SIGSEGV
+%% (a finding of its own, not 3.62.6's)
+rr_green(D, Shim) :-
+    cocolog(C),
+    atom_concat(D, '/rw.pl', Fx),
+    fixture(Fx, ['rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
+                 'rf_off :- rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF'').',
+                 'w :- format(atom(A), ''~*c'', [60000, 120]), rf_mark(''REFUSE_ON''), catch(( assertz(gw1(A)), R1 = ok ), E1, R1 = E1), rf_off, catch(( assertz(gw2(1)), R2 = ok ), E2, R2 = E2), ( R1 == ok -> S1 = ok ; R1 = error(F, _) -> S1 = F ; S1 = R1 ), format("rw(~q, ~q)~n", [S1, R2]).',
+                 'main :- async_run(( go(w, T), await(T) )).']),
+    atom_concat(D, '/kbw', KB),
+    atom_concat(KB, '_count', KBc),
+    rr_envs(Shim, C, KBc, Fx, 'COCOLOG_GREEN_WORKERS=2', 'REFUSE_MIN=4096', Envs),
+    rr_runs(Shim, C, KB, fresh, Fx, Envs, 0, Runs),
+    findall(Why, ( member(run(Env, Text, Exit), Runs), rr_bad(rw, Env, Text, Exit, Why) ), Bad),
+    check('each request of a page or more a green non-owner''s writes make, refused in turn: the first write made or raised, the second made, no signal (N)',
+          Bad, []),
+    rr_said(Runs, 'rw(resource_error(knowledge_base), ok)', Raised),
+    check('...and a write-through refused there raises resource_error(knowledge_base) in assertz/1', Raised, said).
+
+%% THE OWNER'S NOTE OF A CHANGED PREDICATE REFUSED IS SAID IN MEMORY'S WORDS
+%% (3.62.6, `coco_zg_mark_dirty', `D'): the host batches its writes, and
+%% the list it notes them on grows by realloc(3); each request of 128 bytes
+%% an assert makes is refused in turn, and an assert it refuses raises
+%% resource_error(knowledge_base) saying memory -- through 3.62.5 the
+%% assert succeeded over a clause the batch never held, and with the
+%% refusal raised and no words of its own the reason was the connection's
+%% last error, which had nothing to do with it
+rr_dirty(D, Shim) :-
+    cocolog(C),
+    atom_concat(D, '/rd.pl', Fx),
+    fixture(Fx, ['rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
+                 'rf_off :- rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF'').',
+                 'main :- rf_mark(''REFUSE_ON''), catch(( assertz(gd(1)), R = ok ), E, R = E), rf_off, format("rd(~q)~n", [R]).']),
+    atom_concat(D, '/kbd', KB),
+    atom_concat(KB, '_count', KBc),
+    rr_envs(Shim, C, KBc, Fx, '', 'REFUSE_SIZE=128', Envs),
+    rr_runs(Shim, C, KB, fresh, Fx, Envs, 0, Runs),
+    findall(Why, ( member(run(Env, Text, Exit), Runs), rr_bad(rd, Env, Text, Exit, Why) ), Bad),
+    check('each request of 128 bytes an owner''s assert makes, refused in turn: the assert made, or refused in memory''s words, no signal (D)',
+          Bad, []),
+    rr_said(Runs, 'rd(error(resource_error(knowledge_base)', Raised),
+    check('...and the assert whose note is refused raises resource_error(knowledge_base)', Raised, said),
+    %% A CONSULTED CLAUSE THE KNOWLEDGE BASE REFUSED IS SAID AS ITS REFUSAL
+    %% AND TAKEN BACK (3.62.6, the consult's report and
+    %% `coco_assert_take_back', `K', `T'): consult/1 as a goal writes through,
+    %% and a clause whose note the owner could not make was `not a clause'
+    %% through 3.62.5, and stayed in this process with no row behind it
+    atom_concat(D, '/rc.pl', Fc),
+    atom_concat(D, '/gc.pl', Gc),
+    fixture(Gc, ['gc(1).']),
+    format(atom(Main), 'main :- rf_mark(''REFUSE_ON''), catch(consult(''~w''), _, true), rf_off, ( catch(gc(X), _, fail) -> format("rc(~~q)~~n", [X]) ; format("rc(none)~~n", []) ).', [Gc]),
+    fixture(Fc, ['rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
+                 'rf_off :- rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF'').',
+                 Main]),
+    atom_concat(D, '/kbc', KC),
+    atom_concat(KC, '_count', KCc),
+    rr_envs(Shim, C, KCc, Fc, '', 'REFUSE_SIZE=128', CEnvs),
+    rr_runs(Shim, C, KC, fresh, Fc, CEnvs, 0, CRuns),
+    findall(Why, ( member(run(Env, Text, Exit), CRuns), rr_bad(rc, Env, Text, Exit, Why) ), CBad),
+    check('each request of 128 bytes a consulted clause''s write makes, refused in turn: the clause made, or refused in the knowledge base''s words and gone, no signal (K, T)',
+          CBad, []),
+    rr_said(CRuns, 'the knowledge base refused the clause: ', CSaid),
+    check('...and the consult says the clause it could not write', CSaid, said).
+
+%% the ENV of each run of a sweep: each request the fixture FX makes under
+%% the shim's SHIM_ENV, refused in turn, once and twice in a row, the
+%% fixture's own WORLD before each (`REFUSE count' of a run over the store
+%% KB says how many)
+rr_envs(Shim, C, KB, Fx, World, ShimEnv, Envs) :-
+    format(atom(Cmd), 'env ~w ~w REFUSE_REPORT=1 LD_PRELOAD=~w ~w --embed ~w query "use_module(''~w''), main" 2>&1 >/dev/null',
+           [World, ShimEnv, Shim, C, KB, Fx]),
+    shell(Cmd, Text, _),
+    (   sub_atom(Text, B, _, _, 'REFUSE count '), B1 is B + 13, sub_atom(Text, B1, _, 0, Rest),
+        split_string(Rest, '\n', ' ', [S|_]), number_string(N0, S)
+    ->  N = N0
+    ;   N = 0
+    ),
+    findall(Env, ( member(Run, [1, 2]), between(1, N, K),
+                   format(atom(Env), '~w ~w REFUSE_N=~w REFUSE_RUN=~w', [World, ShimEnv, K, Run]) ), Envs).
+
+%% each ENV of ENVS run over the fixture FX, in the store KB0 (SAME) or in
+%% one of its own made empty at the run (FRESH): its text and exit status
+rr_runs(_, _, _, _, _, [], _, []).
+rr_runs(Shim, C, KB0, Fresh, Fx, [Env|Envs], I, [run(Env, Text, Exit)|Runs]) :-
+    ( Fresh == fresh -> format(atom(KB), '~w_~w', [KB0, I]) ; KB = KB0 ),
+    format(atom(Cmd), 'env ~w LD_PRELOAD=~w ~w --embed ~w query "use_module(''~w''), main" 2>&1',
+           [Env, Shim, C, KB, Fx]),
+    shell(Cmd, Text, Exit, 30000),
+    I1 is I + 1,
+    rr_runs(Shim, C, KB0, Fresh, Fx, Envs, I1, Runs).
+
+%% whether some run's text holds WORD
+rr_said(Runs, Word, Said) :-
+    ( member(run(_, T, _), Runs), sub_atom(T, _, _, _, Word) -> Said = said ; Said = none ).
+
+%% what is wrong with a run of the sweep of fixture KIND
+rr_bad(_, Env, _, Exit, signal(Env, Exit)) :- Exit >= 124.
+rr_bad(rr, Env, Text, _, said(Env, Word)) :-
+    member(Word, ['does not read as a clause', damaged, 'commit failed']),
+    sub_atom(Text, _, _, _, Word).
+rr_bad(rw, Env, Text, _, second_refused(Env, Text)) :-
+    sub_atom(Text, _, _, _, 'rw('),
+    \+ sub_atom(Text, _, _, _, ', ok)').
+rr_bad(rd, Env, Text, _, not_memory(Env, Text)) :-
+    sub_atom(Text, _, _, _, 'rd(error(resource_error(knowledge_base)'),
+    \+ sub_atom(Text, _, _, _, 'out of memory').
+rr_bad(rc, Env, Text, _, said(Env, Text)) :-
+    sub_atom(Text, _, _, _, 'not a clause').
+rr_bad(rc, Env, Text, _, kept(Env, Text)) :-
+    sub_atom(Text, _, _, _, 'the knowledge base refused the clause: '),
+    \+ sub_atom(Text, _, _, _, 'rc(none)').
+rr_bad(Kind, Env, Text, Exit, unsaid(Env, Exit, Text)) :-
+    rr_answer(Kind, Answer),
+    \+ sub_atom(Text, _, _, _, Answer),
+    \+ sub_atom(Text, _, _, _, 'resource_error(memory)'),
+    \+ sub_atom(Text, _, _, _, 'out of memory').
+
+%% the text a run of fixture KIND prints when it answers
+rr_answer(rr, 'rr(len(60000))').
+rr_answer(rw, 'rw(').
+rr_answer(rd, 'rd(').
+rr_answer(rc, 'rc(').

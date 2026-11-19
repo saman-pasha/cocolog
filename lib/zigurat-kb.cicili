@@ -185,6 +185,15 @@
   (func coco_zg_fail ((coco_zg * z) (const char * what)) (out int)
         (snprintf (-> z err) 256 "%s: %s" what
                   (? (== (-> z db) nil) "no connection" (zg_error (-> z db))))
+        ;; A THREAD THAT IS NOT THE CONNECTION'S OWNER ENDS ITS TRANSACTION
+        ;; HERE (3.62.6): a green worker's is one call deep -- each write
+        ;; commits where it is made -- and the embedded store holds the
+        ;; commit of a session a call failed in (embed/embed.cicili's
+        ;; `ce_commit'), so the next write on this worker, another task's,
+        ;; would be refused for this one. The owner's is the run's, which the
+        ;; host commits or rolls back at its end.
+        (if (and (!= (-> z db) nil) (not (zg_owns (-> z db))))
+            (zg_rollback (-> z db)))
         (return 0))
 
   ;;; Reads a call to its end, keeping nothing. Used after a call whose answer
@@ -485,22 +494,9 @@
                  (set (-> z write_through) 0)
                  (set (-> st clause_max) 0)
                  (for ((size_t i . 0)) (< i n) ((++ i))
-                   (let ((size_t t) (size_t mark . #'(-> m heap_len)))
-                     (cond
-                       ((not (coco_read_term_from m ($ (nth i rows) body) (aof t)))
-                        (snprintf why 192 "the row at ordinal %lld does not read as a clause"
-                                  (cast llong ($ (nth i rows) ordinal)))
-                        (set ok 0))
-                       ((not (coco_assert_stored st m t))
-                        (snprintf why 192 "the row at ordinal %lld did not go into the store"
-                                  (cast llong ($ (nth i rows) ordinal)))
-                        (if (and (== oom0 0) (!= (-> st oom) 0)) (set oom 1))
-                        (set ok 0))
-                       (#t (block)))
-                     ;; the clause now lives in the store, so the copy that was
-                     ;; parsed on to the heap is not needed
-                     (set (-> m heap_len) mark)
-                     (if (not ok) break)))
+                   (if (not (coco_row_into_store st m ($ (nth i rows) body) ($ (nth i rows) ordinal)
+                                                 why 192 oom0 (aof oom)))
+                       (block (set ok 0) break)))
                  (set (-> st clause_max) fit)
                  (set (-> z write_through) was))))
 
@@ -623,6 +619,7 @@
               (coco_machine * m))
           (if (not (-> z write_through)) (return 1))
           (set m (-> z m))
+          (set (nth 0 (-> z err)) (cast char 0))
           ;; which predicate this clause landed under: the head decides, and
           ;; the head is behind ':-' if there is one
           (let ((size_t mark . #'(-> m heap_len))
@@ -645,7 +642,18 @@
                         (set rc (coco_zg_sync_pred z pi))))))
             (set (-> m heap_len) mark)
             (if (and (== rc 1) (not (zg_owns (-> z db))))
-                (if (not (zg_commit (-> z db))) (return (coco_zg_fail z "commit"))))
+                (if (not (zg_commit (-> z db))) (set rc (coco_zg_fail z "commit"))))
+            ;; A WRITE THE KNOWLEDGE BASE REFUSED IS SAID (3.62.6), on the
+            ;; store where the assert reads it (`coco_assert_from'), in the
+            ;; backend's words: through 3.62.5 the answer was dropped there,
+            ;; and the assert succeeded over a clause no row held
+            ;; (a write of a parameter that failed says nothing of its own:
+            ;; the connection's words are the reason, and a non-owner's
+            ;; transaction ends with them, `coco_zg_fail')
+            (if (== rc 0)
+                (block
+                  (if (== (nth 0 (-> z err)) (cast char 0)) (coco_zg_fail z "assert_clause"))
+                  (snprintf (-> st write_err) 256 "%s" (-> z err))))
             (return rc))))
 
   ;;; Notes a predicate as changed while a batch is open. Deduplicated, so
@@ -657,7 +665,9 @@
             (let ((size_t ncap . #'(? (== (-> z dirty_cap) 0) 16 (* (-> z dirty_cap) 2)))
                   (size_t * nd . #'(cast (size_t *) (realloc (cast (void *) (-> z dirty))
                                                              (* ncap (sizeof size_t))))))
-              (if (== nd nil) (return 0))
+              (if (== nd nil)
+                  (block (snprintf (-> z err) 256 "%s" "noting a changed predicate: out of memory")
+                         (return 0)))
               (set (-> z dirty) nd)
               (set (-> z dirty_cap) ncap)))
         (set (nth (-> z ndirty) (-> z dirty)) pi)

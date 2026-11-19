@@ -617,8 +617,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; a build that links the
 engine takes about a hundred seconds on the Linux box, solve and its run
-105 s on 2.14.1) and runs the 70 `.pl` cases in `pl_names/1`
--- **77 lines**, each with its seconds. There is no `.sh` under `test/`.
+105 s on 2.14.1) and runs the 66 `.pl` cases in `pl_names/1`
+-- **73 lines**, each with its seconds. There is no `.sh` under `test/`.
 **A build has ten minutes** (`build_ceiling/1`), and a failed one names its
 exit status, 124 for that ceiling: on the prelude's two minutes a slow Intel
 Mac runner stopped the four that link the engine (run 40975575257), and the
@@ -912,6 +912,40 @@ expansion can be read.
   TURN, not at once: library(flow/debug) gives each window's child a copy of
   `embed(Dir)` (J copies at once with `windows=N`), and a `make -j` over one
   store is safe and serial.
+* **A store under an address-space limit (`ulimit -v`) is read, grown or
+  refused, saying so** (3.62.6, ZiguratIP 1.0.3; Ambitious's finding 41).
+  RLIMIT_AS counts what a mapping RESERVES, and through ZiguratIP 1.0.2 each
+  of a store's files reserved a gigabyte -- two for the store and two more
+  for each thread that reads it privately: a mapping the limit refused read
+  as an empty file, and under 4 GB a store of a megabyte answered every
+  predicate `Unknown procedure`. A mapping reserves what the limit leaves it
+  room for now and grows by mremap; a store that cannot be mapped or loaded
+  is refused at its open, naming the limit, exit 1. **A write-through the
+  store refused raises in assertz/1** (resource_error(knowledge_base), the
+  backend's words in the context) and its clause is taken back
+  (`coco_assert_take_back`); **a call refused in a transaction holds its
+  commit** (`ce_refused`, once the transaction has written: `ce_wrote`); and
+  **a green worker that is not the connection's owner rolls back where a
+  call failed** (`coco_zg_fail`). **Never catch the engine's exceptions at a
+  commit or a rollback**: it takes its page-list and free-list mutexes with
+  no guard, a throw between a lock and its unlock leaves them held, and the
+  first cut, which caught bad_alloc there, hung at the next rollback. Nor is
+  every small allocation of the engine's asked: `cursor_walk` callocs under
+  its lock unasked, and a refused 16 bytes is a SIGSEGV -- why
+  test/store-lock.pl's green sweep refuses a page or more alone. **The
+  first thread's stack is reserved under the limit** (`coco_cstack_reserve`
+  in lib/syntax.cicili): the kernel grows that stack a page at a time and
+  RLIMIT_AS counts each, so a growth the limit refused -- a load's own
+  140 KB peak, a page past what exec maps by the offset the kernel draws at
+  random -- was a SIGSEGV at the edge with no word, 14 runs in 100 of one
+  build at one limit and 0 of another's. main() grows the stack's mapping
+  first (a sixteenth of the limit, within RLIMIT_STACK and what the limit
+  leaves), and the reserve is the thread's C stack from then on, so a read
+  deeper than it raises resource_error(c_stack). **A check that a process
+  ends by no signal near a limit's edge is a lottery unless it makes the
+  stack grow there**: test/store-lock.pl's `lim_deep` reads 800 brackets
+  deep across the floor, which 3.62.3 ended by SIGSEGV across 192 KB of
+  limits every time.
 * **A clause must fit one page** (65536 on a store made since 1.10.0 and
   ZiguratIP 1.0.0, 8192 on an older one, ~8014 characters there): the store
   sets `clause_max = page - 190 - len(kb)` and `assertz/1` raises
@@ -3722,7 +3756,8 @@ cocolint index offers no import of it.
     a syntax error; the store's and the recorder's marks stop nothing.
 * **`test/refuse.c` refuses each allocation in turn** (3.62.3; an
   LD_PRELOAD shim before glibc's allocator, built by test/async.pl's
-  `refusals` with the suite's compiler, `-O3`; glibc only). It counts the
+  `refusals` and test/store-lock.pl's `refused_read` with the suite's
+  compiler, `-O3`; glibc only). It counts the
   requests a program makes between two marks -- a `getenv` of `REFUSE_ON`
   and one of `REFUSE_OFF`, names nobody sets, which to a run without the
   shim are nothing -- and answers the `REFUSE_N`-th with nothing,
@@ -4008,7 +4043,9 @@ cocolint index offers no import of it.
   **The main thread's C stack is RLIMIT_STACK's** on Linux (cocolog's
   main() says which thread is the first, `coco_cstack_main`; -1 with no
   limit, swipl's statistics(c_stack, L)), where pthread_getattr_np() says
-  what glibc made of it, less the arguments and environment above it.
+  what glibc made of it, less the arguments and environment above it --
+  and under an address-space limit the reserve main() grew it by
+  (3.62.6, `coco_cstack_reserve`: the bullet on a store under one).
   **An argument, a list element and a curly
   term are read to 1200** (3.2.0, swipl's non-ISO reader; 999 through
   3.1.0), and what ends them is the reader's `stop`: 0 the clause's term,

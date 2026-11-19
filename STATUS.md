@@ -19084,3 +19084,322 @@ that passed `qk_runs` and those `$` lines but changed other `$` answers
 (`a6` `guard` where swipl says `guard_in_caller ... system:(>)/2`, and
 `m8` losing `system:` in its context); it was reverted. What 3.62.5 owes
 COMPAT.md is the same as 3.62.4 did.
+
+## A store under an address-space limit is read, grown or refused, saying so (3.62.6, ZiguratIP 1.0.3)
+
+Ambitious's finding 41: under `ulimit -v` an `--embed` store opened empty
+and said nothing -- every predicate it held was an unknown procedure. The
+finding asked for two things: a store that cannot be mapped or loaded
+refused at its open, with the reason and a non-zero exit, never read as
+empty and never written over; and a reservation that fits a limited address
+space. Both are here, with what the case found on the way to them: a write
+whose growth was refused lost its rows and told nobody, and a write-through
+the store refused was an assert that succeeded.
+
+WHAT WAS WRONG. RLIMIT_AS counts the address space a mapping RESERVES,
+though nothing of it is committed. Through ZiguratIP 1.0.2 each of a store's
+two files reserved a gigabyte, and each thread that reads the store
+privately mapped the pair again: a process that read it from two threads
+held four gigabytes of mappings for a store of a megabyte. A mapping the
+limit refused left its stream at failbit, and every read through it came
+back empty: under `ulimit -v 4000000` the fourth mapping failed and the
+store answered as one that holds no rows (`Unknown procedure`), under 2 GB
+the write after it said the store was damaged, under 1 GB the open did.
+Past the mappings, THE GROWTH: a fresh page went into the page list before
+the files had room for it, its write wrote nothing under a mapping refused
+its widening, the stream's failure was cleared unseen by the next write, and
+the commit that made the rows said nothing -- the next process read `the row
+at ordinal 33 does not read as a clause' (`ulimit -v 26624'). And above the
+store: the write-through's refusal, a hook's answer of 0, was dropped by
+`coco_assert_from', so the assert succeeded over a clause no row held, and a
+commit after a call the store had refused committed the calls after it
+alone.
+
+ZIGURATIP 1.0.3, the engine and its streams:
+
+- **A mapping asks for what it needs under a limit** (mapbuf, `C'): where
+  getrlimit says the address space is bounded it reserves twice what it
+  needs, a chunk at least, and grows by doubling; with no limit, the
+  gigabyte as before. An ask the system refuses is made again for what is
+  needed and a sixteenth.
+- **A remap never loses the mapping it had** (mremap, `C'), so a writer's
+  grow that is refused fails as a full disk's would.
+- **A fresh page is made room for in both files before a byte of it is
+  written** (`make_room', a virtual of binarystream's declared last;
+  allocate_new_page, `G'): a growth refused fails the allocation before
+  anything names the page, the two mutexes given back first, and the
+  message names the limit -- `the store's files could not grow: the address
+  space for their mapping was refused, under an address-space limit of N MB
+  (ulimit -v)'.
+- **A reader reads what lies past its mapping by pread** (`read_at', `C4'),
+  out of line (`xsgetn_past'): a read the mapping holds is 1.0.2's and one
+  compare more.
+- **A thread whose private pair cannot be mapped reads through the
+  canonical pair** under the exclusive guard (`reader_open', `B'), what
+  ZIGURATIP_PARALLEL_READS=0 makes of every thread, and says so under
+  MVCCS_DEBUG=warn.
+- **A rollback's fill asks for no memory** (mapstream::fill_n, its scratch
+  on the stack, `fill_n'): 1.0.2's made a vector of up to 64 KB, and under
+  the limit its refusal was a std::bad_alloc out of a rollback's
+  free_pointer that nothing caught: the process aborted.
+
+COCOLOG 3.62.6:
+
+- **A store whose files cannot be mapped, or that cannot be loaded for want
+  of memory, is refused at its open** (embed/embed.cicili's `ce_map_open'
+  and the open's catch, `A'): `cannot open the store in DIR: out of memory,
+  under an address-space limit of N MB (ulimit -v)', exit 1, nothing read
+  and nothing written. The open alone catches the engine's bad_alloc: it is
+  the process's last use of the engine's locks (below).
+- **A call the store refused holds its transaction's commit** (`ce_refused',
+  `R'): the engine's catch rolls the transaction back under its caller, and
+  the commit after it kept the calls after it alone; now it is refused, `a
+  call earlier in the transaction was refused, and the store rolled the
+  transaction back: ...', until the session rolls back. **Only once the
+  transaction has written** (`ce_wrote', `Q'): a refusal in a transaction
+  that wrote nothing loses nothing, and a query that only read keeps its
+  commit -- the first cut ended such a query with `commit failed', exit 1.
+- **A write-through the store refused raises in assertz/1** (`W'):
+  error(resource_error(knowledge_base), context(system:assertz/1, Why)), Why
+  the backend's words, which `coco_zg_on_assert' leaves on the store's
+  `write_err'. **Its clause is taken back** (`coco_assert_take_back', `T'),
+  as retract/1 takes one, the store muted around it, and the predicate's
+  DYNAMIC, FILE and LINE put back. **A consult says the clause it could not
+  write** (`K'): `the knowledge base refused the clause: ...', where it said
+  `not a clause'.
+- **A green worker that is not the connection's owner rolls back where a
+  call failed** (`coco_zg_fail', `N'): its transaction is one write deep,
+  and the next write on the worker, another task's, was refused for this
+  one.
+- **The host's note of a changed predicate refused says memory**
+  (`coco_zg_mark_dirty', `D'), where the reason was the connection's last
+  error, which had nothing to do with it.
+- **run_isolated/2 says a commit the store refused** as its status (`S'):
+  `the knowledge base refused the commit: ...', where it answered true over
+  writes nothing kept.
+- **A row whose read was refused its memory says memory**
+  (`coco_row_into_store', both backends' fetches, `P'): `no memory to read
+  the row at ordinal N', raised as resource_error(memory), where it said
+  `the row at ordinal N does not read as a clause'.
+- **The first thread's stack is reserved under the limit**
+  (`coco_cstack_reserve' in lib/syntax.cicili, `stack'). RLIMIT_AS counts
+  that stack as the kernel grows it, a page at a time, and a growth the
+  limit refuses is a SIGSEGV nothing catches: where the store's mappings
+  and the heap had the last pages, a load's own stack -- its peak 140 KB, a
+  page past what exec maps by the offset the kernel draws at random --
+  killed the process with no word (the core: `rsp' on a page's boundary at
+  a `push' in sbrk), and a read 800 brackets deep did across 192 KB of
+  limits every time. main() grows the stack's mapping as it begins, before
+  anything else is mapped: a sixteenth of the limit, within what
+  RLIMIT_STACK leaves below main()'s frame (the stack's top is where the
+  kernel put the program's name, AT_EXECFN) and what the limit leaves
+  beside what the process holds (/proc/self/statm) and a megabyte, none
+  under 256 KB; one store at its floor grows it, one page touched. **The
+  reserve is the thread's C stack from then on** (`coco_cs_lo',
+  `coco_cs_size', `bounds'): a read or a write deeper than it raises
+  resource_error(c_stack), where past it the kernel could refuse the page,
+  and statistics(c_stack, L) says it where it is less than RLIMIT_STACK
+  (1 683 456 under `ulimit -v 26000'). Linux alone: Darwin enforces no
+  RLIMIT_AS.
+
+THE CASE: test/store-lock.pl's sections `limited' (Linux: macOS enforces no
+`ulimit -v') and `refused_read' (glibc: test/refuse.c), each check named by
+the rules it holds:
+
+- Under `ulimit -v 1536000' a store of a megabyte reads and takes a write,
+  and under 1100000 its mappings leave the program its memory: four million
+  list cells (`C').
+- Near cocolog's floor -- the least limit under which a query reads the
+  store, found by bisection, then 65 limits a megabyte apart and 16 limits
+  128 KB apart around it -- no read finds the store empty or damaged, none
+  is silent, no process ends by a signal, and the store holds foo(1) and
+  exactly the writes that answered (`A', `fill_n').
+- A read of 800 brackets (`((...(a)...))', some 360 KB of C stack and
+  next to no heap) at 65 limits 32 KB apart around the floor, which 3.62.3
+  ended by SIGSEGV across 192 KB of them every time, ends by no signal and
+  reads where the limit leaves it room (`stack'); one of 30 000 at 17
+  limits past the floor, which 3.62.3 ended so at every limit, ends by no
+  signal and raises resource_error(c_stack) (`stack', `bounds').
+- A write that grows the store by 37 pages, past the floor where the
+  mapping cannot widen for it, is kept whole or refused whole, saying so,
+  and never damages it (`G').
+- A run_isolated/2 whose write-through is refused raises it in assertz/1,
+  keeps nothing and says so as its status, and one that is not refused
+  keeps it all (`W', `T', `R', `S'); and across the limits past where its
+  forty rows fit, the next run on the thread reads them whole, or says of
+  each why, in memory's words, and never misses one without a word (`C4').
+- The same store grown to 256 MB: under the floor and 128 MB its data file
+  cannot be mapped and the store is refused, saying so and why (`A'); under
+  the floor and 400 MB its canonical pair maps and its private reader does
+  not, and it reads (`B', `C'); across the limits where its mappings are
+  refused one by one no read finds it empty or damaged (`A', `B'); and just
+  past where its files first map, the open's own allocations refused, the
+  store is refused, saying so (`A').
+- Each request of a row's fetch refused in turn (`refused_read'), of a page
+  or more and then of any size, once and twice in a row: the row read whole,
+  memory said, or the host out of memory -- never a row that does not read
+  as a clause, never a commit refused (`P', `Q').
+- Each request of a page or more a green task's two writes make on a worker
+  that is not the connection's owner, refused in turn: the first write made
+  or raised as resource_error(knowledge_base), the second made every time
+  (`N').
+- Each request of 128 bytes a host's assert makes, refused in turn: the
+  assert made, or refused in memory's words (`D'); and a consulted clause
+  the same, said as the knowledge base's refusal and gone (`K', `T').
+
+THE CASE'S OWN FAULT. The first cut's check of the next run's read (`C4')
+looked only at the rows the run named: under the least limits, with
+mapbuf::read_at out, a reader read only what its mapping covered -- 15 rows
+of the 40 -- the other twenty-five predicates' calls failed, the run
+answered false and named none of them, and the check was green. It holds
+that now (`status(true, false)'). And its check that no process ends by a
+signal just past where the big store's files map was a lottery: three of
+the ten cocolog arms, whose rules have nothing to do with a read
+(close-answer, hook-answer, zg-nonowner), crashed at one limit there, the
+build that ships was green in nine runs of nine, and one of those arms,
+run again under the case's own conditions, crashed 14 times in 100 at that
+limit and never at the limits around it. Whether the stack needs its next
+page at the moment the heap takes the last one is decided by the offset the
+kernel draws for the stack's start: with randomization off
+(`setarch -R'), at 4 KB steps across the band and with the environment
+padded 512 bytes at a time, none of 3 428 runs crashed. The check that
+cannot pass by luck makes the stack grow there (`lim_deep', the reads of
+800 and 30 000 brackets).
+
+THE ARMS. Twenty-three, one build each, the rule taken out and
+test/store-lock.pl run whole (`cocolog -s test/store-lock.pl`, two at a
+time): eleven of ZiguratIP's, an embedded store built from the edited
+engine (`A' to `G') or a libStreamIO.so built from the edited streams
+(`C1' to `fill_n'), each with 3.62.6's cocolog; twelve of cocolog's, its
+cocolog.o built from the edited source. Every one is red, and only at its
+rule's own checks but where three arms (`hook-answer', `close-answer',
+`zg-nonowner') were red at the check just past where the big store's files
+map -- the lottery of the stack's growth, above, which `stack' and
+`bounds' now hold. `C4', `B' and `Q' were built again on the final code,
+after the two splits and the write's note (WHAT IT COSTS) moved their
+rules' code, and are red there: `C4' and `Q' at the checks they were red at,
+`B' at its own four.
+
+| arm | the rule taken out | red checks |
+|---|---|---|
+| `A` | the open refuses no file it could not map (`ce_map_open`'s errno) | the 256 MB store refused, saying so (2) |
+| `Aload` | the open catches no refused load | the open's refusal, near the floor, just past where the files map (3) |
+| `Q` | a refusal holds the commit whether or not the transaction wrote (`ce_wrote`) | the fetch sweep (P, Q) |
+| `R` | a refused call leaves the commit to go on (`ce_refused`) | run_isolated/2 (W, T, R, S) |
+| `B` | a pair that opened and mapped nothing is a reader (`reader_open`'s is_open) | the canonical pair (B, C), the 256 MB store's sweep (A, B), and what each holds (4); on the first cut's code four more, near the floor and the write |
+| `G` | a fresh page enters the page list before the files have room (`make_room`) | the write (2), its refusal said (W), the next run's read (C4) |
+| `C1` | a mapping refused is not asked again for what is needed | the open's refusal, the canonical pair, what it holds (3) |
+| `C2` | a gigabyte whatever the limit | four million cells (C) |
+| `C3` | a grow unmaps and maps again (no mremap) | the write (2), run_isolated/2 (2) |
+| `C4` | a reader reads only what its mapping covers (no `read_at`) | the next run's read (C4) |
+| `fill_n` | a rollback's fill takes a vector of up to 64 KB | near the floor, just past, run_isolated/2, the two sweeps (5) |
+| `hook-answer` | the write-through's answer is not asked | the raise (2), the consult's words, run_isolated/2, and just past |
+| `take-back` | a refused clause stays where the add put it | run_isolated/2, the consult sweep (K, T) |
+| `assert-raise` | the refusal is not raised: assertz/1 fails | the refusal said (W), the raise (2), run_isolated/2, the sweeps (D, N) |
+| `close-answer` | the thread's close answers kept whatever its commit did | run_isolated/2, and just past |
+| `iso-report` | run_isolated/2 does not ask the close | run_isolated/2 (S) |
+| `zg-why` | the backend's words are not left on the store | the owner's sweep (D) |
+| `row-refusal` | a row the reader stopped on for want of memory does not read as a clause | the fetch sweep (P) |
+| `zg-nonowner` | a worker that is not the owner leaves its refused transaction open | the non-owner's sweep (N) and its raise, and just past |
+| `dirty-why` | the owner's refused note says nothing of its own | the owner's sweep (D) |
+| `consult-report` | a consulted clause the knowledge base refused is `not a clause` | the consult sweep (K) and its words |
+| `stack` | main() reserves no stack under the limit | the read of 800 (2), the read of 30 000 and its raise |
+| `bounds` | the reserve is made and is not the thread's C stack | the read of 30 000 and its raise |
+
+`C4' was green at first: the case's own fault, above. The build that ships
+was green in every run of the case, nine before the reserve (67 checks) and
+two after it (71), the second on the final code.
+
+WHAT IT COSTS. Nothing the untraced engine counts, and fewer instructions
+for a store's reads and writes than 3.62.3's: a rollback's fill makes no
+vector now. Callgrind and `tools/flow/zero.sh', 3.62.3's whole stack -- its
+cocolog.o and its embedded store, b9c48e8's, over 1.0.2's engine and a
+libStreamIO.so built from 1.0.2's sources -- against 3.62.6's, the binaries
+at paths of one length, each over its own streams. 3.62.4 and 3.62.5
+changed no C that runs (library(llm), a case, the docs, comments and the
+version string), so 3.62.3's stack is theirs:
+
+| | 3.62.3 | 3.62.6 | |
+|---|---|---|---|
+| naive reverse (zero.sh, work less padding) | 66,132,257 | 66,132,361 | +0.0002 % |
+| queens | 40,253,438 | 40,253,465 | +0.0001 % |
+| lookup | 48,040,907 | 48,042,309 | +0.003 % |
+| a start (`query true`) | 35,614,667 | 35,584,807 | -0.08 % |
+| a store of a megabyte opened and read (`query 'foo(X)'`) | 41,221,729 | 40,891,627 | -0.80 % |
+| 20 000 asserts written through in one query | 1,283,872,506 | 1,277,351,411 | -0.51 % |
+
+By function, the asserts: the fill's vector gone, 5.18 million instructions
+of memset and 5.81 million of malloc, free and operator new; a read the
+mapping holds three more each, 3.54 million over 1 180 057 reads; and some
+68 an assert of checks -- `coco_assert_from' 17.6 (it clears the last
+refusal's words and saves what a take-back would give back), the
+write-through's hook 10, and the engine's reads 49 between `pointer_at',
+`chain_resolves' and `load_control', which hold reader_ensure's check
+inline now. A start: the same calls of strcmp 60 078 instructions cheaper
+where their strings lie, and `coco_assert_from' 31 207 dearer over the
+preload's clauses. A store's open: no vector, 296 054 of memset.
+
+THE FIRST CUT COST 20 000 ASSERTS 1.13 % MORE (1,298,434,043), three
+things, each taken back:
+
+- mapbuf::xsgetn held the pread loop inline, and every read, nearly all of
+  which the mapping holds, saved six registers where 1.0.2's saved three:
+  55 instructions a read against 35, 23.6 million. The read past the
+  mapping is out of line now (`xsgetn_past', noinline and cold), and a read
+  inside it is 1.0.2's and one compare more: 38.
+- reader_ensure, one function with a try and its landing pad, was called
+  at every row a shared read took, 22 instructions where 1.0.2's check, its
+  callers' own, took next to none: 444 422. The check is reader_ensure's
+  alone now, which its callers inline, and the opening reader_open's.
+- ce_write_intent was asked again after each call to note a write: the
+  write is noted where its guard is taken (`ce_dispatch'), 0.9 million of
+  its strcmp.
+
+The clock: five alternating pairs of the 20 000 asserts and a count, the
+wall's medians 0.272 s and 0.271 s for the write, 0.055 s and 0.057 s for
+the count -- the same.
+
+Under a limit, the store of a megabyte: under `ulimit -v 1536000' 3.62.3
+reads it as empty (`Unknown procedure: foo/1', exit 1) and its write ends
+`commit failed: the store in DIR is damaged: sequence has no row'; under
+4000000 the read is the same and the write answers. 3.62.6 reads foo(1)
+and takes the write under both.
+
+LEFT, RECORDED:
+
+- **The engine under a refused SMALL allocation.** test/refuse.c's sweep
+  of a green task's write on a worker that is not the owner, with requests
+  of any size refused in turn (REFUSE_MIN=0, a fixture beside the case's), ends by
+  SIGSEGV, SIGABRT or a hang at about one request in six: `cursor_walk'
+  takes two `calloc's under the page list's lock unasked (a refused 16
+  bytes is a SIGSEGV under `run_assert_clause'), and the page-list and
+  free-list mutexes are taken with no guard, so a throw between a lock and
+  its unlock leaves them held. None of it is this change's -- `cursor_walk'
+  is untouched by it -- and the case's green sweep refuses a page or more
+  alone for that reason. It is why no catch stands at a commit or a
+  rollback: the first cut of this change caught bad_alloc there and hung at
+  the next rollback (`ulimit -v 24576', 1.0.2's fill_n).
+- **A re-read's inserted clause** (a reconsult's place, RL) **is kept when
+  its write-through is refused**, said all the same.
+- **retract/1's write-through refusal is not asked** (`coco_retract_at'),
+  nor the answer of a re-read's adopt.
+- **Nested sessions on one thread share one transaction**: a
+  run_isolated/2 under a query continues the query's.
+- **An unbatched store rewrites the whole predicate at each assert**: a
+  run_isolated/2 that writes N clauses of one predicate writes N(N+1)/2
+  rows.
+- **The Zeytun fetch's hunk is the helper the Zigurat one calls**, with no
+  check of its own.
+
+THE RUN, on the binary that ships (3.62.6, master's 3.62.4 and 3.62.5
+under it) with ZiguratIP 1.0.3's server up, each case through the runner:
+the lint case first, then store-lock (71 checks), errors, flowchart,
+process, async, httpd, cowork, meter, window, flowdebug, journal,
+backtrace, trace, script, engine (master's new `qk_runs' among its
+sections) and files, every one GREEN, none skipped. Before the merge, on
+the same C, zigurat, shared, reconsult, vacuum, groups, kbs, zigurat-lib,
+tunnel, ruler, library, directives, gc, cyclic, argv, repl and thread were
+GREEN and tensors SKIPPED (`no library/torch.so'). One server
+(`pgrep ziguratip'), 1.0.3's. `cowork' is back in `pl_names/1': the
+commit that moved the reasoning library out took it off with the four
+reasoning cases on its line, though it is library(cowork)'s and green.

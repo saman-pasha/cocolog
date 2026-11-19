@@ -183,8 +183,37 @@
     (member int rtok)                  ;; read position
     (member int executed))             ;; the buffered call has run
 
+  ;; A CALL THAT FAILED SINCE THE THREAD'S LAST COMMIT OR ROLLBACK (3.62.6),
+  ;; and why, in the first failure's words: `ce_exec' rolled the transaction
+  ;; back, so the commit refuses (`ce_commit'). THE THREAD'S, as the
+  ;; transaction is (the engine's `tl_txn'): a second session on a thread
+  ;; -- run_isolated/2's under a query's -- continues the transaction the
+  ;; first began, and a refusal in either rolled back both.
+  (thread-local) (var int ce_refused . 0)
+  (thread-local) (var char ce_refused_why [512])
+  ;; AND WHETHER THE TRANSACTION HAS WRITTEN: set by a writing call that
+  ;; answered (`ce_dispatch'), cleared where the transaction ends
+  (thread-local) (var int ce_wrote . 0)
+
+  ;;; A FAILED CALL IS NOTED (3.62.6): a refusal in the engine, whose
+  ;;; transaction `ce_exec' rolls back, or a call that failed here half-made
+  ;;; -- memory refused for one of its parameters, a read the call had no
+  ;;; answer for -- which leaves it as much in doubt. What the thread writes
+  ;;; after it goes into a fresh transaction that the commit refuses
+  ;;; (`ce_commit'), the first failure's words kept for it to say. ONLY ONE
+  ;;; AFTER A WRITE: a failure in a transaction that has written nothing
+  ;;; loses nothing -- its own half-made writes went with it, and there were
+  ;;; no others -- and a read refused its memory, which the program caught,
+  ;;; left a query's commit refused, the process ending 1 over a store that
+  ;;; had lost no write.
+  (func ce_refused_note ((const char * why)) (out void)
+    (if (and ce_wrote (not ce_refused))
+        (block (snprintf ce_refused_why 512 "%s" why)
+               (set ce_refused 1))))
+
   (func ce_fail ((CeSess * s) (const char * what)) (out int)
     (snprintf (-> s err) 512 "%s" what)
+    (ce_refused_note what)
     (return 0))
 
   (func ce_toks_clear ((CeSess * s)) (out void)
@@ -1102,11 +1131,16 @@
 
   (decl) (func ce_run ((const char * p) (CeSess * s)) (out int))
 
+  ;; a write that answered is noted where its guard is taken (`ce_wrote'):
+  ;; the first cut asked ce_write_intent again after the call, 16 more
+  ;; instructions an assert
   (func ce_dispatch ((CeSess * s)) (out int)
     (let ((const char * p . #'(-> s proc)))
       (if (== 1 (ce_write_intent p))
           (letin* ((streams (Streams (aof ce_mem))))
-            (return (ce_run p s))))
+            (let ((int ok . #'(ce_run p s)))
+              (if ok (set ce_wrote 1))
+              (return ok))))
       (return (ce_run p s))))
 
   (func ce_run ((const char * p) (CeSess * s)) (out int)
@@ -1167,9 +1201,14 @@
         (snprintf buf cap "%s: %s" head what)))
 
   ;; runs the buffered call. An exception rolls the transaction back and
-  ;; fails the call, which is what the server's request loop does -- the
-  ;; client treats it as a lost connection and reopens, and reopening a
-  ;; session here is just a fresh transaction.
+  ;; fails the call, which is what the server's request loop does -- and a
+  ;; server's client has lost its connection then: every later verb on it
+  ;; says so, the commit too, until it is reopened. THE EMBEDDED SESSION
+  ;; HOLDS ITS COMMIT THE SAME WAY (3.62.6, `ce_refused_note'). Through
+  ;; 3.62.5 a fresh transaction was begun here and the session went on as
+  ;; if nothing had happened: the calls after the refusal were committed and
+  ;; those before it were gone -- under `ulimit -v' a run_isolated/2 whose
+  ;; writes were refused their growth answered true, and kept none of them.
   (func ce_exec ((CeSess * s)) (out int)
     (set (-> s executed) 1)
     (let ((int ok . 0))
@@ -1181,9 +1220,11 @@
           (if (ce_damage_said (($ e what)))
               (snprintf (-> s err) 512 "the store in %s is damaged: %s" ce_dir (($ e what)))
               (snprintf (-> s err) 512 "the store refused it: %s" (($ e what))))
+          (ce_refused_note (-> s err))
           (try (rollback_transaction (aof ce_mem))
                (catch ((const ZiguratException & e2)) (cast void e2)))
           (begin_transaction (aof ce_mem))
+          (set ce_wrote 0)
           (set ok 0))
         ;; MEMORY REFUSED, by this file (`ce_tok') or by the engine's own
         ;; strings: the call fails as a refused one does, its half-made
@@ -1194,9 +1235,11 @@
           (ce_toks_clear s)
           (snprintf (-> s err) 512 "%s"
                     "out of memory: the call was not answered, and its transaction was rolled back")
+          (ce_refused_note (-> s err))
           (try (rollback_transaction (aof ce_mem))
                (catch ((const ZiguratException & e2)) (cast void e2)))
           (begin_transaction (aof ce_mem))
+          (set ce_wrote 0)
           (set ok 0)))
       (ce_args_clear s)
       (return ok)))
@@ -1382,6 +1425,45 @@
                           dir (cast llong covered) (cast llong page) (cast llong datalen) (cast llong pages)))
             (return 0)))
       (return 1)))
+
+  ;;; ONE OF THE STORE'S TWO FILES, OPENED AND MAPPED: the stream, and into
+  ;;; ERRNO_OUT the errno of a refusal, 0 where it was mapped. FRESH empties
+  ;;; the file first. A mapping is ZiguratIP's mapbuf: two such for the
+  ;;; canonical pair and two more for each thread that reads privately.
+  (func ce_map_open ((const char * path) (int fresh) (int * errno_out)) (out Zigurat::mapstream *)
+    (let ((Zigurat::mapstream * s . nil))
+      (set errno 0)
+      (if (== fresh 1)
+          (set s (new* Zigurat::mapstream (std::string path)
+                       (bitor std::ios::in (bitor std::ios::out std::ios::trunc))))
+          (set s (new* Zigurat::mapstream (std::string path) (bitor std::ios::in std::ios::out))))
+      (if (not ((-> s is_open)))
+          (set (cof errno_out) (? (== errno 0) EIO errno))
+          (set (cof errno_out) 0))
+      (return s)))
+
+  ;;; A FILE THAT CANNOT BE MAPPED REFUSES THE STORE AT ITS OPEN (3.62.6),
+  ;;; said as what it is. Through 3.62.5 the open went on over the stream
+  ;;; that had failed, and an engine that clears a stream's failure state at
+  ;;; every read read nothing from it: under `ulimit -v 2000000' the data
+  ;;; file's mapping was refused, the store opened with no pages, a write
+  ;;; said the store was damaged (`sequence has no row') and, with both
+  ;;; files refused, the open did too (`hexmap ends inside the page') -- of
+  ;;; a store that was whole. Ambitious's finding 41. WHAT is the file's
+  ;;; name in DIR and E the errno; the limit is named where one is set,
+  ;;; since a refused mapping is nearly always the address space's.
+  (var char ce_map_why [700])
+  (func ce_map_refused ((const char * dir) (const char * what) (int e)) (out const char *)
+    (let ((char path [600]) (size_t limit . #'(Zigurat::mapbuf::address_space_limit)))
+      (snprintf path 600 "%s/%s" dir what)
+      (if (!= limit 0)
+          (snprintf ce_map_why 700 "its %s of %lld bytes could not be mapped: %s, under an address-space limit of %lld MB (ulimit -v)"
+                    what (cast llong (ce_file_length path)) (strerror e)
+                    (cast llong (/ limit 1048576)))
+          (snprintf ce_map_why 700 "its %s of %lld bytes could not be mapped: %s"
+                    what (cast llong (ce_file_length path)) (strerror e)))
+      (return ce_map_why)))
+
 
   ;; ---- one process at a time ----------------------------------------
   ;;;
@@ -1578,17 +1660,20 @@
         (let ((int ok . 1))
           (try
             (block
-              (if (== fresh 1)
-                  (block
-                    (set ce_hexmap (new* Zigurat::mapstream (std::string hexpath)
-                                         (bitor std::ios::in (bitor std::ios::out std::ios::trunc))))
-                    (set ce_data (new* Zigurat::mapstream (std::string datapath)
-                                       (bitor std::ios::in (bitor std::ios::out std::ios::trunc)))))
-                (block
-                  (set ce_hexmap (new* Zigurat::mapstream (std::string hexpath)
-                                       (bitor std::ios::in std::ios::out)))
-                  (set ce_data (new* Zigurat::mapstream (std::string datapath)
-                                     (bitor std::ios::in std::ios::out)))))
+              ;; AND BOTH FILES ARE MAPPED, or the store is refused here,
+              ;; saying why (`ce_map_refused')
+              (let ((int hex_errno . 0) (int data_errno . 0))
+                (set ce_hexmap (ce_map_open hexpath fresh (aof hex_errno)))
+                (set ce_data (ce_map_open datapath fresh (aof data_errno)))
+                (if (or (!= hex_errno 0) (!= data_errno 0))
+                    (let ((const char * why . #'(? (!= hex_errno 0)
+                                                   (ce_map_refused dir "hexmap.bin" hex_errno)
+                                                   (ce_map_refused dir "data.bin" data_errno))))
+                      (delete* ce_hexmap)
+                      (delete* ce_data)
+                      (set ce_hexmap nil)
+                      (set ce_data nil)
+                      (throw* (MemoryException why)))))
               (memory_open (aof ce_mem) (cast (binarystream *) ce_hexmap)
                            (cast (binarystream *) ce_data) ce_page_bytes)
               ;; handing the engine the two file paths is what turns the
@@ -1662,6 +1747,25 @@
                   (if (ce_damage_said (($ e what)))
                       (snprintf err errcap "the store in %s is damaged: %s" dir (($ e what)))
                       (snprintf err errcap "cannot open the store in %s: %s" dir (($ e what)))))
+              (set ok 0))
+            ;; THE STORE NOT LOADED FOR WANT OF MEMORY IS REFUSED (3.62.6),
+            ;; as one that cannot be mapped is: an open the engine could not
+            ;; finish is the process's last use of it, so a lock the throw
+            ;; left held is never asked for again. Through 3.62.5 nothing
+            ;; caught it and the process aborted. Not so at a commit or a
+            ;; rollback: the engine takes its page-list and free-list mutexes
+            ;; with no guard, a throw between the two leaves them held, and
+            ;; a call caught there hangs at the next rollback -- which the
+            ;; first cut of this change did, under `ulimit -v 24576' with
+            ;; the scratch of 1.0.2's fill_n (ZiguratIP 1.0.3's README)
+            (catch ((const std::bad_alloc & e))
+              (cast void e)
+              (if (and (!= err nil) (> errcap 0))
+                  (let ((size_t limit . #'(Zigurat::mapbuf::address_space_limit)))
+                    (if (!= limit 0)
+                        (snprintf err errcap "cannot open the store in %s: out of memory, under an address-space limit of %lld MB (ulimit -v)"
+                                  dir (cast llong (/ limit 1048576)))
+                        (snprintf err errcap "cannot open the store in %s: out of memory" dir))))
               (set ok 0)))
           (if (== ok 0)
               (block (ce_store_unlock) (pthread_mutex_unlock (aof ce_open_access)) (return 0))))
@@ -1696,6 +1800,9 @@
         (if (== s nil) (return))
         (try (rollback_transaction (aof ce_mem))
              (catch ((const ZiguratException & e)) (cast void e)))
+        ;; the thread's transaction is gone, and the refusal with it
+        (set ce_refused 0)
+        (set ce_wrote 0)
         (ce_toks_clear s)
         (ce_args_clear s)
         (if (!= (-> s toks) nil) (free (cast (void *) (-> s toks))))
@@ -1855,8 +1962,27 @@
           (set (-> s rtok) (+ (-> s rtok) 1))
           (return 1))))
 
+    ;;; A TRANSACTION A REFUSED CALL ROLLED BACK IS NOT COMMITTED (3.62.6):
+    ;;; what was written before the refusal went with it, so a commit of
+    ;;; what came after would keep half of a unit of work and say it kept it
+    ;;; all. It is rolled back too, and the commit refuses in the first
+    ;;; refusal's words; the thread is clean after it, as after a rollback,
+    ;;; a reopen (`ce_reset') or the end of a session, which rolls back.
     (func ce_commit ((void * sp)) (out int)
       (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (if ce_refused
+            (block
+              (set ce_refused 0)
+              (set ce_wrote 0)
+              (snprintf (-> s err) 512
+                        "a call earlier in the transaction was refused, and the store rolled the transaction back: %s"
+                        ce_refused_why)
+              (try
+                (block
+                  (rollback_transaction (aof ce_mem))
+                  (begin_transaction (aof ce_mem)))
+                (catch ((const ZiguratException & e)) (cast void e)))
+              (return 0)))
         (try
           (block
             (commit_transaction (aof ce_mem))
@@ -1864,10 +1990,13 @@
           (catch ((const ZiguratException & e))
             (ce_say (-> s err) 512 "commit" (($ e what)))
             (return 0)))
+        (set ce_wrote 0)
         (return 1)))
 
     (func ce_rollback ((void * sp)) (out int)
       (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (set ce_refused 0)
+        (set ce_wrote 0)
         (try
           (block
             (rollback_transaction (aof ce_mem))
@@ -1894,6 +2023,8 @@
         (ce_args_clear s)
         (set (nth 0 (-> s err)) 0)
         (set (-> s executed) 0)
+        (set ce_refused 0)
+        (set ce_wrote 0)
         (try
           (block
             (rollback_transaction (aof ce_mem))

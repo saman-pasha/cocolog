@@ -242,6 +242,7 @@ pl_names([files, trace, backtrace, cyclic, window, journal, vacuum, repl, script
           'torch-graph', 'torch-grad', 'torch-replay', tensorflow, library, bigint,
           'zigurat-lib', tcp, engine, errors, gc, meter, thread, process, text, regex, os, signal, async, kbs, http,
           curl, ray, clay, stream, numpy, opencv, hex, astar, serialize, flowchart, flowdebug, httpd, 'httpd-tls', websocket, crypto,
+          cowork,
           tls, 'zigurat-tls', tutorials, colab, lint, static, argv, string, units, langs, tokens,
           directives, groups, ruler, template, rationals, 'store-lock']).
 

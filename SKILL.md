@@ -12,7 +12,7 @@ ZiguratIP server, Zeytun over HTTP — in which a clause is a row, and a running
 proof is a term that can be frozen into rows and resumed by another process.
 It is one binary, written in **Cicili** (C in S-expressions).
 
-Version at the time of writing: cocolog 3.62.4, built with
+Version at the time of writing: cocolog 3.62.6, built with
 Cicili 3.3.0. `./cocolog --version` answers it.
 
 **Part A** is for writing and running Prolog on cocolog. **Part B** is for
@@ -846,8 +846,8 @@ make test               # the suite: ask the owner first
 
 ## 16. The suite, and proving a change
 
-`make test` is `./cocolog -s test/run.pl`: 77 lines, seven Cicili test
-binaries (term, syntax, solve, module, state, zigurat, shared) and seventy
+`make test` is `./cocolog -s test/run.pl`: 73 lines, seven Cicili test
+binaries (term, syntax, solve, module, state, zigurat, shared) and sixty-six
 Prolog cases, each with its seconds.
 
 ```sh

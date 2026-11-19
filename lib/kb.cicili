@@ -1901,6 +1901,11 @@
   ;;; carrying the name of the file that consulted it. Either goes into the
   ;;; store; the wrapper becomes the clause's origin and is not kept.
   (decl) (func coco_assert_stored ((coco_store * st) (coco_machine * m) (size_t t)) (out int))
+  ;;; and a row's text read and put in the store that way, or why not
+  ;;; (3.62.6: both backends' fetches; lib/kb-consult.cicili)
+  (decl) (func coco_row_into_store ((coco_store * st) (coco_machine * m) (const char * body)
+                                    (i64 ord) (char * why) (size_t whylen) (int oom0) (int * oom))
+               (out int))
 
   ;;; Drops every clause of predicate PI that came from ORIGIN, telling the
   ;;; backend once if anything went. Answers how many went.

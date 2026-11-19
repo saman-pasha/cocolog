@@ -1,5 +1,6 @@
 /* test/refuse.c -- a preload that refuses memory, for test/async.pl
- * (`refusals'): what a program does when the allocator answers nothing.
+ * (`refusals') and test/store-lock.pl (`refused_read'): what a program
+ * does when the allocator answers nothing.
  *
  * An address-space ceiling (`ulimit -v') refuses whichever allocation
  * happens to be the one that does not fit, which is nearly always a big

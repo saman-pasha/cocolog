@@ -3770,8 +3770,75 @@
   (thread-local) (var size_t coco_cs_size)
   (thread-local) (var int coco_cs_main)
 
+  ;;; A RESOURCE LIMIT'S SOFT VALUE, by its number (3.62.6): SIZE_MAX where
+  ;;; it has none, or where the system would not say. Asked through the
+  ;;; raw-C escape here alone: two declarations of getrlimit(), each with a
+  ;;; struct of its own, are conflicting types to clang.
+  (func coco_rlimit_cur ((int which)) (out size_t)
+        (let ((size_t v . #'(cast size_t -1)))
+          (code "{ struct coco_rlim { unsigned long cur; unsigned long max; } rl;
+                   extern int getrlimit(int, struct coco_rlim *);
+                   if (getrlimit(which, &rl) == 0 && rl.cur != (unsigned long) -1) v = (size_t) rl.cur; }")
+          (return v)))
+
+  ;;; THE FIRST THREAD'S STACK IS RESERVED UNDER AN ADDRESS-SPACE LIMIT
+  ;;; (3.62.6). RLIMIT_AS counts that thread's stack as the kernel grows it,
+  ;;; a page at a time, and a growth the limit refuses is a SIGSEGV nothing
+  ;;; can catch: under `ulimit -v', where a store's mappings and the heap had
+  ;;; taken the last pages, a load's own stack -- 140 KB, a page past what
+  ;;; exec mapped by the offset the kernel draws at random -- killed the
+  ;;; process with no word, 14 runs in 100 at one limit (test/store-lock.pl's
+  ;;; `limited'). So where the address space is limited the thread grows its
+  ;;; stack's mapping as main() begins, before anything else is mapped: by a
+  ;;; sixteenth of the limit, never past what RLIMIT_STACK leaves below
+  ;;; main()'s frame (the stack's top is where the kernel put the program's
+  ;;; name, AT_EXECFN), nor past what the limit leaves beside what the process
+  ;;; holds (/proc/self/statm) and a megabyte, and not at all where that is
+  ;;; under 256 KB. One store at the reserve's floor grows it: the kernel
+  ;;; maps the rest as the stack, unwritten, one page touched. The reserve is
+  ;;; then the thread's stack (`coco_cs_lo', `coco_cs_size'), so a read or a
+  ;;; write deeper than it raises resource_error(c_stack), where past it the
+  ;;; kernel could refuse the page. Linux alone: Darwin enforces no RLIMIT_AS.
+  (weak) (cold)
+  (func coco_cstack_reserve ()
+        (@ifdef (code "__APPLE__"))
+        (@else)
+        (let ((size_t as . #'(coco_rlimit_cur 9)) (size_t st . #'(coco_rlimit_cur 3))
+              (const char * statm . "/proc/self/statm"))
+          (code "if (as != (size_t) -1) {
+                   extern unsigned long getauxval(unsigned long);
+                   extern int open(const char *, int, ...);
+                   extern long read(int, void *, unsigned long);
+                   extern int close(int);
+                   char here = 0, buf[64];
+                   const char *fn = (const char *) getauxval(31);
+                   size_t pg = (size_t) getauxval(6), at = (size_t) &here, top = 0, above = 0;
+                   size_t full = (size_t) -1, r = as / 16, held = 0, lo = 0, k = 0;
+                   int fd = -1, whole = 0;
+                   long n = 0;
+                   if (pg == 0) pg = 4096;
+                   if (fn != NULL) top = ((size_t) fn + strlen(fn) + 1 + sizeof(void *) + pg - 1) & ~(pg - 1);
+                   if (top > at) fd = open(statm, 0);
+                   if (fd >= 0) { n = read(fd, buf, sizeof buf - 1); close(fd); }
+                   for (k = 0; n > 0 && k < (size_t) n && buf[k] >= 48 && buf[k] <= 57; k++)
+                     held = held * 10 + (size_t) (buf[k] - 48);
+                   held *= pg;
+                   if (held > 0) {
+                     above = top - at;
+                     if (st != (size_t) -1) full = st > above + 65536 ? st - above - 65536 : 0;
+                     if (r >= full) { r = full; whole = 1; }
+                     if (held + r + 1048576 > as) { r = as > held + 1048576 ? as - held - 1048576 : 0; whole = 0; }
+                     r &= ~(pg - 1);
+                     if (r >= 262144) {
+                       lo = (at - r) & ~(pg - 1);
+                       *(volatile char *) lo = 0;
+                       coco_cs_lo = lo;
+                       coco_cs_size = whole ? st : top - lo; } } }"))
+        (@endif))
+
   (func coco_cstack_main ()
-        (set coco_cs_main 1))
+        (set coco_cs_main 1)
+        (coco_cstack_reserve))
 
   (weak) (cold)
   (func coco_cstack_bounds ()
@@ -3787,11 +3854,7 @@
                    if (pthread_attr_getstack(&a, &lo, &sz) != 0) { lo = NULL; sz = 0; }
                    pthread_attr_destroy(&a); }
                  coco_cs_size = sz; coco_cs_lo = (lo != NULL && sz > 0) ? (size_t) lo : 1;
-                 if (coco_cs_main && coco_cs_lo != 1) {
-                   struct coco_rlim { unsigned long cur; unsigned long max; } rl;
-                   extern int getrlimit(int, struct coco_rlim *);
-                   if (getrlimit(3, &rl) == 0)
-                     coco_cs_size = (rl.cur == (unsigned long) -1) ? (size_t) -1 : (size_t) rl.cur; } }")
+                 if (coco_cs_main && coco_cs_lo != 1) coco_cs_size = coco_rlimit_cur(3); }")
         (@endif))
 
   ;;; The C stack left below the caller's frame, in bytes, down to the

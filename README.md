@@ -284,8 +284,8 @@ image and a macOS section are in the long tour. `make EMBED=0` builds the same
 binary without ZiguratIP.
 
 The suite is one cocolog script -- `make test` -- and it ends `red: 0` over
-**77 lines: seven Cicili test binaries (term, syntax, solve, module, state,
-zigurat, shared) and seventy Prolog cases**. Cases that need a server,
+**73 lines: seven Cicili test binaries (term, syntax, solve, module, state,
+zigurat, shared) and sixty-six Prolog cases**. Cases that need a server,
 a reference Prolog 9.0.4, raylib, libtensorflow or a CUDA toolkit say `SKIP`
 by name rather than failing, so read the lines and count the SKIPs, not only
 the verdict.
@@ -310,5 +310,5 @@ the verdict.
 * [emacs/README.md](emacs/README.md) -- cocolog-mode: the colour-variable
   reading, the in-comment tests, the shadow engine and its checks.
 
-cocolog 3.62.5. README.md says what it is, STATUS.md what is proven, MODULES.md
+cocolog 3.62.6. README.md says what it is, STATUS.md what is proven, MODULES.md
 how a module is written.

@@ -418,7 +418,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.62.5"))
+  (func coco_version_text () (out const char *) (return "3.62.6"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -803,19 +803,25 @@
   ;;; A CONNECTION THAT WROTE AND THEN FAILED ROLLS BACK. The same rule
   ;;; cmd_query has, for the same reason: half of a failed goal's
   ;;; assertions is not a state anybody asked for. Zeytun reads only, so
-  ;;; there is nothing to commit there and `db' is null.
-  (func thread_kb_close ((void * ctx) (int ok))
-        (let ((thread_kb * k . #'(cast (thread_kb *) ctx)))
+  ;;; there is nothing to commit there and `db' is null. A COMMIT THE
+  ;;; KNOWLEDGE BASE REFUSED IS ANSWERED (3.62.6): 0, the reason in WHY,
+  ;;; which run_isolated/2 and a thread's join say as the run's status
+  ;;; (`coco_m_run_isolated'); through 3.62.5 it was a line on stderr and
+  ;;; the run answered true.
+  (func thread_kb_close ((void * ctx) (int ok) (char * why) (size_t whylen)) (out int)
+        (let ((thread_kb * k . #'(cast (thread_kb *) ctx)) (int kept . 1))
           (if (!= db nil)
               (if ok
                   (if (not (zg_commit db))
-                      (fprintf stderr "cocolog: a thread's commit failed: %s\n"
-                               (zg_error db)))
+                      (block
+                        (set kept 0)
+                        (if (!= why nil) (snprintf why whylen "%s" (zg_error db)))))
                 (zg_rollback db)))
           (if (!= db nil) (zg_close db))
           ;; back to whoever had it, which is null unless this was nested
           (set db (? (== k nil) nil (-> k prev)))
-          (if (!= k nil) (free (cast (void *) k)))))
+          (if (!= k nil) (free (cast (void *) k)))
+          (return kept)))
 
   ;;; -s FILE -- the SCRIPT runner: load FILE as a module (so its
   ;;; clauses reach the registry and run_isolated proofs see them),

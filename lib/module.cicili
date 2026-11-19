@@ -565,11 +565,15 @@
   ;;;
   ;;; CLOSE IS TOLD WHETHER THE PROOF WORKED, because a connection that
   ;;; wrote and then failed must roll back rather than commit: half of a
-  ;;; failed goal's assertions is not a state anybody asked for.
+  ;;; failed goal's assertions is not a state anybody asked for. AND IT
+  ;;; ANSWERS WHETHER WHAT IT WAS TOLD TO KEEP WAS KEPT (3.62.6): 0 for a
+  ;;; commit the knowledge base refused, the reason in WHY, which the run
+  ;;; then says as its status. Through 3.62.5 the refusal was printed on
+  ;;; stderr and the run answered true.
   (decl) (func coco_m_kb_install
                ((func open ((coco_machine * m) (coco_store * st)
                             (void ** ctx)) (out int))
-                (func close ((void * ctx) (int ok)))))
+                (func close ((void * ctx) (int ok) (char * why) (size_t whylen)) (out int))))
   (decl) (func coco_m_new_float ((coco_engine * e) (double v)) (out size_t))
   (decl) (func coco_m_new_atom ((coco_engine * e) (const char * s)) (out size_t))
 
@@ -1436,11 +1440,12 @@
   ;;; every out-of-tree embedder and every test binary leaves them.
   (static) (var func coco_m_kb_open ((coco_machine * m) (coco_store * st)
                                      (void ** ctx)) (out int) . nil)
-  (static) (var func coco_m_kb_close ((void * ctx) (int ok)) . nil)
+  (static) (var func coco_m_kb_close ((void * ctx) (int ok) (char * why) (size_t whylen))
+                (out int) . nil)
 
   (func coco_m_kb_install
         ((func open ((coco_machine * m) (coco_store * st) (void ** ctx)) (out int))
-         (func close ((void * ctx) (int ok))))
+         (func close ((void * ctx) (int ok) (char * why) (size_t whylen)) (out int)))
         (set coco_m_kb_open open)
         (set coco_m_kb_close close))
 
@@ -1502,9 +1507,17 @@
                  (block (if (!= err nil) (snprintf err errlen "%s" ($ e err)))
                         (set out -1)))))
           ;; COMMIT OR ROLL BACK BEFORE THE STORE GOES, and tell it which:
-          ;; `out' is 1 only when the goal actually proved.
+          ;; `out' is 1 only when the goal actually proved. A commit the
+          ;; knowledge base refused is the run's error (3.62.6), in the
+          ;; knowledge base's words: nothing the goal wrote was kept.
           (if (!= coco_m_kb_close nil)
-              (coco_m_kb_close kb (? (== out 1) 1 0)))
+              (let ((char why [256]))
+                (set (nth 0 why) (cast char 0))
+                (if (and (not (coco_m_kb_close kb (? (== out 1) 1 0) why 256)) (== out 1))
+                    (block
+                      (if (!= err nil)
+                          (snprintf err errlen "the knowledge base refused the commit: %s" why))
+                      (set out -1)))))
           (coco_engine_free (aof e))
           (coco_store_free (aof st))
           (coco_machine_free (aof m))
