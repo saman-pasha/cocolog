@@ -1677,30 +1677,42 @@
         ;; which bound a call's variable where swipl's raises, and ordsets.pl's
         ;; predicates beside library(lists)'s stand-ins answered every solution
         ;; twice or more.
-        (if (and (coco_is_callable m clause) (== (coco_arity m clause) 2)
-                 (== 0 (strcmp (coco_atom_name m (coco_name_of m clause)) "=>")))
-            (let ((size_t lh . #'(coco_deref m (coco_arg m clause 0))) (size_t gd . 0) (int hasg . 0)
-                  (size_t rest . #'(coco_make2 m "," (coco_new_atom m "!") (coco_arg m clause 1))))
-              (if (and (coco_is_callable m lh) (== (coco_arity m lh) 2)
-                       (== 0 (strcmp (coco_atom_name m (coco_name_of m lh)) ",")))
-                  (block (set gd (coco_arg m lh 1)) (set hasg 1)
-                         (set lh (coco_deref m (coco_arg m lh 0)))))
-              (if hasg (set rest (coco_make2 m "," gd rest)))
-              (set clause (coco_make2 m ":-" lh (coco_make2 m "," (coco_new_atom m "$ssu") rest)))))
+        ;; THE CLAUSE'S QUALIFIERS COME OFF FIRST (3.64.8), so that a rule
+        ;; under one is a rule, and the head's after it, below: through
+        ;; 3.64.7 one qualifier came off the clause and its head's only
+        ;; where the clause had none, so `user:(z(a) => true)' was a fact
+        ;; of (=>)/2 and `user:user:w(1)' and `user:(user:y(1) :- true)'
+        ;; clauses of (:)/2. The innermost module named is the one a hook's
+        ;; head is asked of (`coco_hook_head').
+        (if (not (-> m ids_ready)) (coco_ids_fill m))
+        (let ((size_t qmod . 0) (int hasq . 0))
+          (coco-unqualify clause qmod hasq)
+          (if (and (coco_is_callable m clause) (== (coco_arity m clause) 2)
+                   (== 0 (strcmp (coco_atom_name m (coco_name_of m clause)) "=>")))
+              (let ((size_t lh . #'(coco_deref m (coco_arg m clause 0))) (size_t gd . 0) (int hasg . 0)
+                    (size_t rest . #'(coco_make2 m "," (coco_new_atom m "!") (coco_arg m clause 1))))
+                (if (and (coco_is_callable m lh) (== (coco_arity m lh) 2)
+                         (== 0 (strcmp (coco_atom_name m (coco_name_of m lh)) ",")))
+                    (block (set gd (coco_arg m lh 1)) (set hasg 1)
+                           (set lh (coco_deref m (coco_arg m lh 0)))))
+                (if hasg (set rest (coco_make2 m "," gd rest)))
+                (set clause (coco_make2 m ":-" lh (coco_make2 m "," (coco_new_atom m "$ssu") rest)))))
 
-        ;; A MODULE-QUALIFIED HEAD IS STRIPPED HERE. cocolog has one
-        ;; namespace, so `error:has_type(T, X) :- B' can only mean
-        ;; `has_type(T, X) :- B' -- and a vendored SWI file is entitled to the
-        ;; qualified spelling (assoc.pl extends error:has_type/2 that way).
-        ;; The clause TERM is rebuilt rather than just the predicate choice,
-        ;; because the stored head has to unify with unqualified calls.
-        (let ((size_t qh) (size_t qb))
-          (coco_clause_parts m clause (aof qh) (aof qb))
-          (set qh (coco_deref m qh))
-          (if (and (coco_is_callable m qh) (== (coco_arity m qh) 2)
-                   (== 0 (strcmp (coco_atom_name m (coco_name_of m qh)) ":")))
-              (let ((size_t inner . #'(coco_hook_head m (coco_arg m qh 0) (coco_arg m qh 1))))
-                (set clause (? (== qb 0) inner (coco_make2 m ":-" inner qb))))))
+          ;; A MODULE-QUALIFIED HEAD IS STRIPPED HERE. cocolog has one
+          ;; namespace, so `error:has_type(T, X) :- B' can only mean
+          ;; `has_type(T, X) :- B' -- and a vendored SWI file is entitled to
+          ;; the qualified spelling (assoc.pl extends error:has_type/2 that
+          ;; way). The clause TERM is rebuilt rather than just the predicate
+          ;; choice, because the stored head has to unify with unqualified
+          ;; calls; where only the clause was qualified it is the clause.
+          (let ((size_t qh) (size_t qb) (size_t h0))
+            (coco_clause_parts m clause (aof qh) (aof qb))
+            (set qh (coco_deref m qh))
+            (set h0 qh)
+            (coco-unqualify qh qmod hasq)
+            (if hasq (set qh (coco_hook_head m qmod qh)))
+            (if (!= qh h0)
+                (set clause (? (== qb 0) qh (coco_make2 m ":-" qh qb))))))
 
         ;; the head decides which predicate this belongs to
         (let ((size_t head . clause) (int claim . 0) (size_t src . clause))

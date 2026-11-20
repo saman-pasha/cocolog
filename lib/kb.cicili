@@ -95,6 +95,20 @@
                   (snprintf (-> st write_err) 256 "%s" "the knowledge base refused the write"))
               (return -2))))
 
+;;; TERM'S MODULE QUALIFIERS OFF (3.64.8), as one namespace reads them:
+;;; TERM, a variable of the caller's, stepped past each `M:' it begins with,
+;;; MOD the innermost module and HASQ set where there was one. An assert
+;;; takes the clause's off and then its head's (`coco_assert_from',
+;;; `coco_assert_goal'). M is the machine in scope, its ids filled
+;;; (`ids_ready'): `:'/2 is told by its functor id, as `coco-is-colon'
+;;; tells it -- by its name, a strcmp of every clause a start reads, the
+;;; first cut cost a start 59 837 instructions.
+(DEFMACRO coco-unqualify (term mod hasq)
+  `(while (coco-is-colon m ,term (coco-fid m ":" 2))
+     (set ,mod (coco_arg m ,term 0))
+     (set ,hasq 1)
+     (set ,term (coco_deref m (coco_arg m ,term 1)))))
+
 ;;; CLAUSE I OF P LIVE AGAIN, its death taken back (`coco_tomb_set''s
 ;;; inverse): a frame the death was stamped on sees the next as its first
 ;;; (`coco_tomb_open'), which it lives through

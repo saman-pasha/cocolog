@@ -2347,6 +2347,21 @@ cocolint index offers no import of it.
   body shows a rule through `coco_ssu_body` (clause/2's) or
   `coco_ssu_rule` (listing/1's) and hides the last clause**, as
   predicate_property/2's count does.
+* **A clause's qualifiers all come off before its head is read** (3.64.8,
+  `coco-unqualify` in lib/kb.cicili; test/files/assert_qualified.pl): the
+  clause's first -- so a rule under one is a rule -- then its head's,
+  every one, in the store (`coco_assert_from`, a load's and an assert's)
+  and in the dynamic mark an assert makes (`coco_assert_goal`), the
+  innermost module the one `coco_hook_head` asks (a file's `prolog:(message(
+  ...) :- B)` is the hook). Through 3.64.7 the store took one qualifier off
+  and the head's only where the clause had none: `user:(z(a) => true)` was
+  a fact of (=>)/2, `user:user:w(1)` and `user:(user:y(1) :- true)` clauses
+  of (:)/2, and every qualified assert marked (:)/2 dynamic, so
+  `assertz(user:u(1))` left u/1 static. **A new reader of what a clause is
+  filed under walks the qualifiers the same way**, `:`/2 told by its
+  functor id (`coco-is-colon`, the machine's ids filled first): told by
+  its name, a strcmp of every clause a start reads, the walk cost a start
+  59 837 instructions.
 * **A clause is stored as swipl's compiler keeps it** (3.15.0,
   `coco_clause_compile` in lib/kb-consult.cicili, at every assert,
   consult and read of a stored clause, so clause/2, listing/1 and

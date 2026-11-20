@@ -20899,3 +20899,70 @@ THE RUN: the lint case first, then store-lock, files, errors, argv,
 engine, reconsult, async, thread, gc, script, units, stream, repl,
 journal, directives and trace, each alone, green with no SKIP. The card
 check passes.
+
+## A clause under qualifiers is filed under its head (3.64.8)
+
+FOUND ON 3.64.7'S WAY, in the dynamic mark its rule asserts made: what an
+assert or a load files a clause under, when the clause is module-qualified.
+cocolog has one namespace, so a qualifier on a clause -- on the whole of
+it, on its head, or both, nested or not -- names the predicate its head
+names. Through 3.64.7 the store took one qualifier off the clause, and the
+head's only where the clause had none:
+
+- `assertz(user:user:w(1))` and `assertz(user:(user:y(1) :- true))` were
+  clauses of (:)/2, so w/1 and y/1 did not exist;
+- `assertz(user:(z(a) => true))` was a fact of (=>)/2, never a rule, since
+  the rule's conversion ran before the clause's qualifier came off;
+- a file's `prolog:(message(qa_two, ...) :- true)` was message/3's, no
+  hook: `print_message(error, qa_two)` said `Unknown message`;
+- and every qualified assert marked (:)/2 dynamic, so `assertz(user:u(1))`
+  left u/1 static, and listing/1 wrote no `:- dynamic` for it.
+
+test/files/assert_qualified.pl holds 51 lines to swipl 9.0.4, the
+qualifiers `user`, where swipl's modules and cocolog's namespace file a
+clause alike. 3.64.7 differed from swipl at 43 of them.
+
+THE RULES, each its own arm (one build each, below):
+
+- Q1 the clause's qualifiers come off first (`coco-unqualify` in
+  `coco_assert_from`), so a rule under one is converted as a rule.
+- Q2 every qualifier of its head comes off after them, not the first alone.
+- H the innermost module named, the clause's where its head has none, is
+  the one `coco_hook_head` asks.
+- D2 an assert's dynamic mark falls on the head the store files the clause
+  under (`coco_assert_goal`, the same walk).
+
+ARMS: each one build of the final tree with its rule out, run on the
+case:
+
+- Q1: 11 of the 51 lines differ: `user:(z(a) => true)` and
+  `user:(user:r(a) => true)` facts of (=>)/2 (z(a) and r(a) unknown),
+  `user:(user:y(1) :- true)` a clause of (:)/2, and the file's
+  `prolog:(message(qa_two, ...) :- true)` no hook (`Unknown message:
+  qa_two`).
+- Q2: 1 line: `(user:user:x2(1) :- true)` filed under (:)/2, so x2(1),
+  made dynamic by the assert's own walk, failed.
+- H: 1 line: the hook under the clause's qualifier, `Unknown message:
+  qa_two`.
+- D2: 20 lines: no qualified assert's predicate dynamic, and listing/1
+  writing no `:- dynamic` for any of them.
+
+The arms were first built on the first cut, whose walk told `:`/2 by its
+name; rebuilt on the final code, each is red on the same lines.
+
+WHAT IT COSTS: tools/flow/zero.sh against 3.64.7, work less padding:
+nrev 66 124 463, queens 39 970 162 and lookup 48 075 450 instructions,
+each 3.64.7's to the instruction. A start (`cocolog query true`, each
+binary at the checkout's path) counts 545 more, 35 225 485 against
+35 224 940: libc's strcmp 11 087 fewer (3.64.7's own test of a head for
+`:`/2 was a strcmp), `coco_assert_from` 10 440 more for the walk. The
+first cut told `:`/2 by its name
+(`coco_is_compound2`), a strcmp of every clause a start reads, and cost a
+start 59 837 instructions (strcmp 23 523 of them); the walk tells it by
+the functor id the machine interns (`coco-is-colon`), its ids filled
+first.
+
+THE RUN: the lint case first, then files, directives, errors, reconsult,
+engine, library, store-lock, module, solve, script, trace, repl and argv,
+each alone, green with no SKIP. The card check passes, its cite I1 moved
+by hand to the lines the new macro moved it to.

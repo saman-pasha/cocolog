@@ -317,11 +317,20 @@
           ;; assert had retracted the last clause, and listing/1 wrote no
           ;; `:- dynamic' for one rule). A guard's `(H, G) => B' never comes
           ;; here: the check above refuses it, a clause of `,'/2 to swipl's
-          ;; assert as to cocolog's.
-          (if (and (coco_is_callable m c) (== (coco_arity m c) 2))
-              (if (or (== 0 (strcmp (coco_atom_name m (coco_name_of m c)) ":-"))
-                      (== 0 (strcmp (coco_atom_name m (coco_name_of m c)) "=>")))
-                  (set head (coco_deref m (coco_arg m c 0)))))
+          ;; assert as to cocolog's. EVERY QUALIFIER COMES OFF as the store
+          ;; takes them off (3.64.8, `coco_assert_from'): the clause's, then
+          ;; its head's, and a hook's head is the hook's. Through 3.64.7 any
+          ;; qualified clause marked (:)/2, and `assertz(user:u(1))' left
+          ;; u/1 static.
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
+          (let ((size_t hm . 0) (int hq . 0))
+            (coco-unqualify head hm hq)
+            (if (and (coco_is_callable m head) (== (coco_arity m head) 2)
+                     (or (== 0 (strcmp (coco_atom_name m (coco_name_of m head)) ":-"))
+                         (== 0 (strcmp (coco_atom_name m (coco_name_of m head)) "=>"))))
+                (block (set head (coco_deref m (coco_arg m head 0)))
+                       (coco-unqualify head hm hq)))
+            (if hq (set head (coco_hook_head m hm head))))
           ;; A REFUSAL THE STORE CAN EXPLAIN IS AN EXCEPTION, not a failure.
           ;; `coco_assert' runs below the engine and has no ball to throw, so
           ;; it leaves a sentence behind instead -- today, a clause too long
