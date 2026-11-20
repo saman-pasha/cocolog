@@ -294,6 +294,18 @@ fixtures(op_reduce, Sandbox) :- !,
                  'o1zg([a, - .',
                  'o1zh :- ( a , dynamic .',
                  'o1zz(2).' ]).
+%% a FIFO a case reads and a writer for each, which waits for the reader's
+%% open (3.64.5): its bytes as printf(1)'s format writes them, the writer
+%% given twenty seconds and nothing to say, so that a run that never opens
+%% one leaves no process waiting for ever
+fixtures(fifo_read, Sandbox) :- !,
+    forall(member(Name-Bytes,
+                  [ plain-'x.\\ny.\\nzz.\\n', bom8-'\\357\\273\\277x.\\n', two-'a.', one-'a',
+                    empty-'', le_bom-'\\377\\376x\\000.\\000\\n\\000',
+                    le_nobom-'\\376\\000.\\000\\n\\000', be_bom-'\\376\\377\\000x\\000.\\000\\n',
+                    chars-'ab', nobom-'x.\\ny.\\n' ]),
+           shl(['cd ', Sandbox, ' && mkfifo ', Name, ' && ( timeout 20 sh -c "printf ''', Bytes,
+                ''' > ', Name, '" > /dev/null 2>&1 & )'])).
 fixtures(_, _).
 
 %% what makes a file read once a source file, as swipl's, and what leaves it

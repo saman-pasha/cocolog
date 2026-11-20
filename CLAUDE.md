@@ -4358,10 +4358,19 @@ cocolint index offers no import of it.
   them**, or it is UTF-8 whatever the stream says. Since 3.58.0 swipl's
   MIME names (`'UTF-8'`, `'ISO-8859-1'`, `'UTF-16BE'`, `'UTF-16LE'`) open
   and set a stream, and stream_property/2 answers swipl's own name for an
-  alias (`utf16be` for `unicode_be`, `stream_enc_name`). `''/7`
-  takes the encoding and the BOM; `set_stream/2` is `''/5`
-  (`:PI` rows, both); the console's position is the engine's
-  (`coco_out_note` counts user_output and user_error as one, read by
+  alias (`utf16be` for `unicode_be`, `stream_enc_name`). `'$stream_open'/7`
+  takes the encoding and the BOM; `set_stream/2` is `'$stream_set'/5`
+  (`:PI` rows, both). **A stream with no place to seek to gives back
+  what the open peeked with ungetc(3)** (3.64.5, `st_bom_read`): a text
+  read's BOM check reads three bytes, and a pipe, a FIFO, a socket or a
+  terminal (`st_block`) cannot seek back -- through 3.64.4 the fseek(3)
+  failed there and the bytes were lost, so a new peek at such a stream
+  gives its bytes back the last first, never by a seek, and asks each
+  ungetc: a byte the buffer no longer holds takes glibc a backup area of
+  128 bytes, and its refusal is resource_error(memory), the slot given
+  back (`st-slot-clear`; test/stream.pl's `pushback_refused`). The console's
+  position is the engine's (`coco_out_note` counts user_output and
+  user_error as one, read by
   `coco_m_out_where`). Not swipl's: `text` is UTF-8, swipl's `io_warning`
   for a malformed unit is not said, and a quoted write of a character past
   255 into a binary stream raises where swipl's escapes it (COMPAT.md).

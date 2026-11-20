@@ -39,6 +39,7 @@ main :-
     read_positions(D),
     codes(D),
     sinks,
+    pushback_refused(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -598,3 +599,86 @@ sinks :-
     proc_run(Cmd2, 60000, Out2, _),
     ( re_first_atom('plain', Out2, _), re_first_atom('answer\\([^\n]*\\)', Out2, A2) -> sub_atom(A2, 7, _, 1, G2) ; G2 = Out2 ),
     check('format/2 still prints, and atom(A) still captures, with no module loaded', G2, a).
+
+%% ---- a pushback with no memory for it (3.64.5) ------------------------------
+%%
+%% A FIFO has no place to seek to, so the BOM check a text read makes at its
+%% open gives the bytes it read back with ungetc(3), and a byte the FILE's
+%% buffer no longer holds -- a read that came to the end of what was there,
+%% as one of a FIFO holding a single byte does -- goes into a backup area
+%% glibc allocates, 128 bytes. test/refuse.c refuses each request of 128
+%% bytes such an open makes, in turn, each in a directory of its own with a
+%% writer of one byte: every run must read that byte and then end_of_file,
+%% or say why it could not -- open/3's resource_error(memory), another
+%% refusal's, fopen(3)'s existence_error as swipl's pl-error.c makes it, or
+%% the end a host out of memory comes to (exit 2, nothing printed) -- and
+%% the pushback's own refusal must be among them. The first cut of 3.64.5
+%% asked nothing of the ungetc, and the run whose pushback was refused read
+%% end_of_file at once.
+pushback_refused(D) :-
+    section('a pushback with no memory for it'),
+    shell('uname -s', Sys, _),
+    shell('getconf GNU_LIBC_VERSION 2>/dev/null', Libc, _),
+    (   ( Sys == 'Darwin' ; \+ sub_atom(Libc, 0, _, _, glibc) )
+    ->  format("   SKIP (test/refuse.c interposes glibc's allocator)~n", [])
+    ;   ( exists_file('tools/cc/cc') -> Compiler = 'tools/cc/cc' ; Compiler = clang ),
+        sh_join(['command -v ', Compiler, ' >/dev/null 2>&1 || test -x ', Compiler], HaveCc),
+        (   sh_exit(HaveCc, 0)
+        ->  path(D, pb, Dir),
+            shl(['mkdir -p ', Dir]),
+            path(Dir, 'refuse.so', Shim),
+            sh_join([Compiler, ' -shared -fPIC -O3 -o ', Shim, ' test/refuse.c 2>&1'], Cc),
+            shell(Cc, Why, CcExit),
+            check('test/refuse.c compiles', CcExit-Why, 0-''),
+            (   CcExit =:= 0
+            ->  path(Dir, 'pb.pl', File), pb_fixture(File),
+                path(Dir, 'pb.sh', Sweep), pb_sweep(Sweep),
+                cocolog(C),
+                sh_join(['sh ', Sweep, ' ', C, ' ', Shim, ' ', File], Cmd),
+                shell(Cmd, Out, _, 300000),
+                check('each request of 128 bytes refused in turn: the byte read, or why not said', Out, clean)
+            ;   true
+            )
+        ;   format("   SKIP (no C compiler for test/refuse.c)~n", [])
+        )
+    ).
+
+%% the program: one line, what the open and two reads of `f' came to
+pb_fixture(Path) :-
+    fixture(Path,
+            [ ':- use_module(library(stream)).',
+              'rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
+              'pb_said(O, S) :- O == opened, !, get_char(S, C1), get_char(S, C2), close(S), writeq(read(C1, C2)).',
+              'pb_said(error(resource_error(memory), context(system:open/3, _)), _) :- !, write(''memory(open)'').',
+              'pb_said(error(resource_error(memory), _), _) :- !, write(memory).',
+              'pb_said(error(existence_error(source_sink, f), context(_, ''Cannot allocate memory'')), _) :- !, write(existence).',
+              'pb_said(O, _) :- writeq(caught(O)).',
+              'main :- rf_mark(''REFUSE_ON''), catch(( open(f, read, S), O = opened ), E, O = E), rf_mark(''REFUSE_OFF''), pb_said(O, S), nl.' ]).
+
+pb_sweep(Path) :-
+    fixture(Path,
+            [ '# pb.sh COCOLOG SHIM FILE: `COCOLOG run FILE main'' once for each request',
+              '# of 128 bytes it makes between its marks, that one refused, in a',
+              '# directory of its own whose FIFO `f'' a writer puts one byte into: a',
+              '# writer left over from a run that never opened its FIFO opens no other.',
+              '# Prints clean when every run said one of the answers allowed and one',
+              '# of them memory(open), else what was wrong.',
+              'c=$1; shim=$2; f=$3; d=$(dirname "$f")',
+              'fifo() { mkdir -p "$d/fifo$1" && cd "$d/fifo$1" && mkfifo f && ( timeout 20 sh -c ''printf a > f'' > /dev/null 2>&1 & ); }',
+              'fifo 0',
+              'n=$( REFUSE_REPORT=1 REFUSE_SIZE=128 LD_PRELOAD=$shim $c --local run $f main 2>&1 >/dev/null | sed -n ''s/^REFUSE count //p'' )',
+              '[ -n "$n" ] && [ "$n" -gt 0 ] || { echo nocount; exit 0; }',
+              'bad=""; seen=0; i=1',
+              'while [ $i -le $((n + 2)) ]; do',
+              '  fifo $i',
+              '  o=$( timeout 30 env REFUSE_N=$i REFUSE_SIZE=128 LD_PRELOAD=$shim $c --local run $f main 2>/dev/null ); x=$?',
+              '  case "$o $x" in',
+              '    "read(a,end_of_file) 0"|"memory 0"|"existence 0"|" 2") ;;',
+              '    "memory(open) 0") seen=1;;',
+              '    *) bad="$bad #$i:$o $x";;',
+              '  esac',
+              '  i=$((i + 1))',
+              'done',
+              'if [ -n "$bad" ]; then echo "wrong of $n:$bad" | cut -c1-400',
+              'elif [ $seen = 1 ]; then echo clean',
+              'else echo "no memory(open) of $n"; fi' ]).

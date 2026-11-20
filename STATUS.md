@@ -20443,7 +20443,7 @@ not 5.
 FOUND ON THE WAY, not fixed here: library(stream)'s BOM check reads three
 bytes and puts them back with fseek(3), which fails on a pipe or a FIFO,
 so `open(F, read, S)` of a FIFO loses its first three bytes, and a read of
-`x.` from one answers end_of_file. It is the next change.
+`x.` from one answers end_of_file. It is the next change (3.64.5).
 
 LIBRARY(HTTPD)'S ACCEPTOR. Its green pool polls its accept, `accept_poll`
 milliseconds (2 by default), and the poll was what bounded the barrier:
@@ -20469,3 +20469,91 @@ binaries, each alone, every one green with no SKIP; stream, curl, httpd
 and async again alone once their modules and the case stood as they ship.
 Lesson 16 (httpd) alone. The card check passes. test/async.pl's
 `foreign_waits` adds 25 s to the case (195 s).
+
+## A stream that cannot seek keeps the bytes its BOM check read (3.64.5)
+
+LIBRARY(STREAM)'S BOM CHECK LOST WHAT IT READ OF A STREAM WITH NO PLACE
+TO SEEK TO (found by 3.64.4's `foreign_waits`). A text read in UTF-8 or
+UTF-16 looks for a BOM at its open, as swipl's ScheckBOM() does:
+`st_bom_read` reads three bytes with fread(3) and seeks to the first byte
+past the BOM, the start where there is none. A pipe, a FIFO, a socket and
+a terminal have no place to seek to: the fseek(3) failed with ESPIPE, the
+FILE's buffer emptied by then, and the three bytes were gone. So through
+3.64.4 a FIFO's `x. y. zz.` read as y and zz, `a.` and `a` as end_of_file,
+`ab` read by get_char/2 as nothing, and a UTF-16 text lost the character
+after its BOM (`FF FE`, then `x` and its NUL: the read began at the NUL, a
+syntax error). Now a stream `st_block` names -- 3.64.4's flag, what
+fstat(2) at the open calls a FIFO, a socket or a character device -- gives
+the bytes past the BOM back to its FILE with ungetc(3), the last first; a
+file seeks as before. C promises a single byte of pushback; glibc and the
+BSDs give back as many as were just read, the bytes still in the buffer.
+
+THE CHECK, test/files/fifo_read.pl, held to swipl 9.0.4: ten FIFOs, each
+made in the sandbox with a writer that waits for the program's open
+(test/files.pl's fixture), each opened once and read to its end, and its
+`bom` property: three clauses; a UTF-8 BOM and a clause; two bytes, one,
+none; UTF-16LE with its BOM, without it (`encoding(utf16le)`), UTF-16BE
+with it (`encoding(utf16be)`); two characters by get_char/2; and three
+clauses under `bom(false)`, which looks for none. 3.64.4's stream.so,
+the fseek alone, differs from swipl on seven of the ten lines:
+
+    plain: y zz end_of_file bom none
+    two: end_of_file bom none
+    one: end_of_file bom none
+    le_bom: err(syntax_error(end_of_file)) bom true
+    le_nobom: err(syntax_error(end_of_file)) bom none
+    be_bom: err(syntax_error(end_of_file)) bom true
+    chars: bom none
+
+where 3.64.5 reads as swipl:
+
+    plain: x y zz end_of_file bom none
+    two: a end_of_file bom none
+    one: err(syntax_error(end_of_file)) bom none
+    le_bom: x end_of_file bom true
+    le_nobom: codes([254]) end_of_file bom none
+    be_bom: x end_of_file bom true
+    chars: a b bom none
+
+A UTF-8 BOM (its three bytes all taken off), an empty FIFO and
+`bom(false)` read the same on both.
+
+A PUSHBACK WITH NO MEMORY FOR IT. A byte the FILE's buffer still holds
+goes back by a step of its pointer, but one it no longer holds -- a read
+that came to the end of what was there, as the FIFO of one byte's second
+read does -- goes into a backup area glibc allocates, 128 bytes, and the
+first cut asked nothing of the ungetc: test/refuse.c refusing each request
+of 128 bytes such an open makes, in turn (45 here), the 34th was the
+backup area's, and that run read end_of_file at once. `st_bom_read`
+answers -1 there, and the open gives the slot back (`st-slot-clear`, the
+close's own lines made a macro both call) and raises
+error(resource_error(memory), context(system:open/3, _)). By hand, every
+request of the open refused in turn (165), once: 161 runs read the byte,
+the pushback's (the 122nd) raised from open/3, a heap growth given less
+raised resource_error(memory), fopen(3)'s own refusal was
+existence_error(source_sink, f) with `Cannot allocate memory' -- swipl's
+pl-error.c makes that of any errno but its four -- and unify's stack of
+pairs, which asks once, ended the run as a host out of memory ends (exit
+2, nothing printed); twice in a row, 116 read, 45 ended so, 3 were
+fopen(3)'s and one the pushback's. No run read end_of_file first.
+test/stream.pl's `pushback_refused` sweeps the requests of 128 bytes,
+each run in a directory of its own with a writer of one byte, and allows
+those answers alone, the pushback's among them.
+
+RULES, each taken out alone (one build of stream.so each):
+- B1 the bytes given back (3.64.4's stream.so, the fseek alone): fifo_read
+  differs from swipl on its seven lines, and every run of
+  `pushback_refused` reads end_of_file first;
+- B2 the ungetc's answer asked: `pushback_refused` red on its 34th run,
+  read(end_of_file,end_of_file); fifo_read green.
+
+WHAT IT COSTS: an open for a text read asks the slot's flag once; the
+reads are 3.64.4's, and the binary changes its version alone.
+
+FOUND ON THE WAY, not fixed here: an open with bom(true) whose BOM the
+write refuses (`st_emit` raising) returns its error with the slot still
+taken and its FILE open, which nothing gives back.
+
+THE RUN: the lint case first, then files (fifo_read with the rest of
+test/files/), stream, units, errors, journal and async each alone, green
+with no SKIP; lesson 48 (stream) alone. The card check passes.

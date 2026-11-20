@@ -645,6 +645,17 @@
      ,@body
      (if (!= (nth ,s st_block) 0) (coco_g_foreign_end))))
 
+;;; A slot given back: its FILE closed and its path freed -- a close's, and
+;;; an open's that cannot hand the program the stream it opened (3.64.5).
+(DEFMACRO st-slot-clear (s)
+  `(block
+     (fclose (nth ,s st_file))
+     (set (nth ,s st_file) nil)
+     (set (nth ,s st_kind) 0)
+     (set (nth ,s st_mode) 0)
+     (set (nth ,s st_npush) 0)
+     (if (!= (nth ,s st_path) nil) (block (free (nth ,s st_path)) (set (nth ,s st_path) nil)))))
+
 ;;;; ------------------------------------------------------------------
 ;;;; The C half
 ;;;; ------------------------------------------------------------------
@@ -1253,9 +1264,19 @@
   ;;; A BOM at the start of the file is taken off, and sets the encoding --
   ;;; UTF-8's, UTF-16 big-endian's or little-endian's; the bytes it took are
   ;;; counted, as swipl counts them, and no character. Anything else is put
-  ;;; back where it was.
+  ;;; back where it was: by a seek in a file, and in a stream with no place
+  ;;; to seek to -- a pipe, a FIFO, a socket, a terminal (`st_block') --
+  ;;; into the FILE with ungetc(3), the last byte first, so that the next
+  ;;; read takes them again (3.64.5). glibc and the BSDs give back as many
+  ;;; bytes as were just read, where C promises one. Through 3.64.4 the seek
+  ;;; failed there and the three bytes were lost: a FIFO's `x.' read as
+  ;;; end_of_file, and `x. y.' as y, where swipl reads x. A byte the FILE's
+  ;;; buffer no longer holds -- a read that came to the end of what was
+  ;;; there -- goes into a backup area glibc allocates, 128 bytes, and a
+  ;;; refused one answers -1: the byte is in no buffer any more, and the
+  ;;; open gives the slot back and raises resource_error(memory).
   (static)
-  (func st_bom_read ((int s)) (out void)
+  (func st_bom_read ((int s)) (out int)
         (let ((FILE * f . #'(nth s st_file)) (u8 h [4]) (size_t got . 0) (int len . 0) (int enc . -1))
           (set got (fread h 1 3 f))
           (cond ((and (>= got 3) (and (== (nth 0 h) 239) (and (== (nth 1 h) 187) (== (nth 2 h) 191))))
@@ -1264,12 +1285,16 @@
                  (set len 2) (set enc 7))
                 ((and (>= got 2) (and (== (nth 0 h) 255) (== (nth 1 h) 254)))
                  (set len 2) (set enc 8)))
-          (fseek f (cast long len) SEEK_SET)
-          (if (< enc 0) (return))
+          (if (!= (nth s st_block) 0)
+              (for ((int i . #'(- (cast int got) 1))) (>= i len) ((-- i))
+                   (if (== (ungetc (cast int (nth i h)) f) EOF) (return -1)))
+              (fseek f (cast long len) SEEK_SET))
+          (if (< enc 0) (return 0))
           (st_set_enc s enc)
           (set (nth s st_bom) 1)
           (set (nth s st_bomlen) len)
-          (set (nth s st_nb) (cast i64 len))))
+          (set (nth s st_nb) (cast i64 len))
+          (return 0)))
 
   ;;; ---- open, close, the table ----
   ;;;
@@ -1340,7 +1365,13 @@
           (st_pos_reset s)
           (if (and (== kind 1) (and (!= bom 0) (st_bom_enc (cast int enc))))
               (block
-                (if (== mode 1) (st-away s (st_bom_read s)))
+                (if (== mode 1)
+                    (let ((int pb . 0))
+                      (st-away s (set pb (st_bom_read s)))
+                      (if (< pb 0)
+                          (block
+                            (st-slot-clear s)
+                            (return (coco_m_resource_error e "memory"))))))
                 (if (and (== mode 2) (== bom 1))
                     (let ((char m [8]) (int k . #'(coco_m_utf8_enc m 65279)))
                       (set (nth s st_bom) 1)
@@ -1356,12 +1387,7 @@
           (if (== s st_cur_out) (st_restore_output))
           (if (== s st_cur_in) (set st_cur_in 0))
           (if (!= (nth s st_alias) nil) (block (free (nth s st_alias)) (set (nth s st_alias) nil)))
-          (fclose (nth s st_file))
-          (set (nth s st_file) nil)
-          (set (nth s st_kind) 0)
-          (set (nth s st_mode) 0)
-          (set (nth s st_npush) 0)
-          (if (!= (nth s st_path) nil) (block (free (nth s st_path)) (set (nth s st_path) nil)))
+          (st-slot-clear s)
           (return 1)))
 
   ;;; Is this slot open? Answers by failing, which is what the Coco half
