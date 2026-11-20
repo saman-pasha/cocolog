@@ -1445,11 +1445,74 @@
                 (#t (set md (coco_new_atom_id m (- mod 1)))))
           (return (coco_make2 m ":-" h (coco_make2 m "$ssu_none" md g)))))
 
-  ;;; AN ASSERT KEEPS THE LAST CLAUSE LAST: the one there goes and a new one
-  ;;; is put after the rule just added, wherever that went
-  (func coco_ssu_keep_last ((coco_store * st) (coco_machine * m) (size_t pi))
-        (coco_retract st m (coco_ssu_last st m pi (cast u64 -1)))
-        (coco_assert_from st m (coco_ssu_last st m pi 0) 1 0 nil 0 nil))
+  ;;; WHERE THE RULES' LAST CLAUSE STANDS (3.64.7): the index of PI's last
+  ;;; live clause where that is `H :- '$ssu_none'(M, G)', else -1
+  (static)
+  (func coco_ssu_last_ix ((coco_store * st) (coco_machine * m) (size_t pi)) (out size_t)
+        (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi)))
+              (size_t i . #'(-> p nclauses))
+              (size_t mark . #'(-> m heap_len))
+              (size_t at . #'(cast size_t -1)))
+          (while (> i 0)
+            (set i (- i 1))
+            (if (not (coco_pred_dead p i))
+                (let ((size_t t . #'(coco_deref m (coco_store_get m st (nth i (-> p clauses))))))
+                  (if (and (coco_is_compound2 m t ":-")
+                           (coco_is_compound2 m (coco_deref m (coco_arg m t 1)) "$ssu_none"))
+                      (set at i))
+                  break)))
+          (set (-> m heap_len) mark)
+          (return at)))
+
+  ;;; A PROGRAM'S RULE PUT IN WITH THE LAST CLAUSE AFTER IT, ONE CHANGE OF
+  ;;; THE PREDICATE, which the backend hears once (3.64.7; `coco_assert_from'
+  ;;; tells it). Through 3.64.6 the rule was added, the last clause retracted
+  ;;; and another asserted after it, three writes a knowledge base could
+  ;;; refuse apart: two refused left the program with no last clause where
+  ;;; the database held the old one before the rule, and a goal the rule
+  ;;; matched raised existence_error(matching_rule, G) in the next process.
+  ;;; LX is where the last clause stands (`coco_ssu_last_ix'), -1 for none.
+  ;;; The answer is the shape the change took, which a refusal takes back
+  ;;; (`coco_assert_take_back'):
+  ;;;   1  an assertz before the last clause (`coco_pred_insert_at', the
+  ;;;      calls open at or past it moved on);
+  ;;;   2  an assertz where a call open on PI has the last clause still to
+  ;;;      try (`coco_frames_on' act 3), and so would see a rule before it:
+  ;;;      the last clause dies where it stands -- a death the open calls
+  ;;;      live through -- and the rule and a copy of it go after the last;
+  ;;;   3  an assertz with no last clause: the rule, and a new one after it;
+  ;;;   4  an asserta with no last clause: the rule first, a new one last;
+  ;;;   0  no room, nothing changed.
+  ;;; An asserta where the last clause stands is an asserta.
+  (static)
+  (func coco_ssu_add ((coco_store * st) (coco_machine * m) (size_t pi) (size_t lx) (int at_end)
+                      (size_t clause) (u64 key) (u64 origin) (int muted)) (out int)
+        (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi)))
+              (size_t mark . #'(-> m heap_len))
+              (size_t last . 0) (u64 lkey . 0) (u64 lorig . 0) (int lmut . muted) (u32 era . 0))
+          (if (and (!= lx (cast size_t -1)) (== 0 (coco_frames_on m st pi 3 0 lx)))
+              (return (? (coco_pred_insert_at st m pi lx clause key origin muted) 1 0)))
+          ;; the last clause to go after the rule: the one there, copied --
+          ;; its module, its origin and its mute -- or a new one
+          (if (!= lx (cast size_t -1))
+              (block (set last (coco_store_get m st (nth lx (-> p clauses))))
+                     (set lkey (nth lx (-> p keys)))
+                     (set lorig (nth lx (-> p origins)))
+                     (set lmut (nth lx (-> p muted))))
+            (block (set last (coco_ssu_last st m pi 0))
+                   (set lkey (coco_arg_key m (coco_deref m (coco_arg m last 0))))))
+          (if (not (-> m oom)) (set last (coco_store_put st m last)))
+          (set (-> m heap_len) mark)
+          (if (or (-> m oom) (coco_store_put_refused m)) (return 0))
+          ;; room for both before anything changes, so each add below is made
+          (if (not (coco_pred_room st p 2)) (return (coco_oom m)))
+          (if (!= lx (cast size_t -1))
+              (block (set era (coco_tomb_open st m pi))
+                     (if (== era 0) (return 0))
+                     (coco_tomb_set p lx era)))
+          (coco_pred_add_clause st m pi clause at_end key origin muted)
+          (coco_pred_add_clause st m pi last 1 lkey lorig lmut)
+          (return (? (!= lx (cast size_t -1)) 2 (? at_end 3 4)))))
 
   ;;; A READ'S END (`coco_consult_oid'): the last clause after each
   ;;; predicate it noted from BASE on, the file's own -- a re-read puts it
@@ -1548,21 +1611,35 @@
         (return 0))
 
   ;;; A CLAUSE THE KNOWLEDGE BASE REFUSED TO WRITE IS TAKEN BACK (3.62.6),
-  ;;; from where `coco_pred_add_clause' put it -- the last place, or the
-  ;;; first for an asserta -- as retract/1 takes one, the store muted around
-  ;;; it: the backend's transaction went with the refusal, and telling it is
-  ;;; one more write it would refuse. A call open on the predicate began
-  ;;; before the clause was there and never sees it (`coco_retract_at' marks
-  ;;; it dead in place then). What the add and the retract change of the
-  ;;; predicate besides is put back as it was: DYNAMIC, which a retract sets,
-  ;;; and an asserta's FILE and LINE, which it clears.
+  ;;; as retract/1 takes one, the store muted around it: the backend's
+  ;;; transaction went with the refusal, and telling it is one more write it
+  ;;; would refuse. SHAPE says what the assert did: 0 put the clause at IX,
+  ;;; the last place or the first for an asserta, and a rule's shapes
+  ;;; (`coco_ssu_add', 3.64.7) are taken back whole -- 1 the rule at IX, 2
+  ;;; and 3 the rule and the last clause the end holds, and 2's last clause
+  ;;; at IX alive again, 4 the last clause at the end and the rule first. A
+  ;;; call open on the predicate began before the clause was there and never
+  ;;; sees it (`coco_retract_at' marks it dead in place then), and a death
+  ;;; taken back is one it never lived through. What the add and the
+  ;;; retract change of the predicate besides is put back as it was:
+  ;;; DYNAMIC, which a retract sets, and an asserta's FILE and LINE, which it
+  ;;; clears.
   (weak) (cold)
-  (func coco_assert_take_back ((coco_store * st) (coco_machine * m) (size_t pi) (int at_end)
-                               (size_t span) (u64 file) (u64 line) (int dyn))
-        (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi))))
-          (if (== (-> p nclauses) 0) (return))
+  (func coco_assert_take_back ((coco_store * st) (coco_machine * m) (size_t pi) (int shape)
+                               (size_t ix) (size_t span) (u64 file) (u64 line) (int dyn))
+        (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi)))
+              (size_t n . #'(-> p nclauses)))
           (coco_store_mute st)
-          (coco_retract_at st m pi (? at_end (- (-> p nclauses) 1) 0) span)
+          (cond ((< shape 2)
+                 (if (< ix n) (coco_retract_at st m pi ix span)))
+                ((>= n 2)
+                 (block
+                   ;; the last first: a call open on PI keeps both where they
+                   ;; stand, and one taken out moves nothing before it
+                   (coco_retract_at st m pi (- n 1) 0)
+                   (coco_retract_at st m pi (? (== shape 4) 0 (- n 2)) span)
+                   (if (and (== shape 2) (< ix n) (!= (-> p tomb) nil) (!= (nth ix (-> p tomb)) 0))
+                       (coco-tomb-unset p ix)))))
           (coco_store_unmute st)
           (set p (aof (coco-pred-at (-> st predp) pi)))
           (set (-> p dynamic) dyn)
@@ -1594,7 +1671,7 @@
         ;; A read puts a last clause after the predicate's rules, which raises
         ;; existence_error(matching_rule, Goal) when none matched
         ;; (`coco_consult_ssu_close'), and an assert keeps one there
-        ;; (`coco_ssu_keep_last'); clause/2 and listing/1 show the rule as
+        ;; (`coco_ssu_add'); clause/2 and listing/1 show the rule as
         ;; swipl's do and hide the last clause (`coco_ssu_body',
         ;; `coco_ssu_rule'). Through 3.18.0 the rule was `Head :- !, Body',
         ;; which bound a call's variable where swipl's raises, and ordsets.pl's
@@ -1746,7 +1823,8 @@
 
           (let ((size_t pi . #'(coco_pred_make st (coco_name_of m head) (coco_arity m head)))
                 (size_t stored) (size_t span . 0) (coco_reload * rl . nil)
-                (u64 kfile . 0) (u64 kline . 0) (int kdyn . 0))
+                (u64 kfile . 0) (u64 kline . 0) (int kdyn . 0)
+                (int ssu . 0) (int shape . 0) (size_t lx . #'(cast size_t -1)))
             (if (>= pi (-> st npreds)) (return 0))
             ;; a read under a module/2 (its `ssu_mod', 0 outside every read)
             ;; names the predicate's module, if its first clause is that
@@ -1899,12 +1977,29 @@
             (set kfile ($ (coco-pred-at (-> st predp) pi) pfile))
             (set kline ($ (coco-pred-at (-> st predp) pi) pline))
             (set kdyn ($ (coco-pred-at (-> st predp) pi) dynamic))
-            (if (not (? (!= rl nil)
-                        (coco_reload_insert st m rl pi stored (coco_arg_key m head) origin
-                                            (? (coco_store_is_muted st) 1 0))
-                        (coco_pred_add_clause st m pi stored at_end (coco_arg_key m head) origin
-                                              (? (coco_store_is_muted st) 1 0))))
-                (return 0))
+            ;; A RULE A PROGRAM ASSERTS KEEPS THE LAST CLAUSE AFTER ITS RULES
+            ;; (3.64.7, `coco_ssu_add'): an assertz goes in before it, and a
+            ;; predicate with none is given one with its first rule -- one
+            ;; change of the predicate and one write, which a refusal takes
+            ;; back whole. Never a row a backend's fetch reads back
+            ;; (`nomove'): the predicate as it was written, its last clause
+            ;; the row after its rules (through 3.64.6 each rule read back
+            ;; put another after it, and a rule asserted after them stood
+            ;; behind one: existence_error(matching_rule, G) of its own head)
+            (set ssu (and (== (-> m lreads) 0) (not (-> st nomove)) (== rl nil)
+                          (coco_ssu_clause m clause)))
+            (if ssu (set lx (coco_ssu_last_ix st m pi)))
+            (if (and ssu (or at_end (== lx (cast size_t -1))))
+                (block
+                  (set shape (coco_ssu_add st m pi lx at_end stored (coco_arg_key m head) origin
+                                           (? (coco_store_is_muted st) 1 0)))
+                  (if (== shape 0) (return 0)))
+              (if (not (? (!= rl nil)
+                          (coco_reload_insert st m rl pi stored (coco_arg_key m head) origin
+                                              (? (coco_store_is_muted st) 1 0))
+                          (coco_pred_add_clause st m pi stored at_end (coco_arg_key m head) origin
+                                                (? (coco_store_is_muted st) 1 0))))
+                  (return 0)))
             ;; muted means this is a module's clause, not the program's.
             ;; ON THE FIRST CLAUSE ONLY, because that is where the pre-warm
             ;; table is consulted and a table lookup per clause would be a
@@ -1937,10 +2032,12 @@
                       (if (== (nth 0 (-> st write_err)) (cast char 0))
                           (snprintf (-> st write_err) 256 "%s" "the knowledge base refused the write"))
                       (if (== rl nil)
-                          (coco_assert_take_back st m pi at_end span kfile kline kdyn))
+                          (coco_assert_take_back
+                           st m pi shape
+                           (? (!= shape 0) lx
+                              (? at_end (- ($ (coco-pred-at (-> st predp) pi) nclauses) 1) 0))
+                           span kfile kline kdyn))
                       (return 0))))
-            ;; and one a program asserts keeps the last clause last
-            (if (and (== (-> m lreads) 0) (coco_ssu_clause m clause)) (coco_ssu_keep_last st m pi))
             (return 1))))
 
   ;;; What a `:- if(G)' may ask, read below the engine. A directive takes
@@ -4600,10 +4697,18 @@
 
   ;;; CLAUSE I OF PI TAKEN OUT, its cells SPAN long in the store: retract/1's
   ;;; answer (3.28.0, `coco_db_walk', and '$retractall'/1's through
-  ;;; `coco_retract'). 1.
+  ;;; `coco_retract'). 1; or -2 where the knowledge base refused to write it
+  ;;; (3.64.7, `coco-retract-told'): the clause where it stood, the reason
+  ;;; on the store (`write_err'), for the caller to raise
+  ;;; resource_error(knowledge_base) -- the backend's transaction went with
+  ;;; the refusal, so the database holds the clause still, and the program
+  ;;; does too. Through 3.64.6 the retract succeeded over it.
   (func coco_retract_at ((coco_store * st) (coco_machine * m) (size_t pi) (size_t i)
                          (size_t span)) (out int)
-        (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi))))
+        (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi)))
+              (int tell . #'(and (not (coco_store_is_muted st)) (!= (-> st on_retract) nil)))
+              (int dyn . #'(-> p dynamic)))
+          (if tell (set (nth 0 (-> st write_err)) (cast char 0)))
           ;; THE LOGICAL UPDATE VIEW: with a call open on the predicate the
           ;; clause dies where it stands, for the calls open now to try still
           ;; and no later call to see (`coco_tomb_set'); the database loses
@@ -4613,51 +4718,72 @@
                 (block
                   (coco_tomb_set p i era)
                   (set (-> p dynamic) 1)
-                  (if (and (not (coco_store_is_muted st))
-                           (!= (-> st on_retract) nil))
-                      ((-> st on_retract) st (-> st ctx) pi))
+                  (coco-retract-told (coco-tomb-unset p i))
                   (return 1))))
-          ;; none open, and the dead of an earlier change go with it
+          ;; none open, and the dead of an earlier change go with it -- once
+          ;; the database is told, while the clause is dead in place for a
+          ;; refusal to give back (a backend's write passes the dead by,
+          ;; `coco_zg_sync_pred'; through 3.64.6 the sweep came first)
           (if (!= (-> p ntomb) 0)
               (block
                (coco_tomb_set p i 1)
-               (coco_pred_sweep st m pi)
                (set (-> p dynamic) 1)
-               (if (and (not (coco_store_is_muted st))
-                        (!= (-> st on_retract) nil))
-                   ((-> st on_retract) st (-> st ctx) pi))
+               (coco-retract-told (coco-tomb-unset p i))
+               (coco_pred_sweep st m pi)
                (return 1)))
           ;; drop it from the predicate; the cells are orphaned until the
           ;; next compaction (`coco_store_compact'), and its compiled
-          ;; program goes now
-          (set (-> st dead) (+ (-> st dead) span))
-          (coco_code_drop st (nth i (-> p clauses)))
-          (set (nth i (-> p codes)) nil)
-          ;; The index keys shift with them, and the chains -- which hold
-          ;; POSITIONS -- are dropped: everything after this clause has just
-          ;; been renumbered.
-          (for ((size_t j . i)) (< (+ j 1) (-> p nclauses)) ((++ j))
-            (set (nth j (-> p clauses)) (nth (+ j 1) (-> p clauses)))
-            (set (nth j (-> p keys)) (nth (+ j 1) (-> p keys)))
-            (set (nth j (-> p origins)) (nth (+ j 1) (-> p origins)))
-            (set (nth j (-> p muted)) (nth (+ j 1) (-> p muted)))
-            (set (nth j (-> p codes)) (nth (+ j 1) (-> p codes))))
-          (set (-> p nclauses) (- (-> p nclauses) 1))
-          (coco_pred_nprobe p)
-          (set (-> p tver) (+ (-> p tver) 1))
-          (coco_pred_unindex p)
-          ;; anything retractable is dynamic by definition, whether or not
-          ;; anybody said so
-          (set (-> p dynamic) 1)
-          ;; and the database is told. NOTHING IS WOUND BACK HERE: the whole
-          ;; point of `retract(counter(X))' is that X is left bound to what
-          ;; was retracted, and the term it is bound into is the copy the
-          ;; caller made on the heap. The hook keeps its own heap use to
-          ;; itself.
-          (if (and (not (coco_store_is_muted st))
-                   (!= (-> st on_retract) nil))
-              ((-> st on_retract) st (-> st ctx) pi))
-          (return 1)))
+          ;; program goes now. What a refusal puts back is kept: the clause,
+          ;; its key, its origin and its mute, its program compiled again
+          ;; at its next call
+          (let ((size_t cl . #'(nth i (-> p clauses)))
+                (u64 ky . #'(nth i (-> p keys)))
+                (u64 og . #'(nth i (-> p origins)))
+                (int mu . #'(nth i (-> p muted))))
+            (set (-> st dead) (+ (-> st dead) span))
+            (coco_code_drop st cl)
+            (set (nth i (-> p codes)) nil)
+            ;; The index keys shift with them, and the chains -- which hold
+            ;; POSITIONS -- are dropped: everything after this clause has just
+            ;; been renumbered.
+            (for ((size_t j . i)) (< (+ j 1) (-> p nclauses)) ((++ j))
+              (set (nth j (-> p clauses)) (nth (+ j 1) (-> p clauses)))
+              (set (nth j (-> p keys)) (nth (+ j 1) (-> p keys)))
+              (set (nth j (-> p origins)) (nth (+ j 1) (-> p origins)))
+              (set (nth j (-> p muted)) (nth (+ j 1) (-> p muted)))
+              (set (nth j (-> p codes)) (nth (+ j 1) (-> p codes))))
+            (set (-> p nclauses) (- (-> p nclauses) 1))
+            (coco_pred_nprobe p)
+            (set (-> p tver) (+ (-> p tver) 1))
+            (coco_pred_unindex p)
+            ;; anything retractable is dynamic by definition, whether or not
+            ;; anybody said so
+            (set (-> p dynamic) 1)
+            ;; and the database is told. NOTHING IS WOUND BACK HERE: the
+            ;; whole point of `retract(counter(X))' is that X is left bound
+            ;; to what was retracted, and the term it is bound into is the
+            ;; copy the caller made on the heap. The hook keeps its own heap
+            ;; use to itself. A refusal undoes the drop above, room and all:
+            ;; the arrays held the clause a moment ago, so nothing grows
+            (coco-retract-told
+             (block
+               (for ((size_t j . #'(-> p nclauses))) (> j i) ((-- j))
+                 (set (nth j (-> p clauses)) (nth (- j 1) (-> p clauses)))
+                 (set (nth j (-> p keys)) (nth (- j 1) (-> p keys)))
+                 (set (nth j (-> p origins)) (nth (- j 1) (-> p origins)))
+                 (set (nth j (-> p muted)) (nth (- j 1) (-> p muted)))
+                 (set (nth j (-> p codes)) (nth (- j 1) (-> p codes))))
+               (set (nth i (-> p clauses)) cl)
+               (set (nth i (-> p keys)) ky)
+               (set (nth i (-> p origins)) og)
+               (set (nth i (-> p muted)) mu)
+               (set (nth i (-> p codes)) nil)
+               (set (-> p nclauses) (+ (-> p nclauses) 1))
+               (coco_pred_nprobe p)
+               (set (-> p tver) (+ (-> p tver) 1))
+               (coco_pred_unindex p)
+               (set (-> st dead) (- (-> st dead) span))))
+            (return 1))))
 
   (func coco_retract ((coco_store * st) (coco_machine * m) (size_t clause)) (out int)
         (set clause (coco_deref m clause))

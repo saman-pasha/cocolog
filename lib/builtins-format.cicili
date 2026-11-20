@@ -444,6 +444,9 @@
               (block
                (set cells (cast (size_t *) (malloc (* (+ nn 1) (sizeof size_t)))))
                (set names (cast (u64 *) (malloc (* (+ nn 1) (sizeof u64)))))
+               ;; and the names' arrays are a scratch request the machine is
+               ;; finished for (3.64.7), as the options' array is
+               (if (or (== cells nil) (== names nil)) (coco_oom m))
                (if (and (!= cells nil) (!= names nil))
                    (for ((size_t j . 0)) (< j nn) ((++ j))
                      (let ((size_t p . #'(coco_deref m (nth j nv))))
@@ -457,6 +460,11 @@
                                         (set (nth k names) (coco_name_of m nmc))
                                         (set k (+ k 1)))))))))
                (free nv)))
+          ;; OPTIONS THERE WAS NO MEMORY TO READ ARE NO OPTIONS (3.64.7): the
+          ;; machine is finished (`coco_m_list_array'), and nothing is
+          ;; written -- through 3.64.6 the term went out as write/1 writes it
+          (if (-> m oom)
+              (block (free cells) (free names) (return 1)))
           (if (and (!= cells nil) (!= names nil))
               (block (set (-> m wcells) cells) (set (-> m wnames) names) (set (-> m nwnames) k)))
           ;; quoted(true) writes a character to escape as swipl's
@@ -1804,6 +1812,11 @@
                                          "" "format" 3))))
 
           (set owned (coco_fmt_args e argt (aof items) (aof n) one))
+          ;; an argument list there was no array for finished the machine
+          ;; (3.64.7, `coco_m_list_array'): nothing is written, and the run
+          ;; ends `out of memory' at its next step
+          (if (-> (coco_m_machine e) oom)
+              (block (coco_sb_free (aof fb)) (return 0)))
           (coco_sb_init (aof b))
           (set (nth 0 err) (cast char 0))
           (set ok (coco_fmt_build e (coco_tx_s (aof fb)) items n (aof b) err (sizeof err)

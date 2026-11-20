@@ -66,6 +66,7 @@ main :-
     memory_refused,
     load_short,
     load_refused,
+    list_refused,
     read_that_failed,
     recursive_message,
     near_names,
@@ -488,6 +489,59 @@ load_refused :-
         ;   format("   SKIP (no C compiler for test/refuse.c)~n", [])
         )
     ).
+
+%% A LIST'S ARRAY THERE WAS NO MEMORY FOR IS NO `NOT A LIST' (3.64.7,
+%% `coco_m_list_array'): the machine is finished, and the write that asked
+%% writes nothing. Each request of 16 bytes format/2's arguments and
+%% write_term/2's options and variable names ask for, refused in turn:
+%% the text whole, or nothing and `out of memory', exit 2. Through 3.64.6
+%% the array refused answered `not a list', and format/2 wrote its whole
+%% argument list for its first directive (`[plain,ok](') and raised `not
+%% enough arguments', and write_term/2 wrote with no options (`f(A b,_G)'),
+%% or with its variables unnamed (`L1' the array, `L2' format/2, `L3'
+%% write_term/2, `L4' the names' own arrays)
+list_refused :-
+    section('a list''s array refused its memory'),
+    scratch(D),
+    (   refuse_shim(D, Shim)
+    ->  atom_concat(D, '/la.pl', F),
+        fixture(F, [ 'rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
+                     'fa :- rf_mark(''REFUSE_ON''), format("~w(~q)~n", [plain, ok]), rf_mark(''REFUSE_OFF''), writeln(after).',
+                     'fw :- T = f(''A b'', X), rf_mark(''REFUSE_ON''), write_term(T, [quoted(true), variable_names([''X''=X])]), nl, rf_mark(''REFUSE_OFF''), writeln(after).' ]),
+        cocolog(C),
+        forall(member(G-Want-Shown-Title,
+                      [fa-'plain(ok)\nafter\n'-plain-'each request of 16 bytes format/2 makes refused in turn: its text whole, or nothing and out of memory (L1, L2)',
+                       fw-'f(''A b'',X)\nafter\n'-'f('-'...and write_term/2 with its options and its variables'' names (L1, L3, L4)']),
+               ( la_runs(C, Shim, F, G, Runs),
+                 length(Runs, N),
+                 findall(I-Exit-Text, ( member(I-Exit-Text, Runs), \+ la_good(Want, Shown, Exit, Text) ), Bad),
+                 check(Title, N-Bad, N-[]),
+                 ( N > 0 -> true ; check('...and its stretch made such a request', N, more) ) ))
+    ;   true
+    ),
+    shl(['rm -rf ', D]).
+
+%% each run of goal G of the fixture F with the I-th request of 16 bytes in
+%% its stretch refused: I, its exit status and all it said
+la_runs(C, Shim, F, G, Runs) :-
+    sh_join(['env REFUSE_SIZE=16 REFUSE_REPORT=1 LD_PRELOAD=', Shim, ' ', C, ' run ', F, ' ', G, ' 2>&1 >/dev/null'], Count),
+    shell(Count, CT, _),
+    (   sub_atom(CT, B, _, _, 'REFUSE count '), B1 is B + 13, sub_atom(CT, B1, _, 0, Rest),
+        split_string(Rest, "\n", " ", [S|_]), number_string(N0, S)
+    ->  N = N0
+    ;   N = 0
+    ),
+    findall(I-Exit-Text,
+            ( between(1, N, I),
+              sh_join(['env REFUSE_SIZE=16 REFUSE_N=', I, ' LD_PRELOAD=', Shim, ' ', C, ' run ', F, ' ', G, ' 2>&1'], Cmd),
+              shell(Cmd, Text, Exit) ),
+            Runs).
+
+%% a run that wrote its text whole, or wrote none of it and said memory
+la_good(Want, _, 0, Want).
+la_good(_, Shown, 2, Text) :-
+    sub_atom(Text, _, _, _, 'out of memory'),
+    \+ sub_atom(Text, _, _, _, Shown).
 
 %% the file: its lines are numbered, as the sweep's warnings name them (4
 %% and 6) and the marks' own goals (2 and 9)

@@ -706,7 +706,8 @@ refused_read(D) :-
         check('test/refuse.c compiles', CcExit-Why, 0-''),
         (   CcExit =:= 0
         ->  rr_rows(D, Shim), rr_green(D, Shim), rr_dirty(D, Shim), rr_any(D, Shim),
-            rr_cursor(D, Shim), rr_hint(D, Shim), rr_tail(D, Shim), rr_commit(D, Shim)
+            rr_cursor(D, Shim), rr_hint(D, Shim), rr_tail(D, Shim), rr_commit(D, Shim),
+            rr_retract(D, Shim)
         ;   true
         )
     ).
@@ -960,6 +961,136 @@ rr_commit(D, Shim) :-
            ( sh_join(['sh ', Steps, ' ', C, ' ', Shim, ' ', Dir, ' ', Filter], SCmd),
              shell(SCmd, SOut, _, 600000),
              check(Title, SOut, clean) )).
+
+%% A RETRACT THE KNOWLEDGE BASE REFUSED TO WRITE RAISES, AND ITS CLAUSE
+%% STAYS (3.64.7), as an assertz's refused write raises (3.62.6): through
+%% 3.64.6 the retract went on over the refusal, its clause gone from the
+%% program and still in the database, where a second process read it.
+%% Seven shapes stand in the stretch the shim refuses in, the first four a
+%% predicate each: a retract with no call open (`coco_retract_at''s plain
+%% path, `R1'), one under an open call (its clause dead in place, `R2'),
+%% retractall/1 where a death waits (the sweep, told before it, `R3', and
+%% raised in retractall/1's context, `C'), retract/1's walk and its retry
+%% (`coco_db_walk', `coco_db_retry': `W1', `W2'), a single-sided rule
+%% asserted over the rules a fetch read back (`F': through 3.64.6 every rule
+%% read back put another last clause after it, and the rule stood behind
+%% one; `A1': one write, where 3.64.6's three -- the rule, the old last
+%% clause retracted, a new one -- were refused apart), and a predicate's
+%% first rule by assertz and by asserta (`coco_ssu_add''s shapes 3 and 4,
+%% one write with the last clause: `A3'). Each shape says it was done and
+%% was, or says resource_error(knowledge_base) in its predicate's context
+%% -- or the context of the fetch an assert reads first -- and was not, or
+%% says memory; what the program holds after is what a second process
+%% reads (its lists alone where the run said memory: a growth given less
+%% than it asked is raised at the next step, or at the store's next put,
+%% which may be a goal of `left/1''s); and no rule ever stands without its
+%% last clause, which a goal no rule matches fails through. The host
+%% batches (each request of 128 bytes, its dirty list's, refused in turn); a
+%% green task, on a worker that is not the connection's owner, writes where
+%% it is (each of a page or more); the first rules' writes there, and the
+%% retract that retries -- its first two answers taken and failed past, the
+%% third its answer -- each of any size. The open-call shape of a rule's
+%% assert (`A2') is test/files/ssu_assert.pl's, held to swipl
+rr_retract(D, Shim) :-
+    cocolog(C),
+    atom_concat(D, '/rrt', Dir),
+    shl(['mkdir -p ', Dir]),
+    atom_concat(Dir, '/rt.pl', Fx), rt_fixture(Fx),
+    atom_concat(Dir, '/rrt.sh', Sweep), rrt_sweep(Sweep),
+    forall(member(Goal-Filter-World-Title,
+                  [hmain-'REFUSE_SIZE=128'-'X=1'-'each request of 128 bytes the host''s retracts and asserts make refused in turn: done and said, or refused and said in its context, the program''s view a second process''s (R1, W1, F)',
+                   gmain-'REFUSE_MIN=4096'-'COCOLOG_GREEN_WORKERS=2'-'...a green task''s writes, each request of a page or more: the same, never a rule without its last clause (R1, R2, R3, C, W1, F, A1)',
+                   gfirst-'X=2'-'COCOLOG_GREEN_WORKERS=2'-'...and its first rules, by assertz and by asserta, each request of any size (A3)',
+                   gretry-'X=3'-'COCOLOG_GREEN_WORKERS=2'-'...and its retract/1 that retries, each request of any size: an answer the store refused raises, never an answer (W2)']),
+           ( sh_join(['sh ', Sweep, ' ', C, ' ', Shim, ' ', Fx, ' ', Dir, ' ', Goal, ' ', Filter, ' ', World], Cmd),
+             shell(Cmd, Out, _, 600000),
+             ( sub_atom(Out, 0, _, _, 'clean of ') -> Got = clean ; Got = Out ),
+             check(Title, Got, clean) )).
+
+%% the seven shapes, a status each recorded in the stretch and its fact
+%% read after it, where no request is refused (`said/1'); the lists, the
+%% rule and the first rules as a program sees them (`left/1': `store' is a
+%% second process's read). `open(G)' is a rule a goal no rule matches G
+%% through -- it failed or succeeded where it should raise
+%% existence_error(matching_rule, _)
+rt_fixture(Fx) :-
+    fixture(Fx,
+            [ 'rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
+              'rf_off :- rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF''), rf_mark(''REFUSE_OFF'').',
+              'rt_word(ok, ok) :- !.',
+              'rt_word(error(resource_error(K), C), resource_error(K)-P) :- nonvar(C), C = context(P, _), nonvar(P), !.',
+              'rt_word(error(F, _), F) :- !.',
+              'rt_word(R, R).',
+              'rt_do(G, W, W-S) :- catch(( once(G), R = ok ), E, R = E), rt_word(R, S).',
+              'rt_rule(G, S) :- catch(( G -> S = ok ; S = fail ), E, ( E = error(existence_error(T, _), _) -> S = T ; E = error(F, _) -> S = F ; S = E )).',
+              'rt_state(P, S) :- A =.. [P, big(1)], B =.. [P, small], rt_rule(A, SA), rt_rule(B, SB), ( SA \\== ok -> S = none ; SB == matching_rule -> S = ok ; ( SB == ok ; SB == fail ) -> S = open(SB) ; S = SB ).',
+              'rt_has(G, F) :- ( catch(G, _, fail) -> F = not_done ; F = done ).',
+              'rt_fact(plain, F) :- rt_has(ga(1), F).',
+              'rt_fact(tomb, F) :- rt_has(gb(2), F).',
+              'rt_fact(sweep, F) :- rt_has(gb(3), F).',
+              'rt_fact(retry, F) :- rt_has(gc(5), F).',
+              'rt_fact(rule, F) :- rt_rule(gr(small), S), ( S == ok -> F = done ; F = not_done(S) ).',
+              'rt_fact(first, F) :- rt_state(gn, S), ( S == ok -> F = done ; S == none -> F = not_done ; F = S ).',
+              'rt_fact(firsta, F) :- rt_state(gm, S), ( S == ok -> F = done ; S == none -> F = not_done ; F = S ).',
+              'said(Rs) :- forall(member(W-S, Rs), ( rt_fact(W, F), format("~w(~q, ~q)~n", [W, S, F]) )).',
+              'rt_list(G, L) :- findall(X, ( catch(call(G, Y), _, fail), ( Y = big(_) -> X = big ; X = Y ) ), L).',
+              'left(W) :- rt_list(ga, A), rt_list(gb, B), rt_list(gc, C), rt_rule(gr(small), R), rt_state(gn, N), rt_state(gm, M), format("~w(~q, ~q, ~q, ~q, ~q, ~q)~n", [W, A, B, C, R, N, M]).',
+              'shapes([P, T, Sw, Re, Ru|Fs]) :- rt_do(retract(ga(1)), plain, P), rt_do(forall(gb(X), ( X == 2 -> retract(gb(2)) ; true )), tomb, T), rt_do(retractall(gb(3)), sweep, Sw), rt_do(( retract(gc(Y)), integer(Y), Y >= 5 ), retry, Re), rt_do(assertz((gr(small) => true)), rule, Ru), firsts(Fs).',
+              'firsts([Fi, Fa]) :- rt_do(assertz((gn(big(_)) => true)), first, Fi), rt_do(asserta((gm(big(_)) => true)), firsta, Fa).',
+              'retries([Re]) :- rt_do(( retract(gc(Y)), integer(Y), Y >= 5 ), retry, Re).',
+              'seed :- format(atom(A), ''~*c'', [60000, 120]), forall(member(G-L, [ga-[1], gb-[1, 2, 3], gc-[4, 5, 6]]), forall(member(X, [big(A)|L]), ( T =.. [G, X], assertz(T) ))), assertz((gr(big(A)) => true)).',
+              'warm :- once(ga(_)), once(gb(_)), once(gc(_)).',
+              'w(G) :- warm, rf_mark(''REFUSE_ON''), call(G, Rs), rf_off, said(Rs), left(left).',
+              'hmain :- warm, rf_mark(''REFUSE_ON''), shapes(Rs), rf_off, said(Rs), left(host).',
+              'gmain :- catch(async_run(( go(w(shapes), T), await(T) )), _, true), left(host).',
+              'gfirst :- catch(async_run(( go(w(firsts), T), await(T) )), _, true), left(host).',
+              'gretry :- catch(async_run(( go(w(retries), T), await(T) )), _, true), left(host).' ]).
+
+%% rrt.sh COCOLOG SHIM FILE DIR GOAL FILTER WORLD: GOAL of FILE over a copy of
+%% a store FILE's seed/0 made, once for each request in its stretch FILTER
+%% names, that one and then that one and the next refused, and the copy
+%% read by a process with no shim. Prints `clean of N' when no run was
+%% wrong and one write was refused and said so
+rrt_sweep(Path) :-
+    fixture(Path,
+            [ 'c=$1; shim=$2; f=$3; d=$4; g=$5; flt=$6; world=$7',
+              'rm -rf $d/t0; $c --embed $d/t0 query "use_module(\'$f\'), seed" > /dev/null 2>&1',
+              'rm -rf $d/tc; cp -r $d/t0 $d/tc',
+              'n=$( env $world $flt REFUSE_REPORT=1 LD_PRELOAD=$shim $c --embed $d/tc query "use_module(\'$f\'), $g" 2>&1 >/dev/null | sed -n \'s/^REFUSE count //p\' )',
+              '[ -n "$n" ] && [ "$n" -gt 0 ] || { echo nocount; exit 0; }',
+              'bad=""; refused=0',
+              'for run in 1 2; do',
+              '  i=1',
+              '  while [ $i -le $n ]; do',
+              '    kb=$d/t_$i; rm -rf $kb; cp -r $d/t0 $kb',
+              '    timeout 60 env $world $flt REFUSE_N=$i REFUSE_RUN=$run LD_PRELOAD=$shim $c --embed $kb query "use_module(\'$f\'), $g" > $kb.out 2>&1; x=$?',
+              '    s=$( timeout 30 $c --embed $kb query "use_module(\'$f\'), left(store)" 2>&1 | sed -n \'s/^store//p\' )',
+              '    p=$( sed -n \'s/^host//p\' $kb.out ); [ -z "$p" ] && p=$( sed -n \'s/^left//p\' $kb.out )',
+              '    mem=""; grep -q -e \'out of memory\' -e \'Not enough resources: memory\' -e \'resource_error(memory)\' $kb.out && mem=1',
+              '    grep -E \'^(plain|tomb|sweep|retry|rule|first|firsta)\\(\' $kb.out > $kb.said',
+              '    while read -r l; do',
+              '      case "$l" in',
+              '        *"(ok, done)") ;;',
+              '        "plain(resource_error(knowledge_base)-(system:retract/1), not_done)"|"tomb(resource_error(knowledge_base)-(system:retract/1), not_done)"|"retry(resource_error(knowledge_base)-(system:retract/1), not_done)"|"sweep(resource_error(knowledge_base)-(system:retractall/1), not_done)") refused=1 ;;',
+              '        "rule(resource_error(knowledge_base)-(system:assertz/1), not_done(matching_rule))"|"first(resource_error(knowledge_base)-(system:assertz/1), not_done)"|"firsta(resource_error(knowledge_base)-(system:asserta/1), not_done)") refused=1 ;;',
+              '        "rule(resource_error(knowledge_base)-gr/1, not_done(matching_rule))"|"first(resource_error(knowledge_base)-gn/1, not_done)"|"firsta(resource_error(knowledge_base)-gm/1, not_done)") ;;',
+              '        *"(resource_error(memory)"*) case "$l" in *open*) bad="$bad #$run.$i:$l";; esac ;;',
+              '        *) [ -n "$mem" ] && case "$l" in *open*) false;; *"(ok, "*|*"(resource_error("*) true;; *) false;; esac || bad="$bad #$run.$i:$l" ;;',
+              '      esac',
+              '    done < $kb.said',
+              '    if [ $x -ge 124 ]; then bad="$bad #$run.$i:exit$x"',
+              '    elif [ -n "$p" ]; then',
+              '      case "$p$s" in *open*) bad="$bad #$run.$i:open$p$s";; esac',
+              '      if [ -n "$mem" ]; then [ "${p%], *}" = "${s%], *}" ] || bad="$bad #$run.$i:$p$s"',
+              '      else [ "$p" = "$s" ] || bad="$bad #$run.$i:$p$s"; fi',
+              '    elif [ $x != 2 ] && [ -z "$mem" ]; then bad="$bad #$run.$i:none:$x"; fi',
+              '    rm -rf $kb $kb.out $kb.said',
+              '    i=$((i + 1))',
+              '  done',
+              'done',
+              'if [ -n "$bad" ]; then echo "wrong of $n:$bad" | cut -c1-600',
+              'elif [ $refused = 1 ]; then echo "clean of $n"',
+              'else echo "none refused of $n"; fi' ]).
 
 %% stp.sh COCOLOG SHIM DIR FILTER [big]: `step' of a machine started in a
 %% store of its own, once for each request the whole process makes that

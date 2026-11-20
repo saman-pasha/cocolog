@@ -926,7 +926,15 @@ expansion can be read.
   is refused at its open, naming the limit, exit 1. **A write-through the
   store refused raises in assertz/1** (resource_error(knowledge_base), the
   backend's words in the context) and its clause is taken back
-  (`coco_assert_take_back`); **a call refused in a transaction holds its
+  (`coco_assert_take_back`), **and in retract/1 and retractall/1** (3.64.7,
+  `coco_retract_at` answers -2, `coco-retract-told` in lib/kb.cicili): the
+  clause where it stood -- dead in place given back, a drop shifted back, the
+  database told before a sweep of the dead -- the walk's answer raised
+  (`coco_db_walk`) and its retry's a throw it goes on to (`coco_db_retry`:
+  thrown under the backtrack, a ball nothing caught would read as a
+  failure); through 3.64.6 the retract went on over the refusal, its clause
+  gone from the program and kept in the database. **A new writer through
+  `on_retract` reads its answer**; **a call refused in a transaction holds its
   commit** (`ce_refused`, once the transaction has written: `ce_wrote`); and
   **a green worker that is not the connection's owner rolls back where a
   call failed** (`coco_zg_fail`). **A refused allocation in the engine is a
@@ -2320,7 +2328,22 @@ cocolint index offers no import of it.
   end puts `H :- '$ssu_none'(Mod, H)` after each predicate it gave rules
   (`ssu_pis` on the machine from the read's own base, `ssu_mod` set by
   module/2), and an assert keeps it last; it raises
-  `existence_error(matching_rule, Goal)`. **A new reader of a clause's
+  `existence_error(matching_rule, Goal)`. **A rule's assert is one change
+  of the predicate and one write** (3.64.7, `coco_ssu_add` in
+  lib/kb-consult.cicili, its shapes taken back whole by
+  `coco_assert_take_back`): an assertz goes in before the last clause
+  (`coco_ssu_last_ix`), a first rule is given one, by assertz or asserta,
+  and where a call or a walk open on the predicate has the last clause still
+  to try (`coco_frames_on` act 3) the last clause dies in place and a copy
+  goes after the rule -- through 3.64.6 the rule, the old last clause's
+  retract and a new one were three writes a store refused apart, and the
+  retract was what made the predicate dynamic (since 3.64.7 the assert
+  does, by its head: `coco_assert_goal`). **A fetch's rows are the
+  predicate as written** (`nomove`): through 3.64.6 each rule read back put
+  another last clause after it, and a rule asserted after them stood behind
+  one; a store a 3.64.6 process wrote after reading rules back can hold a
+  last clause between its rules, which no version reads past (`cocolog
+  forget NAME ARITY` and the rules again). **A new reader of a clause's
   body shows a rule through `coco_ssu_body` (clause/2's) or
   `coco_ssu_rule` (listing/1's) and hides the last clause**, as
   predicate_property/2's count does.
@@ -3854,8 +3877,12 @@ cocolint index offers no import of it.
     refusal**, by design: a scratch `malloc` (`coco_text_list`,
     `coco_new_string`, a name's copy), a walk's stack of pairs or frames
     (`coco_pairs_push`, `coco_su_push`, `coco_cells_push`) and a
-    builtin's own array (term_variables/2's). The run ends `out of
-    memory`, where atom_codes/2 answered the tail it was given and a
+    builtin's own array (term_variables/2's; and since 3.64.7 a list's
+    elements, `coco_m_list_array`, which answered `not a list': format/2
+    wrote its whole argument list for its first directive and write_term/2
+    wrote with no options -- **a builtin that writes asks `oom` before it
+    puts its text out**, `coco_fmt_do`, `coco_wt_put`). The run ends `out
+    of memory`, where atom_codes/2 answered the tail it was given and a
     unification failed.
   - **A text that leaves the process is asked too** (3.64.6): the
     store's sync writes no row of a clause whose text was refused or
@@ -3930,7 +3957,8 @@ cocolint index offers no import of it.
 * **`test/refuse.c` refuses each allocation in turn** (3.62.3; an
   LD_PRELOAD shim before glibc's allocator, built by test/async.pl's
   `refusals`, test/store-lock.pl's `refused_read` and test/errors.pl's
-  `load_refused` with the suite's compiler, `-O3`; glibc only). It counts the
+  `load_refused` and `list_refused` with the suite's compiler, `-O3`; glibc
+  only). It counts the
   requests a program makes between two marks -- a `getenv` of `REFUSE_ON`
   and one of `REFUSE_OFF`, names nobody sets, which to a run without the
   shim are nothing -- and answers the `REFUSE_N`-th with nothing,

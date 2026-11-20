@@ -1606,6 +1606,15 @@
             (set p (coco_arg m p 1))))
         (return 0))
 
+  ;;; A LIST'S ELEMENTS, AS AN ARRAY the caller frees: 1, or 0 for a term
+  ;;; that is no proper list -- and for an array there was no memory for,
+  ;;; which FINISHES THE MACHINE (3.64.7, `coco_oom'), a scratch request
+  ;;; with no smaller one to make: through 3.64.6 it answered 0 and no more,
+  ;;; and every caller read a list as no list -- format/2 wrote its whole
+  ;;; argument list for its first directive (`[plain,ok](') and raised
+  ;;; `not enough arguments', write_term/2 wrote with no options, and
+  ;;; msort/2 and its kin failed or raised a type error. A caller that
+  ;;; writes asks the machine before it does (`coco_fmt_do', `coco_wt_put').
   (func coco_m_list_array ((coco_engine * e) (size_t t) (size_t ** out) (size_t * n))
         (out int)
         (let ((coco_machine * m . #'(-> e m)) (size_t len . 0))
@@ -1615,7 +1624,7 @@
           (if (== len 0) (return 1))
           (let ((size_t * v . #'(cast (size_t *) (malloc (* len (sizeof size_t)))))
                 (size_t p . t))
-            (if (== v nil) (return 0))
+            (if (== v nil) (return (coco_oom m)))
             (for ((size_t i . 0)) (< i len) ((++ i))
               (set p (coco_deref m p))
               ;; dereferenced, so what the caller gets is the VALUE and not the

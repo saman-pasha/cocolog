@@ -311,9 +311,16 @@
               (int bad . #'(coco_clause_check e c 1)))
           (if (!= bad 0) (return bad))
           (set head c)
-          ;; a rule marks the predicate its HEAD names, not `:-'/2
+          ;; a rule marks the predicate its HEAD names, not `:-'/2 -- nor
+          ;; `=>'/2, a single-sided rule's (3.64.7: through 3.64.6 an
+          ;; asserted rule's predicate was dynamic only once a second rule's
+          ;; assert had retracted the last clause, and listing/1 wrote no
+          ;; `:- dynamic' for one rule). A guard's `(H, G) => B' never comes
+          ;; here: the check above refuses it, a clause of `,'/2 to swipl's
+          ;; assert as to cocolog's.
           (if (and (coco_is_callable m c) (== (coco_arity m c) 2))
-              (if (== 0 (strcmp (coco_atom_name m (coco_name_of m c)) ":-"))
+              (if (or (== 0 (strcmp (coco_atom_name m (coco_name_of m c)) ":-"))
+                      (== 0 (strcmp (coco_atom_name m (coco_name_of m c)) "=>")))
                   (set head (coco_deref m (coco_arg m c 0)))))
           ;; A REFUSAL THE STORE CAN EXPLAIN IS AN EXCEPTION, not a failure.
           ;; `coco_assert' runs below the engine and has no ball to throw, so
@@ -365,11 +372,32 @@
 
   (decl) (func coco_retractall_none ((coco_engine * e) (size_t g)) (out int))
 
+  ;;; A RETRACT THE KNOWLEDGE BASE REFUSED TO WRITE (3.64.7,
+  ;;; `coco_retract_at', the clause where it stood): the ball
+  ;;; error(resource_error(knowledge_base), context(PI, Why)), PI the goal
+  ;;; in flight's row (retract/1's, retractall/1's) and WHY the backend's
+  ;;; words, as assertz/1's refused write raises it (`coco_assert_goal')
+  (static)
+  (func coco_db_refused_ball ((coco_engine * e)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m)))
+          (return (coco_make2 m "error"
+                              (coco_make1 m "resource_error" (coco_new_atom m "knowledge_base"))
+                              (coco_err_ctx e 0 ($ (cof (-> e st)) write_err))))))
+
+  ;;; ...and thrown: 2 when a catcher took it, -1 when nothing did
+  (static)
+  (func coco_db_refused ((coco_engine * e)) (out int)
+        (return (? (== 1 (coco_throw e (coco_db_refused_ball e))) 2 -1)))
+
   (func coco_bi_retract ((coco_engine * e) (size_t g)) (out int)
         (let ((int bad . #'(coco_clause_check e (coco_arg (-> e m) g 0) 0)))
           (if (!= bad 0) (return bad)))
         (with-green-write e
           (let ((int ok . #'(coco_retract (-> e st) (-> e m) (coco_arg (-> e m) g 0))))
+            ;; -2: the knowledge base refused the write, and the clause is
+            ;; where it stood (3.64.7, `coco_retract_at'), as assertz/1's
+            ;; refusal raises -- in retractall/1's context, its row's
+            (if (== ok -2) (return (coco_db_refused e)))
             ;; -1: the predicate could not be read, and nothing was taken
             (if (< ok 0) (return (coco_fetch_error e)))
             (coco_store_maybe_compact (-> e st) (-> e m))
@@ -554,7 +582,8 @@
   ;;; first that matches is the answer -- the frame on to the next, or gone
   ;;; at the last, so no choice point is left -- and retract/1's takes it out
   ;;; where it still stands, after the frame is gone. 1 an answer; 0 none,
-  ;;; the frame gone.
+  ;;; the frame gone; 3 an answer retract/1 could not write (3.64.7), the
+  ;;; clause where it stood, for the caller to raise.
   (static)
   (func coco_db_from ((coco_engine * e) (size_t pi) (u32 kpos) (u64 key) (size_t ix) (u32 cend)
                       (int mode) (size_t h) (size_t bd) (int fr) (size_t ci)) (out int)
@@ -570,10 +599,11 @@
                   (block
                    (if (and fr (>= nx (cast size_t cend))) (set (-> e nchoices) ci))
                    ;; one retracted since the walk began is an answer, and
-                   ;; taken already
+                   ;; taken already; one whose write the knowledge base
+                   ;; refused stands where it stood, and is 3 (3.64.7)
                    (if (and (== mode 1) (not (coco_pred_dead p ix)))
                        (with-green-write e
-                         (coco_retract_at st m pi ix span)
+                         (if (== (coco_retract_at st m pi ix span) -2) (return 3))
                          (coco_store_maybe_compact st m)))
                    (return 1)))
               (set ix nx)))
@@ -665,6 +695,9 @@
                              (set ($ (nth ci (-> e tchoices)) printr) tport)
                              (set ($ (coco-pred-at (-> st predp) pi) framed) 1)))
                         (set r (coco_db_from e pi kpos key ix cend mode h bd fr ci))))))))
+          ;; a retract the knowledge base refused raises, as the walk's
+          ;; other errors do (3.64.7)
+          (if (== r 3) (return (coco_db_raised (coco_db_refused e) ret)))
           (if (== tport 1) (coco_trace_port e (? r "Exit" "Fail") td g))
           (if r (set (-> e goals) k) (set (cof ok) 0))
           (return 1)))
@@ -684,6 +717,7 @@
               (u32 cend . #'($ (nth ci (-> e choices)) cend))
               (size_t ix . #'($ (nth ci (-> e choices)) clause_ix))
               (int mode . #'(? (== (coco_name_of (-> e m) g) (coco-id (-> e m) "retract")) 1 0))
+              (size_t b . #'($ (nth ci (-> e choices)) barrier))
               (size_t h . 0) (size_t bd . 0) (int ssu . 0) (int sysq . 0) (int r . 0)
               (int tport . 0) (int td . 0) (u64 key . 0))
           (if (-> e trace)
@@ -700,6 +734,17 @@
           (set key (? (== kpos 0) (coco_arg_key m h)
                           (coco_call_arg_key m (aof (coco-pred-at (-> (-> e st) predp) pi)) h kpos)))
           (set r (coco_db_from e pi kpos key ix cend mode h bd 1 ci))
+          ;; A RETRACT THE KNOWLEDGE BASE REFUSED (3.64.7) goes on to throw
+          ;; the refusal, a goal of its own, for a catch to take or the run
+          ;; to end on: thrown here, under the backtrack, a ball nothing
+          ;; caught would end the run as a failure. A frame there is no room
+          ;; for has stopped the run already (`coco_k_room')
+          (if (== r 3)
+              (block
+                (set (-> e kcall) g)
+                (let ((size_t f . #'(coco_k_push e (coco_make1 m "throw" (coco_db_refused_ball e)) b k)))
+                  (set (-> e goals) (? (== f 0) k f))
+                  (return 1))))
           (if (== tport 1) (coco_trace_port e (? r "Exit" "Fail") td g))
           (if r (set (-> e goals) k))
           (return r)))

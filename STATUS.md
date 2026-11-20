@@ -20734,3 +20734,168 @@ FOUND ON THE WAY, not fixed here:
 THE RUN: the lint case first, then store-lock, stream, thread, errors,
 script, async, repl, journal, units and files each alone, green with no
 SKIP. The card check passes.
+
+## A retract the store refuses raises, and a rule's assert is one write (3.64.7)
+
+BACKLOG #229, found on 3.64.6's way: a retract whose write-through the
+knowledge base refused took its clause from the program and said nothing,
+the database keeping it -- the hook's answer was dropped at the three ends
+of `coco_retract_at` (a clause taken out, a clause dead in place, a sweep
+of the dead). 3.62.6 had made assertz/1 raise for its refusal; this is the
+same rule for retract/1 and retractall/1, and for the asserts of
+single-sided rules, which wrote the knowledge base three times and could be
+refused between any two. Each sweep below was red on 3.64.6 and is clean on
+3.64.7:
+
+- the retract shapes (test/store-lock.pl's `rr_retract`): an `--embed`
+  store seeded with three predicates whose first clause is 60 000
+  characters, so that the backend writes each change as the whole
+  predicate, and with a rule of gr/1. In one query: ga's plain retract (no
+  call open on it, so the clause is taken out), gb's retract under a walk
+  open on it (the clause dead in place), gb's retractall/1 (the sweep of
+  the dead), gc's retract/1 that retries to its third answer, an assertz
+  of a rule of gr/1, and a first rule of gn/1 by assertz and of gm/1 by
+  asserta. Each request of the stretch was refused in turn, once and twice
+  in a row:
+  - by the host, each request of 128 bytes (hmain, 23 requests);
+  - in a green task of a world of two workers, each request of 4096 bytes
+    or more (gmain, 43);
+  - in a green task, each request of the first rules' writes (gfirst, 155)
+    and of the retract that retries (gretry, 154).
+
+  After each run a process with no shim reads the store back. What the
+  program says it holds must be what the store holds. A write refused
+  raises resource_error(knowledge_base) in its builtin's context and
+  leaves its clause where it stood. A refusal of memory ends the run as
+  memory's.
+
+  3.64.6 went wrong in four ways:
+  - hmain, 43 runs of 46, and gmain, 65 runs of 86: the assertz of
+    `gr(small) => true` answered, but gr(small) raised
+    existence_error(matching_rule, _). The rule stood behind the last
+    clause 3.64.6's fetch had given the rule read back (rule F below).
+  - gmain, 33 runs: the program's lists were not the store's. ga was
+    `[big]` in the program and `[big,1]` in the store, and gb's 2 or 3 was
+    gone from the program and still in the store.
+  - hmain, 3 runs: the same.
+  - gfirst, 44 runs of 268: a first rule's assert answered and left the
+    program without its last clause, so a goal no rule matched FAILED. In
+    37 of them the assert's own fact said so (`first(ok, open(fail))`,
+    `firsta(ok, open(fail))`).
+- format/2 and write_term/2 (test/errors.pl's `list_refused`): each request
+  of 16 bytes between the marks refused in turn, where a list's elements
+  are taken into an array (format/2's arguments, write_term/2's options and
+  their variable_names). 3.64.6 took the refusal for `not a list`:
+  - format/2 of `"~w(~q)~n", [plain, ok]` wrote its whole argument list
+    for its first directive, `[plain,ok](`, and raised `Format error: not
+    enough arguments`;
+  - write_term/2 wrote `f(A b,_G185)` with no options at all, and
+    `f('A b',_G185)` with variable_names(...) dropped.
+
+THE RULES, each its own arm (one build each, below):
+
+- R1 a plain retract's refused write gives the clause back where it stood:
+  the clauses after it shifted back, with its key, origin, mute and code
+  (`coco_retract_at`'s plain path, `coco-retract-told`).
+- R2 a retract under an open call takes back the death of its clause dead
+  in place (`coco-tomb-unset`).
+- R3 the database is told BEFORE a sweep of the dead. 3.64.6 swept first,
+  and a refused write had nothing left to give back.
+- C retractall/1's refusal raises in its own context (`coco_bi_retract`'s
+  -2, `coco_db_refused`).
+- W1 retract/1's walk raises for a refused answer (`coco_db_from`'s 3).
+- W2 its retry throws it too (`coco_db_retry`): a ball thrown under the
+  backtrack, which nothing caught, would read as a failure.
+- F a fetch's rows are the predicate as written (`nomove`). Through 3.64.6
+  each rule read back was given another last clause, and a rule asserted
+  after them stood behind one.
+- A1 a rule's assertz is one change of the predicate and one write: it
+  goes in before the last clause (`coco_ssu_add`, `coco_pred_insert_at`).
+  3.64.6 added it after the last clause, retracted the old last clause and
+  asserted another: three writes.
+- A2 where a call or a walk open on the predicate has the last clause still
+  to try (`coco_frames_on` act 3), the last clause dies in place and a copy
+  goes after the rule. The open call then sees neither the rule nor a
+  second last clause (the logical update view).
+- A3 a predicate's first rule and its last clause are one write, by
+  assertz or asserta.
+- D an asserted rule makes its predicate dynamic, as an asserted clause
+  does (`coco_assert_goal`). In 3.64.6 the predicate was dynamic only by
+  the retract of a second rule's assert, and listing/1 of one asserted rule
+  wrote no `:- dynamic`.
+- L1 a list's elements refused their array finish the machine
+  (`coco_m_list_array`), where it answered `not a list`.
+- L2 format/2 puts nothing out once its arguments have finished the
+  machine (`coco_fmt_do`).
+- L3 nor does write_term/2 (`coco_wt_put`).
+- L4 write_term/2's variable_names(...) arrays, refused, finish the machine
+  too.
+
+ARMS. Each arm is one build of the 3.64.7 tree with its rule out, each red
+on its own sweep. R1 to W2 were built before D took its form, so their
+ssu rows are D's (no `:- dynamic d1/1.`) and none of their own. The gretry
+sweep was made after the arms' first checks, which none of them failed for
+W2: no other sweep refuses a write a retry makes. Its rows are from one run
+on W2's binary and the candidate's.
+
+- R1 hmain: wrong of 23 at #1.7, #2.6 and #2.7: `plain(resource_error(
+  knowledge_base)-(system:retract/1), done)`. The retract raised and its
+  clause was gone: the program's ga `[big]`, the store's `[big,1]`. gmain:
+  wrong of 43, the same, the first at #1.2.
+- R2 gmain: wrong of 43, `tomb(resource_error(knowledge_base)-(system:
+  retract/1), done)`, the first at #1.10: the clause, refused, stayed dead
+  in place and so gone.
+- R3 gmain: wrong of 43, `sweep(resource_error(knowledge_base)-(system:
+  retractall/1), done)`, the first at #1.17: the program's gb `[big,1]`,
+  the store's `[big,1,3]`.
+- C gmain: wrong of 43, the first at #1.17: retractall/1's refusal raised
+  as a fetch's error, in the context of the last predicate the store read
+  (`resource_error(knowledge_base)-current_prolog_flag/2`).
+- W1 hmain: wrong of 23 at #1.7, #2.6 and #2.7, `plain(ok, not_done)`: the
+  retract said it was done and its clause stood. gmain: wrong of 43, the
+  same of plain and of tomb, the first at #1.2.
+- W2 gretry: wrong of 154, `retry(ok, not_done)` at #1.116-132 and
+  #2.86-87.
+- F hmain: wrong of 23 and gmain: wrong of 43, `rule(ok,
+  not_done(matching_rule))`, the first at #1.1 and #1.2.
+- A1 gmain: wrong of 43, `rule(ok, not_done(matching_rule))`, the first
+  at #1.37 and #2.37: the three writes refused apart.
+- A2 ssu: `existence_error(matching_rule, r(5))` missing. The open call saw
+  the rule its own guard asserted.
+- A3 gfirst: wrong of 157, `first(ok, open(fail))`, the first at #1.65.
+- D ssu: `predicate_property(d1(_), dynamic)` no, and no `:- dynamic d1/1.`
+  in d1's listing.
+- L1 fa: wrong of 1, `[plain,ok](`; fw: wrong of 3, `f(A b,_G185)`.
+- L2 fa: wrong of 1, `[plain,ok](`.
+- L3 fw: wrong of 3, `f(A b,_G185)` and `f('A b',_G185)` written and then
+  `out of memory`.
+- L4 fw: wrong of 3, `f('A b',_G185)` at #2 and #3: the names unapplied,
+  exit 0.
+
+WHAT IT COSTS: tools/flow/zero.sh against 3.64.6, work less padding: nrev
+66 124 463, queens 39 970 162 and lookup 48 075 450 instructions, each
+3.64.6's to the instruction (queens' work +5, all of it padding). A start
+(`cocolog query true`, each binary at the checkout's path) counts 3 992
+fewer, 35 224 940 against 35 228 932: `coco_assert_from` 5 816 fewer over
+the start's asserts, with no rule's last clause to keep after each, and
+the dynamic loader's strcmp 1 803 more over the binary's changed names.
+
+FOUND ON THE WAY, not fixed here:
+- A store that a 3.64.6 process wrote after reading rules back can hold a
+  `'$ssu_none'` last clause between its rules (3.64.6's fetch gave each
+  rule read back a last clause: rule F). No version reads past it, so the
+  rules after it are never tried. `cocolog forget NAME ARITY`, then
+  asserting the rules again, cleans one.
+- A store growth given less than it asked is raised at the store's next
+  put, which may be a goal far from the write: the host's retry sweep, run
+  once by hand, met it in the fixture's own read of gr/1 after the stretch.
+  A run that says memory is allowed, and the sweep reads such a run's
+  lists alone.
+- A predicate given both `:-` clauses and `=>` rules is kept, where
+  swipl 9.0.4 refuses the second kind with permission_error(assert,
+  procedure, PI) (COMPAT.md's row; backlog #243).
+
+THE RUN: the lint case first, then store-lock, files, errors, argv,
+engine, reconsult, async, thread, gc, script, units, stream, repl,
+journal, directives and trace, each alone, green with no SKIP. The card
+check passes.

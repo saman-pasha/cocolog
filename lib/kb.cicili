@@ -79,6 +79,31 @@
           (coco_reader_free (aof r))
           (return -1)))
 
+;;; THE DATABASE TOLD OF A RETRACT (3.64.7), at each of the three ends of
+;;; `coco_retract_at' where TELL says a backend hears it: a write the
+;;; backend refused runs UNDO -- the clause where it stood, the predicate
+;;; as the retract found it -- puts DYN back, leaves the backend's reason
+;;; on the store (`write_err', its own words where it gave none) and
+;;; answers -2, for the caller to raise resource_error(knowledge_base).
+;;; Through 3.64.6 the hook's answer was dropped: the clause left the
+;;; program and stayed in the database.
+(DEFMACRO coco-retract-told (undo)
+  `(if (and tell (not ((-> st on_retract) st (-> st ctx) pi)))
+       (block ,undo
+              (set (-> p dynamic) dyn)
+              (if (== (nth 0 (-> st write_err)) (cast char 0))
+                  (snprintf (-> st write_err) 256 "%s" "the knowledge base refused the write"))
+              (return -2))))
+
+;;; CLAUSE I OF P LIVE AGAIN, its death taken back (`coco_tomb_set''s
+;;; inverse): a frame the death was stamped on sees the next as its first
+;;; (`coco_tomb_open'), which it lives through
+(DEFMACRO coco-tomb-unset (p i)
+  `(block (set (nth ,i (-> ,p tomb)) 0)
+          (set (-> ,p ntomb) (- (-> ,p ntomb) 1))
+          (coco_pred_nprobe ,p)
+          (set (-> ,p tver) (+ (-> ,p tver) 1))))
+
 ;;; A TABLE OF N KEYS FILLED (3.64.0): X's arrays grown to hold N, its
 ;;; slots to stay under half full, and entry I's key -- KEY, an expression
 ;;; of I -- linked into its chain (`coco_aix_add'). Answers nil from the
@@ -2022,12 +2047,11 @@
   ;;; A SINGLE-SIDED PREDICATE'S RULES (3.19.0, `Head => Body', lib/kb-consult.cicili):
   ;;; whether a clause on the heap is one (its body opens on `'$ssu''); a read's
   ;;; note of its predicate, and its end's last clause after each it noted;
-  ;;; an assert's last clause kept last; the body clause/2 shows for a stored
-  ;;; body -- the rule's guard, cut and body as swipl's is -- and the clause
-  ;;; listing/1 writes, `Head => Body'; -1 for the last clause, which both hide
+  ;;; the body clause/2 shows for a stored body -- the rule's guard, cut and
+  ;;; body as swipl's is -- and the clause listing/1 writes, `Head => Body';
+  ;;; -1 for the last clause, which both hide
   (decl) (func coco_ssu_clause ((coco_machine * m) (size_t clause)) (out int))
   (decl) (func coco_ssu_note ((coco_machine * m) (size_t pi)))
-  (decl) (func coco_ssu_keep_last ((coco_store * st) (coco_machine * m) (size_t pi)))
   (decl) (func coco_consult_ssu_close ((coco_store * st) (coco_machine * m) (size_t base)
                                      (u64 oid) (coco_origin_seen * seen)))
   (decl) (func coco_ssu_body ((coco_machine * m) (size_t b)) (out size_t))
