@@ -306,7 +306,18 @@ fixtures(fifo_read, Sandbox) :- !,
                     chars-'ab', nobom-'x.\\ny.\\n' ]),
            shl(['cd ', Sandbox, ' && mkfifo ', Name, ' && ( timeout 20 sh -c "printf ''', Bytes,
                 ''' > ', Name, '" > /dev/null 2>&1 & )'])).
+%% a file and the versions the case renames in its place, each another kind
+%% of clause for one predicate (`sm/2')
+fixtures(ssu_mixed, Sandbox) :- !,
+    forall(sm(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
 fixtures(_, _).
+
+%% a predicate's clauses, then rules in their place, then clauses with a rule
+%% after them, then a rule with a clause after it
+sm('sw.pl', ['sp(1).', 'sp(2).']).
+sm('sw.v2.pl', ['sp(X) => X = rule.']).
+sm('sw.v3.pl', ['sp(3).', 'sp(X) => X = 4.']).
+sm('sw.v4.pl', ['sp(X) => X = again.', 'sp(5).']).
 
 %% what makes a file read once a source file, as swipl's, and what leaves it
 %% none, so that the next load reads it again: each file says so as it is read

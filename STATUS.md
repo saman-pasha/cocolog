@@ -20966,3 +20966,102 @@ THE RUN: the lint case first, then files, directives, errors, reconsult,
 engine, library, store-lock, module, solve, script, trace, repl and argv,
 each alone, green with no SKIP. The card check passes, its cite I1 moved
 by hand to the lines the new macro moved it to.
+
+## A predicate is single-sided rules or clauses, never both (3.65.0)
+
+BACKLOG #243, COMPAT.md's row 21. swipl 9.0.4 gives a predicate one kind:
+its clauses are `Head :- Body` clauses (facts among them) or `Head => Body`
+rules, and a clause of the other kind is refused while it has any. Through
+3.64.8 cocolog kept both in the order given: `mx(1). mx(X) => X = 2.`
+loaded both, a call tried each as its kind says, and `assertz((d(2) =>
+true))` after `d(1)` went in. Now:
+
+- a load says swipl's two lines at the clause of the other kind,
+  ``ERROR: F:L:`` and ``ERROR:    No permission to assert procedure
+  `mx/1'``, and goes on without it (the claim refusal's words go through
+  the same macro, `coco-assert-refused`);
+- an assert raises permission_error(assert, procedure, PI) in assertz/1's
+  or asserta/1's context (`kind_err` on the store, cleared as each assert
+  begins, read by `coco_assert_goal` before `assert_err`);
+- the kind is the live clauses' (`pattrs` 1024, set as a clause comes to the
+  predicate empty), so a predicate emptied by retract/1, retractall/1 or
+  abolish/1 takes either kind, a clause retracted under a call still open
+  on it (dead in place) counting for nothing;
+- a file read again takes its new text's kind: the re-read takes its old
+  clauses out at its first clause of the predicate (`coco_reload_for`),
+  before the check.
+
+ONLY THE PROGRAM'S SIDE IS ASKED. The first cut asked every clause, and
+library(lists)' own rules for subtract/3 and max_member/2, read at a query's
+start after a program's own subtract/3, were refused at every start, ``ERROR:
+lists:1:`` and the predicate's name, where swipl says nothing: its
+user:subtract/3 is no lists:subtract/3. Under `-s`, where the library is
+read first, the program's clauses were the ones refused. The check asks a
+program's clause (not muted, or an `-s` file's `ownload`) against a
+predicate that is no library's (`library` and not `own`); what joins across
+the two sides joins as through 3.64.8 (one namespace, COMPAT.md's row 104).
+Nor is a fetch's row asked (`nomove`): a store written through 3.64.8 may
+hold both kinds, and a row refused there ended the fetch with
+resource_error(knowledge_base), `the row at ordinal 1 did not go into the
+store` -- or, had it been passed by, left the database at the predicate's
+next whole write. A store 3.64.8 wrote with both kinds reads back in 3.65.0
+whole and answers as 3.64.8 did.
+
+NOT SWIPL'S (COMPAT.md's row 44): whether a call no rule matches raises,
+after a predicate switched kinds while clauses retracted under a call open
+on them were still in swipl's clause list. swipl keeps those until its
+clause garbage collection (beyond the call's end, past
+garbage_collect_clauses/0 inside the same goal) and decides by that list,
+so it fails where cocolog raises existence_error(matching_rule, G), and
+raises where cocolog fails once a clause came in place of rules retracted
+so. The kind refusals themselves agree.
+
+THE CASE: test/files/ssu_mixed.pl, 41 lines held to swipl 9.0.4 by
+test/files.pl, a fixture of four versions of one file read in turn (`sm/2`:
+clauses, rules in their place, clauses with a rule after them, a rule with
+a clause after it). test/directives.pl's `kinds` holds the program's side
+alone, under `run` and `-s`; test/errors.pl's `clause_too_long` puts a kind
+refusal just before its oversized assert, and `mixed_rows` plants a rule's
+row beside two clauses (`cocolog::assert_clause` through zigurat_call/2): a
+second process reads all three and asserts, and a third counts four clauses.
+
+THE RULES, each its own arm (one build of the final tree with the rule out):
+
+- K1 the refusal: 21 of the case's 41 lines, directives and errors red.
+- K2 the assert's permission_error, `kind_err` read before `assert_err`: 9
+  lines, each `resource_error(clause_length)`.
+- K3 the last clause a read puts after its rules passed by: `ru(b)` failed
+  where it raises (1 line), and errors' single-sided no-match section red.
+- K4 the kind by the live clauses: 4 lines, the rule or the clause refused
+  after both clauses went under an open call (t13, t15).
+- K5 the kind cleared as the predicate is emptied: 3 lines, the re-read's
+  rule after `sp(3)` taken (`[3,4]`).
+- K6 a fetch's rows passed by: errors' `mixed_rows`, the fetch ended with
+  resource_error(knowledge_base).
+- K7 the check after a re-read's forget: 3 lines, the re-read's rule in
+  place of clauses refused (`[]`) and its clause after a rule refused at the
+  wrong line.
+- K8 `kind_err` cleared as each assert begins: errors' `clause_too_long`,
+  its oversized clause raising permission_error.
+- K9 a library's text not asked: directives' `kinds`, five refusals under
+  `run` where one is.
+- K10 a library's predicate not asked of a program's clause: directives'
+  `kinds`, four refusals under `-s` where one is.
+
+WHAT IT COSTS: tools/flow/zero.sh against 3.64.8, work less padding: nrev
+66 124 463 instructions, 3.64.8's to the instruction; queens 39 970 123, 39
+fewer; lookup 48 071 451, 3 999 fewer -- an assert asks `coco_ssu_clause`
+once where it asked twice. A start (`cocolog query true`, each binary from
+the scratchpad at paths of one length) counts 21 690 more, 35 317 323
+against 35 295 633 (0.06 %), all of it `coco_assert_from`'s own (+23 014):
+the live count, the kind bit and its test at each clause a start reads;
+`coco_ssu_clause` is asked exactly as often (114 186 instructions both).
+
+THE RUN: the lint case first, then window, flowdebug, trace, files,
+directives, errors, reconsult, engine, library, module, solve, script, repl,
+argv, gc, string, cyclic, flowchart, journal, backtrace, serialize, state,
+term, units, static, store-lock, async and, with a server up, zigurat,
+shared, kbs, zigurat-lib, groups, ruler, tunnel and zigurat-tls, each alone,
+green with no SKIP; files, errors and directives again on the case's final
+text, and the lint case again after the card's cite H2 moved. Cite I1 was
+moved by hand to the lines the new macro moved it to.

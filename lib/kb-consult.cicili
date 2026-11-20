@@ -1655,6 +1655,7 @@
         ;; the last write's (3.62.6)
         (set (nth 0 (-> st fetch_err)) (cast char 0))
         (set (nth 0 (-> st write_err)) (cast char 0))
+        (set (-> st kind_err) 0)
 
         ;; A GRAMMAR RULE IS NOT REWRITTEN HERE (3.13.0): the consult
         ;; translates what a file holds (`coco_consult_owned'), and an
@@ -1772,17 +1773,7 @@
                       (if (and (< rp (-> st npreds)) ($ (coco-pred-at (-> st predp) rp) redef))
                           (set claim (? (coco_is_construct m (coco_name_of m head)) 0 1)))))
                 (if (== claim 2)
-                    (let ((coco_strbuf b) (size_t mark . #'(-> m heap_len)))
-                      (coco_sb_init (aof b))
-                      (coco_write_mode m (aof b)
-                                       (coco_make2 m "/" (coco_new_atom_id m (coco_name_of m head))
-                                                   (coco_new_int m (cast i64 (coco_arity m head))))
-                                       25 0)
-                      (snprintf (-> st assert_err) 256 "No permission to modify static procedure `%s'"
-                                (? (== ($ b s) nil) "?" ($ b s)))
-                      (coco_sb_free (aof b))
-                      (set (-> m heap_len) mark)
-                      (return 0)))))
+                    (coco-assert-refused "No permission to modify static procedure `%s'"))))
 
           ;; WILL IT FIT? Asked HERE -- before the predicate is touched at
           ;; all, and above the reconsult forget in particular, because the
@@ -1836,7 +1827,8 @@
           (let ((size_t pi . #'(coco_pred_make st (coco_name_of m head) (coco_arity m head)))
                 (size_t stored) (size_t span . 0) (coco_reload * rl . nil)
                 (u64 kfile . 0) (u64 kline . 0) (int kdyn . 0)
-                (int ssu . 0) (int shape . 0) (size_t lx . #'(cast size_t -1)))
+                (int ssu . 0) (int shape . 0) (size_t lx . #'(cast size_t -1))
+                (int isrule . 0))
             (if (>= pi (-> st npreds)) (return 0))
             ;; a read under a module/2 (its `ssu_mod', 0 outside every read)
             ;; names the predicate's module, if its first clause is that
@@ -1955,9 +1947,42 @@
             ;; it is a variant of becomes the file's, and nothing is added.
             (if (and (!= origin 0) (!= seen nil))
                 (if (not (coco_reload_for st m seen pi origin origin_path at (aof rl))) (return 0)))
+            ;; ONE KIND TO A PREDICATE (3.65.0, swipl's): single-sided rules
+            ;; or clauses, as its live clauses are (`pattrs' 1024 rules, set
+            ;; as a clause comes to it empty, a fetch's rows too). A clause
+            ;; of the other kind is refused while it has any -- a load's in
+            ;; swipl's words at the clause, the load going on; an assert's
+            ;; permission_error(assert, procedure, PI) (`kind_err',
+            ;; `coco_assert_goal') -- but the last clause a read puts after
+            ;; its rules, which is theirs. Emptied, a predicate takes either
+            ;; kind again, and a file read again has had its old clauses
+            ;; taken out just above (`coco_reload_for'), so its new text
+            ;; decides. Through 3.64.8 both kinds were kept, in the order
+            ;; given. ONE SIDE'S CLAUSES ARE ASKED: the program's (a file it
+            ;; loads, an `-s' file's `ownload', an assert) against a
+            ;; predicate that is no library's, as swipl's user:subtract/3 is
+            ;; no lists:subtract/3. A library's text, and a program's clause
+            ;; for a name a library's text defined first, join as through
+            ;; 3.64.8 (one namespace: card row N1) -- the first cut refused
+            ;; library(lists)' rules after a program's own subtract/3,
+            ;; `ERROR: lists:1:' at a start swipl says nothing in. Nor are a
+            ;; fetch's rows (`nomove'): a store written through 3.64.8 may
+            ;; hold both kinds, and a row refused would be taken out of the
+            ;; database by the predicate's next write.
+            (set isrule (coco_ssu_clause m clause))
+            (let ((coco_pred * kp . #'(aof (coco-pred-at (-> st predp) pi))))
+              (if (== (coco_pred_live kp) 0)
+                  (set (-> kp pattrs) (bitor (bitand (-> kp pattrs) -1025) (? isrule 1024 0)))
+                (if (and (not (-> st nomove)) (!= isrule (? (bitand (-> kp pattrs) 1024) 1 0))
+                         (or (not (coco_store_is_muted st)) (-> st ownload))
+                         (not (and (-> kp library) (not (-> kp own))))
+                         (not (and (!= isrule 1) (!= head clause)
+                                   (coco_is_compound2 m (coco_deref m (coco_arg m clause 1)) "$ssu_none"))))
+                    (block (set (-> st kind_err) 1)
+                           (coco-assert-refused "No permission to assert procedure `%s'")))))
             ;; a single-sided rule a read gives (3.19.0): the read's end puts
             ;; the last clause after its predicate's rules
-            (if (and (> (-> m lreads) 0) (coco_ssu_clause m clause)) (coco_ssu_note m pi))
+            (if (and (> (-> m lreads) 0) isrule) (coco_ssu_note m pi))
             (if (and (!= rl nil) (coco_reload_adopt st m rl pi clause origin))
                 (return 1))
             ;; A CYCLIC CLAUSE IS REFUSED (1.10.19), as SWI refuses one with
@@ -1998,8 +2023,7 @@
             ;; the row after its rules (through 3.64.6 each rule read back
             ;; put another after it, and a rule asserted after them stood
             ;; behind one: existence_error(matching_rule, G) of its own head)
-            (set ssu (and (== (-> m lreads) 0) (not (-> st nomove)) (== rl nil)
-                          (coco_ssu_clause m clause)))
+            (set ssu (and (== (-> m lreads) 0) (not (-> st nomove)) (== rl nil) isrule))
             (if ssu (set lx (coco_ssu_last_ix st m pi)))
             (if (and ssu (or at_end (== lx (cast size_t -1))))
                 (block

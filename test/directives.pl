@@ -38,6 +38,7 @@ main :-
     reader_level(D), the_program(D),
     taken_later(D),
     wide_names(D),
+    kinds(D),
     under_swipl(D),
     shl(['rm -rf ', D]),
     checks_done.
@@ -809,6 +810,36 @@ wide_names(D) :-
     has('a column after a letter past ASCII on its line is swipl''s', E5, Out),
     sh_join(['ERROR: ', F, ':6:5: Syntax error: Operator expected'], E6),
     has('and one after a symbol past ASCII in the clause', E6, Out).
+
+%% ONE KIND TO A PREDICATE, ON THE PROGRAM'S SIDE (3.65.0): a predicate of
+%% the program's own given both clauses and single-sided rules is refused
+%% at the clause of the other kind, under `run' and `-s' alike; and the
+%% program's own subtract/3 and max_member/2, beside library(lists)' rules
+%% of those names, are refused nowhere -- swipl's are user's, not lists' --
+%% under `run', where the library's text is read after the program's, or
+%% under `-s', where it is read before. 3.65.0's first cut said `ERROR:
+%% lists:1:' for each of the library's rules under `run', and refused the
+%% program's clauses under `-s'. test/files/ssu_mixed.pl holds the
+%% program's side to swipl; what each mode answers here is card row N1's
+kinds(D) :-
+    section('one kind to a predicate: the program''s side alone'),
+    atom_concat(D, '/kinds.pl', F),
+    fixture(F, [ 'subtract([], _, []).',
+                 'subtract([H|T], L, R) :- ( memberchk(H, L) -> R = R1 ; R = [H|R1] ), subtract(T, L, R1).',
+                 'max_member(mine, _).',
+                 'mx(1).', 'mx(X) => X = 2.',
+                 'main :- subtract([a,b,c], [b], X), findall(Y, mx(Y), L), write(X-L), nl.' ]),
+    ran(F, main, Out1),
+    sh_join(['--local -s ', F, ' 2>&1'], A2), cocolog_run(A2, Out2, _),
+    sh_join(['ERROR: ', F, ':5:\nERROR:    No permission to assert procedure `mx/1'''], E5),
+    has('run: a rule after a clause of the program''s is refused', E5, Out1),
+    has('-s: and under -s', E5, Out2),
+    has('run: the clause stands', '[a,c]-[1]', Out1),
+    has('-s: and under -s', '[a,c]-[1]', Out2),
+    findall(x, sub_atom(Out1, _, _, _, 'No permission'), R1), length(R1, N1),
+    check('run: the library''s rules beside the program''s clauses are refused nowhere', N1, 1),
+    findall(x, sub_atom(Out2, _, _, _, 'No permission'), R2), length(R2, N2),
+    check('-s: nor the program''s clauses beside the library''s rules', N2, 1).
 
 under_swipl(D) :-
     section('the same files under swipl'),

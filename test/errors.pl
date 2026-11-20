@@ -68,6 +68,7 @@ main :-
     load_refused,
     list_refused,
     read_that_failed,
+    mixed_rows,
     recursive_message,
     near_names,
     text_read_here,
@@ -330,6 +331,36 @@ read_that_failed :-
     has('uncaught, it is SWI\'s sentence with its context',
         'ERROR: -s main: p/1: Not enough resources: knowledge_base (the row at ordinal 1000 does not read as a clause)', T4),
     check('and the exit status of an error', X4, 2),
+    shl(['rm -rf ', D]).
+
+%% A STORE THAT HOLDS BOTH KINDS READS BACK WHOLE (3.65.0). An assert or a
+%% load refuses a single-sided rule to a predicate of clauses, and a clause
+%% to one of rules, as swipl's; but a store written through 3.64.8 may hold
+%% both, and a fetch that refused a row would leave the database without it
+%% at the predicate's next whole write. The rule's row is planted beside two
+%% clauses as such a store holds it: a second process reads all three, an
+%% assert of the predicate's own kind writes them back with its own, and a
+%% third reads the rule still there
+mixed_rows :-
+    section('a store that holds both kinds of clause reads back whole'),
+    scratch(D),
+    atom_concat(D, '/KB', KB),
+    atom_concat(D, '/write.pl', W),
+    fixture(W, ['main :- assertz(om(1)), assertz(om(3)).']),
+    atom_concat(D, '/plant.pl', P),
+    fixture(P, ['main :- zigurat_call(\'cocolog::assert_clause\', [main, om, int(1), 1000, text(\'om(A):-\'\'$ssu\'\',!,A=2\')]).']),
+    atom_concat(D, '/read.pl', R),
+    fixture(R, ['main :- catch(findall(X, om(X), L), error(E, _), L = E), print(L), nl,',
+                '        catch(assertz(om(4)), error(F, _), (print(F), nl)).']),
+    atom_concat(D, '/count.pl', C),
+    fixture(C, ['main :- aggregate_all(count, clause(om(_), _), N), findall(X, clause(om(X), true), L), print(N-L), nl.']),
+    forall(member(F0, [W, P]), ( atomic_list_concat(['--embed ', KB, ' -s ', F0, ' 2>&1'], A0), cocolog_run(A0, _, _) )),
+    atomic_list_concat(['--embed ', KB, ' -s ', R, ' 2>&1'], A1),
+    cocolog_run(A1, T1, _),
+    check('a second process reads the two clauses and the rule, and asserts beside them', T1, '[1,3,2]'),
+    atomic_list_concat(['--embed ', KB, ' -s ', C, ' 2>&1'], A2),
+    cocolog_run(A2, T2, _),
+    check('and the write took the rule\'s row back with its own: four clauses, three of them facts', T2, '4-[1,3,4]'),
     shl(['rm -rf ', D]).
 
 %% ---- a refused allocation raises resource_error(memory) (1.10.28) -----------
@@ -909,10 +940,14 @@ clause_too_long :-
     atom_concat(D, '/KB', KB),
     atom_concat(D, '/big.pl', Prog),
 
-    %% asserted: the oversized one raises, the two beside it survive
+    %% asserted: the oversized one raises, the two beside it survive -- and
+    %% a refusal of another kind just before it (3.65.0: a rule to a
+    %% predicate of clauses, its own permission_error) is no reason of its
+    %% (`kind_err', set by the one refusal and cleared at the next assert)
     fixture(Prog,
             [ ':- dynamic unit/2.',
               'main :- assertz(unit(before, small)),',
+              '        catch(assertz((unit(r, s) => true)), _, true),',
               '        numlist(1, 15000, L),',
               '        catch(assertz(unit(big, L)), E, true),',
               '        format("raised ~q~n", [E]),',

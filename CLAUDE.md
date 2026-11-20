@@ -2362,6 +2362,26 @@ cocolint index offers no import of it.
   functor id (`coco-is-colon`, the machine's ids filled first): told by
   its name, a strcmp of every clause a start reads, the walk cost a start
   59 837 instructions.
+* **A predicate is single-sided rules or clauses, never both** (3.65.0,
+  swipl's; the kind check in `coco_assert_from`, test/files/ssu_mixed.pl):
+  its live clauses fix the kind (`pattrs` 1024 rules, set as a clause comes
+  to it empty -- `coco_pred_live`, so a clause dead in place under an open
+  call counts for nothing), and a clause of the other kind is refused --
+  a load's ``No permission to assert procedure `PI'`` at its line, the load
+  going on (`coco-assert-refused`, which the claim refusal's words go
+  through too), an assert's permission_error(assert, procedure, PI)
+  (`kind_err` on the store, cleared as each assert begins and read by
+  `coco_assert_goal` before `assert_err`). A file read again has had its
+  old clauses taken out before the check (`coco_reload_for`), so its new
+  text decides. **Only the program's side is asked**: the program's clause
+  (not muted, or `ownload`) against a predicate that is no library's
+  (`library` and not `own`) -- swipl's user:subtract/3 is no
+  lists:subtract/3, and the first cut said `ERROR: lists:1:` for each of
+  library(lists)' rules after a program's own subtract/3 -- and never a
+  fetch's rows (`nomove`): a store written through 3.64.8 may hold both
+  kinds, and a row refused would leave the database at the predicate's
+  next whole write. The last clause a read puts after its rules is theirs
+  (`'$ssu_none'`, passed by the check).
 * **A clause is stored as swipl's compiler keeps it** (3.15.0,
   `coco_clause_compile` in lib/kb-consult.cicili, at every assert,
   consult and read of a stored clause, so clause/2, listing/1 and

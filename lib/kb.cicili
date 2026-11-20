@@ -95,6 +95,23 @@
                   (snprintf (-> st write_err) 256 "%s" "the knowledge base refused the write"))
               (return -2))))
 
+;;; THE CLAUSE REFUSED IN SWIPL'S WORDS (3.65.0): FMT, a sentence with one
+;;; `%s', given HEAD's predicate indicator as writeq/1 writes it, left on
+;;; the store (`assert_err') for a load to report at the clause, and 0 --
+;;; `coco_assert_from''s refusals of a clause for a builtin's name and of a
+;;; clause of the other kind. ST, M and HEAD are the caller's.
+(DEFMACRO coco-assert-refused (fmt)
+  `(let ((coco_strbuf b) (size_t mark . #'(-> m heap_len)))
+     (coco_sb_init (aof b))
+     (coco_write_mode m (aof b)
+                      (coco_make2 m "/" (coco_new_atom_id m (coco_name_of m head))
+                                  (coco_new_int m (cast i64 (coco_arity m head))))
+                      25 0)
+     (snprintf (-> st assert_err) 256 ,fmt (? (== ($ b s) nil) "?" ($ b s)))
+     (coco_sb_free (aof b))
+     (set (-> m heap_len) mark)
+     (return 0)))
+
 ;;; TERM'S MODULE QUALIFIERS OFF (3.64.8), as one namespace reads them:
 ;;; TERM, a variable of the caller's, stepped past each `M:' it begins with,
 ;;; MOD the innermost module and HASQ set where there was one. An assert
@@ -1130,7 +1147,10 @@
     ;; (`coco_assert_from'); and (3.45.0) 128 called (the step's slow path),
     ;; 512 its arguments qualified, as the declaration stood at its first
     ;; call (`coco_pred_meta_note', `coco_pred_meta_q', `pmq'; 3.45.0's 256,
-    ;; declared after a call, is gone in 3.46.0)
+    ;; declared after a call, is gone in 3.46.0); and (3.65.0) 1024 its
+    ;; clauses single-sided rules, the kind its live clauses keep
+    ;; (`coco_assert_from': set as a clause comes to it empty, asked only
+    ;; while it has live ones)
     (member int      pattrs)
     ;; THE FIRST ARGUMENT'S SPEEDUP AS SWIPL ASSESSES IT (3.24.0), what
     ;; `coco_argix''s AVER and ASPD are to the others: asked by the JIT
@@ -1538,7 +1558,12 @@
     ;; their table's room, PREDP_CAP the room of `predp'. Appended.
     (member coco_pred ** pchunk)
     (member size_t       pchunk_cap)
-    (member size_t       predp_cap))
+    (member size_t       predp_cap)
+    ;; 1 WHERE THE LAST ASSERT WAS REFUSED FOR ITS KIND (3.65.0,
+    ;; `coco_assert_from'): a rule to a predicate of clauses, or a clause
+    ;; to one of rules, which `coco_assert_goal' raises as swipl's
+    ;; permission_error(assert, procedure, PI). Appended.
+    (member int          kind_err))
 
   (decl) (func coco_store_init ((coco_store * st)))
   (decl) (func coco_store_free ((coco_store * st)))
