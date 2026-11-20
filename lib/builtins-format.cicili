@@ -322,7 +322,11 @@
                 (for ((int i . 0)) (< i k) ((++ i)) (coco_sb_putc b (nth i u)))
                 (set pre (cast size_t k))))
           (set (-> m wpgapb) (cast (void *) b)) (set (-> m wpgapq) (+ q0 pre))
+          ;; its operators ask what stands before it too (3.64.2, `wcontb'):
+          ;; `a= * 1' after `a=', as swipl's partial(true) keeps lastc
+          (set (-> m wcontb) (cast (void *) b))
           (coco-wt-write m b t mode numbervars asks pgoal opts)
+          (set (-> m wcontb) nil)
           (if (== (-> m wpgapb) (cast (void *) b)) (coco_write_gap_at b (+ q0 pre)))
           (set (-> m wpgapb) sgb) (set (-> m wpgapq) sgq)
           ;; and the character it began after taken off again
@@ -1106,7 +1110,12 @@
                 (i64 smax . #'(-> m wmax)) (size_t * scells . #'(-> m wcells))
                 (u64 * snames . #'(-> m wnames)) (size_t snw . #'(-> m nwnames))
                 (void * scanon . #'(-> m wcanon)) (void * sfirst . #'(-> m wpfirst))
-                (size_t sgoal . #'(-> m wpgoal)) (size_t sopts . #'(-> m wpopts)))
+                (size_t sgoal . #'(-> m wpgoal)) (size_t sopts . #'(-> m wpopts))
+                ;; the write it portrays in goes on from where it stood,
+                ;; its context the goal's writes set their own over
+                ;; (3.64.2: `x= * 1' where the goal wrote nothing)
+                (void * spre . #'(-> m wpreb)) (size_t sbase . #'(-> m wbase))
+                (void * sraw . #'(-> m wraw)))
             (if (!= sgoal 0)
                 (block (set (nth 0 args) sgoal) (set (nth 1 args) t)
                        (set (nth 2 args) (coco_portray_opts e sopts prec))
@@ -1115,6 +1124,13 @@
             (set (-> m wdeep) 1024) (set (-> m wcyc) 0) (set (-> m wprec) 0) (set (-> m wmax) 0)
             (set (-> m wcells) nil) (set (-> m wnames) nil) (set (-> m nwnames) 0)
             (set (-> m wcanon) nil) (set (-> m wpfirst) nil) (set (-> m wpgoal) 0) (set (-> m wpopts) 0)
+            ;; the goal's writes start afresh, as each of swipl's resets
+            ;; its stream's last code, inside a partial(true) write too
+            ;; (3.64.2: after `=', a format's `=' and then its `~w' of
+            ;; `''*1' write `==*1'). Nothing puts the partial write's
+            ;; buffer back: only a write's start asks it, and the write
+            ;; this goal stands in has begun
+            (set (-> m wcontb) nil)
             (coco_sb_init (aof out))
             (set (-> m wpnest) (+ (-> m wpnest) 1))
             (set rc (coco_out_capture_run e goal nil 0 0 1 1 (aof out) (aof bl) (aof why)))
@@ -1123,6 +1139,7 @@
             (set (-> m wcells) scells) (set (-> m wnames) snames) (set (-> m nwnames) snw)
             (set (-> m wcanon) scanon) (set (-> m wpfirst) sfirst) (set (-> m wpgoal) sgoal)
             (set (-> m wpopts) sopts)
+            (set (-> m wpreb) spre) (set (-> m wbase) sbase) (set (-> m wraw) sraw)
             ;; the goal's own cells: the capture wound the heap back to where
             ;; it began, which is above them
             (if (<= mark (-> m heap_len)) (set (-> m heap_len) mark))

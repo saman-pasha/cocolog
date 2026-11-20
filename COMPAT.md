@@ -127,7 +127,10 @@ constructs swipl's compiler makes them; `repeat/0` since 3.39.0, and
 `:- table p/2.` reads, `table` being swipl's 1150 fx operator, and the load
 reports `table/1` as an unknown procedure and goes on), swipl's dicts and the
 `.` at 100 yfx that names them (the one row of swipl's operator table cocolog
-has not got),
+has not got, so cocolog's writer leaves the atom `'.'` bare where swipl's
+brackets it as an operator's operand: `-'.'`, `'.'=a`, swipl's `- ('.')`,
+`('.')=a` -- since 3.64.2 the one way the two writers' spaces and brackets
+differ, over random terms in eight writers),
 `flag/3`, `recorda/2` and the recorded database.
 (`print_message/2` is there since 2.16.0, and `expand_term/2`, `expand_goal/2`,
 `prolog_load_context/2` and `non_terminal/1` since 3.14.0; `setup_call_cleanup/3` and its

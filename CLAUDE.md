@@ -3389,10 +3389,39 @@ cocolint index offers no import of it.
   goes through `coco_write_mode` with the 16, one the engine reads back
   does not. Not swipl's yet: the REPL writes `'don''t'` and `'$VAR'(1)`
   (swipl's `'don\'t'`, `B`), where listing/1 writes swipl's since its
-  layout became portray_clause/1's; and a quoted infix operator after
-  an integer takes no space (`1'x\'y'2`, swipl's `1 'x\'y' 2`), which
-  after a 0 reads back as a character code. `test/files/print.pl` holds 85
+  layout became portray_clause/1's (a quote after a digit takes its space
+  since 3.15.1, `1 'x\'y' 2`). `test/files/print.pl` holds 85
   lines to swipl's text, and `test/files/write.pl` 79.
+  **The spaces between a write's tokens are swipl's** (3.64.2;
+  test/files/write_spacing.pl, and over random terms in eight writers
+  the text of every one but the atom `'.'`, swipl's operator: COMPAT.md):
+  pl-write.c keeps ONE last code for the whole write (lastc), where this
+  writer puts each operand in a buffer of its own, so the machine carries
+  the buffer whose last code stands before the buffer in hand (`wpreb`),
+  where in the buffer in hand the write begins (`wbase`), the buffer
+  whose first text asks no token break (`wraw`) and the buffer a write
+  goes on from (`wcontb`, partial(true)'s). An operator after an operand
+  that wrote nothing --
+  `''`, `""` unquoted -- asks the code before it (`coco_sb_before`: `x= *
+  1`); a write's start asks none, format's text before `~w` none of the
+  write's (`coco_write_context`: `a=*1`), and partial(true) goes on from
+  it (`a= * 1`); an infix operator of a code past U+00FF takes no space
+  after the one before it, as swipl's writeUCSAtom() answers no
+  TRUE_WITH_SPACE (`-1 '≤'0`); an unquoted string's text and the `(` of a
+  compound named `''` ask no break, as swipl puts both with Putc() (`p
+  qit's`, `p q(a)`: `coco_write_raw_mark`); and write_canonical/1 and `~k`
+  quote an atom past U+00FF (32915, PL_WRT_QUOTE_NON_ASCII). **A new writer
+  that puts an operand in a buffer of its own sets `wpreb` (the buffer
+  the operand's text goes after) and `wbase` (0) before it and leaves
+  them, and in an unquoted write takes `wraw` off and puts it back
+  after**, as the infix and prefix operators do: nothing asks the two
+  once the buffer holds text, and with a save and a put-back around each
+  operand, the first cuts, a write of operators cost 1.15 to 1.41 % more.
+  **A writer that runs a goal inside a write saves `wpreb`, `wbase` and
+  `wraw` and puts them back, and clears `wcontb`** (`coco_portray_call`:
+  only a write's start asks it), and **a new caller that writes into a
+  buffer holding other text goes through `coco_write_top`**
+  (`coco_write_context`), or its operators ask that text.
   **Two floats are one term when their BITS are** (2.1.1, `coco_flt_eq`):
   `0.0 = -0.0` fails, a NaN unifies with itself, `-0.0 @< 0.0`, and a NaN
   sorts before every other number (`coco_flt_order`, which

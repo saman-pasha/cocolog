@@ -20100,3 +20100,137 @@ the new code.
 
 Held by test/files/portray.pl (197 lines to swipl, its last five new) and
 test/async.pl's `portray_worlds` and `portray_wait`, both red on 3.64.0.
+
+## The spaces between a write's tokens are swipl's (3.64.2)
+
+THE WRITE KEEPS SWIPL'S LAST CODE (lib/syntax.cicili). pl-write.c writes
+a term onto one stream and keeps the last code it put there (lastc): a
+token takes a space before it where the two would read as one
+(needSpace()), and an infix operator that took one takes one after it too
+(TRUE_WITH_SPACE). cocolog's writer puts each operand of an operator in a
+buffer of its own and asks that buffer's last code, which is lastc
+wherever the buffer holds text. Where it holds none it is not, and through
+3.64.1 the writer asked the empty buffer. The machine now carries the
+buffer whose last code stands before the buffer in hand (`wpreb`), where
+in the buffer in hand the write begins (`wbase`), the buffer whose first
+text asks no token break (`wraw`) and the buffer a write goes on from
+(`wcontb`), and these are the rules that came of it:
+- an operator after an operand that wrote nothing -- the atom `''`, the
+  string `""` unquoted -- asks the code before it (`coco_sb_before`):
+  `x= * 1`, `\+ * 1`, `?- > (2.5==1.0)`, `table as (table)`, where 3.64.1
+  wrote `x= *1`, `\+ *1`, `?- >(2.5==1.0)` and `table as(table)`;
+- a write's start asks none, as each of swipl's writes begins at
+  PutOpenToken(EOF): format's `a=` before `~w` of `''*1` is `a=*1`, and
+  of `- a` `a=-a`, the text before the write no part of it, where 3.64.1
+  asked that text, `a= * 1`, `a= -a`; and partial(true) goes on from the
+  text before it, `a= * 1`, as before (`coco_write_context`, `wcontb`);
+- an infix operator of a code past U+00FF takes no space after it where
+  it took one before, as swipl writes such an atom with writeUCSAtom(),
+  which answers no TRUE_WITH_SPACE: `@@ ≤b`, `-1 '≤'0`, `a λλ-1`, where
+  3.64.1 wrote `@@ ≤ b`, `-1 '≤' 0` and `a λλ -1`; one of Latin-1 takes
+  it, `a éé -1`, `@@ ¬ b`;
+- an unquoted string's text and the `(` of a compound whose name writes
+  nothing ask no token break, as swipl puts both with Putc(), past the
+  token's check (`coco_write_raw_mark`): `p qit's`, `tablea/x`, `(p
+  q)modé`, `p q(a)`, `$(0.0)`, where 3.64.1 wrote `p q it's`, `table
+  a/x`, `(p q)mod é`, `p q (a)` and `$ (0.0)`;
+- write_canonical/1 and `~k` quote an atom past U+00FF (32915, swipl's
+  PL_WRT_QUOTE_NON_ASCII): `f('λ')`, `'∀'(x)`, where an atom of Latin-1
+  stays bare, `f(é)`, as swipl's reads its code as a signed char. 3.64.1
+  wrote `f(λ)` and `∀(x)`.
+The note in CLAUDE.md that a quoted infix operator after an integer wrote
+no space (`1'x\'y'2`) was stale: 3.15.1 had fixed it, and the random
+comparison below found it so.
+
+A RANDOM COMPARISON FOUND THEM. Terms of the operators, atoms, strings,
+numbers and variables a write can meet, written by eight writers --
+writeq/1, print/1, write/1, write_canonical/1, and write_term/2 with
+spacing(next_argument), ignore_ops(true), character_escapes(false) and
+quote_non_ascii(true) -- in swipl 9.0.4 and cocolog, each write's text
+compared. Over two fresh runs of 50 000 terms, 400 000 writes, 3.64.1
+wrote 5 840 otherwise than swipl's: 4 675 write_canonical/1s of an atom
+past U+00FF, and the rest a space where swipl's has none, or none where
+it has one, about an operator past U+00FF, an unquoted string's text, or
+an operand or a name that wrote nothing -- the rules below each say how
+many of the 400 000 are theirs. 3.64.2 writes every one of them as swipl
+does, as it writes the 560 000 of the last two runs made while they were
+fixed. The one difference left is the atom `'.'`, an operator of swipl's
+(its dicts' functional notation) that cocolog has not got, which swipl's
+writer brackets as an operand, `- ('.')`, `('.')=a`, and cocolog's leaves
+bare (COMPAT.md); the runs left it out.
+
+WHAT IT COSTS. With a save and a put-back of the four around each operand,
+the first cuts, a write of operators ran 1.15 to 1.41 % more instructions.
+Nothing asks `wpreb` and `wbase` once the operand's buffer holds text, so
+an operand sets them and leaves them, takes `wraw` off and puts it back
+only in an unquoted write, and the operator and its spaces go into the
+buffer before the operand is written, which then asks the buffer's last
+code; a write's start sets the two (a load of `wcontb` and two stores),
+and a portray goal's call, whose writes set their own, saves `wpreb`,
+`wbase` and `wraw` and puts them back, and clears `wcontb`. Against
+3.64.1, under callgrind:
+- 50 000 writeq/1s of `f(I)+g(-I,a*b)-[x=y,- 1,'A'|c]/(p:-q,r)`:
+  1 226 869 709 instructions to 1 223 325 045 (-0.29 %);
+- 200 000 write/1s of an integer: 939 880 528 to 940 295 722 (+0.044 %),
+  coco_print_term's two instructions a write;
+- a start: 35 554 585 to 35 568 291 (+0.039 %), all of it
+  coco_consult_owned's, laid out anew around three write sites the start
+  never runs (each copy of the write's start in it moved what lives in
+  registers across the per-term path: +16 629, the rest of the start
+  -2 923);
+- tools/flow/zero.sh, nrev, queens and lookup: each the same count.
+A first cut of the start with a flag where the buffer stands now (`wcont`,
+an int, and a choice of the buffer by it) ran seven instructions a write,
++0.15 % of the integer loop.
+
+RULES, each taken out alone, one build each, on the code before its last
+change (the put-back below dropped), all red: the lines of
+test/files/write_spacing.pl's 109 each writes otherwise than swipl's, and
+then the writes of the 400 000:
+- B1, the infix operator's gap asking its own buffer alone, as through
+  3.64.1: 18 lines, 17 writes;
+- P1, the prefix operator's gap before it asking its own buffer alone:
+  4, 0;
+- B2, the right operand's buffer told no buffer before it: 10, 8;
+- B3, the prefix operand's buffer told none: 2, 9;
+- B4, the right operand's buffer keeping the outer write's base: 1, 0;
+- B5, the prefix operand's buffer keeping it: 1, 0;
+- S1, a write's start at its buffer's start, format's text before `~w`
+  the write's: 10, 0;
+- S2, a write starting after no code, partial(true)'s too: 2, 0;
+- S3, partial(true) naming no buffer to go on from: 2, 0;
+- S4, a portray goal's writes going on from the partial write they stand
+  in: 1, 0;
+- S5, a portray goal's writes leaving their context to the write after
+  them: 1, 0;
+- C1, an operator past U+00FF taking the space after as any other: 8, 457;
+- E3, an unquoted string's text no raw text, 3.56.0's portray gap alone:
+  7, 666;
+- G1, a nameless compound's `(` no raw text: 5, 31;
+- E1, the right operand's raw first text taking the token's check: 1, 393;
+- E2, the prefix operand's: 11, 309;
+- E4, the right operand's write leaving the raw mark it set: 1, 71;
+- E5, the prefix operand's: 2, 5;
+- K1, write_canonical/1 quoting nothing past U+00FF: 4, 4 675.
+One went for staying green (S8): the portray call putting back the buffer
+partial(true) goes on from. Only a write's start asks it, and the write a
+portray goal stands in has begun, so the call clears it and puts nothing
+back. Three lines of the case came of the arms: S4 and E5 were green on
+its first 106 -- the goal after an `a`, which takes no space before `*`
+either way, where after `=` the arm writes `== * 1`; and a prefix
+operator inside a buffer whose text began raw, `p q(-a)`, where the arm
+writes `p q (-a)`.
+
+THE RUN, on the binary that ships: the lint case first; then files,
+trace, backtrace, cyclic, window, journal, repl, script, library, engine,
+errors, gc, meter, thread, process, text, async, stream, serialize,
+flowchart, flowdebug, cowork, httpd, argv, string, units, directives,
+template, rationals, static and store-lock, each alone, every one green
+with no SKIP; and the five lessons that write a name past ASCII or write
+canonically (basics/08 and 13, library/37, 48 and 55), each alone, each
+ending `done`. The card check passes, L1's lib/term.cicili cite and X2's
+lib/builtins-format.cicili one renumbered past the new code, and the lint
+case was run again after it.
+
+Held by test/files/write_spacing.pl (109 lines to swipl, 46 of them
+3.64.1's wrong).

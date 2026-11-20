@@ -1184,7 +1184,30 @@
     ;; `coco_arith_far''s. Appended.
     (member int        abud)
     (member size_t     aroot)
-    (member size_t     astk))
+    (member size_t     astk)
+    ;; WPREB, WBASE, WRAW and WCONTB (3.64.2, pl-write.c's lastc, which one
+    ;; stream keeps for the whole write where this writer puts each operand
+    ;; in a buffer of its own): WPREB the buffer whose last code goes before
+    ;; the text the write in hand puts at WBASE of its own and on -- for an
+    ;; operand's buffer (WBASE 0) the buffer its operator was put on, a
+    ;; space after it where one went; none at a write's start, as each of
+    ;; swipl's resets its stream's lastc, whatever the buffer held before
+    ;; (format's text before `~w') -- so that an operator after an operand
+    ;; that wrote nothing asks what stands before it (`x= * 1'). WCONTB the
+    ;; buffer whose text a write goes on from, partial(true)'s, which is
+    ;; then the write's WPREB, and nil for a write afresh. WRAW the buffer
+    ;; whose first text asks no token break, as swipl's Putc() puts it: an
+    ;; unquoted string's (`p qit's') and the `(' of a compound whose name
+    ;; writes nothing (`p q(a)'). Each write and each operand's buffer sets
+    ;; WPREB and WBASE as it begins and leaves them, as nothing asks them of
+    ;; a buffer once it holds text; WRAW is put back after an operand, which
+    ;; an outer operand's mark may be; and a portray goal's call puts WPREB,
+    ;; WBASE and WRAW back and clears WCONTB, which only a write's start
+    ;; asks. Appended.
+    (member void *     wpreb)
+    (member size_t     wbase)
+    (member void *     wraw)
+    (member void *     wcontb))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends

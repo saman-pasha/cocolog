@@ -1210,7 +1210,8 @@
   ;;; `.(1,[])' 2048 (dotlists) and `'[|]'(1,[])' 4096 (no_lists). NAMED
   ;;; writes a cyclic term's variables S_1, S_2, ... (`coco_write_cyclic').
   ;;; write/1 is 8, writeq/1 25, print/1 89, write_term/2 what its options
-  ;;; say; write_canonical/1 is `coco_write_canon''s 147.
+  ;;; say; write_canonical/1 is `coco_write_canon''s 32915 (147 through
+  ;;; 3.64.1, which wrote `λ(x)' where swipl's quotes it).
   (decl) (func coco_write_mode ((coco_machine * m) (coco_strbuf * b) (size_t t)
                               (int mode) (int named)) (out int))
 
@@ -1599,6 +1600,28 @@
                  (let ((int c . #'(bitand (cast int (nth 0 ($ (cof b) s))) 255)))
                    (if (< c 128) (return c))
                    (return (coco_sb_wide_end b 0))))
+
+  ;;; THE CODE BEFORE WHAT GOES INTO B NEXT (3.64.2, pl-write.c's lastc):
+  ;;; B's last, or where the write in hand has put nothing in B yet (its
+  ;;; WBASE) the last of what stands before it (WPREB's), as swipl's stream
+  ;;; keeps one last code for the whole write -- an operand that wrote
+  ;;; nothing (`''', `""') leaves its operator to ask the code before it,
+  ;;; `x= * 1', and a write's start asks none, `a=*1' after format's `a='
+  (static) (inline) (func coco_sb_before ((coco_machine * m) (coco_strbuf * b)) (out int)
+                 (if (> ($ (cof b) len) (-> m wbase)) (return (coco_sb_last b)))
+                 (if (== (-> m wpreb) nil) (return 0))
+                 (return (coco_sb_last (cast (coco_strbuf *) (-> m wpreb)))))
+
+  ;;; TEXT THAT ASKS NO TOKEN BREAK (3.64.2, swipl's Putc()), about to go
+  ;;; into B: an unquoted string's, and the `(' of a compound whose name
+  ;;; writes nothing. B's first text, when B is empty, for whoever put B
+  ;;; where it stands to put no space before (`wraw'); and no gap at the
+  ;;; place a portray goal that failed or partial(true)'s last character
+  ;;; left it (3.56.0, `wpgapb')
+  (static) (inline) (func coco_write_raw_mark ((coco_machine * m) (coco_strbuf * b))
+                 (if (== ($ (cof b) len) 0) (set (-> m wraw) (cast (void *) b)))
+                 (if (and (== (-> m wpgapb) (cast (void *) b)) (== (-> m wpgapq) ($ (cof b) len)))
+                     (set (-> m wpgapb) nil)))
 
   ;;; ---- the character stream -------------------------------------------
 
@@ -4197,7 +4220,8 @@
                        ;; begins with a quote, a negative number with a
                        ;; minus, and neither is knowable from the term.
                        (let ((coco_strbuf ob) (coco_strbuf rb)
-                             (void * pold . #'(-> m wpfirst)) (int pf . 0))
+                             (void * pold . #'(-> m wpfirst)) (int pf . 0)
+                             (int gb . 0) (int raw . 0) (void * wr0 . nil))
                          (coco_sb_init (aof ob))
                          (coco_sb_init (aof rb))
                          ;; THE COMMA IS NOT QUOTED IN OPERATOR POSITION.
@@ -4213,32 +4237,59 @@
                            (if (== 0 (strcmp name "|"))
                                (coco_sb_putc (aof ob) (cast char (coco-ch "|")))
                              (coco_write_atom (aof ob) name quoted)))
+                         ;; A SPACE BEFORE THE OPERATOR IS ONE AFTER IT TOO
+                         ;; (3.0.0, swipl's TRUE_WITH_SPACE): `+- = b', `+-
+                         ;; - 1', where the right side's own gap stands
+                         ;; alone (`a- -1'). The code before the operator is
+                         ;; the write's last, which a left side that wrote
+                         ;; nothing leaves where it stood (3.64.2: `x= * 1',
+                         ;; where 3.64.1 asked this buffer alone, `x= *1');
+                         ;; and an operator of a code past U+00FF takes no
+                         ;; space after, as swipl's writeUCSAtom() answers
+                         ;; no TRUE_WITH_SPACE (3.64.2: `-1 '≤'0'). The
+                         ;; operator and its spaces are put before the right
+                         ;; side is written, which asks B's last code
+                         (set gb (coco_needs_gap (coco_sb_before m b) (coco_sb_first (aof ob))))
+                         (if gb (coco_sb_putc b (cast char 32)))
+                         (if (!= ($ ob s) nil) (coco_sb_put b ($ ob s)))
+                         (coco_sb_free (aof ob))
+                         (if (or (and gb (not (coco_atom_past_latin1 name)))
+                                 ;; spacing(next_argument): `a, b' and `a| b'
+                                 (and (!= 0 (bitand mode 512))
+                                      (or (== 0 (strcmp name ","))
+                                          (== 0 (strcmp name "|")))))
+                             (coco_sb_putc b (cast char 32)))
+                         ;; the right side is written knowing what goes
+                         ;; before it (B's last code, 3.64.2), and in an
+                         ;; unquoted write says whether its first text asks
+                         ;; a token break (`wraw': a quoted write's strings
+                         ;; ask none in either writer). WPREB and WBASE are
+                         ;; not put back: nothing in this write asks them
+                         ;; again before its buffer holds text, which they
+                         ;; then do not answer for (a portray goal, whose
+                         ;; writes set their own, puts them back itself)
+                         (set (-> m wpreb) (cast (void *) b))
+                         (set (-> m wbase) 0)
+                         (if (== 0 (bitand mode 1))
+                             (block (set wr0 (-> m wraw)) (set (-> m wraw) nil)))
                          (if ,P (set (-> m wpfirst) nil))
                          (coco_write_rec m (aof rb) (coco_arg m t 1)
                                        (bitor kids 4) rmax (+ depth 1))
+                         (if (== 0 (bitand mode 1))
+                             (block (set raw (== (-> m wraw) (cast (void *) (aof rb))))
+                                    (set (-> m wraw) wr0)))
                          ;; the right side's first token a portray goal's
                          ;; (3.54.0): no space from the token rule before it
                          (if ,P (block (set pf (== (-> m wpfirst) (cast (void *) (aof rb))))
                                        (set (-> m wpfirst) pold)))
-                         ;; A SPACE BEFORE THE OPERATOR IS ONE AFTER IT TOO
-                         ;; (3.0.0, swipl's): `+- = b', `+- - 1', where the
-                         ;; right side's own gap stands alone (`a- -1')
-                         (let ((int gb . #'(coco_needs_gap (coco_sb_last b) (coco_sb_first (aof ob)))))
-                           (if gb (coco_sb_putc b (cast char 32)))
-                           (if (!= ($ ob s) nil) (coco_sb_put b ($ ob s)))
-                           (if (or gb
-                                   (and (not pf)
-                                        (coco_needs_gap (coco_sb_last (aof ob))
-                                                        (coco_sb_first (aof rb))))
-                                   ;; spacing(next_argument): `a, b' and `a| b'
-                                   (and (!= 0 (bitand mode 512))
-                                        (or (== 0 (strcmp name ","))
-                                            (== 0 (strcmp name "|")))))
-                               (coco_sb_putc b (cast char 32))))
+                         (if (and (not pf)
+                                  (and (not raw)
+                                       (coco_needs_gap (coco_sb_last b)
+                                                       (coco_sb_first (aof rb)))))
+                             (coco_sb_putc b (cast char 32)))
                          (let ((size_t off . #'(-> b len)))
                            (if (!= ($ rb s) nil) (coco_sb_put b ($ rb s)))
                            (if ,P (coco_write_cut_up m b (aof rb) off)))
-                         (coco_sb_free (aof ob))
                          (coco_sb_free (aof rb)))
                        (if paren (coco_sb_putc b (cast char (coco-ch ")"))))
                        (return 1)))
@@ -4267,27 +4318,47 @@
                            (int paren . #'(? (> prec maxprec) 1 0)))
                        (if paren (coco_sb_putc b (cast char (coco-ch "("))))
                        (let ((coco_strbuf ob) (coco_strbuf ab)
-                             (void * pold . #'(-> m wpfirst)) (int pf . 0))
+                             (void * pold . #'(-> m wpfirst)) (int pf . 0) (int raw . 0)
+                             (void * wr0 . nil))
                          (coco_sb_init (aof ob))
                          (coco_sb_init (aof ab))
                          (coco_write_atom (aof ob) name quoted)
+                         ;; the code before the operator the write's last
+                         ;; (3.64.2): none at a write's start, `a=-a' after
+                         ;; format's `a=', where 3.64.1 asked the buffer's.
+                         ;; The operator is put before its operand is
+                         ;; written, which asks B's last code
+                         (if (coco_needs_gap (coco_sb_before m b) (coco_sb_first (aof ob)))
+                             (coco_sb_putc b (cast char 32)))
+                         (if (!= ($ ob s) nil) (coco_sb_put b ($ ob s)))
+                         (coco_sb_free (aof ob))
+                         ;; the operand is written knowing the operator goes
+                         ;; before it, and in an unquoted write says whether
+                         ;; its first text asks a token break (`wraw', 3.64.2)
+                         (set (-> m wpreb) (cast (void *) b))
+                         (set (-> m wbase) 0)
+                         (if (== 0 (bitand mode 1))
+                             (block (set wr0 (-> m wraw)) (set (-> m wraw) nil)))
                          (if ,P (set (-> m wpfirst) nil))
                          (coco_write_rec m (aof ab) (coco_arg m t 0)
                                        (bitor kids 4) amax (+ depth 1))
+                         (if (== 0 (bitand mode 1))
+                             (block (set raw (== (-> m wraw) (cast (void *) (aof ab))))
+                                    (set (-> m wraw) wr0)))
                          ;; the operand's first token a portray goal's
                          ;; (3.54.0): no space before it, `--1', `dynamicxx'
                          (if ,P (block (set pf (== (-> m wpfirst) (cast (void *) (aof ab))))
                                        (set (-> m wpfirst) pold)))
-                         (if (coco_needs_gap (coco_sb_last b) (coco_sb_first (aof ob)))
-                             (coco_sb_putc b (cast char 32)))
-                         (if (!= ($ ob s) nil) (coco_sb_put b ($ ob s)))
                          ;; AN OPENING PARENTHESIS OR BRACE TAKES THE SPACE
                          ;; AFTER ANY PREFIX OPERATOR (3.15.1, swipl's):
                          ;; `pq (a,b)', `'p\'q' (-)', `\+ {a}', `- {}',
-                         ;; where `pq(a,b)' read back as pq/2
-                         (let ((int last . #'(coco_sb_last (aof ob)))
+                         ;; where `pq(a,b)' read back as pq/2 -- but no text
+                         ;; that asks no token break takes one (3.64.2: `p
+                         ;; qit's', `p q(a)' of a compound named `''', as
+                         ;; swipl puts both with Putc())
+                         (let ((int last . #'(coco_sb_last b))
                                (int first . #'(coco_sb_first (aof ab))))
-                           (if (and (not pf)
+                           (if (and (not pf) (not raw)
                                     (or (coco_needs_gap last first)
                                         (== first (coco-ch "("))
                                         (== first (coco-ch "{"))
@@ -4297,7 +4368,6 @@
                          (let ((size_t off . #'(-> b len)))
                            (if (!= ($ ab s) nil) (coco_sb_put b ($ ab s)))
                            (if ,P (coco_write_cut_up m b (aof ab) off)))
-                         (coco_sb_free (aof ob))
                          (coco_sb_free (aof ab)))
                        (if paren (coco_sb_putc b (cast char (coco-ch ")"))))
                        (return 1))))))
@@ -4316,6 +4386,10 @@
                     (and (== (bitand mode 273) 1) (== 0 (strcmp name "{}"))))
                 (coco_write_atom b name (bitor quoted 32))
               (coco_write_atom b name quoted)))
+          ;; a name that wrote nothing leaves the `(' first, which asks no
+          ;; token break, as swipl's Putc() puts it (3.64.2: `p q(a)')
+          (if (and (== (nth 0 name) (cast char 0)) (== 0 (bitand mode 1)))
+              (coco_write_raw_mark m b))
           (coco_sb_putc b (cast char (coco-ch "(")))
           (for ((u32 i . 0)) (< i n) ((++ i))
             (if (> i 0)
@@ -4537,12 +4611,13 @@
                (if (not (coco_string_text m t (aof sp) (aof sn))) (return 0))
                (if (== 0 (bitand mode 1))
                    (block ;; its text goes out with no token's check, as
-                          ;; swipl's PutString() puts it: no gap before it
-                          ;; where a failed goal's text or partial(true)'s
-                          ;; last character stands (3.56.0, `pgs', `as')
-                          (if (and (> sn 0) (and (== (-> m wpgapb) (cast (void *) b))
-                                                 (== (-> m wpgapq) (-> b len))))
-                              (set (-> m wpgapb) nil))
+                          ;; swipl's writeString() puts it with Putc(): no
+                          ;; gap before it where a failed goal's text or
+                          ;; partial(true)'s last character stands (3.56.0,
+                          ;; `pgs', `as'), nor after an operator (3.64.2:
+                          ;; `p qit's', `+\\', `(+)zz1', where 3.64.1 wrote
+                          ;; `p q it's')
+                          (if (> sn 0) (coco_write_raw_mark m b))
                           (for ((size_t i . 0)) (< i sn) ((++ i))
                                 (coco_sb_putc b (nth i sp)))
                           (return 1)))
@@ -4692,24 +4767,40 @@
   ;;; WRITE THAT RAN SHORT OF C STACK (3.59.0) answers 0, its text taken
   ;;; back and WSHORT left for its builtin (`coco_write_short'); WSHORT is
   ;;; cleared as the write begins.
+  ;;; A WRITE'S START (3.64.2): it goes on from the text B holds where it
+  ;;; continues that text (partial(true)'s WCONTB names B), else afresh,
+  ;;; as each of swipl's writes resets its stream's lastc -- format's text
+  ;;; before `~w' is none of the write's -- and WBASE is where in B it
+  ;;; begins.
+  ;;; Nothing puts them back after the write: the next write sets its own,
+  ;;; and a write inside a write is a portray goal's, whose call saves WPREB
+  ;;; and WBASE and clears WCONTB (`coco_portray_call').
+  (static) (inline)
+  (func coco_write_context ((coco_machine * m) (coco_strbuf * b))
+        (set (-> m wpreb) (-> m wcontb))
+        (set (-> m wbase) (-> b len)))
+
   (static) (inline)
   (func coco_write_top ((coco_machine * m) (coco_strbuf * b) (size_t t)
                         (int mode) (int named)) (out int)
         (set (-> m wshort) 0)
-        (let ((size_t from . #'(-> b len))
-              (int rc . #'(coco_write_rec m b t mode (? (> (-> m wprec) 0) (- (-> m wprec) 1) 1200) 0)))
+        (let ((size_t from . #'(-> b len)) (int rc . 0))
+          (coco_write_context m b)
+          (set rc (coco_write_rec m b t mode (? (> (-> m wprec) 0) (- (-> m wprec) 1) 1200) 0))
           (if (-> m wcyc)
               (block
                (set (-> b len) from)
                (if (!= (-> b s) nil) (set (nth from (-> b s)) (cast char 0)))
                (set (-> m wcyc) 0) (set (-> m wdeep) 1024)
+               ;; the walk's operands left their own context: begin again
+               (coco_write_context m b)
                (set rc (coco_write_cyclic m b t mode named))
                ;; the factors hold no cycle; this is for a write that
                ;; could not make them, or ran short. A tree that ran short
                ;; runs short again in its factors, its stop the same, and
                ;; is taken back here once
                (set (-> m wcyc) 0) (set (-> m wdeep) 1024)
-               (if (-> m wshort) (return (coco_write_short_end m b from)))))
+               (if (-> m wshort) (set rc (coco_write_short_end m b from)))))
           (return rc)))
 
   (func coco_write_term ((coco_machine * m) (coco_strbuf * b) (size_t t)
@@ -4723,6 +4814,10 @@
   ;;; builtin, which clears it before the layout (`coco_layout_clause').
   (func coco_write_pri ((coco_machine * m) (coco_strbuf * b) (size_t t)
                         (int mode) (int maxprec)) (out int)
+        ;; a part goes on from the clause's text before it (3.64.2's
+        ;; context, as 3.64.1's operators asked B)
+        (set (-> m wpreb) (cast (void *) b))
+        (set (-> m wbase) (-> b len))
         (let ((size_t from . #'(-> b len)) (int rc . #'(coco_write_rec m b t mode maxprec 0)))
           (if (-> m wcyc) (return (coco_write_short_end m b from)))
           (return rc)))
@@ -4774,7 +4869,9 @@
 
   ;;; write_canonical/1 AND `~k' AS swipl's (3.1.0): quoted with swipl's
   ;;; character escapes, operators ignored and a curly term functional
-  ;;; (147: `-(1,2)', `-(1)', `{}(x)'; a list is `[a|b]'),
+  ;;; (147: `-(1,2)', `-(1)', `{}(x)'; a list is `[a|b]'), and since 3.64.2
+  ;;; an atom past U+00FF quoted (32768, swipl's PL_WRT_QUOTE_NON_ASCII:
+  ;;; `'λ'(x)', `é(x)'; 32915 in all),
   ;;; no numbervars (`'$VAR'(1)' as it is), and each variable named by
   ;;; when the write meets it: one met once `_', the others `A' ... `Z',
   ;;; `A1' ... (`f(A,_,A)'). A cyclic term is written in its factors with
@@ -4783,14 +4880,14 @@
   ;;; canonical text is `coco_write_canonical''s.
   (func coco_write_canon ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int)
         (if (or (!= (-> m nwnames) 0) (== 0 (coco_acyclic m t)))
-            (return (coco_write_top m b t 147 0)))
+            (return (coco_write_top m b t 32915 0)))
         (let ((coco_varmap vm . '{ nil nil 0 0 0 }) (int rc . 0))
           (coco_varmap_take m (aof vm))
           (if (not (coco_canon_vars m t (aof vm)))
               (block (coco_varmap_give m (aof vm)) (coco_oom m) (return 0)))
           (set (-> m wcanon) (cast (void *) (aof vm)))
           (set (-> m nwnames) 1)
-          (set rc (coco_write_top m b t 147 0))
+          (set rc (coco_write_top m b t 32915 0))
           (set (-> m wcanon) nil)
           (set (-> m nwnames) 0)
           (coco_varmap_give m (aof vm))
@@ -4820,6 +4917,8 @@
           (if (and (== 0 (bitand mode 1024)) (== 0 (coco_acyclic m t)))
               (let ((size_t from . #'(-> b len)))
                 (set (-> m wshort) 0)
+                ;; a write's start, as `coco_write_top''s (3.64.2)
+                (coco_write_context m b)
                 (set rc (coco_write_cyclic m b t mode named))
                 ;; the factors' write may run short of C stack (3.59.0)
                 (if (-> m wshort) (set rc (coco_write_short_end m b from))))
