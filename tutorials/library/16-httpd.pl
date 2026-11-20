@@ -70,14 +70,15 @@ concurrency_modes :-
     format("   and a request is NOT a transaction -- a write lands as the~n"),
     format("   page makes it, and a page that throws after writing leaves~n"),
     format("   the write. Its acceptor POLLS (accept_poll, 2 ms by default):~n"),
-    format("   a store write takes the world's barrier and waits for every~n"),
-    format("   worker's acknowledgement, and a worker acknowledges at its~n"),
-    format("   loop's top, so an acceptor parked in an hour-long accept~n"),
-    format("   would hold every write -- and a request's FIRST compile of~n"),
-    format("   each clause is such a write. A request that writes can also~n"),
-    format("   wait for another worker held in a foreign call; thread mode~n"),
-    format("   has no such coupling, which is why a write-heavy server~n"),
-    format("   wants it.~n").
+    format("   it holds its worker while it waits, and a task pinned there~n"),
+    format("   runs only when it yields. A store write takes the world's~n"),
+    format("   barrier, but an accept, a read and the other socket waits~n"),
+    format("   are declared foreign calls, which a write does not wait for~n"),
+    format("   (since 3.64.4: through 3.64.3 a request's FIRST compile of~n"),
+    format("   each clause waited for the acceptor's poll). A request that~n"),
+    format("   writes still waits for a worker held in a call that is not;~n"),
+    format("   thread mode has no such coupling, which is why a write-heavy~n"),
+    format("   server wants it.~n").
 
 %% Pages, as clauses. In a real program these live in their own file and
 %% are loaded with use_module -- see the note above.

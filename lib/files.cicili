@@ -602,6 +602,11 @@
   ;;;
   ;;; Not swipl's: in a green task (library(async)) the sleep holds its
   ;;; worker and every task pinned there, where a swipl thread sleeps alone.
+  ;;; IT IS A FOREIGN CALL (3.64.4, `coco_g_foreign_begin'): a write
+  ;;; anywhere in the world does not wait for this worker to come back.
+  ;;; Through 3.64.3 every store write -- an assertz/1, a first call's
+  ;;; compile -- waited the whole sleep for its acknowledgement, and with
+  ;;; it every worker that met the write at its loop's top.
   (func coco_f_sleep ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t t . #'(coco_deref m (coco_m_arg e g 0)))
@@ -615,10 +620,11 @@
           (if (or (< s 0.0) (!= s s) (>= s 9223372036854775808.0)) (return 1))
           (set ($ req tv_sec) (cast time_t s))
           (set ($ req tv_nsec) (cast long (* (- s (cast double ($ req tv_sec))) 1000000000.0)))
+          (coco_g_foreign_begin)
           (while (!= 0 (nanosleep (aof req) (aof rem)))
-            (if (!= errno EINTR) (return 1))
-            (if (!= (-> e halted) 0) (return 1))
+            (if (or (!= errno EINTR) (!= (-> e halted) 0)) break)
             (set req rem))
+          (coco_g_foreign_end)
           (return 1)))
 
   ;;; THE ONLY WAY TO READ A FILE'S BYTES, and until this existed there was

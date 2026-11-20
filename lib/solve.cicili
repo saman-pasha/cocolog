@@ -897,6 +897,10 @@
   (decl) (func coco_g_write_begin ((void * e)) (out int))
   (decl) (func coco_g_write_end () (out void))
   (decl) (func coco_g_write_end_cleanup ((int * began)) (out void))
+  ;; a wait that touches no store leaves a green worker out of a write's
+  ;; count (lib/green.cicili); sleep/1 (lib/files.cicili) is one
+  (decl) (func coco_g_foreign_begin () (out void))
+  (decl) (func coco_g_foreign_end () (out void))
 
   ;;; clock_gettime(2) is std/c/time's, whose struct needs the one-token name
   ;;; a Cicili type must be: a window's clock reads it (1.13.3)

@@ -444,7 +444,13 @@ and waits for it before the worker reads the store again. **Only a call that
 reads and writes no part of the store may use the pair**; one that does must not
 name itself this way, and a worker in an undeclared long foreign call still
 holds the barrier. 2.10.1 or later, and a loadable module built with it needs
-an interpreter that exports the two symbols.
+an interpreter that exports the two symbols. Since 3.64.4 every wait the
+tree's own modules make says so -- library(tcp)'s poll, dials and send,
+library(process)'s, library(thread)'s join, library(tls)'s, library(curl)'s
+transfer, and library(stream)'s open and its reads of a pipe, a FIFO, a
+socket or a terminal -- and **a new module call that can wait on another
+party says so too, its term made and its errors raised after the pair**:
+through 3.64.3 a green task in any of them held every write in the world.
 
 `coco-mod-args` binds arguments by position and is sugar for the `let` of
 `coco_m_arg` calls that every predicate starts with.

@@ -58,7 +58,7 @@
 %%                        `workers(N)' is the older spelling: workers(0)
 %%                        is none, workers(N) is thread(N).
 %%     accept_poll(Ms)    green mode's accept wait, default 2: see THE
-%%                        ACCEPTOR AND THE BARRIER below
+%%                        ACCEPTOR AND ITS WORKER below
 %%     keep_alive(Bool)   persistent connections           (default true)
 %%     max_keep_alive(N)  requests one connection may make (default 100)
 %%     keep_alive_timeout(Ms)  idle wait for the next request  (default 2000)
@@ -133,31 +133,27 @@
 %%     tasks of its own with `go/1,2' can pin one to worker 0, where it
 %%     waits for the next connection.
 %%
-%% THE ACCEPTOR AND THE BARRIER -- why `accept_poll' exists. A store write
+%% THE ACCEPTOR AND ITS WORKER -- why `accept_poll' exists. A store write
 %% takes the world's barrier and waits for every worker's acknowledgement
-%% (lib/green.cicili), and a worker acknowledges only at its loop's top: a
-%% task inside a foreign call holds its worker and its ack. The acceptor's
-%% whole life is a foreign call, `tcp_accept', so an acceptor that waited
-%% out the hour-long default would stop every write in the world -- a
-%% page's assert, and far more often the FIRST COMPILE of a clause a
-%% worker selects (a compile is a write in the one store). Measured: with
-%% an hour's accept the first request of every worker hung until the NEXT
-%% client connected and released the acceptor. So green mode accepts with
-%% `accept_poll' milliseconds of patience (2 by default) and YIELDS after
-%% every accept and every expiry: the worker reaches its loop top,
-%% acknowledges a barrier waiting on it, and the task is picked up again.
-%% THE POLL IS THE PRICE OF A WRITE: a request's first selection of each
-%% clause compiles it, and every compile waits up to one poll for the
-%% acceptor's ack, so the first request to a fresh store costs about a
-%% poll a clause it compiles -- measured on this box, 3.85 s at 100 ms,
-%% 0.36 at 5, 0.28 at 2 and 0.25 at 1 (a warmed request is 0.18-0.2 at
-%% every setting), and the server is idle-polled 1/accept_poll of a
-%% second. A page's own ASSERTS wait the same way. Thread mode has no such
-%% coupling, which is the reason to choose it for a write-heavy server.
+%% (lib/green.cicili), but not for a worker inside a declared foreign
+%% call, and since 3.64.4 `tcp_accept' and `tls_accept' are declared. Through
+%% 3.64.3 they were not, and an acceptor that waited out the hour-long
+%% default stopped every write in the world -- a page's assert, and far
+%% more often the FIRST COMPILE of a clause a worker selects (a compile is
+%% a write in the one store): the poll was what bounded that, each compile
+%% waiting up to one poll, and the first request to a fresh store cost
+%% 6.1 to 7.5 s at a poll of 100 ms and 0.06 to 0.11 s at 2. It costs
+%% 0.009 to 0.011 s at either now. WHAT THE POLL STILL DOES: the acceptor
+%% holds its worker for as long as it waits, and a task pinned there (a
+%% page's go/1,2 can pin one) runs only when the acceptor lets it, so
+%% green mode accepts with `accept_poll' milliseconds of patience (2 by
+%% default) and YIELDS after every accept and every expiry; the server is
+%% idle-polled 1/accept_poll of a second.
 %%
-%% A REQUEST THAT WRITES still waits for any OTHER worker held in a
-%% foreign call -- an idle keep-alive read is one, up to keep_alive_timeout
-%% -- which is the green model's stated limit, not this library's. The
+%% A REQUEST THAT WRITES does not wait for a worker held in a socket's wait
+%% either -- an idle keep-alive read is one, up to keep_alive_timeout --
+%% since 3.64.4 (tcp_read/4's wait is declared too); it still waits for a
+%% worker in any call that is not, the green model's stated limit. The
 %% thread pool has no such coupling.
 %%
 %% REGISTER THE PAGES BEFORE THE POOL STARTS, for the reason
@@ -686,8 +682,8 @@ httpd_green_accept(S, Ch, Options, Count) :-
     httpd_sock_accept(S, Poll, C, _Peer),
     !,
     catch(channel_send(Ch, conn(C)), _, true),
-    %% A TURN FOR THE WORKER: it acknowledges a write barrier at its loop's
-    %% top, and a task that never leaves the loop never gets there.
+    %% A TURN FOR THE WORKER: the tasks pinned to it run while the
+    %% acceptor yields, and a task that never yields gives them none.
     yield,
     (   Count < 0
     ->  N1 = Count
@@ -696,7 +692,7 @@ httpd_green_accept(S, Ch, Options, Count) :-
     httpd_green_accept(S, Ch, Options, N1).
 httpd_green_accept(S, Ch, Options, Count) :-
     %% THE POLL EXPIRED. No client, and the worker is still wanted: yield,
-    %% then wait again -- see THE ACCEPTOR AND THE BARRIER in the header.
+    %% then wait again -- see THE ACCEPTOR AND ITS WORKER in the header.
     yield,
     httpd_green_accept(S, Ch, Options, Count).
 

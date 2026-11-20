@@ -181,6 +181,7 @@ main :-
     one_worker,
     foreign_write,
     foreign_thread,
+    foreign_waits,
     table_growth,
     private_reads,
     channels,
@@ -354,6 +355,153 @@ foreign_thread :-
         shl(['rm -rf ', D])
     ;   format("     (skipped: no thread module)~n")
     ).
+
+%% A WAIT THAT TOUCHES NO STORE HOLDS NO WRITE (3.64.4). A task makes ready
+%% what it waits on, says `go' and waits a second and a half in one of the
+%% calls below; a task on another worker hears it, waits 300 ms in a
+%% declared foreign call, so that the first is well inside its wait, and
+%% times an assertz/1 from the word. Through 3.64.3 none of these waits was
+%% declared foreign: each held the write, and every write in the world, for
+%% as long as it waited -- the assertz took 1.2 s and more -- and where the
+%% task that was to end the wait (an accept, a close) came back from its own
+%% foreign call into the write still in flight, for ever. The writer's
+%% clauses are warm before the world (a first call compiles, and a compile
+%% is a write), so the one write it times is its assertz. Each kind is a
+%% child process with a ceiling of 20 s in a world of four workers: the
+%% main, the waiter, the writer and the task that ends the wait where
+%% somebody must.
+foreign_waits :-
+    section('a wait that touches no store holds no write'),
+    scratch(D),
+    (   getenv('ZIGURATIP', Z) -> true
+    ;   getenv('HOME', H), atom_concat(H, '/ZiguratIP', Z)
+    ),
+    atom_concat(Z, '/home/etc/cert', Cert),
+    shell('uname -s', Sys, _),
+    forall(fw_kind(K, Label, Needs, Lines),
+           fw_case(D, Cert, Sys, K, Label, Needs, Lines)),
+    shl(['rm -rf ', D]).
+
+fw_case(D, Cert, Sys, K, Label, Needs, Lines) :-
+    (   fw_missing(Needs, Cert, Sys, Why)
+    ->  format("     (skipped: ~w, ~w)~n", [Label, Why])
+    ;   sh_join([D, '/', K, '.pl'], Path),
+        sh_join([D, '/', K, '.sock'], Sock),
+        sh_join([D, '/', K, '.fifo'], Fifo),
+        fw_common(Common),
+        append(Lines, Common, All),
+        fixture(Path, All),
+        cocolog(C),
+        (   K == stdin
+        ->  Feed = '(sleep 1.5; echo ''x.'') | ', In = ''
+        ;   Feed = '', In = ' < /dev/null'
+        ),
+        sh_join(['rm -f ', Fifo, '; mkfifo ', Fifo, '; ', Feed, 'W_SOCK=', Sock, ' W_FIFO=', Fifo,
+                 ' W_CERT=', Cert, ' COCOLOG_GREEN_WORKERS=4 ', C, ' run ', Path, ' main 2>&1', In], Cmd),
+        shell(Cmd, Out, Exit, 20000),
+        sh_join(['a write is not held by ', Label], Check),
+        check(Check, Out-Exit, free-0)
+    ).
+
+%% why a kind cannot run here, if it cannot
+fw_missing(Needs, Cert, Sys, Why) :-
+    member(N, Needs),
+    fw_lacks(N, Cert, Sys, Why), !.
+
+fw_lacks(linux, _, Sys, 'a unix connect past a full backlog is refused at once there') :-
+    Sys \== 'Linux'.
+fw_lacks(cert, Cert, _, Why) :-
+    atom_concat(Cert, '/dont-use-certificate.crt', Crt),
+    \+ exists_file(Crt),
+    sh_join(['no ', Crt], Why).
+fw_lacks(M, _, _, Why) :-
+    M \== linux, M \== cert,
+    sh_join(['library/', M, '.so'], So),
+    \+ exists_file(So),
+    sh_join(['no ', So], Why).
+
+%% the writer, the waiter, the task that ends the wait and the world: the
+%% writer's clauses run once before the world's tasks are made, and its
+%% one timed write is its assertz; the waiter's `go' goes to the writer and
+%% to the ender, which acts once the waiter is inside its wait (a close
+%% made before a send of four megabytes began is no wait ended); `free'
+%% when the write took less than a second
+fw_common([
+    ':- dynamic(w_fact/1).',
+    'w_writer(C, Ms, T) :- channel_recv(C, _), get_time(T0), ''$green_foreign_sleep''(Ms), assertz(w_fact(1)), get_time(T1), T is T1 - T0.',
+    'w_blocker(C) :- w_prep(P), channel_send(C, go), channel_send(C, go), w_block(P).',
+    'w_ender(C) :- channel_recv(C, _), w_after.',
+    'w_world(T) :- channel(1, C0), channel_send(C0, warm), w_writer(C0, 0, _), channel(1, C), go(w_blocker(C), F1), go(w_writer(C, 300, _), F2), go(w_ender(C), F3), await(F2, w_writer(_, _, T)), await(F3), await(F1).',
+    'main :- async_run(w_world(T), W), W = w_world(T), ( T < 1.0 -> R = free ; R = held(T) ), write(R), nl.' ]).
+
+%% fw_kind(Kind, Label, Needs, Lines): what the waiter makes ready (w_prep),
+%% the wait (w_block) and what ends it where somebody must (w_after)
+fw_kind(sleep, 'sleep/1', [],
+        [ 'w_prep(_).', 'w_block(_) :- sleep(1.5).', 'w_after.' ]).
+fw_kind(accept, 'tcp_accept/4', [tcp],
+        [ ':- use_module(library(tcp)).',
+          'w_prep(S) :- getenv(''W_SOCK'', P), tcp_listen(unix(P), S).',
+          'w_block(S) :- ( tcp_accept(S, 1500, _, _) -> true ; true ), tcp_close(S).',
+          'w_after.' ]).
+fw_kind(read, 'tcp_read/4', [tcp],
+        [ ':- use_module(library(tcp)).',
+          'w_prep(C-A-S) :- getenv(''W_SOCK'', P), tcp_listen(unix(P), S), tcp_connect(unix(P), C), tcp_accept(S, 2000, A, _).',
+          'w_block(C-A-S) :- ( tcp_read(C, 100, 1500, _) -> true ; true ), tcp_close(A), tcp_close(C), tcp_close(S).',
+          'w_after.' ]).
+fw_kind(write, 'tcp_write/2 to a peer that reads nothing', [tcp],
+        [ ':- use_module(library(tcp)).',
+          'w_prep(C-L) :- getenv(''W_SOCK'', P), tcp_listen(unix(P), S), tcp_connect(unix(P), C), tcp_accept(S, 2000, A, _), nb_setval(w_peer, A), length(L, 4000000), maplist(=(97), L).',
+          'w_block(C-L) :- ( tcp_write(C, L) -> true ; true ), tcp_close(C).',
+          'w_after :- ''$green_foreign_sleep''(1500), nb_getval(w_peer, A), tcp_close(A).' ]).
+fw_kind(dial, 'tcp_connect/2 past a full backlog', [tcp, linux],
+        [ ':- use_module(library(tcp)).',
+          'w_fill(_, 0) :- !.',
+          'w_fill(P, N) :- tcp_connect(unix(P), _), N1 is N - 1, w_fill(P, N1).',
+          'w_prep(P) :- getenv(''W_SOCK'', P), tcp_listen(unix(P), S), nb_setval(w_sock, S), w_fill(P, 65).',
+          'w_block(P) :- ( tcp_connect(unix(P), C) -> tcp_close(C) ; true ).',
+          'w_after :- ''$green_foreign_sleep''(1500), nb_getval(w_sock, S), tcp_accept(S, 2000, A, _), tcp_close(A).' ]).
+fw_kind(run, 'proc_run/4', [process],
+        [ ':- use_module(library(process)).',
+          'w_prep(_).', 'w_block(_) :- proc_run(''sleep 1.5'', 10000, _, _).', 'w_after.' ]).
+fw_kind(wait, 'proc_wait/3', [process],
+        [ ':- use_module(library(process)).',
+          'w_prep(P) :- proc_spawn(''sleep 1.5'', P).', 'w_block(P) :- proc_wait(P, 10000, _).', 'w_after.' ]).
+fw_kind(psleep, 'proc_sleep/1', [process],
+        [ ':- use_module(library(process)).',
+          'w_prep(_).', 'w_block(_) :- proc_sleep(1500).', 'w_after.' ]).
+fw_kind(join, 'thread_join/2', [thread],
+        [ ':- use_module(library(thread)).',
+          'w_prep(Id) :- thread_create(sleep(1.5), Id).', 'w_block(Id) :- thread_join(Id, _).', 'w_after.' ]).
+fw_kind(stdin, 'read/2 of user_input from a pipe', [stream],
+        [ ':- use_module(library(stream)).',
+          'w_prep(_).', 'w_block(_) :- read(user_input, _).', 'w_after.' ]).
+%% a FIFO's three waits apart: the open of one nobody writes to yet, the
+%% BOM a text read looks for at the open, and a read
+fw_kind(fifo_open, 'open/4 of a FIFO', [stream, process],
+        [ ':- use_module(library(stream)).', ':- use_module(library(process)).',
+          'w_prep(F) :- getenv(''W_FIFO'', F), atom_concat(''sleep 1.5; echo x. > '', F, Cmd), proc_spawn(Cmd, _).',
+          'w_block(F) :- open(F, read, S, [bom(false)]), read(S, _), close(S).',
+          'w_after.' ]).
+fw_kind(fifo_bom, 'the BOM open/3 of a FIFO looks for', [stream, process],
+        [ ':- use_module(library(stream)).', ':- use_module(library(process)).',
+          'w_prep(F) :- getenv(''W_FIFO'', F), atom_concat(''exec 3>'', F, C1), atom_concat(C1, ''; sleep 1.5; echo x. >&3'', Cmd), proc_spawn(Cmd, _).',
+          'w_block(F) :- open(F, read, S), read(S, _), close(S).',
+          'w_after.' ]).
+fw_kind(fifo_read, 'read/2 of a FIFO', [stream, process],
+        [ ':- use_module(library(stream)).', ':- use_module(library(process)).',
+          'w_prep(S) :- getenv(''W_FIFO'', F), atom_concat(''exec 3>'', F, C1), atom_concat(C1, ''; sleep 1.5; echo x. >&3'', Cmd), proc_spawn(Cmd, _), open(F, read, S, [bom(false)]).',
+          'w_block(S) :- read(S, _), close(S).',
+          'w_after.' ]).
+fw_kind(curl, 'curl_get/4 of a server slow to answer', [tcp, curl],
+        [ ':- use_module(library(tcp)).', ':- use_module(library(curl)).',
+          'w_prep(P) :- getenv(''W_SOCK'', P), tcp_listen(unix(P), S), nb_setval(w_sock, S).',
+          'w_block(P) :- ( catch(curl_get(''http://localhost/x'', [unix_socket(P), timeout(10)], _, _), _, true) -> true ; true ).',
+          'w_after :- nb_getval(w_sock, S), tcp_accept(S, 2000, A, _), ''$green_foreign_sleep''(1500), atom_codes(''HTTP/1.0 200 OK\\r\\nContent-Length: 2\\r\\n\\r\\nok'', Cs), ( tcp_write(A, Cs) -> true ; true ), tcp_close(A).' ]).
+fw_kind(tls, 'tls_accept/5', [tls, cert],
+        [ ':- use_module(library(tls)).',
+          'w_prep(S-Cs) :- getenv(''W_CERT'', D), atom_concat(D, ''/dont-use-certificate.crt'', Crt), atom_concat(D, ''/dont-use-private.key'', Key), Cs = [certificate(Crt), key(Key)], tls_listen(19473, S).',
+          'w_block(S-Cs) :- ( tls_accept(S, 1500, Cs, _, _) -> true ; true ), tls_close(S).',
+          'w_after.' ]).
 
 %% A SHARED TABLE GROWS BY DOUBLING, NOT BY COPYING EVERY ENTRY. The float
 %% table took the green world's shared-growth path at every new float, and

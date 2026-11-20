@@ -900,7 +900,14 @@
               (return (coco_m_error e "thread_join" "that thread was detached")))
           (if (-> j joined)
               (return (coco_m_error e "thread_join" "that thread was joined already")))
+          ;; THE JOIN IS A FOREIGN CALL (3.64.4), as this module's other
+          ;; waits are (2.10.1): the thread joined has a machine and a store
+          ;; of its own, and the wait reads neither this world's store nor
+          ;; its names. Through 3.64.3 a green task joining a thread held
+          ;; every store write in the world until the thread ended.
+          (coco_g_foreign_begin)
           (pthread_join (-> j tid) nil)
+          (coco_g_foreign_end)
           (set status (-> j status))
           (snprintf msg 256 "%s" (-> j err))
           (pthread_mutex_lock (aof th_table_lock))

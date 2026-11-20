@@ -626,8 +626,8 @@ the_pool(D, Root) :-
 %% store the world shares: a CONSULTED page answers too (the thread pool
 %% serves only module-registered pages), a slow request still does not hold
 %% the server, and a page that throws costs its answer and nothing else.
-%% The acceptor polls -- accept_poll -- because a store write waits for its
-%% acknowledgement at the barrier; the library's header says why.
+%% The acceptor polls -- accept_poll -- so that the tasks pinned to its
+%% worker run; the library's header says why.
 green_pool(D, Root) :-
     section('concurrency(green): a pool over library(async), over the one store'),
     (   catch(httpd_mode(green, green(W)), _, fail)

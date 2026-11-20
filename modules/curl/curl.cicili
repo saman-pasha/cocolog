@@ -307,7 +307,17 @@
                          (set (nth i up) (cast char (toupper (nth i up)))))
                     (set rc (cu.set h (method up)))))
 
-              (if (== rc CURLE_OK) (set rc (curl_easy_perform h)))
+              ;; THE TRANSFER IS A FOREIGN CALL (3.64.4), as library(tcp)'s
+              ;; waits are (`coco_g_foreign_begin'): it waits on its peer as
+              ;; long as the timeout lets it, and libcurl's write function
+              ;; fills the C buffer alone. Through 3.64.3 a green task in a
+              ;; request held every store write in the world until its
+              ;; answer came. The term is made after the pair.
+              (if (== rc CURLE_OK)
+                  (block
+                    (coco_g_foreign_begin)
+                    (set rc (curl_easy_perform h))
+                    (coco_g_foreign_end)))
               ;; THE STATUS IS READ INSIDE THE `info' BODY, and that is not
               ;; a style choice. `cu.info' DECLARES the variable itself --
               ;; that is the whole point of the word, so the type appears

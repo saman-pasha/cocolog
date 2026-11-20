@@ -627,6 +627,24 @@
            "read_line_to_string(S, Str) :- stream_slot(S, N, read_string/5), '$stream_read_line'(S, N, L, read_string/5), ( L == end_of_file -> Str = end_of_file ; string_codes(Str, L) )."
            "read_stream_to_codes(S, Cs) :- stream_slot(S, N, read_util:read_stream_to_codes/2), '$stream_read_all'(S, N, Cs, read_util:read_stream_to_codes/2).")))
 
+;;; A READ THAT MAY WAIT IS A FOREIGN CALL (3.64.4). A pipe, a terminal, a
+;;; FIFO or a socket (`st_block', asked of a stream's descriptor at its
+;;; open and of the standard three at the start) keeps a read waiting on
+;;; whoever writes to it, and in a green world a task in such a read held
+;;; every store write in the world -- an assertz/1, a first call's compile
+;;; -- for as long as it waited, through 3.64.3, and for ever where the
+;;; writer was the one to feed it. BODY takes its bytes between
+;;; `coco_g_foreign_begin' and `_end' (lib/green.cicili), which leave the
+;;; worker out of a write's count: it reads into the stream's own state
+;;; alone, never the store, never a term, and never returns from inside --
+;;; the term is made, and an error raised, after it. A regular file's read
+;;; asks the flag and no more.
+(DEFMACRO st-away (s &REST body)
+  `(block
+     (if (!= (nth ,s st_block) 0) (coco_g_foreign_begin))
+     ,@body
+     (if (!= (nth ,s st_block) 0) (coco_g_foreign_end))))
+
 ;;;; ------------------------------------------------------------------
 ;;;; The C half
 ;;;; ------------------------------------------------------------------
@@ -638,9 +656,13 @@
   (include <string.h>)
   (include <errno.h>)
   (include <unistd.h>)
+  (include <sys/stat.h>)
 
   (import "./sdk.cicili")
   (coco-sdk)
+
+  ;;; `stat_t' is lib/files.cicili's, for the kind of a stream's descriptor
+  (@define (code "stat_t struct stat"))
 
   ;;; ---- the table: a handle is a slot, and the slot knows its kind ----
   ;;;
@@ -655,7 +677,20 @@
   (static) (var u8 st_push [256][8])
   (static) (var int st_npush [256])
   (static) (var char * st_alias [256])      ; open(..., [alias(A)]), or null
+  (static) (var int st_block [256])         ; a read may wait (`st-away')
   (static) (var int st_ready . 0)
+
+  ;;; MAY A READ OF F WAIT? A FIFO or a pipe, a socket and a character
+  ;;; device -- a terminal -- keep one waiting on another party; a regular
+  ;;; file, a directory and a block device never do. A descriptor fstat(2)
+  ;;; cannot answer for is taken to wait.
+  (static)
+  (func st_may_wait ((FILE * f)) (out int)
+        (let ((stat_t sb))
+          (if (!= 0 (fstat (fileno f) (aof sb))) (return 1))
+          (if (S_ISFIFO ($ sb st_mode)) (return 1))
+          (if (S_ISSOCK ($ sb st_mode)) (return 1))
+          (return (? (S_ISCHR ($ sb st_mode)) 1 0))))
 
   ;;; THE ENCODING (3.19.0), swipl's names by number: 0 utf8, 1 octet, 2
   ;;; ascii, 3 iso_latin_1, 4 text, 5 unicode_be, 6 unicode_le, 7 utf16be,
@@ -826,14 +861,23 @@
         (set (nth s st_lp) 0)
         (set (nth s st_hi) 0))
 
-  (static)
-  (func st_setup () (out void)
-        (if st_ready (return))
+  ;;; THE FIRST CALL'S WORK is out of line and cold, so that `st_setup',
+  ;;; every predicate's first line, is a test its callers inline: with the
+  ;;; standard input's wait flag in its body (3.64.4) clang called it from
+  ;;; each of them, some six instructions a call of a read
+  (weak) (cold)
+  (func st_setup_first () (out void)
         (set (nth 0 st_file) stdin)  (set (nth 0 st_kind) 1) (set (nth 0 st_mode) 1)
         (set (nth 1 st_file) stdout) (set (nth 1 st_kind) 1) (set (nth 1 st_mode) 2)
         (set (nth 2 st_file) stderr) (set (nth 2 st_kind) 1) (set (nth 2 st_mode) 2)
         (st_pos_reset 0) (st_pos_reset 1) (st_pos_reset 2)
+        (set (nth 0 st_block) (st_may_wait stdin))
         (set st_ready 1))
+
+  (static)
+  (func st_setup () (out void)
+        (if st_ready (return))
+        (st_setup_first))
 
   ;;; The FILE a write to slot S goes to: the real terminal for user_output
   ;;; while a file is the current output; for slot 1 otherwise the calling
@@ -1258,7 +1302,15 @@
           (for ((int i . 3)) (< i 256) ((++ i))
                (if (== (nth i st_kind) 0) (block (set s i) break)))
           (if (< s 0) (return (coco_m_resource_error e "max_files")))
+          ;; A FIFO'S OPEN WAITS FOR ITS OTHER END, and is a foreign call
+          ;; (3.64.4) as a read that may wait is (`st-away'): the kind is
+          ;; known only once the file is open, and an open costs the pair
+          ;; nothing a system call does not
+          (coco_g_foreign_begin)
           (set f (fopen path how))
+          (let ((int en . errno))
+            (coco_g_foreign_end)
+            (set errno en))
           ;; swipl's file errors (pl-error.c's ERR_FILE_OPERATION, 3.16.0):
           ;; no access, a busy text or a read-only file system may not be
           ;; opened, too many open files is a resource, and anything else --
@@ -1279,6 +1331,7 @@
           (set (nth s st_kind) (cast int kind))
           (set (nth s st_mode) (cast int mode))
           (set (nth s st_path) (strdup path))
+          (set (nth s st_block) (st_may_wait f))
           (set (nth s st_npush) 0)
           (set (nth s st_bom) 0)
           (set (nth s st_bomlen) 0)
@@ -1287,7 +1340,7 @@
           (st_pos_reset s)
           (if (and (== kind 1) (and (!= bom 0) (st_bom_enc (cast int enc))))
               (block
-                (if (== mode 1) (st_bom_read s))
+                (if (== mode 1) (st-away s (st_bom_read s)))
                 (if (and (== mode 2) (== bom 1))
                     (let ((char m [8]) (int k . #'(coco_m_utf8_enc m 65279)))
                       (set (nth s st_bom) 1)
@@ -1354,7 +1407,7 @@
           (let ((int rc8 . #'(st_slot e g 1 (aof s)))) (if (!= rc8 1) (return rc8)))
           (let ((int rc8b . #'(st_readable e g 0 s))) (if (!= rc8b 1) (return rc8b)))
           (if (> (nth s st_npush) 0) (return 0))
-          (set c (fgetc (nth s st_file)))
+          (st-away s (set c (fgetc (nth s st_file))))
           (if (< c 0) (return 1))
           (ungetc c (nth s st_file))
           (return 0)))
@@ -1533,7 +1586,7 @@
           (let ((int rc14 . #'(st_slot e g 1 (aof s)))) (if (!= rc14 1) (return rc14)))
           (let ((int rc16 . #'(st_readable e g 0 s))) (if (!= rc16 1) (return rc16)))
           (let ((int rc15 . #'(st_need_binary e g s "input"))) (if (!= rc15 1) (return rc15)))
-          (set c (st_getc s))
+          (st-away s (set c (st_getc s)))
           (if (coco_m_unify_int e (coco_m_arg e g 2) (? (< c 0) -1 (cast i64 c))) (return 1))
           (return (st_char_fail e (coco_m_arg e g 2)))))
 
@@ -1546,7 +1599,7 @@
           (let ((int rc18 . #'(st_need_binary e g s "input"))) (if (!= rc18 1) (return rc18)))
           (if (not (coco_m_is_var e t))
               (let ((int rc . #'(st_char_code e t 1 (aof want)))) (if (!= rc 1) (return rc))))
-          (set c (st_getc s))
+          (st-away s (set c (st_getc s)))
           (st_ungetc s c)
           (if (coco_m_is_var e t) (return (coco_m_unify_int e t (? (< c 0) -1 (cast i64 c)))))
           (return (? (== want (? (< c 0) -1 (cast i64 c))) 1 0))))
@@ -1576,11 +1629,12 @@
           (if (< n 0) (return (coco_m_domain_error e "not_less_than_zero" (coco_m_arg e g 2))))
           (set buf (cast (u8 *) (malloc (cast size_t (+ n 1)))))
           (if (== buf nil) (return (coco_m_error e "stream_read_bytes" "no memory")))
-          (while (< (cast i64 got) n)
-            (let ((int c . #'(st_getc s)))
-              (if (< c 0) break)
-              (set (nth got buf) (cast u8 c))
-              (set got (+ got 1))))
+          (st-away s
+            (while (< (cast i64 got) n)
+              (let ((int c . #'(st_getc s)))
+                (if (< c 0) break)
+                (set (nth got buf) (cast u8 c))
+                (set got (+ got 1)))))
           (let ((size_t lst . #'(st_codes e buf got)))
             (free buf)
             (return (coco_m_unify e (coco_m_arg e g 3) lst)))))
@@ -1649,30 +1703,31 @@
   ;;; The rest of the stream, whatever its kind: a file as codes is what
   ;;; every text predicate here already takes.
   (func st_p_read_all ((coco_engine * e) (size_t g)) (out int)
-        (let ((int s . -1) (u8 * buf . nil) (size_t cap . 0) (size_t n . 0))
+        (let ((int s . -1) (u8 * buf . nil) (size_t cap . 0) (size_t n . 0) (int nomem . 0))
           (let ((int rc31 . #'(st_slot e g 1 (aof s)))) (if (!= rc31 1) (return rc31)))
           (let ((int rc32 . #'(st_readable e g 0 s))) (if (!= rc32 1) (return rc32)))
-          (while (> (nth s st_npush) 0)
-            (if (not (st_grow (aof buf) (aof cap) (+ n 1)))
-                (block (free buf) (return (coco_m_error e "stream_read_all" "no memory"))))
-            (set (nth n buf) (cast u8 (st_getc s)))
-            (set n (+ n 1)))
-          ;; a UTF-16 or UCS-4 stream's rest is decoded a character at a time
-          (while (>= (nth s st_cls) 2)
-            (let ((int c . #'(st_getc s)))
-              (if (< c 0) break)
-              (if (not (st_grow (aof buf) (aof cap) (+ n 1)))
-                  (block (free buf) (return (coco_m_error e "stream_read_all" "no memory"))))
-              (set (nth n buf) (cast u8 c))
-              (set n (+ n 1))))
-          (while (< (nth s st_cls) 2)
-            (if (not (st_grow (aof buf) (aof cap) (+ n 65536)))
-                (block (free buf) (return (coco_m_error e "stream_read_all" "no memory"))))
-            (let ((size_t got . #'(fread (+ buf n) 1 65536 (nth s st_file))))
-              (for ((size_t i . 0)) (< i got) ((++ i))
-                   (st_count s (cast int (nth (+ n i) buf))))
-              (set n (+ n got))
-              (if (< got 65536) break)))
+          ;; the rest is read between the foreign pair (`st-away'), a buffer
+          ;; refused ending the read (NOMEM) and the error raised after it
+          (st-away s
+            (while (> (nth s st_npush) 0)
+              (if (not (st_grow (aof buf) (aof cap) (+ n 1))) (block (set nomem 1) break))
+              (set (nth n buf) (cast u8 (st_getc s)))
+              (set n (+ n 1)))
+            ;; a UTF-16 or UCS-4 stream's rest is decoded a character at a time
+            (while (and (not nomem) (>= (nth s st_cls) 2))
+              (let ((int c . #'(st_getc s)))
+                (if (< c 0) break)
+                (if (not (st_grow (aof buf) (aof cap) (+ n 1))) (block (set nomem 1) break))
+                (set (nth n buf) (cast u8 c))
+                (set n (+ n 1))))
+            (while (and (not nomem) (< (nth s st_cls) 2))
+              (if (not (st_grow (aof buf) (aof cap) (+ n 65536))) (block (set nomem 1) break))
+              (let ((size_t got . #'(fread (+ buf n) 1 65536 (nth s st_file))))
+                (for ((size_t i . 0)) (< i got) ((++ i))
+                     (st_count s (cast int (nth (+ n i) buf))))
+                (set n (+ n got))
+                (if (< got 65536) break))))
+          (if nomem (block (free buf) (return (coco_m_error e "stream_read_all" "no memory"))))
           (let ((size_t lst . #'(st_text_codes e s buf n)))
             (free buf)
             (return (coco_m_unify e (coco_m_arg e g 2) lst)))))
@@ -1773,7 +1828,7 @@
         (let ((int s . -1) (char name [8]) (int n . 0))
           (let ((int rc33 . #'(st_slot e g 1 (aof s)))) (if (!= rc33 1) (return rc33)))
           (let ((int rc35 . #'(st_readable e g 0 s))) (if (!= rc35 1) (return rc35)))
-          (set n (st_char_name s 0 name))
+          (st-away s (set n (st_char_name s 0 name)))
           (if (coco_m_unify_atom e (coco_m_arg e g 2) (? (== n 0) "end_of_file" name)) (return 1))
           (return (st_char_fail e (coco_m_arg e g 2)))))
 
@@ -1782,10 +1837,11 @@
           (let ((int rc36 . #'(st_slot e g 1 (aof s)))) (if (!= rc36 1) (return rc36)))
           (let ((int rc38 . #'(st_readable e g 0 s))) (if (!= rc38 1) (return rc38)))
           (if (not (coco_m_is_var e t))
-              (block
+              (let ((i64 v . 0))
                 (let ((int rc . #'(st_char_code e t 1 (aof want)))) (if (!= rc 1) (return rc)))
-                (return (? (== want (st_peek_cp e s 0)) 1 0))))
-          (set n (st_char_name s 1 name))
+                (st-away s (set v (st_peek_cp e s 0)))
+                (return (? (== want v) 1 0))))
+          (st-away s (set n (st_char_name s 1 name)))
           (return (coco_m_unify_atom e t (? (== n 0) "end_of_file" name)))))
 
   ;;; the character's code was made of the program's term by '$stream_char'/3
@@ -1800,18 +1856,20 @@
   ;;; off too. `end_of_file' only when NOTHING was read -- a last line
   ;;; with no newline is still a line. A binary stream's are its bytes.
   (func st_p_read_line ((coco_engine * e) (size_t g)) (out int)
-        (let ((int s . -1) (u8 * buf . nil) (size_t cap . 0) (size_t n . 0) (int c . 0) (int any . 0))
+        (let ((int s . -1) (u8 * buf . nil) (size_t cap . 0) (size_t n . 0) (int c . 0) (int any . 0)
+              (int nomem . 0))
           (let ((int rc42 . #'(st_slot e g 1 (aof s)))) (if (!= rc42 1) (return rc42)))
           (let ((int rc44 . #'(st_readable e g 0 s))) (if (!= rc44 1) (return rc44)))
-          (while 1
-            (set c (st_getc s))
-            (if (< c 0) break)
-            (set any 1)
-            (if (== c 10) break)
-            (if (not (st_grow (aof buf) (aof cap) (+ n 1)))
-                (block (free buf) (return (coco_m_resource_error e "memory"))))
-            (set (nth n buf) (cast u8 c))
-            (set n (+ n 1)))
+          (st-away s
+            (while 1
+              (set c (st_getc s))
+              (if (< c 0) break)
+              (set any 1)
+              (if (== c 10) break)
+              (if (not (st_grow (aof buf) (aof cap) (+ n 1))) (block (set nomem 1) break))
+              (set (nth n buf) (cast u8 c))
+              (set n (+ n 1))))
+          (if nomem (block (free buf) (return (coco_m_resource_error e "memory"))))
           (if (not any) (block (free buf) (return (coco_m_unify_atom e (coco_m_arg e g 2) "end_of_file"))))
           (if (and (> n 0) (== (nth (- n 1) buf) 13)) (set n (- n 1)))
           (let ((size_t lst . #'(st_text_codes e s buf n)))
@@ -1979,7 +2037,7 @@
           (st_pos_sync s)
           (set b0 (nth s st_nb)) (set c0 (nth s st_nc))
           (set l0 (nth s st_nl)) (set p0 (nth s st_lp))
-          (set rc (st_read_clause s (aof buf) (aof n)))
+          (st-away s (set rc (st_read_clause s (aof buf) (aof n))))
           (if (== rc -2) (return (coco_m_resource_error e "memory")))
           (if (== rc 0)
               (block
@@ -2044,10 +2102,12 @@
         (let ((int s . -1) (i64 v . 0))
           (let ((int rc51 . #'(st_slot e g 1 (aof s)))) (if (!= rc51 1) (return rc51)))
           (let ((int rc53 . #'(st_readable e g 0 s))) (if (!= rc53 1) (return rc53)))
-          (if (and (!= (nth s st_cls) 1) (coco_m_text_chars e))
-              (set v (st_get_cp s 0))
-              (let ((int c . #'(st_getc s)))
-                (set v (? (< c 0) -1 (cast i64 c)))))
+          (let ((int cp . #'(and (!= (nth s st_cls) 1) (coco_m_text_chars e))))
+            (st-away s
+              (if cp
+                  (set v (st_get_cp s 0))
+                  (let ((int c . #'(st_getc s)))
+                    (set v (? (< c 0) -1 (cast i64 c)))))))
           (if (coco_m_unify_int e (coco_m_arg e g 2) v) (return 1))
           (return (st_char_fail e (coco_m_arg e g 2)))))
 
@@ -2057,7 +2117,7 @@
           (let ((int rc56 . #'(st_readable e g 0 s))) (if (!= rc56 1) (return rc56)))
           (if (not (coco_m_is_var e t))
               (let ((int rc . #'(st_char_code e t 1 (aof want)))) (if (!= rc 1) (return rc))))
-          (set v (st_peek_cp e s 1))
+          (st-away s (set v (st_peek_cp e s 1)))
           (if (coco_m_is_var e t) (return (coco_m_unify_int e t v)))
           (return (? (== want v) 1 0))))
 

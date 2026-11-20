@@ -532,7 +532,9 @@ the generation on every lookup, a hit too, where `coco_intern_len` has a
 lock-free hit; and the world's end waits for a worker inside a long
 foreign call. (The other two of this list as 3.62.1 left it -- a task's
 making under an address-space ceiling, and a message written and read
-with the world's lock held -- are the next section's.)
+with the world's lock held -- are the next section's. The functor lookup's
+lock went in 3.64.3, and the socket, process and stream waits STATUS.md
+recorded beside them were declared in 3.64.4, two sections on.)
 
 ## A world short of memory (3.62.3)
 
@@ -607,6 +609,39 @@ word, or end as a host out of memory ends. `quantum_block` walks a
 receive, a send, a yield and an await across the last step of a
 quantum: 2,412 worlds on one worker, every one answering.
 
+## A wait that touches no store holds no write (3.64.4)
+
+A write waits for every worker's acknowledgement, and a worker inside a C
+call that waits on another party answers nothing until the call returns:
+through 3.64.3 only library(thread)'s waits and raylib's `EndDrawing` said
+so (2.10.1), and a task in any other wait held every `assertz/1` and every
+first call's compile in the world for as long as it waited. Each of these
+brackets its wait with `coco_g_foreign_begin` / `coco_g_foreign_end` now,
+the term made and an error raised after the pair:
+
+| the wait | where |
+|---|---|
+| `sleep/1` | lib/files.cicili |
+| `tcp_accept/4`, `tcp_read/4` (the poll), `tcp_connect/2,3` (the look-up and the connects), `tcp_write/2` (a peer that reads nothing) | library(tcp) |
+| `proc_run/4`, `proc_wait/3`, `proc_sleep/1` | library(process) |
+| `thread_join/2` | library(thread) |
+| `tls_accept/5`, `tls_connect/4`, `tls_read/4`, `tls_write/2` | library(tls) |
+| a request's transfer | library(curl) |
+| a read of a stream that may wait -- a pipe, a FIFO, a socket, a terminal, user_input among them -- and every open (a FIFO's waits for its other end) | library(stream), the reads through one macro, `st-away` |
+
+Where the task that was to end the wait -- an accept, a close -- came back
+from a foreign call of its own into the write still in flight, the world
+stopped for ever: the waiter waited for the ender, the write for the
+waiter, the ender for the write. `test/async.pl`'s `foreign_waits` holds a
+kind a wait, each a child process with a ceiling: a waiter that says `go`
+and waits a second and a half, a writer that times an `assertz/1` from the
+word, and a task that ends the wait where somebody must. On 3.64.3 every
+kind held the write 1.5 s, or 10 s for curl's timeout, or stopped the
+world (a send ended by a close, a connect past a full backlog ended by an
+accept). What a regular file's read pays is two tests of a slot's flag a
+predicate. Not declared: a write to a pipe whose reader falls behind
+(library(stream)'s writes, the console's own).
+
 ## What a finished `async_run` leaves in its host
 
 Nothing runnable and nothing locked. By the time `async_run/1,2` returns it
@@ -659,7 +694,9 @@ host state to leave.
   its return acknowledges and waits for any write still in flight before
   it reads the store. A call that touches the store must not declare itself
   this way, and a worker in an undeclared long foreign call still holds
-  the barrier. A write a task makes after the main task has ended is
+  the barrier. Since 3.64.4 every wait the tree's modules make is declared
+  (the section above lists them); a write to a pipe whose reader falls
+  behind is not. A write a task makes after the main task has ended is
   stopped for as any other is, by the workers still in their loops
   (3.62.1; through 3.62.0 it took no barrier, or one that counted workers
   already gone, and `async_run/1` could hang in its join); once

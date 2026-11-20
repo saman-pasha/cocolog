@@ -346,16 +346,28 @@
   ;;; poll() on one descriptor. 1 ready, 0 timed out, -1 broken. EINTR is
   ;;; retried rather than reported, because a signal arriving is not an
   ;;; answer to "did anybody connect".
+  ;;;
+  ;;; A WAIT IS A FOREIGN CALL (3.64.4, `coco_g_foreign_begin'): in a green
+  ;;; world a write need not wait for this worker, and the worker waits for
+  ;;; one still in flight before it reads the store again. Through 3.64.3 a
+  ;;; task in tcp_accept/4 or tcp_read/4 held every store write in the world
+  ;;; for as long as its wait lasted -- and a write by the task that was to
+  ;;; connect to it, for ever. A poll that does not wait (0 ms) is none.
+  ;;; errno is the poll's, kept across the pair's lock and unlock.
   (static)
   (func coco_t_wait ((int fd) (int writing) (int ms)) (out int)
-        (let ((int n . 0) (pollfd p))
+        (let ((int n . 0) (int en . 0) (pollfd p))
           (set ($ p fd) fd)
           (set ($ p events) (? writing POLLOUT POLLIN))
           (set ($ p revents) 0)
+          (if (!= ms 0) (coco_g_foreign_begin))
           (while 1
             (set n (poll (aof p) 1 ms))
             (if (and (< n 0) (== errno EINTR)) continue)
             break)
+          (set en errno)
+          (if (!= ms 0) (coco_g_foreign_end))
+          (set errno en)
           (if (< n 0) (return -1))
           (return (? (> n 0) 1 0))))
 
@@ -535,7 +547,9 @@
 
   ;;; A descriptor connected to HOST:PORT, or -1 with tcp_why/1's reason:
   ;;; getaddrinfo's own for a name it could not find, the last address's
-  ;;; errno for one nobody answered.
+  ;;; errno for one nobody answered. The look-up and the connects are a
+  ;;; FOREIGN CALL (3.64.4), as a wait is (`coco_t_wait'): either can take
+  ;;; seconds, and they touch no store.
   (static)
   (func coco_t_dial_inet ((const char * host) (i64 port)) (out int)
         (let ((int fd . -1) (int gai . 0) (int err . 0) (char svc [16])
@@ -547,8 +561,10 @@
           (memset (aof hints) 0 (sizeof hints))
           (set ($ hints ai_family) AF_INET)
           (set ($ hints ai_socktype) SOCK_STREAM)
+          (coco_g_foreign_begin)
           (set gai (getaddrinfo host svc (aof hints) (aof res)))
-          (if (!= 0 gai) (block (set coco_t_why_s (gai_strerror gai)) (return -1)))
+          (if (!= 0 gai)
+              (block (coco_g_foreign_end) (set coco_t_why_s (gai_strerror gai)) (return -1)))
           (for ((addrinfo * it . res)) (!= it nil) ((set it (-> it ai_next)))
                (set fd (socket (-> it ai_family) (-> it ai_socktype) (-> it ai_protocol)))
                (if (< fd 0) (block (set err errno) continue))
@@ -556,6 +572,7 @@
                (set err errno)
                (close fd)
                (set fd -1))
+          (coco_g_foreign_end)
           (freeaddrinfo res)
           (if (< fd 0) (set coco_t_why_s (strerror err)))
           (return fd)))
@@ -565,10 +582,15 @@
   ;;; `Connection refused' for one nobody listens on any more.
   (static)
   (func coco_t_dial_unix ((sockaddr_un * a)) (out int)
-        (let ((int fd . #'(socket AF_UNIX SOCK_STREAM 0)))
+        (let ((int fd . #'(socket AF_UNIX SOCK_STREAM 0)) (int r . 0) (int en . 0))
           (if (< fd 0) (block (set coco_t_why_s (strerror errno)) (return -1)))
-          (if (< (connect fd (cast (sockaddr *) a) (sizeof (cof a))) 0)
-              (block (set coco_t_why_s (strerror errno)) (close fd) (return -1)))
+          ;; a listener whose backlog is full keeps the connect waiting
+          (coco_g_foreign_begin)
+          (set r (connect fd (cast (sockaddr *) a) (sizeof (cof a))))
+          (set en errno)
+          (coco_g_foreign_end)
+          (if (< r 0)
+              (block (set coco_t_why_s (strerror en)) (close fd) (return -1)))
           (return fd)))
 
   ;;; getaddrinfo rather than inet_addr, so a peer can be named rather than
@@ -764,13 +786,17 @@
                                     (return (coco_m_type_error e "integer" bad)))))
                        (set (nth i buf) (cast ubyte_t (bitand v 255)))))
                 (free items)))
+          ;; a peer that reads nothing fills the socket's buffer, and the
+          ;; send waits: a foreign call (3.64.4), as a read's wait is
+          (coco_g_foreign_begin)
           (while (< off n)
             (set w (send fd (+ buf off) (- n off) MSG_NOSIGNAL))
             (if (and (< w 0) (== errno EINTR)) continue)
-            (if (< w 0) (block (free buf) (return 0)))
+            (if (< w 0) break)
             (set off (+ off (cast size_t w))))
+          (coco_g_foreign_end)
           (free buf)
-          (return 1)))
+          (return (? (< off n) 0 1))))
 
   ;;; ---- close -----------------------------------------------------------
 

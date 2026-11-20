@@ -20340,3 +20340,132 @@ new atoms and then functors in step, read each back, and the world adds
 200,001 functors, the names and the environment of the loop's second
 clause, '$e'/N, which its first selection compiles) and `rehash_functors`
 (one task makes 200,000 new functors while three look one up).
+
+## A wait that touches no store holds no write (3.64.4)
+
+THE SOCKET, PROCESS AND STREAM WAITS WERE NOT DECLARED FOREIGN (the first
+lead the 3.62.1 review left). A green world's store write waits for every
+worker's acknowledgement, and a worker inside a C call that waits on
+another party -- a peer, a child, a thread, a timer -- answers nothing
+until the call returns. library(thread)'s waits and raylib's `EndDrawing`
+have declared themselves since 2.10.1 (`coco_g_foreign_begin`/`_end`), and
+a write counts them out; through 3.64.3 nothing else did, so a task in any
+of these held every assertz/1 and every first call's compile in the world
+for as long as it waited:
+- sleep/1 (lib/files.cicili);
+- library(tcp)'s poll (`coco_t_wait`: tcp_accept/4, tcp_read/4), its
+  dials (tcp_connect/2,3: the look-up and the connects) and its send
+  (tcp_write/2, which waits once a peer that reads nothing has filled the
+  socket's buffer);
+- library(process)'s proc_run/4 (its child's output and its reaping),
+  proc_wait/3 and proc_sleep/1;
+- library(thread)'s thread_join/2;
+- library(tls)'s accept, connect, read and write;
+- library(curl)'s transfer (libcurl's write function fills a C buffer
+  alone);
+- library(stream)'s reads of a stream that may wait -- a pipe, a FIFO, a
+  socket, a terminal: what fstat(2) says is a FIFO, a socket or a
+  character device, asked of a stream at its open and of user_input at
+  the module's first call (`st_block`, `st_may_wait`) -- and every open,
+  which waits for a FIFO's other end.
+Each brackets its blocking call with the pair now, the term made and an
+error raised after it; library(stream)'s reads go through one macro,
+`st-away`, whose body never returns. A worker back from one waits for a
+write still in flight before it reads the store, the pair's own rule.
+
+And where the task that was to end the wait came back from a foreign call
+of its own into the write still in flight, the world stopped for ever: the
+waiter waited for the ender, the write for the waiter, and the ender for
+the write. Two of test/async.pl's kinds have that shape, a send ended by a
+close and a connect past a full backlog ended by an accept, and on their
+arms each was killed at the case's ceiling.
+
+THE CHECK, test/async.pl's `foreign_waits`, a kind a wait, each a child
+process with a ceiling of 20 s in a world of four workers: a waiter makes
+ready what it waits on, says `go` and waits a second and a half; a writer
+on another worker hears it, waits 300 ms in a declared foreign call, so
+that the first is well inside its wait, and times an assertz/1 from the
+word; a third task ends the wait where somebody must, once it too has
+heard the word (a close made before a send of four megabytes began ends no
+wait -- the first cut's ender did, and its kind passed on its arm). The
+writer's clauses run once before the world's tasks are made: a first call
+compiles, and a compile is a write, which in an earlier probe stalled the
+writer before its clock started and read `free` on a held world. `free`
+is under a second; every kind reads 0.300 s on the final code.
+A FIFO's three waits are three kinds, each in one place: the open of one
+nobody writes to yet (`bom(false)`), the BOM a text read looks for at the
+open, and a read (`bom(false)` at the open). The dial's kind fills a unix
+socket's backlog of 64 with 65 connects first, past which Linux keeps a
+connect waiting; macOS refuses such a connect at once, and the kind is
+skipped there by name. The tls kind takes ZiguratIP's sample certificate
+and skips by name without it.
+
+RULES, each taken out alone on the final code, one build each (a module's
+.so, sleep/1's the engine), each red on its own kinds and green on the
+neighbours run beside it:
+- F1 sleep/1: held 1.50 s (proc_sleep/1 free);
+- T1 `coco_t_wait`: tcp_accept/4 and tcp_read/4 held 1.50 s (tcp_write/2
+  free);
+- T2 the dials: tcp_connect/2 past a full backlog, the world stopped and
+  killed at the ceiling (tcp_accept/4 free);
+- T3 the send: tcp_write/2 to a peer that reads nothing, the world stopped
+  (tcp_read/4 free);
+- P1 proc_run/4, P2 proc_wait/3, P3 proc_sleep/1: held 1.50 s each, the
+  next of the three free;
+- H1 thread_join/2: held 1.51 s;
+- L1 library(tls)'s four: tls_accept/5 held 1.50 s;
+- C1 library(curl)'s transfer: held 10.0 s, curl's own timeout, after
+  which the ender's answer found the peer gone;
+- S1 `st-away`: read/2 of user_input from a pipe held 1.49 s, the BOM a
+  FIFO's open/3 looks for 1.50 s, read/2 of a FIFO 1.50 s (open/4 of a
+  FIFO free);
+- S2 the open's pair: open/4 of a FIFO nobody writes to yet held 1.50 s
+  (the BOM and the read free).
+Not held by a check of their own: tls's connect, read and write (one rule
+with its accept), tcp's inet dial (one rule with the unix dial), and
+st_p_eof, the byte and character gets and peeks, read_line and read_all
+(one rule, the macro, with read/2's).
+
+WHAT IT COSTS. The engine's step nothing: tools/flow/zero.sh against
+3.64.3, work less padding, nrev 66 124 466, queens 39 970 144, lookup
+48 068 839, both binaries to the instruction; a start, `cocolog query
+true`, 11 instructions fewer (35 164 352). A regular file's read asks the
+slot's flag twice a predicate: a program reading a 5 000-clause file three
+ways -- 132 780 get_char/2, 5 000 read_line_to_codes/2 and 5 000 read/2
+-- from 988 343 428 instructions to 988 731 307 (+0.039 %), get_char/2 5
+a call, read_line_to_codes/2 16, read/2 9. The first cut put user_input's
+flag in `st_setup`, every predicate's first line, and clang then called it
+out of line from each, +0.082 % (`st_setup` 856 775 instructions where it
+had none), until the first call's work went out of line and cold
+(`st_setup_first`); reading the flag once into a local cost a get_char 6,
+not 5.
+
+FOUND ON THE WAY, not fixed here: library(stream)'s BOM check reads three
+bytes and puts them back with fseek(3), which fails on a pipe or a FIFO,
+so `open(F, read, S)` of a FIFO loses its first three bytes, and a read of
+`x.` from one answers end_of_file. It is the next change.
+
+LIBRARY(HTTPD)'S ACCEPTOR. Its green pool polls its accept, `accept_poll`
+milliseconds (2 by default), and the poll was what bounded the barrier:
+each compile a request's first selection made waited up to one poll for
+the acceptor. The first request to a fresh green server with one page,
+three rounds of each: 3.64.3's accept 6.1 to 7.5 s at a poll of 100 ms
+and 0.06 to 0.11 s at 2; 3.64.4's 0.009 to 0.011 s at either, the second
+request 1 ms in all. The poll stays, for what it still does: the acceptor
+holds its worker while it waits, and a task pinned there runs only when
+the acceptor yields. The library's header and lesson 16 say so now.
+
+NOT DONE: a write to a pipe whose reader falls behind, library(stream)'s
+writes and the console's own output, waits once the pipe's buffer fills
+and is not declared.
+
+THE RUN, on the binary and modules that ship: the lint case first, then
+async, tcp, process, thread, stream, tls, httpd, httpd-tls, websocket,
+curl, http, cowork, os, signal, files, errors, store-lock, serialize,
+repl, engine, gc, library, cyclic, directives, script, string, units,
+flowchart, flowdebug, window, trace, backtrace, journal, meter, text,
+argv, template, rationals, static, and the term, module and state
+binaries, each alone, every one green with no SKIP; stream, curl, httpd
+and async again alone once their modules and the case stood as they ship.
+Lesson 16 (httpd) alone. The card check passes. test/async.pl's
+`foreign_waits` adds 25 s to the case (195 s).

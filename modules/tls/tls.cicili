@@ -180,6 +180,8 @@
   (code "int coco_m_type_error(struct coco_engine_opaque*, const char*, size_t);")
   (code "int coco_m_domain_error(struct coco_engine_opaque*, const char*, size_t);")
   (code "int coco_m_error(struct coco_engine_opaque*, const char*, const char*);")
+  (code "void coco_g_foreign_begin(void);")
+  (code "void coco_g_foreign_end(void);")
   (code "}")
 
   (import "./sdk.cicili")
@@ -573,7 +575,13 @@
         (if (not (coco_m_text e sc creds 8192))
             (return (coco_m_type_error e "credentials" sc)))
         (set (nth 0 peer) 0)
+        ;; THE WAIT, THE HANDSHAKE, A READ AND A WRITE ARE FOREIGN CALLS
+        ;; (3.64.4), as library(tcp)'s are: each can take seconds, and none
+        ;; reads a store. In a green world a write need not wait for this
+        ;; worker; the term is made after the pair.
+        (coco_g_foreign_begin)
         (let ((int s . #'(coco_tls_accept (cast int srv) (cast int ms) creds peer 64)))
+          (coco_g_foreign_end)
           ;; -2 nobody came, -3 the handshake refused a peer, -1 an error.
           ;; All three FAIL; `tls_why/1' distinguishes them.
           (if (< s 0) (return 0))
@@ -590,7 +598,9 @@
         (if (not (coco_m_text e sc creds 8192))
             (return (coco_m_type_error e "credentials" sc)))
         (if (not (coco_m_int e sm (aof ms))) (set ms 30000))
+        (coco_g_foreign_begin)
         (let ((int s . #'(coco_tls_connect host service creds (cast int ms))))
+          (coco_g_foreign_end)
           (if (< s 0) (return 0))
           (return (coco_m_unify_int e sr (cast i64 s)))))))
 
@@ -611,7 +621,9 @@
             (return (coco_m_domain_error e "byte_count" sn)))
         (set buf (cast (ubyte_t *) (malloc (cast size_t maxb))))
         (if (== buf nil) (return 0))
+        (coco_g_foreign_begin)
         (set n (coco_tls_read (cast int slot) buf (cast long maxb) (cast int ms)))
+        (coco_g_foreign_end)
         (if (<= n 0) (block (free buf) (return 0)))
         ;; Built back to front, because consing onto a list is what a list
         ;; is: the last byte read is the first cell made.
@@ -637,7 +649,9 @@
                (if (not (coco_m_int e (nth i items) (aof v)))
                    (block (free buf) (return (coco_m_type_error e "a code" sl))))
                (set (nth i buf) (cast ubyte_t (bitand v 255)))))
+        (coco_g_foreign_begin)
         (set wrote (coco_tls_write (cast int slot) buf (cast long len)))
+        (coco_g_foreign_end)
         (free buf)
         (if (< wrote 0) (return 0))
         (return 1))))

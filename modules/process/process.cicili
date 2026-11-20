@@ -327,6 +327,12 @@
           (if (not buf)
               (block (close fd) (kill (- 0 pid) 9) (waitpid pid (aof status) 0)
                      (return (coco_m_resource_error e "memory"))))
+          ;; THE WAIT IS A FOREIGN CALL (3.64.4, `coco_g_foreign_begin'):
+          ;; the loop and the child's reaping read no store, so in a green
+          ;; world a write need not wait for this worker. Through 3.64.3 a
+          ;; task in proc_run/4 held every store write in the world until
+          ;; its child ended. The term is built after the pair.
+          (coco_g_foreign_begin)
           (while 1
             (let ((pollfd p) (int pr . 0) (ssize_t r . 0)
                   (i64 step . #'(- deadline (coco_p_now_ms))))
@@ -349,6 +355,7 @@
                         (void * grown . #'(realloc (cast (void *) buf) ncap)))
                     (if (== grown nil)
                         (block (close fd) (kill (- 0 pid) 9) (waitpid pid (aof status) 0)
+                               (coco_g_foreign_end)
                                (free (cast (void *) buf))
                                (return (coco_m_resource_error e "memory"))))
                     (set buf (cast (ubyte_t *) grown))
@@ -372,6 +379,7 @@
                     (set ex (cast i64 (WEXITSTATUS status)))
                     (set ex 128))))         ; died to a signal: past 127,
                                             ; the shell's own convention
+          (coco_g_foreign_end)
           ;; the output, consed from the tail so it reads forward -- its
           ;; characters' code points under `text_units = characters'
           ;; (1.13.0), as the program's own text is counted there
@@ -398,23 +406,29 @@
   ;;;
   ;;; WNOHANG against a deadline; nobody exiting in time is a plain
   ;;; failure, the tcp accept rule. A child that died to a signal
-  ;;; answers past 127, as above.
+  ;;; answers past 127, as above. The wait is a FOREIGN CALL (3.64.4), as
+  ;;; proc_run/4's is, its answer unified after the pair.
   (func coco_p_wait ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (i64 pid . 0) (i64 tmo . 0)
-              (int status . 0) (i64 spent . 0))
+              (int status . 0) (i64 spent . 0) (int got . 0) (i64 ex . 128))
           (if (not (coco_p_int e g 0 (aof pid) (aof rc))) (return rc))
           (if (not (coco_p_int e g 1 (aof tmo) (aof rc))) (return rc))
+          (coco_g_foreign_begin)
           (while 1
             (let ((pid_t r . #'(waitpid (cast pid_t pid) (aof status) WNOHANG)))
               (if (== r (cast pid_t pid))
-                  (let ((i64 ex . 128))
+                  (block
                     (if (WIFEXITED status)
                         (set ex (cast i64 (WEXITSTATUS status))))
-                    (return (coco_m_unify_int e (coco_m_arg e g 2) ex))))
-              (if (< r 0) (return 0))       ; not ours to wait for
-              (if (>= spent tmo) (return 0))
+                    (set got 1)
+                    break))
+              (if (< r 0) break)            ; not ours to wait for
+              (if (>= spent tmo) break)
               (usleep 50000)                ; 50ms, the poll grain
-              (set spent (+ spent 50))))))
+              (set spent (+ spent 50))))
+          (coco_g_foreign_end)
+          (if (not got) (return 0))
+          (return (coco_m_unify_int e (coco_m_arg e g 2) ex))))
 
   ;;; ---- proc_kill(+Pid, +Sig) -------------------------------------------
   (func coco_p_kill ((coco_engine * e) (size_t g)) (out int)
@@ -435,7 +449,10 @@
         (let ((int rc . 0) (i64 ms . 0))
           (if (not (coco_p_int e g 0 (aof ms) (aof rc))) (return rc))
           (if (< ms 0) (return 0))
+          ;; a foreign call (3.64.4), as sleep/1 is
+          (coco_g_foreign_begin)
           (usleep (cast useconds_t (* ms 1000)))
+          (coco_g_foreign_end)
           (return 1)))
 
   (static) (coco-emit-module-dispatch coco_p_dispatch *process-predicates*)

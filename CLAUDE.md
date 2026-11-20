@@ -4614,6 +4614,25 @@ cocolint index offers no import of it.
     ceiling**: a hang is the usual failure, and it must cost the case a
     red line, not the suite its run. The arms are one build each
     (STATUS.md lists the nineteen).
+  **A C CALL THAT WAITS ON ANOTHER PARTY IS A DECLARED FOREIGN CALL**
+  (3.64.4; test/async.pl's `foreign_waits`, a kind a wait): sleep/1,
+  library(tcp)'s poll (`coco_t_wait`: accept, read), dials and send,
+  library(process)'s proc_run/4, proc_wait/3 and proc_sleep/1,
+  library(thread)'s thread_join/2, library(tls)'s accept, connect, read and
+  write, library(curl)'s transfer, and library(stream)'s open and its reads
+  of a stream that may wait -- a pipe, a FIFO, a socket, a terminal:
+  `st_block`, what fstat(2) says of the descriptor at the open and of
+  user_input at the first call -- each bracket the blocking call with
+  `coco_g_foreign_begin`/`_end`. Through
+  3.64.3 a task in one held every write in the world for as long as it
+  waited, and where the task that was to end the wait came back from a
+  foreign call of its own into that write, for ever. **A new module call
+  that can wait on a peer, a child, a thread or a timer does the same, its
+  term made and its errors raised after the pair** (library(stream)'s
+  reads go through one macro, `st-away`, whose body never returns), and
+  **a call that touches the store never declares itself**. Not declared:
+  a write to a pipe whose reader falls behind (library(stream)'s writes,
+  the console's).
   **3.62.3: A WORLD SHORT OF MEMORY SAYS SO** (STATUS.md; test/async.pl's
   `ceiling`, `refusals`, `channel_room`, `no_status` and `dead_running`).
   What a session must keep:
