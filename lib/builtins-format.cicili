@@ -800,17 +800,109 @@
                        (coco_store_shrink_empty bst)))
             (return caught))))
 
-  ;;; A GOAL RUN ONCE WITH ITS OUTPUT CAPTURED (3.34.0, with_output_to/2's
-  ;;; and `~@''s, which through 3.33.0 was with_output_to/2's alone).
+  ;;; ---- a capture in memory: a portray goal's (3.64.1) ------------------
   ;;;
-  ;;; THE REDIRECTION IS AT THE FILE DESCRIPTOR, not at a `FILE *' this code
-  ;;; passes around: cocolog writes with `printf', `fputs' and `fputc' to the
-  ;;; literal `stdout' in some seventy places, and threading a stream through
-  ;;; all of them is the tidier design and a much larger change. So fd 1 is
-  ;;; pointed at a `tmpfile' for the duration and put back afterwards -- a
-  ;;; temporary file and not a pipe: a pipe holds 64K, and a goal that
-  ;;; printed more would block for ever with nobody reading. The capture's
-  ;;; column is its own, from 0, and the console's comes back with fd 1.
+  ;;; A PORTRAY GOAL'S OUTPUT IS CAUGHT IN MEMORY, by a FILE this thread's
+  ;;; writes to stdout go to while the goal runs (`coco_out_tl' in
+  ;;; lib/term.cicili: the engine's writes through `coco_out_puts' and
+  ;;; `coco_out_putc', library(stream)'s user_output through
+  ;;; `coco_m_out_fp'), as swipl's goal writes to the stream being written.
+  ;;; Neither fd 1 nor stdout is touched, so a goal costs no system call,
+  ;;; where the capture of fd 1 below costs ten (a file made, fd 1 saved,
+  ;;; moved and moved back, the file's length asked and the file closed):
+  ;;; 30 print/1s whose writes asked 42 030 goals took 0.218 s, swipl's
+  ;;; 0.012 s, of which those calls were some 4.5 us a goal.
+  ;;;
+  ;;; IT IS THE THREAD'S, AND NO OTHER THREAD'S WRITE REACHES IT. Through
+  ;;; 3.64.0 a portray goal captured fd 1, which is the process's: in a
+  ;;; green world a task's portray text went into another task's capture or
+  ;;; onto the console, and two captures that ended out of their order left
+  ;;; fd 1 on a deleted file, which took every write after them
+  ;;; (test/async.pl's `portray_worlds': the line after the world lost, two
+  ;;; runs of four). What reaches fd 1 without the engine's writes -- a
+  ;;; child process's output, a module's own stdio -- is not caught, as
+  ;;; swipl's portray goal does not catch it either.
+  ;;;
+  ;;; ITS FILES ARE KEPT for the next goal, free (0) or a capture's (1)
+  ;;; (`coco_pcap_take', `coco_pcap_read'): a FILE in memory is a malloc of
+  ;;; the FILE and of its buffer, which a second goal finds made. One the
+  ;;; pool had no room to register is closed once it is read.
+  (decl) (func open_memstream ((char ** bufp) (size_t * sizep)) (out FILE *))
+
+  (struct coco_pcap
+    (member FILE * f)
+    (member char * buf)
+    (member size_t len)
+    (member int state)
+    (member int kept))
+
+  (static) (var pthread_mutex_t coco_pcap_mx . PTHREAD_MUTEX_INITIALIZER)
+  (static) (var coco_pcap ** coco_pcapv . nil)
+  (static) (var size_t coco_npcapv . 0)
+  (static) (var size_t coco_pcapvcap . 0)
+
+  (static)
+  (func coco_pcap_take () (out coco_pcap *)
+        (let ((coco_pcap * p . nil))
+          (pthread_mutex_lock (aof coco_pcap_mx))
+          (for ((size_t i . 0)) (< i coco_npcapv) ((++ i))
+            (let ((coco_pcap * q . #'(nth i coco_pcapv)))
+              (if (== (-> q state) 0)
+                  (block (set p q) (set (-> p state) 1) break))))
+          (pthread_mutex_unlock (aof coco_pcap_mx))
+          (if (!= p nil) (return p))
+          (set p (cast (coco_pcap *) (calloc 1 (sizeof coco_pcap))))
+          (if (== p nil) (return nil))
+          (set (-> p f) (open_memstream (aof (-> p buf)) (aof (-> p len))))
+          (if (== (-> p f) nil) (block (free p) (return nil)))
+          (set (-> p state) 1)
+          (pthread_mutex_lock (aof coco_pcap_mx))
+          (if (>= coco_npcapv coco_pcapvcap)
+              (let ((size_t nc . #'(? (== coco_pcapvcap 0) 8 (* 2 coco_pcapvcap)))
+                    (coco_pcap ** grown . #'(cast (coco_pcap **)
+                                              (realloc (cast (void *) coco_pcapv)
+                                                       (* nc (sizeof (coco_pcap *)))))))
+                (if (!= grown nil) (block (set coco_pcapv grown) (set coco_pcapvcap nc)))))
+          (if (< coco_npcapv coco_pcapvcap)
+              (block (set (nth coco_npcapv coco_pcapv) p) (set coco_npcapv (+ coco_npcapv 1))
+                     (set (-> p kept) 1)))
+          (pthread_mutex_unlock (aof coco_pcap_mx))
+          (return p)))
+
+  ;;; WHAT P CAUGHT, onto OUT, and P at its start again and free -- or, one
+  ;;; the pool never registered, closed: 1, 0 when OUT had no room for it
+  (static)
+  (func coco_pcap_read ((coco_pcap * p) (coco_strbuf * out)) (out int)
+        (let ((int ok . 1))
+          (fflush (-> p f))
+          (if (> (-> p len) 0)
+              (block (if (== (-> out cap) 0)
+                         (block (set (-> out s) (cast (char *) (malloc (+ (-> p len) 2))))
+                                (if (!= (-> out s) nil) (set (-> out cap) (+ (-> p len) 2)))))
+                     (if (coco_sb_room out (-> p len))
+                         (block (memcpy (+ (-> out s) (-> out len)) (-> p buf) (-> p len))
+                                (set (-> out len) (+ (-> out len) (-> p len)))
+                                (set (nth (-> out len) (-> out s)) (cast char 0)))
+                         (set ok 0))))
+          (if (not (-> p kept))
+              (block (fclose (-> p f)) (free (-> p buf)) (free p) (return ok)))
+          (fseek (-> p f) 0 SEEK_SET)
+          (pthread_mutex_lock (aof coco_pcap_mx))
+          (set (-> p state) 0)
+          (pthread_mutex_unlock (aof coco_pcap_mx))
+          (return ok)))
+
+  ;;; A GOAL RUN ONCE WITH ITS OUTPUT CAPTURED (3.34.0, with_output_to/2's
+  ;;; and `~@''s, which through 3.33.0 was with_output_to/2's alone; and a
+  ;;; portray goal's since 3.54.0, in memory since 3.64.1, above).
+  ;;;
+  ;;; WITH_OUTPUT_TO/2'S AND `~@''S REDIRECTION IS AT THE FILE DESCRIPTOR,
+  ;;; and so takes in what reaches fd 1 by any road: fd 1 is pointed at a
+  ;;; `tmpfile' for the duration and put back afterwards -- a temporary file
+  ;;; and not a pipe: a pipe holds 64K, and a goal that printed more would
+  ;;; block for ever with nobody reading. A portray goal's is the thread's
+  ;;; own output, in memory (MEM, above). The capture's column is its own,
+  ;;; from 0, and its thread's comes back after it.
   ;;;
   ;;; THE GOAL RUNS IN A NESTED ENGINE and so cannot be suspended, the limit
   ;;; findall/3 has for the same reason: a builtin cannot hand a
@@ -822,33 +914,47 @@
   ;;; KEEP keeps the goal's bindings (with_output_to/2's once/1); else the
   ;;; machine is put back where it stood (`~@''s, swipl's
   ;;; PL_rewind_foreign_frame()). NODEBUG runs it untraced (3.54.0, a
-  ;;; portray goal's, swipl's PL_Q_NODEBUG).
+  ;;; portray goal's, swipl's PL_Q_NODEBUG). MEM captures in memory, this
+  ;;; thread's own output (3.64.1, a portray goal's, above); else fd 1 is
+  ;;; moved, and the goal writes to stdout itself, through fd 1 to the
+  ;;; capture -- the thread's own output put aside for it, so that a
+  ;;; capture of fd 1 inside a portray goal (`portray(X) :-
+  ;;; with_output_to(string(S), ...)') takes its goal's writes.
   ;;;
   ;;; Answers 1, the goal succeeded; 0, it failed; 2, it threw, the ball in
   ;;; BL for the caller to raise again; -1, the run ended with no ball; 3,
   ;;; the capture went wrong, *WHY saying how; 4, memory was refused; 5, the
   ;;; goal halted, or a cleanup its cut ran did, and E stops at its next
   ;;; step (3.57.0, `coco_halt_up'). Whatever the goal wrote -- before it
-  ;;; failed, threw or halted too -- is put in OUT, and fd 1 is the
-  ;;; console's again whatever the answer.
+  ;;; failed, threw or halted too -- is put in OUT, and fd 1 and the
+  ;;; thread's output are what they were again whatever the answer.
   (static)
   (func coco_out_capture_run ((coco_engine * e) (size_t goal) (size_t * hold) (size_t nhold)
-                              (int keep) (int nodebug) (coco_strbuf * out) (coco_fmt_ball * bl)
-                              (const char ** why)) (out int)
+                              (int keep) (int nodebug) (int mem) (coco_strbuf * out)
+                              (coco_fmt_ball * bl) (const char ** why)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (coco_store * st . #'(-> e st))
               (coco_engine sub)
               (FILE * tmp . nil) (int saved . -1) (int rc . 0) (int ans . 0) (i64 colsaved . 0)
+              (coco_pcap * pc . nil) (FILE * prevtl . coco_out_tl)
               (size_t tmark . #'($ (cof m) trail_len))
               (size_t hmark . #'($ (cof m) heap_len)))
-          (set tmp (tmpfile))
-          (if (== tmp nil) (block (set (cof why) "cannot open a temporary file") (return 3)))
-          (fflush stdout)
-          (set saved (dup 1))
-          (if (< saved 0)
-              (block (fclose tmp) (set (cof why) "cannot save stdout") (return 3)))
-          (if (< (dup2 (fileno tmp) 1) 0)
-              (block (close saved) (fclose tmp) (set (cof why) "cannot redirect stdout") (return 3)))
+          (if mem
+              (block
+                (set pc (coco_pcap_take))
+                (if (== pc nil) (block (set (cof why) "cannot open a capture in memory") (return 3)))
+                (set coco_out_tl (-> pc f)))
+            (block
+              (set tmp (tmpfile))
+              (if (== tmp nil) (block (set (cof why) "cannot open a temporary file") (return 3)))
+              (fflush stdout)
+              (set saved (dup 1))
+              (if (< saved 0)
+                  (block (fclose tmp) (set (cof why) "cannot save stdout") (return 3)))
+              (if (< (dup2 (fileno tmp) 1) 0)
+                  (block (close saved) (fclose tmp)
+                         (set (cof why) "cannot redirect stdout") (return 3)))
+              (set coco_out_tl nil)))
           (set colsaved (coco_out_capture_begin))
 
           (coco_engine_init (aof sub) m st)
@@ -906,10 +1012,17 @@
           ;; PUT STDOUT BACK BEFORE ANYTHING ELSE, whatever happened: an early
           ;; return from here on would leave the process writing into a file
           ;; nobody will ever read
+          (set coco_out_tl prevtl)
+          (coco_out_capture_end colsaved)
+          (if mem
+              (let ((int ok . #'(coco_pcap_read pc out)))
+                (if (not keep)
+                    (block (coco_undo_to m tmark)
+                           (set ($ (cof m) heap_len) hmark)))
+                (return (? ok ans 4))))
           (fflush stdout)
           (dup2 saved 1)
           (close saved)
-          (coco_out_capture_end colsaved)
 
           (if (not keep)
               (block (coco_undo_to m tmark)
@@ -1004,7 +1117,7 @@
             (set (-> m wcanon) nil) (set (-> m wpfirst) nil) (set (-> m wpgoal) 0) (set (-> m wpopts) 0)
             (coco_sb_init (aof out))
             (set (-> m wpnest) (+ (-> m wpnest) 1))
-            (set rc (coco_out_capture_run e goal nil 0 0 1 (aof out) (aof bl) (aof why)))
+            (set rc (coco_out_capture_run e goal nil 0 0 1 1 (aof out) (aof bl) (aof why)))
             (set (-> m wpnest) (- (-> m wpnest) 1))
             (set (-> m wdeep) sdeep) (set (-> m wcyc) scyc) (set (-> m wprec) sprec) (set (-> m wmax) smax)
             (set (-> m wcells) scells) (set (-> m wnames) snames) (set (-> m nwnames) snw)
@@ -1260,7 +1373,7 @@
                     (set wc0 (-> cs col))
                     (set wfrom (-> o len))
                     (if (== (-> cs rn) 0) (coco-fmt-direct cs (-> b s) (-> b len) wc0 wdirect))
-                    (set grc (coco_out_capture_run e a nil 0 0 0 o ball (aof why)))
+                    (set grc (coco_out_capture_run e a nil 0 0 0 0 o ball (aof why)))
                     (if (== grc 1)
                         (block (set (-> cs col) (coco-fmt-wcol (-> o s) wfrom (-> o len) wc0 wdirect))
                                (set (-> cs cdone) (-> o len))
@@ -1744,7 +1857,7 @@
             (if (== f 2) (return (coco_m_raise_pi e fm "system" op opn)))
             (set goal r))
           (coco_sb_init (aof tb))
-          (set rc (coco_out_capture_run e goal hold 1 1 0 (aof tb) (aof ball) (aof why)))
+          (set rc (coco_out_capture_run e goal hold 1 1 0 0 (aof tb) (aof ball) (aof why)))
           (if (!= rc 1)
               (block (coco_sb_free (aof tb))
                      ;; the goal halted (3.57.0): its text goes with it, as

@@ -220,6 +220,44 @@
   `(and (> (-> ,m slimit) 0)
         (> (cast u64 ,n) (/ (cast u64 (-> ,m slimit)) 24))))
 
+;;; THE NOTE OF A WRITE TO F (S, N bytes; `coco_out_note' below), written
+;;; once and emitted twice (3.64.1): CAP is whether this thread writes into
+;;; a capture -- 0 in the note every write takes while no capture runs
+;;; anywhere, where clang folds the capture's branches away, and the
+;;; thread's own `coco_out_cap' in the one out of line. Asked in the one
+;;; note, the thread-locals' reads -- calls to __tls_get_addr as clang sees
+;;; them under -fPIC -- made it save five registers at every write, 17
+;;; instructions a write more.
+(DEFMACRO coco-out-note-body (CAP)
+  `(let ((int mid . #'(? (== (nth (- n 1) s) (cast char 10)) 0 1))
+         (i64 lc . #'(bitand (cast i64 (nth (- n 1) s)) 255))
+         (int cap . ,CAP))
+     ;; and its last character, where partial(true) begins (3.56.0)
+     (cond
+       ((== f stdout) (set coco_out_mid mid) (if (not cap) (set coco_err_mid mid))
+        (if cap (set coco_cap_lc lc) (set coco_out_lc lc)))
+       ((== f stderr) (set coco_err_mid mid) (if (not cap) (set coco_out_mid mid))
+        (set coco_err_lc lc)))
+     (if (and (== f stdout) cap)
+         (set coco_cap_lp (coco_col_walk s 0 n coco_cap_lp 1)))
+     (if (or (== f stderr) (and (== f stdout) (not cap)))
+         (block
+           (set coco_con_nb (+ coco_con_nb (cast i64 n)))
+           (for ((size_t i . 0)) (< i n) ((++ i))
+             (let ((int c . #'(bitand (cast int (nth i s)) 255)))
+               ;; a byte that continues a UTF-8 character is no character
+               (if (!= (bitand c 192) 128)
+                   (block
+                     (set coco_con_nc (+ coco_con_nc 1))
+                     (cond ((== c 10) (set coco_con_nl (+ coco_con_nl 1)) (set coco_con_lp 0))
+                           ((== c 13) (set coco_con_lp 0))
+                           ((== c 9) (set coco_con_lp (+ (bitor coco_con_lp 7) 1)))
+                           ((== c 8) (if (> coco_con_lp 0) (set coco_con_lp (- coco_con_lp 1))))
+                           (#t (set coco_con_lp (+ coco_con_lp 1))))))))))
+     ;; a last byte past ASCII ends a character read whole, the note's
+     ;; last act
+     (if (< (nth (- n 1) s) 0) (coco_out_note_wide f s n))))
+
 ;;;; ------------------------------------------------------------------
 ;;;; The term DSL -- Prolog terms as s-expressions, built at compile time
 ;;;; ------------------------------------------------------------------
@@ -2196,9 +2234,10 @@
   ;;; with one. swipl keeps ONE position for user_output and user_error, so
   ;;; a line begun on either is open on both: `format(user_output, "abc",
   ;;; [])' and then `format(user_error, "~Nx~n", [])' puts the newline on
-  ;;; stderr. While with_output_to/2 captures fd 1 (`coco_out_cap'), stdout
-  ;;; keeps a column of its own, starting at 0, and stderr is the console's
-  ;;; alone; the capture's end gives stdout the console's column back.
+  ;;; stderr. While a capture runs (`coco_out_cap': with_output_to/2's of
+  ;;; fd 1, a portray goal's in memory), stdout keeps a column of its own,
+  ;;; starting at 0, and stderr is the console's alone; the capture's end
+  ;;; gives stdout the column it found back.
   ;;; WHAT IS COUNTED is what the engine writes -- write/1 and its kin, nl/0,
   ;;; tab/1, format/1,2,3, listing/0,1, the load's and the goal's reports,
   ;;; and library(stream)'s writes to its first three slots
@@ -2208,11 +2247,18 @@
   ;;; thread's write moves it too, a race that costs at most a newline.
   (static) (var int coco_out_mid . 0)
   (static) (var int coco_err_mid . 0)
-  (static) (var int coco_out_cap . 0)
+  ;;; A CAPTURE IS ITS THREAD'S (3.64.1): whether this thread writes into
+  ;;; one, and the capture's column and last character below. Through
+  ;;; 3.64.0 they were the process's: a capture that began or ended on one
+  ;;; thread under another's on a second moved the second's column, and its
+  ;;; column stops padded wrong (test/async.pl's `portray_worlds'). Whether
+  ;;; a line is open on stdout is still the process's (`coco_out_mid'):
+  ;;; nothing asks it of a capture.
+  (thread-local) (var int coco_out_cap . 0)
   ;;; and a capture's column, counted as the console's is (3.33.0): format's
   ;;; column stops begin where with_output_to/2's text stands, as swipl's
   ;;; begin where its memory stream's linepos stands
-  (static) (var i64 coco_cap_lp . 0)
+  (thread-local) (var i64 coco_cap_lp . 0)
 
   ;;; AND THE CONSOLE'S POSITION (3.19.0), what character_count/2,
   ;;; line_count/2 and line_position/2 answer for user_output and
@@ -2232,7 +2278,34 @@
   ;;; at its start as swipl's memory stream begins. -1 is none written yet.
   (static) (var i64 coco_out_lc . -1)
   (static) (var i64 coco_err_lc . -1)
-  (static) (var i64 coco_cap_lc . -1)
+  (thread-local) (var i64 coco_cap_lc . -1)
+
+  ;;; AND THIS THREAD'S OWN OUTPUT (3.64.1): a portray goal's capture in
+  ;;; memory, where the thread's writes to stdout go while the goal runs --
+  ;;; the engine's through `coco_out_puts' and `coco_out_putc' below,
+  ;;; library(stream)'s user_output through `coco_m_out_fp' -- or nil,
+  ;;; stdout itself. No other thread's write reaches it, as no other
+  ;;; thread's reaches a swipl thread's memory stream.
+  (thread-local) (var FILE * coco_out_tl . nil)
+
+  ;;; HOW MANY CAPTURES RUN, in every thread (3.64.1), asked before this
+  ;;; thread's own capture is: cocolog.o is compiled with -fPIC, so clang
+  ;;; makes each read of a thread-local a call to __tls_get_addr, and saves
+  ;;; the registers around it, though the linker makes it a load. Read at
+  ;;; every write, a program writing a number and a newline 200 000 times ran
+  ;;; 24 instructions more a write (+1.04 %), as `coco_tbl_live' found of the
+  ;;; names' lock. A capture counts itself in before it sets this thread's
+  ;;; state and out after it puts the state back, and a thread sees its own
+  ;;; count: where the count is 0, this thread captures nothing.
+  (static) (var int coco_cap_live . 0)
+
+  (static)
+  (func coco_cap_count ((int by)) (out int)
+        (return (code "__atomic_add_fetch(&coco_cap_live, by, __ATOMIC_SEQ_CST)")))
+
+  (static) (inline)
+  (func coco_cap_any () (out int)
+        (return (code "__atomic_load_n(&coco_cap_live, __ATOMIC_RELAXED)")))
 
   ;;; F's last character, the code that ends S[0..N), N > 0, whose last byte
   ;;; is past ASCII (3.56.0): a byte that ends no UTF-8 character is U+DC00
@@ -2249,35 +2322,16 @@
           (if (!= j n) (set c (+ 56320 (bitand (cast int (nth (- n 1) s)) 255))))
           (coco_out_lastc_set f c)))
 
+  ;;; the note while a capture runs somewhere: this thread's flag asked,
+  ;;; out of line (3.64.1, `coco-out-note-body' above)
+  (weak) (cold)
+  (func coco_out_note_cap ((FILE * f) (const char * s) (size_t n))
+        (coco-out-note-body coco_out_cap))
+
   (func coco_out_note ((FILE * f) (const char * s) (size_t n))
         (if (or (== s nil) (== n 0)) (return))
-        (let ((int mid . #'(? (== (nth (- n 1) s) (cast char 10)) 0 1))
-              (i64 lc . #'(bitand (cast i64 (nth (- n 1) s)) 255)))
-          ;; and its last character, where partial(true) begins (3.56.0)
-          (cond
-            ((== f stdout) (set coco_out_mid mid) (if (not coco_out_cap) (set coco_err_mid mid))
-             (if coco_out_cap (set coco_cap_lc lc) (set coco_out_lc lc)))
-            ((== f stderr) (set coco_err_mid mid) (if (not coco_out_cap) (set coco_out_mid mid))
-             (set coco_err_lc lc)))
-          (if (and (== f stdout) coco_out_cap)
-              (set coco_cap_lp (coco_col_walk s 0 n coco_cap_lp 1)))
-          (if (or (== f stderr) (and (== f stdout) (not coco_out_cap)))
-              (block
-                (set coco_con_nb (+ coco_con_nb (cast i64 n)))
-                (for ((size_t i . 0)) (< i n) ((++ i))
-                  (let ((int c . #'(bitand (cast int (nth i s)) 255)))
-                    ;; a byte that continues a UTF-8 character is no character
-                    (if (!= (bitand c 192) 128)
-                        (block
-                          (set coco_con_nc (+ coco_con_nc 1))
-                          (cond ((== c 10) (set coco_con_nl (+ coco_con_nl 1)) (set coco_con_lp 0))
-                                ((== c 13) (set coco_con_lp 0))
-                                ((== c 9) (set coco_con_lp (+ (bitor coco_con_lp 7) 1)))
-                                ((== c 8) (if (> coco_con_lp 0) (set coco_con_lp (- coco_con_lp 1))))
-                                (#t (set coco_con_lp (+ coco_con_lp 1))))))))))
-          ;; a last byte past ASCII ends a character read whole, the note's
-          ;; last act
-          (if (< (nth (- n 1) s) 0) (coco_out_note_wide f s n))))
+        (if (coco_cap_any) (block (coco_out_note_cap f s n) (return)))
+        (coco-out-note-body 0))
 
   ;;; the console's position: characters, the line, the column and bytes
   (func coco_out_where ((i64 * nc) (i64 * nl) (i64 * lp) (i64 * nb))
@@ -2291,17 +2345,23 @@
   (func coco_out_set_column ((i64 lp))
         (set coco_con_lp lp))
 
+  ;;; F's text, to this thread's own output where F is stdout (3.64.1)
   (func coco_out_puts ((FILE * f) (const char * s))
         (if (== s nil) (return))
-        (fputs s f)
+        (fputs s (? (and (coco_cap_any) (and (== f stdout) (!= coco_out_tl nil))) coco_out_tl f))
         (coco_out_note f s (strlen s)))
 
   (func coco_out_putc ((FILE * f) (int c))
         (let ((char one [2]))
           (set (nth 0 one) (cast char c))
           (set (nth 1 one) (cast char 0))
-          (fputc c f)
+          (fputc c (? (and (coco_cap_any) (and (== f stdout) (!= coco_out_tl nil))) coco_out_tl f))
           (coco_out_note f one 1)))
+
+  ;;; the FILE this thread's writes to stdout go to: a portray goal's
+  ;;; capture while one runs (3.64.1), stdout otherwise
+  (func coco_out_fp () (out FILE *)
+        (return (? (and (coco_cap_any) (!= coco_out_tl nil)) coco_out_tl stdout)))
 
   ;;; 1 when a line is open on F (stdout or stderr), 0 at a line's start
   (func coco_out_open ((FILE * f)) (out int)
@@ -2312,7 +2372,7 @@
   ;;; the column F stands at, where format's column stops begin (3.33.0):
   ;;; the console's, or stdout's in a capture
   (func coco_out_column ((FILE * f)) (out i64)
-        (if (and (== f stdout) coco_out_cap) (return coco_cap_lp))
+        (if (and (== f stdout) (and (coco_cap_any) coco_out_cap)) (return coco_cap_lp))
         (return coco_con_lp))
 
   ;;; `~N' on F: a newline only when a line is open there
@@ -2323,26 +2383,29 @@
   ;;; or stderr), -1 none, and set: library(stream)'s write_term/3 begins
   ;;; its capture where its stream stands (3.56.0)
   (func coco_out_lastc ((FILE * f)) (out i64)
-        (if (and (== f stdout) coco_out_cap) (return coco_cap_lc))
+        (if (and (== f stdout) (and (coco_cap_any) coco_out_cap)) (return coco_cap_lc))
         (if (== f stdout) (return coco_out_lc))
         (if (== f stderr) (return coco_err_lc))
         (return -1))
 
   (func coco_out_lastc_set ((FILE * f) (i64 c))
-        (cond ((and (== f stdout) coco_out_cap) (set coco_cap_lc c))
+        (cond ((and (== f stdout) (and (coco_cap_any) coco_out_cap)) (set coco_cap_lc c))
               ((== f stdout) (set coco_out_lc c))
               ((== f stderr) (set coco_err_lc c))))
 
-  ;;; with_output_to/2's capture of fd 1: stdout's column starts at 0 and is
-  ;;; its own until the end, which gives back what the capture's start saved
-  ;;; -- an outer capture's column, or the console's as stderr left it --
-  ;;; and its last character starts at none (3.56.0): bit 0 the line open,
-  ;;; bit 1 an outer capture, bits 2 to 23 the outer last character plus
-  ;;; one, from bit 24 the column
+  ;;; a capture's start on this thread (with_output_to/2's of fd 1, a
+  ;;; portray goal's in memory): stdout's column starts at 0 and is its own
+  ;;; until the end, which gives back what the capture's start saved -- an
+  ;;; outer capture's column, or the console's as stderr left it -- and its
+  ;;; last character starts at none (3.56.0): bit 0 the line open, bit 1 an
+  ;;; outer capture, bits 2 to 23 the outer last character plus one, from
+  ;;; bit 24 the column
   (func coco_out_capture_begin () (out i64)
         (let ((i64 saved . #'(bitor (cast i64 (bitor coco_out_mid (<< coco_out_cap 1)))
                                     (bitor (<< (bitand (+ coco_cap_lc 1) 4194303) 2)
                                            (<< coco_cap_lp 24)))))
+          ;; counted in before the thread's state is set (3.64.1)
+          (coco_cap_count 1)
           (set coco_out_cap 1)
           (set coco_out_mid 0)
           (set coco_cap_lp 0)
@@ -2353,7 +2416,24 @@
         (set coco_out_cap (cast int (bitand (>> saved 1) 1)))
         (set coco_out_mid (? coco_out_cap (cast int (bitand saved 1)) coco_err_mid))
         (set coco_cap_lc (- (bitand (>> saved 2) 4194303) 1))
-        (set coco_cap_lp (>> saved 24)))
+        (set coco_cap_lp (>> saved 24))
+        ;; and out once it is put back (3.64.1)
+        (coco_cap_count -1))
+
+  ;;; THIS THREAD'S CAPTURE PUT ASIDE (3.64.1) for a run that is no part of
+  ;;; it -- a green task a nested wait runs on the waiter's thread, which
+  ;;; writes to the console or to a capture of its own -- the FILE in *F
+  ;;; and the column in the answer, and given back after it
+  (func coco_out_own_take ((FILE ** f)) (out i64)
+        (let ((i64 saved . #'(coco_out_capture_begin)))
+          (set (cof f) coco_out_tl)
+          (set coco_out_tl nil)
+          (set coco_out_cap 0)
+          (return saved)))
+
+  (func coco_out_own_give ((FILE * f) (i64 saved))
+        (set coco_out_tl f)
+        (coco_out_capture_end saved))
 
   ;;; THE COLUMN AFTER TEXT (3.33.0): S[FROM..TO) walked from COL, swipl's
   ;;; rules -- a character a column and a byte that continues one none, a

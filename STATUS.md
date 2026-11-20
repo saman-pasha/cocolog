@@ -20009,3 +20009,94 @@ cites renumbered.
 Held by test/files/deep_index.pl (105 lines to swipl, 33 of them wrong on
 3.63.2) and test/async.pl's last six sections, five of them red on 3.63.2
 and `deep_build`, whose node 3.63.2 has not, red without its rule.
+
+## A portray goal's output is its thread's own, in memory, and costs no system call (3.64.1)
+
+A PORTRAY GOAL CAPTURES IN MEMORY (`coco_out_capture_run`'s MEM in
+lib/builtins-format.cicili, `coco_out_tl` in lib/term.cicili). Through
+3.64.0 every portray goal captured fd 1 as with_output_to/2 does: a
+temporary file made, fd 1 saved, moved and moved back, the file's length
+asked and the file closed, ten system calls a goal. Thirty print/1s of a
+list whose writes asked 42 030 portray goals took 0.218 s, where swipl
+9.0.4 takes 0.012 s. Now the thread's writes to stdout go, while the goal
+runs, to a FILE of open_memstream(3), kept in a pool for the next goal:
+the engine's own through `coco_out_puts` and `coco_out_putc`, the two
+places any write of its reaches a FILE, and library(stream)'s user_output
+through `coco_m_out_fp`, a new call of the module SDK. The same thirty
+print/1s take 0.010 s, swipl's 0.012 (in a slower sitting 0.018 s against
+3.64.0's 0.20 and swipl's 0.023, a start alone 0.010), and the text is
+swipl's: test/files/portray.pl's 197 lines agree, among them five new ones
+(151 to 155: with_output_to/2 and `~@` inside a portray goal, a capture
+around a portray goal, a portray goal inside one, a write to
+current_output/1's stream).
+
+THE CAPTURE IS THE THREAD'S. fd 1 is the process's, and through 3.64.0 a
+green world's portray goals on four workers took each other's text: a
+task's portray text went into another task's capture or onto the console,
+and two captures that ended out of their order left fd 1 on a deleted
+file, which took every write after them -- the line after the world, lost
+in two runs of four. `coco_out_tl` is thread-local, and so are the
+capture's flag, column and last character (`coco_out_cap`, `coco_cap_lp`,
+`coco_cap_lc`): a capture that began or ended on another thread moved this
+one's column, and its column stops padded wrong. A capture of fd 1 inside
+a portray goal (with_output_to/2, `~@`) sets the thread's own output aside
+for its goal, which writes through fd 1 as before; and a task a nested
+green wait runs on the waiter's thread has the waiter's capture set aside
+(`coco_g_run_aside` in lib/green.cicili). What reaches fd 1 by no write of
+the engine's -- a child process, a module's own stdio -- a portray goal
+does not catch, as swipl's does not; with_output_to/2 and `~@` still
+capture fd 1 and catch it.
+
+THE PLAIN WRITE ASKS NO THREAD-LOCAL. cocolog.o is compiled with -fPIC, so
+clang makes each read of a thread-local a call to __tls_get_addr, and saves
+registers around it, though the linker turns the call into a load. Asked
+at every write, a program writing a number and a newline 200 000 times ran
+949 493 276 instructions where 3.64.0 runs 939 693 645 (+1.04 %), and
+`coco_out_note` saved five registers at its entry. A process-wide count of
+the captures running is asked first (`coco_cap_live`, as `coco_tbl_live`
+counts the names' locks: a capture counts itself in before it sets the
+thread's state and out after, and a thread sees its own count), and the
+note is one body emitted twice (`coco-out-note-body`): the copy every write
+takes while no capture runs anywhere, its capture 0, and one out of line
+for while one does. The program runs 939 894 774 (+0.021 %), its
+`coco_out_note` 1 200 000 instructions fewer than 3.64.0's.
+
+RULES, each taken out alone, one build each, all red -- on the code before
+its last two changes (the count, and the line flag put back):
+- T1, the engine's writes not sent to the thread's output: 116 lines of
+  test/files/portray.pl, and both new sections of test/async.pl;
+- T2, a capture of fd 1 leaving the thread's output as it found it:
+  portray.pl's lines 151 to 154;
+- T3, the capture's flag, column and last character the process's:
+  `portray_worlds`, four runs in four;
+- T5, a task a nested wait runs keeping the waiter's capture:
+  `portray_wait`;
+- T6, library(stream)'s user_output its slot's own FILE: portray.pl's
+  line 155;
+- T7, a portray goal capturing fd 1, as through 3.64.0: both sections, and
+  about 0.2 s for the thirty print/1s, the final's 0.02;
+- and on the final code, the count and the plain note: without either the
+  write loop runs +1.04 %, with the count alone +0.87 %.
+One rule went for staying green (T4): the capture's line flag kept apart
+from the console's. Nothing asks stdout's flag of a capture -- the fresh
+line before a report is asked of stderr, and format's `~N` asks a column --
+so it is the process's, as through 3.64.0.
+
+COST, against 3.64.0: tools/flow/zero.sh, the work less its padding, nrev
+66 124 405 to 66 124 391, queens 39 970 269 and lookup 48 067 374 the
+same. A start runs 6 333 instructions more of 35.4 million (35 426 050 to
+35 432 383, +0.018 %): some 2 900 the dynamic linker's, its lookups of the
+names the change exports (memcmp +3 136 the most), and 2 924
+`coco_consult_owned`'s, which the change does not touch, laid out anew.
+
+THE RUN, on the binary that ships: the lint case first; then files,
+trace, backtrace, cyclic, window, journal, repl, script, library, engine,
+errors, gc, meter, thread, process, text, async, stream, serialize,
+flowchart, flowdebug, cowork, httpd, argv, string, units, directives,
+template, rationals, static and store-lock, each alone, every one green
+with no SKIP. The card check passes, X1's and L1's lib/term.cicili cites
+renumbered past the new macro, and N2's, H2's, C2's, C3's and X2's past
+the new code.
+
+Held by test/files/portray.pl (197 lines to swipl, its last five new) and
+test/async.pl's `portray_worlds` and `portray_wait`, both red on 3.64.0.

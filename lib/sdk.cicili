@@ -155,6 +155,12 @@
 (decl) (func coco_m_out_note ((int fd) (const char * text) (size_t len)))
 (decl) (func coco_m_out_open ((int fd)) (out int))
 (decl) (func coco_m_out_column ((int fd)) (out i64))
+;;; and the FILE a write to user_output goes to on the calling thread
+;;; (3.64.1): a portray goal's capture in memory while one runs there,
+;;; stdout otherwise. A module that writes to the console with stdio of its
+;;; own writes there, or its text goes round the capture. A module that
+;;; calls it needs 3.64.1 or later.
+(decl) (func coco_m_out_fp () (out FILE *))
 ;;; and the console's position (3.19.0): characters, the line from 0, the
 ;;; column and bytes written to user_output and user_error, one count for
 ;;; the two, as swipl's; and the column set, set_stream/2's

@@ -1061,6 +1061,18 @@
                      (return 1))))))
         (return 0))
 
+  ;;; A TASK RUN INSIDE ANOTHER'S WAIT runs with the waiter's capture put
+  ;;; aside (3.64.1): the waiter may be inside a portray goal's or
+  ;;; with_output_to/2's, which is its thread's (lib/term.cicili), and what
+  ;;; the task writes is none of it -- a portray goal's text in memory took
+  ;;; in every write of every task its wait ran
+  (static)
+  (func coco_g_run_aside ((green_worker * w) (int ti))
+        (let ((FILE * own . nil)
+              (i64 col . #'(coco_out_own_take (aof own))))
+          (coco_g_run w ti)
+          (coco_out_own_give own col)))
+
   ;; caller holds the world lock; returns with it held, having run one
   ;; ready task pinned to this worker, or 0 when there was none
   (static)
@@ -1070,7 +1082,7 @@
           (if (< ti 0) (return 0))
           (set (-> w cur) ti)
           (pthread_mutex_unlock (aof (-> wd lock)))
-          (coco_g_run w ti)
+          (coco_g_run_aside w ti)
           ;; THE INLINE TASK MAY HAVE GROWN THE SHARED TABLES. The normal
           ;; scheduler syncs at the start of a quantum; this caller is
           ;; still inside its own, so it must sync here before its engine
@@ -1240,7 +1252,7 @@
                 (block
                  (set (-> w cur) id)
                  (pthread_mutex_unlock (aof (-> wd lock)))
-                 (coco_g_run w id)
+                 (coco_g_run_aside w id)
                  (coco_tbl_sync (-> e m))
                  (pthread_mutex_lock (aof (-> wd lock)))
                  (set (-> w cur) self_id)

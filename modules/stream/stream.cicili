@@ -836,10 +836,14 @@
         (set st_ready 1))
 
   ;;; The FILE a write to slot S goes to: the real terminal for user_output
-  ;;; while a file is the current output, the slot's own FILE otherwise.
+  ;;; while a file is the current output; for slot 1 otherwise the calling
+  ;;; thread's own output, a portray goal's capture in memory while one runs
+  ;;; on it (3.64.1, `coco_m_out_fp') -- the FILE the slot kept is stdout,
+  ;;; and a portray goal's write to user_output went round its capture; the
+  ;;; slot's own FILE for the rest.
   (static)
   (func st_fp ((int s)) (out FILE *)
-        (if (and (== s 1) (and (>= st_saved_fd 0) (!= st_term nil))) (return st_term))
+        (if (== s 1) (return (? (and (>= st_saved_fd 0) (!= st_term nil)) st_term (coco_m_out_fp))))
         (return (nth s st_file)))
 
   ;;; Is S the file descriptor 1 points at just now, besides its own FILE?

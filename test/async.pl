@@ -216,6 +216,8 @@ main :-
     deep_unbuild,
     reindex_barrier,
     retry_walks,
+    portray_worlds,
+    portray_wait,
     checks_done.
 
 %% ---- values ------------------------------------------------------------
@@ -2485,6 +2487,75 @@ retry_walks :-
     check('36 000 walks of four answers each beside 120 000 writes: none wrong, 120 clauses after',
           Out-Exit, '0-0-0-120'-0),
     shl(['rm -rf ', D]).
+
+%% A PORTRAY GOAL'S CAPTURE IS ITS THREAD'S (3.64.1, `coco_out_tl' in
+%% lib/term.cicili): what the goal writes goes to a FILE in memory that
+%% this thread's writes reach and no other thread's. Through 3.64.0 a
+%% portray goal captured fd 1, the process's: in a world of four workers a
+%% task's portray text went into another task's capture or onto the
+%% console, and two captures that ended out of their order left fd 1 on a
+%% deleted file, which took the line after the world (two runs of four).
+%% Eight tasks write a list of 300 through format's ~p to an atom, 200
+%% times each, a portray/1 hook asked of every element and every third
+%% writing a fresh line, 4 000 characters and a column stop at 4 010 -- a
+%% capture's line and column are its thread's too, and one another thread
+%% moved puts a newline in or pads wrong --
+%% and each holds every text to the one the host wrote before the world:
+%% a task whose capture took in another's text fails, and the world with
+%% it. Four runs; the console shows the line after the world and nothing
+%% else. (The parent reads 4 096 bytes at most: a capture that leaks puts
+%% hundreds of megabytes on the console.)
+portray_worlds :-
+    section('portray goals in eight tasks at once: each its own text, the console nothing'),
+    scratch(D),
+    atom_concat(D, '/portray.pl', Path),
+    fixture(Path,
+            [ 'portray(f(I)) :- 0 =:= I mod 3, nb_getval(long, A), format("~N~a~t~4010|", [A]).',
+              'pw_task(L, W) :- forall(between(1, 200, _), format(atom(W), "~p", [L])).',
+              'main :- length(Cs, 4000), maplist(=(0\'x), Cs), atom_codes(A, Cs), nb_setval(long, A),',
+              '    findall(f(I), between(1, 300, I), L), format(atom(W), "~p", [L]), length(Ts, 8),',
+              '    async_run(( maplist([T]>>go(pw_task(L, W), T), Ts), maplist(await, Ts) )),',
+              '    write(done), nl.' ]),
+    findall(R, ( between(1, 4, _), portray_world_run(Path, R) ), Runs),
+    check('480 000 portray goals in eight tasks, four runs: each task its own texts, the console the line after',
+          Runs, [clean, clean, clean, clean]),
+    shl(['rm -rf ', D]).
+
+%% A TASK ANOTHER TASK'S WAIT RUNS WRITES NOTHING INTO THE WAITER'S
+%% CAPTURE (3.64.1, `coco_g_run_aside' in lib/green.cicili): in a world of
+%% one worker the main task's portray goal waits on a channel, and its wait
+%% runs the task that sends, which writes a line first. The line is on the
+%% console and the portray text is the goal's alone; through 3.64.0 the
+%% capture of fd 1 took the line into the text.
+portray_wait :-
+    section('a task a portray goal\'s wait runs writes to the console, not the capture'),
+    scratch(D),
+    atom_concat(D, '/pwait.pl', Path),
+    fixture(Path,
+            [ 'portray(w(C)) :- channel_recv(C, X), write(got(X)).',
+              'sender(C) :- write(sender_line), nl, channel_send(C, 42).',
+              'main :- async_run(( channel(C), go(sender(C), _), format(atom(_), "~p", [w(C)]) ), R),',
+              '    R = (_, _, format(atom(T), _, _)), writeq(T), nl.' ]),
+    cocolog(Co),
+    sh_join(['COCOLOG_GREEN_WORKERS=1 ', Co, ' run ', Path, ' main 2>&1'], Cmd),
+    shell(Cmd, Out, Exit, 60000),
+    check('the sender\'s line on the console, then the portray text alone',
+          Out-Exit, 'sender_line\n\'got(42)\''-0),
+    shl(['rm -rf ', D]).
+
+%% a run of the fixture as barrier_run/2's, its console read to 4 096
+%% bytes and its exit after it: `clean', or its length and how it starts
+portray_world_run(Path, R) :-
+    cocolog(C),
+    sh_join(['{ ulimit -v 4194304; COCOLOG_GREEN_WORKERS=4 ', C, ' run ', Path,
+             ' main 2>&1; echo "exit $?"; } | head -c 4096'], Cmd),
+    shell(Cmd, Out, _, 60000),
+    (   Out == 'done\nexit 0'
+    ->  R = clean
+    ;   atom_length(Out, N),
+        ( N > 60 -> sub_atom(Out, 0, 60, _, Start) ; Start = Out ),
+        R = other(N, Start)
+    ).
 
 %% Each of the six in a world of four workers, under four gigabytes of
 %% address space and a minute

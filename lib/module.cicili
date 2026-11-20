@@ -496,6 +496,7 @@
   (decl) (func coco_m_out_note ((int fd) (const char * text) (size_t len)))
   (decl) (func coco_m_out_open ((int fd)) (out int))
   (decl) (func coco_m_out_column ((int fd)) (out i64))
+  (decl) (func coco_m_out_fp () (out FILE *))
   (decl) (func coco_m_out_where ((i64 * nc) (i64 * nl) (i64 * lp) (i64 * nb)))
   (decl) (func coco_m_out_set_column ((i64 lp)))
   ;;; AND THE LAST CHARACTER (3.56.0), where write_term/2's partial(true)
@@ -1411,6 +1412,11 @@
 
   (func coco_m_out_column ((int fd)) (out i64)
         (return (coco_out_column (? (== fd 2) stderr stdout))))
+
+  ;;; the FILE this thread's writes to user_output go to: a portray goal's
+  ;;; capture in memory while one runs on it (3.64.1), stdout otherwise
+  (func coco_m_out_fp () (out FILE *)
+        (return (coco_out_fp)))
 
   (func coco_m_out_where ((i64 * nc) (i64 * nl) (i64 * lp) (i64 * nb))
         (coco_out_where nc nl lp nb))

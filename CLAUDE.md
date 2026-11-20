@@ -2187,7 +2187,9 @@ cocolint index offers no import of it.
   less every priority(_) and the term's priority(P) last; either implies
   numbervars(true) unless the options say. **The goal is a search of its
   own with its output captured**: `coco_portray_call` (the engine's
-  `coco_portray_hook`) runs it through `coco_out_capture_run`, NODEBUG
+  `coco_portray_hook`) runs it through `coco_out_capture_run`, in memory
+  and the thread's own (3.64.1, MEM: below, under `~@`; through 3.64.0
+  fd 1, ten system calls a goal), NODEBUG
   (untraced, as swipl's PL_Q_NODEBUG), its bindings undone, the writer's
   state of the machine saved around it and its cells given back, no
   deeper than 100 (`wpnest`, swipl's MAX_PORTRAY_NESTING:
@@ -4025,8 +4027,11 @@ cocolint index offers no import of it.
   writes itself -- write/1 and its kin, nl/0, tab/1, format/1,2,3,
   listing/0,1, the load's and the goal's reports, library(stream)'s writes
   to its first three slots (`coco_m_out_note`) -- and not what a module
-  prints with stdio of its own; a capture (with_output_to/2) has a column
-  of its own from 0 and gives the console's back. A new writer to the
+  prints with stdio of its own; a capture (with_output_to/2's, a portray
+  goal's) has a column of its own from 0, its THREAD's since 3.64.1
+  (`coco_out_cap`, `coco_cap_lp`, `coco_cap_lc` thread-local; the line
+  flag `coco_out_mid` is still the process's, nothing asking it of a
+  capture), and gives the column it found back. A new writer to the
   console goes through `coco_out_puts`/`coco_out_putc` or notes what it
   wrote, or the next `~N` and the next report guess -- and since 3.56.0 the
   next partial(true) write, which begins after the last character the note
@@ -4065,7 +4070,25 @@ cocolint index offers no import of it.
   caller to raise once its own work is done -- `~@` puts out the text
   before it first, as swipl's -- with_output_to/2 keeping the goal's
   bindings and `~@` undoing them. A new builtin that captures a goal's
-  output goes through it. **The text a format built before it went wrong
+  output goes through it. **A portray goal's capture is the thread's own
+  output, in memory** (3.64.1, MEM): `coco_out_puts` and `coco_out_putc`
+  send stdout's text to `coco_out_tl` (lib/term.cicili, thread-local, a
+  FILE of open_memstream(3) from a pool) while the goal runs, and
+  library(stream)'s user_output asks `coco_m_out_fp` -- **so a new writer
+  to the console goes through them**, or its text goes round a portray
+  goal's capture. No system call, and no other thread's write reaches it:
+  through 3.64.0 the portray goal captured fd 1, the process's, and a green
+  world's tasks took each other's text. A capture of fd 1 sets the
+  thread's own output aside for its goal, and **a task a nested green
+  wait runs sets the waiter's aside** (`coco_g_run_aside`). What reaches
+  fd 1 by no write of the engine's -- a child process, a module's own
+  stdio -- a portray goal does not catch, as swipl's does not. **A new
+  reader of a capture's thread-locals asks `coco_cap_any` first** (the
+  captures running, process-wide): cocolog.o is -fPIC, a thread-local's
+  read a call to __tls_get_addr as clang sees it, and asked at every
+  write it cost a write loop 1.04 % -- the note's body is one macro
+  emitted twice (`coco-out-note-body`), the plain copy with no capture.
+  **The text a format built before it went wrong
   reaches every stream sink** (`coco_fmt_term_sink`: the console,
   user_output, user_error, a library(stream) stream), never a term.
 * **The reader is written ONCE and emitted TWICE** (1.10.7): the bodies of
