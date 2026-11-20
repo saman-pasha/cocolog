@@ -78,8 +78,9 @@
   '((FINISHED 0 "proved out; the machine is gone from the database")
     (FAILED   1 "the program is wrong -- running it again goes wrong again")
     (MORE     2 "suspended with work left, and committed")
-    (LOST     3 "the connection ended mid-turn. NOTHING was committed, so the
-                 turn did not happen and may simply be done again")
+    (LOST     3 "the connection ended mid-turn, or (3.64.6) memory was refused
+                 the machine on the way. NOTHING was committed, so the turn
+                 did not happen and may simply be done again")
     (MISSED   4 "claimed, then the load said `no suspended machine' or
                  `missing chunk' -- the window a mid-save partner leaves;
                  nothing was committed, so look again rather than give up")))
@@ -94,6 +95,22 @@
 
 ;;; whether a code is that outcome
 (DEFMACRO turn-is (name v) `(== ,v ,(turn-value name)))
+
+;;; A HOST'S MACHINE MADE, OR THE HOST ENDS SAYING SO (3.64.6): the one
+;;; allocation `coco_machine_init' makes, its table of atoms, refused, the
+;;; machine is finished and answers 0, and the host returns CODE having
+;;; said `out of memory'. Through 3.64.5 no host asked, and its first
+;;; atom probed a table that was not there: a SIGSEGV (test/store-lock.pl's
+;;; `rr_commit', `start' with its 251st request refused)
+(DEFMACRO host-machine (m code)
+  `(if (not (coco_machine_init ,m))
+       (block (fprintf stderr "cocolog: out of memory\n") (return ,code))))
+
+;;; A TURN THAT FAILED (3.64.6): LOST where memory refused it (`step_short',
+;;; WHY the words that say why) or the connection went, else FAILED -- in
+;;; `cmd_step', whose machine is M and whose count of refusals began at R0
+(DEFMACRO turn-failed (why)
+  `(? (step_short (aof m) r0 ,why) (turn LOST) (? (zg_is_open db) (turn FAILED) (turn LOST))))
 
 (source "cocolog.c"
   (make :std #t
@@ -418,7 +435,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.64.5"))
+  (func coco_version_text () (out const char *) (return "3.64.6"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -648,7 +665,7 @@
 
   (func cmd_consult ((int argc) (char ** argv) (int from)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_zg z) (char err [4096]) (int total . 0))
-          (coco_machine_init (aof m))
+          (host-machine (aof m) 1)
           (coco_store_init (aof st))
           (if (not ($ opts local)) (coco_zg_attach (aof z) db (aof m) (aof st) ($ opts kb)))
           (gate_vacuum (aof st))
@@ -918,7 +935,7 @@
 
   (func cmd_script ((const char * file)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
-              (char goal [4200]) (int n . 0) (int rc . 1) (int batched . 0)
+              (char goal [4200]) (int rc . 1) (int batched . 0)
               (int halted . 0) (int halt_code . 0) (int ended . 0))
           (if (> (strlen file) 4096)
               (block (fprintf stderr "cocolog: -s: the path is too long\n") (return 1)))
@@ -939,7 +956,7 @@
           ;; exit 1 -- and `main' then runs as swipl's `-g main' does, under
           ;; catch/3 (`rootn' 5)
           (snprintf goal (sizeof goal) "use_module('%s')" file)
-          (coco_machine_init (aof m))
+          (host-machine (aof m) 2)
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
           (set ($ e max_steps) 0)
@@ -959,7 +976,6 @@
                    (block (fprintf stderr "cocolog: %s\n" ($ e err)) (return 1)))
                (set ($ e rootn) 5)
                (set rc (coco_engine_next (aof e)))
-               (if (== rc 1) (set n 1))
                ;; what `main' left is cut, its cleanups run with `!' after
                ;; its output and before the commit (3.1.0), as swipl's
                ;; toplevel cuts
@@ -986,13 +1002,17 @@
           (coco_machine_free (aof m))
           (if ended (return 1))
           (if (and halted (!= rc -1)) (return halt_code))
-          (return (goal_status (? (== n 1) 1 rc)))))
+          ;; A COMMIT THAT FAILED IS NO PROOF (3.64.6): its -1 is exit 2, as
+          ;; `run''s is. Through 3.64.5 this read `main''s answer instead,
+          ;; and a script whose writes the store refused at its commit said
+          ;; `commit failed' and exited 0, its store holding none of them
+          (return (goal_status rc))))
 
   (func cmd_query ((const char * goal)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
               (int n . 0) (int rc . 1) (int batched . 0)
               (int halted . 0) (int halt_code . 0))
-          (coco_machine_init (aof m))
+          (host-machine (aof m) 1)
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
           (set ($ e max_steps) 0)
@@ -1438,7 +1458,7 @@
               (int batched . 0)
               (char histpath [512]) (const char * hf . nil)
               (char libpath [1024]) (int lkind . 0))
-          (coco_machine_init (aof m))
+          (host-machine (aof m) 1)
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
           (set ($ e max_steps) 0)
@@ -1617,7 +1637,7 @@
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z))
           (if ($ opts local)
               (block (fprintf stderr "cocolog: start needs a database\n") (return 1)))
-          (coco_machine_init (aof m))
+          (host-machine (aof m) 1)
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
           (set ($ e max_steps) 0)
@@ -1627,7 +1647,10 @@
               (block (fprintf stderr "cocolog: %s\n" ($ e err)) (return 1)))
           (if (not (coco_zg_save (aof z) (aof e) name goal))
               (block (fprintf stderr "cocolog: %s\n" ($ z err)) (return 1)))
-          (zg_commit db)
+          ;; and a machine its commit did not keep was not started (3.64.6:
+          ;; through 3.64.5 `started' and exit 0 whatever the commit said)
+          (if (not (zg_commit db))
+              (block (fprintf stderr "cocolog: commit failed: %s\n" (zg_error db)) (return 1)))
           (printf "started '%s'\n" name)
           (coco_engine_free (aof e))
           (coco_store_free (aof st))
@@ -1700,14 +1723,28 @@
               (#t (block))))
           (return rows)))
 
+  ;;; WHETHER A TURN'S FAILURE WAS MEMORY'S (3.64.6): its machine finished,
+  ;;; a refusal counted on the thread since R0 (`coco_refusals'), or WHY --
+  ;;; the attachment's words or the database's -- says so. Such a turn is
+  ;;; LOST, rolled back to be done again (`turn-failed'), never FAILED,
+  ;;; which tells a worker the program is wrong: through 3.64.5 a load,
+  ;;; a save or a turn's writes refused memory FAILED, and stopped it
+  (func step_short ((coco_machine * m) (size_t r0) (const char * why)) (out int)
+        (if (!= (-> m oom) 0) (return 1))
+        (if (!= (coco_refusals) r0) (return 1))
+        (if (and (!= why nil) (!= (strstr why "out of memory") nil)) (return 1))
+        (return (and (!= db nil) (!= (strstr (zg_error db) "out of memory") nil))))
+
   (func cmd_step ((const char * name) (int to_the_end)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_strbuf out)
               (int n . 0) (int rc . 1) (int done . 0)
-              (int outcome . 0) (int broke . 0) (int committed . 0) (int batched . 0))
+              (int outcome . 0) (int broke . 0) (int committed . 0) (int batched . 0)
+              (size_t r0 . #'(coco_refusals)))
           (if ($ opts local)
               (block (fprintf stderr "cocolog: step needs a database\n")
                      (return (turn FAILED))))
-          (coco_machine_init (aof m))
+          ;; nothing ran and nothing was committed: a turn to do again
+          (host-machine (aof m) (turn LOST))
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
           ;; the heap collector may run, and a thaw keeps the switch: a turn
@@ -1773,11 +1810,18 @@
                        (set f2 (probe_find db name))
                        (fprintf stderr "PROBE '%s': refind=%d list=%d refind2=%d\n"
                                 name f1 l1 f2)))
-                 (set outcome (? (zg_is_open db)
-                                 (? (or (!= (strstr ($ z err) "no suspended machine") nil)
-                                        (!= (strstr ($ z err) "is missing chunk") nil))
-                                    (turn MISSED) (turn FAILED))
-                                 (turn LOST)))
+                 ;; and a load short of memory -- its thaw's tables refused,
+                 ;; the blob short of a chunk, the store's answer refused
+                 ;; room -- is a turn to do again (3.64.6, `step_short'),
+                 ;; where through 3.64.5 it FAILED or the thaw read on over a
+                 ;; table that was not there
+                 (set outcome (? (step_short (aof m) r0 ($ z err))
+                                 (turn LOST)
+                                 (? (zg_is_open db)
+                                    (? (or (!= (strstr ($ z err) "no suspended machine") nil)
+                                           (!= (strstr ($ z err) "is missing chunk") nil))
+                                       (turn MISSED) (turn FAILED))
+                                    (turn LOST))))
                  break))
 
             ;; The budget is counted from where this machine already was, so a
@@ -1818,6 +1862,35 @@
                          (set done 1)
                          (set broke 1))))
 
+            ;; A TURN SHORT OF MEMORY IS A TURN TO DO AGAIN (3.64.6): a run
+            ;; that broke for want of memory (`step_short' of its words) --
+            ;; its machine finished on the way, in its modules' load or in
+            ;; its run, which stops the engine running on it and ends the run
+            ;; `out of memory' (`coco_oom', `coco_engine_next'); or the
+            ;; engine's own `out of memory' with the machine standing, the
+            ;; choice stack's growth refused outright (`coco_eng_grow_slow'),
+            ;; which finishes no machine and whose push's caller ends the
+            ;; query (`coco_fail_err'). What it holds is nothing to save, so
+            ;; nothing is written: the turn is rolled back below, the machine
+            ;; where the last turn left it, and the outcome is LOST, as a
+            ;; host's own machine refused is. Through 3.64.5 such a run was
+            ;; the program's breaking: the machine was dropped as finished
+            ;; (`finished after 0 inference(s)'), the turn FAILED, and a
+            ;; worker stopped (test/store-lock.pl's `rr_commit', `step'). SO
+            ;; IS A RUN THAT ENDED ON resource_error(memory) nothing caught:
+            ;; a growth given less than it asked raised it, and the turn done
+            ;; again may have the memory (`coco_engine_ball_memory'). A
+            ;; machine finished after its run's end is no machine
+            ;; `coco_zg_save' freezes (`coco_freeze'). Not asked here: a
+            ;; machine its thaw finished with no engine running on it (a heap
+            ;; push refused outright mid-read), which the thaw hands over and
+            ;; whose run goes on; in every sweep that run broke, or its save
+            ;; was refused (STATUS.md, 3.64.6)
+            (if (and broke (or (coco_engine_ball_memory (aof e))
+                               (step_short (aof m) r0 ($ e err))))
+                (block (set outcome (turn LOST))
+                       break))
+
             ;; The database half. Anything that fails in here takes the turn
             ;; with it, and the answer buffer goes unprinted along with it.
             ;;
@@ -1827,16 +1900,16 @@
             (if (not (batch_close (aof z) batched))
                 (block (fprintf stderr "cocolog: %s: writing the turn's clauses: %s\n"
                                 name (zg_error db))
-                       (set outcome (? (zg_is_open db) (turn FAILED) (turn LOST)))
+                       (set outcome (turn-failed (zg_error db)))
                        break))
             (if done
                 (if (not (coco_zg_drop (aof z) name))
                     (block (fprintf stderr "cocolog: %s\n" ($ z err))
-                           (set outcome (? (zg_is_open db) (turn FAILED) (turn LOST)))
+                           (set outcome (turn-failed ($ z err)))
                            break))
               (if (not (coco_zg_save (aof z) (aof e) name "suspended by step"))
                   (block (fprintf stderr "cocolog: %s\n" ($ z err))
-                         (set outcome (? (zg_is_open db) (turn FAILED) (turn LOST)))
+                         (set outcome (turn-failed ($ z err)))
                          break)))
 
             ;; AN UNCHECKED COMMIT WAS THE ORIGINAL SIN HERE. It made a turn
@@ -2135,7 +2208,7 @@
             (if (turn-is LOST rc)
                 (block
                  (set hurt (+ hurt 1))
-                 (fprintf stderr "%s: lost the connection during '%s'; turn rolled back\n"
+                 (fprintf stderr "%s: lost the turn of '%s' (the connection, or memory); rolled back\n"
                           worker name)
                  (if (> hurt 40)
                      (block (fprintf stderr "%s: giving up after %d lost connection(s)\n"
@@ -2386,12 +2459,19 @@
         (let ((coco_machine m) (coco_store st) (coco_zg z))
           (if ($ opts local)
               (block (fprintf stderr "cocolog: drop needs a database\n") (return 1)))
-          (coco_machine_init (aof m))
+          (host-machine (aof m) 1)
           (coco_store_init (aof st))
           (coco_zg_attach (aof z) db (aof m) (aof st) ($ opts kb))
           (gate_vacuum (aof st))
-          (coco_zg_drop (aof z) name)
-          (zg_commit db)
+          ;; a drop the database refused, or whose commit it did not keep,
+          ;; dropped nothing (3.64.6: through 3.64.5 `dropped' and exit 0
+          ;; whatever either said); a name no machine has is dropped, as
+          ;; `cocolog::machine_drop' answers it
+          (if (not (coco_zg_drop (aof z) name))
+              (block (fprintf stderr "cocolog: drop: %s\n" (zg_error db))
+                     (zg_rollback db) (return 1)))
+          (if (not (zg_commit db))
+              (block (fprintf stderr "cocolog: commit failed: %s\n" (zg_error db)) (return 1)))
           (printf "dropped '%s'\n" name)
           (coco_store_free (aof st))
           (coco_machine_free (aof m))
@@ -2467,7 +2547,7 @@
   (func cmd_run ((int argc) (char ** argv) (int from) (const char * goal)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
               (char err [4096]) (int rc . 0) (int halted . 0) (int halt_code . 0) (int batched . 0))
-          (coco_machine_init (aof m))
+          (host-machine (aof m) 2)
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
           (set ($ e max_steps) 0)

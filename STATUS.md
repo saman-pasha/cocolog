@@ -20557,3 +20557,180 @@ taken and its FILE open, which nothing gives back.
 THE RUN: the lint case first, then files (fifo_read with the rest of
 test/files/), stream, units, errors, journal and async each alone, green
 with no SKIP; lesson 48 (stream) alone. The card check passes.
+
+## A command short of memory says so, and keeps what it had (3.64.6)
+
+BACKLOG #202, THE LAST OF IT: the hosts, the store's writes and the texts
+that leave the process, each allocation refused in turn by test/refuse.c.
+3.62.3 finished a machine that a refusal touched and 3.63.2 a load; what
+was left was every road out of a machine to somewhere that outlives it --
+a commit, a frozen machine, a row, a message, a read -- and the hosts that
+make the machines. Each of the eight sweeps below was red on 3.64.5, most
+of them in several ways, and is clean on 3.64.6:
+
+- `-s FILE` (rcm.sh): a script asserting twelve long clauses, each of the
+  233 requests from its mark to its end refused once and twice in a row,
+  its store read back by a process with no shim. 3.64.5 exited 0 holding
+  none of them from its 80th request on, where the commit failed (it said
+  `commit failed', and the exit read `main''s answer); and two in a row
+  from its 87th on wrote a clause whose text had been refused room as a
+  row short of a piece: eleven of the twelve read back, and the next run
+  a row that refused every read after it, none.
+- `start` and `drop` (rst.sh, `REFUSE_ALL=1`: every request of the
+  process, 571 and 321), the store read back by a process with no shim,
+  a started machine stepped. 3.64.5's start died by SIGSEGV at its 267th
+  request (the host's table of atoms) and at its 271st, two in a row (a
+  fresh machine's first term, which found no heap), said `started' and
+  exited 0 at its last ten (558 to 567) where its commit failed, the
+  machine not there, and two in a row from its 500th on saved frozen
+  machines no step could thaw (`the frozen machine could not be read (at
+  offset 185...)'). Its drop said `dropped' and exited 0 at its 302nd to
+  317th, the machine still listed.
+- `step` (stp.sh): a step's requests are some sixteen thousand, the
+  preload's among them, so each sweep names a size: each request of 2048
+  bytes (a machine's first table: 9), each of 4096 bytes or more (63), and
+  each of 4096 or more of a step that thaws a blob of many kilobytes -- a
+  list and an atom of 3000 on its heap -- and suspends again (103). 3.64.5
+  died by SIGSEGV where its thaw's table of atoms was refused, and every
+  run whose machine was finished on the way -- in the thaw, in its
+  modules' load, in its run -- or whose run ended on resource_error(memory)
+  was the program's breaking: the machine DROPPED as finished, `rsm:
+  finished after 0 inference(s), 0 answer(s)', and the turn FAILED, which
+  stops a worker. So was a load whose statements failed for memory, a
+  save whose freeze was short of a piece, and a run the engine ended `out
+  of memory' with its machine standing -- the choice stack's growth
+  refused outright, which finishes no machine (`rsm: finished after 20001
+  inference(s)').
+- read_term/3 of a stream (rd.sh, test/stream.pl's `read_refused`): a
+  read refused memory is resource_error(memory), as the text builtins'.
+  3.64.5's library(stream) took the reader's `out of memory' for a syntax
+  error, read the text again to place it, found none, and raised a
+  cocolog_error: `read_term: a clause read once and not again'.
+- channel_send/2 of library(thread) from a green task (mr.sh,
+  test/thread.pl's `message_refused`): the message reaches the channel
+  whole or not at all. 3.64.5 put a text short of a piece into the
+  channel, which the reader read as another term, and a copy of the text
+  refused was `the term would not write'.
+
+THE RULES, each its own arm (one build each, below):
+
+- S `-s`'s exit is its commit's (`cmd_script`): a commit that failed is
+  exit 2, as `run`'s is.
+- T `start` asks its commit: `commit failed', exit 1.
+- U `drop` asks its drop and its commit: exit 1, the drop rolled back.
+- V a host asks its machine's making (`host-machine`, eight hosts): `out
+  of memory', the host's code (`step`'s LOST).
+- W `coco_machine_init` makes the heap's first 64 cells, as a green
+  task's machine has them: a push refused outright answers cell 0, which
+  its caller writes.
+- X the store's sync writes no row of a clause whose text was refused or
+  whose machine was finished (`coco_zg_sync_pred`): it stops sending,
+  reads the answers of the calls in flight (a server's window holds up to
+  127), and the write fails with the turn.
+- Y `coco_freeze` answers 0 for a frozen machine short of a piece or a
+  machine finished on the way (and `coco_zg_save` says `freezing: out of
+  memory', where it said the database's error, which there was none of).
+- R the thaw asks its machine's making (`coco_thaw`).
+- L a load's blob short of a chunk is no machine (`coco_zg_load`), the
+  machine handed in finished, and the load says memory's words.
+- N the load's own reads name what failed (`coco_zg_fail`): five of the
+  machine_load loop's set the load failed and said nothing, and the
+  turn's outcome could not tell memory's failure from the program's.
+- P a load that failed for memory is LOST, where it was FAILED
+  (`step_short` of its words: the machine finished, a refusal counted on
+  the thread since the turn began, `out of memory' in the load's reason
+  or the database's).
+- Q a write of the turn's clauses, a drop or a save that failed for
+  memory is LOST too (`turn-failed`, the same question).
+- O a run that broke for want of memory is LOST (`step_short` of the
+  run's words): its machine finished in its modules' load or its run,
+  which stops the engine running on it and ends the run `out of memory'
+  (`coco_oom`, `coco_engine_next`), or the engine's own `out of memory'
+  with the machine standing (the choice stack's growth refused outright,
+  `coco_eng_grow_slow`, whose push's caller ends the query,
+  `coco_fail_err`).
+- M a run that ended on resource_error(memory) nothing caught is LOST too
+  (`coco_engine_ball_memory`): a growth given less raised it, and the
+  turn done again may have the memory.
+- Z the seam's `coco_m_term_text` answers null for a text short of a
+  piece (the thread's count moved, `coco_refusals`).
+- K and hands over the buffer itself, no copy: a copy refused was a
+  cocolog_error, `would not write'.
+- B the seam's reader answers -3 for a read that failed for memory
+  (`coco_m_read_clause_pos`)
+- B2 and library(stream) raises resource_error(memory) for it.
+
+ARMS (each one build of the 3.64.6 tree with its rule out; S to B2 were
+built before the turn's outcome rules took their last form, the others
+after them, from the tree that still held a test of the machine's `oom`
+beside O -- which its own arm shows moves nothing (below), and whose
+going could only add rows to Q's):
+
+- S rcm: wrong of 233, exit 0 with kept(0,0) from #1.80 on.
+- T start: wrong of 571, exit 0 with the machine not listed at #558-567,
+  once and twice.
+- U drop: wrong of 322, exit 0 with the machine listed at #303-318, once
+  and twice.
+- V start: wrong of 571, SIGSEGV at #267 and #268, once and twice.
+- W start: wrong of 571, SIGSEGV at #2.271.
+- X rcm: wrong of 233, kept(11,11) and then kept(0,0) at #2.87-88 and at
+  each ninth or tenth request after it.
+- Y start: wrong of 571, a step of the machine `could not be read (at
+  offset ...)' from #2.500 on.
+- R s1: wrong of 9, SIGSEGV at #1.4 and #2.4.
+- L big: wrong of 103, LOST saying no memory at #2.33-37: `the frozen
+  machine could not be read (at offset ...)'.
+- N big: wrong of 103, LOST saying nothing at #1.29-31 and #2.28-31
+  (`cocolog: ').
+- P big: wrong of 103, FAILED at #1.29-31 and #2.28-31 (`machine_load:
+  out of memory: the call was not answered'); s1: wrong of 9, FAILED at
+  #1.4 and #2.4 (`the frozen machine could not be read: out of memory').
+- Q big: wrong of 103, FAILED at #1.87-88 (`freezing: out of memory') and
+  #1.98-100 (`machine_chunk: out of memory').
+- O s1: wrong of 9, s2: wrong of 63, big: wrong of 103: the machine
+  dropped as finished and the turn FAILED, `finished after 0
+  inference(s)' (s1 and s2) and `finished after 20000 inference(s)'
+  (big); and with the
+  question narrowed to the machine's `oom` (the build before O took its
+  last form), big's #2.86 alone, `finished after 20001 inference(s)': the
+  choice stack refused twice, which finishes no machine.
+- M s1: wrong of 9, s2: wrong of 63, big: wrong of 103: `uncaught
+  exception: error(resource_error(memory), _)', the machine dropped.
+- Z mr: wrong of 9, the reader read another term (`none-other') at #2.1-6.
+- K mr: wrong of 10, `channel_send: the term would not write' at #1.7.
+- B rd: wrong of 11, `read_term: a clause read once and not again' from
+  #1.3 on.
+- B2 rd: wrong of 11, read_term/3 answered `main', no term of the file,
+  from #1.3 on.
+
+A TEST OF THE MACHINE'S `oom` BESIDE O, NOT SHIPPED. The turn asked, before
+O, whether its machine was finished, whatever its run had answered. With O
+in, that test's arm -- the test out -- is clean on every step sweep, and
+on a fourth made for it: a step that thaws the big machine and FINISHES
+(the seed stepped to 1 008 inferences short of its end), where a machine
+its thaw had finished would be dropped as finished. A machine finished in
+its run always breaks, as O says; one finished in its THAW is the case
+the test was for (found on the way, below).
+
+WHAT IT COSTS: tools/flow/zero.sh against 3.64.5, work less padding:
+nrev -7 instructions, queens +18, lookup +271, of 66, 40 and 48 million.
+A start (`cocolog query true`, each binary at the checkout's path) counts
+27 728 more, +0.08 %, all of them in libc's strcmp on the same 35 846
+calls from the reader: the heap's first cells, made at the machine's
+making now (W), move where the reader's text lands, and strcmp's
+page-crossing path does the rest. W's arm counts 3.64.5's start to
+within 297.
+
+FOUND ON THE WAY, not fixed here:
+- a thaw whose heap push is refused outright finishes the machine and
+  goes on (no engine is running on it to stop): its heap is a cell short
+  from there, the load hands it over, and its run goes on over it. In
+  every sweep here that run broke (O) or its save was refused (Y), and
+  the turn was LOST, but nothing makes it so.
+- #229: a retract whose write-through the store refuses takes its clause
+  from the program and says nothing (the hook's answer dropped at three
+  sites of `coco_retract_at`).
+
+THE RUN: the lint case first, then store-lock, stream, thread, errors,
+script, async, repl, journal, units and files each alone, green with no
+SKIP. The card check passes.

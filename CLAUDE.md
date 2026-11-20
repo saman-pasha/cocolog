@@ -3857,11 +3857,46 @@ cocolint index offers no import of it.
     builtin's own array (term_variables/2's). The run ends `out of
     memory`, where atom_codes/2 answered the tail it was given and a
     unification failed.
-  - Not done: the writers that persist a text in flight (the store's
-    sync in lib/zigurat-kb.cicili, `coco_freeze`, the journal, the seam's
-    `coco_m_term_text`) act on it, though the machine is finished at its
-    next step; library(stream)'s reads say a syntax error; the store's
-    and the recorder's marks stop nothing.
+  - **A text that leaves the process is asked too** (3.64.6): the
+    store's sync writes no row of a clause whose text was refused or
+    whose machine was finished (`coco_zg_sync_pred`: it stops sending,
+    reads the answers in flight, and fails the write), `coco_freeze`
+    answers 0 for a frozen machine short of a piece, a load's blob short
+    of a chunk is no machine (`coco_zg_load`, which finishes the machine
+    handed in), and the seam's `coco_m_term_text` answers null -- the
+    BUFFER ITSELF where the text is whole, no copy, so no request of its
+    own (a copy refused was `would not write', a cocolog_error). **A new
+    writer of a text that leaves the process reads `coco_refusals`
+    across its writes**, and the machine's `oom`. library(stream)'s reads
+    raise resource_error(memory) where the reader failed for memory (the
+    seam's -3, `coco_m_read_clause_pos`). Not done: the journal acts on a
+    text in flight; the store's and the recorder's marks stop nothing.
+  - **A host asks its machine's making** (3.64.6, `host-machine` in
+    cocolog.cicili): `coco_machine_init` refused (its table of atoms, or
+    the heap's first 64 cells, which it makes since 3.64.6 as a green
+    task's does) says `out of memory` and the host returns its code --
+    `step` LOST. **A new host makes its machine through `host-machine`**:
+    through 3.64.5 a host's first atom probed a table that was not there.
+  - **A command whose database refused says so** (3.64.6): `-s FILE`'s
+    commit that failed is exit 2, as `run`'s is; `start`'s and `drop`'s
+    are exit 1 with `commit failed`, a drop the database refused too.
+    Through 3.64.5 each said its success and exited 0, the store holding
+    none of it. **`step` short of memory is a turn to do again**
+    (`step_short`, `turn-failed` in cocolog.cicili): a machine finished
+    in its thaw, its load or its run; a run ended on an uncaught
+    resource_error(memory) (`coco_engine_ball_memory`), or one the engine
+    ended `out of memory` with its machine standing (the choice stack's
+    growth refused outright, which finishes no machine); and a load, a
+    write of the turn's clauses, a drop or a save that failed for memory
+    -- the machine finished, a refusal counted on the thread, or the
+    words `out of memory` in its reason or the database's -- is LOST,
+    rolled back, the machine where the last turn left it. Through 3.64.5
+    it was dropped as finished, or the turn FAILED, which stops a worker.
+    **So a new failure on the turn's way names what failed**
+    (`coco_zg_fail`): five of the load's own reads set the load failed
+    and said nothing, and memory's turn was read as the program's. A
+    store's open refused before the turn exits 1 and says it could not
+    open the store.
 * **A load short of memory ends where it stands, saying so once**
   (3.63.2; `coco_consult_short`, `coco-consult-short-end` in lib/kb.cicili,
   lib/kb-consult.cicili): its read refused, a clause's or a declaration's
@@ -3903,8 +3938,13 @@ cocolint index offers no import of it.
   requests of `REFUSE_SIZE` bytes, or of `REFUSE_MIN` bytes or more
   (`REFUSE_MIN=4096 REFUSE_N=1 REFUSE_RUN=0` is a ceiling on what is big
   alone); `REFUSE_REPORT=1` writes the count and `REFUSE_BT=1` the
-  backtrace of the request refused. A fixture is run once to count and
-  then once for EVERY request it made. What bites:
+  backtrace of the request refused; `REFUSE_ALL=1` (3.64.6) starts the
+  stretch at the process's first request, for a command that runs no
+  program (`start`, `drop`; a `step`'s are some sixteen thousand, so its
+  sweeps name a size: `REFUSE_SIZE=2048`, a machine's first table, and
+  `REFUSE_MIN=4096`). test/prelude.pl's `refuse_shim/2` builds it for a
+  section, or says the SKIP. A fixture is run once to count and then once
+  for EVERY request it made. What bites:
   - **One refusal never refuses a growth of the machine's arrays, the
     store's or a buffer** (a buffer since 3.62.3): each asks again for
     less and is given it. Two in a row is the growth refused outright, the

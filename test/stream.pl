@@ -40,6 +40,7 @@ main :-
     codes(D),
     sinks,
     pushback_refused(D),
+    read_refused(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -617,30 +618,15 @@ sinks :-
 %% end_of_file at once.
 pushback_refused(D) :-
     section('a pushback with no memory for it'),
-    shell('uname -s', Sys, _),
-    shell('getconf GNU_LIBC_VERSION 2>/dev/null', Libc, _),
-    (   ( Sys == 'Darwin' ; \+ sub_atom(Libc, 0, _, _, glibc) )
-    ->  format("   SKIP (test/refuse.c interposes glibc's allocator)~n", [])
-    ;   ( exists_file('tools/cc/cc') -> Compiler = 'tools/cc/cc' ; Compiler = clang ),
-        sh_join(['command -v ', Compiler, ' >/dev/null 2>&1 || test -x ', Compiler], HaveCc),
-        (   sh_exit(HaveCc, 0)
-        ->  path(D, pb, Dir),
-            shl(['mkdir -p ', Dir]),
-            path(Dir, 'refuse.so', Shim),
-            sh_join([Compiler, ' -shared -fPIC -O3 -o ', Shim, ' test/refuse.c 2>&1'], Cc),
-            shell(Cc, Why, CcExit),
-            check('test/refuse.c compiles', CcExit-Why, 0-''),
-            (   CcExit =:= 0
-            ->  path(Dir, 'pb.pl', File), pb_fixture(File),
-                path(Dir, 'pb.sh', Sweep), pb_sweep(Sweep),
-                cocolog(C),
-                sh_join(['sh ', Sweep, ' ', C, ' ', Shim, ' ', File], Cmd),
-                shell(Cmd, Out, _, 300000),
-                check('each request of 128 bytes refused in turn: the byte read, or why not said', Out, clean)
-            ;   true
-            )
-        ;   format("   SKIP (no C compiler for test/refuse.c)~n", [])
-        )
+    path(D, pb, Dir),
+    (   refuse_shim(Dir, Shim)
+    ->  path(Dir, 'pb.pl', File), pb_fixture(File),
+        path(Dir, 'pb.sh', Sweep), pb_sweep(Sweep),
+        cocolog(C),
+        sh_join(['sh ', Sweep, ' ', C, ' ', Shim, ' ', File], Cmd),
+        shell(Cmd, Out, _, 300000),
+        check('each request of 128 bytes refused in turn: the byte read, or why not said', Out, clean)
+    ;   true
     ).
 
 %% the program: one line, what the open and two reads of `f' came to
@@ -682,3 +668,72 @@ pb_sweep(Path) :-
               'if [ -n "$bad" ]; then echo "wrong of $n:$bad" | cut -c1-400',
               'elif [ $seen = 1 ]; then echo clean',
               'else echo "no memory(open) of $n"; fi' ]).
+
+%% ---- a read with no memory for it (3.64.6) ----------------------------------
+%%
+%% A clause the reader was refused memory for -- its table of variables, a
+%% variable name's copy, a token's buffer, the heap the term is built on --
+%% is no term, and no syntax error either: read_term/3 raises
+%% resource_error(memory), as the text builtins do, or the machine is
+%% finished and the run ends as a host out of memory ends (exit 2, nothing
+%% printed). test/refuse.c refuses each request a read_term/3 makes in
+%% turn, one at a time and two in a row: every run must read the clause as
+%% written, its variables shared and named, or say one of those two, and a
+%% single refusal must be raised as memory at least once. Through 3.64.5 the
+%% reader's `out of memory' reached library(stream) as any failure of the
+%% reader does, and was raised as a syntax error with no id swipl has.
+read_refused(D) :-
+    section('a read with no memory for it'),
+    path(D, rd, Dir),
+    (   refuse_shim(Dir, Shim)
+    ->  path(Dir, 'rd.pl', File), rd_fixture(File),
+        path(Dir, 't.pl', Text),
+        fixture(Text, ['f(Alpha, Beta, [Alpha|Gamma], "s", ''q r'', 1.5, Beta).']),
+        path(Dir, 'rd.sh', Sweep), rd_sweep(Sweep),
+        cocolog(C),
+        sh_join(['sh ', Sweep, ' ', C, ' ', Shim, ' ', File], Cmd),
+        shell(Cmd, Out, _, 300000),
+        check('each request of a read refused in turn, once and twice: the clause, or memory said (B, B2)', Out, clean)
+    ;   true
+    ).
+
+%% the program: one line, what a read of `t.pl' came to. A first read before
+%% the marks compiles what a read calls, so the requests between them are
+%% the read's own: some ten, where a first read's are two hundred
+rd_fixture(Path) :-
+    fixture(Path,
+            [ ':- use_module(library(stream)).',
+              'rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
+              'rd_said(got(T, V)) :- V = [''Alpha''=A, ''Beta''=B, ''Gamma''=G], T == f(A, B, [A|G], [115], ''q r'', 1.5, B), !, write(read).',
+              'rd_said(error(resource_error(memory), _)) :- !, write(memory).',
+              'rd_said(O) :- writeq(caught(O)).',
+              'rd_warm :- open(''t.pl'', read, S), read_term(S, _, [variable_names(_)]), close(S).',
+              'main :- rd_warm, open(''t.pl'', read, S), rf_mark(''REFUSE_ON''), catch(( read_term(S, T, [variable_names(V)]), O = got(T, V) ), E, O = E), rf_mark(''REFUSE_OFF''), close(S), rd_said(O), nl.' ]).
+
+rd_sweep(Path) :-
+    fixture(Path,
+            [ '# rd.sh COCOLOG SHIM FILE: `COCOLOG run FILE main'' in FILE''s directory',
+              '# once for each request the read between its marks makes, that one',
+              '# refused, and again with that one and the next refused: a growth',
+              '# refused outright. Prints clean when every run read the clause, said',
+              '# memory, or ended as a host out of memory ends, and a single refusal',
+              '# said memory at least once; else what was wrong.',
+              'c=$1; shim=$2; f=$3; cd "$(dirname "$f")" || exit 1',
+              'n=$( REFUSE_REPORT=1 LD_PRELOAD=$shim $c --local run $f main 2>&1 >/dev/null | sed -n ''s/^REFUSE count //p'' )',
+              '[ -n "$n" ] && [ "$n" -gt 0 ] || { echo nocount; exit 0; }',
+              'bad=""; seen=0',
+              'for k in 1 2; do',
+              '  i=1',
+              '  while [ $i -le $((n + 1)) ]; do',
+              '    o=$( timeout 30 env REFUSE_N=$i REFUSE_RUN=$k LD_PRELOAD=$shim $c --local run $f main 2>/dev/null ); x=$?',
+              '    case "$o $x" in',
+              '      "read 0"|" 2") ;;',
+              '      "memory 0") [ $k = 1 ] && seen=1;;',
+              '      *) bad="$bad #$k.$i:$o $x";;',
+              '    esac',
+              '    i=$((i + 1))',
+              '  done',
+              'done',
+              'if [ -n "$bad" ]; then echo "wrong of $n:$bad" | cut -c1-400',
+              'elif [ $seen = 1 ]; then echo clean',
+              'else echo "no memory of $n"; fi' ]).

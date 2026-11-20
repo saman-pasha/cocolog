@@ -279,10 +279,17 @@
   ;;; The format is the one it was, and a thawed machine is all frames;
   ;;; what environments the heap still holds are cells nothing names.
   (func coco_freeze ((coco_engine * e) (coco_strbuf * b)) (out int)
-        (let ((coco_kmat sv) (int rc . 0))
+        (let ((coco_kmat sv) (int rc . 0) (size_t r0 . #'(coco_refusals)))
           (if (not (coco_engine_materialize e (aof sv))) (return 0))
           (set rc (coco_freeze_image e b))
           (coco_engine_materialize_undo e (aof sv))
+          ;; A FROZEN MACHINE SHORT OF A PIECE IS NONE (3.64.6): a piece its
+          ;; buffer was refused is not in the text (the thread's count moved,
+          ;; `coco_refusals'), and a machine finished on the way froze a heap
+          ;; it wrote nonsense into. Through 3.64.5 either was saved, and the
+          ;; machine did not thaw: `start' said `started', exit 0, and its
+          ;; `step' that the frozen machine could not be read
+          (if (or (!= (coco_refusals) r0) (!= (-> (-> e m) oom) 0)) (return 0))
           (return rc)))
 
   ;;; ---- reading ------------------------------------------------------------
@@ -415,9 +422,14 @@
           (coco_sb_init (aof nm))
 
           ;; the machine is rebuilt from nothing, so the atom ids in the frozen
-          ;; heap mean what they meant
+          ;; heap mean what they meant -- or not at all, its tables refused
+          ;; (3.64.6: through 3.64.5 the read went on over a table of atoms
+          ;; that was not there)
           (coco_machine_free m)
-          (coco_machine_init m)
+          (if (not (coco_machine_init m))
+              (block (coco_sb_free (aof nm))
+                     (snprintf (-> e err) 192 "%s" "the frozen machine could not be read: out of memory")
+                     (return 0)))
 
           ;; THE STORE'S BACKEND SURVIVES THE RESET. Emptying the store is the
           ;; point -- the clauses are reloaded rather than carried in the blob

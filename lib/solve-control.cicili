@@ -3034,6 +3034,31 @@
                            out len))
         (return 1))
 
+  ;;; whether X is a callable term named NAME of AR arguments
+  (DEFMACRO coco-named-p (m x name ar)
+    `(and (coco_is_callable ,m ,x)
+          (and (== (coco_arity ,m ,x) ,ar)
+               (== 0 (strcmp (coco_atom_name ,m (coco_name_of ,m ,x)) ,name)))))
+
+  ;;; WHETHER THE BALL NOTHING CAUGHT IS error(resource_error(memory), _)
+  ;;; (3.64.6): a growth given less than it asked raised it, and nothing in
+  ;;; the program took it. A turn of `step' that ended on it is a turn to do
+  ;;; again (cocolog.cicili's `cmd_step'), as one whose machine was
+  ;;; finished is: memory refused, the program did not break.
+  (func coco_engine_ball_memory ((coco_engine * e)) (out int)
+        (if (not (-> e has_ball)) (return 0))
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * bs . #'(? (== (-> e ball_st) nil)
+                                      (-> e st)
+                                      (cast (coco_store *) (-> e ball_st))))
+              (size_t b . #'(coco_deref m (coco_store_read m bs (-> e ball_cell))))
+              (size_t f . 0))
+          (if (not (coco-named-p m b "error" 2)) (return 0))
+          (set f (coco_deref m (coco_arg m b 0)))
+          (if (not (coco-named-p m f "resource_error" 1)) (return 0))
+          (set f (coco_deref m (coco_arg m f 0)))
+          (return (coco-named-p m f "memory" 0))))
+
   ;;; ---- calling ------------------------------------------------------------
 
   ;;; if-then-else, and the three things built out of it. Reads as:

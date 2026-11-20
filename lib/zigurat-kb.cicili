@@ -692,9 +692,10 @@
             ;; and there is no wire to pipeline anyway: its window is one.
             (let ((size_t head . #'(+ from 0))
                   (size_t tail . #'(+ from 0))
-                  (size_t window . #'(? (zg_embedded (-> z db)) 1 128)))
-              (while (< tail (-> p nclauses))
-                (if (and (< head (-> p nclauses)) (< (- head tail) window))
+                  (size_t window . #'(? (zg_embedded (-> z db)) 1 128))
+                  (int refused . 0) (size_t lim . 0))
+              (while (< tail (? refused lim (-> p nclauses)))
+                (if (and (not refused) (and (< head (-> p nclauses)) (< (- head tail) window)))
                     ;; A MODULE'S CLAUSE IS NOT OURS TO WRITE. The predicate is
                     ;; rewritten WHOLESALE -- every row forgotten above and every
                     ;; clause the store holds sent below -- and the store holds
@@ -716,6 +717,7 @@
                     (if (or (nth head (-> p muted)) (coco_pred_dead p head))
                         (set head (+ head 1))
                     (let ((size_t mark . #'(-> m heap_len))
+                          (size_t r0 . #'(coco_refusals))
                           (size_t t . #'(coco_store_get m st (nth head (-> p clauses))))
                           (u64 from . #'(nth head (-> p origins)))
                           (coco_strbuf b))
@@ -730,22 +732,42 @@
                           (set t (coco_make2 m "$from"
                                              (coco_new_atom m (coco_atom_name m (- from 1))) t)))
                       (coco_write_storable m (aof b) t)
-                      (set last (? (> (cast i64 head) last) (cast i64 head) (+ last 1)))
-                      (if (not (zg_call_send (-> z db) "cocolog::assert_clause"))
+                      ;; A CLAUSE'S TEXT SHORT OF A PIECE IS NO ROW (3.64.6): a
+                      ;; piece its buffer was refused is not in it (the thread's
+                      ;; count moved, `coco_refusals': no engine runs here at a
+                      ;; host's sync, so the count is all a refusal leaves), and
+                      ;; a machine finished on the way read the clause into a
+                      ;; heap it wrote nonsense into. The write fails, and the
+                      ;; turn's transaction with it. Through 3.64.5 the row was
+                      ;; written as it stood and committed: a script whose
+                      ;; clause's growth was refused twice exited 0, its store
+                      ;; holding eleven of twelve clauses, or one row that read
+                      ;; as no clause and refused every later read of the
+                      ;; predicate (test/store-lock.pl's `rr_commit')
+                      ;; Nothing more is sent, and the answers of the calls
+                      ;; in flight are read first: a server's window holds
+                      ;; up to 127 the connection would otherwise answer to
+                      ;; its next call
+                      (if (or (!= (coco_refusals) r0) (!= (-> m oom) 0))
                           (block (coco_sb_free (aof b)) (set (-> m heap_len) mark)
-                                 (return (coco_zg_fail z "assert_clause"))))
-                      (if (and (zg_write_string (-> z db) (-> z kb))
-                               (and (zg_write_string (-> z db) nm)
-                                    (and (zg_write_int (-> z db) (cast i32 ar))
-                                         (and (zg_write_long (-> z db) last)
-                                              (zg_write_text (-> z db)
-                                                             (? (== ($ b s) nil) "" ($ b s)))))))
-                          (block)
-                        (block (coco_sb_free (aof b)) (set (-> m heap_len) mark)
-                               (return (coco_zg_fail z "writing a clause"))))
-                      (coco_sb_free (aof b))
-                      (set (-> m heap_len) mark)
-                      (set head (+ head 1))))
+                                 (set refused 1) (set lim head))
+                        (block
+                          (set last (? (> (cast i64 head) last) (cast i64 head) (+ last 1)))
+                          (if (not (zg_call_send (-> z db) "cocolog::assert_clause"))
+                              (block (coco_sb_free (aof b)) (set (-> m heap_len) mark)
+                                     (return (coco_zg_fail z "assert_clause"))))
+                          (if (and (zg_write_string (-> z db) (-> z kb))
+                                   (and (zg_write_string (-> z db) nm)
+                                        (and (zg_write_int (-> z db) (cast i32 ar))
+                                             (and (zg_write_long (-> z db) last)
+                                                  (zg_write_text (-> z db)
+                                                                 (? (== ($ b s) nil) "" ($ b s)))))))
+                              (block)
+                            (block (coco_sb_free (aof b)) (set (-> m heap_len) mark)
+                                   (return (coco_zg_fail z "writing a clause"))))
+                          (coco_sb_free (aof b))
+                          (set (-> m heap_len) mark)
+                          (set head (+ head 1))))))
                   (if (or (nth tail (-> p muted)) (coco_pred_dead p tail))
                       (set tail (+ tail 1))
                     (block
@@ -753,7 +775,11 @@
                           (return (coco_zg_fail z "assert_clause")))
                       (if (not (coco_zg_finish z (aof ignored)))
                           (return (coco_zg_fail z "assert_clause")))
-                      (set tail (+ tail 1)))))))
+                      (set tail (+ tail 1))))))
+              (if refused
+                  (block (coco_zg_fail z "writing a clause")
+                         (snprintf (-> z err) 256 "%s" "writing a clause: out of memory")
+                         (return 0))))
             ;; THE ROWS NOW HOLD EVERY SLOT (3.63.1), and a worker's next
             ;; assertz is its own row -- until the connection says otherwise:
             ;; the owner's rows are the turn's, and a rollback of it moves
@@ -1125,8 +1151,12 @@
         (out int)
         (let ((coco_strbuf b) (i64 mid . 0) (size_t chunks . 0) (int ok . 1))
           (coco_sb_init (aof b))
+          ;; every way a freeze fails is memory's (3.64.6: through 3.64.5
+          ;; `freezing: ' and the database's error, which there was none of)
           (if (not (coco_freeze e (aof b)))
-              (block (coco_sb_free (aof b)) (return (coco_zg_fail z "freezing"))))
+              (block (coco_sb_free (aof b)) (coco_zg_fail z "freezing")
+                     (snprintf (-> z err) 256 "%s" "freezing: out of memory")
+                     (return 0)))
 
           (set chunks (/ (+ ($ b len) (- (coco-chunk-bytes) 1)) (coco-chunk-bytes)))
           (if (== chunks 0) (set chunks 1))
@@ -1254,7 +1284,7 @@
 
           ;; then the state, put back in `seq' order -- the cursor is not
           ;; ordered, which is what `seq' is a column for
-          (let ((char ** parts . nil) (size_t np . 0) (coco_strbuf blob))
+          (let ((char ** parts . nil) (size_t np . 0) (coco_strbuf blob) (size_t r0 . 0))
             (set np (cast size_t (? (> chunks 0) chunks 1)))
             (set parts (cast (char **) (calloc np (sizeof (char *)))))
             (if (== parts nil) (return (coco_zg_fail z "out of memory")))
@@ -1263,24 +1293,34 @@
                 (block (free parts) (return (coco_zg_fail z "machine_load"))))
             (if (not (zg_write_long (-> z db) mid))
                 (block (free parts) (return (coco_zg_fail z "machine id"))))
+            ;; A CALL THAT BROKE OFF SAYS WHY (3.64.6): through 3.64.5 the
+            ;; answer read short -- the embedded store's refused room, the
+            ;; wire's -- left the attachment's words as they were, and a
+            ;; step said `cocolog: ' and nothing after it
             (while ok
-              (if (not (zg_result (-> z db) (aof r))) (block (set ok 0) break))
+              (if (not (zg_result (-> z db) (aof r)))
+                  (block (coco_zg_fail z "machine_load") (set ok 0) break))
               (if (== r ZG_SUCCESSFUL_DONE) break)
               (cond
                 ((== r ZG_CURSOR_OPEN)
-                 (if (not (zg_columns (-> z db) cols 256)) (set ok 0)))
+                 (if (not (zg_columns (-> z db) cols 256))
+                     (block (coco_zg_fail z "machine_load") (set ok 0))))
                 ((== r ZG_CURSOR_FETCH)
                  (let ((i32 seq . -1) (char * chunk . nil))
-                   (if (not (zg_read_int (-> z db) (aof seq) nil)) (block (set ok 0) break))
+                   (if (not (zg_read_int (-> z db) (aof seq) nil))
+                       (block (coco_zg_fail z "machine_load") (set ok 0) break))
                    (if (not (zg_read_text_alloc (-> z db) (aof chunk) nil nil))
-                       (block (set ok 0) break))
+                       (block (coco_zg_fail z "machine_load") (set ok 0) break))
                    (if (and (>= seq 0) (< (cast size_t seq) np))
                        (set (nth (cast size_t seq) parts) chunk)
                      (free chunk))))
-                ((== r ZG_RETURN_VALUE) (if (not (zg_skip_field (-> z db))) (set ok 0)))
+                ((== r ZG_RETURN_VALUE)
+                 (if (not (zg_skip_field (-> z db)))
+                     (block (coco_zg_fail z "machine_load") (set ok 0))))
                 (#t (block))))
 
             (coco_sb_init (aof blob))
+            (set r0 (coco_refusals))
             (if ok
                 (for ((size_t i . 0)) (< i np) ((++ i))
                   (if (== (nth i parts) nil)
@@ -1294,6 +1334,17 @@
             (free parts)
 
             (if (not ok) (block (coco_sb_free (aof blob)) (return 0)))
+            ;; A BLOB SHORT OF A CHUNK IS NO MACHINE (3.64.6): a chunk its
+            ;; buffer was refused room for is not in it (the thread's count
+            ;; moved, `coco_refusals': no engine runs here, so the count is
+            ;; all a refusal leaves), and the thaw would read the rest as the
+            ;; machine. The machine handed in is finished, which its caller
+            ;; reads as memory's: a turn to do again
+            (if (!= (coco_refusals) r0)
+                (block (coco_sb_free (aof blob)) (coco_oom m)
+                       (snprintf (-> z err) 256 "%s"
+                                 "the frozen machine could not be read: out of memory")
+                       (return 0)))
 
             ;; Thawing empties the store but keeps its backend -- see
             ;; coco_store_reset -- so the choice points it restores can ask the

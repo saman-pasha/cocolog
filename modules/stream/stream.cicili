@@ -2079,6 +2079,10 @@
               (set rc (coco_m_read_clause_pos e (cast (char *) buf) c0 (aof t) (aof names)
                                               (aof pos) (aof start) err (sizeof err)))
             (set rc (coco_m_read_clause e (cast (char *) buf) (aof t) (aof names) err (sizeof err))))
+          ;; A CLAUSE THERE WAS NO MEMORY TO READ IS NO SYNTAX ERROR (3.64.6):
+          ;; resource_error(memory), as the text builtins raise it. Through
+          ;; 3.64.5 its `out of memory' was a syntax error, with no id swipl has
+          (if (== rc -3) (block (free buf) (return (coco_m_resource_error e "memory"))))
           (if (== rc -1) (return (st_syntax e g buf c0 l0 p0)))
           ;; A CLAUSE TOO DEEP FOR THE C STACK TO READ (3.60.0) raises
           ;; resource_error(c_stack), named by the caller's indicator, the

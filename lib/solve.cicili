@@ -1789,6 +1789,8 @@
   ;;; the only thing to say.
   (decl) (func coco_engine_error_text ((coco_engine * e) (char * out) (size_t len))
                (out int))
+  ;;; and whether that ball is error(resource_error(memory), _) (3.64.6)
+  (decl) (func coco_engine_ball_memory ((coco_engine * e)) (out int))
 
   (decl) (func coco_extern_install
                ((func call ((coco_engine * e) (const char * name) (u32 arity)

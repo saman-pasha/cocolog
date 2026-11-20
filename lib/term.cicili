@@ -1770,6 +1770,19 @@
              (cast (size_t *) (calloc (-> m atom_bucket_cap) (sizeof size_t))))
         (if (== (-> m atom_buckets) nil)
             (block (coco_oom m) (return 0)))
+        ;; AND ITS FIRST CELLS (3.64.6), as a green task's machine has them
+        ;; (`coco_machine_init_alias'): a push the heap's growth refused
+        ;; outright answers cell 0, which its caller writes, a machine
+        ;; finished writing nonsense into itself for the rest of its step
+        ;; (`coco_grow'). With no heap yet that write went through a null:
+        ;; `start''s goal, a fresh machine's first term, its growth refused
+        ;; twice, was a SIGSEGV in the reader (test/store-lock.pl's
+        ;; `rr_commit')
+        (set (-> m heap) (cast (u64 *) (malloc (* 64 (sizeof u64)))))
+        (if (== (-> m heap) nil)
+            (block (free (cast (void *) (-> m atom_buckets))) (set (-> m atom_buckets) nil)
+                   (coco_oom m) (return 0)))
+        (set (-> m heap_cap) 64)
         (set (-> m tlimit) 65536)
         (set (-> m treq) 65536)
         (set (-> m wdeep) 1024)

@@ -92,7 +92,7 @@ main :-
               '    M is N - 1, loads(M).' ]),
     use_module(Work),
     a_thread, what_it_sees, a_channel, closed, backpressure, helpers, contention, imports,
-    parallel, locks, conditions,
+    parallel, locks, conditions, message_refused(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -383,3 +383,80 @@ conditions :-
               atomic_list_concat([A5, T5, S5], '-', X5) ), X5, G5),
     check('and waiting on one held TWICE is refused, not undefined', G5,
           'wait-recursive_mutex-the_mutex').
+
+%% ---- a message with no memory for its text (3.64.6) -----------------------
+%%
+%% A CHANNEL CARRIES A TERM AS ITS TEXT, and a text whose buffer the
+%% allocator refused room for, even as little as it needed, is short of a
+%% piece: the machine that wrote it is finished, and through 3.64.5 the send
+%% went on and put the short text in the channel for another thread to read
+%% as some other term, or as none. A green task sends here, so that the
+%% world goes on past the task its refusal finished, under one worker, so
+%% that the N-th request is the same one in every run; test/refuse.c refuses
+%% each request the send makes in turn, once and twice in a row. What
+%% reaches the channel must be the message whole or nothing: the send
+%% answered (`sent'), raised resource_error(memory) for a growth given less
+%% than it asked (`late', the message whole) or for a request refused
+%% (`refused', nothing sent), or the task was finished after its send
+%% (`finished') or before it -- `withheld', which a text refused outright
+%% must come to at least once; or the run ends as a host out of memory ends.
+%% And the text is the buffer handed over, no copy of it: a copy refused
+%% reached the task as a term that `would not write'.
+message_refused(D) :-
+    section('a message with no memory for its text'),
+    atom_concat(D, '/mr', Dir),
+    (   refuse_shim(Dir, Shim)
+    ->  atom_concat(Dir, '/mr.pl', File), mr_fixture(File),
+        atom_concat(Dir, '/mr.sh', Sweep), mr_sweep(Sweep),
+        cocolog(C),
+        sh_join(['sh ', Sweep, ' ', C, ' ', Shim, ' ', File], Cmd),
+        shell(Cmd, Out, _, 300000),
+        check('each request of a green send refused in turn, once and twice: the message whole or none (Z, K)', Out, clean)
+    ;   true
+    ).
+
+%% the program: one line, what the task said and what reached the channel
+mr_fixture(Path) :-
+    fixture(Path,
+            [ ':- use_module(library(thread)).',
+              'rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
+              'mr_list(L) :- length(L, 600), maplist(=(x), L).',
+              'mr_send(Ch, Ch2, L) :- catch(( rf_mark(''REFUSE_ON''), channel_send(Ch, m(L)), S = sent ), E, S = E), rf_mark(''REFUSE_OFF''), channel_send(Ch2, S).',
+              'mr_world(Ch, Ch2, L) :- go(mr_send(Ch, Ch2, L), F), catch(await(F), _, true).',
+              'mr_got(Ch, L, G) :- catch(( channel_recv(Ch, 0, M) -> ( M == m(L) -> G = whole ; G = other ) ; G = none ), _, G = unread).',
+              'mr_said(sent, whole) :- !, write(sent).',
+              'mr_said(error(resource_error(memory), _), whole) :- !, write(late).',
+              'mr_said(error(resource_error(memory), _), none) :- !, write(refused).',
+              'mr_said(none, whole) :- !, write(finished).',
+              'mr_said(none, none) :- !, write(withheld).',
+              'mr_said(S, G) :- writeq(S-G).',
+              'main :- mr_list(L), channel_new(Ch), channel_new(Ch2), catch(async_run(mr_world(Ch, Ch2, L)), _, true), ( channel_recv(Ch2, 0, S) -> true ; S = none ), mr_got(Ch, L, G), mr_said(S, G), nl.' ]).
+
+mr_sweep(Path) :-
+    fixture(Path,
+            [ '# mr.sh COCOLOG SHIM FILE: `COCOLOG run FILE main'' under one green',
+              '# worker, once for each request the send between its marks makes, that',
+              '# one refused, and again with that one and the next refused: a growth',
+              '# refused outright. Prints clean when every run said the message reached',
+              '# the channel whole or not at all, or ended as a host out of memory',
+              '# ends, and one run withheld it; else what was wrong.',
+              'c=$1; shim=$2; f=$3',
+              'export COCOLOG_GREEN_WORKERS=1',
+              'n=$( REFUSE_REPORT=1 LD_PRELOAD=$shim $c --local run $f main 2>&1 >/dev/null | sed -n ''s/^REFUSE count //p'' )',
+              '[ -n "$n" ] && [ "$n" -gt 0 ] || { echo nocount; exit 0; }',
+              'bad=""; seen=0',
+              'for k in 1 2; do',
+              '  i=1',
+              '  while [ $i -le $((n + 1)) ]; do',
+              '    o=$( timeout 30 env REFUSE_N=$i REFUSE_RUN=$k LD_PRELOAD=$shim $c --local run $f main 2>/dev/null ); x=$?',
+              '    case "$o $x" in',
+              '      "sent 0"|"late 0"|"refused 0"|"finished 0"|" 2") ;;',
+              '      "withheld 0") seen=1;;',
+              '      *) bad="$bad #$k.$i:$o $x";;',
+              '    esac',
+              '    i=$((i + 1))',
+              '  done',
+              'done',
+              'if [ -n "$bad" ]; then echo "wrong of $n:$bad" | cut -c1-400',
+              'elif [ $seen = 1 ]; then echo clean',
+              'else echo "none withheld of $n"; fi' ]).

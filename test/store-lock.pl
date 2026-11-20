@@ -706,7 +706,7 @@ refused_read(D) :-
         check('test/refuse.c compiles', CcExit-Why, 0-''),
         (   CcExit =:= 0
         ->  rr_rows(D, Shim), rr_green(D, Shim), rr_dirty(D, Shim), rr_any(D, Shim),
-            rr_cursor(D, Shim), rr_hint(D, Shim), rr_tail(D, Shim)
+            rr_cursor(D, Shim), rr_hint(D, Shim), rr_tail(D, Shim), rr_commit(D, Shim)
         ;   true
         )
     ).
@@ -914,6 +914,173 @@ rr_tail(D, Shim) :-
     findall(Why, ( member(Size, [8, 16]),
                    rr_size_bad(C, Shim, D, rt, Ft, 'COCOLOG_GREEN_WORKERS=2', Size, 'rows(2)', Why) ), Bad),
     check('each of a commit tail''s two requests refused after its intention, the write is made and read back', Bad, []).
+
+%% A COMMIT THE STORE REFUSED IS NO SUCCESS (3.64.6). test/refuse.c refuses
+%% each request a `-s' script's writes and the commit after them make, in
+%% turn, once and twice in a row -- the stretch begins at the program's
+%% mark and runs to the process's end, the commit inside it -- each run
+%% over a store of its own, which a second process reads: a run that exits
+%% 0 left all twelve of its clauses whole, and none left part of them.
+%% Through 3.64.5 a commit refused after `main' proved said `commit failed'
+%% and exited 0, its store holding none of the twelve (`-s''s status was
+%% main's answer, `S'). And `start' and `drop', each request of the whole
+%% process refused in turn (REFUSE_ALL: they run no program to mark a
+%% stretch with): a `start' that exits 0 left its machine listed, a `drop'
+%% that exits 0 left it gone, and none ends by a signal. Through 3.64.5
+%% each printed its word and exited 0 whatever its commit said (`T', `U'),
+%% and a host whose machine's table of atoms was refused probed a table
+%% that was not there, a SIGSEGV (`coco_machine_init', `V'). A refusal
+%% before main -- the C++ runtime's, ZiguratIP's static initialisers -- is
+%% an abort that says std::bad_alloc, which nothing of cocolog's can see.
+rr_commit(D, Shim) :-
+    cocolog(C),
+    atom_concat(D, '/rcm', Dir),
+    shl(['mkdir -p ', Dir]),
+    atom_concat(Dir, '/rcm.pl', Fx),
+    fixture(Fx, ['rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
+                 'rcm_long(I, A) :- N is 200 + I * 37, length(Cs, N), maplist(=(0\'a), Cs), atom_codes(A, Cs).',
+                 'main :- findall(I-A, ( between(1, 12, I), rcm_long(I, A) ), Ps), rf_mark(\'REFUSE_ON\'), forall(member(I-A, Ps), assertz(rcm(I, A))).']),
+    atom_concat(Dir, '/rcm.sh', Sweep), rcm_sweep(Sweep),
+    sh_join(['sh ', Sweep, ' ', C, ' ', Shim, ' ', Fx, ' ', Dir], Cmd),
+    shell(Cmd, Out, _, 600000),
+    check('each request of a script''s writes and its commit refused in turn: exit 0 only with its twelve clauses kept, never part of them, no signal (S, X)',
+          Out, clean),
+    atom_concat(Dir, '/rst.sh', Machines), rst_sweep(Machines),
+    forall(member(Verb-Title,
+                  [start-'each request of a `start'' refused in turn: exit 0 only with its machine listed, no signal (T, V, W, Y)',
+                   drop-'each request of a `drop'' refused in turn: exit 0 only with its machine gone, no signal (U)']),
+           ( sh_join(['sh ', Machines, ' ', C, ' ', Shim, ' ', Dir, ' ', Verb], MCmd),
+             shell(MCmd, MOut, _, 600000),
+             check(Title, MOut, clean) )),
+    atom_concat(Dir, '/stp.sh', Steps), stp_sweep(Steps),
+    forall(member(Filter-Title,
+                  ['REFUSE_SIZE=2048'-'each request of a `step'' the size of a machine''s first table refused in turn: exit 0 only with its machine gone, a refused turn LOST with its machine there to step again, no signal (R, P, O, M)',
+                   'REFUSE_MIN=4096'-'each request of 4096 bytes or more of a `step'' refused in turn: the same (O, M)',
+                   'REFUSE_MIN=4096 big'-'and of a `step'' that thaws a blob of many kilobytes and suspends again: exit 2 only with its machine there, a refused turn LOST saying memory (P, Q, N, L, O, M)']),
+           ( sh_join(['sh ', Steps, ' ', C, ' ', Shim, ' ', Dir, ' ', Filter], SCmd),
+             shell(SCmd, SOut, _, 600000),
+             check(Title, SOut, clean) )).
+
+%% stp.sh COCOLOG SHIM DIR FILTER [big]: `step' of a machine started in a
+%% store of its own, once for each request the whole process makes that
+%% FILTER names -- REFUSE_SIZE=N, REFUSE_MIN=N: a step's are some sixteen
+%% thousand, the preload's among them -- that one and then that one and the
+%% next refused, and the store read by a process with no shim: its `list',
+%% and a second `step' of a machine the first did not finish. A turn refused
+%% is LOST (3), saying memory's words, and exit 1 is the store's open
+%% refused before the turn began, which says so. A step finishes the
+%% machine (0); BIG seeds one
+%% suspended part way with a list and an atom of 3000 on its heap, which a
+%% step thaws from a blob of many kilobytes and suspends again (2). Prints
+%% clean when no run was wrong and one turn was LOST
+stp_sweep(Path) :-
+    fixture(Path,
+            [ 'c=$1; shim=$2; d=$3; flt=$4; big=$5',
+              'if [ -n "$big" ]; then',
+              '  g="length(L, 3000), maplist(=(97), L), atom_codes(A, L), between(1, 100000, I), I >= 100000"; want=2; on=1',
+              'else',
+              '  g="X = f(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, [b, c, d]), atom(a)"; want=0; on=0',
+              'fi',
+              'rm -rf $d/sseed; $c --embed $d/sseed start rsm "$g" > /dev/null 2>&1',
+              'if [ -n "$big" ]; then $c --embed $d/sseed --steps 20000 step rsm > /dev/null 2>&1; fi',
+              'rm -rf $d/s0; cp -r $d/sseed $d/s0',
+              'n=$( env $flt REFUSE_ALL=1 REFUSE_REPORT=1 LD_PRELOAD=$shim $c --embed $d/s0 step rsm 2>&1 >/dev/null | sed -n \'s/^REFUSE count //p\' )',
+              '[ -n "$n" ] && [ "$n" -gt 0 ] || { echo nocount; exit 0; }',
+              'bad=""; lost=0',
+              'for run in 1 2; do',
+              '  i=1',
+              '  while [ $i -le $n ]; do',
+              '    kb=$d/s_$i; rm -rf $kb; cp -r $d/sseed $kb',
+              '    timeout 30 env $flt REFUSE_ALL=1 REFUSE_N=$i REFUSE_RUN=$run LD_PRELOAD=$shim $c --embed $kb step rsm > $kb.out 2>&1; x=$?',
+              '    l=$( timeout 30 $c --embed $kb list 2>/dev/null | grep -c " rsm " )',
+              '    case "$x" in',
+              '      0|2) if [ $x != $want ] || [ "$l" != $on ]; then bad="$bad #$run.$i:$x:$l"; fi ;;',
+              '      1|3) [ $x = 3 ] && lost=1',
+              '         if [ $x = 1 ] && ! grep -q "cannot open the embedded store" $kb.out; then bad="$bad #$run.$i:1:$(grep -v \'^REFUSE\' $kb.out | head -c 60 | tr \'\\n\' \' \')";',
+              '         elif [ $x = 3 ] && ! grep -q "memory" $kb.out; then bad="$bad #$run.$i:3:unsaid:$(grep -v \'^REFUSE\' $kb.out | head -c 40 | tr \'\\n\' \' \')";',
+              '         elif [ "$l" != 1 ]; then bad="$bad #$run.$i:$x:$l";',
+              '         else timeout 30 $c --embed $kb step rsm > $kb.step 2>&1; y=$?',
+              '           [ $y = $want ] || bad="$bad #$run.$i:again:$y:$(head -c 60 $kb.step | tr \'\\n\' \' \')"; fi ;;',
+              '      134) grep -q "std::bad_alloc" $kb.out || bad="$bad #$run.$i:134" ;;',
+              '      *) bad="$bad #$run.$i:$x:$l" ;;',
+              '    esac',
+              '    rm -rf $kb $kb.out $kb.step',
+              '    i=$((i + 1))',
+              '  done',
+              'done',
+              'if [ -n "$bad" ]; then echo "wrong of $n:$bad" | cut -c1-400',
+              'elif [ $lost = 1 ]; then echo clean',
+              'else echo "none lost of $n"; fi' ]).
+
+%% rcm.sh COCOLOG SHIM FILE DIR: the script FILE over a store of its own,
+%% once for each request from its mark to its end, that one and then that
+%% one and the next refused, and the store read back by a process with no
+%% shim. Prints clean when no run was wrong and one said `commit failed'
+rcm_sweep(Path) :-
+    fixture(Path,
+            [ 'c=$1; shim=$2; f=$3; d=$4',
+              'rm -rf $d/kb0',
+              'n=$( REFUSE_REPORT=1 LD_PRELOAD=$shim $c --embed $d/kb0 -s $f 2>&1 >/dev/null | sed -n \'s/^REFUSE count //p\' )',
+              '[ -n "$n" ] && [ "$n" -gt 0 ] || { echo nocount; exit 0; }',
+              'bad=""; refused=0',
+              'for run in 1 2; do',
+              '  i=1',
+              '  while [ $i -le $n ]; do',
+              '    kb=$d/kb_$i; rm -rf $kb',
+              '    timeout 30 env REFUSE_N=$i REFUSE_RUN=$run LD_PRELOAD=$shim $c --embed $kb -s $f > $kb.out 2>&1; x=$?',
+              '    r=$( timeout 30 $c --embed $kb query "catch(( aggregate_all(count, ( rcm(I, A), atom_length(A, L), L =:= 200 + I * 37 ), W), aggregate_all(count, rcm(_, _), T) ), _, ( W = 0, T = 0 )), format(\'kept(~w,~w)~n\', [W, T])" 2>/dev/null | grep -o \'kept([0-9]*,[0-9]*)\' )',
+              '    case "$x $r" in',
+              '      "0 kept(12,12)") ;;',
+              '      [12]" kept(0,0)") if grep -q "commit failed" $kb.out; then refused=1; fi ;;',
+              '      [12]" kept(12,12)") ;;',
+              '      *) bad="$bad #$run.$i:$x:$r" ;;',
+              '    esac',
+              '    rm -rf $kb $kb.out',
+              '    i=$((i + 1))',
+              '  done',
+              'done',
+              'if [ -n "$bad" ]; then echo "wrong of $n:$bad" | cut -c1-400',
+              'elif [ $refused = 1 ]; then echo clean',
+              'else echo "no commit refused of $n"; fi' ]).
+
+%% rst.sh COCOLOG SHIM DIR VERB: `start' or `drop' of a machine over a
+%% store of its own (for a drop, a copy of one the machine was started in),
+%% once for each request the whole process makes, that one and then that
+%% one and the next refused, and the store read by a process with no shim:
+%% its `list', and a started machine's `step', which must thaw it. Prints
+%% clean when no run was wrong and one was refused
+rst_sweep(Path) :-
+    fixture(Path,
+            [ 'c=$1; shim=$2; d=$3; verb=$4',
+              'g="X = f(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, [b, c, d]), atom(a)"',
+              'if [ $verb = start ]; then want=1; else want=0; fi',
+              'go() { k=$1; shift; if [ $verb = start ]; then timeout 30 env "$@" $c --embed $k start rsm "$g"; else timeout 30 env "$@" $c --embed $k drop rsm; fi; }',
+              'seed() { rm -rf $1; if [ $verb = drop ]; then cp -r $d/seed $1; fi; }',
+              'rm -rf $d/seed; $c --embed $d/seed start rsm "$g" > /dev/null 2>&1',
+              'seed $d/m0',
+              'n=$( go $d/m0 REFUSE_ALL=1 REFUSE_REPORT=1 LD_PRELOAD=$shim 2>&1 >/dev/null | sed -n \'s/^REFUSE count //p\' )',
+              '[ -n "$n" ] && [ "$n" -gt 0 ] || { echo nocount; exit 0; }',
+              'bad=""; refused=0',
+              'for run in 1 2; do',
+              '  i=1',
+              '  while [ $i -le $n ]; do',
+              '    kb=$d/m_$i; seed $kb',
+              '    go $kb REFUSE_ALL=1 REFUSE_N=$i REFUSE_RUN=$run LD_PRELOAD=$shim > $kb.out 2>&1; x=$?',
+              '    l=$( timeout 30 $c --embed $kb list 2>/dev/null | grep -c " rsm " )',
+              '    case "$x" in',
+              '      0) if [ "$l" != $want ]; then bad="$bad #$run.$i:0:$l";',
+              '         elif [ $verb = start ] && ! timeout 30 $c --embed $kb step rsm > $kb.step 2>&1; then bad="$bad #$run.$i:step:$(head -c 60 $kb.step | tr \'\\n\' \' \')"; fi ;;',
+              '      1) refused=1 ;;',
+              '      134) grep -q "std::bad_alloc" $kb.out || bad="$bad #$run.$i:134" ;;',
+              '      *) bad="$bad #$run.$i:$x" ;;',
+              '    esac',
+              '    rm -rf $kb $kb.out $kb.step',
+              '    i=$((i + 1))',
+              '  done',
+              'done',
+              'if [ -n "$bad" ]; then echo "wrong of $n:$bad" | cut -c1-400',
+              'elif [ $refused = 1 ]; then echo clean',
+              'else echo "none refused of $n"; fi' ]).
 
 %% the run of fixture FX with every request of SIZE bytes refused, when its
 %% store does not read back WANT

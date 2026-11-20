@@ -183,6 +183,31 @@ fixture(Path, Lines) :-
 
 cocolog(C) :- current_prolog_flag(executable, C).
 
+%% refuse_shim(+Dir, -Shim): test/refuse.c built into Dir as refuse.so, the
+%% case's check that it compiled made; or the section's SKIP said, indented,
+%% and a failure -- the shim interposes glibc's allocator (no Darwin, no
+%% other libc) and wants the suite's C compiler. A section asks it as the
+%% condition of an if-then-else whose else is `true'.
+refuse_shim(Dir, Shim) :-
+    shell('uname -s', Sys, _),
+    shell('getconf GNU_LIBC_VERSION 2>/dev/null', Libc, _),
+    (   ( Sys == 'Darwin' ; \+ sub_atom(Libc, 0, _, _, glibc) )
+    ->  format("   SKIP (test/refuse.c interposes glibc's allocator)~n", []),
+        fail
+    ;   ( exists_file('tools/cc/cc') -> Compiler = 'tools/cc/cc' ; Compiler = clang ),
+        sh_join(['command -v ', Compiler, ' >/dev/null 2>&1 || test -x ', Compiler], HaveCc),
+        (   sh_exit(HaveCc, 0)
+        ->  shl(['mkdir -p ', Dir]),
+            atom_concat(Dir, '/refuse.so', Shim),
+            sh_join([Compiler, ' -shared -fPIC -O3 -o ', Shim, ' test/refuse.c 2>&1'], Cc),
+            shell(Cc, Why, CcExit),
+            check('test/refuse.c compiles', CcExit-Why, 0-''),
+            CcExit =:= 0
+        ;   format("   SKIP (no C compiler for test/refuse.c)~n", []),
+            fail
+        )
+    ).
+
 %% the checkout root, WITHOUT the trailing slash working_directory/2 answers
 %% with: `ROOT/test/x' built on the raw answer is `.../cocolog//test/x', and
 %% Cicili, handed such a target, put its output somewhere it did not then

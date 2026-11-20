@@ -37,7 +37,12 @@
  *
  * THE PROGRAM MARKS THE STRETCH ITSELF: getenv("REFUSE_ON") starts the
  * count and getenv("REFUSE_OFF") stops it, each answered NULL (in cocolog,
- * getenv/2 fails). Nothing is counted or refused outside the marks.
+ * getenv/2 fails). Nothing is counted or refused outside the marks, but
+ * under REFUSE_ALL=1, where the stretch begins at the process's first
+ * allocation: a command that runs no program (`cocolog start', `drop') is
+ * swept over the last requests its REFUSE_REPORT count names, which is
+ * where its save, its commit and its close are (test/store-lock.pl's
+ * `rr_commit').
  *
  * Built by the case that uses it, with the suite's compiler and -O3; never
  * committed built. glibc only: the allocator behind is called by its
@@ -84,6 +89,7 @@ static void init(void) {
     atleast = s != NULL ? atol(s) : 0;
     s = env("REFUSE_RUN");
     run = s != NULL ? atol(s) : 1;
+    if (env("REFUSE_ALL") != NULL) on = 1;
 }
 
 static int refuse(size_t bytes) {

@@ -436,7 +436,8 @@
   ;;; 0 when SRC holds only layout and comments; -1 on a syntax error, with
   ;;; ERR saying what and where; -2 (3.60.0) when the text is too deep for
   ;;; the C stack to read, for the module to raise resource_error(c_stack)
-  ;;; as swipl's reader raises it. `coco_m_read_term' is the same reader
+  ;;; as swipl's reader raises it; -3 (3.64.6) when there was no memory to
+  ;;; read it, for resource_error(memory). `coco_m_read_term' is the same reader
   ;;; with the names and the reason thrown away.
   (decl) (func coco_m_read_clause ((coco_engine * e) (const char * src) (size_t * out)
                                    (size_t * names) (char * err) (size_t errlen)) (out int))
@@ -1234,19 +1235,25 @@
   (func coco_m_utf8_enc ((char * u) (i64 cp)) (out int)
         (return (coco_utf8_enc u cp)))
 
+  ;;; A TEXT SHORT OF A PIECE IS NONE (3.64.6): a piece its buffer was
+  ;;; refused is not in it (the thread's count moved, `coco_refusals'), and
+  ;;; a module that took it acted on another term -- a thread started on a
+  ;;; goal that is not the one given, a channel's message cut short for the
+  ;;; thread that reads it. The machine the call runs on is finished all the
+  ;;; same (`coco_refuse'); null is what every caller takes for a term that
+  ;;; would not write. THE TEXT HANDED OVER IS THE BUFFER'S OWN (3.64.6), a
+  ;;; C string at every length that the caller frees: through 3.64.5 it was
+  ;;; copied, and a copy the allocator refused -- a request with nothing
+  ;;; smaller to ask, the machine left as it was -- reached the program as
+  ;;; a term that `would not write', a cocolog_error where memory was
+  ;;; refused.
   (func coco_m_term_text ((coco_engine * e) (size_t t)) (out char *)
-        (let ((coco_strbuf b) (char * out . nil))
+        (let ((coco_strbuf b) (size_t r0 . #'(coco_refusals)))
           (coco_sb_init (aof b))
-          (if (not (coco_write_canonical (-> e m) (aof b) t))
+          (if (or (not (coco_write_canonical (-> e m) (aof b) t))
+                  (!= (coco_refusals) r0))
               (block (coco_sb_free (aof b)) (return nil)))
-          (if (!= ($ b s) nil)
-              (block
-               (set out (cast (char *) (malloc (+ ($ b len) 1))))
-               (if (!= out nil)
-                   (block (memcpy out ($ b s) ($ b len))
-                          (set (nth ($ b len) out) (cast char 0))))))
-          (coco_sb_free (aof b))
-          (return out)))
+          (return ($ b s))))
 
   (func coco_m_read_term ((coco_engine * e) (const char * src)) (out size_t)
         (let ((size_t t . 0))
@@ -1283,6 +1290,12 @@
           ;; a text too deep for the C stack to read is no syntax error
           ;; (3.60.0): -2, for the module to raise resource_error(c_stack)
           (if (and (== rc -1) ($ r cshort)) (set rc -2))
+          ;; nor is a text there was no memory to read (3.64.6): -3, for the
+          ;; module to raise resource_error(memory) as the text builtins do
+          ;; (`coco_tx_syntax'); the reader's failure for memory says so first
+          (if (and (== rc -1) (and (!= ($ r ewhat) nil)
+                                   (== 0 (strncmp ($ r ewhat) "out of memory" 13))))
+              (set rc -3))
           (if (== rc 1)
               (block
                 (set (cof out) t)
