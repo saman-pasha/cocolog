@@ -20234,3 +20234,109 @@ case was run again after it.
 
 Held by test/files/write_spacing.pl (109 lines to swipl, 46 of them
 3.64.1's wrong).
+
+## A name's lookup in a green world takes no lock, and reads only what its machine synced (3.64.3)
+
+THE FUNCTOR LOOKUP TOOK THE NAMES LOCK (lib/term.cicili, the lead the
+3.62.1 review left). An intern's hit has been lock-free since 2.9.2: it
+probes the arrays its machine synced and publishes nothing. Through 3.64.2
+`coco_functor_id` took the world's names lock at every lookup, a hit too,
+and published at its end (`coco_tbl_end`): it copied the machine's tables
+to the root (`coco_tupdate`) with or without a world, and in one it moved
+the generation, so every other machine synced again at its next intern.
+bench/concurrency.pl's `light_green_yield 1000 100`, a thousand tasks of a
+hundred yields, took the lock there 215 223 times. Now a hit is lock-free
+too (`coco_functor_find`); a miss takes the lock, and in a world looks
+again under it before it inserts, and only an insert grows the table and
+publishes it. In that lane no functor lookup takes the lock now, and its
+count falls from 1 023 282 351 instructions to
+976 556 257 (-4.6 %): `coco_tupdate` -26 885 084, `pthread_mutex_lock`
+-7 783 888 and its unlock -5 621 678, `coco_functor_id` -5 879 361, and
+`coco_intern_len` +4 046 233, the bound's price in a world (below). Its
+time falls by a third, as callgrind, which runs the threads one at a
+time, cannot show of a lock four workers wait on: seven alternating
+rounds of `light_green_yield 10000 100` on four workers, a median of
+0.970 s against 3.64.2's 1.453, every run of the one faster than every
+run of the other, and `light_green 10000` 0.085 s against 0.122.
+
+A LOCK-FREE HIT COULD ANSWER A NAME ITS MACHINE DID NOT HOLD (since 2.9.2).
+The bucket array is the world's: another task's insert writes a slot into
+it under the lock while a probe reads it with none. A slot whose id is at
+or past the probing machine's synced length names an atom its tables do
+not hold yet, and `coco_atom_name` answered `<bad-atom>`: atom_length/2
+of an atom a task had just made was 10. Three tasks interning the same
+200,000 new atoms at once read one six runs in six on 3.64.2, four tasks
+six in six too. Its entry may also lie past the end of the array that
+machine still reads: an insert that
+grows the table writes its entry into the new array, and the old one is
+not freed while the tables are shared but ends where it did. A probe now
+ends at such a slot as at an empty one, and the locked look, which syncs
+first, finds the name. An empty slot holds 0, so its id wraps past every
+length, and one unsigned test ends the walk at both. The functor probe
+keeps the same rule.
+
+THE FUNCTOR BUCKETS ARE NOT FREED WHILE THE TABLES ARE SHARED, as the
+atoms' have not been since 3.62.1. With the functor hit lock-free, a rehash
+under the lock by the task whose insert filled the table freed the array
+another task's probe was reading. This was a fault of the change's first
+cut, never of a release: 3.64.2's lookups all took the lock.
+
+WHAT IT COSTS. A start, `cocolog query true` under callgrind, from
+3.64.2's 35 562 140 instructions to 35 304 704 (-257 436, -0.72 %):
+- `coco_tupdate`, -193 390: the publish every functor lookup made, now an
+  insert's alone;
+- `coco_functor_id`, -63 026: the hit returns before the lock's two calls,
+  and the walk's empty slot and its bound are one test;
+- `__strcmp_avx2`, -20 864: the same 35 846 calls from the reader, over
+  strings that lie elsewhere;
+- `coco_intern_len`, +19 489.
+The atom probe is written once and emitted twice (`coco-intern-probe`):
+with the bound where a world runs in the process (`coco_tbl_any`), and
+without it where none does. A single copy with the bound for both cost a
+start 76 138 instructions in `coco_intern_len`: the length took a
+register, and the hash was spilled and loaded back around `bcmp` at every
+intern. Without a world the split's loop is the unbounded one,
+instruction for instruction; what is left is the prologue's stores, a hash
+still spilled, and the layout. The
+functor walk's two tests as one save 61 424 instructions.
+tools/flow/zero.sh against 3.64.2, work less padding: nrev +47
+instructions, queens -125, lookup +1 371 (+0.003 %).
+
+RULES, each taken out alone on the final code, one build each:
+- A1, the intern's bound in a world: `<bad-atom>` six runs in six
+  (test/async.pl's `same_names`), as 3.64.2;
+- A3, the functor rehash freeing its old buckets while shared: a SIGSEGV
+  six runs in six (`rehash_functors`);
+- A4, every functor lookup under the lock and published, as through
+  3.64.2: the yield lane's median 1.242 s against 0.852, seven
+  alternating rounds, 46 % more;
+- A5, a miss in a world inserting without looking again under the lock:
+  a functor made again six runs in six of the section's four tasks,
+  200 009 to 203 438 functors where the world makes 200 001. With three
+  tasks, as the section first stood, it was half the runs, so the section
+  runs four, a task a worker.
+A2, the functor probe's bound, stays green and stays. A functor's readers
+take its id as an entry of the shared array, which the inserting task
+wrote before the slot, so an id past the machine's length is the right
+functor wherever the array did not grow under the look. Where it did, the
+probe reads past the end of the old array, into the slack of its mapping,
+for the few instructions between the insert's slot and its publish: a
+window no fixture hits. The bound costs the walk nothing (it is the
+walk's end test), and it keeps the probe off what its machine has not
+synced.
+
+THE RUN, on the binary that ships: the lint case first, red once because
+the card's two cites were renumbered while it ran, and green alone after;
+then async, thread, cowork, httpd, engine, gc, errors, store-lock,
+library, files, cyclic, directives, script, string, units, flowchart,
+flowdebug, window, trace, backtrace, journal, repl, meter, process, text,
+stream, serialize, argv, template, rationals, static, and the term, module
+and state binaries, each alone, every one green with no SKIP; async again
+alone once `same_names` ran four tasks. The card check passes, X1's
+lib/term.cicili cite and L1's renumbered past the new macro.
+
+Held by test/async.pl's `same_names` (four tasks make the same 200,000
+new atoms and then functors in step, read each back, and the world adds
+200,001 functors, the names and the environment of the loop's second
+clause, '$e'/N, which its first selection compiles) and `rehash_functors`
+(one task makes 200,000 new functors while three look one up).

@@ -198,6 +198,8 @@ main :-
     foreign_ack,
     foreign_begin,
     rehash,
+    same_names,
+    rehash_functors,
     stacked,
     live_waiters,
     gave_up,
@@ -900,6 +902,80 @@ rehash :-
     sh_join(['COCOLOG_GREEN_WORKERS=4 ', C, ' run ', Path, ' main 2>&1'], Cmd),
     shell(Cmd, Out, Exit, 60000),
     check('200,000 new atoms on one worker, lookups of an old one on three',
+          Out-Exit, done-0),
+    shl(['rm -rf ', D]).
+
+%% A LOCK-FREE LOOK TAKES NO ENTRY PAST WHAT ITS MACHINE SYNCED (3.64.3).
+%% The bucket array is the world's, and another task's insert writes a
+%% slot into it while this task's probe reads it with no lock: the id there
+%% names an atom this task's tables do not hold yet, and through 3.64.2 the
+%% probe answered it -- atom_length/2 of an atom the task had just made
+%% read `<bad-atom>', six runs in six, since 2.9.2's lock-free hit. Four
+%% tasks intern the same 200,000 new atoms in step and read each length
+%% back; then make the same 200,000 new functors in step (3.64.3's
+%% lock-free functor hit, its atoms made first), read each name and arity
+%% back and look each up a second time, which must be the same functor.
+%% Each functor is made ONCE: the world adds 200,001 to the table, the
+%% names and the environment of sf_loop/3's second clause ('$e'/N), which
+%% its first selection compiles. A look that missed and inserted without
+%% looking again under the lock made a functor again where another task had
+%% made it since: four tasks, a task a worker, did so six runs in six, where
+%% three did in half the runs.
+same_names :-
+    section('four tasks make the same new atoms and functors in step'),
+    scratch(D),
+    atom_concat(D, '/same.pl', Path),
+    fixture(Path,
+            [ 'sn_loop(K, K, ok) :- !.',
+              'sn_loop(I, K, R) :-',
+              '    atom_concat(sn_, I, A), atom_length(A, L), atom_length(I, LI),',
+              '    ( L =:= LI + 3 -> I1 is I + 1, sn_loop(I1, K, R) ; R = bad(I, L) ).',
+              'sn_atoms(K, K) :- !.',
+              'sn_atoms(I, K) :- atom_concat(sf_, I, A), atom_length(A, _), I1 is I + 1, sn_atoms(I1, K).',
+              'sf_loop(K, K, ok) :- !.',
+              'sf_loop(I, K, R) :-',
+              '    atom_concat(sf_, I, A), functor(T, A, 1), functor(T, N, Ar), arg(1, T, x), T2 =.. [A, x],',
+              '    ( N == A, Ar == 1, T == T2 -> I1 is I + 1, sf_loop(I1, K, R) ; R = bad(I) ).',
+              'sn_world(P, R1, R2, R3, R4) :-',
+              '    go(call(P, 0, 200000, _), F1), go(call(P, 0, 200000, _), F2),',
+              '    go(call(P, 0, 200000, _), F3), call(P, 0, 200000, R4),',
+              '    await(F1, call(_, _, _, R1)), await(F2, call(_, _, _, R2)), await(F3, call(_, _, _, R3)).',
+              'main :- async_run(sn_world(sn_loop, _, _, _, _), W1), W1 = sn_world(_, A1, A2, A3, A4),',
+              '        sn_atoms(0, 200000), statistics(functors, F0),',
+              '        async_run(sn_world(sf_loop, _, _, _, _), W2), W2 = sn_world(_, B1, B2, B3, B4),',
+              '        statistics(functors, F1), N is F1 - F0,',
+              '        write(atoms(A1, A2, A3, A4)-functors(B1, B2, B3, B4, N)), nl.' ]),
+    cocolog(C),
+    sh_join(['COCOLOG_GREEN_WORKERS=4 ', C, ' run ', Path, ' main 2>&1'], Cmd),
+    shell(Cmd, Out, Exit, 120000),
+    check('each name read back right, each functor found again the same, made once',
+          Out-Exit, 'atoms(ok,ok,ok,ok)-functors(ok,ok,ok,ok,200001)'-0),
+    shl(['rm -rf ', D]).
+
+%% THE FUNCTOR TABLE'S BUCKETS ARE NOT FREED UNDER A PROBE (3.64.3), as the
+%% atom table's are not (3.62.1, `rehash'): a functor's lookup probes the
+%% bucket array its machine synced with no lock, and a rehash under the
+%% names' lock by the task whose insert filled the table freed it. One task
+%% makes 200,000 new functors, three look up an old one.
+rehash_functors :-
+    section('the functor table rehashes under lock-free lookups'),
+    scratch(D),
+    atom_concat(D, '/rehashf.pl', Path),
+    fixture(Path,
+            [ 'rf_new(K, K) :- !.',
+              'rf_new(I, K) :- atom_concat(rf_, I, A), functor(_, A, 2), I1 is I + 1, rf_new(I1, K).',
+              'rf_hit(F) :- future_ready(F), !.',
+              'rf_hit(F) :- rf_hits(200), rf_hit(F).',
+              'rf_hits(0) :- !.',
+              'rf_hits(K) :- functor(T, rf_hit, 2), functor(T, rf_hit, 2), K1 is K - 1, rf_hits(K1).',
+              'rf_world :-',
+              '    go(rf_new(0, 200000), F), go(rf_hit(F), G1), go(rf_hit(F), G2), rf_hit(F),',
+              '    await(F), await(G1), await(G2).',
+              'main :- async_run(rf_world), write(done), nl.' ]),
+    cocolog(C),
+    sh_join(['COCOLOG_GREEN_WORKERS=4 ', C, ' run ', Path, ' main 2>&1'], Cmd),
+    shell(Cmd, Out, Exit, 60000),
+    check('200,000 new functors on one worker, lookups of an old one on three',
           Out-Exit, done-0),
     shl(['rm -rf ', D]).
 

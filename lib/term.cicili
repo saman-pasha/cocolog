@@ -258,6 +258,30 @@
      ;; last act
      (if (< (nth (- n 1) s) 0) (coco_out_note_wide f s n))))
 
+;;; THE LOCK-FREE PROBE OF AN INTERN (`coco_intern_h'), written once and
+;;; emitted twice (3.64.3). A world shares the bucket array, and another
+;;; task's insert writes a slot into it while this probe reads it: under
+;;; BOUND 1 a slot at or past this machine's ATOMS_LEN ends the walk as an
+;;; empty one does -- an empty slot holds 0, so its FID wraps past every
+;;; length, and one test is both. Under BOUND 0, where no world runs in the
+;;; process (`coco_tbl_any'), the walk ends at an empty slot alone: one
+;;; probe with the bound for both cost a start 76 138 instructions, the
+;;; length taking a register and the hash spilled at every intern. A hit
+;;; returns its id; the walk's end falls through to the locked look
+(DEFMACRO coco-intern-probe (BOUND)
+  `(let ((size_t fj . #'(cast size_t (bitand h (cast u64 (- (-> m atom_bucket_cap) 1))))))
+     (while 1
+       (let ((size_t fid . #'(- (nth fj (-> m atom_buckets)) 1)))
+         ,(COPY-TREE
+           (IF (EQL BOUND 1)
+               '(if (>= fid (-> m atoms_len)) break)
+               '(if (== (+ fid 1) 0) break)))
+         (if (and (== ($ (nth fid (-> m atoms)) hash) h)
+                  (and (== ($ (nth fid (-> m atoms)) len) len)
+                       (== (memcmp ($ (nth fid (-> m atoms)) name) name len) 0)))
+             (return (cast u64 fid))))
+       (set fj (bitand (+ fj 1) (- (-> m atom_bucket_cap) 1))))))
+
 ;;;; ------------------------------------------------------------------
 ;;;; The term DSL -- Prolog terms as s-expressions, built at compile time
 ;;;; ------------------------------------------------------------------
@@ -2971,16 +2995,22 @@
         ;; probe one generation behind is sound. A miss takes the lock,
         ;; syncs, and looks AGAIN: another thread may have appended the name
         ;; meanwhile (the double-checked lock the predicate table needed).
-        (coco_tbl_sync m)
+        ;;
+        ;; NO ENTRY PAST WHAT THIS MACHINE SYNCED (3.64.3). The bucket array
+        ;; is the world's, and another task's insert writes a slot into it
+        ;; under the lock while this probe reads it: an id at or past this
+        ;; machine's ATOMS_LEN names an atom its tables do not hold yet, so
+        ;; `coco_atom_name' answered `<bad-atom>' -- three tasks interning
+        ;; the same new atoms at once, six runs in six since 2.9.2
+        ;; (test/async.pl, `same_names') -- and its entry may lie past the
+        ;; end of the array this machine still reads. Such a slot is the
+        ;; locked look's, which syncs first. The probe is
+        ;; `coco-intern-probe', with the bound where a world may share the
+        ;; tables and without it where none runs.
+        (if (== (coco_tbl_any) 0)
+            (coco-intern-probe 0)
+            (block (coco_tbl_sync m) (coco-intern-probe 1)))
         (block
-          (let ((size_t fj . #'(cast size_t (bitand h (cast u64 (- (-> m atom_bucket_cap) 1))))))
-            (while (!= (nth fj (-> m atom_buckets)) 0)
-              (let ((size_t fid . #'(- (nth fj (-> m atom_buckets)) 1)))
-                (if (and (== ($ (nth fid (-> m atoms)) hash) h)
-                         (and (== ($ (nth fid (-> m atoms)) len) len)
-                              (== (memcmp ($ (nth fid (-> m atoms)) name) name len) 0)))
-                    (return (cast u64 fid))))
-              (set fj (bitand (+ fj 1) (- (-> m atom_bucket_cap) 1)))))
           (coco_tbl_begin m)
           (let ((size_t j . #'(cast size_t (bitand h (cast u64 (- (-> m atom_bucket_cap) 1))))))
             ;; probe again: an occupied slot whose hash and bytes both match
@@ -3086,13 +3116,53 @@
               (while (!= (nth j nb) 0)
                 (set j (bitand (+ j 1) (- ncap 1))))
               (set (nth j nb) (+ i 1))))
-          (free (-> m functor_buckets))
+          ;; while the tables are shared the old array is not freed, as the
+          ;; atoms' is not (3.64.3): another task's lookup probes the array
+          ;; its machine synced with no lock (`coco_functor_id'). One array
+          ;; leaks a doubling.
+          (if (== coco_tbl_mx nil) (free (-> m functor_buckets)))
           (set (-> m functor_buckets) nb)
           (set (-> m functor_bucket_cap) ncap)
           (return 1)))
 
+  ;;; THE FUNCTOR'S ENTRY, LOOKED FOR IN THE TABLE THIS MACHINE SYNCED: its
+  ;;; id plus one; 0 where the walk met an empty slot, which *JP is then (0
+  ;;; for a table not made yet); or -1 at an entry at or past FUNCTORS_LEN,
+  ;;; which another task added since the sync (3.64.3, `coco_functor_id')
+  (static) (inline)
+  (func coco_functor_find ((coco_machine * m) (u64 name) (u32 arity) (size_t * jp)) (out i64)
+        (set (cof jp) 0)
+        (if (== (-> m functor_bucket_cap) 0) (return 0))
+        (let ((size_t mask . #'(- (-> m functor_bucket_cap) 1))
+              (size_t j . #'(cast size_t (bitand (coco_name_arity_hash name arity) (cast u64 mask))))
+              (size_t len . #'(-> m functors_len)))
+          ;; an empty slot holds 0, so its ID wraps past every length: one
+          ;; test ends the walk there and at a slot not synced, told apart
+          ;; once the walk has ended (a test of each cost a start 61 424
+          ;; instructions more)
+          (while 1
+            (let ((size_t b . #'(nth j (-> m functor_buckets))) (size_t id . #'(- b 1)))
+              (if (>= id len)
+                  (block
+                    (if (!= b 0) (return -1))
+                    (set (cof jp) j)
+                    (return 0)))
+              (if (and (== ($ (nth id (-> m functors)) name) name)
+                       (== ($ (nth id (-> m functors)) arity) arity))
+                  (return (cast i64 (+ id 1)))))
+            (set j (bitand (+ j 1) mask)))))
+
   (func coco_functor_id ((coco_machine * m) (u64 name) (u32 arity)) (out u64)
-        (coco_tbl_begin m)
+        ;; THE HIT IS LOCK-FREE (3.64.3), as an intern's is since 2.9.2: a
+        ;; name and an arity already there -- the goal text every task reads,
+        ;; each `,'/2 of it -- took the world's names lock and PUBLISHED, a
+        ;; generation moved on every lookup and every other machine synced
+        ;; again for its next one (215 223 locks for a thousand tasks of a
+        ;; hundred yields). The probe reads the arrays this machine synced,
+        ;; whose buckets no rehash frees while the tables are shared, and
+        ;; takes no entry at or past FUNCTORS_LEN: another task's insert is
+        ;; the locked look's, which syncs first (`coco_intern_h').
+        ;;
         ;; HASHED. It was a scan, on the argument that a program has tens of
         ;; functors and not thousands -- and a large library has two
         ;; thousand once it is loaded, so the scan was a quarter of every
@@ -3100,21 +3170,26 @@
         ;; was paid for by every lookup after it (CLAUDE.md, 1.8.31 and
         ;; 1.8.32). The table is the atom table's shape -- open addressing, an
         ;; entry is its id plus one -- and it is kept under half full, which
-        ;; is checked BEFORE the probe: so the probe ends at an empty slot even
+        ;; is checked BEFORE an insert: so a probe ends at an empty slot even
         ;; when the rehash has failed for want of memory.
-        (if (> (* (+ (-> m functors_len) 1) 2) (-> m functor_bucket_cap))
-            (if (not (coco_functors_rehash m))
-                (block (coco_tbl_end m) (return 0))))
-        (coco_tupdate m)
-        (let ((size_t mask . #'(- (-> m functor_bucket_cap) 1))
-              (size_t j . 0))
-          (set j (cast size_t (bitand (coco_name_arity_hash name arity) (cast u64 mask))))
-          (while (!= (nth j (-> m functor_buckets)) 0)
-            (let ((size_t id . #'(- (nth j (-> m functor_buckets)) 1)))
-              (if (and (== ($ (nth id (-> m functors)) name) name)
-                       (== ($ (nth id (-> m functors)) arity) arity))
-                  (block (coco_tbl_end m) (return (cast u64 id)))))
-            (set j (bitand (+ j 1) mask)))
+        (coco_tbl_sync m)
+        (let ((size_t j . 0) (i64 r . #'(coco_functor_find m name arity (aof j))))
+          (if (> r 0) (return (cast u64 (- r 1))))
+          (coco_tbl_begin m)
+          ;; in a world, look again under the lock: what another task added
+          ;; since this machine's sync, found and published as every look
+          ;; was through 3.64.2 (a quiet unlock there measured nothing).
+          ;; With no world the walk's empty slot is the one
+          (if (!= (coco_tbl_lock) nil)
+              (block
+                (set r (coco_functor_find m name arity (aof j)))
+                (if (> r 0) (block (coco_tbl_end m) (return (cast u64 (- r 1)))))))
+          ;; only an insert grows the table, and publishes it
+          (if (> (* (+ (-> m functors_len) 1) 2) (-> m functor_bucket_cap))
+              (block
+                (if (not (coco_functors_rehash m))
+                    (block (coco_tbl_end m) (return 0)))
+                (coco_functor_find m name arity (aof j))))
           (if (not (coco_tbl_grow m (cast (void **) (aof (-> m functors)))
                             (aof (-> m functors_cap)) (+ (-> m functors_len) 1)
                             (sizeof coco_functor)))

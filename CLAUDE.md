@@ -4411,7 +4411,21 @@ cocolint index offers no import of it.
   and only a miss locks, syncs and looks again (`coco_tbl_done` unlocks
   without moving the generation, which an intern hit used to move for
   every other machine); the lock and that publish, paid on every spawned
-  goal's text read, were the light lane's 3.6x. **A GREEN CHANNEL'S HANDLE
+  goal's text read, were the light lane's 3.6x. **SO DOES A FUNCTOR'S
+  (3.64.3)**: `coco_functor_id`'s hit returns before the lock
+  (`coco_functor_find`), where through 3.64.2 every lookup took the lock
+  and published -- 215 223 locks for a thousand tasks of a hundred
+  yields -- and a miss in a world looks again under the lock, or it
+  inserts a functor another task made since: two functors of one name and
+  arity. **A LOCK-FREE PROBE TAKES NO SLOT AT OR PAST ITS MACHINE'S SYNCED
+  LENGTH** (`atoms_len`, `functors_len`): the bucket array is the world's
+  and another task's insert writes into it, so such a slot names what this
+  machine's tables do not hold yet -- `<bad-atom>` since 2.9.2 -- and its
+  entry may lie past the end of the array the machine reads. An empty slot
+  is 0, so one unsigned test ends the walk at both. The intern's probe is
+  `coco-intern-probe`, emitted with the bound where a world runs
+  (`coco_tbl_any`) and without it where none does: one copy with the bound
+  spilled the hash at every intern. **A GREEN CHANNEL'S HANDLE
   IS ITS SLOT PLUS 1024 (2.9.4)**, and library(thread)'s channels (integer
   slots 0..255) DECLINE a goal whose channel is not one of theirs (its four
   channel rows end in `:declines`, and `th_chan_at_d` declines a
@@ -4575,8 +4589,9 @@ cocolint index offers no import of it.
     it, and the thread-local alone -- three instructions and two more
     saved registers, a call on Darwin -- cost a start 103 171
     instructions, all in `coco_intern_len` and `coco_functor_id`. **The atom
-    buckets are not freed while the tables are shared**
-    (`coco_atoms_rehash`), as no table's array is: an intern probes them
+    and functor buckets are not freed while the tables are shared**
+    (`coco_atoms_rehash`, and `coco_functors_rehash` since 3.64.3's
+    lock-free functor hit), as no table's array is: a lookup probes them
     with no lock.
   - **A nested waiter is state 3 from its first line to its last**
     (`coco_g_wait_nested`, the one body of the await's and the channel's
