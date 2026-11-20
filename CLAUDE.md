@@ -2318,7 +2318,12 @@ cocolint index offers no import of it.
   message_hook/3 does not see them where swipl's does.
 * **Consulting a file REPLACES the clauses it put in the store last time**
   (per-clause `origins`; `'$from'(Path, Clause)` on the wire); asserted
-  clauses and other files' are untouched.
+  clauses and other files' are untouched. That is the knowledge base's
+  model and NOT swipl's, by design: swipl's second file to define a
+  predicate replaces it whole, an assert's clauses too, with `Redefined
+  static procedure` (COMPAT.md's by-design row), and the predicate is
+  static from then on; here a store written by files and programs alike
+  keeps what each wrote. A change to it is the owner's to make.
 * **A single-sided rule is stored `Head :- '$ssu', !, Body`** (3.19.0,
   `Head, Guard => Body` with the guard before the cut; `coco_assert_from`):
   the clause compiler takes the mark off and compiles the head with the
