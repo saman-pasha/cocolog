@@ -3806,7 +3806,14 @@ into its `at_modules/1`. What a session must keep:
   u128, the remainder ORed into its last bit, ONE conversion of the signed
   quotient, so it rounds once and as the rounding mode says -- never
   `(double) N / (double) D`, which rounds N and D first past 53 bits
-  (`float(1r9007199254740993)` was 2^-53). Arithmetic is exact -- `+ - * / rdiv`, `**`
+  (`float(1r9007199254740993)` was 2^-53). **format/2's `~e`, `~f` and
+  `~g` write a rational's own digits, never its float's** (3.69.1,
+  `coco_fmt_rat` in lib/builtins-format.cicili, swipl's formatFloat() of
+  an mpq): long division in u128, the last digit rounded by the next, and
+  swipl's two truncations kept -- `~e` of a value of 1 or more past its
+  places cuts N by the power of ten first, and `~g` reads an exact half
+  down unless D is a power of two, as its GMP float does
+  (test/files/format_rational.pl). Arithmetic is exact -- `+ - * / rdiv`, `**`
   over an integer exponent, `rational/1`, `rationalize/1`, numerator and
   denominator, the roundings, the float parts, `abs`, `sign` -- and
   anything past 64 bits raises int_overflow; an integer-only operator names

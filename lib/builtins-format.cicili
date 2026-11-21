@@ -131,6 +131,40 @@
                 (set (nth (-> ,cs nw) (-> ,cs wend)) (-> ,o len))
                 (set (-> ,cs nw) (+ (-> ,cs nw) 1))))))
 
+;;; ONE MORE DIGIT OF A RATIONAL'S DECIMAL EXPANSION (3.69.1,
+;;; `coco_fmt_rat'): the remainder R over D taken ten times, its quotient
+;;; the digit DIG, a character, and R what is left -- R is under D, so ten
+;;; of it fits 128 bits
+(DEFMACRO coco-rat-digit (r d dig)
+  `(block (set ,r (* ,r 10))
+          (set ,dig (cast char (+ 48 (cast int (/ ,r ,d)))))
+          (set ,r (% ,r ,d))))
+
+;;; THE DIGITS IN G ROUNDED UP AT AT (3.69.1): each 9 from AT back a 0 and
+;;; the digit before them one more; G's first place is a 0 kept for a carry
+;;; that passes every digit
+(DEFMACRO coco-rat-carry (g at)
+  `(let ((size_t ci . 0))
+     (set ci ,at)
+     (while (== (nth ci ,g) 57)
+       (set (nth ci ,g) (cast char 48))
+       (set ci (- ci 1)))
+     (set (nth ci ,g) (cast char (+ (nth ci ,g) 1)))))
+
+;;; THE DECIMAL DIGITS OF U, THE FIRST FIRST (3.69.1): into the array OUT,
+;;; their count in LEN, by way of the array REV
+(DEFMACRO coco-rat-u-digits (u out rev len)
+  `(let ((u128 dv . 0))
+     (set dv ,u)
+     (set ,len 0)
+     (while 1
+       (set (nth ,len ,rev) (cast char (+ 48 (cast int (% dv 10)))))
+       (set ,len (+ ,len 1))
+       (set dv (/ dv 10))
+       (if (== dv 0) break))
+     (for ((int j . 0)) (< j ,len) ((++ j))
+       (set (nth j ,out) (nth (- ,len (+ j 1)) ,rev)))))
+
 (generic impl-builtins-format
   ()
 
@@ -663,6 +697,141 @@
           (let ((int ok . #'(coco_sb_put_len b tmp (cast size_t need))))
             (free tmp)
             (return ok))))
+
+  ;;; `~e', `~E', `~f', `~g' and `~G' of the rational N/D, PLACES digits
+  ;;; (3.69.1, swipl 9.0.4's formatFloat() of an mpq; through 3.69.0 the
+  ;;; digits of the double it rounds to, and `~20f' of 1r3 was
+  ;;; 0.33333333333333331483): its decimal digits by long division, the
+  ;;; last one kept rounded by the one after it, 5 or more away from zero.
+  ;;; `~f' keeps the sign where its digits all round to 0 (`-0.0'), as
+  ;;; pl-fmt.c's (n*10^d + m//2)//m; `~e' carries into the exponent, and
+  ;;; of a value of 1 or more whose exponent passes PLACES cuts N by the
+  ;;; power of ten before it divides, truncated, as swipl's case 'e' does
+  ;;; (987654321987r5 `~2e' is 1.97e+11); `~g' is C's %g over the digits of
+  ;;; the GMP float swipl truncates the rational to, which read an exact
+  ;;; half at the last place as the digit under it unless D is a power of
+  ;;; two (3r20 `~1g' is 0.1, 1r8 `~2g' 0.13): PLACES significant digits (0
+  ;;; is 1), the style of `~e' where the exponent X is under -4 or PLACES
+  ;;; or more, else of `~f' with PLACES - 1 - X places, the fraction's
+  ;;; trailing zeros taken off and a point with none after it. A rational
+  ;;; is no integer, so a digit that is not 0 comes within nineteen places
+  ;;; of the point. A buffer refused answers 0.
+  (static)
+  (func coco_fmt_rat ((coco_strbuf * b) (i64 n) (i64 dd) (long places) (char dch)) (out int)
+        (let ((u64 a . #'(? (< n 0) (- (cast u64 0) (cast u64 n)) (cast u64 n)))
+              (u64 d . #'(cast u64 dd))
+              (u64 ip . 0) (u128 r . 0) (char ib [48]) (char rv [48]) (int il . 0)
+              (char dig . 48) (int x . 0) (int ok . 1) (size_t keep . 0)
+              (char * g . nil) (char * s . nil)
+              (int gee . #'(or (== dch 103) (== dch 71)))
+              (char ech . #'(? (or (== dch 69) (== dch 71)) 69 101)))
+          (set ip (/ a d))
+          (set r (cast u128 (% a d)))
+          ;; the integer part's digits
+          (coco-rat-u-digits (cast u128 ip) ib rv il)
+          (if (== dch 102)
+              (let ((size_t len . 0) (size_t s0 . 1))
+                ;; a place for the carry, the integer part, PLACES more
+                (set len (+ (+ (cast size_t il) (cast size_t places)) 1))
+                (set g (cast (char *) (malloc len)))
+                (if (== g nil) (return 0))
+                (set (nth 0 g) (cast char 48))
+                (memcpy (+ g 1) ib (cast size_t il))
+                (for ((size_t j . 0)) (< j (cast size_t places)) ((++ j))
+                  (coco-rat-digit r d dig)
+                  (set (nth (+ (+ j 1) (cast size_t il)) g) dig))
+                ;; the digit after them rounds them
+                (coco-rat-digit r d dig)
+                (if (>= dig 53) (coco-rat-carry g (- len 1)))
+                (if (!= (nth 0 g) 48) (set s0 0))
+                (if (< n 0) (set ok (coco_sb_putc b (cast char 45))))
+                (if ok (set ok (coco_sb_put_len b (+ g s0) (- (+ (cast size_t il) 1) s0))))
+                (if (and ok (> places 0))
+                    (block (set ok (coco_sb_putc b (cast char 46)))
+                           (if ok (set ok (coco_sb_put_len b (+ (+ g 1) (cast size_t il))
+                                                            (cast size_t places))))))
+                (free g)
+                (return ok)))
+          ;; `~e' and `~g': KEEP significant digits and the one after them,
+          ;; from the first that is not 0
+          (set keep (? gee (? (== places 0) 1 (cast size_t places)) (+ (cast size_t places) 1)))
+          (set g (cast (char *) (malloc (+ keep 2))))
+          (if (== g nil) (return 0))
+          (set (nth 0 g) (cast char 48))
+          (let ((size_t got . 0))
+            (if (> ip 0)
+                (block (set x (- il 1))
+                       (while (and (< got (+ keep 1)) (< got (cast size_t il)))
+                         (set (nth (+ got 1) g) (nth got ib))
+                         (set got (+ got 1))))
+                (block (set x -1)
+                       (coco-rat-digit r d dig)
+                       (while (== dig 48)
+                         (set x (- x 1))
+                         (coco-rat-digit r d dig))
+                       (set (nth 1 g) dig)
+                       (set got 1)))
+            (while (< got (+ keep 1))
+              (coco-rat-digit r d dig)
+              (set (nth (+ got 1) g) dig)
+              (set got (+ got 1))))
+          (if (and (not gee) (and (> ip 0) (> x (cast int places))))
+              ;; swipl's `~e' past the places: N cut by 10^K, truncated,
+              ;; then divided by D, half up; 10^(PLACES + 1) is a carry
+              (let ((u64 p10 . 1) (u128 q . 0) (int tl . 0))
+                (for ((int j . 0)) (< j (- x (cast int places))) ((++ j))
+                  (set p10 (* p10 10)))
+                (set q (cast u128 (/ a p10)))
+                (set q (/ (+ q (cast u128 (/ d 2))) (cast u128 d)))
+                (coco-rat-u-digits q ib rv tl)
+                (if (> (cast size_t tl) keep) (block (set tl (- tl 1)) (set x (+ x 1))))
+                (memcpy (+ g 1) ib (cast size_t tl)))
+              (let ((int half . 0))
+                ;; `~g''s exact half, the GMP float's digit under it unless
+                ;; D is a power of two
+                (if (and gee (== (nth (+ keep 1) g) 53))
+                    (block
+                      (set half 1)
+                      (if (and (> ip 0) (<= (+ keep 1) (cast size_t il)))
+                          (for ((size_t j . 0)) (< (+ (+ keep 1) j) (cast size_t il)) ((++ j))
+                            (if (!= (nth (+ (+ keep 1) j) ib) 48) (set half 0))))
+                      (if (!= r 0) (set half 0))
+                      (if (== (bitand d (- d 1)) 0) (set half 0))))
+                (if (and (>= (nth (+ keep 1) g) 53) (not half)) (coco-rat-carry g keep))))
+          ;; a carry past the first digit: one more in the exponent
+          (set s (+ g 1))
+          (if (!= (nth 0 g) 48) (block (set s g) (set x (+ x 1))))
+          (if (< n 0) (set ok (coco_sb_putc b (cast char 45))))
+          (if (or (not gee) (or (< x -4) (>= x (cast int keep))))
+              ;; the style of `~e', two digits of exponent at least
+              (let ((size_t f . 0) (char eb [16]))
+                (set f (- keep 1))
+                (if gee (while (and (> f 0) (== (nth f s) 48)) (set f (- f 1))))
+                (if ok (set ok (coco_sb_putc b (nth 0 s))))
+                (if (and ok (> f 0))
+                    (block (set ok (coco_sb_putc b (cast char 46)))
+                           (if ok (set ok (coco_sb_put_len b (+ s 1) f)))))
+                (snprintf eb (sizeof eb) "%c%c%02d" ech (? (< x 0) 45 43) (? (< x 0) (- 0 x) x))
+                (if ok (set ok (coco_sb_put b eb))))
+              (if (>= x 0)
+                  ;; the style of `~f', the point after X + 1 digits
+                  (let ((size_t f . 0))
+                    (set f (- keep (cast size_t (+ x 1))))
+                    (while (and (> f 0) (== (nth (+ (cast size_t x) f) s) 48)) (set f (- f 1)))
+                    (if ok (set ok (coco_sb_put_len b s (cast size_t (+ x 1)))))
+                    (if (and ok (> f 0))
+                        (block (set ok (coco_sb_putc b (cast char 46)))
+                               (if ok (set ok (coco_sb_put_len b (+ (+ s (cast size_t x)) 1) f))))))
+                  ;; the style of `~f', -X - 1 zeros after the point
+                  (let ((size_t f . 0))
+                    (set f keep)
+                    (while (and (> f 0) (== (nth (- f 1) s) 48)) (set f (- f 1)))
+                    (if ok (set ok (coco_sb_put b "0.")))
+                    (for ((int z . 0)) (< z (- (- 0 x) 1)) ((++ z))
+                      (if ok (set ok (coco_sb_putc b (cast char 48)))))
+                    (if ok (set ok (coco_sb_put_len b s f))))))
+          (free g)
+          (return ok)))
 
   ;;; FORMAT'S COLUMNS (3.33.0), swipl's format_state (pl-fmt.c): the
   ;;; column the format reckons, `col', and how far into the text in hand
@@ -1553,7 +1722,9 @@
                       continue))
 
                 ;; 101 `~e', 69 `~E', 102 `~f', 103 `~g', 71 `~G': a number,
-                ;; evaluated, written as a double
+                ;; evaluated, written as a double -- an integer as the double
+                ;; it is, as swipl's, and a rational by its own digits
+                ;; (3.69.1, `coco_fmt_rat')
                 (if (or (or (or (== d 101) (== d 69)) (or (== d 102) (== d 103))) (== d 71))
                     (let ((int isf . 0) (i64 iv . 0) (double v . 0.0)
                           (int rc . #'(coco_fmt_eval e a (aof isf) (aof iv) (aof v))))
@@ -1562,7 +1733,10 @@
                                  (return (coco_fmt_fail err errlen fkind 5 ""))))
                       (if (== isf 0) (set v (cast double iv)))
                       (if (== isf 2)
-                          (set v (coco_rat_double (-> m arith_n) (-> m arith_d))))
+                          (block (if (not (coco_fmt_rat o (-> m arith_n) (-> m arith_d)
+                                                        (? have num 6) d))
+                                     (return (coco_fmt_fail err errlen fkind 6 "")))
+                                 continue))
                       (if (not (coco_fmt_float o v (? have num 6) d))
                           (return (coco_fmt_fail err errlen fkind 6 "")))
                       continue)))))

@@ -21606,3 +21606,86 @@ rationals, string, errors, flowchart, library, cyclic, gc, trace, repl,
 directives, script and units, and the seven test binaries (term, syntax,
 solve, module, state, and zigurat and shared with a server up), each
 alone, green with no SKIP.
+
+## format/2's `~e`, `~f` and `~g` of a rational are swipl's (3.69.1)
+
+BACKLOG #265, found on the way to 3.69.0 (its COMPAT.md row, now gone):
+format/2's `~Nf`, `~Ne` and `~Ng` of a rational wrote the digits of the
+double it rounds to, where swipl 9.0.4's formatFloat() writes the
+rational's own: `~20f` of 1r3 was `0.33333333333333331483`, swipl's
+`0.33333333333333333333`, and `~0f` of 1r2 was `0` where swipl's is `1`.
+`coco_fmt_rat` (lib/builtins-format.cicili) writes them now, by long
+division in 128 bits, as pl-fmt.c's V_MPQ case does:
+
+- `~f`: PLACES digits after the point, the last rounded half away from
+  zero, pl-fmt.c's (n*10^d + m//2)//m -- `~0f` of 1r2 is 1, of 5r2 3, of
+  -1r2 -1, where the double's printf rounded half to even (0, 2, -0) --
+  and the sign kept where every digit rounds to 0 (`~0f` of -1r3 is `-0`,
+  `~1f` of -1r30 `-0.0`, as swipl's).
+- `~e`: PLACES + 1 significant digits rounded the same way, a carry moving
+  the exponent (`~3e` of 999999r1000 is `1.000e+03`), and two digits of
+  exponent at least. A value of 1 or more whose exponent passes PLACES is
+  swipl's own way: the numerator cut by the power of ten before the
+  division, truncated, then rounded -- `~2e` of 987654321987r5 is
+  `1.97e+11`, the exact `1.98e+11`.
+- `~g`: C's %g over the digits of the GMP float swipl truncates the
+  rational to (mpf_set_q, then gmp's `%Fg`): PLACES significant digits (0
+  is 1), the style of `~e` where the exponent X is under -4 or PLACES or
+  more, else of `~f` with PLACES - 1 - X places, the fraction's trailing
+  zeros and a point with none after it taken off. The truncation shows at
+  an exact half alone -- a 5 at the place after the last, nothing after it
+  -- which the float reads as the digit under it: `~1g` of 3r20 is `0.1`,
+  `~g` of 99999r40 `2499.97`; unless the denominator is a power of two,
+  whose float is exact (`~2g` of 1r8 is `0.13`). Any other rational's
+  distance from a half is at least 1/(2D), more than a float of that many
+  bits loses, so its digits are exact.
+- an integer is the double it is, as before and as swipl's (V_INTEGER is
+  promoted: `~2f` of 9223372036854775807 is `9223372036854775808.00`), and
+  `~d` of a rational stays format_argument_type(d, R).
+
+THE CASE: test/files/format_rational.pl, 21 117 lines held to swipl 9.0.4
+-- 82 chosen calls, three formats of several directives, and every
+directive over a grid of 24 denominators and 44 numerators (21 032
+lines), 64 bits' ends among them. A C prototype of the rule (the
+scratchpad's, not committed)
+was held to swipl over the grid before the Cicili was written: exact
+rounding throughout, its first cut disagreed on 77 lines, every one an
+`~e` past its places or a `~g` exact half, which is how swipl's two
+truncations were found and then read in pl-fmt.c.
+
+THE RULES, each its own arm (one build of the final tree with the rule
+out), each red in the case:
+
+- the rational's own digits (R1: the double's, as 3.69.0, 2 124 lines red);
+- `~f`: the last place rounded, not truncated (R2, 1 629 lines); the sign
+  kept where the digits are all 0 (R3, 566 lines, `-0` and `-0.0`);
+- `~e`: swipl's truncation past the places (R4: exact rounding, 15 lines,
+  `~2e` of 987654321987r5 among them); a carry past the first digit one
+  more in the exponent, `~e`'s and `~g`'s (R5, 120 lines, `1.000e+02` for
+  999999r1000); two digits of exponent at least (R13, 5 643 lines,
+  `e-1`);
+- `~g`: an exact half read down (R6: rounded up, 74 lines, `~1g` of 3r20
+  0.2); under a power of two rounded up (R7: down there too, 288 lines,
+  `~1g` of 5r2 2); a half only where nothing follows the 5 (R8: the
+  digits after it not asked, 216 lines, `~g` of 123456789r5 2.46913e+07);
+  `~e`'s style under -4 (R9: under -5, 79 lines, `0.0000333`); a precision
+  of 0 one digit (R10: six, 869 lines); the trailing zeros taken off (R11,
+  2 844 lines, `0.50000`);
+- `~E` and `~G` an upper-case E (R12, 1 456 lines).
+
+WHAT IT COSTS: a format of a rational is cheaper: 10 000 rounds of
+`~6f ~3e ~4g` over 1r3, 2r7 and 5r9 cost 80 370 458 instructions,
+170 263 783 through 3.69.0's printf of the double (8 037 a round against
+17 026; each run less a run of no goal). A start (`cocolog query true`)
+counts 2 309 more, 35 636 732 against 35 634 423 (+0.006 %), over the
+same calls from the same callers: libc's strcmp and strncmp +1 176 and
+coco_intern_len +1 123, the string literals the new code put in the
+binary having moved the ones after them, whose compares count by their
+alignment. tools/flow/zero.sh against 3.69.0, work less padding: nrev
+65 960 050 (+2), queens 39 969 819 (0), lookup 48 093 010 (0).
+
+THE RUN, on the final binary: the lint case first, then files (run
+directly too, by a build of the same md5: its 162 cases agree with swipl,
+this one among them), rationals, string, engine, errors, units, library,
+directives, script, repl, trace, cyclic and flowchart, each alone, green
+with no SKIP.
