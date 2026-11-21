@@ -74,8 +74,8 @@ selftest_main :-
     %% stayed a PROMPT while the functions were absent, and went at 2.15.1:
     %% every one has been evaluable since 2.5.0.
 
-    %% ---- X2: there is no stream layer ---------------------------------
-    open('f.txt', read, _Stream),   % cocolint: X2 -- walked into on purpose
+    %% (X2, "there is no stream layer", left the card at 3.66.0: a first
+    %% call of open/3 loads library(stream), as swipl's autoloader would)
 
     %% ---- X3: absent, deliberately, so ported code errors --------------
     %% (setup_call_cleanup/3 left the row at 3.1.0, numbervars/3 at 3.40.0)

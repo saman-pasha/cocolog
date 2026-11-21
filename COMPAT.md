@@ -111,12 +111,13 @@ an existence error, an instantiation error, a refusal by name.
 | a search that never ends, a library predicate's on a term it cannot walk (`ord_memberchk(a, L)` and `assoc_to_keys(A, K)` with `L` and `A` unbound, `findall(P-K, pairs_keys_values(P, K, V), _)`, `vertices_edges_to_ugraph(Vs, [1-2], G)`), or a recursion that never ends | stops at its `stack_limit` flag, 1 GB by default: `error(resource_error(stack), Context)`, the context a dict of its stacks (`stack_overflow{choicepoints: ..., depth: ..., ...}`), from which print_message/2 writes the limit, the stacks' sizes, the depth and the frames of the recursion | stops at its `stack_limit` too since 3.32.0 (through 3.31.0 its heap grew until memory was refused, or the kernel killed the process first), the flag's answers and errors swipl's (test/files/stack_limit.pl), but the context is unbound: print_message/2 and the uncaught error say swipl's first line alone, `Stack limit (1.0Gb) exceeded`, and the backtrace says where the search was. The stacks are reckoned as cocolog has them -- its heap, its trail and its choice frames, the continuation on the heap -- so a search stops at another depth, and a term nothing names again, which swipl's collector frees by liveness (`chain(0, _)`, swipl's runs for ever), may be kept and stopped. The limit is asked of what the stacks hold at each growth of one and each collection, every stack growing by the room the limit leaves it, so a search passes the limit by what grows between two asks before it stops (a choice point a level under 20 MB: at some 23 MB) | match `error(resource_error(stack), _)`, never its context; raise the limit with set_prolog_flag/2, or COCOLOG_STACK_LIMIT for a whole run |
 | a list too long for the stack limit: `nth0(1000000000000, L, X)` with `L` unbound, nth1/3 of a partial list as far, `numlist(1, 1000000000000, L)`, `length(L, 1000000000000)` | length/2 raises `resource_error(stack)` at once; nth0/3, nth1/3 and numlist/3 build the list a step at a time, for ever where nothing holds it (the collector takes its cells) and else to the limit | each raises `resource_error(stack)` before a cell is built since 3.42.3, as swipl's length/2 (test/files/nth_open.pl holds length/2 to swipl, test/engine.pl the rest): a list whose cells alone pass the limit; one the limit could hold is built and stopped as the row above says. Through 3.42.2 length/2 built until memory ran out, nth0/3 and nth1/3 of an unbound tail failed, and numlist/3 failed where its array was refused | ask for a list the stacks can hold |
 | a `$/0`-guarded clause run under the debugger (`--trace`, swipl's `debug` mode or its `last_call_optimisation` flag false) | makes no last call: the guard stays on the caller's frame, and the error names the first frame whose `$` set it (`a3/0` for `a3 :- $, q(_).` over a `q/1` that leaves a choice point) | goes on making last calls under trace, as untraced, and names the frame the guard reached (`p/1`, the same error as without `--trace`) | — |
-| the first call of a library predicate swipl has not resolved yet, as a guarded clause's last call | makes no last call (the autoloader resolves it first), so the guard stays on the caller's frame for that one call | the same as every later call: cocolog has no autoloader | test/files/det_guard.pl calls each library predicate once before its cases |
+| the first call of a library predicate swipl has not resolved yet, as a guarded clause's last call | makes no last call (the autoloader resolves it first), so the guard stays on the caller's frame for that one call | the same as every later call: cocolog's libraries are there from the start, and the module a first call of one of its own modules' predicates loads (3.66.0) is loaded before the call is made, which is then a last call as every later one | test/files/det_guard.pl calls each library predicate once before its cases |
 | a `$/1` whose goal holds `$/0` (`$(($, true))`, `$(($, p(_)))` over a `p/1` of two answers) | `$(($, true))` raises `determinism_error((($), true), det, nondet, goal)`; `$(($, p(_)))` succeeds | `$(($, true))` succeeds; `$(($, p(_)))` raises the clause's own guard, `determinism_error(x/0, det, nondet, guard)`: the `$` guards the clause it stands in, inside a `$/1` as anywhere | write one of the two |
 | `\+ ($, G)` in a condition or a disjunction's arm, and `\+ \+ ($, G)` | stops on an assertion (9.0.4: pl-vmi.c, `BFR>=och`, `och == ch`) | raises the clause's `determinism_error(C, det, fail, guard)`, as both systems do for `\+ ($, G)` alone: a failure past the `$` is the frame's | — |
 | `use_module(F)` of a file with no `:- module/2` | refuses it, ``Domain error: `module_header' expected``, and the load directive fails; the file is a loaded file all the same, as swipl's source files are | loads it, one namespace, its clauses callable as any file's; a file read that way is loaded on swipl's rule (3.6.0: once a read of it defined something) | `ensure_loaded(F)` for a file with no module |
 | `swipl -g Goal file.pl` against `cocolog run file.pl Goal`, `file.pl` holding `:- initialization(G, main).` | runs Goal, then G in the toplevel's place, and halts | runs G after the load and halts; Goal is not run (the main goal IS the program: `-s file.pl` would otherwise call main/0 and then G, main twice). Since 3.7.0 G is the whole load's, a nested file's too, after every after_load goal, the last one registered | the goal in the main, or no main |
 | `consult/1` as a goal of a running program, of a file holding `:- initialization(G, main).` | runs G once the program's goal is done (the toplevel's place), and halts | runs G when that consult ends and halts: the rest of the goal that consulted is not run | `initialization(G, main)` in the script |
+| a first call of a predicate one of cocolog's own modules holds (`open/3`, `with_mutex/2`, `on_signal/3`), made in a thread or a green task while the module is not loaded | autoloads it there, as anywhere | `existence_error(procedure, open/3)`: a first call loads the module (3.66.0, swipl's autoloader) only while no other thread runs an engine -- a library(thread) thread, a green world's workers, a swarm's -- because the module registry is the process's and unguarded; the main thread loads it once they are done | load the module with use_module/1 before the threads start |
 
 ## Not there at all (`existence_error`)
 
@@ -141,8 +142,10 @@ predicate that is not ISO is.)
 (`predicate_property/2` is there since 1.10.28, for the program's
 predicates, the constructs and the C builtins, and swipl's since 3.41.0
 but for the rows above.)
-`tab/2` and the other ISO stream predicates exist once
-`:- use_module(library(stream)).` is loaded.
+`tab/2` and the other ISO stream predicates are library(stream)'s, which
+(since 3.66.0) a first call of one loads, as swipl's autoloader would
+(through 3.65.0 each was an unknown procedure until
+`:- use_module(library(stream)).`).
 SWI 10's `cmpr/2`, `maxr/2` and `minr/2` are not here — the reference is
 SWI 9.0.4's arithmetic; `random_between/3` and the rest of
 `library(random)`, `library(strings)` and the stream string predicates
@@ -157,10 +160,10 @@ begin with `$` (`predicate_property(system:H, defined)`), 158 of them ISO,
 and cocolog's `current_predicate(Name/Arity)` answers 228 of them at
 start. Of the 434 it does not:
 
-* 61 are cocolog's once a module is loaded, as `open/3` is:
-  `library(stream)` holds 50 (40 ISO: `open/3,4`, `close/1,2`, `read/1,2`,
-  `read_term/2,3`, `write/2`, `writeq/2`, `print/2`, `write_term/3`,
-  `write_canonical/2`, `writeln/2`, `nl/1`, `tab/2`, the get, peek and put
+* 61 are cocolog's once a module is loaded, as `open/3` is, and since
+  3.66.0 a first call of one loads it: `library(stream)` holds 50 (40
+  ISO: `open/3,4`, `close/1,2`, `read/1,2`, `read_term/2,3`, `write/2`,
+  `writeq/2`, `print/2`, `write_term/3`, `write_canonical/2`, `writeln/2`, `nl/1`, `tab/2`, the get, peek and put
   family of chars, codes and bytes, `current_input/1`, `current_output/1`,
   `set_input/1`, `set_output/1`, `flush_output/1`, `stream_property/2`,
   `set_stream/2`, `at_end_of_stream/0,1`, `set_stream_position/2`,
@@ -172,19 +175,15 @@ start. Of the 434 it does not:
   (`on_signal/3`, `current_signal/3`);
 * 373 are nowhere in cocolog, 18 of them ISO.
 
-A swipl file's usual first lines stop at four places for it: `:-
-style_check(-singleton).` (an unknown procedure), `:-
+A swipl file's usual first lines stopped at four places for it on 3.65.0:
+`:- style_check(-singleton).` (an unknown procedure), `:-
 use_module(library(readutil)).` and `:- use_module(library(option)).` (no
 such source), and a call of `open/3` in a program that loaded no module.
+Since 3.66.0 the last two pass: a first call loads the module of
+cocolog's that holds its name, and `library(readutil)` is
+`library(stream)`, whose `read_line_to_string/2` it is.
 
-1. **Load cocolog's own modules at a predicate's first call**, as swipl's
-   autoloader loads a library: the 61 above, and the names swipl's
-   libraries give what a module of cocolog's holds (`library(readutil)`'s
-   `read_line_to_string/2` is `library(stream)`'s). A module read at every
-   start instead costs each process its load: `library(stream)` 8.3
-   million instructions on a start of 35.3 million, `library(thread)` 0.4
-   million.
-2. **Small built-ins a swipl program calls as it stands**:
+1. **Small built-ins a swipl program calls as it stands**:
    * at a load: `style_check/1`, `garbage_collect_atoms/0`,
      `garbage_collect_clauses/0`, `trim_stacks/0`;
    * on terms and globals: `nb_delete/1`, `term_variables/3`,
@@ -198,7 +197,7 @@ such source), and a call of `open/3` in a program that loaded no module.
      `call_limited/3`);
    * of the program and the clock: `current_module/1`, `source_file/1,2`,
      `format_time/3`, `stamp_date_time/3`, `date_time_stamp/2`.
-3. **swipl's libraries written in Prolog**, kept in `lib/swipl` as assoc
+2. **swipl's libraries written in Prolog**, kept in `lib/swipl` as assoc
    and ordsets are and read when a program asks: `library(option)`
    (`option/2,3`, `select_option/3,4`, `merge_options/3`),
    `library(gensym)` (`gensym/2`, `reset_gensym/1`) and `library(sort)`
@@ -212,7 +211,7 @@ such source), and a call of `open/3` in a program that loaded no module.
    `library(nb_set)`, which wants `library(terms)`; `library(debug)`
    (`debug/1,3`, `assertion/1`) wants `library(prolog_stack)`. Each one
    held to swipl before it is carried.
-4. **The rest of ISO**: `char_conversion/2` and
+3. **The rest of ISO**: `char_conversion/2` and
    `current_char_conversion/2`; `initialization/1` as a goal (a directive
    alone today); and the thread predicates of ISO's thread draft over
    `library(thread)`: the message queues (`message_queue_create/1,2`,
@@ -221,12 +220,12 @@ such source), and a call of `open/3` in a program that loaded no module.
    `thread_peek_message/1,2`), `thread_self/1`, `thread_property/2`,
    `thread_signal/2`, `thread_create/3`, `mutex_create/2` and
    `mutex_property/2`. cocolog has channels where swipl has queues.
-5. **Clause references and the recorded database**: `assertz/2`,
+4. **Clause references and the recorded database**: `assertz/2`,
    `asserta/2`, `assert/2`, `clause/3`, `erase/1`, `nth_clause/3`,
    `instance/2`, `recorda/2,3`, `recordz/2,3`, `recorded/2,3` and
    `current_key/1`. A reference is a value that has to mean the same
    clause in all three arrangements of the knowledge base.
-6. **The large ones, each a project of its own**: attributed variables
+5. **The large ones, each a project of its own**: attributed variables
    (`put_attr/3`, `get_attr/3`, `freeze/2`, `frozen/2`, `dif/2`, `when/2`,
    `copy_term/3`, `term_attvars/2`, `call_residue_vars/2`), which touch the
    hot path of unification and are what `library(clpfd)` stands on;

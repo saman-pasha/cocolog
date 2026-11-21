@@ -835,6 +835,8 @@
           ;; to join it. A joinable one leaves the slot for thread_join.
           (if (-> j detached) (set (-> j live) 0))
           (pthread_mutex_unlock (aof th_table_lock))
+          ;; and it runs no engine from here on (3.66.0, counted at its start)
+          (coco_m_threads_running -1)
           (return nil)))
 
   (func th_create ((coco_engine * e) (size_t g)) (out int)
@@ -868,6 +870,10 @@
           ;; gives 8 MB, and this asks for that everywhere.
           (pthread_attr_init (aof attr))
           (pthread_attr_setstacksize (aof attr) 8388608)
+          ;; COUNTED BEFORE IT STARTS (3.66.0): a thread runs an engine beside
+          ;; this one from its first instruction, and a first call here loads
+          ;; no module while one does (`coco_m_threads_running')
+          (coco_m_threads_running 1)
           (let ((int cr . 0))
             (set cr (pthread_create (aof ($ (nth (cast size_t id) th_jobs) tid)) (aof attr)
                                     th_body
@@ -875,6 +881,7 @@
             (pthread_attr_destroy (aof attr))
             (if (!= 0 cr)
                 (block
+                 (coco_m_threads_running -1)
                  (pthread_mutex_lock (aof th_table_lock))
                  (set ($ (nth (cast size_t id) th_jobs) live) 0)
                  (pthread_mutex_unlock (aof th_table_lock))

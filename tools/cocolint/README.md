@@ -37,7 +37,7 @@ cocolog -s test/lint.pl                            # the suite case
 | `tool.sh` | one driver for `build`, `card`, `index` and `assemble` |
 | `selftest/reader.pl` `.expected` | every shape that has ever fooled a clause reader |
 | `build.pl` | the reserved-name blocklist, from five registration shapes |
-| `traps.jsonl` | the dialect card as data: 24 rows, 34 checked citations |
+| `traps.jsonl` | the dialect card as data: 23 rows, 33 checked citations |
 | `card.pl` | the anchor checker, and the generator of `traps.pl` |
 | `lint.sh` | the human wrapper; rebuilds the index first, always |
 | `oracle.pl` / `.sh` | G2+G3: which predicates the store calls the program's own |
@@ -273,9 +273,9 @@ Since 3.13.1, cocolint reads a file the way the engine reads it: a
 `:- include(F).` is text read where it stands (lib/kb-consult.cicili), as
 swipl's include/1 is. So the files a run lints are taken in UNITS -- a file
 and every file it includes, at any depth -- and each file of a unit is
-linted with the imports of the whole unit. An included file that calls
-`close/2` under an includer that loads `library(stream)` is no X2, and an
-includer is lifted by a `use_module` its included file makes. A file the run
+linted with the imports of the whole unit: a library the includer loads
+counts for the file it includes, and one an included file loads counts for
+its includer. A file the run
 lists that another listed file includes is linted inside that unit, once,
 and one name in the includer and in the included file is no C2: it is one
 file's text. Each finding keeps its own file's line. Where an include finds
@@ -305,10 +305,10 @@ the same list.
 
 ## The dialect card is data, and its citations are checked
 
-`traps.jsonl` is section 4 of the design doc as 24 rows of
+`traps.jsonl` is section 4 of the design doc as 23 rows of
 `{id, swi, cocolog, why, cite, anchor, rule, severity}`. Each cite is a
 `path:A-B` line range and each anchor a literal substring that must appear
-inside it. `card --check` verifies all 34, and when one has moved it says
+inside it. `card --check` verifies all 33, and when one has moved it says
 where it is now, so the repair is a single number:
 
 ```
@@ -421,7 +421,8 @@ had 122, and they went four ways:
   also runs (whose tier-1 imports are SWI's portable form) and every line of
   `selftest/traps.pl` carry one; the suite reads the fixture with
   `COCO_LINT_NO_ACK=1` to see each rule still fire.
-* **Misfires, mended in the linter.** Seventy-seven were X2 in
+* **Misfires, mended in the linter.** Seventy-seven were X2 (retired at
+  3.66.0, when a first call began loading library(stream)) in
   `test/stream.pl`, which loads library(stream) as a goal so that it can skip
   without the module — a `use_module(library(L))` in a file's code is an
   import now, as a directive always was. Seven were A1 on `test/tls.pl`'s own

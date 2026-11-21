@@ -874,7 +874,9 @@
   ;;; was read, no dynamic or other declaration -- asked of the backend once
   ;;; before it is believed, as the step asks (`warmed'). A loadable
   ;;; module's name is one, until its seam is asked. A construct's name of
-  ;;; an arity no construct has is no construct (3.44.0).
+  ;;; an arity no construct has is no construct (3.44.0). One a module of
+  ;;; cocolog's holds is loaded from it first, and is then defined (3.66.0,
+  ;;; `coco_autoload_pred').
   (weak) (cold)
   (func coco_construct_pi ((coco_machine * m) (u64 nid) (u32 n)) (out int)
         (if (not (coco_is_construct m nid)) (return 0))
@@ -894,7 +896,10 @@
           (if (not ($ (coco-pred-at (-> st predp) pi) warmed))
               (block (set ($ (coco-pred-at (-> st predp) pi) warmed) 1)
                      (coco_store_warm st)))
-          (return (not ($ (coco-pred-at (-> st predp) pi) dynamic)))))
+          (if ($ (coco-pred-at (-> st predp) pi) dynamic) (return 0))
+          ;; a module of cocolog's holds it: loaded, it is defined (3.66.0)
+          (if (== (coco_autoload_pred e pi nid n) 1) (return 0))
+          (return 1)))
 
   ;;; the constructs, below: `system:not(G)' runs one (`coco_colon')
   (static) (decl) (func coco_construct ((coco_engine * e) (u64 nid) (u32 n) (size_t g) (size_t k)

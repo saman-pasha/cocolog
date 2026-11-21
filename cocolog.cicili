@@ -237,6 +237,9 @@
   (import "./lib/builtins.cicili")
   (import "./lib/builtins-format.cicili")
   (import "./lib/builtins-db.cicili")
+  ;; the names cocolog's own modules are loaded for on a first call, a
+  ;; table library.cicili's autoload reads (3.66.0)
+  (import "./lib/autoload.cicili")
   (import "./lib/library.cicili")
   (import "./lib/state.cicili")
   (import "./lib/green.cicili")
@@ -435,7 +438,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.65.0"))
+  (func coco_version_text () (out const char *) (return "3.66.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -2310,6 +2313,9 @@
               (block (fprintf stderr "cocolog: a swarm is at most 32 workers\n")
                      (return 1)))
           (let ((swarm_job jobs [32]) (pthread_t tids [32]))
+            ;; every worker runs an engine beside this thread's (3.66.0): no
+            ;; first call loads a module while they run (`lb_autoload')
+            (coco_threads_count pairs)
             (for ((int k . 0)) (< k pairs) ((++ k))
               (snprintf ($ (nth k jobs) worker) 64 "%s" (nth (+ from (* k 2)) argv))
               (snprintf ($ (nth k jobs) machine) 128 "%s" (nth (+ from (+ (* k 2) 1)) argv))
@@ -2323,6 +2329,7 @@
             (for ((int k . 0)) (< k pairs) ((++ k))
               (pthread_join (nth k tids) nil)
               (if (!= ($ (nth k jobs) rc) 0) (set bad 1)))
+            (coco_threads_count (- 0 pairs))
             (return bad))))
 
   (func cmd_list () (out int)

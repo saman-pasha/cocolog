@@ -161,12 +161,12 @@ t37_rules :-
     %% alone, and the reason is required. cl_acks/3 reads them out of a
     %% file's codes and its comment regions; the text below is a quoted
     %% string, so it is no acknowledgement of anything in THIS file.
-    AckSrc = "p :- q.   % cocolint: X2 -- shown on purpose\n% cocolint: L1, X3 -- the next line\nr.\n",
+    AckSrc = "p :- q.   % cocolint: P1 -- shown on purpose\n% cocolint: L1, X3 -- the next line\nr.\n",
     cc_regions(AckSrc, AckRegs),
     cl_acks(AckSrc, AckRegs, Acks),
     findall(Ln-Cov-Ids, member(ack(_, Ln, Cov, Ids, _), Acks), AckLines),
     must('after code it covers its line; alone, the next', AckLines,
-         [1-1-['X2'], 2-3-['L1', 'X3']]),
+         [1-1-['P1'], 2-3-['L1', 'X3']]),
     ( memberchk(u1-warn, Sevs) -> U1 = warn ; U1 = other ),
     %% U1 keeps them honest: one whose finding has gone would excuse the
     %% next thing to land on its line, so it is a finding itself, and so
@@ -276,12 +276,12 @@ t37_card :-
     read_file_to_codes('tools/cocolint/traps.jsonl', TrapCodes),
     t37_rows(TrapCodes, Rows),
     length(Rows, NRows),
-    must('rows in the card', NRows, 24),
+    must('rows in the card', NRows, 23),
     findall(Id, ( member(R, Rows), t37_field(R, id, Id) ), Ids),
     sort(Ids, SortedIds),
     length(SortedIds, NIds),
-    must('every id distinct', NIds, 24),
-    %% SIX OF THE TWENTY-FOUR CARRY A PATTERN, and the gap is the point
+    must('every id distinct', NIds, 23),
+    %% FIVE OF THE TWENTY-THREE CARRY A PATTERN, and the gap is the point
     %% of the card: a row documents a divergence, and only some divergences
     %% are things a linter can SEE in a source file. `X3' can be matched --
     %% a predicate cocolog leaves out on purpose is right there in the text
@@ -312,7 +312,10 @@ t37_card :-
     %% itself and taken back by backtracking, where it was nb_setval/2 under
     %% another name. And twenty-five until 3.57.0, when H1 went: a halt
     %% inside a findall/3 or a forall/2 ends the process, as swipl's, where
-    %% it ended only that search.)
+    %% it ended only that search. And twenty-four until 3.66.0, when X2
+    %% went with its pattern: a first call of open/3, read_term/2 and their
+    %% kin loads library(stream), as swipl has them built in, where X2
+    %% flagged every one in a file that had not loaded it.)
     %%
     %% IT WAS SEVENTEEN, AND THE STRING TYPE TOOK TWO OF THEM. Row X1 said
     %% the string predicates did not exist and flagged every call to one;
@@ -337,7 +340,7 @@ t37_card :-
     %% row went too at 3.57.0, when a halt in a nested search became swipl's.
     findall(P, ( member(R, Rows), t37_field(R, pattern, P) ), Pats),
     length(Pats, NPats),
-    must('rows carrying an S1 pattern term', NPats, 6),
+    must('rows carrying an S1 pattern term', NPats, 5),
     findall(x, ( member(R, Rows), t37_field(R, cite, Cites), Cites == [] ), NoCite),
     must('rows with no citation at all', NoCite, []),
 

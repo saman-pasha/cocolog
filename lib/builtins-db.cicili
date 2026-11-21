@@ -725,6 +725,13 @@
               (if (>= pi ($ (cof st) npreds)) (return 0))
               (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
               (set p (aof (coco-pred-at ($ (cof st) predp) pi)))
+              ;; A HEAD NOTHING DEFINES THAT A MODULE OF COCOLOG'S HOLDS is
+              ;; loaded first (3.66.0), as swipl's define_or_generate/1
+              ;; autoloads it: what a call would find is what is answered
+              (if (and (== (coco_pred_live p) 0) (not (-> p dynamic)) (not (-> p declared))
+                       (!= coco_autoload_hook nil)
+                       (== 1 (coco_autoload_hook e nid ar)))
+                  (set p (aof (coco-pred-at ($ (cof st) predp) pi))))
               (if (and (== (coco_pred_live p) 0) (not (-> p dynamic)) (not (-> p declared)))
                   (return 0))
               (let ((size_t mark . #'($ (cof m) heap_len)) (u64 tid . #'(coco_intern m "true")))

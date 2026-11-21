@@ -18,8 +18,8 @@
 %%   3b. what card row E1 flagged reads, and lints clean: the escapes, the
 %%      backquotes, the digit groups and the radix numerals swipl reads
 %%      (the row retired at 3.1.0, when the reader took them)
-%%   3c. X2 is lifted where a library gives streams: library(stream), and
-%%      library(websocket), which loads it -- by a directive or by a goal
+%%   3c. a stream call with no library loaded is no finding: card row X2
+%%      retired at 3.66.0, when a first call began loading library(stream)
 %%   3d. an acknowledgement covers its own line, or the next when it stands
 %%      alone; one with no reason, or whose finding has gone, is a U1
 %%   3e. N1 knows the libraries preloaded at start-up, read from the
@@ -203,37 +203,27 @@ the_escapes(Agent) :-
     check('...and draws no finding', Got, []),
     shl(['rm -rf ', T]).
 
-%% ---- 3c. X2 is lifted where a library gives streams ------------------------
+%% ---- 3c. a stream call with no library loaded is no finding --------------
 %%
-%% A LIFT IS A RULE LEAVING CODE ALONE, which selftest/traps.pl cannot show
-%% either. One clause six times -- a session loop's test for the message
-%% `close(Code, Why)', which a textual pattern cannot tell from a call --
-%% with no import, under library(stream), under library(websocket), which
-%% loads library(stream) itself, and under library(stream) loaded as a GOAL,
-%% as test/stream.pl loads it so that it can skip without the module; and
-%% then with the import written only in a comment, and only in a quote,
-%% neither of which loads anything. The first and the last two are findings.
+%% X2 ("the engine has no stream layer") left the card at 3.66.0, when a
+%% first call of open/3 began loading library(stream) by itself, as swipl's
+%% autoloader loads a library (lib/library.cicili, `lb_autoload'). Through
+%% 3.65.0 this section held its lifts: a session loop's test for the message
+%% `close(Code, Why)' was a HARD finding unless the file loaded
+%% library(stream) or library(websocket). Now a file that loads neither and
+%% calls open/3, close/1 and current_output/1 draws no finding at all, and
+%% its only import is written in a comment.
 the_lifts(Agent) :-
-    section('X2 is lifted by library(stream), by library(websocket), which loads it, and by either loaded as a goal'),
+    section('a stream call with no library loaded is no finding (X2 retired at 3.66.0)'),
     scratch(T), shl(['mkdir -p ', T]),
-    findall(Name-LCs,
-            ( member(Name-Import, [ bare-[],
-                                    stream-[':- use_module(library(stream)).'],
-                                    websocket-[':- use_module(library(websocket)).'],
-                                    goal-['loads :- catch(use_module(library(stream)), _, fail).'],
-                                    comment-['% use_module(library(stream)) is not loaded here'],
-                                    quoted-['says :- write(''use_module(library(stream))'').'] ]),
-              atomic_list_concat([T, '/', Name, '.pl'], F),
-              append(Import, ['ended(M) :- M = close(_, _).'], Lines),
-              fixture(F, Lines),
-              sh_join(['sh ', Agent, '/lint.sh ', F, ' 2>&1'], Cmd), shell(Cmd, Out, _),
-              atom_codes(Out, OCs), codes_lines(OCs, OLines),
-              findall(LC, ( member(L, OLines), atom_codes(LA, L),
-                            re_match('^[^ :]+:[0-9]+:[0-9]+ HARD S1 \\[X2\\]', LA),
-                            re_replace_atom('^[^ :]+:([0-9]+:[0-9]+) .*', '\\1', LA, LC) ), LCs) ),
-            Got),
-    check('close(Code, Why) is a finding only where no library gives streams (line:col)', Got,
-          [bare-['1:17'], stream-[], websocket-[], goal-[], comment-['2:17'], quoted-['2:17']]),
+    atom_concat(T, '/bare.pl', F),
+    fixture(F, ['% use_module(library(stream)) is not loaded here',
+                'ended(M) :- M = close(_, _).',
+                'copy(F, T) :- open(F, read, S), read_term(S, T, []), close(S), current_output(O), nl(O).']),
+    sh_join(['sh ', Agent, '/lint.sh ', F, ' 2>&1'], Cmd), shell(Cmd, Out, _),
+    atom_codes(Out, OCs), codes_lines(OCs, OLines),
+    findall(LA, ( member(L, OLines), atom_codes(LA, L), re_match('^[^ :]+:[0-9]+:[0-9]+ (HARD|WARN) ', LA) ), Got),
+    check('open/3, close/1 and current_output/1 with no import draw no finding', Got, []),
     shl(['rm -rf ', T]).
 
 %% ---- 3d. an acknowledgement, and U1 ----------------------------------------
@@ -302,19 +292,22 @@ the_preloads(Agent) :-
 %% AN INCLUDED FILE IS READ WHERE ITS INCLUDE STANDS (3.13.1), by the engine
 %% and by swipl, so the linter lints it as part of the file that includes
 %% it: its findings at its own lines, with the imports of the whole unit --
-%% an includer's library(stream) lifts an included close/2, and an
-%% included file's lifts the includer's -- found beside the includer, at
-%% any depth, each file once; a file another of the run includes is linted
-%% only as part of it; two that include each other are both linted; a
-%% vendored file is not read; and one name in two files of a unit is no C2.
+%% an includer's library(stream) makes an included clause of is_stream/1 a
+%% definition of the library's name (N1), and an included file's import
+%% does the includer's (through 3.65.0 the witness was X2's close/2, the
+%% trap a library(stream) import lifted, retired in 3.66.0) -- found
+%% beside the includer, at any depth, each file once; a file another of
+%% the run includes is linted only as part of it; two that include each
+%% other are both linted; a vendored file is not read; and one name in two
+%% files of a unit is no C2.
 the_includes(Agent) :-
     section('a file is linted with the files it includes, as one unit'),
     scratch(T), shl(['mkdir -p ', T]),
     sh_join([T, '/'], P),
     forall(member(N-Ls, [ i_top-[':- use_module(library(stream)).', ':- include(i_part).'],
-                          i_part-['ended(M) :- M = close(_, _).', ':- include(i_deep).'],
+                          i_part-['is_stream(x).', ':- include(i_deep).'],
                           i_deep-['member(X, [X]).'],
-                          i_up-[':- include(i_lib).', 'ended(M) :- M = close(_, _).'],
+                          i_up-[':- include(i_lib).', 'is_stream(y).'],
                           i_lib-[':- use_module(library(stream)).'],
                           i_self-['s(1).', ':- include(i_self).', ':- include(_).'],
                           i_a-[':- include(i_b).', 'a(1).'],
@@ -331,8 +324,9 @@ the_includes(Agent) :-
             Got1),
     check('each finding at its own file and line, the imports shared both ways, each file once (findings, files)',
           Got1,
-          [top-(['i_deep.pl:1 N1']-3), part-(['i_part.pl:1 S1 [X2]', 'i_deep.pl:1 N1']-2), up-([]-2),
-           both-(['i_deep.pl:1 N1']-3), self-([]-1), cycle-([]-2), vend-([]-1)]),
+          [top-(['i_part.pl:1 N1', 'i_deep.pl:1 N1']-3), part-(['i_deep.pl:1 N1']-2),
+           up-(['i_up.pl:2 N1']-2), both-(['i_part.pl:1 N1', 'i_deep.pl:1 N1']-3),
+           self-([]-1), cycle-([]-2), vend-([]-1)]),
     sh_join([P, 'i_c2.pl'], C2F),
     inc_lint(Agent, [C2F], 'COCO_LINT_MANIFEST=1 ', Got2),
     check('one name in a file and its include is no C2', Got2, []-2),

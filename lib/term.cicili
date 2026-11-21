@@ -1889,6 +1889,21 @@
   (func coco_tbl_any () (out int)
         (return (code "__atomic_load_n(&coco_tbl_live, __ATOMIC_RELAXED)")))
 
+  ;;; HOW MANY THREADS OF THE PROCESS RUN AN ENGINE BESIDE ITS FIRST (3.66.0):
+  ;;; library(thread)'s, each counted by the module before it starts and by
+  ;;; the thread as it ends (`coco_m_threads_running'), and a swarm's
+  ;;; workers; a green world's are `coco_tbl_live''s. A load at a first
+  ;;; call (`lb_autoload') registers a module, and the registry is the
+  ;;; process's and unguarded, so it is made only while both are 0.
+  (static) (var int coco_threads_live . 0)
+
+  (func coco_threads_count ((int by)) (out int)
+        (return (code "__atomic_add_fetch(&coco_threads_live, by, __ATOMIC_SEQ_CST)")))
+
+  (static) (inline)
+  (func coco_threads_any () (out int)
+        (return (code "__atomic_load_n(&coco_threads_live, __ATOMIC_SEQ_CST)")))
+
   ;; the names' lock this thread holds, or nil
   (static) (inline)
   (func coco_tbl_lock () (out pthread_mutex_t *)

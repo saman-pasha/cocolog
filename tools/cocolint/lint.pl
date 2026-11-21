@@ -177,9 +177,9 @@ cl_file(File, Imports0, Findings, NAck, Imports1, Incs) :-
 %% engine reads it where its `:- include' stands (lib/kb-consult.cicili) and
 %% as swipl's include/1 is textual. So a file a run lints is linted with the
 %% files it includes, at any depth, as one unit: each file's findings at its
-%% own lines, each with the imports of the whole unit -- an included file
-%% that calls close/2 under an includer that loads library(stream) is no X2,
-%% and an includer is lifted by what its include loads -- a file another
+%% own lines, each with the imports of the whole unit -- a library the
+%% includer loads counts for an included file, and one an include loads for
+%% the includer -- a file another
 %% file of the run includes is linted once, as part of that one, and one
 %% name in two files of a unit is no C2. Through 3.13.0 the linter read each
 %% file alone. Where an include finds its file is the engine's (beside the
@@ -985,18 +985,14 @@ cl_del([], _, []).
 cl_del([X|T], X, R) :- !, cl_del(T, X, R).
 cl_del([Y|T], X, [Y|R]) :- cl_del(T, X, R).
 
-%% A TRAP A LIBRARY LIFTS. X2 is true of the interpreter -- the engine has
-%% no stream layer -- and false of a file that loads library(stream), which
-%% supplies open/3,4, close/1, current_output/1, set_output/1, read_term/2,3
-%% and the rest under ISO's names. The file's own imports decide; nothing
-%% else about the trap moves.
-%%
-%% AND OF ONE THAT LOADS library(websocket), which loads library(stream)
-%% itself -- so the premise is false there too -- and whose every session
-%% loop matches `close(Code, Why)', the message a conversation ends with.
-%% The pattern is textual and cannot tell that term from a call.
-cl_trap_lifted('X2', Imports) :-
-    (   memberchk(stream, Imports) -> true ; memberchk(websocket, Imports) ).
+%% A TRAP A LIBRARY LIFTS: one whose premise a library the file loads makes
+%% false, the file's own imports deciding and nothing else about the trap
+%% moving. X2 was the one -- "the engine has no stream layer", lifted where
+%% the file loaded library(stream), or library(websocket), which loads it --
+%% and left the card at 3.66.0, when a first call of open/3 began loading
+%% library(stream) by itself, as swipl's autoloader loads a library. No trap
+%% is lifted now; a new one's lift is a clause here.
+cl_trap_lifted(_, _) :- fail.
 
 %% Which tier-2 libraries a file imports, by the name it loads each by --
 %% `flow/chart' for library(flow/chart) -- which is what a blocklist entry

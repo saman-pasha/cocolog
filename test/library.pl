@@ -43,9 +43,103 @@ main :-
     scratch(D),
     registered, from_the_path(D), keeps_builtins(D), lends_ops(D), errors(D), includes(D),
     nested_loads(D), shared_object(D), across_processes(D),
-    always_present, still_answers, expansions(D), module_names(D),
+    always_present, still_answers, expansions(D), module_names(D), first_calls(D),
     shl(['rm -rf ', D]),
     checks_done.
+
+%% A CALL OF A NAME ONE OF COCOLOG'S MODULES HOLDS LOADS THAT MODULE
+%% (3.66.0, swipl's autoloader; lib/library.cicili, `lb_autoload'). What
+%% swipl shows too -- a plain call, a qualified one, a guarded clause's last
+%% call, current_predicate/1 before any load, library(readutil) -- is
+%% test/files/autoload.pl's. Here what swipl has no way to show: an atom
+%% goal's call; one Call port for it under trace, though the step takes it
+%% twice; the inferences a first call counts, which are what they are with
+%% the module loaded before; a program's own definition of a module's name,
+%% which loads nothing; no load while another thread runs an engine -- a
+%% library(thread) thread, a green task -- and the load once none does; a
+%% module another thread loaded, which is still to load into this thread's
+%% store; a binary whose library path holds no module, whose call raises as
+%% through 3.65.0; a library in the module's place whose load a ball ends;
+%% and the table the loader reads, which its generator writes.
+first_calls(D) :-
+    section('a first call loads the module that holds its name'),
+    atom_concat(D, '/fc.pl', F),
+    fixture(F, ['t_atom :- ( at_end_of_stream -> writeln(eof) ; writeln(more) ).',
+                't_tr :- open(\'/dev/null\', read, S), close(S).',
+                't_inf(D) :- statistics(inferences, I0), t_tr, statistics(inferences, I1), D is I1 - I0.',
+                't_pre(D) :- use_module(library(stream)), t_inf(D).',
+                't_thr :- thread_create(catch(open(\'/dev/null\', read, _), error(E, _), (print(thread(E)), nl)), Id), thread_join(Id, _), t_tr, writeln(main_loaded).',
+                't_green :- async_run(( go(catch(t_tr, error(E, _), (print(task(E)), nl)), T), await(T, _) )), t_tr, writeln(main_loaded).',
+                't_thr2 :- thread_create(use_module(library(stream)), Id), thread_join(Id, _), t_tr, writeln(main_loaded).']),
+    atom_concat(D, '/fc_own.pl', Own),
+    fixture(Own, ['read_line_to_codes(_, own).',
+                  't_own :- findall(X, read_line_to_codes(a, X), L), print(L), nl.']),
+    sh_join(['--local run ', F, ' t_atom < /dev/null 2>&1'], A1), cocolog_run(A1, T1, _),
+    check('an atom goal''s first call loads its module', T1, eof),
+    sh_join(['--trace --local run ', F, ' t_tr < /dev/null 2>&1 | grep -c "Call: ([0-9]*) open("'], A2),
+    cocolog_run(A2, T2, _),
+    check('a first call has one Call port under trace', T2, '1'),
+    sh_join(['--local run ', F, ' "t_inf(N), print(N), nl" < /dev/null 2>&1'], A3a), cocolog_run(A3a, T3a, _),
+    sh_join(['--local run ', F, ' "t_pre(N), print(N), nl" < /dev/null 2>&1'], A3b), cocolog_run(A3b, T3b, _),
+    check('a first call counts the inferences it counts with its module loaded before', T3a, T3b),
+    sh_join(['--local run ', Own, ' t_own < /dev/null 2>&1'], A4), cocolog_run(A4, T4, _),
+    check('a program''s own definition of a module''s name loads nothing', T4, '[own]'),
+    sh_join(['--local run ', F, ' t_thr < /dev/null 2>&1'], A5), cocolog_run(A5, T5, _),
+    check('no load while a thread runs an engine, and the load once none does',
+          T5, 'thread(existence_error(procedure,open/3))\nmain_loaded'),
+    sh_join(['--local run ', F, ' t_green < /dev/null 2>&1'], A6), cocolog_run(A6, T6, _),
+    check('no load inside a green world, and the load once it ends',
+          T6, 'task(existence_error(procedure,open/3))\nmain_loaded'),
+    sh_join(['--local run ', F, ' t_thr2 < /dev/null 2>&1'], A7), cocolog_run(A7, T7, _),
+    check('a module another thread loaded is loaded for this thread''s first call', T7, main_loaded),
+    first_calls_nolib(D),
+    first_calls_ball(D),
+    sh_join(['-q --local run tools/cocolint/clauses.pl tools/cocolint/build.pl tools/autoload/tables.pl ',
+             'at_main 2>&1 | cmp -s - lib/autoload.cicili && echo same'], A8),
+    cocolog_run(A8, T8, _),
+    check('lib/autoload.cicili is what tools/autoload/tables.pl writes', T8, same).
+
+%% the binary alone in a directory with the preloaded libraries and no module,
+%% no COCOLOG_LIBRARY, run from another: nothing to load, as through 3.65.0
+first_calls_nolib(D) :-
+    cocolog(C),
+    working_directory(W, W),
+    sh_join(['rm -rf ', D, '/nl && mkdir -p ', D, '/nl/bin/lib ', D, '/nl/bin/library ', D, '/nl/run',
+             ' && cp ', C, ' ', D, '/nl/bin/ && ln -s ', W, 'lib/swipl ', D, '/nl/bin/lib/swipl',
+             ' && cp ', W, 'library/async.pl ', W, 'library/print_message.pl ', D, '/nl/bin/library/'], Mk),
+    shl([Mk]),
+    atom_concat(D, '/nl/run/n.pl', N),
+    fixture(N, ['t :- ( current_predicate(open/3) -> writeln(cp_yes) ; writeln(cp_no) ),',
+                '     catch(open(\'/dev/null\', read, _), error(E, _), (print(E), nl)).']),
+    sh_join(['cd ', D, '/nl/run && env -u COCOLOG_LIBRARY ', D, '/nl/bin/cocolog --local run n.pl t < /dev/null 2>&1'],
+            Run),
+    shell(Run, T, _),
+    check('with no module on the path a first call raises as before, and current_predicate/1 says no',
+          T, 'cp_no\nexistence_error(procedure,open/3)').
+
+%% a library on the path in the module's place whose load a ball ends: the
+%% call raises as before, and the ball is dropped -- kept on the machine
+%% (`lball'), no consult after it compacted the store (the first cut's arm
+%% L2: 0 compactions in twelve reads of 20 000 facts)
+first_calls_ball(D) :-
+    cocolog(C),
+    working_directory(W, W),
+    atom_concat(D, '/fcb_lib', FL),
+    make_directory(FL),
+    atom_concat(FL, '/stream.pl', FS),
+    fixture(FS, [':- module(stream, [open/3]).', ':- throw(oops).']),
+    atom_concat(D, '/fcb_big.pl', Big),
+    with_output_to(codes(Cs),
+                   forall(between(1, 20000, I), format("bf(~d, [a,b,c,d,e,f,g,h], x~d).~n", [I, I]))),
+    write_file_from_codes(Big, Cs),
+    atom_concat(D, '/fcb.pl', FB),
+    format(atom(Body), 't_ball :- catch(open(\'/dev/null\', read, _), error(E, _), (print(E), nl)), forall(between(1, 12, _), consult(\'~w\')), statistics(compactions, N), ( N > 0 -> writeln(compacted) ; writeln(none) ).', [Big]),
+    fixture(FB, [Body]),
+    sh_join(['cd ', D, ' && COCOLOG_LIBRARY=', FL, ':', W, 'library ', C, ' --local run ', FB,
+             ' t_ball < /dev/null 2>&1'], Run),
+    shell(Run, T, _),
+    check('a load a ball ended raises the call''s own error, and the ball is dropped',
+          T, 'existence_error(procedure,open/3)\ncompacted').
 
 %% A PREDICATE A module/2 READ GIVES ITS FIRST CLAUSE IS NAMED WITH THAT
 %% MODULE (3.26.0, `pmod'): a determinism error and its context say

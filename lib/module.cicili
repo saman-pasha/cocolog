@@ -1468,6 +1468,13 @@
         (set coco_m_kb_open open)
         (set coco_m_kb_close close))
 
+  ;;; A THREAD THAT RUNS AN ENGINE, COUNTED (3.66.0): +1 by the module that
+  ;;; starts it, before it starts, and -1 by the thread as it ends, or by
+  ;;; the module where it would not start. While the count is not 0 a first
+  ;;; call loads no module (`coco_threads_any', `lb_autoload').
+  (func coco_m_threads_running ((int by))
+        (coco_threads_count by))
+
   (func coco_m_run_isolated ((const char * src) (char * err) (size_t errlen)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e)
               (size_t g . 0) (int rc . 0) (int out . 0) (void * kb . nil))

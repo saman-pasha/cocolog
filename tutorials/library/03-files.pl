@@ -17,13 +17,16 @@
 %% directory and compares the output line by line -- the only kind of
 %% compatibility claim that cannot be fooled by its author.
 %%
-%% ---- THERE IS NO STREAM LAYER, AND THAT IS THE FIRST THING TO KNOW ----
+%% ---- THE STREAMS ARE A LIBRARY, AND THAT IS THE FIRST THING TO KNOW ----
 %%
-%% `open/3', `close/1', `read_term/3', `nl/1' -- none of them exists here,
-%% and `open/3' raises `existence_error(procedure, open/3)' rather than
-%% pretending. cocolog writes to the literal stdout in some seventy places
-%% rather than to a stream it passes around, so a stream API would be a
-%% facade over one destination.
+%% `open/3', `close/1', `read_term/3', `nl/1' are not this library's and
+%% not the engine's: they are library(stream)'s, a table of streams of its
+%% own (lesson 48), which a first call of one loads (3.66.0, as swipl's
+%% autoloader loads a library; through 3.65.0 `open/3' raised
+%% `existence_error(procedure, open/3)' until the program said
+%% `use_module(library(stream))'). cocolog writes to the literal stdout in
+%% some seventy places rather than to a stream it passes around, so the
+%% engine itself keeps no stream.
 %%
 %% WHAT A PROGRAM DOES INSTEAD IS ONE CALL PER FILE:
 %%

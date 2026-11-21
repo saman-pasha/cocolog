@@ -1247,7 +1247,12 @@
     ;; after TRACE_BHC, and the engine is a word longer (a nested search
     ;; memsets it twice)
     (member u32         rpc)
-    (member size_t      rpg))
+    (member size_t      rpg)
+    ;; THE STEP OF A CALL TAKEN AGAIN ONCE ITS MODULE WAS LOADED (3.66.0,
+    ;; `coco_autoload_step'), whose Call port the tracer printed already, or
+    ;; 0: the step that takes it again prints none (`coco_trace_call').
+    ;; Appended.
+    (member u64         tskip))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
   ;;; their first goal. A per-engine affair after that -- `trace/0' and
@@ -2553,6 +2558,17 @@
   (func coco_trace_text ((coco_engine * e) (coco_strbuf * b) (size_t g)) (out int)
         (if (!= coco_trace_text_hook nil) (return (coco_trace_text_hook e b g)))
         (return (coco_write_print (-> e m) b g)))
+
+  ;;; THE MODULE A FIRST CALL LOADS (3.66.0, swipl's autoloader): the
+  ;;; library module's (`lb_autoload' in lib/library.cicili), which loads
+  ;;; into E's store the module of cocolog's that holds NID/N -- 1 loaded and
+  ;;; the call goes round again, 0 none (the unknown procedure stands), 2
+  ;;; the load's ball caught, -1 nothing caught it. A binary with no library
+  ;;; module (a test binary's) loads none.
+  (static) (var func coco_autoload_hook ((coco_engine * e) (u64 nid) (u32 n)) (out int))
+
+  (func coco_autoload_install ((func h ((coco_engine * e) (u64 nid) (u32 n)) (out int)))
+        (set coco_autoload_hook h))
 
   (static)
   (func coco_trace_port ((coco_engine * e) (const char * port) (int depth) (size_t g))

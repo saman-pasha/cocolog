@@ -1135,6 +1135,11 @@
   ;;; four instructions, and a flag beside `tport' six (tools/flow/zero.sh)
   (weak) (cold)
   (func coco_trace_call ((coco_engine * e) (int depth) (size_t g)) (out int)
+        ;; a call the step takes again once its module is loaded (3.66.0,
+        ;; `coco_autoload_step'): its Call port is out already
+        (if (and (!= (-> e tskip) 0) (== (-> e tskip) (-> e steps)))
+            (block (set (-> e tskip) 0)
+                   (return (? (coco_trace_hidden e g -1) 2 1))))
         (if (coco_trace_hidden e g -1) (return 2))
         (coco_trace_port e "Call" depth g)
         (return 1))
@@ -3386,8 +3391,60 @@
           (set ind (coco_make2 m "existence_error" (coco_new_atom m "procedure") ind))
           (return (coco_raise_ctx e ind ctx))))
 
+  ;;; A FIRST CALL OF A NAME NOTHING DEFINES THAT A MODULE OF COCOLOG'S HOLDS
+  ;;; (3.66.0, swipl's autoloader): the module loaded into E's store by the
+  ;;; library module's hook (`coco_autoload_hook', lib/library.cicili's
+  ;;; `lb_autoload') -- 1 loaded, 0 none, and 4 none for now: another
+  ;;; thread runs an engine, so no module is registered (the hook's 3). The
+  ;;; predicate PI, which has no clause and no declaration, asks once
+  ;;; (`pattrs' 2048), but after a 4, which a later call asks again.
+  (weak) (cold)
+  (func coco_autoload_pred ((coco_engine * e) (size_t pi) (u64 nid) (u32 n)) (out int)
+        (let ((coco_store * st . #'(-> e st)) (coco_pred * p . nil) (int r . 0))
+          (if (or (== coco_autoload_hook nil) (>= pi (-> st npreds))) (return 0))
+          (set p (aof (coco-pred-at (-> st predp) pi)))
+          (if (or (!= (bitand (-> p pattrs) 2048) 0) (not (-> p loaded))
+                  (-> p dynamic) (-> p declared) (> (coco_pred_live p) 0))
+              (return 0))
+          (set r (coco_autoload_hook e nid n))
+          (if (== r 3) (return 4))
+          ;; read again: the load made predicates, and PI's own stays where
+          ;; it is (3.64.0, `coco-pred-at')
+          (set p (aof (coco-pred-at (-> st predp) pi)))
+          (set (-> p pattrs) (bitor (-> p pattrs) 2048))
+          (return r)))
+
+  ;;; ...AND THE STEP'S, where it is about to raise an unknown procedure
+  ;;; (`coco_unknown_error', below): G, the goal the module was loaded for,
+  ;;; goes back on the continuation (barrier B, continuation K) and the loop
+  ;;; goes round, the step given back -- so G is taken at the step number
+  ;;; its first take had and counts one inference, as with the module loaded
+  ;;; before -- and the Call port the tracer printed for it not printed
+  ;;; again (`tskip'). The answers are `coco_autoload_pred''s, 4 as 0: the
+  ;;; call that found no module to load now comes here again, as every call
+  ;;; of an undefined name does, and asks again.
+  (weak) (cold)
+  (func coco_autoload_step ((coco_engine * e) (size_t pi) (u64 nid) (u32 n)
+                            (size_t g) (size_t b) (size_t k)) (out int)
+        (let ((int r . #'(coco_autoload_pred e pi nid n)))
+          (if (!= r 1) (return 0))
+          (set (-> e tskip) (-> e steps))
+          (set (-> e steps) (- (-> e steps) 1))
+          (set (-> e goals) (coco_k_push e g b k))
+          (return 1)))
+
+  ;;; THE STEP'S UNKNOWN PROCEDURE, its goal in flight (`kcall'): ONE A
+  ;;; MODULE OF COCOLOG'S HOLDS IS LOADED FIRST (3.66.0,
+  ;;; `coco_autoload_step'), the goal taken again and 2 answered, as for a
+  ;;; raise a catcher took: the continuation is set. Asked here, the step's
+  ;;; own code is 3.65.0's -- a call of its own in the step's last arm, and
+  ;;; the `continue' after it, moved the loop's registers: queens +0.10 %
+  ;;; of its work, nrev -0.15 % (tools/flow/zero.sh).
   (weak) (cold)
   (func coco_unknown_error ((coco_engine * e) (u64 nid) (u32 arity) (size_t b) (size_t k)) (out int)
+        (let ((size_t g . #'(-> e kcall)))
+          (if (== 1 (coco_autoload_step e (coco_pred_of (-> e st) (-> e m) g) nid arity g b k))
+              (return 2)))
         (return (coco_unknown_error_q e 0 0 nid arity b k)))
 
   ;;; A GOAL THAT IS NO GOAL, met by the step: named by the frame it ran in

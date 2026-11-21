@@ -80,8 +80,8 @@ touching a `.pl`.
 
 A changed `.cicili` is NAMED and skipped: a module is Cicili, and its Prolog
 half is strings inside it, which does not lint as a file (library(stream)'s
-half implements the ISO stream names the X2 trap warns about, and answers 58
-HARD findings for doing its job). `lib/swipl/` is named `vendored, not
+half implements the ISO stream names, and drew 58 HARD findings for doing its
+job while card row X2 stood, until 3.66.0). `lib/swipl/` is named `vendored, not
 read`. Neither fails the run. `make lint` with no `FILES` is
 `lint.sh --auto`.
 
@@ -128,7 +128,7 @@ Say so where it stands, with a line comment that opens on the marker:
 
 After code, the comment covers its own line; alone on its line, the next
 one. The IDs are what the finding renders — the card row for S1 (`X3`,
-`X2`), the rule for the rest (`T1`, `N1`, `Z1`) — and several go in one
+`P1`), the rule for the rest (`T1`, `N1`, `Z1`) — and several go in one
 comment, apart by blanks or commas. The reason after `--` is required. An
 acknowledged finding is not printed and the count line says how many there
 were (`29 acknowledged`); `COCO_LINT_NO_ACK=1` reads none of them.
@@ -160,7 +160,6 @@ a `pattern`. `tool.sh card --patterns` prints the terms.
 | D2 | `:- table p/2.` | delete it, and write `p/2` to end untabled | there is no tabling: the directive parses, as swipl's, and `table/1` is an unknown procedure, reported as the load goes on |
 | C2 | `error(T, context(_,_))` | `error(T, _)` | a refusal (a library found and refused, a module's own failure) is `error(cocolog_error(Text), _)`, a missing file swipl's `existence_error(source_sink, Spec)` since 3.4.0, both with the context unbound, and the house style puts a bare `Name/Arity` second |
 | L1 | `'[|]'` | `'.'/2` or `[_|_]` | a list cell is `'.'/2` |
-| X2 | `open/3` `close/1` `read/1` `nl/1` `write/2` … | `read_file_to_codes/2` and a DCG; `format/3` with a sink | there is no stream layer in the engine; a file that loads `library(stream)`, or `library(websocket)`, which loads it — by a directive or as a goal — is not flagged |
 | X3 | `predsort/3` `freeze/2` `dif/2` `when/2` … | write it out; `call_limited/3` | deliberately absent so ported code errors instead of differing |
 | P1 | `current_prolog_flag(occurs_check, B)` | do not branch on a flag | twenty flags answer — `executable`, `argv`, `os_argv`, `double_quotes`, `text_units`, since 2.0.0 `bounded`, `max_integer`, `min_integer`, `max_tagged_integer`, `min_tagged_integer`, since 2.2.2 the four float flags and `float_min`, `float_max`, `float_max_integer`, since 2.16.0 `verbose`, since 3.15.0 `optimise_unify` and since 3.32.0 `stack_limit` — and every other one FAILS |
 
@@ -399,7 +398,8 @@ Five things, in cost order: the card's citations anchor and the checker's
 three verdicts behave on a copy broken each way; the index's paths and
 anchors resolve; `clauses.pl` reads `selftest/reader.pl` into exactly
 `selftest/reader.expected`, and the scans' edge cases (what card row E1 used
-to flag reads and lints clean, X2's lifts, the acknowledgements) answer as
+to flag reads and lints clean, a stream call with no import, the
+acknowledgements) answer as
 written; every rule fires
 on `selftest/traps.pl` with its acknowledgements ignored, and the file is
 clean with them read; and the whole tree — every `.pl` the repository holds,

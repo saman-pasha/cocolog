@@ -2603,6 +2603,13 @@
   (func coco_cp_install ((func h ((const char * name) (u32 arity) (int crow)) (out int)))
         (set coco_cp_hook h))
 
+  ;; and whether a module of cocolog's holds a name a first call loads it for
+  ;; (3.66.0), by the library module (`lb_autoload_has')
+  (static) (var func coco_autoload_has_hook ((const char * name) (u32 arity)) (out int))
+
+  (func coco_autoload_has_install ((func h ((const char * name) (u32 arity)) (out int)))
+        (set coco_autoload_has_hook h))
+
   ;; and what a load directive imports (3.42.0), by the library loader
   (static) (var func coco_import_hook ((coco_store * st) (coco_machine * m) (size_t goal)))
 
@@ -2684,6 +2691,14 @@
                           (if (and (not (coco_pred_dead p i)) (== (nth i (-> p muted)) 0))
                               (return 1)))
                         (set lib 1))))))
+          ;; A NAME A MODULE OF COCOLOG'S HOLDS, THE MODULE NOT LOADED (3.66.0):
+          ;; a call loads it (`lb_autoload'), so it is the system's or a
+          ;; library's as the hook's table says -- open/3 is system's, as
+          ;; swipl's, and a helper of the module's is no name of user's --
+          ;; and nothing is loaded by the question
+          (if (and (not crow) (not lib) (!= coco_autoload_has_hook nil)
+                   (coco_autoload_has_hook (coco_atom_name m nid) n))
+              (set lib 1))
           (if (or crow (not lib)) (return 0))
           (if (== coco_cp_hook nil) (return 0))
           (return (coco_cp_hook (coco_atom_name m nid) n 0))))

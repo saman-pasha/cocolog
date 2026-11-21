@@ -4,7 +4,10 @@
 %%     ./cocolog run tutorials/library/48-stream.pl main
 %%
 %% TIER 2: `use_module(library(stream))', a `.so' from `modules/stream'. It
-%% needs nothing but a C compiler: `sh modules/stream/build.sh'.
+%% needs nothing but a C compiler: `sh modules/stream/build.sh'. And since
+%% 3.66.0 a first call of any of its predicates -- open/3, read_term/2,
+%% stream_open/3 -- loads it where nothing defines the name, as swipl's
+%% autoloader loads a library; this lesson still says so at its head.
 %%
 %% BEFORE THIS, A PROGRAM'S ONLY WAY INTO A FILE WAS `read_file_to_codes/2'
 %% and its only way out was the shell. A stream is a HANDLE -- '$stream'(N),
