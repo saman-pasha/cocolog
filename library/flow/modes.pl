@@ -51,6 +51,12 @@ flow_test(string, 1).
 flow_mode(is, 2, ['-', '+'], det).
 flow_mode(succ, 2, ['?', '?'], semidet).
 flow_mode(plus, 3, ['?', '?', '?'], semidet).
+%% swipl's, in arithmetic (3.69.0)
+flow_mode(divmod, 4, ['+', '+', '-', '-'], det).
+flow_mode(nth_integer_root_and_remainder, 4, ['+', '+', '-', '-'], det).
+flow_mode(float_class, 2, ['+', '-'], det).
+flow_mode(float_parts, 4, ['+', '-', '-', '-'], det).
+flow_mode(bounded_number, 3, ['?', '?', '+'], semidet).
 flow_mode(functor, 3, ['+', '-', '-'], det).
 flow_mode(functor, 3, ['-', '+', '+'], det).
 flow_mode(arg, 3, ['+', '+', '?'], semidet).
@@ -390,6 +396,13 @@ flow_binds_all(atom_length, 2).
 flow_binds_all(string_length, 2).
 flow_binds_all(atom_string, 2).
 flow_binds_all(split_string, 4).
+%% and a number taken apart into numbers (3.69.0): each raises where an
+%% input is unbound, and makes every output
+flow_binds_all(divmod, 4).
+flow_binds_all(nth_integer_root_and_remainder, 4).
+flow_binds_all(float_class, 2).
+flow_binds_all(float_parts, 4).
+flow_binds_all(bounded_number, 3).
 
 %% the line a call takes: the first whose modes it meets (a bound argument
 %% meets + or ?, a free one - or ?), else the first line, which then only

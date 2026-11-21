@@ -1908,7 +1908,32 @@ i6_builtins :-
     catch(functor(_, foo, 4611686018427387904), error(F4, _), true),
     ( arg(4611686018427387904, f(a, b), _) -> G4 = found ; G4 = none ),
     check('the type tests, functor/3 and arg/3 take a boxed integer', T4-N4-A4-F4-G4,
-          ok-9223372036854775807-0-representation_error(max_arity)-none).
+          ok-9223372036854775807-0-representation_error(max_arity)-none),
+    %% divmod/4's quotient and bounded_number/3's neighbours past 64 bits
+    %% (3.69.0), where swipl makes a bignum: test/files/arith_parts.pl stops
+    %% short of them
+    %% (Low is asked before High, so a Low that fails stops it first)
+    findall(F5, ( member(G5, [divmod(-9223372036854775808, -1, _, _),
+                              bounded_number(_, _, 9223372036854775807),
+                              bounded_number(_, _, -9223372036854775808),
+                              bounded_number(0, _, 9223372036854775807),
+                              bounded_number(_, 0, -9223372036854775808),
+                              bounded_number(9223372036854775807, _, 9223372036854775807),
+                              bounded_number(_, 9223372036854775807, 9223372036854775807)]),
+                  catch(( G5 -> F5 = yes ; F5 = no ), error(F5, _), true) ), L5),
+    check('divmod/4 and bounded_number/3 are 64 bits, and past them int_overflow', L5,
+          [evaluation_error(int_overflow), evaluation_error(int_overflow),
+           evaluation_error(int_overflow), evaluation_error(int_overflow),
+           evaluation_error(int_overflow), no, no]),
+    %% bounded_number/3's Num that is no number is type_error(number, Num),
+    %% as swipl's documentation says, where its 9.0.4 names Low (COMPAT.md)
+    findall(F6, ( member(G6, [bounded_number(_, _, a), bounded_number(1, 5, a),
+                              bounded_number(a, b, c), bounded_number(1, 2, _),
+                              bounded_number(_, _, f(x))]),
+                  catch(( G6 -> F6 = yes ; F6 = no ), error(F6, _), true) ), L6),
+    check('bounded_number/3 names Num when it is no number', L6,
+          [type_error(number, a), type_error(number, a), type_error(number, c),
+           instantiation_error, type_error(number, f(x))]).
 
 sg_spin(0) :- !.
 sg_spin(N) :- M is N - 1, sg_spin(M).

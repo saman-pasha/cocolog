@@ -614,7 +614,7 @@
           (set c (nth t (-> m heap)))
           (if (coco-rat-p c)
               (let ((coco_rat * r . #'(aof (nth (cast size_t (coco-rat-index c)) (-> m rats)))))
-                (set s (/ (cast double (-> r n)) (cast double (-> r d)))))
+                (set s (coco_rat_double (-> r n) (-> r d))))
             (if (not (coco_m_float e t (aof s)))
                 (return (coco_m_type_error e "float" t))))
           (if (or (< s 0.0) (!= s s) (>= s 9223372036854775808.0)) (return 1))

@@ -564,6 +564,8 @@
     ("current_prolog_flag" 2) ("set_prolog_flag" 2) ("op" 3)
     ("msort" 2) ("sort" 2) ("sort" 4)
     ("plus" 3) ("succ" 2) ("tab" 1) ("halt" 1) ("statistics" 2)
+    ("divmod" 4) ("nth_integer_root_and_remainder" 4) ("float_class" 2) ("float_parts" 4)
+    ("bounded_number" 3)
     ("set_random" 1) ("random_property" 1) ("rational" 3)
     ("format" 2) ("format" 3) ("with_output_to" 2) ("source_location" 2)
     ("write" 1) ("writeq" 1) ("writeln" 1) ("print" 1) ("write_canonical" 1)

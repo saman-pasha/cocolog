@@ -115,9 +115,9 @@
                                          (set (cof isf) 2)))
                                 (return 1)))
                              ((== nid (coco-id m "float"))
-                              (let ((double x . #'(/ (cast double n0) (cast double d0))))
+                              (let ((double x . #'(coco_rat_double n0 d0)))
                                 (return (coco_float_fn e 1 x x isf fv))))
-                             (#t (block (set f0 (/ (cast double n0) (cast double d0)))
+                             (#t (block (set f0 (coco_rat_double n0 d0))
                                         (set s0 1)))))
                        (cond
                          ;; -(0.0) is -0.0, and a NaN is itself, its bits
@@ -1469,15 +1469,16 @@
                                                                (== nid (coco-id m COCO_OP_OR)))))))))))))
                     1 0)))
 
-  ;;; WHERE A RATIONAL STANDS AGAINST A FLOAT: -1, 0 or 1. Exactly when the
-  ;;; float's fraction fits i64 (`coco_double_rat'), else as doubles.
+  ;;; WHERE A RATIONAL STANDS AGAINST A FLOAT, AS FLOATS (3.69.0, swipl
+  ;;; 9.0.4's cmpReals(), which promotes the rational): -1, 0 or 1, the
+  ;;; rational rounded once, and a NaN 0, which min/2 and max/2, its one
+  ;;; caller, pass over themselves. Through 3.68.0 the float's exact
+  ;;; fraction where it fit i64, and `min(1r10, 0.1)' was 1r10 where
+  ;;; swipl's is 0.1.
   (static)
   (func coco_rat_vs_float ((i64 n) (i64 d) (double x)) (out int)
-        (let ((i64 xf . 0) (i64 xd . 1))
-          (if (coco_double_rat x (aof xf) (aof xd))
-              (return (coco_rat_cmp n d xf xd)))
-          (let ((double v . #'(/ (cast double n) (cast double d))))
-            (return (? (< v x) -1 (? (> v x) 1 0))))))
+        (let ((double v . #'(coco_rat_double n d)))
+          (return (? (< v x) -1 (? (> v x) 1 0)))))
 
   ;;; A RATIONAL RESULT AS THE EVALUATOR'S KINDS: an integer when the
   ;;; reduced denominator is 1, else `isf' 2 and the pair in the machine.
@@ -1530,19 +1531,24 @@
                           (and (== want -1) (<= c 0)))
                       (return (coco_rat_result m an ad isf iv)))
                   (return (coco_rat_result m bn bd isf iv)))
-                 ;; a is the float, b exact: c compares b with a
+                 ;; a is the float, b exact: c compares b with a. A NaN is
+                 ;; passed over, the rational the answer, as `coco_num_pick'
+                 ;; passes it over an integer (3.69.0; through 3.68.0 the
+                 ;; NaN was max(1r2, nan), where swipl's is 1r2)
                  ((!= s0 0)
                   (set c (coco_rat_vs_float bn bd f0))
-                  (if (or (and (== want 1) (> c 0))
-                          (and (== want -1) (< c 0)))
+                  (if (or (!= f0 f0)
+                          (or (and (== want 1) (> c 0))
+                              (and (== want -1) (< c 0))))
                       (return (coco_rat_result m bn bd isf iv)))
                   (set (cof fv) f0) (set (cof isf) 1)
                   (return 1))
                  (#t
                   ;; b is the float: c compares a with b; a tie is b's
                   (set c (coco_rat_vs_float an ad f1))
-                  (if (or (and (== want 1) (> c 0))
-                          (and (== want -1) (< c 0)))
+                  (if (or (!= f1 f1)
+                          (or (and (== want 1) (> c 0))
+                              (and (== want -1) (< c 0))))
                       (return (coco_rat_result m an ad isf iv)))
                   (set (cof fv) f1) (set (cof isf) 1)
                   (return 1)))))
@@ -1583,8 +1589,8 @@
                     (if q0 (return (coco_not_integer_rat e n0 d0 nid 2)))
                     (if (!= s1 0) (return (coco_not_integer e f1 nid 2)))
                     (return (coco_not_integer_rat e n1 d1 nid 2))))
-               (let ((double x0 . #'(? (!= s0 0) f0 (/ (cast double an) (cast double ad))))
-                     (double x1 . #'(? (!= s1 0) f1 (/ (cast double bn) (cast double bd)))))
+               (let ((double x0 . #'(? (!= s0 0) f0 (coco_rat_double an ad)))
+                     (double x1 . #'(? (!= s1 0) f1 (coco_rat_double bn bd))))
                  (return (coco_arith_binary e nid 0 1 1 0 x0 0 x1 isf iv fv)))))
           ;; both exact: an integer-only operator names the rational
           (if ionly
@@ -1619,15 +1625,15 @@
                   (if (not (coco_rat_pow an ad i1 (aof x) (aof y)))
                       (return (coco_int_overflow e)))
                   (return (coco_rat_result m x y isf iv)))
-               (let ((double x0 . #'(/ (cast double an) (cast double ad)))
-                     (double x1 . #'(/ (cast double bn) (cast double bd))))
+               (let ((double x0 . #'(coco_rat_double an ad))
+                     (double x1 . #'(coco_rat_double bn bd)))
                  (return (coco_arith_binary e nid 0 1 1 0 x0 0 x1 isf iv fv)))))
             ;; the float functions with no exact form: both operands as
             ;; doubles, the answer a float
             ((or (== nid (coco-id m "atan"))
                  (or (== nid (coco-id m "atan2")) (== nid (coco-id m "nexttoward"))))
-             (let ((double x0 . #'(/ (cast double an) (cast double ad)))
-                   (double x1 . #'(/ (cast double bn) (cast double bd))))
+             (let ((double x0 . #'(coco_rat_double an ad))
+                   (double x1 . #'(coco_rat_double bn bd)))
                (return (coco_arith_binary e nid 0 1 1 0 x0 0 x1 isf iv fv))))
             (#t (return (coco_not_evaluable e nid 2))))))
 
@@ -2251,27 +2257,21 @@
           (if (and (== s0 0) (== s1 0))
               (set (cof out_c) (? (< i0 i1) -1 (? (> i0 i1) 1 0)))
             (if (or (== s0 2) (== s1 2))
-                ;; A RATIONAL ON EITHER SIDE IS COMPARED EXACTLY (2.5.0);
-                ;; a float that is no i64 fraction falls back to doubles
-                (let ((i64 a . 0) (i64 b . 1) (i64 c . 0) (i64 e . 1) (int ok . 1))
-                  (if (== s0 2) (block (set a n0) (set b d0))
-                    (if (== s0 1)
-                        (if (not (coco_double_rat f0 (aof a) (aof b))) (set ok 0))
-                      (set a i0)))
-                  (if (== s1 2) (block (set c n1) (set e d1))
-                    (if (== s1 1)
-                        (if (not (coco_double_rat f1 (aof c) (aof e))) (set ok 0))
-                      (set c i1)))
-                  (if ok
-                      (block (set (cof out_c) (coco_rat_cmp a b c e)) (return 1)))
-                  (let ((double x . #'(? (== s0 1) f0
-                                         (? (== s0 2) (/ (cast double n0) (cast double d0))
-                                            (cast double i0))))
-                        (double y . #'(? (== s1 1) f1
-                                         (? (== s1 2) (/ (cast double n1) (cast double d1))
-                                            (cast double i1)))))
-                    (set (cof out_c) (? (< x y) -1 (? (> x y) 1 (? (== x y) 0 2))))
-                    (return 1)))
+                ;; A RATIONAL AGAINST AN INTEGER OR A RATIONAL IS COMPARED
+                ;; EXACTLY (2.5.0); AGAINST A FLOAT AS FLOATS (3.69.0), the
+                ;; rational rounded once, as swipl 9.0.4's cmpReals()
+                ;; promotes it: `1r10 =:= 0.1' holds. Through 3.68.0 the
+                ;; float was its exact fraction where that fit i64, and
+                ;; `1r10 < 0.1' held.
+                (if (or (== s0 1) (== s1 1))
+                    (let ((double x . #'(? (== s0 1) f0 (coco_rat_double n0 d0)))
+                          (double y . #'(? (== s1 1) f1 (coco_rat_double n1 d1))))
+                      (set (cof out_c) (? (< x y) -1 (? (> x y) 1 (? (== x y) 0 2))))
+                      (return 1))
+                  (block
+                   (set (cof out_c) (coco_rat_cmp (? (== s0 2) n0 i0) (? (== s0 2) d0 1)
+                                                  (? (== s1 2) n1 i1) (? (== s1 2) d1 1)))
+                   (return 1)))
               (let ((double a . #'(? (== s0 1) f0 (cast double i0)))
                     (double b . #'(? (== s1 1) f1 (cast double i1))))
                 (set (cof out_c) (? (< a b) -1 (? (> a b) 1 (? (== a b) 0 2)))))))

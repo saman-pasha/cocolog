@@ -1562,7 +1562,7 @@
                                  (return (coco_fmt_fail err errlen fkind 5 ""))))
                       (if (== isf 0) (set v (cast double iv)))
                       (if (== isf 2)
-                          (set v (/ (cast double (-> m arith_n)) (cast double (-> m arith_d)))))
+                          (set v (coco_rat_double (-> m arith_n) (-> m arith_d))))
                       (if (not (coco_fmt_float o v (? have num 6) d))
                           (return (coco_fmt_fail err errlen fkind 6 "")))
                       continue)))))

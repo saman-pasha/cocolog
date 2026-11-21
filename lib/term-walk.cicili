@@ -1150,7 +1150,7 @@
           (if (coco-rat-p c)
               (let ((i64 n . 0) (i64 d . 1))
                 (coco_rat_nd m c (aof n) (aof d))
-                (return (/ (cast double n) (cast double d)))))
+                (return (coco_rat_double n d))))
           (return (cast double (coco_int_val m c)))))
 
   ;;; TWO FLOATS THAT DO NOT ORDER AS NUMBERS (2.1.1), in swipl 9.0.4's
@@ -1179,29 +1179,22 @@
           (if (and (coco-is-int ca) (coco-is-int cb))
               (let ((i64 x . #'(coco_int_val m ca)) (i64 y . #'(coco_int_val m cb)))
                 (return (? (< x y) -1 (? (> x y) 1 0)))))
-          ;; A RATIONAL ON EITHER SIDE IS COMPARED EXACTLY (2.5.0): the
-          ;; cross-products fit i128, and a float becomes the exact fraction
-          ;; its bits are, so `1r2' and `0.5' are seen for the equal numbers
-          ;; they are and the float keeps the first place, as swipl orders
-          ;; them. A float that is no number, or whose fraction will not fit
-          ;; i64, falls through to the doubles below.
-          (if (or (coco-rat-p ca) (coco-rat-p cb))
-              (let ((int oka . 0) (int okb . 0)
-                    (i64 na . 0) (i64 da . 1) (i64 nb . 0) (i64 db . 1))
-                (set oka (coco_rat_side m ca (aof na) (aof da)))
-                (set okb (coco_rat_side m cb (aof nb) (aof db)))
-                (if (and oka okb)
-                    (let ((i128 l . #'(* (cast i128 na) (cast i128 db)))
-                          (i128 r . #'(* (cast i128 nb) (cast i128 da))))
-                      (if (< l r) (return -1))
-                      (if (> l r) (return 1))
-                      ;; equal in value: swipl's tie order is float, then
-                      ;; rational, then integer -- a RAT is never an integer
-                      ;; in its canonical form, so only the float can tie it
-                      (let ((int fa . #'(? (coco-tag-is FLT ca) 1 0))
-                            (int fb . #'(? (coco-tag-is FLT cb) 1 0)))
-                        (if (== fa fb) (return 0))
-                        (return (? fa -1 1)))))))
+          ;; A RATIONAL AGAINST AN INTEGER OR A RATIONAL IS COMPARED EXACTLY
+          ;; (2.5.0): the cross-products fit i128, and the two are never
+          ;; equal but as one rational, a RAT never being an integer in its
+          ;; canonical form. AGAINST A FLOAT IT IS COMPARED AS FLOATS (3.69.0,
+          ;; swipl 9.0.4's compareStandard()), in the doubles below, the
+          ;; rational rounded once: 1r10 and 0.1 are equal there, so the
+          ;; float comes first. Through 3.68.0 the float was the exact
+          ;; fraction its bits are, and `1r10 @< 0.1' held.
+          (if (and (or (coco-rat-p ca) (coco-rat-p cb))
+                   (not (or (coco-tag-is FLT ca) (coco-tag-is FLT cb))))
+              (let ((i64 na . 0) (i64 da . 1) (i64 nb . 0) (i64 db . 1))
+                (coco_rat_side m ca (aof na) (aof da))
+                (coco_rat_side m cb (aof nb) (aof db))
+                (let ((i128 l . #'(* (cast i128 na) (cast i128 db)))
+                      (i128 r . #'(* (cast i128 nb) (cast i128 da))))
+                  (return (? (< l r) -1 (? (> l r) 1 0))))))
           (let ((double x . #'(coco_num_value m a)) (double y . #'(coco_num_value m b)))
             (if (< x y) (return -1))
             (if (> x y) (return 1))

@@ -3792,9 +3792,21 @@ into its `at_modules/1`. What a session must keep:
   boxed after the `B` and `R` sections are read, so old indices still
   name what they named. A literal `1r2` is one lexer token
   (`COCO_TK_RAT`), the writer prints `N r D` in every mode, and `1r0` is
-  `illegal_number`. Order is exact (cross-products in i128); equal values
-  tie float < rational < integer; a RAT never equals an integer, canonical
-  form making one impossible. Arithmetic is exact -- `+ - * / rdiv`, `**`
+  `illegal_number`. Against an integer or a rational the order is exact
+  (cross-products in i128), and a RAT never equals an integer, canonical
+  form making one impossible; **against a float it is AS FLOATS** (3.69.0,
+  swipl 9.0.4's cmpReals() and compareStandard(): `1r10 =:= 0.1` holds,
+  `compare(>, 1r10, 0.1)`, `min(1r10, 0.1)` is 0.1) -- in the
+  comparisons (`coco_num_cmp`), max/min (`coco_rat_vs_float`, a NaN
+  passed over as `coco_num_pick` passes it) and the standard order
+  (`coco_num_order`), equal values tying float < rational < integer;
+  through 3.68.0 the float was the exact fraction its bits are.
+  **A rational is made a float by `coco_rat_double`** (lib/term.cicili,
+  3.69.0, swipl's mpq_to_double()): the quotient taken to 56 or 57 bits in
+  u128, the remainder ORed into its last bit, ONE conversion of the signed
+  quotient, so it rounds once and as the rounding mode says -- never
+  `(double) N / (double) D`, which rounds N and D first past 53 bits
+  (`float(1r9007199254740993)` was 2^-53). Arithmetic is exact -- `+ - * / rdiv`, `**`
   over an integer exponent, `rational/1`, `rationalize/1`, numerator and
   denominator, the roundings, the float parts, `abs`, `sign` -- and
   anything past 64 bits raises int_overflow; an integer-only operator names

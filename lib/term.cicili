@@ -3561,9 +3561,50 @@
           (set (cof d) dd)
           (return 1)))
 
-  ;;; A NUMBER CELL AS AN EXACT N/D: a RAT's pair, an integer over 1, or the
-  ;;; exact value of a float. 0 for a float that is no number or one whose
-  ;;; exact fraction exceeds i64.
+  ;;; THE BITS A WORD TAKES: 0 for 0, 64 for one with its top bit set.
+  (static)
+  (func coco_u64_bits ((u64 x)) (out int)
+        (let ((int k . 0))
+          (while (!= x 0) (set x (>> x 1)) (set k (+ k 1)))
+          (return k)))
+
+  ;;; 2^K AS A DOUBLE, BY ITS BITS, for K within the normal range (-1022 to
+  ;;; 1023): a binary built from this file alone has no <math.h>, no ldexp.
+  (static)
+  (func coco_pow2 ((int k)) (out double)
+        (let ((u64 bits . #'(<< (cast u64 (+ k 1023)) 52)) (double x . 0.0))
+          (memcpy (aof x) (aof bits) (sizeof double))
+          (return x)))
+
+  ;;; A RATIONAL AS A FLOAT, ROUNDED ONCE (3.69.0), as swipl's
+  ;;; mpq_to_double(): |N|/D taken to 56 or 57 bits in 128-bit integers,
+  ;;; the remainder ORed into the last of them, and the signed quotient made
+  ;;; a double by ONE conversion -- which rounds as the rounding mode says,
+  ;;; roundtoward/2's too, the low bit telling it the quotient was not exact
+  ;;; -- then scaled by its power of two (2^-118 to 2^6), exactly: a reduced
+  ;;; N/D lies within 2^-63 and 2^63, so neither a subnormal nor an overflow
+  ;;; comes into it.
+  ;;; Through 3.68.0 every site wrote (double) N / (double) D, which rounds
+  ;;; N and D first where they pass 53 bits: float(1r9007199254740993) was
+  ;;; 2^-53, a double past the quotient, where swipl's is the one below.
+  (static)
+  (func coco_rat_double ((i64 n) (i64 d)) (out double)
+        (let ((u64 a . #'(? (< n 0) (- (cast u64 0) (cast u64 n)) (cast u64 n)))
+              (int s . 0) (u128 x . 0) (u128 y . 0) (u128 q . 0) (i64 v . 0))
+          (if (or (== n 0) (== d 1)) (return (cast double n)))
+          ;; |N|/D * 2^S lies within 2^55 and 2^57
+          (set s (- 56 (- (coco_u64_bits a) (coco_u64_bits (cast u64 d)))))
+          (if (>= s 0)
+              (block (set x (<< (cast u128 a) s)) (set y (cast u128 d)))
+            (block (set x (cast u128 a)) (set y (<< (cast u128 d) (- 0 s)))))
+          (set q (/ x y))
+          (if (!= (% x y) 0) (set q (bitor q 1)))
+          (set v (cast i64 q))
+          (return (* (cast double (? (< n 0) (- 0 v) v)) (coco_pow2 (- 0 s))))))
+
+  ;;; A NUMBER CELL AS AN EXACT N/D: a RAT's pair or an integer over 1. A
+  ;;; float is no side (3.69.0): a rational against a float is compared as
+  ;;; floats, as swipl 9.0.4 compares them (`coco_num_order').
   (static)
   (func coco_rat_side ((coco_machine * m) (u64 c) (i64 * n) (i64 * d)) (out int)
         (cond
@@ -3571,8 +3612,6 @@
            (block (coco_rat_nd m c n d) (return 1)))
           ((coco-is-int c)
            (block (set (cof n) (coco_int_val m c)) (set (cof d) 1) (return 1)))
-          ((coco-tag-is FLT c)
-           (return (coco_double_rat (nth (cast size_t (coco-payload c)) (-> m floats)) n d)))
           (#t (return 0))))
 
   ;;; THE SIMPLEST RATIONAL NEAR A DOUBLE (SWI's `rationalize/1'), by its

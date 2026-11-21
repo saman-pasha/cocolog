@@ -60,6 +60,12 @@
 
     ("succ"                    2 coco_b_succ)
     ("plus"                    3 coco_b_plus)
+    ;; swipl's, in arithmetic (3.69.0)
+    ("divmod"                  4 coco_b_divmod)
+    ("nth_integer_root_and_remainder" 4 coco_b_nth_root)
+    ("float_class"             2 coco_b_float_class)
+    ("float_parts"             4 coco_b_float_parts)
+    ("bounded_number"          3 coco_b_bounded_number)
     ("$between"                4 coco_b_between)
 
     ("ground"                  1 coco_b_ground)
@@ -2072,6 +2078,175 @@
               (#t (return (coco_m_instantiation_error e))))
             (if ovf (return (coco_m_evaluation_error e "int_overflow")))
             (return (coco_m_unify_int e into w)))))
+
+  ;;; `divmod(+Dividend, +Divisor, -Quotient, -Remainder)' (3.69.0, swipl
+  ;;; 9.0.4's): Q is Dividend div Divisor and R is Dividend mod Divisor, the
+  ;;; quotient floored and the remainder of the divisor's sign. Each an
+  ;;; integer, the dividend first -- unbound instantiation_error, anything
+  ;;; else, 7.0 too, type_error(integer, T) -- then a zero divisor
+  ;;; evaluation_error(zero_divisor), named by the function as swipl's is,
+  ;;; context(divmod/2, _); Q and R unified after, Q first. The least
+  ;;; integer by -1 is int_overflow, where swipl's quotient is a bignum.
+  (func coco_b_divmod ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t a . #'(coco_m_arg e g 0)) (size_t b . #'(coco_m_arg e g 1))
+              (i64 x . 0) (i64 y . 0) (i64 q . 0) (i64 r . 0))
+          (if (not (coco_m_int e a (aof x))) (return (coco_m_type_error e "integer" a)))
+          (if (not (coco_m_int e b (aof y))) (return (coco_m_type_error e "integer" b)))
+          (if (== y 0)
+              (return (coco_raise_named e (coco_make1 m "evaluation_error"
+                                                       (coco_new_atom m "zero_divisor"))
+                                        "" "divmod" 2)))
+          (if (== y -1)
+              (block (if (== x (- -9223372036854775807 1))
+                         (return (coco_m_evaluation_error e "int_overflow")))
+                     (set q (- 0 x)))
+            (block (set q (/ x y)) (set r (% x y))
+                   (if (and (!= r 0) (!= (< r 0) (< y 0)))
+                       (block (set q (- q 1)) (set r (+ r y))))))
+          (if (not (coco_m_unify_int e (coco_m_arg e g 2) q)) (return 0))
+          (return (coco_m_unify_int e (coco_m_arg e g 3) r))))
+
+  ;;; B^K, or the largest word where it passes one (B and K at least 1).
+  (static)
+  (func coco_pow_sat ((u64 b) (i64 k)) (out u64)
+        (let ((u64 p . 1) (u128 w . 0))
+          (for ((i64 i . 0)) (< i k) ((++ i))
+            (set w (* (cast u128 p) (cast u128 b)))
+            (if (!= (>> w 64) 0) (return (- (cast u64 0) 1)))
+            (set p (cast u64 w)))
+          (return p)))
+
+  ;;; `nth_integer_root_and_remainder(+N, +I, -Root, -Remainder)' (3.69.0,
+  ;;; swipl 9.0.4's): Root is the N-th root of I truncated, and Remainder
+  ;;; I - Root^N, of I's sign. N an integer, or a float that is a whole
+  ;;; number within 64 bits (2.0, as swipl's PL_get_int64 takes it), unbound
+  ;;; instantiation_error and else type_error(integer, N); then I an
+  ;;; integer, a float no more; then N under 1 domain_error(not_less_than_one,
+  ;;; N) as it was given, -0.0 too; then a negative I under an even N
+  ;;; evaluation_error(undefined). The root is the double's estimate made
+  ;;; exact by the powers either side of it, in 64 bits, saturated.
+  (func coco_b_nth_root ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t tn . #'(coco_deref m (coco_m_arg e g 0)))
+              (size_t ti . #'(coco_m_arg e g 1))
+              (i64 n . 0) (i64 i . 0) (u64 a . 0) (u64 r . 0) (u64 p . 0) (i64 root . 0))
+          (if (not (coco_m_int e tn (aof n)))
+              (let ((u64 c . #'(nth tn (-> m heap))) (double f . 0.0))
+                (if (not (coco-tag-is FLT c)) (return (coco_m_type_error e "integer" tn)))
+                (set f (nth (cast size_t (coco-payload c)) (-> m floats)))
+                (if (not (and (== f (floor f))
+                              (and (>= f -9223372036854775808.0) (< f 9223372036854775808.0))))
+                    (return (coco_m_type_error e "integer" tn)))
+                (set n (cast i64 f))))
+          (if (not (coco_m_int e ti (aof i))) (return (coco_m_type_error e "integer" ti)))
+          (if (< n 1) (return (coco_m_domain_error e "not_less_than_one" tn)))
+          (if (and (< i 0) (== (bitand n 1) 0)) (return (coco_m_evaluation_error e "undefined")))
+          (set a (? (< i 0) (- (cast u64 0) (cast u64 i)) (cast u64 i)))
+          (cond
+            ((== a 0) (set r 0))
+            ;; 1^N is 1 and 2^N passes every word
+            ((>= n 64) (set r 1))
+            (#t
+             (set r (cast u64 (pow (cast double a) (/ 1.0 (cast double n)))))
+             (while (<= (coco_pow_sat (+ r 1) n) a) (set r (+ r 1)))
+             (while (and (> r 0) (> (coco_pow_sat r n) a)) (set r (- r 1)))))
+          ;; 0 and 1 are their own powers, and a root of 2 or more is an N
+          ;; under 64's
+          (set p (? (<= r 1) r (coco_pow_sat r n)))
+          ;; negated as a word: the root of the least integer under N = 1
+          ;; is 2^63, whose negation as an i64 would overflow
+          (set root (? (< i 0) (cast i64 (- (cast u64 0) r)) (cast i64 r)))
+          (if (not (coco_m_unify_int e (coco_m_arg e g 2) root)) (return 0))
+          (return (coco_m_unify_int e (coco_m_arg e g 3)
+                                    (? (< i 0) (- 0 (cast i64 (- a p))) (cast i64 (- a p)))))))
+
+  ;;; `float_class(+Float, -Class)' (3.69.0, swipl 9.0.4's): nan, infinite,
+  ;;; zero, subnormal or normal, of a float alone -- an integer, a rational
+  ;;; or anything else is type_error(float, F), unbound
+  ;;; instantiation_error -- and the class unified, so one it is not fails.
+  (func coco_b_float_class ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t t . #'(coco_deref m (coco_m_arg e g 0)))
+              (double f . 0.0) (const char * k . nil))
+          (if (not (coco-tag-is FLT (nth t (-> m heap)))) (return (coco_m_type_error e "float" t)))
+          (set f (nth (cast size_t (coco-payload (nth t (-> m heap)))) (-> m floats)))
+          (cond ((!= f f) (set k "nan"))
+                ((or (== f (coco_inf 1)) (== f (coco_inf -1))) (set k "infinite"))
+                ((== f 0.0) (set k "zero"))
+                ((< (fabs f) 2.2250738585072014e-308) (set k "subnormal"))
+                (#t (set k "normal")))
+          (return (coco_m_unify e (coco_m_arg e g 1) (coco_new_atom m k)))))
+
+  ;;; `float_parts(+Float, -Mantissa, -Base, -Exponent)' (3.69.0, swipl
+  ;;; 9.0.4's): Float is Mantissa * 2^Exponent, frexp(3)'s, the mantissa's
+  ;;; magnitude within 0.5 and 1 and Base 2; a zero, an infinity or a NaN
+  ;;; its own mantissa over 0. An integer or a rational is the float it
+  ;;; rounds to (float_parts(1, 0.5, 2, 1)), anything else type_error(float,
+  ;;; F); M, B and E unified in that order.
+  (func coco_b_float_parts ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t t . #'(coco_deref m (coco_m_arg e g 0)))
+              (u64 c . #'(nth t (-> m heap)))
+              (double f . 0.0) (double mf . 0.0) (int ex . 0))
+          (cond ((coco-tag-is FLT c) (set f (nth (cast size_t (coco-payload c)) (-> m floats))))
+                ((coco-is-int c) (set f (cast double (coco_int_val m c))))
+                ((coco-rat-p c)
+                 (let ((i64 rn . 0) (i64 rd . 1))
+                   (coco_rat_nd m c (aof rn) (aof rd))
+                   (set f (coco_rat_double rn rd))))
+                (#t (return (coco_m_type_error e "float" t))))
+          (if (or (!= f f) (or (== f 0.0) (or (== f (coco_inf 1)) (== f (coco_inf -1)))))
+              (set mf f)
+            (set mf (frexp f (aof ex))))
+          (if (not (coco_m_unify_float e (coco_m_arg e g 1) mf)) (return 0))
+          (if (not (coco_m_unify_int e (coco_m_arg e g 2) 2)) (return 0))
+          (return (coco_m_unify_int e (coco_m_arg e g 3) ex))))
+
+  ;;; `bounded_number(?Low, ?High, +Num)' (3.69.0): Low < Num < High, as
+  ;;; swipl 9.0.4's. A NaN or an infinity is bounded by nothing. An unbound
+  ;;; bound is made the nearest number past Num on its side: an integer's
+  ;;; neighbour, a float's (nextafter(3)), and a rational's the float's
+  ;;; either side of the float it rounds to; a bound that is a number is
+  ;;; compared as `<'/2 compares, and one that is none fails. Low first.
+  ;;; Num no number is type_error(number, Num), as swipl's documentation
+  ;;; says it, where swipl 9.0.4's names Low (COMPAT.md); past 64 bits an
+  ;;; integer's neighbour is int_overflow, where swipl's is a bignum.
+  (func coco_b_bounded_number ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t t . #'(coco_deref m (coco_m_arg e g 2)))
+              (u64 c . #'(nth t (-> m heap)))
+              (int whole . 0) (i64 iv . 0) (double fv . 0.0))
+          (cond ((coco-is-int c) (block (set whole 1) (set iv (coco_int_val m c))))
+                ((coco-tag-is FLT c)
+                 (block (set fv (nth (cast size_t (coco-payload c)) (-> m floats)))
+                        (if (or (!= fv fv) (or (== fv (coco_inf 1)) (== fv (coco_inf -1))))
+                            (return 0))))
+                ((coco-rat-p c)
+                 (let ((i64 rn . 0) (i64 rd . 1))
+                   (coco_rat_nd m c (aof rn) (aof rd))
+                   (set fv (coco_rat_double rn rd))))
+                (#t (return (coco_m_type_error e "number" t))))
+          (for ((u32 side . 0)) (< side 2) ((++ side))
+            (let ((size_t b . #'(coco_deref m (coco_m_arg e g side)))
+                  (u64 bc . #'(nth b (-> m heap))))
+              (if (coco-tag-is REF bc)
+                  (let ((size_t nb . 0) (i64 w . 0))
+                    (if whole
+                        (block
+                         (if (? (== side 0) (coco_sub_ovf iv 1 (aof w)) (coco_add_ovf iv 1 (aof w)))
+                             (return (coco_m_evaluation_error e "int_overflow")))
+                         (set nb (coco_new_int m w)))
+                      (set nb (coco_new_float m (nextafter fv (coco_inf (? (== side 0) -1 1))))))
+                    (if (not (coco_m_unify e b nb)) (return 0)))
+                (let ((int cmp . 0) (int rc . 0))
+                  (if (not (or (coco-is-int bc) (or (coco-tag-is FLT bc) (coco-rat-p bc))))
+                      (return 0))
+                  (set rc (coco_num_cmp e (? (== side 0) (coco_make2 m "<" b t) (coco_make2 m "<" t b))
+                                        (aof cmp)))
+                  (if (!= rc 1) (return rc))
+                  (if (!= cmp -1) (return 0))))))
+          (return 1)))
 
   ;;; ---- terms ------------------------------------------------------------
 

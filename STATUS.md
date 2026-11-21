@@ -21458,3 +21458,151 @@ library, string, cyclic, gc, async, directives, repl, solve, script, trace,
 state, term and module, each alone, green with no SKIP (files again alone
 after a first run that shared its sandbox in /tmp with an arm's, and async
 again once global_deletes expected the output shell/3 hands back).
+
+## divmod/4, nth_integer_root_and_remainder/4, float_class/2, float_parts/4 and bounded_number/3 are swipl's, and a rational meets a float as swipl's (3.69.0)
+
+BACKLOG #252, the third group of COMPAT.md's small built-ins a swipl
+program calls as it stands: through 3.68.0 each of the five was an
+unknown procedure. Each is a C row of the builtins module now, foreign in
+swipl's system module as in cocolog (predicate_property/2 answers swipl's
+six properties from the rows it had), each with its row of
+`*error-contexts*`, its line of library/flow/modes.pl and its
+`flow_binds_all/2` fact (each raises where an input is unbound and makes
+every output).
+
+- `divmod(Dividend, Divisor, Q, R)`: Q is Dividend div Divisor and R is
+  Dividend mod Divisor, C's quotient floored where the remainder's sign is
+  not the divisor's. Each an integer, the dividend first (an unbound one
+  instantiation_error, anything else type_error(integer, T), 7.0 and 1r2
+  too); then a zero divisor evaluation_error(zero_divisor), named by the
+  function as swipl's is, `context(divmod/2, _)`; then Q and R unified.
+  The least integer by -1 is int_overflow, where swipl's quotient is a
+  bignum; it is answered apart, C's `%` of it being undefined.
+- `nth_integer_root_and_remainder(N, I, Root, Rem)`: Root the N-th root of
+  I truncated, Rem = I - Root^N of I's sign. N an integer, or a float that
+  is a whole number within 64 bits (2.0, 9.0e18; 9.3e18 and 1.0e30 are
+  type errors, as swipl's PL_get_int64 takes them), then I an integer (4.0
+  is a type error), then N under 1 domain_error(not_less_than_one, N) as
+  given, -0.0 too, then a negative I under an even N
+  evaluation_error(undefined) -- swipl's order, `(0, a)` a type error of
+  I's. The root is pow(3)'s estimate made exact by the powers either side
+  of it, in 64 bits, saturated (`coco_pow_sat`); 1^N is 1 for an N past
+  63, which no power is asked of, and under N = 1 the root is I itself,
+  the estimate's own answer.
+- `float_class(F, C)`: nan, infinite, zero, subnormal or normal, of a
+  float alone.
+- `float_parts(F, M, B, E)`: frexp(3)'s mantissa and exponent, base 2; a
+  zero, an infinity or a NaN its own mantissa over 0 (C leaves frexp's
+  exponent unspecified for the last two: glibc writes 0, Darwin's libm
+  need not); an integer or a rational the float it rounds to.
+- `bounded_number(Low, High, Num)`: Low < Num < High. An unbound bound is
+  Num's nearest neighbour on its side -- an integer's, a float's
+  (nextafter(3)), a rational's the float's either side of the float it
+  rounds to; a bound that is a number is compared as `<`/2 compares; one
+  that is none fails; a NaN or an infinity is bounded by nothing; Low is
+  asked first. A Num that is no number is type_error(number, Num), as
+  swipl's manual says, where its 9.0.4 names Low (COMPAT.md's new row);
+  past 64 bits an integer's neighbour is int_overflow.
+
+ON THE WAY, A RATIONAL AND A FLOAT, three faults swipl 9.0.4 holds the
+other way, each since 2.5.0 (test/files/rationals.pl held none of them:
+its rational-against-float rows were all exact in a double):
+
+- A RATIONAL AGAINST A FLOAT IS COMPARED AS FLOATS, as swipl's cmpReals()
+  and compareStandard() promote it: in the comparisons (`coco_num_cmp`),
+  in max/min (`coco_rat_vs_float`) and in the standard order
+  (`coco_num_order`). Through 3.68.0 the float was the exact fraction its
+  bits are, so `1r10 < 0.1` held where swipl's `1r10 =:= 0.1` does,
+  `compare(<, 1r10, 0.1)` where swipl's is `>` (equal, the float first),
+  `min(1r10, 0.1)` was 1r10, and so were max_list/2, min_list/2,
+  aggregate_all/3's max and min, max_member/2 and msort/2 of the two.
+  Against an integer or another rational it stays exact, as swipl's.
+- A RATIONAL IS MADE A FLOAT ROUNDED ONCE (`coco_rat_double`, swipl's
+  mpq_to_double()): |N|/D's quotient taken to 56 or 57 bits in u128, the
+  remainder ORed into the last of them, the signed quotient made a double
+  by one conversion -- which rounds as the rounding mode says, so
+  roundtoward/2 of a negative rational rounds the way its mode names --
+  and scaled by its power of two, exactly. Through 3.68.0 each of the
+  fourteen sites -- float/1, a float operand's promotion, `**` and the
+  float functions of two rationals, the comparisons, the standard order,
+  format's `~e`, `~f` and `~g`, sleep/1 -- wrote (double) N / (double) D,
+  which rounds N and D first where they pass 53 bits:
+  `float(1r9007199254740993)` was 2^-53, the double past the quotient,
+  where swipl's is the one below it, and every comparison and promotion
+  of such a rational went through that double.
+- max/2 AND min/2 PASS A NaN OVER A RATIONAL, as `coco_num_pick` passes
+  it over an integer: `max(1r2, nan)` is 1r2, where 3.68.0 answered the
+  NaN.
+
+Not fixed, and COMPAT.md's new row: format/2's `~Nf`, `~Ne` and `~Ng` of
+a rational write the digits of the float it rounds to, where swipl's
+write the rational's own (`~20f` of 1r3 is `0.33333333333333333333`
+there, `0.33333333333333331483` here); backlog #265.
+
+THE CASES: test/files/arith_parts.pl, 292 lines held to swipl 9.0.4 (the
+five, their errors and contexts, swipl's properties, listing/1 and
+clause/2 of them; every root of the powers up to 20^12 and their two
+neighbours; the rational against the float in the comparisons, max/min,
+the folds, the standard order, and its float under every rounding mode,
+9r7 and -25r7 the quotients whose bits past the double run 100... with a
+remainder after them); test/engine.pl's i6_builtins two checks (divmod/4
+and bounded_number/3 at 64 bits' ends, int_overflow, and bounded_number/3
+naming Num).
+
+THE RULES, each its own arm (one build of the final tree with the rule
+out), each red on its own check:
+
+- divmod/4: the quotient floored (DM1: C's truncation, `divmod(-7, 2)`
+  -3 and -1, red at d2 and d3); the zero divisor named divmod/2 (DM2:
+  system:divmod/4, d5 and d6); the least integer by -1 refused (DM3: C's
+  undefined quotient, red in test/engine.pl's 64-bit check); the dividend's
+  type asked first (DM4, d11 and d12);
+- nth_integer_root_and_remainder/4: a whole float taken for N (NR1:
+  refused, r13, r15, r16), and one past 64 bits refused (NR2: 1.0e+30 a
+  domain error, r18 and r19); I's type asked before N's domain (NR3, r30
+  and r31); a negative I under an even N undefined (NR4, r6 and r25); the
+  double's estimate made exact (NR5, r37 and r41); an N past 63 answered by
+  1 (NR7: r22's power of 1 asked 9.0e18 times, the child killed at the
+  files case's two minutes);
+- float_class/2 and float_parts/4: the least normal float normal (FC1:
+  subnormal, c9 and c11); an integer refused by float_class/2 (FC2, c13,
+  c15, c16); an integer and a rational taken by float_parts/4 (FP1, FP2:
+  refused, p12 to p17);
+- bounded_number/3: an integer's neighbours integers (BN1: floats, b4, b12,
+  b13 and engine.pl); a NaN or an infinity bounded by nothing (BN2, b6 to
+  b8); a bound that is no number failing (BN3: evaluated, a type error,
+  b14 and b28); a bound equal to Num no bound (BN4, b10, b22, b23 and
+  engine.pl); a Num that is no number named (BN5: failing, red in
+  engine.pl's check alone); Low asked before High (BN6: High's neighbour of
+  the greatest integer overflowed first, engine.pl);
+- the rational made a float: rounded once (F1: two doubles divided, p32
+  and b61), the remainder kept in the last bit (F1b, q52 and q53, 9r7 and
+  -25r7), the signed quotient converted (F1c: the magnitude rounded and the
+  sign put on, roundtoward/2's two directed modes swapped, q38 and q39);
+- against a float, as floats: the comparisons (F2a, b58, q9, q10), the
+  standard order (F2b, q1 and q2), max/min (F2c, q18 and q20), a NaN passed
+  over (F2d, q22 to q25);
+- the five rows of `*error-contexts*` (EC: the context unbound, d7 to d10).
+
+One arm stayed green and its code went: N = 1 answered by I itself before
+the root's estimate (NR6) is what the estimate and the saturated powers
+give anyway, so the block was taken out and the root's negation made a
+word's (2^63 under N = 1 and the least integer). The first builds of BN5,
+DM1, BN6 and NR7 were prepared before that block went and coco_pow2 took
+ldexp's place; each was built again from the final tree and was red again on
+the same check.
+
+WHAT IT COSTS: a start (`cocolog query true`, each binary from the
+scratchpad at paths of one length) counts 76 963 instructions fewer,
+35 634 423 against 35 711 386 (-0.22 %), and the whole of it is libc's
+strcmp and strncmp (-91 543 and +12 502): the same calls, 35 988 from
+the reader alone, of the same strings at other addresses; cocolog's own
+functions count 565 fewer. tools/flow/zero.sh against 3.68.0, work less
+padding: nrev 65 960 020 (-113), queens 39 969 819 (-289), lookup
+48 093 024 (-313).
+
+THE RUN, on the final binary: the lint case first, then files, engine,
+rationals, string, errors, flowchart, library, cyclic, gc, trace, repl,
+directives, script and units, and the seven test binaries (term, syntax,
+solve, module, state, and zigurat and shared with a server up), each
+alone, green with no SKIP.
