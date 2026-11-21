@@ -148,6 +148,99 @@ SWI 9.0.4's arithmetic; `random_between/3` and the rest of
 `library(random)`, `library(strings)` and the stream string predicates
 (`read_string/3,5`, `open_string/2`) are not either.
 
+## Useful to add: what swipl has at start and cocolog has not
+
+A list of work worth doing, in the order it is worth doing it, not a
+promise. Counted on cocolog 3.65.0 against swipl 9.0.4: with nothing
+loaded, swipl's module `system` sees 662 predicates whose names do not
+begin with `$` (`predicate_property(system:H, defined)`), 158 of them ISO,
+and cocolog's `current_predicate(Name/Arity)` answers 228 of them at
+start. Of the 434 it does not:
+
+* 61 are cocolog's once a module is loaded, as `open/3` is:
+  `library(stream)` holds 50 (40 ISO: `open/3,4`, `close/1,2`, `read/1,2`,
+  `read_term/2,3`, `write/2`, `writeq/2`, `print/2`, `write_term/3`,
+  `write_canonical/2`, `writeln/2`, `nl/1`, `tab/2`, the get, peek and put
+  family of chars, codes and bytes, `current_input/1`, `current_output/1`,
+  `set_input/1`, `set_output/1`, `flush_output/1`, `stream_property/2`,
+  `set_stream/2`, `at_end_of_stream/0,1`, `set_stream_position/2`,
+  `stream_position_data/3`, `line_count/2`, `line_position/2`,
+  `character_count/2`, `byte_count/2`, `is_stream/1`), `library(thread)` 9
+  (`thread_create/2`, `thread_join/2`, `thread_detach/1`, `with_mutex/2`
+  and `mutex_create/1`, `mutex_destroy/1`, `mutex_lock/1`,
+  `mutex_trylock/1`, `mutex_unlock/1`), `library(signal)` 2
+  (`on_signal/3`, `current_signal/3`);
+* 373 are nowhere in cocolog, 18 of them ISO.
+
+A swipl file's usual first lines stop at four places for it: `:-
+style_check(-singleton).` (an unknown procedure), `:-
+use_module(library(readutil)).` and `:- use_module(library(option)).` (no
+such source), and a call of `open/3` in a program that loaded no module.
+
+1. **Load cocolog's own modules at a predicate's first call**, as swipl's
+   autoloader loads a library: the 61 above, and the names swipl's
+   libraries give what a module of cocolog's holds (`library(readutil)`'s
+   `read_line_to_string/2` is `library(stream)`'s). A module read at every
+   start instead costs each process its load: `library(stream)` 8.3
+   million instructions on a start of 35.3 million, `library(thread)` 0.4
+   million.
+2. **Small built-ins a swipl program calls as it stands**:
+   * at a load: `style_check/1`, `garbage_collect_atoms/0`,
+     `garbage_collect_clauses/0`, `trim_stacks/0`;
+   * on terms and globals: `nb_delete/1`, `term_variables/3`,
+     `term_singletons/2`, `unifiable/3`, `?=/2`, `same_term/2`;
+   * in arithmetic: `divmod/4`, `nth_integer_root_and_remainder/4`,
+     `float_class/2`, `float_parts/4`, `bounded_number/3`;
+   * of the process: `flag/3`, `get_flag/2`, `set_flag/2`, `shell/1,2`,
+     `at_halt/1`;
+   * of a search: `findnsols/4,5`, `call_with_inference_limit/3` and
+     `call_with_depth_limit/3` (swipl's contracts, beside cocolog's
+     `call_limited/3`);
+   * of the program and the clock: `current_module/1`, `source_file/1,2`,
+     `format_time/3`, `stamp_date_time/3`, `date_time_stamp/2`.
+3. **swipl's libraries written in Prolog**, kept in `lib/swipl` as assoc
+   and ordsets are and read when a program asks: `library(option)`
+   (`option/2,3`, `select_option/3,4`, `merge_options/3`),
+   `library(gensym)` (`gensym/2`, `reset_gensym/1`) and `library(sort)`
+   (`predsort/3`) import only libraries cocolog carries;
+   `library(random)` (`random_between/3`, `random_member/2`,
+   `random_permutation/2`, `random_select/3`) asks
+   `current_arithmetic_function/1` as it loads; `library(terms)`
+   (`subsumes/2`, `term_size/2`, `mapargs/3`, `variant/2`) wants
+   `library(rbtrees)`; `library(solution_sequences)` (`limit/2`,
+   `offset/2`, `distinct/1,2`, `order_by/2`, `call_nth/2`) wants
+   `library(nb_set)`, which wants `library(terms)`; `library(debug)`
+   (`debug/1,3`, `assertion/1`) wants `library(prolog_stack)`. Each one
+   held to swipl before it is carried.
+4. **The rest of ISO**: `char_conversion/2` and
+   `current_char_conversion/2`; `initialization/1` as a goal (a directive
+   alone today); and the thread predicates of ISO's thread draft over
+   `library(thread)`: the message queues (`message_queue_create/1,2`,
+   `message_queue_destroy/1`, `message_queue_property/2`,
+   `thread_send_message/2`, `thread_get_message/1,2,3`,
+   `thread_peek_message/1,2`), `thread_self/1`, `thread_property/2`,
+   `thread_signal/2`, `thread_create/3`, `mutex_create/2` and
+   `mutex_property/2`. cocolog has channels where swipl has queues.
+5. **Clause references and the recorded database**: `assertz/2`,
+   `asserta/2`, `assert/2`, `clause/3`, `erase/1`, `nth_clause/3`,
+   `instance/2`, `recorda/2,3`, `recordz/2,3`, `recorded/2,3` and
+   `current_key/1`. A reference is a value that has to mean the same
+   clause in all three arrangements of the knowledge base.
+6. **The large ones, each a project of its own**: attributed variables
+   (`put_attr/3`, `get_attr/3`, `freeze/2`, `frozen/2`, `dif/2`, `when/2`,
+   `copy_term/3`, `term_attvars/2`, `call_residue_vars/2`), which touch the
+   hot path of unification and are what `library(clpfd)` stands on;
+   tabling (`table/1`, `tnot/1`, the `abolish_*_tables` family, the tries
+   `trie_new/1` and its kin); delimited continuations (`reset/3`,
+   `shift/1`); and engines (`engine_create/3`, `engine_next/2`,
+   `engine_yield/1`, `engine_destroy/1`).
+
+Left out unless a program someone cares about needs them: dicts, the
+profiler, locales, zip resources, packs and `qcompile/1`, `license/1`, the
+terminal and protocol predicates, the debugger's frame internals
+(`prolog_current_frame/1` and its kin), and the Edinburgh I/O (`see/1`,
+`tell/1`, `get0/1`, ...).
+
 ## Different by design, and documented where they live
 
 | what | SWI-Prolog | cocolog | why |
