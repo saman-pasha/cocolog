@@ -21,6 +21,9 @@ flow_test('\\=', 2).
 flow_test('=@=', 2).
 flow_test('\\=@=', 2).
 flow_test(subsumes_term, 2).
+%% swipl's (3.68.0)
+flow_test('?=', 2).
+flow_test(same_term, 2).
 flow_test(var, 1).
 flow_test(nonvar, 1).
 flow_test(atom, 1).
@@ -58,6 +61,9 @@ flow_mode('=..', 2, ['+', '-'], det).
 flow_mode('=..', 2, ['-', '+'], det).
 flow_mode(copy_term, 2, ['+', '-'], det).
 flow_mode(term_variables, 2, ['+', '-'], det).
+%% swipl's (3.68.0): the list's tail given, and the variables met once
+flow_mode(term_variables, 3, ['+', '-', '?'], det).
+flow_mode(term_singletons, 2, ['+', '-'], det).
 %% swipl's numbervars/4 and the clause numbervars/3 is over it (3.40.0): an
 %% end already given only compares
 flow_mode(numbervars, 3, ['?', '+', '-'], det).
@@ -109,6 +115,7 @@ flow_mode(b_setval, 2, ['+', '+'], det).
 flow_mode(b_getval, 2, ['+', '-'], det).
 flow_mode(nb_current, 2, ['+', '?'], semidet).
 flow_mode(nb_current, 2, ['-', '?'], nondet).
+flow_mode(nb_delete, 1, ['+'], det).
 flow_mode(length, 2, ['+', '-'], det).
 flow_mode(length, 2, ['-', '+'], det).
 flow_mode(length, 2, ['+', '+'], semidet).
@@ -173,6 +180,7 @@ flow_mode(aggregate_all, 3, ['+', ':', '-'], semidet).
 flow_mode(compare, 3, ['-', '+', '+'], det).
 flow_mode(compare, 3, ['+', '+', '+'], semidet).
 flow_mode(unify_with_occurs_check, 2, ['?', '?'], semidet).
+flow_mode(unifiable, 3, ['?', '?', '-'], semidet).
 flow_mode(call_limited, 3, [':', '+', '-'], semidet).
 flow_mode(call_metered, 4, [':', '+', '-', '-'], det).
 flow_mode(with_output_to, 2, ['+', ':'], semidet).

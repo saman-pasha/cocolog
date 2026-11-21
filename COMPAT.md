@@ -124,9 +124,10 @@ an existence error, an instantiation error, a refusal by name.
 
 (`$/0` is there since 3.21.0, and `$/1` and `@/2` since 3.20.0, the control
 constructs swipl's compiler makes them; `repeat/0` since 3.39.0,
-`numbervars/3,4` since 3.40.0, and `style_check/1` with
+`numbervars/3,4` since 3.40.0, `style_check/1` with
 `garbage_collect_atoms/0`, `garbage_collect_clauses/0` and `trim_stacks/0`
-since 3.67.0.)
+since 3.67.0, and `nb_delete/1`, `term_variables/3`, `term_singletons/2`,
+`unifiable/3`, `?=/2` and `same_term/2` since 3.68.0.)
 `freeze/2` and coroutining, `table/1` and tabling (since 3.2.0
 `:- table p/2.` reads, `table` being swipl's 1150 fx operator, and the load
 reports `table/1` as an unknown procedure and goes on), swipl's dicts and the
@@ -188,11 +189,11 @@ is `library(stream)`, whose `read_line_to_string/2` it is. Since 3.67.0
 the style_check/1 directive passes too, swipl's, with the three collectors
 that a load also calls (`garbage_collect_atoms/0`,
 `garbage_collect_clauses/0`, `trim_stacks/0`), which were the first group
-below; `library(option)` is item 2's.
+below; `library(option)` is item 2's. The second group, on terms and
+globals (`nb_delete/1`, `term_variables/3`, `term_singletons/2`,
+`unifiable/3`, `?=/2`, `same_term/2`), is swipl's since 3.68.0.
 
 1. **Small built-ins a swipl program calls as it stands**:
-   * on terms and globals: `nb_delete/1`, `term_variables/3`,
-     `term_singletons/2`, `unifiable/3`, `?=/2`, `same_term/2`;
    * in arithmetic: `divmod/4`, `nth_integer_root_and_remainder/4`,
      `float_class/2`, `float_parts/4`, `bounded_number/3`;
    * of the process: `flag/3`, `get_flag/2`, `set_flag/2`, `shell/1,2`,

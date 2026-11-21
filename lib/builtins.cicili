@@ -66,9 +66,15 @@
     ("acyclic_term"            1 coco_b_acyclic_term)
     ("cyclic_term"             1 coco_b_cyclic_term)
     ("term_variables"          2 coco_b_term_variables)
+    ;; swipl's, on terms (3.68.0)
+    ("term_variables"          3 coco_b_term_variables3)
+    ("term_singletons"         2 coco_b_term_singletons)
     ("numbervars"              4 coco_b_numbervars)
     ("unify_with_occurs_check" 2 coco_b_unify_occurs)
     ("subsumes_term"           2 coco_b_subsumes_term)
+    ("unifiable"               3 coco_b_unifiable)
+    ("?="                      2 coco_b_can_compare)
+    ("same_term"               2 coco_b_same_term)
     ("=@="                     2 coco_b_variant)
     ("\\=@="                   2 coco_b_not_variant)
 
@@ -105,6 +111,7 @@
     ("nb_setval"               2 coco_b_setval)
     ("nb_getval"               2 coco_b_getval)
     ("nb_current"              2 coco_b_nb_current :declines)
+    ("nb_delete"               1 coco_b_nb_delete)
     ("$nb_keys"                1 coco_b_nb_keys)
     ("garbage_collect"         0 coco_b_garbage_collect)
     ;; swipl's word of style checks (3.67.0), which style_check/1 is clauses
@@ -2217,16 +2224,94 @@
           (if taken (coco_varmap_give m (aof vm)))
           (return r)))
 
-  (func coco_b_term_variables ((coco_engine * e) (size_t g)) (out int)
+  ;;; THE VARIABLES BEFORE TAIL: term_variables/2's list ends in `[]',
+  ;;; term_variables/3's in its third argument (3.68.0, swipl's difference
+  ;;; list: `term_variables(f(A), L, foo)' is `[A|foo]', and a Vars that
+  ;;; names a variable of the term or its own tail unifies as swipl's walk
+  ;;; of the list does, cyclic where that is what it says)
+  (static)
+  (func coco_b_term_vars ((coco_engine * e) (size_t g) (size_t tail)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out) (int r . 0))
+              (size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out . tail) (int r . 0))
           (set r (coco_b_collect_vars m (coco_m_arg e g 0) 0 (aof v) (aof n) (aof cap)))
           (if (== r 0)
               (block (set n 0)
                      (set r (coco_b_collect_vars m (coco_m_arg e g 0) 1 (aof v) (aof n) (aof cap)))))
           (if (== r -1) (coco_oom m))
-          (set out (coco_m_list e v n))
+          (for ((size_t i . n)) (> i 0) ((-- i))
+            (set out (coco_cons m (nth (- i 1) v) out)))
           (free v)
+          (return (coco_m_unify e (coco_m_arg e g 1) out))))
+
+  (func coco_b_term_variables ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_b_term_vars e g (coco_m_nil e))))
+
+  (func coco_b_term_variables3 ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_b_term_vars e g (coco_m_arg e g 2))))
+
+  ;;; EACH OF V'S VN VARIABLES COUNTED IN T'S TREE, to 2, in VM (the
+  ;;; caller's, taken): a shared subterm counts at each place it stands, as
+  ;;; swipl's singleton walks count -- numbervars/4's singletons(true) and
+  ;;; term_singletons/2 (3.68.0: split out of numbervars/4, whose walk it
+  ;;; was) -- so a DAG is walked as the tree it stands for, 2^N steps for N
+  ;;; levels of it there too. T is acyclic. 1, or -1 when a walk could not
+  ;;; grow.
+  (static)
+  (func coco_b_tree_counts ((coco_machine * m) (size_t t) (size_t * v) (size_t vn)
+                            (coco_varmap * vm)) (out int)
+        (let ((size_t wcap . 0) (size_t * wl . nil) (size_t wlen . 0) (int r . 1) (size_t c . 0))
+          (for ((size_t i . 0)) (and (== r 1) (< i vn)) ((++ i))
+            (if (not (coco_varmap_put vm (nth i v) 0)) (set r -1)))
+          (set wl (coco_wpairs_take m (aof wcap)))
+          (if (and (== r 1) (not (coco_cells_push (aof wl) (aof wlen) (aof wcap) t))) (set r -1))
+          (while (and (== r 1) (> wlen 0))
+            (set wlen (- wlen 1))
+            (let ((size_t a . #'(coco_deref m (nth wlen wl))))
+              (cond
+                ((coco-tag-is REF (nth a (-> m heap)))
+                 (if (and (coco_varmap_get vm a (aof c)) (< c 2))
+                     (if (not (coco_varmap_put vm a (+ c 1))) (set r -1))))
+                ((coco-tag-is FUN (nth a (-> m heap)))
+                 (for ((u32 i . #'(coco_arity m a))) (> i 0) ((set i (- i 1)))
+                   (let ((size_t x . #'(coco_deref m (coco_arg m a (- i 1)))))
+                     (if (or (coco-tag-is REF (nth x (-> m heap)))
+                             (coco-tag-is FUN (nth x (-> m heap))))
+                         (if (not (coco_cells_push (aof wl) (aof wlen) (aof wcap) x))
+                             (set r -1))))))
+                (#t (block)))))
+          (coco_wpairs_give m wl wcap)
+          (return r)))
+
+  ;;; `term_singletons(+Term, -Singletons)' (3.68.0, swipl's): the variables
+  ;;; Term's tree holds once, in the order term_variables/2 meets them. A
+  ;;; shared subterm counts at each place (`f(T, T)' of `T = g(X)' has
+  ;;; none), and a cyclic Term is representation_error(acyclic_term), as
+  ;;; swipl's walk refuses it.
+  (func coco_b_term_singletons ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t t . #'(coco_m_arg e g 0))
+              (size_t * v . nil) (size_t vn . 0) (size_t vcap . 0)
+              (coco_varmap vm . '{ nil nil 0 0 0 }) (int taken . 0)
+              (size_t c . 0) (size_t out . 0) (int r . 1))
+          (if (not (coco_acyclic m t))
+              (return (coco_m_raise e (coco_make1 m "representation_error"
+                                                  (coco_new_atom m "acyclic_term")))))
+          (set r (coco_b_collect_vars m t 0 (aof v) (aof vn) (aof vcap)))
+          (if (== r 0)
+              (block (set vn 0)
+                     (set r (coco_b_collect_vars m t 1 (aof v) (aof vn) (aof vcap)))))
+          (if (and (== r 1) (> vn 0))
+              (block (coco_varmap_take m (aof vm))
+                     (set taken 1)
+                     (set r (coco_b_tree_counts m t v vn (aof vm)))))
+          (set out (coco_m_nil e))
+          (if (== r 1)
+              (for ((size_t i . vn)) (> i 0) ((-- i))
+                (if (and (coco_varmap_get (aof vm) (nth (- i 1) v) (aof c)) (== c 1))
+                    (set out (coco_cons m (nth (- i 1) v) out)))))
+          (if taken (coco_varmap_give m (aof vm)))
+          (free v)
+          (if (== r -1) (return (coco_m_resource_error e "memory")))
           (return (coco_m_unify e (coco_m_arg e g 1) out))))
 
   ;;; ---- numbervars/4 (3.40.0) ----------------------------------------
@@ -2340,29 +2425,10 @@
                      (set r (coco_b_collect_vars m t 1 (aof v) (aof vn) (aof vcap)))))
           ;; a variable's places in the tree, counted to 2, for singletons
           (if (and (== r 1) sing (> vn 0) (coco_acyclic m t))
-              (let ((size_t wcap . 0) (size_t * wl . nil) (size_t wlen . 0))
-                (coco_varmap_take m (aof vm))
-                (set taken 1)
-                (for ((size_t i . 0)) (and (== r 1) (< i vn)) ((++ i))
-                  (if (not (coco_varmap_put (aof vm) (nth i v) 0)) (set r -1)))
-                (set wl (coco_wpairs_take m (aof wcap)))
-                (if (and (== r 1) (not (coco_cells_push (aof wl) (aof wlen) (aof wcap) t))) (set r -1))
-                (while (and (== r 1) (> wlen 0))
-                  (set wlen (- wlen 1))
-                  (let ((size_t a . #'(coco_deref m (nth wlen wl))))
-                    (cond
-                      ((coco-tag-is REF (nth a (-> m heap)))
-                       (if (and (coco_varmap_get (aof vm) a (aof c)) (< c 2))
-                           (if (not (coco_varmap_put (aof vm) a (+ c 1))) (set r -1))))
-                      ((coco-tag-is FUN (nth a (-> m heap)))
-                       (for ((u32 i . #'(coco_arity m a))) (> i 0) ((set i (- i 1)))
-                         (let ((size_t x . #'(coco_deref m (coco_arg m a (- i 1)))))
-                           (if (or (coco-tag-is REF (nth x (-> m heap)))
-                                   (coco-tag-is FUN (nth x (-> m heap))))
-                               (if (not (coco_cells_push (aof wl) (aof wlen) (aof wcap) x))
-                                   (set r -1))))))
-                      (#t (block)))))
-                (coco_wpairs_give m wl wcap)))
+              (block
+               (coco_varmap_take m (aof vm))
+               (set taken 1)
+               (set r (coco_b_tree_counts m t v vn (aof vm)))))
           ;; each bound in order: a singleton to Functor('_'), the rest numbered
           (if (== r 1)
               (let ((u64 fid . #'(coco_functor_id m (? hfn (coco_name_of m fn) (coco_intern m "$VAR")) 1))
@@ -2478,6 +2544,86 @@
         (let ((int r . #'(coco_b_is_variant e (coco_m_arg e g 0) (coco_m_arg e g 1))))
           (if (== r -1) (return (coco_m_resource_error e "memory")))
           (return (? (== r 1) 0 1))))
+
+  ;;; ---- unifiable/3, ?=/2 and same_term/2 (3.68.0, swipl's) ----------
+
+  ;;; `unifiable(X, Y, Unifier)': the bindings a unification of X and Y
+  ;;; would make, as a list of `Var = Value', each Value what Var was bound
+  ;;; to and the newest binding first, and none of them made -- swipl's
+  ;;; pl-prims.c reads its trail from the top down that way. Every binding
+  ;;; here is trailed (`coco_bind'), the younger of two variables bound to
+  ;;; the older as swipl's are, so the list is the same: `f(X, b)' and `f(a,
+  ;;; Y)' give [Y = b, X = a]. Two variables are swipl's shortcut, [X = Y]
+  ;;; the first argument's on the left whichever is the younger; a unify
+  ;;; that fails leaves nothing bound. The bindings are read before the
+  ;;; undo, as pairs on the machine's pair stack, and the list is built
+  ;;; after it, so each Var is unbound in it and a Value that names a
+  ;;; variable names it unbound.
+  (func coco_b_unifiable ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t a . #'(coco_deref m (coco_m_arg e g 0)))
+              (size_t b . #'(coco_deref m (coco_m_arg e g 1)))
+              (size_t mark . 0) (size_t out . 0) (u64 eqf . 0)
+              (size_t * wl . nil) (size_t wlen . 0) (size_t wcap . 0) (int ok . 1))
+          (if (and (!= a b) (coco-tag-is REF (nth a (-> m heap))) (coco-tag-is REF (nth b (-> m heap))))
+              (return (coco_m_unify e (coco_m_arg e g 2)
+                                    (coco_cons m (coco_make2 m "=" a b) (coco_m_nil e)))))
+          (set mark (-> m trail_len))
+          (if (not (coco_unify m a b)) (block (coco_undo_to m mark) (return 0)))
+          (set wl (coco_wpairs_take m (aof wcap)))
+          (for ((size_t i . #'(-> m trail_len))) (and ok (> i mark)) ((-- i))
+            (let ((u64 v . #'(nth (- i 1) (-> m trail))))
+              (if (and (== (bitand v (coco-trail-pair)) 0)
+                       (not (and (coco_cells_push (aof wl) (aof wlen) (aof wcap) (cast size_t v))
+                                 (coco_cells_push (aof wl) (aof wlen) (aof wcap)
+                                                  (cast size_t (coco-payload (nth v (-> m heap))))))))
+                  (set ok 0))))
+          (coco_undo_to m mark)
+          (set eqf (coco_functor_id m (coco_intern m "=") 2))
+          (set out (coco_m_nil e))
+          (while (and ok (> wlen 1))
+            (set out (coco_cons m (coco_make2_f m eqf (nth (- wlen 2) wl) (nth (- wlen 1) wl)) out))
+            (set wlen (- wlen 2)))
+          (coco_wpairs_give m wl wcap)
+          (if (not ok) (return (coco_m_resource_error e "memory")))
+          (return (coco_m_unify e (coco_m_arg e g 2) out))))
+
+  ;;; `?=(A, B)': whether A == B is decided for good -- the two identical,
+  ;;; or no unifier of theirs -- swipl's `\+ unifiable(A, B, [_|_])': a
+  ;;; unify that fails, or that bound nothing, and undone either way
+  (func coco_b_can_compare ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t mark . #'(-> (coco_m_machine e) trail_len))
+              (int r . #'(coco_unify m (coco_m_arg e g 0) (coco_m_arg e g 1)))
+              (int same . #'(== (-> m trail_len) mark)))
+          (coco_undo_to m mark)
+          (return (? (or (not r) same) 1 0))))
+
+  ;;; `same_term(A, B)': one term, not two equal ones -- swipl's: one
+  ;;; variable, one compound (its cell), or two atomic terms of one value,
+  ;;; a float by its bits, as swipl's equalIndirect() compares a float, a
+  ;;; big integer, a rational and a string, each held apart from the cell
+  ;;; it was read from. Two compounds of one shape built apart are two
+  ;;; terms, f(a) and f(a) as much as f() and f().
+  (func coco_b_same_term ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t a . #'(coco_deref m (coco_m_arg e g 0)))
+              (size_t b . #'(coco_deref m (coco_m_arg e g 1)))
+              (u64 ca . 0) (u64 cb . 0))
+          (if (== a b) (return 1))
+          (set ca (nth a (-> m heap)))
+          (set cb (nth b (-> m heap)))
+          (cond
+            ((or (coco-tag-is REF ca) (coco-tag-is FUN ca) (coco-tag-is FUN cb)) (return 0))
+            ((== ca cb) (return 1))
+            ((!= (coco-tag ca) (coco-tag cb)) (return 0))
+            ((coco-tag-is FLT ca) (return (coco_flt_eq m ca cb)))
+            ((coco-tag-is STR ca) (return (coco_str_eq m ca cb)))
+            ((coco-tag-is RAT ca) (return (coco_rat_eq m ca cb)))
+            ((coco-tag-is BIG ca)
+             (return (? (== (nth (cast size_t (coco-payload ca)) (-> m bigs))
+                            (nth (cast size_t (coco-payload cb)) (-> m bigs))) 1 0)))
+            (#t (return 0)))))
 
   ;;; ---- atoms ------------------------------------------------------------
 

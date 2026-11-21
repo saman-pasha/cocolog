@@ -1632,7 +1632,15 @@ into its `at_modules/1`. What a session must keep:
   inward along the chain, so the walk stops at the first one below. The argument
   CELL is written: a body's variable lives in its environment or frame and
   f(X)'s argument names it, so `T = f(X), setarg(1, T, z)` leaves X unbound
-  where SWI (which made X in the argument) binds it.
+  where SWI (which made X in the argument) binds it. **unifiable/3 and ?=/2
+  read a unify's work off the trail** (3.68.0, `coco_b_unifiable`,
+  `coco_b_can_compare` in lib/builtins.cicili): every binding is trailed
+  (`coco_bind`) and the younger of two variables bound to the older, as
+  swipl's, so the trail from the mark is the unifier, newest first, and an
+  empty stretch says the two were one -- **a unify that ever binds without
+  trailing, or writes a value entry, is wrong there**. Which of two fresh
+  variables is the younger is where the body laid them out: a compound's
+  arguments before the compounds inside them, as swipl's.
 * **A core builtin raises SWI's error, catchably** (1.10.6): `=..`,
   `functor/3`, `arg/3` and `is/2` name what is wrong as SWI does
   (`type_error(evaluable, foo/2)`, `domain_error(non_empty_list, [])`; an
@@ -2939,7 +2947,14 @@ into its `at_modules/1`. What a session must keep:
   heap the consult gave back. **A new goal a load runs goes through
   `lb_goal_hook`, or its b_setval/2s outlive it.** A machine of its own
   has its own table (a thread, a green task, run_isolated/2); a frozen
-  machine keeps none.
+  machine keeps none. **nb_delete/1 takes a key from both** (3.68.0,
+  `coco_b_nb_delete`): this machine's box dead and the store's entry gone,
+  the entries after it moved down one and the hash put back
+  (`coco_global_delete`), so the rest keep the order they were made in. A
+  machine's kept copy of a ground global is found by the global's index
+  AND its version, and no two settings share a version, so a copy kept
+  for an index another entry moved into is never taken for it -- **a new
+  cache of a global keyed by its index alone is wrong after a delete**.
 * **The six term walks borrow the machine's stacks** (copy, store-put,
   store-get, store-unify, unify, compare: `coco_wframes_take`/`_give`,
   `coco_wpairs_take`/`_give` in `lib/term-walk.cicili`), and the three that

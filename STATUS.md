@@ -21358,3 +21358,103 @@ groups, ruler, tunnel and zigurat-tls, each alone, green with no SKIP but
 the lessons the tutorials case passes by (no torch, ray, numpy or opencv
 module); and lint, files, directives and repl again on the final binary,
 once ONCE's line had gone.
+
+## nb_delete/1, term_variables/3, term_singletons/2, unifiable/3, ?=/2 and same_term/2 are swipl's (3.68.0)
+
+BACKLOG #251, the second group of COMPAT.md's small built-ins a swipl
+program calls as it stands: through 3.67.0 each of the six was an unknown
+procedure. Each is a C row of the builtins module now, foreign in swipl's
+system module as in cocolog (predicate_property/2 answers swipl's six
+properties from the table it had rows for), each with its row of
+`*error-contexts*` and its line of library/flow/modes.pl.
+
+- `term_variables(Term, Vars, Tail)` is term_variables/2's walk with the
+  list ending in Tail: `term_variables(f(A), L, foo)` is `[A|foo]`, and a
+  Vars that names the term's own variables or its own tail unifies as
+  swipl's walk of the list does, cyclic where that is what it says. The
+  two share one function (`coco_b_term_vars`).
+- `term_singletons(Term, Vars)` is the variables Term's TREE holds once, in
+  the order term_variables/2 meets them: a shared subterm counts at each
+  place, so `f(T, T)` of `T = g(X)` has none, as swipl's -- whose time on a
+  term of N levels each the one below twice grows 16 times for 4 levels
+  more, the tree walked -- and a cyclic Term is
+  representation_error(acyclic_term). The count is numbervars/4's walk
+  under singletons(true), split out of it (`coco_b_tree_counts`).
+- `unifiable(X, Y, Unifier)` reads the bindings a unify made off the trail,
+  newest first, as `Var = Value`, and undoes them: every binding is
+  trailed (`coco_bind`), and the younger of two variables is bound to the
+  older, as swipl's, so `f(X, b)` and `f(a, Y)` give `[Y = b, X = a]`. Two
+  distinct variables are swipl's shortcut, the first argument's on the
+  left. Which variable is the younger is where a body lays its goal out --
+  a compound's arguments before the compounds inside them, `g(h(A), B)`
+  making B first -- and nine shapes of it answer as swipl's.
+- `?=(A, B)` is a unify that fails, or one that bound nothing, undone.
+- `same_term(A, B)` is one variable, one compound's cell, or two atomic
+  terms of one value: a float by its bits, a string by its text, a big
+  integer and a rational by value, as swipl's equalIndirect() compares
+  them; two compounds built apart are two terms.
+- `nb_delete(Key)` takes Key's global from both places it can be: this
+  machine's b_setval/2 box (dead) and the store's entry, the entries after
+  it moved down one and the hash put back (`coco_global_delete`), so the
+  rest keep the order they were made in. The value is counted dead at
+  once, and a big one compacts the store at the delete. It is a store
+  write, under the green world's barrier. A key with neither is no error;
+  `[]` is a key, as swipl's. A machine's kept copy of a ground global is
+  found by index and version, and no two settings share a version, so a
+  copy kept for an index another entry moved into is never taken for it.
+
+AND nb_current/2 OF `[]` RAISES type_error(atom, []), as swipl's
+must_be(atom, Key) of its clause, where nb_setval/2, nb_getval/2 and
+nb_delete/1 take `[]`; through 3.67.0 it answered the global.
+
+THE CASES: test/files/term_globals.pl, 165 lines held to swipl 9.0.4 (the
+six as the bullets above say, the errors and their contexts, swipl's
+properties, listing/1 and clause/2 of them; integers past a cell's 60 bits
+within 64, cocolog's limit); test/engine.pl two checks (the order the
+globals after a delete keep, and the store compacted at the delete of a
+big value); test/async.pl's `global_deletes` (five thousand globals read
+by three tasks while a fourth sets and deletes a key of its own two
+thousand times, each delete putting the whole hash back).
+
+THE RULES, each its own arm (one build of the final tree with the rule
+out), each red on its own check:
+
+- TV3 term_variables/3's tail taken for `[]`: term_globals' v2 to v5.
+- TS1 term_singletons/2 taking every variable: s1, s3, s4.
+- TSC no refusal of a cyclic term: the tree walk of one grows without end,
+  killed by the kernel past 7 GB.
+- UV two variables the unify's way: u7 and u8, `[B = A]` for `[A = B]`.
+- UR the unifier oldest first: u1 and u6.
+- UU the bindings left made: u1, u4, u5 (`[b = b, a = a]`).
+- CQ ?=/2 taking no identity for decided: q1, q3.
+- CU ?=/2 leaving its unify's bindings: q6, q9.
+- SF two compounds of one functor one term: t4, t22.
+- SN, SS, SR, SB a float, a string, a rational, a big integer by its cell:
+  t7 and t9, t16, t20, t18 and t28.
+- DB nb_delete/1 leaving b_setval/2's box: d7, d12.
+- DS leaving the store's entry: d2, d8.
+- DH the hash not put back after the entries move: the case hangs, a probe
+  over a stale hash.
+- DO the last entry moved into the hole: engine.pl's order check.
+- DD the value uncounted: engine.pl's compaction check.
+- DG no barrier around the delete: async.pl's global_deletes, a read
+  finding no entry for a global that was there all along (three runs in
+  three); the files case passes it, and a first stress of four tasks over
+  a handful of globals passed it five runs in five.
+- DN nb_current/2 taking `[]` for an atom: d20.
+- EC the six rows of `*error-contexts*` out: s8 and s9, the context
+  unbound.
+- ML the six lines of library/flow/modes.pl out (no build): flowchart's
+  "every C builtin of the engine has a line in the mode table".
+
+WHAT IT COSTS: a start (`cocolog query true`, each binary from the
+scratchpad at paths of one length) counts 6 038 instructions more,
+35 664 556 against 35 658 518 (+0.017 %): the six rows registered.
+tools/flow/zero.sh against 3.67.0, work less padding: nrev 65 960 147
+(+42), queens 39 970 108 (+81), lookup 48 093 139 (+187).
+
+THE RUN: the lint case first, then files, engine, flowchart, errors,
+library, string, cyclic, gc, async, directives, repl, solve, script, trace,
+state, term and module, each alone, green with no SKIP (files again alone
+after a first run that shared its sandbox in /tmp with an arm's, and async
+again once global_deletes expected the output shell/3 hands back).

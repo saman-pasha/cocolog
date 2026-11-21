@@ -1061,6 +1061,23 @@
         (coco_global_place st i)
         (return 1))
 
+  ;;; ENTRY I TAKEN AWAY (nb_delete/1, 3.68.0): its value an orphan, the
+  ;;; entries after it moved down one, so the rest keep the order they were
+  ;;; made in ('$nb_keys'/1's), and the hash put back from the array. A
+  ;;; machine's kept copy of a ground global is found by the global's index
+  ;;; AND its version (`gcache'), and no two settings of any global share a
+  ;;; version (`gver'), so a copy kept for an entry that moved is taken for
+  ;;; no other: the moved global is read again at its next ask.
+  (static)
+  (func coco_global_delete ((coco_store * st) (size_t i))
+        (set (-> st dead) (+ (-> st dead) ($ (nth i (-> st globals)) size)))
+        (for ((size_t j . #'(+ i 1))) (< j (-> st nglobals)) ((++ j))
+          (set (nth (- j 1) (-> st globals)) (nth j (-> st globals))))
+        (set (-> st nglobals) (- (-> st nglobals) 1))
+        (memset (-> st gbuckets) 0 (* (-> st gbucket_cap) (sizeof size_t)))
+        (for ((size_t k . 0)) (< k (-> st nglobals)) ((++ k))
+          (coco_global_place st k)))
+
   ;;; ---- b_setval/2's globals (3.52.0) --------------------------------
   ;;;
   ;;; swipl's b_setval/2 LINKS its term -- a later binding of it is seen,
@@ -1299,7 +1316,10 @@
               (size_t k . #'(coco_m_arg e g 0)))
           (if (coco_m_is_var e k)
               (block (coco_m_decline e) (set (cof found) 0) (return 0)))
-          (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
+          ;; `[]' is no atom to it, where nb_setval/2 and nb_getval/2 take
+          ;; it, as swipl's must_be(atom, Key) of its clause (3.68.0)
+          (if (or (not (coco_m_is_atom e k)) (coco_is_nil m (coco_deref m k)))
+              (return (coco_m_type_error e "atom" k)))
           (let ((coco_store * st . #'(-> e st))
                 (u64 name . #'(coco_name_of m k))
                 (size_t bv . #'(? (!= (-> m gvb_len) 0) (coco_gvb_value m name) 0))
@@ -1308,6 +1328,28 @@
             (set at (coco_global_find st name))
             (if (< at 0) (return 0))
             (return (coco_m_unify e (coco_m_arg e g 1) (coco_b_global_term e (cast size_t at)))))))
+
+  ;;; `nb_delete(+Key)' (3.68.0, swipl's): Key's global gone, nb_setval/2's
+  ;;; and b_setval/2's alike -- this machine's box dead and the store's
+  ;;; entry taken away -- so nb_current/2 fails of it and nb_getval/2
+  ;;; raises existence_error(variable, Key). A key with neither is no
+  ;;; error, as swipl's. Not undone by backtracking: a b_setval/2 made
+  ;;; before it and backtracked past writes its box, which no key names.
+  (func coco_b_nb_delete ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t k . #'(coco_m_arg e g 0)))
+          (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
+          (if (-> m gvb_len)
+              (let ((i64 bi . #'(coco_gvb_find m (coco_name_of m k))))
+                (if (>= bi 0) (set ($ (nth (cast size_t bi) (-> m gvb)) box) -1))))
+          (with-green-write e
+          (let ((coco_store * st . #'(-> e st))
+                (i64 at . #'(coco_global_find st (coco_name_of m k))))
+            (if (>= at 0)
+                (block
+                 (coco_global_delete st (cast size_t at))
+                 (coco_store_maybe_compact st m)))
+            (return 1)))))
 
   ;;; `'$nb_keys'(-Keys)': every global's name, the store's in the order
   ;;; made, then each key of a live box the store has none of (3.52.0)

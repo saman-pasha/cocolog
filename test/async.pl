@@ -190,6 +190,7 @@ main :-
     shared_store_concurrent,
     cleanups,
     retract_walks,
+    global_deletes,
     retired_codes,
     world_end,
     halts,
@@ -716,6 +717,40 @@ retract_walks :-
              shell(Cmd, Out, Exit),
              atom_concat(Label, ': the walk answers every clause it began with, the call no clause dead when it began, and a plain call of the walker is on its place', Says),
              check(Says, Out-Exit, '[0,1,2,3]-[1,3]\n[0,1,3]-[1,3]'-0) )),
+    shl(['rm -rf ', D]).
+
+%% A DELETE OF A GLOBAL STOPS THE WORLD (3.68.0): nb_delete/1 moves the
+%% store's entries after the one it takes down and puts the hash back from
+%% them, and a task reading a global meanwhile probes that hash. Five
+%% thousand globals are made before the world, one task sets and deletes a
+%% key of its own two thousand times, and three tasks read the five
+%% thousand until it is done: with no barrier around the delete, a read
+%% found no entry for a global that was there all along (existence_error,
+%% three runs in three). A child with a ceiling, as a hang would be.
+global_deletes :-
+    section('a delete of a global under reads in other tasks'),
+    scratch(D),
+    atom_concat(D, '/gd.pl', Path),
+    fixture(Path,
+            [ 'gd_make :- forall(between(1, 5000, I), ( atom_concat(gd_s, I, K), nb_setval(K, s(I)) )).',
+              'gd_writer(0) :- !, nb_setval(gd_done, 1).',
+              'gd_writer(N) :- nb_setval(gd_c, c(N)), nb_delete(gd_c), N1 is N - 1, gd_writer(N1).',
+              'gd_reader(I) :-',
+              '    (   nb_current(gd_done, _) -> true',
+              '    ;   atom_concat(gd_s, I, K), nb_getval(K, s(I)),',
+              '        I1 is I mod 5000 + 1, gd_reader(I1)',
+              '    ).',
+              'gd_world :-',
+              '    go(gd_writer(2000), W), go(gd_reader(1), R1), go(gd_reader(1700), R2),',
+              '    go(gd_reader(3400), R3), await_all([W, R1, R2, R3]).',
+              'main :-',
+              '    gd_make,',
+              '    catch(( async_run(gd_world) -> R = done ; R = failed ), E, R = caught(E)),',
+              '    print(R), nl.' ]),
+    cocolog(C),
+    sh_join([C, ' run ', Path, ' main 2>&1'], Cmd),
+    shell(Cmd, Out, Exit),
+    check('every read finds its global while another task deletes one of its own', Out-Exit, done-0),
     shl(['rm -rf ', D]).
 
 %% A DEAD CLAUSE'S CODE THAT ANOTHER TASK'S ENVIRONMENT IS PART WAY

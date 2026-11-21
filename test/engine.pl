@@ -1094,6 +1094,16 @@ mutable(D) :-
     findall(K11-V11, ( nb_current(K11, V11), memberchk(K11, [ma_k1, ma_k2]) ), L11),
     findall(K11b, nb_current(K11b, f(x)), L11b),
     check('...and enumerates them with its key unbound, in the order made', L11-L11b, [ma_k1-1, ma_k2-f(x)]-[ma_k2]),
+    %% nb_delete/1 (3.68.0): the globals after the one it takes keep the
+    %% order they were made in, and the value it orphans is counted dead,
+    %% so a big one is given back at the delete, not at the next growth
+    nb_setval(md_k1, 1), nb_setval(md_k2, 2), nb_setval(md_k3, 3), nb_delete(md_k1),
+    findall(K15, ( nb_current(K15, _), memberchk(K15, [md_k1, md_k2, md_k3]) ), L15),
+    check('nb_delete/1 leaves the other globals in the order they were made', L15, [md_k2, md_k3]),
+    numlist(1, 1500000, B16), nb_setval(md_big, B16), statistics(store_used, U16a),
+    nb_delete(md_big), statistics(store_used, U16b),
+    ( U16b * 2 < U16a -> R16 = given_back ; R16 = kept(U16a, U16b) ),
+    check('...and the value it takes is dead at once: a big one compacts the store', R16, given_back),
     gd_inferences(nb_current(ma_k1, _), I12a), gd_inferences(nb_getval(ma_k1, _), I12b),
     gd_inferences(catch(nb_getval(ma_k1, _), _, true), I12c),
     %% each count carries the call/1 and the statistics/2 that measure it
