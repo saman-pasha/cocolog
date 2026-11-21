@@ -153,6 +153,18 @@ v8 --> X == Y, [X].
 w1(X), X > 0 => ( Y = 1 ; true ).
 w2(X), ( Y = 1 ; true ) => X = 1.
 
+%% a variable a left branch names, which the right branch counts from 0
+%% again, is new to what the right branch opens (3.67.0): a \+'s singleton
+%% there, and an inner disjunction's branch singleton -- through 3.66.0
+%% neither was said
+y1 :- ( Z = 1 ; \+ Z = 2 ), print(Z).
+y2 :- ( Z = 1 ; \+ \+ Z = 2 ), print(Z).
+y3 :- ( Z = 1, Z = 2 ; ( Z = 3, Z = 4 ; Z = 5 ) ).
+y4 :- ( Z = 1, Z = 2 ; ( \+ Z = 3 ; Z = 4, Z = 5 ) ).
+y5 :- ( Z = 1, Z = 2 ; ( Z = 3, Z = 4 ; Z = 5, Z = 6 ) ).
+y6 :- ( Z = 1, Z = 2 ; \+ ( Z = 3 ) ).
+y7 :- ( Z = 1 ; ( \+ Z = 2 ; true ) ), print(Z).
+
 %% a directive has the reader's block alone
 :- X = 1, ( Y = 2 ; true ).
 :- ( Y = 1 ; true ), Y = 2.

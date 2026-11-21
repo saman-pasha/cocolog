@@ -132,6 +132,14 @@
 (decl) (func coco_m_read_clause_pos ((coco_engine * e) (const char * src) (i64 base)
                                      (size_t * out) (size_t * names) (size_t * pos)
                                      (size_t * start) (char * err) (size_t errlen)) (out int))
+;;; The same of a file's text (3.67.0): ORIGIN the file, LINE0 the line
+;;; SRC begins on, where what the read says under style_check(+charset) is
+;;; placed; a null ORIGIN places nothing. A module that calls it needs
+;;; 3.67.0 or later.
+(decl) (func coco_m_read_clause_in ((coco_engine * e) (const char * src) (i64 base)
+                                    (const char * origin) (i64 line0)
+                                    (size_t * out) (size_t * names) (size_t * pos)
+                                    (size_t * start) (char * err) (size_t errlen)) (out int))
 ;;; Where a clause's text ends, as swipl's raw read finds it, and what a
 ;;; text that will not read is, as swipl says it of a stream (3.11.0):
 ;;; lib/module.cicili says what each answers. A module that calls one needs

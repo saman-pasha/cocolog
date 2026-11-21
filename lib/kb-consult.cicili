@@ -447,8 +447,11 @@
               (block
                 ;; NOT TOGETHER: this predicate had a clause earlier, and
                 ;; the last clause was another predicate's (3.17.0, swipl's
-                ;; warning). A predicate declared discontiguous is exempt.
+                ;; warning). A predicate declared discontiguous is exempt,
+                ;; and so is every one under style_check(-discontiguous)
+                ;; (3.67.0, `style' 8)
                 (if (and (!= (-> s last) 0) (!= (-> s last) (+ i 1))
+                         (!= 0 (bitand (-> m style) 8))
                          (== 0 (bitand ($ (coco-pred-at (-> st predp) pi) declared) 3))
                          (or (not (coco_store_is_muted st)) (-> st ownload))
                          (!= origin_path nil))
@@ -2249,6 +2252,11 @@
                 ;; file-scoped flags are: what it sets, its end puts back
                 ;; (3.27.0)
                 (int snodbg . #'(-> m nodbg))
+                ;; and the style checks (3.67.0, `style'): what a
+                ;; style_check/1 in the file set is the file's, as swipl's
+                ;; '$save_lex_state' and '$restore_lex_state' keep it, and an
+                ;; included file's read is part of its includer's
+                (int sstyle . #'(-> m style))
                 ;; and whether the store read the file before, swipl's
                 ;; `reloading' (3.51.0)
                 (int sreload . #'(-> m sloc_reload)))
@@ -2285,6 +2293,7 @@
                 (set (-> m nssu) sbase))
             (set (-> m ssu_mod) smod)
             (set (-> m nodbg) snodbg)
+            (set (-> m style) sstyle)
             (set (-> m sloc_reload) sreload)
             (set (-> m lreads) (- (-> m lreads) 1))
             (set (-> st nroots) depth)
@@ -3391,14 +3400,19 @@
         (return 1))
 
   ;;; THE COUNT'S STATE (swipl's VarDef): per named variable its count, its
-  ;;; bits (1 a branch's singleton, 2 a \+'s, 4 met) and its place in
-  ;;; swipl's order, a head argument's its position and every other ARITY
-  ;;; and its rank (NEXT the rank to give), and TOTAL its occurrences, the
-  ;;; reader's count; BI, BST and BSF the branch list (pl-comp.c's
-  ;;; branch_vars), a variable's index, its count saved from a left branch
-  ;;; and its bits, BN long; ON a branch list open; TESTS a test the
-  ;;; compile knows the answer of met, without which it is not walked; OK
-  ;;; no growth refused, without which nothing is said
+  ;;; bits (1 a branch's singleton, 2 a \+'s, 4 met, 8 not introduced in
+  ;;; all branches of a disjunction and named nowhere since, 16 a variable
+  ;;; of a left branch while its disjunction's end is reckoned) and its
+  ;;; place in swipl's order, a head argument's its position and every
+  ;;; other ARITY and its rank (NEXT the rank to give), and TOTAL its
+  ;;; occurrences, the reader's count; BI, BST and BSF the branch list
+  ;;; (pl-comp.c's branch_vars), a variable's index, its count saved from a
+  ;;; left branch and its bits, BN long; ON a branch list open; TESTS a
+  ;;; test the compile knows the answer of met, without which it is not
+  ;;; walked; OK no growth refused, without which nothing is said; VB the
+  ;;; lines `Variable not introduced in all branches', said as the walk
+  ;;; meets them, and NAMES the reader's names they say (3.67.0; VB nil
+  ;;; but under style_check(+var_branches))
   (struct coco_cwa
     (member int *         times)
     (member int *         total)
@@ -3413,7 +3427,9 @@
     (member size_t        bcap)
     (member int           on)
     (member int           tests)
-    (member int           ok))
+    (member int           ok)
+    (member coco_strbuf * vb)
+    (member char **       names))
 
   ;;; a variable onto the branch list (pushBranchVar)
   (static)
@@ -3436,10 +3452,22 @@
         (set (nth (-> a bn) (-> a bsf)) (cast char 0))
         (set (-> a bn) (+ (-> a bn) 1)))
 
+  ;;; a variable not introduced in all branches of a disjunction before
+  ;;; it, named again (3.67.0, swipl's var_branches): said here, and once,
+  ;;; as `coco_cwa_var' clears the mark after it
+  (static)
+  (func coco_cwa_unbalanced ((coco_cwa * a) (i64 i)) (out void)
+        (if (!= (-> a vb) nil)
+            (coco_cw_line (-> a vb) "Variable not introduced in all branches: "
+                          (nth i (-> a names)))))
+
   ;;; an occurrence of the named variable I (-1 an anonymous one), ARG its
   ;;; place where it stands as a head argument, else -1: its first makes it
-  ;;; a variable of a branch open (one a left branch counted back to 0 is
-  ;;; on that list already); any other clears a branch's singleton
+  ;;; a variable of a branch open, and so does one where a right branch
+  ;;; counts it from 0 again (3.67.0, swipl's: through 3.66.0 such a one was
+  ;;; no variable of a disjunction or a \+ inside that branch, and `p :- (X =
+  ;;; 1 ; \+ X = 2), q(X).' said nothing of the \+); any other clears a
+  ;;; branch's singleton
   (static)
   (func coco_cwa_var ((coco_cwa * a) (i64 i) (i64 arg)) (out void)
         (if (< i 0) (return))
@@ -3454,8 +3482,22 @@
                        (set (-> a next) (+ (-> a next) 1))))
               (if (-> a on) (coco_cwa_push a (cast int i)))
               (return)))
+        (if (!= (bitand (nth i (-> a fl)) 8) 0) (coco_cwa_unbalanced a i))
+        (if (and (== (nth i (-> a times)) 0) (-> a on)) (coco_cwa_push a (cast int i)))
         (set (nth i (-> a times)) (+ (nth i (-> a times)) 1))
         (set (nth i (-> a fl)) (cast char (bitand (nth i (-> a fl)) 6))))
+
+  ;;; A VARIABLE NEW TO A DISJUNCTION, its left branch naming it L times and
+  ;;; its right R: a branch's singleton where either names it once, not
+  ;;; introduced in all branches where one of them names it not at all
+  ;;; (under var_branches), and counted as the larger of the two
+  (static)
+  (func coco_cwa_join ((coco_cwa * a) (int i) (int l) (int rt)) (out void)
+        (if (or (== l 1) (== rt 1))
+            (set (nth i (-> a fl)) (cast char (bitor (nth i (-> a fl)) 1))))
+        (if (and (!= (-> a vb) nil) (!= (> l 0) (> rt 0)))
+            (set (nth i (-> a fl)) (cast char (bitor (nth i (-> a fl)) 8))))
+        (if (< rt l) (set (nth i (-> a times)) l)))
 
   ;;; WHAT A GOAL IS TO THE TWO WALKS, by its name's first character before
   ;;; any strcmp, as a name is mostly letters: swipl's control functors
@@ -3512,10 +3554,15 @@
               (if (== ar 0) (return))
               (if ctl (set kd (coco_cw_goal_kind (coco_atom_name m (coco_name_of m t)) ar)))
               ;; a disjunction: the right branch counts the left's variables
-              ;; again from 0; one either branch names once is a branch's
-              ;; singleton, and the count is the larger of the two
+              ;; again from 0, their bits kept for after it; one either
+              ;; branch names once is a branch's singleton, one a branch
+              ;; names not at all is not introduced in all branches
+              ;; (`coco_cwa_join'), and the count is the larger of the two.
+              ;; A left variable the right names is on the list twice, the
+              ;; right's entry dropped here (3.67.0)
               (if (or (== kd 2) (and dcg (== kd 3)))
-                  (let ((int was . #'(-> a on)) (size_t start . 0) (size_t mid . 0) (size_t end . 0))
+                  (let ((int was . #'(-> a on)) (size_t start . 0) (size_t mid . 0) (size_t end . 0)
+                        (size_t w . 0))
                     (if (not was) (block (set (-> a on) 1) (set (-> a bn) 0)))
                     (set start (-> a bn))
                     (coco_cwa_walk m r a (coco_arg m t 0) 1 dcg)
@@ -3523,20 +3570,33 @@
                     (for ((size_t k . start)) (< k mid) ((++ k))
                          (let ((int i . #'(nth k (-> a bi))))
                            (set (nth k (-> a bst)) (nth i (-> a times)))
-                           (set (nth k (-> a bsf)) (cast char (bitand (nth i (-> a fl)) 3)))
+                           (set (nth k (-> a bsf)) (cast char (bitand (nth i (-> a fl)) 11)))
                            (set (nth i (-> a times)) 0)
                            (set (nth i (-> a fl)) (cast char (bitand (nth i (-> a fl)) 4)))))
                     (coco_cwa_walk m r a (coco_arg m t 1) 1 dcg)
+                    (if (not (-> a ok)) (return))
                     (set end (-> a bn))
-                    (for ((size_t k . start)) (< k end) ((++ k))
+                    (for ((size_t k . start)) (< k mid) ((++ k))
                          (let ((int i . #'(nth k (-> a bi))))
-                           (if (or (== (nth k (-> a bst)) 1) (== (nth i (-> a times)) 1))
-                               (set (nth i (-> a fl)) (cast char (bitor (nth i (-> a fl)) 1))))
-                           (if (< (nth i (-> a times)) (nth k (-> a bst)))
-                               (set (nth i (-> a times)) (nth k (-> a bst))))
-                           (set (nth i (-> a fl)) (cast char (bitor (nth i (-> a fl)) (nth k (-> a bsf)))))
+                           (coco_cwa_join a i (nth k (-> a bst)) (nth i (-> a times)))
+                           (set (nth i (-> a fl))
+                                (cast char (bitor (nth i (-> a fl)) (bitor (nth k (-> a bsf)) 16))))
                            (set (nth k (-> a bst)) 0)
                            (set (nth k (-> a bsf)) (cast char 0))))
+                    (set w mid)
+                    (for ((size_t k . mid)) (< k end) ((++ k))
+                         (let ((int i . #'(nth k (-> a bi))))
+                           (if (== (bitand (nth i (-> a fl)) 16) 0)
+                               (block
+                                 (coco_cwa_join a i 0 (nth i (-> a times)))
+                                 (set (nth w (-> a bi)) i)
+                                 (set (nth w (-> a bst)) 0)
+                                 (set (nth w (-> a bsf)) (cast char 0))
+                                 (set w (+ w 1))))))
+                    (for ((size_t k . start)) (< k mid) ((++ k))
+                         (let ((int i . #'(nth k (-> a bi))))
+                           (set (nth i (-> a fl)) (cast char (bitand (nth i (-> a fl)) 239)))))
+                    (set (-> a bn) w)
                     (if (not was) (block (set (-> a on) 0) (set (-> a bn) 0)))
                     (return)))
               ;; a \+: a variable new to it, named once there, is its
@@ -3793,15 +3853,27 @@
   ;;; clause is stored, after its not-together warning, as swipl's. A
   ;;; directive has the reader's block alone; a clause's compile is walked
   ;;; only where its count met a test whose answer the compile knows.
+  ;;;
+  ;;; WHAT IS SAID IS WHAT style_check/1 LEAVES ON (3.67.0, the machine's
+  ;;; `style', swipl's bits): the reader's block under 2, the count's lines
+  ;;; under 64 -- singleton, swipl's 66, is both --, a test's under 128
+  ;;; (no_effect), and under 256 (var_branches, off at the start) the
+  ;;; count's `Variable not introduced in all branches: X', said where X is
+  ;;; named after a disjunction that one of its branches introduced it in
+  ;;; and another not, the first lines of the compiler's block, as swipl's
+  ;;; count says them before its compile. With none of the four on nothing
+  ;;; is counted.
   (static)
   (func coco_consult_singletons ((coco_machine * m) (coco_reader * r) (size_t t)
                                  (const char * origin) (int at) (char ** cw)) (out void)
         (let ((coco_strbuf b) (int any . 0) (size_t n . #'(-> r nvars)) (coco_cwa a)
               (void * blk . nil) (char * st . nil) (size_t t0 . t)
               (size_t h . 0) (size_t g . 0) (size_t body . 0) (size_t pb . 0)
-              (int dcg . 0) (int hasb . 0) (int hasg . 0) (int haspb . 0) (int dir . 0))
+              (int dcg . 0) (int hasb . 0) (int hasg . 0) (int haspb . 0) (int dir . 0)
+              (int sty . #'(-> m style)) (coco_strbuf vbb))
           (set (nth 0 cw) nil)
           (if (== n 0) (return))
+          (if (== 0 (bitand sty 450)) (return))
           ;; one block for the five arrays: places, counts, totals, bits and
           ;; the compile's set
           (set blk (calloc (+ n 1) (+ (sizeof i64) (+ (* 2 (sizeof int)) 2))))
@@ -3813,6 +3885,9 @@
           (set ($ a fl) (cast (char *) (+ ($ a total) (+ n 1))))
           (set st (+ ($ a fl) (+ n 1)))
           (set ($ a ok) 1)
+          (coco_sb_init (aof vbb))
+          (if (!= 0 (bitand sty 256)) (set ($ a vb) (aof vbb)))
+          (set ($ a names) (-> r var_names))
           (set t (coco_deref m t))
           (if (or (coco_cw_named m t ":-" 1) (coco_cw_named m t "?-" 1))
               (block (set dir 1) (coco_cwa_walk m r (aof a) (coco_arg m t 0) 0 0))
@@ -3871,17 +3946,19 @@
           ;; outright finished the machine (`coco_consult_oid' tells it),
           ;; and the load ends at its next read (`coco-read-refused'),
           ;; saying why
-          (if (and any (== (-> m oom) 0))
+          (if (and any (and (== (-> m oom) 0) (!= 0 (bitand sty 2))))
               (coco_load_message "Warning" origin at ($ b s)))
           (coco_sb_reset (aof b))
           (if (and (not dir) ($ a ok))
               (block
-                (coco_cwa_say r (aof a) (aof b))
-                (if ($ a tests)
+                (if (> ($ vbb len) 0) (coco_sb_put (aof b) ($ vbb s)))
+                (if (!= 0 (bitand sty 64)) (coco_cwa_say r (aof a) (aof b)))
+                (if (and ($ a tests) (!= 0 (bitand sty 128)))
                     (block
                       (coco_cwc_mark m r st h)
                       (if hasg (coco_cwc_walk m r (aof a) st g 0 (aof b)))
                       (if hasb (coco_cwc_walk m r (aof a) st body dcg (aof b)))))))
+          (coco_sb_free (aof vbb))
           (if (and (> ($ b len) 0) (== (-> m oom) 0))
               (set (nth 0 cw) ($ b s))
             (coco_sb_free (aof b)))
@@ -4016,7 +4093,15 @@
                 (block (set atbof 1)
                        (set t (coco_new_atom m "begin_of_file"))
                        (set rc 3))
-              (set rc (coco_read_clause (aof r) (aof t))))
+              (block
+                (set rc (coco_read_clause (aof r) (aof t)))
+                ;; THE NAMES PAST ASCII THE READ TOOK OUTSIDE QUOTES, said
+                ;; under style_check(+charset) before anything else of the
+                ;; clause's (3.67.0, `coco_reader_charset_say'): up to the
+                ;; token in hand, the next clause's first, which is said
+                ;; with it; all of them where the read failed
+                (coco_reader_charset_say (aof r) origin at
+                                         (? (== rc 1) ($ r tstart) (cast size_t -1)))))
             ;; A SYNTAX ERROR SKIPS ITS CLAUSE AND THE LOAD GOES ON (3.1.0),
             ;; as swipl's: reported where it stands, and the reader taken up
             ;; after the full stop that ends the clause it was in, as swipl's

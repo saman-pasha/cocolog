@@ -1058,6 +1058,17 @@
     ;; read that begins with it is no term (`coco_read_clause',
     ;; `coco_read_goal')
     (member int          lexref)
+    ;; THE NAMES PAST ASCII OUTSIDE QUOTES (3.67.0, swipl's checkASCII()):
+    ;; a token each, its first byte << 3 | its run << 1 | 1 for a variable
+    ;; (`coco_reader_charset_note'; a run is 0 one code, 1 a name's, 2 a
+    ;; symbol's), CSN of them in CS, kept whatever style_check/1 says and
+    ;; said, where charset is on, by whoever drives the read
+    ;; (`coco_reader_charset_say'); CSAT the token in hand's first byte plus
+    ;; one once it is noted
+    (member size_t *     cs)
+    (member size_t       csn)
+    (member size_t       cscap)
+    (member size_t       csat)
     ;; THE FIRST SIXTEEN FRAMES (3.60.0), in the reader: RF names them
     ;; until a term pends more, so a read of a text (term_to_atom/2) takes
     ;; no memory for them -- 1 408 bytes are a large request to glibc's
@@ -2256,12 +2267,39 @@
               (coco_mag_token r v wide))))
         (return 1))
 
+  ;;; THE TOKEN IN HAND HOLDS A CODE PAST ASCII OUTSIDE QUOTES (3.67.0):
+  ;;; noted once, RUN how its text goes on (0 one code, 1 a name's run, 2
+  ;;; a symbol's) and VAR whether it is a variable, for
+  ;;; `coco_reader_charset_say' to say where style_check(+charset) asks,
+  ;;; as swipl's tokenizer says it. Noted whatever the style, which is
+  ;;; asked as the read is said: the token a read holds in hand is the
+  ;;; next clause's first, read before a directive between them has run.
+  ;;; A list that cannot grow finishes the machine (`coco_oom'), as a
+  ;;; request with no smaller one to make does
+  (weak) (cold)
+  (func coco_reader_charset_note ((coco_reader * r) (int run) (int var))
+        (if (== (-> r csat) (+ (-> r tstart) 1)) (return))
+        (if (== (-> r csn) (-> r cscap))
+            (let ((size_t nc . #'(? (== (-> r cscap) 0) 8 (* 2 (-> r cscap)))) (void * g . nil))
+              (set g (realloc (cast (void *) (-> r cs)) (* nc (sizeof size_t))))
+              (if (== g nil)
+                  (block (if (!= (-> r m) nil) (coco_oom (-> r m))) (return)))
+              (set (-> r cs) (cast (size_t *) g))
+              (set (-> r cscap) nc)))
+        (set (nth (-> r csn) (-> r cs))
+             (bitor (<< (-> r tstart) 3) (cast size_t (bitor (<< run 1) var))))
+        (set (-> r csn) (+ (-> r csn) 1))
+        (set (-> r csat) (+ (-> r tstart) 1)))
+
   ;;; A code past ASCII of KIND onto the token's text, the reader moved
-  ;;; past it: 1, or 0 where the code there is none of KIND (3.35.0)
+  ;;; past it: 1, or 0 where the code there is none of KIND (3.35.0). The
+  ;;; token began in ASCII, a capital or `_' a variable's (3.67.0, noted)
   (weak) (cold)
   (func coco_lex_wide_step ((coco_reader * r) (int kind)) (out int)
         (let ((size_t w . #'(coco_rd_wide_at (-> r src) (-> r len) (-> r pos) kind)))
           (if (== w 0) (return 0))
+          (coco_reader_charset_note r (? (== kind 2) 2 1)
+                                    (coco_is_upper (cast int (nth (-> r tstart) (-> r src)))))
           (coco_sb_put_len (aof (-> r text)) (+ (-> r src) (-> r pos)) w)
           (set (-> r pos) (+ (-> r pos) w))
           (return 1)))
@@ -2345,6 +2383,7 @@
           (cond
             ((!= 0 (bitand f 64)) (return (coco_fail r "unexpected character")))
             ((!= 0 (bitand f 4))
+             (coco_reader_charset_note r 1 (? (!= 0 (bitand f 16)) 1 0))
              ;; the letter, whatever follows: a start continues itself
              (coco_sb_put_len (aof (-> r text)) (+ (-> r src) (-> r pos)) w)
              (set (-> r pos) (+ (-> r pos) w))
@@ -2352,11 +2391,13 @@
              (set (-> r tok) (? (!= 0 (bitand f 16)) COCO_TK_VAR COCO_TK_NAME))
              (return 1))
             ((!= 0 (bitand f 2))
+             (coco_reader_charset_note r 2 0)
              (coco-lex-run r coco_is_symbol 2)
              (set (-> r tok) COCO_TK_NAME)
              (return 1))
             ((!= 0 (bitand f 32)) (return (coco_lex_wide_number r cp)))
             (#t
+             (coco_reader_charset_note r 0 0)
              (coco_sb_put_len (aof (-> r text)) (+ (-> r src) (-> r pos)) w)
              (set (-> r pos) (+ (-> r pos) w))
              (set (-> r tok) COCO_TK_NAME)
@@ -3187,8 +3228,80 @@
         (free (-> r var_names))
         (free (-> r var_cells))
         (free (-> r cidx))
+        (free (cast (void *) (-> r cs)))
         (coco_sb_free (aof (-> r text)))
         (memset r 0 (coco_reader_head r)))
+
+  ;;; the byte past the token a charset note names, from P, its first: its
+  ;;; first code whatever it is, then as its RUN goes on (1 a name's: ASCII
+  ;;; letters, digits and `_', and past ASCII swipl's continuation codes; 2
+  ;;; a symbol's), as the lexer took it
+  (static)
+  (func coco_reader_charset_end ((coco_reader * r) (size_t p) (int run)) (out size_t)
+        (let ((size_t w . 0))
+          (coco_cp_at (-> r src) (-> r len) p (aof w))
+          (set p (+ p (? (== w 0) 1 w)))
+          (if (== run 0) (return p))
+          (while (< p (-> r len))
+            (let ((int b . #'(bitand (cast int (nth p (-> r src))) 255)))
+              (if (< b 128)
+                  (block
+                    (if (not (? (== run 1) (coco_is_alnum b) (coco_is_symbol b))) (return p))
+                    (set p (+ p 1)))
+                (block
+                  (set w (coco_rd_wide_at (-> r src) (-> r len) p (? (== run 1) 8 2)))
+                  (if (== w 0) (return p))
+                  (set p (+ p w))))))
+          (return p)))
+
+  ;;; A WARNING OF THE READER'S (3.67.0): at ORIGIN's LINE where a load
+  ;;; says it, at the directive's place where one runs (`sloc_file'), else
+  ;;; bare -- swipl's print_message/2 of a warning, in the engine's words
+  (static)
+  (func coco_reader_warn ((coco_machine * m) (const char * origin) (int line) (const char * what))
+        (if (and (== origin nil) (and (!= m nil) (!= (-> m sloc_file) nil)))
+            (block (set origin (-> m sloc_file)) (set line (-> m sloc_line))))
+        (fflush nil)
+        (coco_out_fresh stderr)
+        (if (!= origin nil)
+            (fprintf stderr "Warning: %s:%d:\nWarning:    %s\n" origin line what)
+          (fprintf stderr "Warning: %s\n" what))
+        (coco_out_note stderr "\n" 1))
+
+  ;;; THE NAMES PAST ASCII A READ NOTED, SAID (3.67.0, swipl's checkASCII()
+  ;;; under style_check(+charset), the machine's `style' 32): each token
+  ;;; that began before UPTO -- the one in hand is the next clause's, said
+  ;;; with it -- as `Unquoted atom with non-portable characters: T', or
+  ;;; `... variable ...', T the token's bytes each a character, as swipl's
+  ;;; PL_NCHARS hands them on (`é' is `Ã©'). Forgotten once said, and where
+  ;;; charset is off; asked by every read of a program's text: a load's
+  ;;; (`coco_consult_owned'), the text builtins' (`coco_tx_read'), a
+  ;;; stream's (`coco_m_read_clause') and the REPL's
+  (func coco_reader_charset_say ((coco_reader * r) (const char * origin) (int line) (size_t upto))
+        (if (== (-> r csn) 0) (return))
+        (let ((coco_machine * m . #'(-> r m)) (coco_strbuf b) (size_t w . 0) (int on . 0))
+          (set on (and (!= m nil) (!= 0 (bitand (-> m style) 32))))
+          (coco_sb_init (aof b))
+          (for ((size_t k . 0)) (< k (-> r csn)) ((++ k))
+            (let ((size_t e . #'(nth k (-> r cs))) (size_t p . #'(>> (nth k (-> r cs)) 3)))
+              (if (>= p upto)
+                  (block (set (nth w (-> r cs)) e) (set w (+ w 1)))
+                (if on
+                    (let ((size_t q . #'(coco_reader_charset_end r p (cast int (bitand (>> e 1) 3)))))
+                      (coco_sb_reset (aof b))
+                      (coco_sb_put (aof b) (? (!= 0 (bitand e 1))
+                                              "Unquoted variable with non-portable characters: "
+                                              "Unquoted atom with non-portable characters: "))
+                      (for ((size_t i . p)) (< i q) ((++ i))
+                        (let ((int c . #'(bitand (cast int (nth i (-> r src))) 255)))
+                          (if (< c 128)
+                              (coco_sb_putc (aof b) (cast char c))
+                            (block (coco_sb_putc (aof b) (cast char (bitor 192 (>> c 6))))
+                                   (coco_sb_putc (aof b) (cast char (bitor 128 (bitand c 63))))))))
+                      (if (and (!= ($ b s) nil) (== (-> m oom) 0))
+                          (coco_reader_warn m origin line ($ b s))))))))
+          (coco_sb_free (aof b))
+          (set (-> r csn) w)))
 
   ;;; WHETHER A READ WAS REFUSED MEMORY ON THE WAY (3.62.3): its first
   ;;; token (LEXREF, `coco_next_first'), or anything since R0, the

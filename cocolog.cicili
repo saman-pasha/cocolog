@@ -438,7 +438,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.66.0"))
+  (func coco_version_text () (out const char *) (return "3.67.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -1548,6 +1548,9 @@
                   (if tty (repl_history_add (aof line) hf))
                   (coco_reader_init (aof r) (aof m) (? (== ($ line s) nil) "" ($ line s)))
                   (set prc (coco_read_clause (aof r) (aof g)))
+                  ;; a name past ASCII the query holds outside quotes, said
+                  ;; under style_check(+charset) (3.67.0)
+                  (coco_reader_charset_say (aof r) nil 0 (cast size_t -1))
                   (cond
                     ;; A QUERY TOO DEEP FOR THE C STACK (3.60.0) is swipl's
                     ;; toplevel's two lines, its read_term_from_atom/3 named,

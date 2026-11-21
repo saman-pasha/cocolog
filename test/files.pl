@@ -310,7 +310,35 @@ fixtures(fifo_read, Sandbox) :- !,
 %% of clause for one predicate (`sm/2')
 fixtures(ssu_mixed, Sandbox) :- !,
     forall(sm(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
+%% the files the style_check case consults (`sc/2'): one whose directives
+%% turn each style off and on between the clauses each warns of, one that
+%% includes a file turning singleton off, and one that consults a file
+%% turning it off, whose own clauses after it are warned of again
+fixtures(style_check, Sandbox) :- !,
+    forall(sc(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
 fixtures(_, _).
+
+%% each style's warning, then the style off, then on again: the reader's
+%% singletons and the compiler's (singleton), a test (no_effect), the
+%% not-together warning (discontiguous) and var_branches, off at the start
+sc('sc_w.pl', [ 'p1(X) :- true.', 'p2(_A, _A).', 'p3 :- X == Y, print(X-Y).',
+                'p4 :- ( true ; X = 1 ), print(X).', 'd1.', 'd2.', 'd1 :- true.',
+                ':- style_check(-singleton).',
+                'q1(X) :- true.', 'q2(_A, _A).', 'q5 :- ( Z = 1 ; true ).',
+                ':- style_check(-no_effect).', 'q3 :- X == Y, print(X-Y).',
+                ':- style_check(+var_branches).', 'q4 :- ( true ; X = 1 ), print(X).',
+                ':- style_check(-discontiguous).', 'e1.', 'e2.', 'e1 :- true.',
+                ':- style_check([+singleton, +no_effect, +discontiguous, -var_branches]).',
+                'r1(X) :- true.', 'r3 :- X == Y, print(X-Y).', 'r4 :- ( true ; X = 1 ), print(X).',
+                %% no_effect alone off: the clause counted, its test unsaid
+                ':- style_check(-no_effect).', 'r5 :- X == Y, print(X-Y).', ':- style_check(+no_effect).',
+                'f1.', 'f2.', 'f1 :- true.' ]).
+%% an include's style_check is its includer's, to the includer's end
+sc('sc_inc.pl', [':- include(sc_incl).', 'i1(X) :- true.']).
+sc('sc_incl.pl', [':- style_check(-singleton).', 'i0(X) :- true.']).
+%% a consulted file's is its own, put back when its read ends
+sc('sc_nest.pl', [':- consult(sc_inner).', 'n1(X) :- true.']).
+sc('sc_inner.pl', [':- style_check(-singleton).', 'n0(X) :- true.']).
 
 %% a predicate's clauses, then rules in their place, then clauses with a rule
 %% after them, then a rule with a clause after it

@@ -107,6 +107,9 @@
     ("nb_current"              2 coco_b_nb_current :declines)
     ("$nb_keys"                1 coco_b_nb_keys)
     ("garbage_collect"         0 coco_b_garbage_collect)
+    ;; swipl's word of style checks (3.67.0), which style_check/1 is clauses
+    ;; over (the Prolog half)
+    ("$style_check"            2 coco_b_style_check)
     ("prewarm"                 1 coco_b_prewarm)
     ("statistics"              2 coco_b_statistics)
     ("$store_mute"             0 coco_b_store_mute)
@@ -907,7 +910,45 @@
            "'$plc'(script, false)."
            "'$plc'(variable_names, B) :- '$load_context'(variable_names, B)."
            "'$plc'(term, T) :- '$load_context'(term, T)."
-           "'$plc'(reloading, true) :- '$load_context'(reloading, true).")))
+           "'$plc'(reloading, true) :- '$load_context'(reloading, true)."
+
+           ;; ---- style_check/1, swipl's (3.67.0) ---------------------------
+           ;; boot/syspred.pl's clauses, its helpers named `$' (one
+           ;; namespace), over the machine's word ('$style_check'/2): a
+           ;; style's bit, its name's in swipl's order -- `atom' warns that
+           ;; it has no effect, even as ?(S) walks the names --, +Name sets
+           ;; it, -Name clears it, ?(Name) asks it, a list each in turn, and
+           ;; anything else swipl's type_error('+|-|?(Flag)', T); a name no
+           ;; style has domain_error(style_name, N) but under ?(N) alone,
+           ;; which fails. What a load says is what the word leaves on.
+           "'$style_name'(atom, 1) :- print_message(warning, decl_no_effect(style_check(atom)))."
+           "'$style_name'(singleton, 66)."
+           "'$style_name'(discontiguous, 8)."
+           "'$style_name'(charset, 32)."
+           "'$style_name'(no_effect, 128)."
+           "'$style_name'(var_branches, 256)."
+           "style_check(V) :- var(V), !, throw(error(instantiation_error, _))."
+           "style_check(?(S)) :- !, ( var(S) -> '$style_enum'(S) ; '$style_enum'(S) -> true )."
+           "style_check(Spec) :- '$style_check'(Old, Old), '$style_map'(Spec, Old, New), '$style_check'(_, New)."
+           "'$style_enum'(S) :- '$style_check'(Bits, Bits), '$style_name'(S, Bit), Bit /\\ Bits =\\= 0."
+           "'$style_map'(V, _, _) :- var(V), !, throw(error(instantiation_error, _))."
+           "'$style_map'([], Bits, Bits) :- !."
+           "'$style_map'([H|T], Old, New) :- '$style_map'(H, Old, New0), '$style_map'(T, New0, New)."
+           "'$style_map'(+N, Old, New) :- !, '$style_bit'(N, Bits), !, New is Old \\/ Bits."
+           "'$style_map'(-N, Old, New) :- !, '$style_bit'(N, Bits), !, New is Old /\\ \\Bits."
+           "'$style_map'(?(N), Old, Old) :- !, '$style_bit'(N, Bits), Old /\\ Bits > 0."
+           "'$style_map'(T, _, _) :- throw(error(type_error('+|-|?(Flag)', T), _))."
+           "'$style_bit'(N, Bits) :- '$style_name'(N, Bits), !."
+           "'$style_bit'(N, _) :- throw(error(domain_error(style_name, N), _))."
+
+           ;; ---- the collectors swipl has and cocolog needs not (3.67.0) ---
+           ;; swipl's, each true: cocolog's atoms are never reclaimed, its
+           ;; dead clauses are swept where no call holds them (every query's
+           ;; start, `coco_tomb_sweep_all'), and its stacks are arrays
+           ;; that keep what they grew to
+           "garbage_collect_atoms."
+           "garbage_collect_clauses."
+           "trim_stacks.")))
 
 (generic decl-builtins
   ()

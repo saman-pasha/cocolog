@@ -2556,6 +2556,17 @@
           (snprintf out len "%s" (? (== ($ b s) nil) "?" ($ b s)))
           (coco_sb_free (aof b))))
 
+  ;;; and as messages.pl's ~w writes it, unquoted (3.67.0): a type, a
+  ;;; domain, an action, what is missing -- `Type error: `+|-|?(Flag)''
+  ;;; expected', where through 3.66.0 the type was quoted as the culprit is
+  (static)
+  (func coco_err_say_w ((coco_machine * m) (size_t t) (char * out) (size_t len))
+        (let ((coco_strbuf b))
+          (coco_sb_init (aof b))
+          (coco_write_term m (aof b) t 0 0)
+          (snprintf out len "%s" (? (== ($ b s) nil) "?" ($ b s)))
+          (coco_sb_free (aof b))))
+
   ;;; A SYNTAX ERROR'S REASON, as swipl's syntax_error//1 says it (3.0.0):
   ;;; `illegal_number' is "Illegal number", `operator_expected' "Operator
   ;;; expected", and a reason it has no sentence for is written as it is (~w).
@@ -2739,7 +2750,7 @@
 
             (if (and (== fa 2) (== 0 (strcmp fn "existence_error")))
                 (let ((size_t k . #'(coco_deref m (coco_arg m f 0))))
-                  (coco_err_say m k a1 (sizeof a1))
+                  (coco_err_say_w m k a1 (sizeof a1))
                   (coco_err_say m (coco_arg m f 1) a2 (sizeof a2))
                   ;; a procedure is named Name/Arity, or Module:Name/Arity,
                   ;; to be unknown: anything else is a procedure that does
@@ -2754,7 +2765,7 @@
 
             (if (and (== fa 2) (== 0 (strcmp fn "type_error")))
                 (block
-                 (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
+                 (coco_err_say_w m (coco_arg m f 0) a1 (sizeof a1))
                  (coco_err_say m (coco_arg m f 1) a2 (sizeof a2))
                  ;; `X is foo+1' is a type_error(evaluable, foo/0) and SWI
                  ;; does NOT say "type error" for it -- measured
@@ -2766,14 +2777,14 @@
                  (return)))
 
             (if (and (== fa 2) (== 0 (strcmp fn "domain_error")))
-                (block (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
+                (block (coco_err_say_w m (coco_arg m f 0) a1 (sizeof a1))
                        (coco_err_say m (coco_arg m f 1) a2 (sizeof a2))
                        (snprintf out len "Domain error: `%s' expected, found `%s'" a1 a2)
                        (return)))
 
             (if (and (== fa 3) (== 0 (strcmp fn "permission_error")))
-                (block (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
-                       (coco_err_say m (coco_arg m f 1) a2 (sizeof a2))
+                (block (coco_err_say_w m (coco_arg m f 0) a1 (sizeof a1))
+                       (coco_err_say_w m (coco_arg m f 1) a2 (sizeof a2))
                        (coco_err_say m (coco_arg m f 2) a3 (sizeof a3))
                        ;; THE KINDS swipl WORDS ITS OWN WAY (3.1.0), as
                        ;; library(print_message)'s '$pm_permission_error'//3
@@ -2825,7 +2836,7 @@
                        (return)))
 
             (if (and (== fa 1) (== 0 (strcmp fn "representation_error")))
-                (block (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
+                (block (coco_err_say_w m (coco_arg m f 0) a1 (sizeof a1))
                        (snprintf out len "Cannot represent due to `%s'" a1)
                        (return)))
 
@@ -2870,7 +2881,7 @@
             ;; (its context, `P: ... (Why)', is the one every error's is
             ;; now, `coco_error_text')
             (if (and (== fa 1) (== 0 (strcmp fn "resource_error")))
-                (block (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
+                (block (coco_err_say_w m (coco_arg m f 0) a1 (sizeof a1))
                        ;; THE STACK LIMIT (3.32.0): swipl's first line, the
                        ;; machine's limit in swipl's own sizes (messages.pl's
                        ;; human_stack_size, of kilobytes). swipl writes the

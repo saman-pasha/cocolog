@@ -2300,7 +2300,30 @@ into its `at_modules/1`. What a session must keep:
   compiled in place); a new control construct goes into both, and a
   grammar rule's body is its translation's (`$/1` and `@/2` are
   non-terminals there). test/files/warnings_branch.pl and
-  test/files/warnings_tests.pl hold the rules to swipl. **A file of the
+  test/files/warnings_tests.pl hold the rules to swipl. **A variable the
+  count met in a left branch and counts from 0 again in the right is
+  pushed again where it is met** (3.67.0, `coco_cwa_var`): new to what the
+  right branch opens, so a \+ or an inner disjunction there says its
+  singleton, as swipl's (warnings_branch.pl's y1 to y7). **What is said is
+  the machine's `style` word** (3.67.0, swipl's style_check/1 over
+  `'$style_check'/2`, test/files/style_check.pl): 202 at the start --
+  singleton (2 the reader's block, 64 the compiler's singleton lines),
+  discontiguous (8, `coco_reload_for`), no_effect (128, the tests) --
+  charset (32) and var_branches (256) off; each file's read keeps its own
+  (`coco_consult_oid` puts it back), an included file's is its includer's,
+  a green task's its host's, and a library(thread) thread and
+  run_isolated/2 start at 202 (COMPAT.md). var_branches has the count mark
+  a variable one branch introduced (`coco_cwa_join`, `fl` 8) and say
+  `Variable not introduced in all branches: X` at its next occurrence,
+  ahead of the block's other lines (test/files/var_branches.pl). charset's
+  notes are made whatever the style, in the lexer's paths past ASCII
+  (`coco_reader_charset_note`: an unquoted name, a variable, a run of
+  symbols), and said by `coco_reader_charset_say` -- a load at its
+  clause's line, the next clause's first token kept for its own;
+  library(stream)'s read of a file at the line in it, by the name it was
+  opened as (`coco_m_read_clause_in`); a text's read and the REPL's with
+  no place -- so **a new reader of source text says the notes**, or a name
+  past ASCII goes unsaid. **A file of the
   tree loads with no warning**: a variable a
   clause never uses is `_`, and one it uses twice is named plainly, never
   `_X` -- the walk found a check in test/template.pl that tested nothing.
@@ -2482,7 +2505,11 @@ into its `at_modules/1`. What a session must keep:
   compiled-in-place construct gets its kind** (`coco_cbody_kind`) and its
   walk, or its arms keep their nesting.
 * **An uncaught exception reads as SWI's sentence** (`coco_error_text`):
-  `Unknown procedure: main/0`, `Unknown message: Ball`. **An unknown
+  `Unknown procedure: main/0`, `Unknown message: Ball`; a type, a domain,
+  a permission's action and type, a representation and a resource written
+  as messages.pl writes them, with ~w (3.67.0, `coco_err_say_w`: `Type
+  error: `+|-|?(Flag)' expected`, which through 3.66.0 the engine quoted),
+  the culprit as before. **An unknown
   procedure's ends on the predicates its name is near** (3.3.0, swipl's
   dwim: `However, there are definitions for:` and a line each), from
   `coco_b_dwim_text` in lib/builtins-db.cicili, which the builtins module

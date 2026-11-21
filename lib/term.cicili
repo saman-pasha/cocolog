@@ -1231,7 +1231,18 @@
     (member void *     wpreb)
     (member size_t     wbase)
     (member void *     wraw)
-    (member void *     wcontb))
+    (member void *     wcontb)
+    ;; THE STYLE CHECKS (3.67.0), swipl's debugstatus.styleCheck, which
+    ;; '$style_check'/2 reads and sets and style_check/1 is clauses over:
+    ;; 2 the reader's singletons, 8 the clauses of a predicate not
+    ;; together, 32 a name past ASCII outside quotes (the reader's,
+    ;; `coco_reader_charset'), 64 the compiler's singletons (a branch's, a
+    ;; \+'s, a name marked singleton named twice), 128 a test whose answer
+    ;; the compiler knows, 256 a variable not introduced in all branches; 1
+    ;; is swipl's long atom, which checks nothing. 202 when the machine is
+    ;; made, swipl's default, and saved and put back around each file's
+    ;; read (`coco_consult_oid'), as swipl's '$save_lex_state'. Appended.
+    (member int        style))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -1791,6 +1802,7 @@
         (set (-> m text_chars) (coco_text_default))
         (set (-> m fflags) (coco_fflags_default))
         (set (-> m slimit) (coco_slimit_default))
+        (set (-> m style) 202)
         (return 1))
 
   (func coco_troot ((coco_machine * m)) (out coco_machine *)
@@ -2001,6 +2013,8 @@
         (set (-> m text_chars) (coco_text_default))
         (set (-> m fflags) (coco_fflags_default))
         (set (-> m slimit) (coco_slimit_default))
+        ;; a task's loads check what its host's would (3.67.0)
+        (set (-> m style) (-> base style))
         (set (-> m tshared) 1)
         (let ((coco_machine * root . #'(coco_troot base)))
           ;; THE ALIAS LIST IS SHARED BY EVERY WORKER'S TASKS when the

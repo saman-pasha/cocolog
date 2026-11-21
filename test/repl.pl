@@ -145,6 +145,15 @@ local(D) :-
     shell(Cmd19, G19, _),
     check('use_module/1, then [file]: held once; a missing file in brackets raises', G19,
           'true.\ntrue.\nL = [1,2].\nERROR: ?-: source_sink `nosuch_fam'' does not exist'),
+    %% A NAME PAST ASCII UNDER style_check(+charset) (3.67.0): the read of
+    %% a query says swipl's warning on stderr, before the answer, the name's
+    %% bytes read as Latin-1 and written out as UTF-8, as swipl's toplevel
+    %% says it; a quoted name and the style off say nothing
+    sh_join(['printf ''X = été.\\nstyle_check(+charset).\\nX = été.\\nY = "é".\\nstyle_check(-charset).\\nZ = é.\\n'' | ',
+             C, ' 2>&1 >/dev/null'], Cmd22),
+    shell(Cmd22, G22, _),
+    check('a query''s name past ASCII is warned of under charset alone, as swipl''s toplevel', G22,
+          'Warning: Unquoted atom with non-portable characters: Ã©tÃ©'),
     sh_join(['printf ''halt.\\n'' | ', C, ' >/dev/null 2>&1'], Cmd17),
     shell(Cmd17, _, Rc17),
     check('halt. leaves with 0', Rc17, 0).

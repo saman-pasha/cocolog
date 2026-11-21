@@ -453,6 +453,16 @@
                                        (size_t * out) (size_t * names) (size_t * pos)
                                        (size_t * start) (char * err) (size_t errlen)) (out int))
 
+  ;;; THE SAME, OF A FILE'S TEXT (3.67.0): ORIGIN names the file SRC was
+  ;;; read from, and LINE0 the line its first byte stands on, so what the
+  ;;; read says under style_check(+charset) is placed at the clause's line,
+  ;;; as swipl's read of a stream with a file name places it; a null ORIGIN
+  ;;; places nothing, as `coco_m_read_clause_pos' does.
+  (decl) (func coco_m_read_clause_in ((coco_engine * e) (const char * src) (i64 base)
+                                      (const char * origin) (i64 line0)
+                                      (size_t * out) (size_t * names) (size_t * pos)
+                                      (size_t * start) (char * err) (size_t errlen)) (out int))
+
   ;;; WHERE A CLAUSE'S TEXT ENDS, as swipl's raw read finds it (3.11.0,
   ;;; `coco_raw_walk'): the walk's kind of S's N bytes -- 0 a full stop, 6
   ;;; a full stop with nothing before it (each ending at END), 1 no full
@@ -1277,7 +1287,13 @@
   (func coco_m_read_clause_pos ((coco_engine * e) (const char * src) (i64 base)
                                 (size_t * out) (size_t * names) (size_t * pos)
                                 (size_t * start) (char * err) (size_t errlen)) (out int)
-        (let ((coco_reader r) (int rc . 0) (size_t t . 0))
+        (return (coco_m_read_clause_in e src base nil 0 out names pos start err errlen)))
+
+  (func coco_m_read_clause_in ((coco_engine * e) (const char * src) (i64 base)
+                               (const char * origin) (i64 line0)
+                               (size_t * out) (size_t * names) (size_t * pos)
+                               (size_t * start) (char * err) (size_t errlen)) (out int)
+        (let ((coco_reader r) (int rc . 0) (size_t t . 0) (i64 at . line0))
           (if (and (!= err nil) (> errlen 0)) (set (nth 0 err) (cast char 0)))
           (if (== src nil) (return 0))
           (coco_reader_init (aof r) (-> e m) src)
@@ -1287,6 +1303,13 @@
               (block (set ($ r want_pos) 1)
                      (set ($ r pbase) base)))
           (set rc (coco_read_clause (aof r) (aof t)))
+          ;; a name past ASCII the read took outside quotes, said under
+          ;; style_check(+charset) (3.67.0, `coco_reader_charset_say'), at
+          ;; the line of the clause's first token where ORIGIN is a file's
+          (if (and (!= origin nil) (> ($ r csn) 0))
+              (for ((size_t i . 0)) (< i ($ r cstart)) ((++ i))
+                (if (== (nth i src) (cast char 10)) (set at (+ at 1)))))
+          (coco_reader_charset_say (aof r) origin (cast int at) (cast size_t -1))
           ;; a text too deep for the C stack to read is no syntax error
           ;; (3.60.0): -2, for the module to raise resource_error(c_stack)
           (if (and (== rc -1) ($ r cshort)) (set rc -2))

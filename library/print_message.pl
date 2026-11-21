@@ -829,3 +829,6 @@ message_to_string(Term, Str) :-
     [ 'Initialization goal failed: ~p'-[Goal] ].
 '$pm_prolog_message'(halt) -->
     [ 'halt' ].
+%% style_check(+atom) and its kin say it (3.67.0, swipl's)
+'$pm_prolog_message'(decl_no_effect(Goal)) -->
+    [ 'Deprecated declaration has no effect: ~p'-[Goal] ].

@@ -267,6 +267,9 @@ flow_mode('$unbind_template', 1, ['+'], det).
 %% ordsets.pl's: the cells of a list skipped, and what stands after them
 %% (3.19.0, swipl's)
 flow_mode('$skip_list', 3, ['-', '?', '-'], det).
+%% style_check/1's word (3.67.0, swipl's): the old one, and the new where
+%% it is an integer -- fails else
+flow_mode('$style_check', 2, ['?', '+'], semidet).
 flow_mode(ensure_loaded, 1, ['+'], det).
 flow_mode(use_module, 1, ['+'], det).
 flow_mode(use_module, 2, ['+', '+'], det).

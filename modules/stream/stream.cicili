@@ -2075,10 +2075,14 @@
           ;; the scanner grows its buffer to two past every byte it keeps (the
           ;; octets' copy too), so the NUL that makes it a C string has its slot
           (set (nth n buf) (cast u8 0))
-          (if want
-              (set rc (coco_m_read_clause_pos e (cast (char *) buf) c0 (aof t) (aof names)
-                                              (aof pos) (aof start) err (sizeof err)))
-            (set rc (coco_m_read_clause e (cast (char *) buf) (aof t) (aof names) err (sizeof err))))
+          ;; read as a file's text where the stream is a file's (3.67.0): what
+          ;; the read says under style_check(+charset) is placed at the
+          ;; clause's line in it, by the name it was opened as, as swipl's
+          ;; read places it -- the name a syntax error's file(F, ...) gives
+          (let ((const char * fname . #'(? (>= s 3) (nth s st_path) nil)))
+            (set rc (coco_m_read_clause_in e (cast (char *) buf) c0 fname l0 (aof t) (aof names)
+                                           (? want (aof pos) nil) (? want (aof start) nil)
+                                           err (sizeof err))))
           ;; A CLAUSE THERE WAS NO MEMORY TO READ IS NO SYNTAX ERROR (3.64.6):
           ;; resource_error(memory), as the text builtins raise it. Through
           ;; 3.64.5 its `out of memory' was a syntax error, with no id swipl has

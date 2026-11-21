@@ -1381,6 +1381,22 @@
         (set (-> (coco_m_machine e) gc_next) 0)
         (return 1))
 
+  ;;; '$style_check'(Old, New), swipl's (3.67.0): Old the machine's word of
+  ;;; style checks (`style', lib/term.cicili), and New, an integer a C int
+  ;;; holds, the word from here on. A New that is no such integer fails
+  ;;; and sets nothing, as swipl's PL_get_integer() does, and so does an Old
+  ;;; the word is not; `'$style_check'(W, W)' reads it. style_check/1 is
+  ;;; swipl's clauses over it (the Prolog half), and a load reads the word
+  ;;; at each warning it would say (`coco_consult_singletons',
+  ;;; `coco_reload_for', `coco_reader_charset').
+  (func coco_b_style_check ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (i64 v . 0))
+          (if (!= 1 (coco_m_unify_int e (coco_m_arg e g 0) (cast i64 (-> m style)))) (return 0))
+          (if (not (coco_m_int e (coco_m_arg e g 1) (aof v))) (return 0))
+          (if (or (< v -2147483648) (> v 2147483647)) (return 0))
+          (set (-> m style) (cast int v))
+          (return 1)))
+
   ;;; `statistics/2', the keys a program can act on. SWI's names where SWI
   ;;; has the number -- `cputime' in seconds as a float, `inferences',
   ;;; `globalused' and `trailused' in bytes, `atoms' and `functors' as

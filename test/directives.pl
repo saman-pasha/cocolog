@@ -38,6 +38,8 @@ main :-
     reader_level(D), the_program(D),
     taken_later(D),
     wide_names(D),
+    charset(D),
+    green_style(D),
     kinds(D),
     under_swipl(D),
     shl(['rm -rf ', D]),
@@ -811,6 +813,71 @@ wide_names(D) :-
     sh_join(['ERROR: ', F, ':6:5: Syntax error: Operator expected'], E6),
     has('and one after a symbol past ASCII in the clause', E6, Out).
 
+%% A NAME PAST ASCII UNDER style_check(+charset) (3.67.0, swipl's): an
+%% unquoted atom, a variable or a run of symbols that holds a code past
+%% ASCII is warned of as the read takes it -- in a load at its clause's
+%% line, in a read of a file's stream at the line in that file, by the name
+%% the stream was opened as, and in a text's read with no place -- its text
+%% the name's bytes read as Latin-1, as swipl says them under a UTF-8
+%% locale; a quoted name, a string, a code and the style off say nothing.
+%% under_swipl holds the whole of it to swipl's text
+charset(D) :-
+    section('names past ASCII under style_check(+charset)'),
+    atom_concat(D, '/charset.pl', F),
+    fixture(F, [ ':- style_check(+charset).', 'a(été).', 'été(2).', 'b(Xé) :- print(Xé).',
+                 'c("é", ''é'', 0''é).', 'd(+±+).', ':- style_check(-charset).', 'e(été).' ]),
+    ran(F, true, Out),
+    sh_join(['Warning: ', F, ':2:\nWarning:    Unquoted atom with non-portable characters: Ã©tÃ©'], W2),
+    has('an atom past ASCII is warned of at its clause''s line', W2, Out),
+    %% the read of a clause takes the next one's first token, whose warning
+    %% is the next clause's, at its line
+    sh_join(['Warning: ', F, ':3:\nWarning:    Unquoted atom with non-portable characters: Ã©tÃ©'], W3),
+    has('...and a clause''s first name at its own line', W3, Out),
+    sh_join(['Warning: ', F, ':4:\nWarning:    Unquoted variable with non-portable characters: XÃ©'], W4),
+    has('...a variable at each of its occurrences', W4, Out),
+    sh_join(['Warning: ', F, ':6:\nWarning:    Unquoted atom with non-portable characters: +Â±+'], W6),
+    has('...and a run of symbols', W6, Out),
+    findall(x, sub_atom(Out, _, _, _, 'non-portable'), Ws), length(Ws, NW),
+    check('a quoted name, a string, a code and the style off say nothing', NW, 5),
+    %% AN ERROR'S TYPE, DOMAIN, ACTION AND RESOURCE ARE WRITTEN AS swipl's
+    %% messages.pl writes them, with ~w (3.67.0): `+|-|?(Flag)', where
+    %% through 3.66.0 the engine's report quoted it, `'+|-|?(Flag)''.
+    %% under_swipl holds the whole of what is said to swipl's
+    atom_concat(D, '/estyle.pl', FE),
+    fixture(FE, [ ':- style_check(foo).', ':- style_check(-nope).',
+                  ':- must_be(oneof([a, ''B c'']), x).' ]),
+    ran(FE, true, OutE),
+    has('a type is written as it reads', 'Type error: `+|-|?(Flag)'' expected, found `foo'' (an atom)', OutE),
+    has('...a type that holds a quoted atom too', 'Type error: `oneof([a,B c])'' expected', OutE),
+    atom_concat(D, '/charset_in.pl', In),
+    fixture(In, ['k(αβ).', 'm(', '  x,', '  Xé).']),
+    atom_concat(D, '/charset_goal.pl', G),
+    sh_join(['go :- style_check(+charset), term_to_atom(T, ''f(é)''), print(T), nl, ',
+             'open(''', In, ''', read, S), read(S, T2), read(S, T3), close(S), print(T2-T3), nl.'], Go),
+    fixture(G, [Go]),
+    ran(G, go, OutG),
+    has('a text''s read warns with no place', 'Warning: Unquoted atom with non-portable characters: Ã©\nf(é)', OutG),
+    sh_join(['Warning: ', In, ':1:\nWarning:    Unquoted atom with non-portable characters: Î±Î²'], WS1),
+    has('a file''s stream warns at the line in the file', WS1, OutG),
+    sh_join(['Warning: ', In, ':2:\nWarning:    Unquoted variable with non-portable characters: XÃ©'], WS2),
+    has('...the line its term begins on', WS2, OutG).
+
+%% A GREEN TASK LOADS UNDER ITS HOST'S STYLE (3.67.0): a task's machine is
+%% made from its host's (`coco_machine_init_alias'), the style checks with
+%% the rest, so a spawned task's consult warns as its host's would, and
+%% says nothing where the host turned singleton off. swipl has no green
+%% task; a library(thread) thread starts at swipl's default (COMPAT.md)
+green_style(D) :-
+    section('a green task loads under its host''s style'),
+    atom_concat(D, '/gq.pl', Q), fixture(Q, ['gq(X) :- true.']),
+    atom_concat(D, '/gstyle.pl', G),
+    sh_join(['go :- style_check(-singleton), async_run((go(consult(''', Q, '''), F1), await(F1))), ',
+             'style_check(+singleton), async_run((go(consult(''', Q, '''), F2), await(F2))).'], Go),
+    fixture(G, [Go]),
+    ran(G, go, Out),
+    findall(x, sub_atom(Out, _, _, _, 'Singleton variables: [X]'), Ws), length(Ws, N),
+    check('a spawned task''s load says what its host''s style leaves on', N, 1).
+
 %% ONE KIND TO A PREDICATE, ON THE PROGRAM'S SIDE (3.65.0): a predicate of
 %% the program's own given both clauses and single-sided rules is refused
 %% at the clause of the other kind, under `run' and `-s' alike; and the
@@ -873,7 +940,7 @@ under_swipl(D) :-
         %% without -q, whose `silent' is m1v's own flag.
         forall(member(W-Q, [ bad-'-q ', missing-'-q ', ithrow-'-q ', ifail-'-q ', now2-'-q ',
                              eball-'-q ', efail-'-q ', emeta-'-q ', emetad-'-q ', m1-'', m2-'-q ', m1v-'',
-                             synendif-'-q ', synnoend-'-q ', synnotcl-'-q ' ]),
+                             synendif-'-q ', synnoend-'-q ', synnotcl-'-q ', estyle-'-q ' ]),
                ( sh_join([D, '/', W, '.pl'], WPl),
                  sh_join([C, ' --no-backtrace --local run ', WPl, ' true 2>&1 >/dev/null; printf ''rc=%s'' $?'], Ca6),
                  shell(Ca6, A6r, _), norm(D, A6r, A6n), vnorm(A6n, A6),
@@ -895,7 +962,20 @@ under_swipl(D) :-
                  sh_join(['LANG=C.UTF-8 swipl -q -g true -t halt ', SPl, ' 2>&1 >/dev/null'], Cb5),
                  shell(Cb5, B5r, _), norm(D, B5r, B5n), first(B5n, B5),
                  sh_join(['...and places and words a syntax error as swipl does in ', S, '.pl'], L5),
-                 check(L5, A5, B5) ))
+                 check(L5, A5, B5) )),
+        %% A NAME PAST ASCII UNDER style_check(+charset) (3.67.0): the whole
+        %% of what each says of a load, a text's read and a file stream's,
+        %% and the exit status, swipl under a UTF-8 locale -- it writes the
+        %% name's Latin-1 reading in the locale's encoding, which the C
+        %% locale has no character for
+        forall(member(Cs-Gs, [charset-true, charset_goal-go]),
+               ( sh_join([D, '/', Cs, '.pl'], CsPl),
+                 sh_join([C, ' --no-backtrace --local run ', CsPl, ' ', Gs, ' 2>&1 >/dev/null; printf ''rc=%s'' $?'], Ca7),
+                 shell(Ca7, A7r, _), norm(D, A7r, A7),
+                 sh_join(['LANG=C.UTF-8 swipl -q -g ', Gs, ' -t halt ', CsPl, ' 2>&1 >/dev/null; printf ''rc=%s'' $?'], Cb7),
+                 shell(Cb7, B7r, _), norm(D, B7r, B7),
+                 sh_join(['...and warns of a name past ASCII as swipl does in ', Cs, '.pl'], L7),
+                 check(L7, A7, B7) ))
     ;   format("     (skipped: swipl is not here, so the diff did not run)~n", [])
     ).
 

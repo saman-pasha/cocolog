@@ -21196,3 +21196,165 @@ lessons the tutorials case passes by (no numpy, opencv or torch module).
 Lesson 37 went red on its count of the card's rows, 24 where X2's
 retirement left 23, five with a pattern; it says so now, and the case was
 green alone after.
+
+## style_check/1 and the collectors are swipl's (3.67.0)
+
+BACKLOG #250, the first group of COMPAT.md's small built-ins a swipl
+program calls as it stands: `:- style_check(-singleton).` heads many a
+swipl file, and through 3.66.0 it was an unknown procedure, its load said
+so, and the warnings it meant to silence came after it all the same.
+`style_check/1` is swipl 9.0.4's boot/syspred.pl clauses now, over
+`'$style_check'/2`, the machine's word of style checks (`style`, appended
+to the machine): 202 at the start, swipl's default -- singleton (66: 2 the
+reader's `Singleton variables` block, 64 the compiler's singleton lines),
+discontiguous (8), no_effect (128, the tests the compiler knows the answer
+of) on, charset (32) and var_branches (256) off. `+Name` sets a style,
+`-Name` clears it, `?(Name)` asks it and with Name unbound walks the styles
+on, a list does each in turn, and anything else is swipl's error:
+instantiation_error, type_error('+|-|?(Flag)', T), domain_error(style_name,
+N); `atom` says `Deprecated declaration has no effect: style_check(atom)`
+(library(print_message)'s new message), even as the walk passes it.
+`garbage_collect_atoms/0`, `garbage_collect_clauses/0` and `trim_stacks/0`
+are true: cocolog's atoms are never reclaimed, its dead clauses are swept
+where no call holds them, and its stacks keep what they grew to.
+
+WHAT A LOAD SAYS IS WHAT THE WORD LEAVES ON (`coco_consult_singletons`, the
+not-together warning in `coco_reload_for`), and the word is the FILE'S:
+saved and put back around each file's read (`coco_consult_oid`), as
+swipl's `'$save_lex_state'` keeps it, so a style_check/1 in a loaded file,
+a consulted one or a module ends with it, and an included file's is part
+of its includer's. A green task's machine starts in its host's style
+(`coco_machine_init_alias`); a library(thread) thread and run_isolated/2
+start at 202, where swipl's thread starts in its creator's (COMPAT.md's
+new row). With none of the four checks on, a clause is not counted at all.
+
+VAR_BRANCHES (256) IS swipl's count of a clause's variables, which it
+reads as it compiles a disjunction: a variable that one branch of a
+disjunction introduces and another does not -- the left of `;`, an
+if-then-else's condition and then, a `*->` -- is marked
+(`coco_cwa_join`, `fl` 8), and named again after the disjunction it says
+`Variable not introduced in all branches: X`, once, the first lines of the
+compiler's block, in the order the names are met (`coco_cwa_unbalanced`).
+A `\+` introduces nothing, and a disjunction inside a branch leaves its
+marks to that branch alone: the mark is kept across the right branch's
+reset of the left's counts (`bsf` keeps 8 with the branch bits), and a
+left branch's variable that the right names is on the branch list twice,
+the right's entry dropped at the disjunction's end (`fl` 16 marks the
+left's while the end is reckoned).
+
+AND THE COUNT HAD A HOLE swipl's has not, which the default style shows: a
+variable a left branch named, which the right branch counts from 0 again,
+was no variable new to what the right branch opens -- through 3.66.0 `p :-
+( Z = 1 ; \+ Z = 2 ), print(Z).` said nothing of the \+ where swipl's says
+`Singleton variable in \+: Z`, and `( Z = 1, Z = 2 ; ( Z = 3, Z = 4 ; Z
+= 5 ) )` nothing of the inner branch's. Met with a count of 0 in a branch
+list's open stretch, it is pushed again (`coco_cwa_var`), as swipl's
+pushBranchVar() does: warnings_branch.pl's y1 to y7, seven of swipl's
+answers. The tree's own files load with no new warning (every `.pl` file
+of it loaded by 3.66.0 and 3.67.0, the warnings compared: the seven are
+the only difference).
+
+CHARSET (32) says each unquoted name, variable or run of symbols that holds
+a code past ASCII, as swipl's reader says it: `Unquoted atom with
+non-portable characters: Ã©tÃ©`, the name's bytes read as Latin-1 and
+written out in UTF-8, as swipl writes them under a UTF-8 locale. The
+notes are made whatever the style, in the lexer's paths past ASCII alone
+(`coco_reader_charset_note`, cold: an ASCII text pays nothing), and said
+by `coco_reader_charset_say` where the style is on: a load's at its
+clause's line -- the next clause's first token, which the read took, kept
+for its own clause and line -- library(stream)'s read of a file's stream
+at the line in the file, by the name the stream was opened as (the seam's
+new `coco_m_read_clause_in`, which the SDK declares: the stream module
+passes its path and line), a text's read (term_to_atom/2 and its kin) and
+the REPL's query with no place, each as swipl's.
+
+AN ERROR'S TYPE IS WRITTEN AS messages.pl WRITES IT, with ~w: the engine's
+report of `style_check(foo)` said `Type error: `'+|-|?(Flag)'' expected`,
+the type quoted as the culprit is, where swipl's says `+|-|?(Flag)`; a
+type, a domain, a permission's action and type, a representation and a
+resource are now written unquoted (`coco_err_say_w`), the culprit as
+before.
+
+THE CASES: test/files/style_check.pl, 71 lines held to swipl 9.0.4 (the
+word, the walk, every error, lists, `atom`, the word's own range, and five
+fixture files test/files.pl's `sc/2` makes: what a load says under each
+style, a file's style put back after it, an include's kept, a load begun
+under a goal's style); test/files/var_branches.pl, 210 lines (a clause each
+of swipl's answers: warned, none, named after by every construct, the
+order of the block's lines, any name, the \+, nested disjunctions, grammar
+rules); test/files/warnings_branch.pl's seven new clauses. test/directives.pl:
+`charset` (a load, a clause's first name at its own line, a text's read,
+a file stream's read at its lines, the style off; the error text), and
+under swipl the whole of what each says of `charset.pl`,
+`charset_goal.pl` and `estyle.pl`, swipl under C.UTF-8; `green_style` (a
+spawned task's load under its host's style). test/repl.pl: a query's name
+past ASCII under charset, and nothing with it off.
+
+THE RULES, each its own arm (one build of the final tree with the rule
+out), each red on its own check but the last:
+
+- R2 the reader's block under 2: style_check.pl (q1's `Singleton
+  variables` under -singleton), and directives' green_style.
+- C64 the count's lines under 64: style_check.pl (q2's `Singleton-marked
+  variable appears more than once`).
+- T128 the tests under 128: style_check.pl's r5, a clause counted under
+  singleton with no_effect alone off. The first fixture had none: its
+  -no_effect came with singleton off already, nothing was counted, and the
+  arm was green on every check.
+- D8 the not-together warning under 8: style_check.pl.
+- FS a file's word put back after its read: style_check.pl (sc_nest's
+  clause and the word after it).
+- VB the not-introduced mark: style_check.pl's q4 and var_branches.pl.
+- VG its lines under 256 alone: style_check.pl's p4 and
+  warnings_branch.pl.
+- RP the push again: warnings_branch.pl's y1 to y7 and var_branches.pl.
+- DD a left variable's second entry dropped: var_branches.pl.
+- BS the mark kept across the right branch's reset: var_branches.pl.
+- LO the not-introduced lines first: var_branches.pl's i2 to i7.
+- CN the notes: every charset check, the two swipl diffs and repl's.
+- LA the next clause's first token kept for its own clause: directives'
+  `été(2).` at its own line, and the diff of charset.pl.
+- SP a file stream's warning placed: directives' two stream checks and
+  the diff of charset_goal.pl.
+- SL at the line its term begins on: directives' second stream check and
+  the diff.
+- TX a text's read says its notes: directives' text check and the diff of
+  charset_goal.pl.
+- RE the REPL's read says its notes: repl's check.
+- CS the say under 32 alone: directives' count of what goes unsaid, and
+  repl's.
+- EW ~w: directives' two type checks and the diff of estyle.pl.
+- GC the collectors: style_check.pl.
+- EV the word held to a C int: style_check.pl's `'$style_check'(_,
+  4294967296)`.
+- GA a task's machine in its host's style: directives' green_style.
+- I202 202 at the start: style_check.pl, var_branches.pl,
+  warnings_branch.pl and directives' wide_names, nothing said at all.
+- ONCE the mark's clear in `coco_cwa_unbalanced`: green on every check,
+  as `coco_cwa_var` clears the bits after the call. The line was dead, and
+  it is gone; no count moved.
+
+WHAT IT COSTS: a start (`cocolog query true`, each binary from the
+scratchpad at paths of one length) counts 381 713 instructions more,
+35 709 037 against 35 327 324 (+1.08 %): reading the 22 clauses the
+builtins' Prolog half gained, style_check/1's and the collectors' --
+the same text read as a file costs 381 892 -- of which the say, called at
+every clause a load reads and answering at once where there is nothing to
+say, is 29 355. tools/flow/zero.sh against 3.66.0, work less padding:
+nrev 65 960 119 instructions, 164 360 fewer, every one of them libc's
+memcpy, whose count follows its buffers' alignment, which the start's heap
+sets (the engine's own functions count the same to the instruction:
+coco_clause_run_r 42 683 863, coco_try_clause 11 202 317, coco_engine_run
+8 464 829); queens 39 970 027, 108 fewer; lookup 48 092 974, 25 695 more,
+libc's memcpy 16 392 of them and its memset 4 526, no other function a
+thousand either way.
+
+THE RUN: the lint case first, then errors, stream, syntax, term, engine,
+library, flowchart, thread, gc, units, reconsult, trace, window, files,
+async, tutorials, directives, repl, script, backtrace, module, signal,
+string, cyclic, journal, argv, serialize, static, solve, state, flowdebug,
+store-lock, httpd and, with a server up, zigurat, shared, kbs, zigurat-lib,
+groups, ruler, tunnel and zigurat-tls, each alone, green with no SKIP but
+the lessons the tutorials case passes by (no torch, ray, numpy or opencv
+module); and lint, files, directives and repl again on the final binary,
+once ONCE's line had gone.
