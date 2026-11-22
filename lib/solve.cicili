@@ -273,7 +273,13 @@
     "$det_end" "$det_fail0" "$det_hide"
     ;; retract/1 and clause/2 (3.28.0, swipl's): a walk of the clauses that
     ;; stood when the call began, retried from its DB frame (`coco_db_walk')
-    "retract" "clause"))
+    "retract" "clause"
+    ;; the depth limit's (3.74.0): the marker a frame's body runs on to,
+    ;; '$dl'(W), its level in W (`coco_depth_step'), and '$dl_call'(G), a
+    ;; goal of a clause swipl compiles as a call by the shape of its
+    ;; arguments (`=', `==' and the type tests, `coco_dl_mask'); each runs
+    ;; as nothing and as G where the limit has gone
+    "$dl" "$dl_call"))
 
 ;;; THE FUNCTORS THE ENGINE BUILDS, interned once beside the names. Every
 ;;; one of these was `coco_make' with a C string -- `strlen', the atom
@@ -300,7 +306,10 @@
     ;; the hook print/1 and `~p' ask for a clause (3.54.0,
     ;; `coco_portray_defined'): interned at each print/1, the name cost it
     ;; some 300 instructions
-    ("portray" 1)))
+    ("portray" 1)
+    ;; the depth limit's marker (3.74.0), pushed at every call of a
+    ;; predicate while a limit is armed (`coco_depth_push')
+    ("$dl" 1)))
 
 (DEFUN coco-fid-index (name arity)
   (OR (POSITION (LIST name arity) *functor-names* :TEST #'EQUAL)
@@ -593,8 +602,9 @@
     ("read_link" 3)
     ("getenv" 2) ("setenv" 2) ("unsetenv" 1) ("get_time" 1) ("sleep" 1)
     ("get_flag" 2) ("set_flag" 2) ("shell" 2)
-    ;; call_with_inference_limit/3's limit (3.73.0), named as swipl names it
-    ("$inference_limit" 2)
+    ;; call_with_inference_limit/3's limit (3.73.0), and
+    ;; call_with_depth_limit/3's (3.74.0), named as swipl names them
+    ("$inference_limit" 2) ("$depth_limit" 3)
     ;; cocolog's own, which swipl 9.0.4 has not, named as a builtin's is
     ("text_concat" 3) ("call_limited" 3) ("call_metered" 4)
     ("read_file_to_codes" 2) ("write_file_from_codes" 2) ("append_file_from_codes" 2)
@@ -762,6 +772,7 @@
     ("$remove_same_key" 3 "lists" "remove_same_key")
     ("$sum" 3 "lists" "sum_list") ("$maxl" 3 "lists" "max_list")
     ("$minl" 3 "lists" "min_list") ("$numlist" 3 "lists" "numlist")
+    ("$numlist_" 3 "lists" "numlist_")
     ("$max_member_" 3 "lists" "max_member_") ("$min_member_" 3 "lists" "min_member_")
     ("$max_member_" 4 "lists" "max_member_") ("$min_member_" 4 "lists" "min_member_")
     ("$flatten" 3 "lists" "flatten") ("$length3" 3 "system")
@@ -781,6 +792,8 @@
     ("domain_error" 2 "error") ("instantiation_error" 1 "error")
     ;; must_be/2's table and its helpers (3.29.0), by swipl's names
     ("has_type" 2 "error") ("$is_not" 2 "error" "is_not")
+    ("$existence_error" 2 "error" "existence_error")
+    ("$uninstantiation_error" 1 "error" "uninstantiation_error")
     ("$not_a_list" 2 "error" "not_a_list") ("$element_is_not" 2 "error" "element_is_not")
     ("$element_types" 2 "error" "element_types") ("$element_types_" 2 "error" "element_types_")
     ("$ground_type" 1 "error" "ground_type") ("$current_type" 1 "error" "current_type" 3)
@@ -802,6 +815,7 @@
     ;; the frames swipl's C and its system predicates call a goal in
     ;; (3.44.0, lib/builtins.cicili's `'$c_call'/1' and its kin)
     ("$c_call" 1 "system" "$c_call_prolog" 0) ("$c_call1" 1 "system" "call")
+    ("$c_setup" 1 "system" "$c_call_prolog" 0)
     ("$scc_run" 1 "system" "setup_call_catcher_cleanup" 4)
     ("$c_and" 2 "system" ",") ("$c_ite" 2 "system" "->") ("$c_soft" 2 "system" "*->")
     ("$c_or" 2 "system" ";") ("$c_not" 1 "system" "\\+") ("$c_det" 1 "system" "$")))
@@ -1291,7 +1305,37 @@
     ;; Appended.
     (member u64         ilim)
     (member int         ilnar)
-    (member int         ilcap))
+    (member int         ilcap)
+    ;; THE DEPTH LIMIT'S STEP (3.74.0, call_with_depth_limit/3): while the
+    ;; machine's limit is armed (`dlim'), TCLOCK's bit 2 sends every step of
+    ;; this engine through `coco_limit_go', MAX_STEPS the step and RMAX the
+    ;; real ceiling, as a window's clock does, and the step at hand is
+    ;; asked there as swipl's call port asks a frame (`coco_depth_step').
+    ;; DCUR the level of the frame the step at hand is, for a builtin that
+    ;; reads it ('$depth_limit'/3); DSUB the level a search this step's
+    ;; builtin starts gives its goal's owner, swipl's frames between the
+    ;; two counted (findall/3's five), and DSK how that goal is called (1 a
+    ;; meta-call, 2 the call swipl's C makes, 3 forall/2's two), read by
+    ;; `coco_limit_narrow' into the nested engine's DBASE, the owner's
+    ;; level for a goal whose continuation names none, DNAR (DSK, or 0 for
+    ;; an engine no limit narrowed) and DROOT (the level of the ','/2
+    ;; frame swipl's C calls a structure in, checked at the first step).
+    ;; DOLIM, DOREACH and DOCLEV the machine's depth state as a nested
+    ;; engine began, put back where it ended with another limit armed
+    ;; (`coco_ilim_back'): a search stopped short of a limit its goal
+    ;; armed. DSLOW is what a clause's entry asks (`coco_det_code'): 1
+    ;; while a guard is on (`dgk', 3.21.0) or a limit is (TCLOCK's 2), so
+    ;; the entry asks one word where it asked `dgk'. Appended.
+    (member u64         dcur)
+    (member u64         dsub)
+    (member u64         dbase)
+    (member u64         dolim)
+    (member u64         doreach)
+    (member u64         doclev)
+    (member int         dnar)
+    (member int         dsk)
+    (member u64         droot)
+    (member u64         dslow))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
   ;;; their first goal. A per-engine affair after that -- `trace/0' and
@@ -1799,6 +1843,17 @@
   ;;; (`coco_ilim_back', every starter of one, once the steps are added)
   (decl) (func coco_ilim_set ((coco_engine * e) (u64 v)))
   (decl) (func coco_ilim_back ((coco_engine * e) (coco_engine * sub)))
+  ;;; THE DEPTH LIMIT'S STEP (3.74.0, lib/solve-loop.cicili): every step of
+  ;;; E asked at the limit's call port from its next on (`coco_depth_on'),
+  ;;; or none (`coco_depth_off'), as the machine's limit is armed or gone;
+  ;;; and the continuation a caught ball's recovery runs on to under one
+  ;;; (`coco_depth_recovery', `coco_throw'), GOALS the catch frame's
+  (decl) (func coco_depth_on ((coco_engine * e)))
+  (decl) (func coco_depth_off ((coco_engine * e)))
+  (decl) (func coco_depth_recovery ((coco_engine * e) (size_t goals) (size_t recovery)) (out size_t))
+  ;;; whether E runs under a depth limit: a C half swipl writes as clauses
+  ;;; declines to clauses of swipl's shape there (lib/lists.cicili's walks)
+  (decl) (func coco_depth_mode ((coco_engine * e)) (out int))
 
   ;;; Throws BALL, exactly as `throw/1' does. A module's C half uses this to
   ;;; raise an error a program can catch, rather than filling in `err' and

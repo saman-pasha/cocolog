@@ -61,10 +61,12 @@
     ("$nth0"      3 coco_l_nth0)
     ("memberchk"  2 coco_l_memberchk)
 
-    ("$sum"       3 coco_l_sum)
-    ("$maxl"      3 coco_l_maxl)
-    ("$minl"      3 coco_l_minl)
-    ("$numlist"   3 coco_l_numlist)))
+    ;; under call_with_depth_limit/3 each declines to its rules, swipl's
+    ;; (3.74.0, `coco_depth_mode')
+    ("$sum"       3 coco_l_sum :declines)
+    ("$maxl"      3 coco_l_maxl :declines)
+    ("$minl"      3 coco_l_minl :declines)
+    ("$numlist"   3 coco_l_numlist :declines)))
 
 ;;;; ------------------------------------------------------------------
 ;;;; The Coco half
@@ -275,12 +277,31 @@
            "max_list([], _) => fail."
            "min_list([H|T], M) => '$minl'(T, H, M)."
            "min_list([], _) => fail."
+           ;; THE WALKS' OWN RULES, swipl's sum_list/3, max_list/3 and
+           ;; min_list/3 under the walks' names (3.74.0): what a walk declines
+           ;; under call_with_depth_limit/3 (`coco_depth_mode'), where each
+           ;; element is a frame of swipl's and its is/2 one below it, so a
+           ;; raise is where swipl's depth puts it. Every other call is the
+           ;; walk's, in one step
+           "'$sum'([], Sum0, Sum) => Sum = Sum0."
+           "'$sum'([X|Xs], Sum0, Sum) => Sum1 is Sum0 + X, '$sum'(Xs, Sum1, Sum)."
+           "'$maxl'([], Max0, Max) => Max = Max0."
+           "'$maxl'([H|T], Max0, Max) => Max1 is max(H, Max0), '$maxl'(T, Max1, Max)."
+           "'$minl'([], Min0, Min) => Min = Min0."
+           "'$minl'([H|T], Min0, Min) => Min1 is min(H, Min0), '$minl'(T, Min1, Min)."
            ;; ONE CLAUSE (3.0.0): '$numlist'/3 checks L and H as swipl's
            ;; must_be(integer, X) does and fails for L > H. A first clause
            ;; `numlist(L, H, []) :- L > H, !, fail' stood here through 2.16,
            ;; its test a guard of the clause; its 3.0.0 form asked a C
            ;; helper there, which cost every call a backtrack
            "numlist(L, H, R) :- '$numlist'(L, H, R)."
+           ;; and swipl's numlist/3 body under '$numlist''s name (3.74.0),
+           ;; what the C half declines under a depth limit: the depth step
+           ;; makes '$numlist'/3 no frame of its own, so its body's frames
+           ;; stand where swipl's numlist/3's do
+           "'$numlist'(L, U, Ns) :- must_be(integer, L), must_be(integer, U), L =< U, '$numlist_'(L, U, Ns)."
+           "'$numlist_'(U, U, List) :- !, List = [U]."
+           "'$numlist_'(L, U, [L|Ns]) :- L2 is L + 1, '$numlist_'(L2, U, Ns)."
 
            ;; ---- the standard order over a list ---------------------------
            ;; max_member/2 and min_member/2 use the STANDARD ORDER of terms and
@@ -826,13 +847,15 @@
   ;;; expression, a rational, an atom, a variable -- and every one after it
   ;;; is SWI's `Sum1 is Sum0 + X' itself (`coco_l_eval2', 2.15.1), the sum so
   ;;; far made a number cell for it: `tm' says the walk has gone that way.
-  (func coco_l_sum ((coco_engine * e) (size_t g)) (out int)
+  (func coco_l_sum ((coco_engine * e) (size_t g) (int * found)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t p . #'(coco_m_arg e g 0)) (size_t n . 0)
               (size_t lim . #'(-> m heap_len))
               (i64 ai . 0) (double ad . 0.0) (int af . 0)
               (int tm . 0) (size_t acc . 0)
               (size_t h . 0) (size_t t . 0))
+          ;; under a depth limit, swipl's rules (3.74.0)
+          (if (coco_depth_mode e) (block (coco_m_decline e) (set (cof found) 0) (return 0)))
           (if (not (coco_l_num e (coco_m_arg e g 1) (aof ai) (aof ad) (aof af))) (return 0))
           (while (coco_l_step m p (aof h) (aof t))
             ;; a list that is its own tail: past the heap's cells, no tree
@@ -914,10 +937,13 @@
                                       best (coco_m_arg e g 2))))
           (return (coco_m_unify e (coco_m_arg e g 2) best))))
 
-  (func coco_l_maxl ((coco_engine * e) (size_t g)) (out int)
+  ;; under a depth limit, swipl's rules (3.74.0)
+  (func coco_l_maxl ((coco_engine * e) (size_t g) (int * found)) (out int)
+        (if (coco_depth_mode e) (block (coco_m_decline e) (set (cof found) 0) (return 0)))
         (return (coco_l_extreme e g 1)))
 
-  (func coco_l_minl ((coco_engine * e) (size_t g)) (out int)
+  (func coco_l_minl ((coco_engine * e) (size_t g) (int * found)) (out int)
+        (if (coco_depth_mode e) (block (coco_m_decline e) (set (cof found) 0) (return 0)))
         (return (coco_l_extreme e g -1)))
 
   ;;; `'$numlist'(Low, High, List)'. THE FLOAT CASE USED TO HANG: the clauses
@@ -926,8 +952,10 @@
   ;;; required here and anything else is type_error(integer, X), with no
   ;;; context, as swipl's must_be(integer, X) raises it (3.0.0; through 2.16
   ;;; `numlist(a, 1, L)' was >/2's type_error(evaluable, a/0)); L > H fails.
-  (func coco_l_numlist ((coco_engine * e) (size_t g)) (out int)
+  (func coco_l_numlist ((coco_engine * e) (size_t g) (int * found)) (out int)
         (let ((i64 lo . 0) (i64 hi . 0))
+          ;; under a depth limit, swipl's numlist/3 body (3.74.0)
+          (if (coco_depth_mode e) (block (coco_m_decline e) (set (cof found) 0) (return 0)))
           (if (not (coco_m_int e (coco_m_arg e g 0) (aof lo)))
               (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
           (if (not (coco_m_int e (coco_m_arg e g 1) (aof hi)))

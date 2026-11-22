@@ -328,6 +328,17 @@ flow_mode('$inference_limit_except', 3, ['+', '+', '-'], semidet).
 flow_test('$inference_limit_false', 1).
 flow_mode('$inference_limit_exit', 2, ['+', '-'], det).
 flow_mode('$inference_limit_redo', 2, ['+', '+'], det).
+%% call_with_depth_limit/3's halves (3.74.0): the limit set, the one
+%% before it and the depth reached given; a ball the limit's own call
+%% passes on with the limit put back; the limit put back and the goal's
+%% failure told from the limit's; the limit put back, the depth the goal
+%% reached and whether it left a choice point; the limit set again on a
+%% redo
+flow_mode('$depth_limit', 3, ['+', '-', '-'], det).
+flow_mode('$depth_limit_except', 3, ['+', '+', '+'], det).
+flow_mode('$depth_limit_false', 3, ['+', '+', '-'], semidet).
+flow_mode('$depth_limit_exit', 4, ['+', '+', '-', '-'], det).
+flow_mode('$depth_limit_redo', 2, ['+', '+'], det).
 flow_mode(source_location, 2, ['-', '-'], semidet).
 %% prolog_load_context/2's C half (3.14.0): the load's file, its source and
 %% the term's place while a hook or a directive of it runs, failing

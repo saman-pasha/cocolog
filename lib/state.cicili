@@ -276,6 +276,20 @@
           (coco_sb_put b "X ")
           (coco_sb_put_sz b (cast size_t (-> e ilim))) (coco_sb_putc b (cast char 10))
 
+          ;; THE DEPTH LIMIT (3.74.0): whether the engine runs under one --
+          ;; its frames' levels are the '$dl'/1 markers the continuation
+          ;; holds, terms like any other -- the machine's limit, the deepest
+          ;; level reached, call_with_depth_limit/3's own level and functor
+          ;; (one plus its id, 0 for none), and the engine's base. Last, as
+          ;; `X' is.
+          (coco_sb_put b "D ")
+          (coco_sb_put_sz b (? (bitand (-> e tclock) 2) 1 0)) (coco_sb_putc b (cast char 32))
+          (coco_sb_put_sz b (cast size_t (-> (-> e m) dlim))) (coco_sb_putc b (cast char 32))
+          (coco_sb_put_sz b (cast size_t (-> (-> e m) dreach))) (coco_sb_putc b (cast char 32))
+          (coco_sb_put_sz b (cast size_t (-> (-> e m) dclev))) (coco_sb_putc b (cast char 32))
+          (coco_sb_put_sz b (cast size_t (-> (-> e m) dlptag))) (coco_sb_putc b (cast char 32))
+          (coco_sb_put_sz b (cast size_t (-> e dbase))) (coco_sb_putc b (cast char 10))
+
           (return (? (== ($ (cof b) s) nil) 0 1))))
 
   ;;; THE IMAGE IS WRITTEN FROM A MACHINE THAT REACHES NO ENVIRONMENT
@@ -620,6 +634,19 @@
                (set (-> e ilim) 0)
                (if (coco_scan_section (aof z) 88)          ; `X'
                    (set (-> e ilim) (coco_scan_u64 (aof z) 10)))))
+
+          ;; ---- the depth limit (3.74.0), if it has one; none before, which
+          ;; no call_with_depth_limit/3 could have armed. The engine's mode
+          ;; is set again here, its ceilings by the run that resumes it ----
+          (if (and ok (not ($ z bad)))
+              (if (coco_scan_section (aof z) 68)           ; `D'
+                  (let ((u64 on . #'(coco_scan_u64 (aof z) 10)))
+                    (set (-> (-> e m) dlim) (coco_scan_u64 (aof z) 10))
+                    (set (-> (-> e m) dreach) (coco_scan_u64 (aof z) 10))
+                    (set (-> (-> e m) dclev) (coco_scan_u64 (aof z) 10))
+                    (set (-> (-> e m) dlptag) (coco_scan_u64 (aof z) 10))
+                    (set (-> e dbase) (coco_scan_u64 (aof z) 10))
+                    (if (!= on 0) (coco_depth_on e)))))
 
           (coco_sb_free (aof nm))
           ;; AN OPEN CALL WHOSE PREDICATE COULD NOT BE READ BACK (2.11.1):

@@ -99,6 +99,7 @@ main :-
     a_thread, what_it_sees, a_channel, closed, backpressure, helpers, contention, imports,
     parallel, locks, conditions, message_refused(D), flags_shared, halt_hooks(D), bags_per_thread(D),
     limits_per_thread(D),
+    depths_per_thread(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -579,3 +580,28 @@ limits_per_thread(D) :-
     cocolog_run(A1, Got1, Rc1),
     check('a thread''s limit raises in it, and a thread spends none of its creator''s',
           Got1-Rc1, 'inference_limit_exceeded\ntrue-true-!'-0).
+
+%% CALL_WITH_DEPTH_LIMIT/3'S LIMIT IS A THREAD'S (3.74.0), as swipl's
+%% depth_info is its thread's: a thread's call is failed at its own limit,
+%% a thread a limited goal starts runs with none (its count of 10 000
+%% levels under a limit of 5), a thread's depth is its own, and the
+%% creator's goal beside it reaches what it would alone. Each answer is
+%% swipl 9.0.4's but the limited goal's own depth, 2, where swipl's is 3:
+%% its thread_create/2 is a clause over thread_create/3, whose C runs a
+%% frame below it, and cocolog's library(thread) is a module of its own
+depths_per_thread(D) :-
+    section('call_with_depth_limit/3 in a thread: its limit its own'),
+    atom_concat(D, '/dl_thread.pl', F1),
+    fixture(F1, ['loop :- loop.',
+                 'cnt(0) :- !.', 'cnt(N) :- N1 is N - 1, cnt(N1).',
+                 'main :- thread_create((call_with_depth_limit(loop, 100, R), print(R), nl), T1),',
+                 '        thread_join(T1, S1),',
+                 '        call_with_depth_limit((thread_create(cnt(10000), T2), thread_join(T2, S2)), 5, R2),',
+                 '        thread_create((call_with_depth_limit(cnt(50), 1000, R3), print(R3), nl), T3),',
+                 '        call_with_depth_limit(cnt(20), 1000, R4),',
+                 '        thread_join(T3, S3),',
+                 '        print(S1-S2-R2-S3-R4), nl.']),
+    sh_join(['-s ', F1, ' 2>&1'], A1),
+    cocolog_run(A1, Got1, Rc1),
+    check('a thread''s limit fails in it, a thread runs free of its creator''s, and each depth is its own',
+          Got1-Rc1, 'depth_limit_exceeded\n51\ntrue-true-2-true-21'-0).

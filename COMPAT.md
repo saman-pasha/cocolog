@@ -69,6 +69,7 @@ an existence error, an instantiation error, a refusal by name.
 | an atom holding the code 0 (`char_code(X, 0)`, `atom_codes(A, [0'a, 0, 0'b])`, `'a\0\b'`) | an atom of that many characters, the NUL among them: `'\u0000'` of length 1, `'a\u0000b'` of length 3, which writeq/1 writes `'a\x0\b'` | the atom ends at the NUL, an atom's text being a C string here: char_code(X, 0) gives `''`, `atom_codes(A, [97, 0, 98])` gives `a`, atom_length/2 counts 1 of `'a\0\b'`, and atom_chars/2 of a list holding `''` is type_error(character, ''), and a NUL byte a loaded file holds inside a quoted atom (`p('a<NUL>b').`) is the code 0 as the escape is since 3.58.0 (through 3.57.0 it ended the file), so the atom ends there. A string keeps it, in both: `string_codes(S, [97, 0, 98])` is three characters, as a file's `"a<NUL>b"` is under `double_quotes` codes or string, and `0'<NUL>` is 0 | a string or a code list for text with a NUL in it |
 | `sub_atom/5` or `sub_string/5` of a Sub given and no place, whose Before, Length or After are one variable (`sub_atom(abab, X, X, _, b)`, `sub_atom(abab, X, _, X, b)`) | 9.0.4's search succeeds at the last place the Sub fits whether or not its unifications did (pl-prims.c's SUB_SEARCH goes to `exit_succeed` without asking `match`), keeping what they bound: `X = 3` with After unbound, and `X = 3` with Length 1 | the answers the unifications give, none for either; every other mode, place and walk is swipl's since 3.58.2, choice points too (test/files/sub_text.pl) | name each argument apart |
 | `call_with_inference_limit/3` of a goal the two count differently (`cnt(0) :- !.` and `cnt(N) :- N1 is N - 1, cnt(N1).`, and `call_with_inference_limit(cnt(100), 150, R)`) | `R = !`: its compiler puts the `is/2` into the clause's code, which counts no inference, and cnt(100) counts 102; a predicate swipl writes in Prolog that cocolog writes in C counts the other way (`numlist/3`, and its first call's autoload is charged to the limit too) | `R = inference_limit_exceeded`: an `is/2` is an inference wherever it runs, a guard's too (CLAUDE.md's two clocks), and cnt(100) counts 204; so is each control construct a meta-called goal is made of, which swipl compiles in place (`call_with_inference_limit((f, f), 2, R)` is `!` there, exceeded here). What is swipl's since 3.73.0 is the rest (test/files/inference_limit.pl): the limit raised once, at the call or the retry that passes it -- never at a control construct, nor at a goal both compile in place (`=`, `==`, `\==`, `var/1` and the other type tests, `true`, `fail`) in a clause or a meta-called structure -- and the choice points kept, a limit each solution | a limit bounds a runaway search: give it room, and read no answer at its edge as the program's |
+| `call_with_depth_limit/3` of a goal that calls a library predicate the two write in code of their own (`print_message/2`, a `library(thread)` or `library(async)` predicate, `predsort/3`) | each frame its own code runs counts: `call_with_depth_limit(with_output_to(string(_), print_message(informational, format("x", []))), L, R)` is depth_limit_exceeded up to a limit of 5, and at 6 raises `existence_error(matching_rule, swi_option:option(frame(_), []))` from inside 9.0.4's own option handling; its `thread_create/2` is a clause over `thread_create/3`, whose C runs a frame below it, so a goal of thread_create/2 and thread_join/2 reaches 3 | cocolog's code's frames: the same print_message/2 call is exceeded up to 3 and answers 5 from 4 on; library(thread)'s predicates are C rows of cocolog's own module (that goal reaches 2), library(async) is cocolog's alone, and `predsort/3` is none yet (an unknown procedure). What is swipl's since 3.74.0 is the rest (test/files/depth_limit.pl): each frame a level below its parent's, a last call's too; no control construct a frame, nor in a clause a goal swipl's compiler puts in place; the builtins that run frames of their own (findall/3, forall/2, aggregate_all/3, with_output_to/2, format/2's `~@`) and the predicates swipl writes as clauses where cocolog's C answers (nth0/3, memberchk/2, sum_list/2, numlist/3, the declarations, ...) as deep as swipl's run; setup_call_cleanup/3's setup, goal and cleanup where swipl's sig_atomic/1 and call_term() put them; each answer's depth its own; a nested call's limit and depth its own | a depth limit bounds a search's recursion: give a goal that calls into a library room above the search's own depth, and read no depth a library call reaches as the program's |
 
 ## Loud: an error where SWI enumerates or accepts
 
@@ -140,8 +141,9 @@ since 3.67.0, `nb_delete/1`, `term_variables/3`, `term_singletons/2`,
 `nth_integer_root_and_remainder/4`, `float_class/2`, `float_parts/4` and
 `bounded_number/3` since 3.69.0, `flag/3`, `get_flag/2`, `set_flag/2`,
 `current_flag/1` and `shell/1,2` since 3.70.0, `at_halt/1` and
-`cancel_halt/1` since 3.71.0, `findnsols/4,5` since 3.72.0, and
-`call_with_inference_limit/3` since 3.73.0.)
+`cancel_halt/1` since 3.71.0, `findnsols/4,5` since 3.72.0,
+`call_with_inference_limit/3` since 3.73.0, and `call_with_depth_limit/3`
+since 3.74.0.)
 `freeze/2` and coroutining, `table/1` and tabling (since 3.2.0
 `:- table p/2.` reads, `table` being swipl's 1150 fx operator, and the load
 reports `table/1` as an unknown procedure and goes on), swipl's dicts and the
@@ -210,15 +212,14 @@ third, in arithmetic (`divmod/4`, `nth_integer_root_and_remainder/4`,
 `float_class/2`, `float_parts/4`, `bounded_number/3`), since 3.69.0, and
 the process's flags and its shell (`flag/3`, `get_flag/2`, `set_flag/2`,
 `current_flag/1`, `shell/1,2`) since 3.70.0, and its halt hooks
-(`at_halt/1`, `cancel_halt/1`) since 3.71.0, and `findnsols/4,5` since
-3.72.0, and `call_with_inference_limit/3` since 3.73.0.
+(`at_halt/1`, `cancel_halt/1`) since 3.71.0, and the search's three
+(`findnsols/4,5` since 3.72.0, `call_with_inference_limit/3` since 3.73.0
+and `call_with_depth_limit/3` since 3.74.0, each beside cocolog's own
+`call_limited/3`).
 
-1. **Small built-ins a swipl program calls as it stands**:
-   * of a search: `call_with_depth_limit/3` (swipl's contract, beside
-     cocolog's `call_limited/3`; `findnsols/4,5` is swipl's since 3.72.0
-     and `call_with_inference_limit/3` since 3.73.0);
-   * of the program and the clock: `current_module/1`, `source_file/1,2`,
-     `format_time/3`, `stamp_date_time/3`, `date_time_stamp/2`.
+1. **Small built-ins a swipl program calls as it stands**: of the program
+   and the clock, `current_module/1`, `source_file/1,2`, `format_time/3`,
+   `stamp_date_time/3`, `date_time_stamp/2`.
 2. **swipl's libraries written in Prolog**, kept in `lib/swipl` as assoc
    and ordsets are and read when a program asks: `library(option)`
    (`option/2,3`, `select_option/3,4`, `merge_options/3`),

@@ -1267,7 +1267,26 @@
     (member coco_fnbag * fnb)
     (member size_t     fnbn)
     (member size_t     fnbcap)
-    (member u64        fnbid))
+    (member u64        fnbid)
+    ;; THE DEPTH LIMIT (3.74.0, call_with_depth_limit/3), swipl's
+    ;; LD->depth_info, the machine's as swipl's is the thread's: DLIM the
+    ;; level past which a frame fails at its call, 0 for none (a limit is
+    ;; its call's level plus Limit plus one, 1 at least); DREACH the
+    ;; deepest level a frame was called at since the innermost limit was
+    ;; armed; DCLEV the level of the innermost call_with_depth_limit/3's
+    ;; own frame, whose body's goals are said to run at it where no marker
+    ;; says otherwise (`coco_depth_owner'). Levels are this machine's own,
+    ;; counted from the outermost limit's frame at 0. DLPTAG is
+    ;; call_with_depth_limit/3's functor id plus one, a word's owner for a
+    ;; goal of its own clause (`coco-bar-pred'), 0 until a limit is armed;
+    ;; DLIDS the names the limit's rows ask (lib/solve-loop.cicili's
+    ;; *depth-names*), interned once DLREADY. Appended.
+    (member u64        dlim)
+    (member u64        dreach)
+    (member u64        dclev)
+    (member u64        dlptag)
+    (member u64        dlids [32])
+    (member int        dlready))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends

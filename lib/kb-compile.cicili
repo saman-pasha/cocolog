@@ -1924,6 +1924,254 @@
                 (return (and av (>= an 2))))
             (return 0))))
 
+  ;;; ---- the goals swipl's compile makes calls of, for the depth limit ----
+  ;;;
+  ;;; THE DEPTH LIMIT'S CALL PORT ASKS A FRAME (3.74.0, swipl's pl-vmi.c),
+  ;;; and swipl's compiler without -O runs some goals of a clause's body in
+  ;;; place, no frame, each by the shape of its arguments as the clause is
+  ;;; written and what the compile set before it (pl-comp.c): `=' where
+  ;;; either side is a variable (compileBodyUnify); `==' and `\==' of two
+  ;;; variables the clause names twice or more, or of one and an atom or a
+  ;;; small integer (compileBodyEQ, compileBodyNEQ); var/1, nonvar/1 and the
+  ;;; nine type tests of a variable named twice or more and set before
+  ;;; (compileBodyVar1, compileBodyNonVar1, compileTypeTest); arg/3 of a
+  ;;; small integer or a set variable, a set variable and a variable named
+  ;;; twice or more and not set yet (compileBodyArg3); and `X is Y + I', `X
+  ;;; is I + Y' and `X is Y - I', X named twice or more and not set yet, Y
+  ;;; set, I a small integer (compileSimpleAddition). Every other goal of
+  ;;; those names is a call there. The walk is the compile's: the head sets
+  ;;; every variable it names, a call every variable it names, each branch
+  ;;; of a disjunction starts from what was set before it and after it
+  ;;; everything either branch names is set (balanceVars, orVars), and a
+  ;;; \+ or a $/1 leaves set what its goal set. Bit I of the mask: the I-th
+  ;;; such goal of the walk -- `coco_dl_wrap''s over the body built -- is a
+  ;;; call; past bit 63 an is/2 is one and no other. A clause naming more
+  ;;; than 256 variables takes each for named twice and set.
+  (struct coco_dlw
+    (member size_t vc [256])
+    (member u32    cnt [256])
+    (member char   set [256])
+    (member u32    n)
+    (member int    over)
+    (member u32    bit)
+    (member u64    mask))
+
+  ;;; the variable V's slot, made where it has none; -1 past 256
+  (static)
+  (func coco_dlw_at ((coco_dlw * w) (size_t v)) (out int)
+        (for ((u32 i . 0)) (< i (-> w n)) ((++ i))
+          (if (== (nth i (-> w vc)) v) (return (cast int i))))
+        (if (>= (-> w n) 256) (block (set (-> w over) 1) (return -1)))
+        (set (nth (-> w n) (-> w vc)) v)
+        (set (nth (-> w n) (-> w cnt)) 0)
+        (set (nth (-> w n) (-> w set)) (cast char 0))
+        (set (-> w n) (+ (-> w n) 1))
+        (return (cast int (- (-> w n) 1))))
+
+  ;;; each variable of T counted (SET 0) or set (SET 1); 4096 nodes at most
+  (static)
+  (func coco_dlw_vars ((coco_store * st) (coco_machine * m) (coco_dlw * w) (size_t t)
+                       (int set) (u32 * budget)) (out void)
+        (while 1
+          (if (== (cof budget) 0) (return))
+          (set (cof budget) (- (cof budget) 1))
+          (set t (coco_store_deref st t))
+          (let ((u64 c . #'(nth t (-> st cells))))
+            (if (coco-tag-is REF c)
+                (let ((int i . #'(coco_dlw_at w t)))
+                  (if (>= i 0)
+                      (if set
+                          (set (nth i (-> w set)) (cast char 1))
+                        (set (nth i (-> w cnt)) (+ (nth i (-> w cnt)) 1))))
+                  (return)))
+            (if (not (coco-tag-is FUN c)) (return))
+            (let ((u32 ar . #'($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity)))
+              (if (== ar 0) (return))
+              (for ((u32 k . 0)) (< (+ k 1) ar) ((++ k))
+                (coco_dlw_vars st m w (+ t (+ (cast size_t k) 1)) set budget))
+              (set t (+ t (cast size_t ar)))))))
+
+  ;;; whether the store cell T (dereferenced) is a variable named twice or
+  ;;; more (NAMED), one set (SET), and either
+  (static)
+  (func coco_dlw_var ((coco_store * st) (coco_dlw * w) (size_t t)) (out int)
+        (return (coco-tag-is REF (nth t (-> st cells)))))
+  (static)
+  (func coco_dlw_named ((coco_store * st) (coco_dlw * w) (size_t t)) (out int)
+        (if (not (coco-tag-is REF (nth t (-> st cells)))) (return 0))
+        (if (-> w over) (return 1))
+        (let ((int i . #'(coco_dlw_at w t)))
+          (return (or (< i 0) (>= (nth i (-> w cnt)) 2)))))
+  (static)
+  (func coco_dlw_isset ((coco_store * st) (coco_dlw * w) (size_t t)) (out int)
+        (if (-> w over) (return 1))
+        (let ((int i . #'(coco_dlw_at w t)))
+          (return (or (< i 0) (!= (nth i (-> w set)) (cast char 0))))))
+  (static)
+  (func coco_dlw_setv ((coco_dlw * w) (size_t t)) (out void)
+        (let ((int i . #'(coco_dlw_at w t)))
+          (if (>= i 0) (set (nth i (-> w set)) (cast char 1)))))
+
+  ;;; a portable constant (`is_portable_constant'): an atom, or an integer
+  ;;; of 32 bits; and a small integer alone
+  (static)
+  (func coco_dlw_const ((coco_store * st) (coco_machine * m) (size_t t) (int atoms)) (out int)
+        (let ((u64 c . #'(nth t (-> st cells))))
+          (if (and atoms (coco-tag-is ATOM c)) (return 1))
+          (if (coco-tag-is INT c)
+              (let ((i64 v . #'(coco-signed-payload c)))
+                (return (and (>= v -2147483648) (< v 2147483648)))))
+          (return 0)))
+
+  ;;; the next candidate of the walk, a call (CALL) or in place
+  (static)
+  (func coco_dlw_bit ((coco_dlw * w) (int call)) (out void)
+        (if (and call (< (-> w bit) 64))
+            (set (-> w mask) (bitor (-> w mask) (<< (cast u64 1) (-> w bit)))))
+        (set (-> w bit) (+ (-> w bit) 1)))
+
+  ;;; whether the name NM of arity AR is one of the nine type tests or
+  ;;; var/1 or nonvar/1
+  (static)
+  (func coco_dl_type_name ((coco_machine * m) (u64 nm) (u32 ar)) (out int)
+        (return (and (== ar 1)
+                     (or (== nm (coco-id m "var")) (== nm (coco-id m "nonvar"))
+                         (== nm (coco-id m "integer")) (== nm (coco-id m "rational"))
+                         (== nm (coco-id m "float")) (== nm (coco-id m "number"))
+                         (== nm (coco-id m "atomic")) (== nm (coco-id m "atom"))
+                         (== nm (coco-id m "string")) (== nm (coco-id m "compound"))
+                         (== nm (coco-id m "callable"))))))
+
+  ;;; WHAT A GOAL OF NAME NM, ARITY AR IS TO THE WALK (`coco_dl_mask' over
+  ;;; the store, `coco_dl_wrap' over the body built): 1 `,', 2 `;' or `|',
+  ;;; 3 `->' or `*->', 4 `\+' or `$'/1, 5 `:'/2, 6 `@'/2, 10 a goal swipl
+  ;;; may compile in place, 0 any other
+  (func coco_dl_kind ((coco_machine * m) (u64 nm) (u32 ar)) (out int)
+        (if (== ar 2)
+            (block
+             (if (== nm (coco-id m ",")) (return 1))
+             (if (or (== nm (coco-id m ";")) (== nm (coco-id m "|"))) (return 2))
+             (if (or (== nm (coco-id m "->")) (== nm (coco-id m "*->"))) (return 3))
+             (if (== nm (coco-id m ":")) (return 5))
+             (if (== nm (coco-id m "@")) (return 6))
+             (if (or (== nm (coco-id m "=")) (== nm (coco-id m "==")) (== nm (coco-id m "\\=="))
+                     (== nm (coco-id m "is")))
+                 (return 10))
+             (return 0)))
+        (if (and (== ar 1) (or (== nm (coco-id m "\\+")) (== nm (coco-id m "$")))) (return 4))
+        (if (coco_dl_type_name m nm ar) (return 10))
+        (if (and (== ar 3) (== nm (coco-id m "arg"))) (return 10))
+        (return 0))
+
+  ;;; THE COMPILE'S WALK of the goals at T, the store's: each candidate's
+  ;;; bit set where swipl compiles it as a call
+  (static)
+  (func coco_dlw_walk ((coco_store * st) (coco_machine * m) (coco_dlw * w) (size_t t)) (out void)
+        (let ((u32 budget . 4096))
+          (while 1
+            (set t (coco_store_deref st t))
+            (let ((u64 c . #'(nth t (-> st cells))))
+              (if (not (coco-tag-is FUN c)) (return))
+              (let ((u64 nm . #'($ (nth (cast size_t (coco-payload c)) (-> m functors)) name))
+                    (u32 ar . #'($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity))
+                    (int kd . 0))
+                (set kd (coco_dl_kind m nm ar))
+                (cond
+                  ((== kd 1) (coco_dlw_walk st m w (+ t 1)) (set t (+ t 2)) continue)
+                  ;; each branch from what was set before, and after it all
+                  ;; that either names; an if-then-else's condition and then
+                  ;; are its first branch
+                  ((== kd 2)
+                   (let ((char s0 [256]) (u32 n0 . #'(-> w n)))
+                     (memcpy s0 (-> w set) 256)
+                     (coco_dlw_walk st m w (+ t 1))
+                     (for ((u32 i . 0)) (< i n0) ((++ i)) (set (nth i (-> w set)) (nth i s0)))
+                     (for ((u32 i . n0)) (< i (-> w n)) ((++ i)) (set (nth i (-> w set)) (cast char 0)))
+                     (coco_dlw_walk st m w (+ t 2))
+                     (for ((u32 i . 0)) (< i n0) ((++ i)) (set (nth i (-> w set)) (nth i s0)))
+                     (for ((u32 i . n0)) (< i (-> w n)) ((++ i)) (set (nth i (-> w set)) (cast char 0)))
+                     (coco_dlw_vars st m w (+ t 1) 1 (aof budget))
+                     (coco_dlw_vars st m w (+ t 2) 1 (aof budget))
+                     (return)))
+                  ((== kd 3) (coco_dlw_walk st m w (+ t 1)) (set t (+ t 2)) continue)
+                  ((== kd 4) (set t (+ t 1)) continue)
+                  ((== kd 5) (coco_dlw_vars st m w (+ t 1) 1 (aof budget)) (set t (+ t 2)) continue)
+                  ((== kd 6) (coco_dlw_vars st m w (+ t 2) 1 (aof budget)) (set t (+ t 1)) continue)
+                  ((== kd 10)
+                   (let ((size_t a . #'(coco_store_deref st (+ t 1)))
+                         (size_t b . 0) (int call . 1))
+                     (if (>= ar 2) (set b (coco_store_deref st (+ t 2))))
+                     (cond
+                       ;; `=': in place where either side is a variable
+                       ((and (== ar 2) (== nm (coco-id m "=")))
+                        (set call (not (or (coco_dlw_var st w a) (coco_dlw_var st w b)))))
+                       ;; `==', `\==': a void side is a call
+                       ((and (== ar 2) (or (== nm (coco-id m "==")) (== nm (coco-id m "\\=="))))
+                        (cond
+                          ((or (and (coco_dlw_var st w a) (not (coco_dlw_named st w a)))
+                               (and (coco_dlw_var st w b) (not (coco_dlw_named st w b))))
+                           (set call 1))
+                          ((and (coco_dlw_var st w a) (coco_dlw_var st w b)) (set call 0))
+                          ((or (and (coco_dlw_var st w a) (coco_dlw_const st m b 1))
+                               (and (coco_dlw_var st w b) (coco_dlw_const st m a 1)))
+                           (set call 0))
+                          (#t (set call 1)))
+                        ;; in place it sets nothing (C_VAR)
+                        (if (not call) (block (coco_dlw_bit w 0) (return))))
+                       ;; arg(N, T, A): A named twice and new, T set, N a small
+                       ;; integer or a set variable
+                       ((and (== ar 3) (== nm (coco-id m "arg")))
+                        (let ((size_t a3 . #'(coco_store_deref st (+ t 3))))
+                          (if (and (coco_dlw_named st w a3) (not (coco_dlw_isset st w a3))
+                                   (coco_dlw_named st w b) (coco_dlw_isset st w b)
+                                   (or (coco_dlw_const st m a 0)
+                                       (and (coco_dlw_named st w a) (coco_dlw_isset st w a))))
+                              (block (coco_dlw_setv w a3) (coco_dlw_bit w 0) (return)))))
+                       ;; X is Y + I, X is I + Y, X is Y - I
+                       ((and (== ar 2) (== nm (coco-id m "is")))
+                        (if (and (coco_dlw_named st w a) (not (coco_dlw_isset st w a))
+                                 (coco-tag-is FUN (nth b (-> st cells))))
+                            (let ((size_t fb . #'(cast size_t (coco-payload (nth b (-> st cells))))))
+                              (if (== ($ (nth fb (-> m functors)) arity) 2)
+                                  (let ((u64 on . #'($ (nth fb (-> m functors)) name))
+                                        (size_t x . #'(coco_store_deref st (+ b 1)))
+                                        (size_t y . #'(coco_store_deref st (+ b 2))))
+                                    (if (or (and (or (== on (coco-id m "+")) (== on (coco-id m "-")))
+                                                 (coco_dlw_named st w x) (coco_dlw_isset st w x)
+                                                 (coco_dlw_const st m y 0))
+                                            (and (== on (coco-id m "+"))
+                                                 (coco_dlw_named st w y) (coco_dlw_isset st w y)
+                                                 (coco_dlw_const st m x 0)))
+                                        (block (coco_dlw_setv w a) (coco_dlw_bit w 0) (return))))))))
+                       ;; a type test: of a variable named twice and set, in
+                       ;; place; of one named twice and new, a call that sets it
+                       (#t
+                        (set call (not (and (coco_dlw_named st w a) (coco_dlw_isset st w a))))))
+                     ;; what it names is set: in place by `=', a call by any
+                     (coco_dlw_vars st m w t 1 (aof budget))
+                     (coco_dlw_bit w call)
+                     (return)))
+                  ;; a call sets every variable it names
+                  (#t (coco_dlw_vars st m w t 1 (aof budget)) (return))))))))
+
+  ;;; THE MASK OF CLAUSE CL (`coco_dlw_walk'), 0 for a fact: its variables
+  ;;; counted over the whole clause, the head's set
+  (func coco_dl_mask ((coco_store * st) (coco_machine * m) (size_t head) (size_t body)) (out u64)
+        (if (== body 0) (return 0))
+        (if (not (-> m ids_ready)) (coco_ids_fill m))
+        (let ((coco_dlw * w . #'(cast (coco_dlw *) (calloc 1 (sizeof coco_dlw))))
+              (u32 budget . 4096) (u64 r . 0))
+          (if (== w nil) (return 0))
+          (coco_dlw_vars st m w head 0 (aof budget))
+          (set budget 4096)
+          (coco_dlw_vars st m w body 0 (aof budget))
+          (set budget 4096)
+          (coco_dlw_vars st m w head 1 (aof budget))
+          (coco_dlw_walk st m w body)
+          (set r (-> w mask))
+          (free w)
+          (return r)))
+
   (func coco_clause_code ((coco_store * st) (coco_machine * m) (size_t clause)) (out coco_code *)
         (let ((coco_code * cd . #'(coco_code_find st clause)))
           (if (!= cd nil) (return cd))

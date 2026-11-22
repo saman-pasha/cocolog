@@ -1199,6 +1199,129 @@
               (coco_ilim_set e (+ (+ (- (-> e steps) (-> e frees)) (cast u64 lim)) 2)))
           (return 1)))
 
+  ;;; ---- call_with_depth_limit/3 (3.74.0), swipl 9.0.4's pl-prims.c ------
+  ;;;
+  ;;; The machine's depth limit (`dlim', `dreach', `dclev', lib/term.cicili)
+  ;;; is swipl's LD->depth_info: the level past which a frame fails at its
+  ;;; call, the deepest level a frame was called at, and -- cocolog's -- the
+  ;;; level of the innermost call_with_depth_limit/3's own frame. While a
+  ;;; limit is armed every step of the engine is asked at the depth limit's
+  ;;; call port (`coco_depth_step', lib/solve-loop.cicili), which knows the
+  ;;; level of the frame the step at hand is (`dcur'). The call's OLimit is
+  ;;; '$dl'(Old, OldCLevel, CLevel, H, Mode): the limit before it, the level
+  ;;; its call_with_depth_limit/3 frame put back, this call's own frame's
+  ;;; level, the choice stack's height as it began -- where the disjunction
+  ;;; of call_with_depth_limit/3's clause pushes its frame next -- and
+  ;;; whether this engine asked every step before (a search started under no
+  ;;; limit of its own, a portray goal's, arms one too); OReached the
+  ;;; deepest level before. Old 0 is none, swipl's DEPTH_NO_LIMIT.
+
+  ;;; the five words of OLIMIT, '$dl'(Old, OldCLevel, CLevel, H, Mode): 1
+  ;;; read, 0 not one (a call of the halves no clause of the library made)
+  (static)
+  (func coco_dlim_parts ((coco_engine * e) (size_t ol) (u64 * w)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t d . #'(coco_deref m ol)) (i64 v . 0))
+          (if (not (and (coco-tag-is FUN (nth d (-> m heap))) (== (coco_arity m d) 5))) (return 0))
+          (for ((u32 i . 0)) (< i 5) ((++ i))
+            (if (not (coco_m_int e (coco_arg m d i) (aof v))) (return 0))
+            (set (nth i w) (cast u64 v)))
+          (return 1)))
+
+  ;;; the machine's depth state before the call put back -- OLIMIT's limit
+  ;;; and frame level, OREACHED the deepest level -- and every step asked
+  ;;; while one stands, as before the call; W0 the words read
+  (static)
+  (func coco_dlim_restore ((coco_engine * e) (u64 * w) (size_t orch))
+        (let ((coco_machine * m . #'(coco_m_machine e)) (i64 v . 0))
+          (set (-> m dlim) (nth 0 w))
+          (set (-> m dclev) (nth 1 w))
+          (if (coco_m_int e orch (aof v)) (set (-> m dreach) (cast u64 v)))
+          (if (or (== (-> m dlim) 0) (== (nth 4 w) 0))
+              (coco_depth_off e)
+              (coco_depth_on e))))
+
+  ;;; '$depth_limit'(+Limit, -OLimit, -OReached): Limit an integer of 0 or
+  ;;; more (swipl's PL_get_size_ex), the limit set to this call's frame's
+  ;;; level -- the step's frame, one past it, under a limit, else 0 -- plus
+  ;;; Limit plus one (`1 for the catch/3'), the deepest level its frame's,
+  ;;; and every step of the engine asked from the next on
+  (func coco_b_dlim_set ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (i64 lim . 0) (size_t a . #'(coco_m_arg e g 0))
+              (u64 clevel . 0) (u64 nl . 0) (size_t args [5]) (int mode . 0))
+          (if (not (coco_m_int e a (aof lim))) (return (coco_m_type_error e "integer" a)))
+          (if (< lim 0) (return (coco_m_domain_error e "not_less_than_zero" a)))
+          (set mode (? (bitand (-> e tclock) 2) 1 0))
+          (if (and mode (!= (-> m dlim) 0) (> (-> e dcur) 0)) (set clevel (- (-> e dcur) 1)))
+          (set nl (+ (+ clevel (cast u64 lim)) 1))
+          (if (< nl clevel)
+              (return (coco_m_raise e (coco_make1 m "representation_error" (coco_new_atom m "depth_limit")))))
+          (set (nth 0 args) (coco_new_int m (cast i64 (-> m dlim))))
+          (set (nth 1 args) (coco_new_int m (cast i64 (-> m dclev))))
+          (set (nth 2 args) (coco_new_int m (cast i64 clevel)))
+          (set (nth 3 args) (coco_new_int m (cast i64 (-> e nchoices))))
+          (set (nth 4 args) (coco_new_int m (cast i64 mode)))
+          (if (not (coco_m_unify e (coco_m_arg e g 1) (coco_make m "$dl" 5 args))) (return 0))
+          (if (not (coco_m_unify e (coco_m_arg e g 2) (coco_new_int m (cast i64 (-> m dreach)))))
+              (return 0))
+          (set (-> m dlim) nl)
+          (set (-> m dreach) clevel)
+          (set (-> m dclev) clevel)
+          ;; the owner a goal of call_with_depth_limit/3's clause names
+          (if (== (-> m dlptag) 0)
+              (set (-> m dlptag) (+ (coco_functor_id m (coco_intern m "call_with_depth_limit") 3) 1)))
+          (coco_depth_on e)
+          (return 1)))
+
+  ;;; '$depth_limit_exit'(+OLimit, +OReached, -Result, -Det): the state put
+  ;;; back, Result the depth the goal used -- the deepest level less this
+  ;;; call's frame's less one, 1 at least -- and Det `!' where the goal left
+  ;;; no choice point (no frame above the disjunction's at H that is one,
+  ;;; `coco-choice-live', as swipl's unify_det() passes CHP_CATCH and
+  ;;; CHP_DEBUG), else `true': '$depth_limit_true'/5's first answer
+  (func coco_b_dlim_exit ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (u64 w [5]) (i64 used . 0) (int det . 1))
+          (if (not (coco_dlim_parts e (coco_m_arg e g 0) w)) (return 0))
+          (set used (- (- (cast i64 (-> m dreach)) (cast i64 (nth 2 w))) 1))
+          (if (< used 1) (set used 1))
+          (coco_dlim_restore e w (coco_m_arg e g 1))
+          (for ((size_t i . #'(cast size_t (+ (nth 3 w) 1)))) (< i (-> e nchoices)) ((++ i))
+            (let ((int fk . #'($ (nth i (-> e choices)) kind)))
+              (if (coco-choice-live e i fk)
+                  (block (set det 0) break))))
+          (if (not (coco_m_unify e (coco_m_arg e g 2) (coco_new_int m used))) (return 0))
+          (return (coco_m_unify e (coco_m_arg e g 3) (coco_new_atom m (? det "!" "true"))))))
+
+  ;;; '$depth_limit_redo'(+Limit, +OLimit): on backtracking into the goal,
+  ;;; the limit from this call's frame's level again and the deepest level
+  ;;; that level, swipl's FRG_REDO, whatever the goal reached before
+  (func coco_b_dlim_redo ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (u64 w [5]) (i64 lim . 0))
+          (if (not (coco_dlim_parts e (coco_m_arg e g 1) w)) (return 0))
+          (if (not (coco_m_int e (coco_m_arg e g 0) (aof lim))) (return 0))
+          (set (-> m dlim) (+ (+ (nth 2 w) (cast u64 lim)) 1))
+          (set (-> m dreach) (nth 2 w))
+          (set (-> m dclev) (nth 2 w))
+          (coco_depth_on e)
+          (return 1)))
+
+  ;;; '$depth_limit_false'(+OLimit, +OReached, -Result): the goal failed --
+  ;;; Result depth_limit_exceeded where a frame was called past the limit,
+  ;;; else fail -- and the state put back
+  (func coco_b_dlim_false ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (u64 w [5]) (int over . 0))
+          (if (not (coco_dlim_parts e (coco_m_arg e g 0) w)) (return 0))
+          (set over (> (-> m dreach) (-> m dlim)))
+          (coco_dlim_restore e w (coco_m_arg e g 1))
+          (if (not over) (return 0))
+          (return (coco_m_unify e (coco_m_arg e g 2) (coco_new_atom m "depth_limit_exceeded")))))
+
+  ;;; '$depth_limit_except'(+OLimit, +OReached, +Ball): the state put back
+  ;;; and Ball thrown again
+  (func coco_b_dlim_except ((coco_engine * e) (size_t g)) (out int)
+        (let ((u64 w [5]) (size_t b . #'(coco_deref (coco_m_machine e) (coco_m_arg e g 2))))
+          (if (coco_dlim_parts e (coco_m_arg e g 0) w) (coco_dlim_restore e w (coco_m_arg e g 1)))
+          (return (? (coco_m_thrown e b) 2 -1))))
+
   ;;; ---- the clause database ----------------------------------------------
 
   ;;; '$unbind_template'(T) (3.19.0, swipl's), which aggregate.pl's foreach/2

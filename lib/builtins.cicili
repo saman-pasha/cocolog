@@ -161,6 +161,13 @@
     ("$inference_limit_false"  1 coco_b_ilim_false)
     ("$inference_limit_exit"   2 coco_b_ilim_exit)
     ("$inference_limit_redo"   2 coco_b_ilim_redo)
+    ;; the depth limit's halves (3.74.0); call_with_depth_limit/3 and
+    ;; '$depth_limit_true'/5 are clauses over them (the Prolog half)
+    ("$depth_limit"            3 coco_b_dlim_set)
+    ("$depth_limit_except"     3 coco_b_dlim_except)
+    ("$depth_limit_false"      3 coco_b_dlim_false)
+    ("$depth_limit_exit"       4 coco_b_dlim_exit)
+    ("$depth_limit_redo"       2 coco_b_dlim_redo)
 
     ("source_location"         2 coco_b_source_location)
     ("$load_context"           2 coco_b_load_context)
@@ -319,7 +326,7 @@
            ;; there, and the goal in its own frame after, so a goal that is
            ;; none is an exception the cleanup runs for; through 3.46.0 the
            ;; goal was asked first, and the cleanup never ran for it
-           "setup_call_catcher_cleanup(S, G, Ca, C) :- '$c_goal'(S, 0, S1), '$c_call'(S1), !, '$c_goal'(C, 4, _), '$scc_push'(Ca, C, F), catch('$scc_run'(G), E, '$scc_raised'(F, E, Ca, C)), '$scc_exit'(F, D), ( D == true -> '$cleanup_call'(exit, Ca, C) ; true )."
+           "setup_call_catcher_cleanup(S, G, Ca, C) :- '$c_goal'(S, 0, S1), '$c_setup'(S1), !, '$c_goal'(C, 4, _), '$scc_push'(Ca, C, F), catch('$scc_run'(G), E, '$scc_raised'(F, E, Ca, C)), '$scc_exit'(F, D), ( D == true -> '$cleanup_call'(exit, Ca, C) ; true )."
            "'$cleanup_call'(W, Ca, C) :- ( Ca = W -> ( '$c_goal'(C, 1, C1), '$c_call'(C1) -> true ; true ) ; true )."
            ;; THE FRAMES SWIPL'S C AND ITS SYSTEM PREDICATES CALL A GOAL IN,
            ;; named as the system's by rows of *frame-contexts*
@@ -331,6 +338,10 @@
            ;; `'$c_ite'/2' (->)/2, `'$c_soft'/2' (*->)/2, `'$c_or'/2' (;)/2,
            ;; `'$c_not'/1' (\+)/1 and `'$c_det'/1' ($)/1
            "'$c_call'(G) :- call(G)."
+           ;; and the setup's, swipl's sig_atomic/1 (3.74.0): the C frame
+           ;; too, which a depth limit counts as callProlog() runs it -- `true'
+           ;; no frame, any other goal two below, past the query's own
+           "'$c_setup'(G) :- call(G)."
            "'$c_call1'(G) :- call(G)."
            "'$scc_run'(G) :- '$c_goal'(G, 3, _), call(G)."
            "'$c_and'(A, B) :- call((A, B))."
@@ -463,9 +474,13 @@
            ;; unbound type was read as `any'; and list(Type), cyclic, acyclic,
            ;; rational, pair, symbol, constant, encoding, type and string
            ;; were no types.
+           ;; EVERY RAISE IS swipl's, through its raiser -- type_error/2,
+           ;; instantiation_error/1 and their kin, each a clause over throw/1
+           ;; (3.74.0): a depth limit counts the raiser's frame and throw/1's
+           ;; below it, as swipl's, where through 3.73.2 each threw in place
            "must_be(Type, X) :- ( nonvar(Type), has_type(Type, X) -> true"
            "    ; nonvar(Type) -> '$is_not'(Type, X)"
-           "    ; throw(error(instantiation_error, _)) )."
+           "    ; instantiation_error(Type) )."
 
            ;; the two throwers library(error) exports that the vendored
            ;; libraries call by name -- ordsets.pl reaches type_error/2 and
@@ -474,6 +489,11 @@
            "type_error(Type, V) :- throw(error(type_error(Type, V), _))."
            "domain_error(Domain, V) :- throw(error(domain_error(Domain, V), _))."
            "instantiation_error(_) :- throw(error(instantiation_error, _))."
+           ;; and the two is_not/2 raises with that library(error) exports
+           ;; and cocolog does not, under names of its own (frame rows
+           ;; name them swipl's: error:existence_error/2)
+           "'$existence_error'(Type, V) :- throw(error(existence_error(Type, V), _))."
+           "'$uninstantiation_error'(V) :- throw(error(uninstantiation_error(V), _))."
            ;; A C THAT IS NO COMPOUND is checked as swipl checks it, and the
            ;; errors are the predicate's (3.0.0, `'$cn_check'/4'): through
            ;; 2.16 compound_name_arity(C, f, 2) failed where it builds
@@ -502,29 +522,29 @@
            ;; names, and last a type none does
            "'$is_not'(list, X) :- !, '$not_a_list'(list, X)."
            "'$is_not'(list(Of), X) :- !, '$not_a_list'(list(Of), X)."
-           "'$is_not'(list_or_partial_list, X) :- !, throw(error(type_error(list, X), _))."
+           "'$is_not'(list_or_partial_list, X) :- !, type_error(list, X)."
            "'$is_not'(chars, X) :- !, '$not_a_list'(list(char), X)."
            "'$is_not'(codes, X) :- !, '$not_a_list'(list(code), X)."
-           "'$is_not'(var, X) :- !, throw(error(uninstantiation_error(X), _))."
-           "'$is_not'(cyclic, X) :- throw(error(domain_error(cyclic_term, X), _))."
-           "'$is_not'(acyclic, X) :- throw(error(domain_error(acyclic_term, X), _))."
+           "'$is_not'(var, X) :- !, '$uninstantiation_error'(X)."
+           "'$is_not'(cyclic, X) :- domain_error(cyclic_term, X)."
+           "'$is_not'(acyclic, X) :- domain_error(acyclic_term, X)."
            "'$is_not'(Type, X) :- '$current_type'(Type), !,"
-           "    ( var(X) -> throw(error(instantiation_error, _))"
-           "    ; '$ground_type'(Type), \\+ ground(X) -> throw(error(instantiation_error, _))"
-           "    ; throw(error(type_error(Type, X), _)) )."
-           "'$is_not'(Type, _) :- throw(error(existence_error(type, Type), _))."
+           "    ( var(X) -> instantiation_error(X)"
+           "    ; '$ground_type'(Type), \\+ ground(X) -> instantiation_error(X)"
+           "    ; type_error(Type, X) )."
+           "'$is_not'(Type, _) :- '$existence_error'(type, Type)."
            "'$not_a_list'(Type, X) :- '$skip_list'(_, X, Rest),"
-           "    ( var(Rest) -> throw(error(instantiation_error, _))"
+           "    ( var(Rest) -> instantiation_error(X)"
            "    ; Rest == [] -> Type = list(Of),"
-           "      ( nonvar(Of) -> '$element_is_not'(X, Of) ; throw(error(instantiation_error, _)) )"
-           "    ; throw(error(type_error(Type, X), _)) )."
+           "      ( nonvar(Of) -> '$element_is_not'(X, Of) ; instantiation_error(Of) )"
+           "    ; type_error(Type, X) )."
            "'$element_is_not'([H|T], Of) :- has_type(Of, H), !, '$element_is_not'(T, Of)."
            "'$element_is_not'([H|_], Of) :- '$is_not'(Of, H)."
 
            ;; is_of_type/2 answers where must_be/2 raises, which is the whole
            ;; difference -- but for an unbound type, which both refuse
            "is_of_type(Type, X) :- nonvar(Type), !, has_type(Type, X), !."
-           "is_of_type(_, _) :- throw(error(instantiation_error, _))."
+           "is_of_type(Type, _) :- instantiation_error(Type)."
            "'$ground_type'(ground)."
            "'$ground_type'(oneof(_))."
            "'$ground_type'(stream)."
@@ -858,16 +878,18 @@
            "'$same_key'(K, [K1-V|T], [V|Vs], T1) :- K1 == K, !, '$same_key'(K, T, Vs, T1)."
            "'$same_key'(_, T, [], T)."
 
-           "bagof(T, G0, B) :- '$witness'(T, G0, G, W), '$bagof'(W, T, G, B)."
-           ;; no free variables: one answer, and it is findall's -- except that
-           ;; an empty one is a failure
-           "'$bagof'([], T, G, B) :- !, findall(T, G, B), B \\== []."
-           "'$bagof'(W, T, G, B) :- Wt =.. ['$w'|W], findall(Wt-T, G, Pairs), Pairs \\== [], keysort(Pairs, Sorted), '$group'(Sorted, Groups), member(Wt-B, Groups)."
+           ;; no free variables: one answer, and it is findall's -- except
+           ;; that an empty one is a failure. ONE CLAUSE EACH, findall/3 its
+           ;; body's call, as swipl's boot/bags.pl writes them (3.74.0): a
+           ;; depth limit counts their frames as swipl's, where '$bagof'/4
+           ;; and setof/3's call of bagof/3 put the search one and two
+           ;; levels deeper
+           "bagof(T, G0, B) :- '$witness'(T, G0, G, W), ( W == [] -> findall(T, G, B), B \\== [] ; Wt =.. ['$w'|W], findall(Wt-T, G, Pairs), Pairs \\== [], keysort(Pairs, Sorted), '$group'(Sorted, Groups), member(Wt-B, Groups) )."
 
            ;; setof is bagof with the group sorted, which also removes its
            ;; duplicates -- and the groups themselves already arrive in witness
            ;; order because keysort put them there.
-           "setof(T, G, S) :- bagof(T, G, B), sort(B, S)."
+           "setof(T, G0, S) :- '$witness'(T, G0, G, W), ( W == [] -> findall(T, G, A), A \\== [], sort(A, S) ; Wt =.. ['$w'|W], findall(Wt-T, G, Pairs), Pairs \\== [], keysort(Pairs, Sorted), '$group'(Sorted, Groups), member(Wt-B, Groups), sort(B, S) )."
 
            ;; ---- random/1 ---------------------------------------------------
            ;; SWI's `random/1' predicate binds a float in (0.0, 1.0); the
@@ -1048,7 +1070,18 @@
            ;; and its redo (the limit set again, and fail, into the goal)
            ":- meta_predicate call_with_inference_limit(0, +, -)."
            "call_with_inference_limit(G, Limit, Result) :- '$inference_limit'(Limit, OLimit), ( catch(G, Except, system:'$inference_limit_except'(OLimit, Except, Result0)), ( Result0 == inference_limit_exceeded -> ! ; system:'$inference_limit_true'(Limit, OLimit, Result0), ( Result0 == ! -> ! ; true ) ), Result = Result0 ; system:'$inference_limit_false'(OLimit) )."
-           "'$inference_limit_true'(Limit, OLimit, Result) :- '$inference_limit_exit'(OLimit, Det), ( Det == true -> Result = ! ; ( Result = true ; '$inference_limit_redo'(Limit, OLimit), fail ) ).")))
+           "'$inference_limit_true'(Limit, OLimit, Result) :- '$inference_limit_exit'(OLimit, Det), ( Det == true -> Result = ! ; ( Result = true ; '$inference_limit_redo'(Limit, OLimit), fail ) )."
+           ;; call_with_depth_limit/3 (3.74.0), swipl's boot/init.pl word
+           ;; for word, over the depth limit's halves
+           ;; (lib/builtins-db.cicili); '$depth_limit_true'/5 is swipl's
+           ;; nondeterministic C, here its first answer (the limit put
+           ;; back, Result the depth used, `!' where the goal left no choice
+           ;; point) and its redo (the limit set again, and fail, into the
+           ;; goal). Its two halves are no frames at the depth limit's call
+           ;; port (`coco_depth_step'): its clause is swipl's one frame
+           ":- meta_predicate call_with_depth_limit(0, +, -)."
+           "call_with_depth_limit(G, Limit, Result) :- '$depth_limit'(Limit, OLimit, OReached), ( catch(G, E, system:'$depth_limit_except'(OLimit, OReached, E)), system:'$depth_limit_true'(Limit, OLimit, OReached, Result, Det), ( Det == ! -> ! ; true ) ; system:'$depth_limit_false'(OLimit, OReached, Result) )."
+           "'$depth_limit_true'(Limit, OLimit, OReached, Result, Det) :- '$depth_limit_exit'(OLimit, OReached, Result, Det0), ( Det0 == ! -> Det = ! ; ( Det = true ; '$depth_limit_redo'(Limit, OLimit), fail ) ).")))
 
 (generic decl-builtins
   ()
@@ -1848,8 +1881,11 @@
           ;; EACH OF THE TWO IS A GOAL OF ITS OWN, as swipl's forall/2 calls
           ;; them: one that holds $/0 is called, so that its `$' guards
           ;; its own frame and cuts nothing of the other's (3.21.0)
-          (if (coco_det0_in m c) (set c (coco_make1 m "call" c)))
-          (if (and (not abad) (coco_det0_in m a)) (set a (coco_make1 m "call" a)))
+          ;; and under a depth limit each (3.74.0): swipl's forall/2 calls
+          ;; them as variables of its clause, each a frame below forall's
+          (if (or (coco_det0_in m c) (bitand (-> e tclock) 2)) (set c (coco_make1 m "call" c)))
+          (if (and (not abad) (or (coco_det0_in m a) (bitand (-> e tclock) 2)))
+              (set a (coco_make1 m "call" a)))
           (set goal (coco_make2 m "," c (? abad (coco_new_atom m "true") (coco_make1 m "\\+" a))))
           (set fr (coco_engine_findall e (coco_new_atom m "x") goal (aof lst) (aof g) 2))
           (if (== fr 2) (return 2))

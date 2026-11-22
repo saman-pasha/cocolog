@@ -540,7 +540,11 @@
         (if (== (-> e max_steps) 0) (return (-> cd ngd)))
         ;; under a window's clock RMAX is the limit, which a raise limit
         ;; does not lower (3.73.0): no guard runs while one is armed, and
-        ;; the steps take them, inference for inference
+        ;; the steps take them, inference for inference. Nor while a depth
+        ;; limit is (3.74.0), which `coco_try_clause_det' asks at its call:
+        ;; a clause is entered by it alone then (`dslow'), and the test
+        ;; here, inlined into `coco_try_clause', cost queens' every guarded
+        ;; entry a jump
         (if (and (-> e tclock) (!= (-> e ilim) 0)) (return 0))
         (let ((u64 lim . #'(? (-> e tclock) (-> e rmax) (-> e max_steps))))
           (if (== lim 0) (return (-> cd ngd)))
@@ -552,14 +556,17 @@
   ;;; trace past the Exit markers of the calls it returns through -- a
   ;;; traced call keeps its frame, where swipl's debugger makes no last
   ;;; call, and cocolog's trace goes on making them (COMPAT.md)
+  ;;; -- and past the depth limit's markers (3.74.0), which a frame's body
+  ;;; runs on to and swipl has none of
   (weak)
   (func coco_det_kk ((coco_engine * e) (size_t k)) (out size_t)
         (let ((coco_machine * m . #'(-> e m)) (size_t f . #'(coco_deref m k)))
-          (if (-> e trace)
-              (while (and (== (nth f (-> m heap)) (coco-cell FUN (coco-fid m "$k" 3)))
-                          (== (nth (coco_deref m (+ f 1)) (-> m heap))
-                              (coco-cell FUN (coco-fid m "$trace_exit" 3))))
-                (set f (coco_deref m (+ f 3)))))
+          (while (and (== (nth f (-> m heap)) (coco-cell FUN (coco-fid m "$k" 3)))
+                      (or (== (nth (coco_deref m (+ f 1)) (-> m heap)) (coco-cell FUN (coco-fid m "$dl" 1)))
+                          (and (-> e trace)
+                               (== (nth (coco_deref m (+ f 1)) (-> m heap))
+                                   (coco-cell FUN (coco-fid m "$trace_exit" 3))))))
+            (set f (coco_deref m (+ f 3))))
           (return f)))
 
   ;;; A CLAUSE OF CODE CD ENTERED OVER GOALS, $/0's part (3.21.0): a body
@@ -578,6 +585,56 @@
           (if (and (-> cd dlast) (or own gl))
               (set k (coco_k_push e (coco_new_atom_id m (coco-id m "$det_hide")) tb k)))
           (return k)))
+
+  ;;; THE BODY BUILT, ITS GOALS SWIPL COMPILES AS CALLS WRAPPED (3.74.0,
+  ;;; the depth limit): the walk of `coco_dl_mask' over the goals at the
+  ;;; cell T, each goal swipl may compile in place taking the next bit of
+  ;;; MASK (*I), and one whose bit is set made '$dl_call'(G), which the
+  ;;; limit's call port takes for a frame (`coco_depth_step'); past bit 63
+  ;;; an is/2 is wrapped and no other. A construct's parts are walked and
+  ;;; written back into its own slots, which the entry made: T itself is
+  ;;; answered, or its wrapping
+  (weak) (cold)
+  (func coco_dl_wrap ((coco_engine * e) (size_t t) (u64 mask) (u32 * i)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m)) (size_t d . #'(coco_deref (-> e m) t))
+              (u64 nm . 0) (u32 ar . 0) (int kd . 0))
+          (if (not (coco-tag-is FUN (nth d (-> m heap)))) (return t))
+          (set nm (coco_name_of m d))
+          (set ar (coco_arity m d))
+          (set kd (coco_dl_kind m nm ar))
+          (if (== kd 10)
+              (let ((u32 b . #'(cof i)) (int w . 0))
+                (set (cof i) (+ b 1))
+                (set w (? (< b 64) (cast int (bitand (>> mask b) 1))
+                          (and (== ar 2) (== nm (coco-id m "is")))))
+                (if (not w) (return t))
+                (return (coco_make1_f m (coco_functor_id m (coco-id m "$dl_call") 1) d))))
+          (if (== kd 0) (return t))
+          ;; the parts of a construct, in the walk's order: `,', `;' and
+          ;; `->' both, `\+' and `$' its one, `:' its goal, `@' its goal
+          (let ((u32 k0 . 0) (u32 k1 . 0))
+            (cond ((or (== kd 1) (== kd 2) (== kd 3)) (set k1 1))
+                  ((== kd 5) (block (set k0 1) (set k1 1)))
+                  (#t (set k1 0)))
+            (for ((u32 k . k0)) (<= k k1) ((++ k))
+              (let ((size_t s . #'(+ d (+ (cast size_t k) 1))) (size_t nw . 0))
+                (set nw (coco_dl_wrap e s mask i))
+                (if (!= nw s) (set (nth s (-> m heap)) (coco-cell REF nw))))))
+          (return t)))
+
+  ;;; THE ROOTS A COMPILED BODY BUILT (`coco_try_clause_det' under a depth
+  ;;; limit), wrapped by CD's mask, reckoned at the clause's first such
+  ;;; entry from CL as the store holds it
+  (weak) (cold)
+  (func coco_dl_wrap_roots ((coco_engine * e) (coco_code * cd) (size_t cl) (size_t * roots) (size_t ng))
+        (let ((u32 bi . 0))
+          (if (== (-> cd dlk) 0)
+              (let ((size_t sh . 0) (size_t sb . 0))
+                (coco_store_clause_parts (-> e st) (-> e m) cl (coco-id (-> e m) ":-") (aof sh) (aof sb))
+                (set (-> cd dlm) (coco_dl_mask (-> e st) (-> e m) sh sb))
+                (set (-> cd dlk) 1)))
+          (for ((size_t r . 0)) (< r ng) ((++ r))
+            (set (nth r roots) (coco_dl_wrap e (nth r roots) (-> cd dlm) (aof bi))))))
 
   ;;; THE CLAUSE MATCHED IN THE STORE AND ITS BODY COPIED, for a program
   ;;; that could not be had or could not run (`coco_store_unify': the store
@@ -604,6 +661,11 @@
                    (let ((size_t hb . #'(coco_store_get_vm m st sbody (aof vm)))
                          (size_t tb . #'(bitor barrier (coco_head_tag st m shead)))
                          (size_t g2 . goals))
+                     ;; under a depth limit its goals swipl compiles as calls
+                     ;; wrapped (3.74.0), as a compiled body's are
+                     (if (bitand (-> e tclock) 2)
+                         (let ((u32 bi . 0))
+                           (set hb (coco_dl_wrap e hb (coco_dl_mask st m shead sbody) (aof bi)))))
                      (if (coco_det0_in m hb)
                          (set g2 (coco_k_push e (coco_make1_f m (coco-fid m "$det_end" 1) (coco_new_int m 0))
                                               tb goals)))
@@ -761,11 +823,16 @@
           (cond
             ((== x 1)
              (let ((u32 gdone . 0))
+               ;; no guard runs under a depth limit (3.74.0): each is a goal
+               ;; its call port asks
                (set matched (coco_clause_run_g m st cd call args roots (aof ng) regs
-                                               (? gl 0 (coco_guard_budget e cd)) (aof gdone)))
+                                               (? (or gl (bitand (-> e tclock) 2)) 0 (coco_guard_budget e cd))
+                                               (aof gdone)))
                (if (!= matched -1) (set (-> e steps) (+ (-> e steps) (cast u64 gdone))))
                (if (< gdone (-> cd ngd)) (set regs nil))))
-            ((and (>= x 2) (<= x 3) (== (-> e trace) 0) (not gl))
+            ;; no environment under a depth limit either (3.74.0): the
+            ;; body is built whole, its goals the steps its call port asks
+            ((and (>= x 2) (<= x 3) (== (-> e trace) 0) (not gl) (not (bitand (-> e tclock) 2)))
              (return (coco_try_env e cd cl call args goals barrier)))
             ((== x 3)
              (let ((u32 gdone . 0))
@@ -776,8 +843,11 @@
             (#t
              (set matched (coco_clause_run_r m st cd call args roots (aof ng) regs))))
           (if (== matched 1)
-              ;; entered: as `coco_try_clause' enters a body, over K
+              ;; entered: as `coco_try_clause' enters a body, over K -- and
+              ;; under a depth limit (3.74.0) its goals swipl compiles as
+              ;; calls by their arguments' shape wrapped, for its call port
               (let ((size_t from . 0) (size_t tb . #'(bitor barrier (-> cd ptag))))
+                (if (bitand (-> e tclock) 2) (coco_dl_wrap_roots e cd cl roots ng))
                 (cond
                   ((!= regs nil)
                    (set (-> e afid) (-> cd rfid))
@@ -814,9 +884,12 @@
   ;;; step of naive reverse paid 3 instructions. The kind asked first, before
   ;;; the guard, cost naive reverse 2 instructions a call more: the
   ;;; registers fell out otherwise
+  ;;; -- and every clause while a depth limit is armed (3.74.0): one word,
+  ;;; `dslow', where through 3.73.2 it was `dgk' (`coco-dgk-set'), so the
+  ;;; plain entry asks what it asked
   (static) (inline)
   (func coco_det_code ((coco_engine * e) (coco_code * cd)) (out int)
-        (return (or (!= (-> e dgk) (cast size_t -1)) (== cd nil) (>= (-> cd ex) 4))))
+        (return (or (!= (-> e dslow) 0) (== cd nil) (>= (-> cd ex) 4))))
 
   (static)
   (func coco_try_clause ((coco_engine * e) (coco_pred * p) (size_t ix) (size_t call)
@@ -1594,8 +1667,18 @@
         (let ((coco_machine * m . #'(-> e m))
               (size_t ci . #'(-> e nchoices))
               (size_t c . #'(coco_make2 (-> e m) "$scc_fail" (coco_arg (-> e m) g 0)
-                                        (coco_arg (-> e m) g 1))))
-          (if (not (coco_push_choice e COCO_CH_GOAL c (coco_k_empty e) ci))
+                                        (coco_arg (-> e m) g 1)))
+              (size_t kk . #'(coco_k_empty e)))
+          ;; under a depth limit (3.74.0) the cleanup a failure runs stands
+          ;; where swipl's call_term() puts it, two below the frame that
+          ;; failed, setup_call_catcher_cleanup/4's: its alternative runs on
+          ;; to that frame's marker, this frame's level less one (`dcur')
+          (if (and (bitand (-> e tclock) 2) (> (-> e dcur) 0))
+              (let ((size_t mk . #'(coco_k_push e (coco_make1_f m (coco-fid m "$dl" 1)
+                                                                (coco_new_int m (cast i64 (<< (- (-> e dcur) 1) 2))))
+                                                0 kk)))
+                (if (!= mk 0) (set kk mk))))
+          (if (not (coco_push_choice e COCO_CH_GOAL c kk ci))
               (return (coco_mem_error e)))
           ;; failing into it is no Redo of anything the program wrote
           (set ($ (nth ci (-> e tchoices)) printr) 0)
@@ -1806,6 +1889,30 @@
   ;;; its own, an environment made the lookup benchmark's loop 3.9 % dearer
   ;;; than its frames were; settled here, with the loop taking a handed-over
   ;;; goal in the same step, it is 6.5 % cheaper.
+  ;;; AN ENVIRONMENT'S UNIT HANDED OVER AS ITS TERM, the unit the
+  ;;; continuation names at P (a POS cell): what `coco_env_take' does under
+  ;;; trace, done before the step while a depth limit is armed (3.74.0),
+  ;;; whose call port asks the goal -- an environment made before the limit
+  ;;; runs its units under it. 1, or -1 when the term would not build
+  (weak) (cold)
+  (func coco_env_hand ((coco_engine * e) (size_t p)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t pay . #'(cast size_t (coco-payload (nth p (-> m heap)))))
+              (size_t env . #'(- p (>> pay 16)))
+              (coco_code * cd . #'(coco-env-code m env))
+              (coco_egoal * eg . #'(aof (nth (bitand pay 65535) (-> cd egoals))))
+              (size_t nk . #'(+ env (cast size_t (-> eg noff))))
+              (size_t bar . #'(+ (cast size_t (coco-signed-payload (nth (+ env (cast size_t (-> eg boff)))
+                                                                       (-> m heap))))
+                                 (cast size_t (-> eg badd))))
+              (size_t g . 0))
+          (if (not (coco_unit_term m cd env (cast u32 (bitand pay 65535)) (aof g))) (return -1))
+          (set (-> e goals) nk)
+          (set (-> e ngoal) (coco_deref m g))
+          (set (-> e nbar) (bitor bar (-> eg tag)))
+          (set (-> e nset) 1)
+          (return 1)))
+
   (static)
   (func coco_env_take ((coco_engine * e) (size_t p)) (out int)
         (let ((coco_machine * m . #'(-> e m))
@@ -2488,6 +2595,10 @@
                                     (coco_rec_mark e COCO_REV_CATCH (-> e trace_depth)
                                                    (-> e trace_goal) 0))))
                      (set (-> e nchoices) ci)
+                     ;; under a depth limit (3.74.0) the recovery runs a
+                     ;; level below the catch frame, and the goal's own
+                     ;; structure's frame is none of it
+                     (if (bitand (-> e tclock) 2) (set goals (coco_depth_recovery e goals recovery)))
                      (set (-> e goals) (coco_k_push e recovery barrier goals))
                      ;; the ball is on the heap and its cell an orphan
                      (if (== bst st)

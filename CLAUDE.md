@@ -3445,6 +3445,66 @@ into its `at_modules/1`. What a session must keep:
   (`coco_guard_budget`), a frozen machine keeps `ilim` (section `X`), and
   `coco_engine_ask` disarms it. What it counts is cocolog's own: an `is/2`
   is an inference, where swipl's compiler makes most none (COMPAT.md).
+* **call_with_depth_limit/3 asks swipl's call port at every step of the
+  goal** (3.74.0; `coco_depth_*` in lib/solve-loop.cicili, the halves
+  `coco_b_dlim_*` in lib/builtins-db.cicili, swipl's clause in the builtins'
+  Prolog half, test/files/depth_limit.pl): the machine's `dlim`, `dreach`
+  and `dclev` are swipl's depth_info, and while one is armed the engine's
+  TCLOCK bit 2 is on, RMAX holds the ceiling the loop would test and
+  MAX_STEPS is forced one below the step (`coco_depth_force`), so EVERY step
+  comes to `coco_limit_go`, whose first question is `coco_depth_step` (weak,
+  cold): the untraced loop tests nothing new, and a limited goal runs every
+  step the slow way (seven million levels of a count in 2.3 s, eleven times
+  its 0.21 s unlimited; swipl's 0.14 and 0.12).
+  **A frame's level is a marker on the continuation**, `'$dl'(W)` (W the
+  level times four and a kind: 0 a frame, 1 an opaque one -- a predicate
+  swipl writes in C and cocolog in clauses, nothing inside it a frame -- 2
+  the frame of a meta-called structure, never asked): a goal's owner is the
+  FIRST marker after it (`coco_depth_owner`), the step passes markers at
+  the head in no step of theirs, and backtracking puts the continuation
+  back with its markers. **A step's first push drops the markers at the
+  head** (`coco_depth_push`): the goal is its owner's last, and no goal
+  names them its owner again, so a tail recursion is one marker deep, as
+  swipl's last call reuses its frame one level deeper; **a step's second
+  push keeps its first** (`coco_depth_push_over`: a structure's marker over
+  its call's, which a catch frame captures for its recovery, a level below
+  the call) -- the first cut's second push dropped the first, and `$(f)` at
+  a limit of 0 raised its determinism error where swipl fails at the
+  limit. **The port is asked only of a step that runs**: a stop the loop's
+  halt test makes (a green block, a signal, a halt), a turn's ceiling and a
+  green quantum's end are asked first, or the run that resumes the step
+  asks it again, a level deeper each time (a machine `cocolog step` froze
+  at every turn of 25 inferences answered 105 for 101). What is no frame:
+  a control construct (`coco_depth_control`), and in a clause a goal
+  swipl's compiler puts in place -- the compile's own walk of the clause
+  (`coco_dl_mask` in lib/kb-compile.cicili, pl-comp.c's compileBodyUnify,
+  compileBodyEQ, the type tests, arg/3, compileSimpleAddition), each such
+  goal it compiles as a call wrapped `'$dl_call'(G)` (`coco_dl_wrap`). **A C
+  row is a frame with a computed need** (`coco_depth_row`: an engine row or
+  a compiled-in module's, asked as the tracer asks them,
+  `coco_sysclaims_hook`, never one the program took over): the frames
+  swipl's code for it runs below it -- findall/3's six, aggregate_all/3's by
+  its template, memberchk/2's, nth0/3's and the declarations' by their
+  arguments -- and a row whose C answers what swipl's clauses walk declines
+  under a limit (`coco_depth_mode`) to swipl's clauses (sum_list/2,
+  max_list/2, min_list/2, numlist/3), so **a new C row of what swipl writes
+  as clauses gets a line in `coco_depth_row` or declines**, or its depth is
+  1. A nested engine (findall/3, forall/2, with_output_to/2) is armed by its
+  narrow, its goal's owner the level its starter's step left (`dsub`,
+  `dsk`, `droot`), and its first step asked before its loop
+  (`coco_depth_first`); setup_call_cleanup/3's machinery is no frame (every
+  `'$scc_...'`, '$cleanup_call'/3 and the catch/3 around them), its setup
+  `'$c_setup'/1` where swipl's sig_atomic/1 runs it, and a failure's cleanup
+  on a marker two below the frame (`coco_bi_scc_push`'s alternative);
+  library(error)'s raises are swipl's raisers, a frame each. A frozen
+  machine keeps the depth state (section `D`, after `X`), and a resumed
+  run's ceiling is sent to the port again (`coco_engine_next`); a thread
+  and a green task start with none, as swipl's depth_info is its thread's.
+  **Under a limit every clause is entered by `coco_try_clause_det`**
+  (`dslow`, the one word the plain entry asks where it asked `dgk`), so
+  what a limit changes in an entry is asked there -- no guard run, at its
+  call of the budget: the first cut asked it in `coco_guard_budget`, which
+  `coco_try_clause` inlines, and queens' every guarded entry paid a jump.
 * **The whole run's clock charges a step to what its goal is NAMED by**
   (1.15.0, `run_time(R)`, library(flow/debug)'s `flow_run_time/3`): the
   same clock from the first step, but each reading charges its time to a

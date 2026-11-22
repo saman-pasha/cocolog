@@ -22615,3 +22615,248 @@ solve, module, state, and zigurat and shared with a server up), each alone.
 All were green with no SKIP, and the binary's md5 was the same before and
 after. The dialect card's 33 cites are all anchored: D4's, T1's and H2's
 moved with the lines above them, and their lines are corrected.
+
+## call_with_depth_limit/3 is swipl's (3.74.0)
+
+Backlog #254's third item, the last of COMPAT.md's search group of useful
+predicates: through 3.73.2 cocolog had none, and a call raised
+existence_error. A minor: something new reachable from a program.
+
+THE PREDICATE is swipl 9.0.4's boot/init.pl clause word for word, in the
+builtins' Prolog half, over five C rows of lib/builtins-db.cicili that
+stand for swipl's pl-prims.c: `'$depth_limit'/3` (the limit set at the
+call's own frame's level plus Limit plus one, OLimit `'$dl'/5` holding the
+limit before, the frame levels and the choice stack's height),
+`'$depth_limit_except'/3` (the state put back, the ball thrown again),
+`'$depth_limit_false'/3` (put back, and depth_limit_exceeded where a frame
+past the limit was called, else a failure), and swipl's nondeterministic C
+`'$depth_limit_true'/5` as a clause over two halves:
+`'$depth_limit_exit'/4` (put back, Result the depth the goal used, and `!`
+where it left no choice point, `coco-choice-live`, as swipl's unify_det()
+asks) and `'$depth_limit_redo'/2` (on backtracking into the goal, the limit
+again from the frame's level, the deepest level that level). What is
+swipl's:
+
+- the result: the deepest level the goal's frames reached below the call,
+  1 at least; depth_limit_exceeded where a frame past the limit was failed
+  and the goal failed with it; a failure where the goal failed short of the
+  limit; its ball thrown again; the Result given unified last;
+- the limit: an integer of 0 or more, else swipl's error in
+  system:'$depth_limit'/3's context (a row of `*error-contexts*`);
+- the levels: each frame one below its parent's, a last call's too (swipl's
+  lcoSetNextFrameFlags); a control construct no frame, nor in a clause the
+  goals swipl's compiler puts in place (`=/2`, `==/2`, `\==/2`, the type
+  tests, arg/3, an is/2 of a sum with a small integer, each by
+  pl-comp.c's own rule of the variables it names), which called as goals of
+  their own are frames; a meta-call's goal a frame, a structure's goals one
+  each and the structure none;
+- the builtins that run frames of their own, as deep as swipl's run:
+  findall/3,4, forall/2, aggregate_all/3, with_output_to/2 and format/2's
+  `~@`; and the predicates swipl writes as clauses where cocolog's C
+  answers, by their arguments: nth0/3, nth1/3, last/2, reverse/2,
+  memberchk/2, sum_list/2, max_list/2, min_list/2, numlist/3, length/2,
+  the declarations, bagof/3, setof/3, must_be/2's raises and a
+  single-sided rule that matches nothing;
+- setup_call_cleanup/3: its setup a frame below sig_atomic/1's query,
+  `true` none; its goal a meta-call of setup_call_catcher_cleanup/4's
+  frame; its cleanup two below it, failed silently past the limit, the
+  call going on with the depth the cleanup's frame reached -- a cleanup
+  that is a control structure too, and one a cut runs;
+- the answers: a redo has the limit again, each answer the depth its own
+  search reached since the one before;
+- nesting: an inner call's own depth, the outer's reached never counting
+  the inner's frames past its own; iterative deepening, which the
+  predicate is for; and the predicate as predicate_property/2 and
+  current_predicate/1 see it.
+
+WHAT IS COCOLOG'S OWN, the limit's life in the engine (lib/solve-loop.cicili,
+CLAUDE.md's new bullet):
+
+- the machine's `dlim`, `dreach` and `dclev` are swipl's depth_info, the
+  last the level of the innermost call's own frame, appended to
+  coco_machine;
+- THE LOOP TESTS NOTHING NEW. While a limit is armed the engine's TCLOCK
+  has bit 2 on, RMAX holds the ceiling the loop would test, and MAX_STEPS
+  is forced one below the step (`coco_depth_force`), so every step comes
+  to `coco_limit_go`, whose first question is `coco_depth_step` (weak,
+  cold), swipl's call port: the step at hand is a frame or none, failed
+  before it runs where it is past the limit (`$fail` in its step, silent).
+  A limited goal runs every step the slow way;
+- A FRAME'S LEVEL IS A MARKER on the continuation, `'$dl'(W)`, W the level
+  times four and a kind (0 a frame, 1 an opaque one -- a predicate swipl
+  writes in C and cocolog in clauses, nothing inside it a frame -- and 2 the
+  frame swipl compiles a meta-called structure into, never asked); a goal's
+  owner is the first marker after it (`coco_depth_owner`); the step passes
+  markers at the head in no step of theirs, and backtracking puts the
+  continuation back with its markers. A step's first push drops the markers
+  at the head (`coco_depth_push`): the goal is its owner's last, so a tail
+  recursion is one marker deep however deep it goes. A step's second push
+  keeps its first (`coco_depth_push_over`): a structure's marker over its
+  call's, which a catch frame captures for its recovery a level below the
+  call (`coco_depth_recovery`);
+- THE PORT IS ASKED ONLY OF A STEP THAT RUNS: a stop the loop's halt test
+  makes (a green block, a signal, a halt), a turn's ceiling and a green
+  quantum's end come first, or the run that takes the step up again asks
+  its port again, a level deeper each time;
+- what swipl's compiler puts in place in a clause is found by the
+  compile's own walk (`coco_dl_mask` in lib/kb-compile.cicili, pl-comp.c's
+  rules: compileBodyUnify, compileBodyEQ, the type tests, arg/3,
+  compileSimpleAddition), reckoned at a clause's first entry under a limit
+  and kept on its code, and each such goal swipl compiles as a call is
+  wrapped `'$dl_call'(G)` (`coco_dl_wrap`) for the port to take as a
+  frame. Under a limit a clause is entered by `coco_try_clause_det`
+  (`dslow`, one word the plain entry asks where it asked `dgk`), its body
+  built whole, no guard run and no environment made;
+- a C row of the engine's or of a compiled-in module's is a frame with the
+  frames swipl's code for it runs below it (`coco_depth_row`): findall/3's
+  six, aggregate_all/3's by its template, memberchk/2's, nth0/3's and the
+  declarations' by their arguments; and the rows whose C answers what
+  swipl's clauses walk decline under a limit to swipl's clauses
+  (sum_list/2, max_list/2, min_list/2, numlist/3, `coco_depth_mode`);
+- a nested engine (findall/3, forall/2, with_output_to/2) is armed by its
+  narrow, its goal's owner the level its starter's step left (`dsub`,
+  `dsk`, `droot`), its first step asked before its loop
+  (`coco_depth_first`); setup_call_cleanup/3's machinery is no frame
+  (every `'$scc_...'`, `'$cleanup_call'/3` and the catch/3 around them),
+  its setup `'$c_setup'/1` where swipl's sig_atomic/1 runs it, and a
+  failure's cleanup on a marker two below the frame;
+- in the Prolog half: library(error)'s raises are swipl's, each through its
+  raiser (type_error/2, instantiation_error/1, domain_error/2 and
+  `'$existence_error'/2` and `'$uninstantiation_error'/1` for the two
+  library(error) has and cocolog's half does not export), where through
+  3.73.2 each threw in place; bagof/3 and setof/3 are one clause each over
+  findall/3, as swipl's boot/bags.pl writes them, where `'$bagof'/4` and
+  setof/3's call of bagof/3 put the search a level and two deeper; and
+  forall/2 calls its two goals as call/1 of them under a limit, as swipl's
+  clause calls its variables;
+- a frozen machine keeps the depth state (section `D`, after `X`), and a
+  resumed run's ceiling is sent to the port again (`coco_engine_next`); a
+  library(thread) thread and a green task start with none, as swipl's
+  depth_info is its thread's.
+
+THE CASES. test/files/depth_limit.pl holds 278 lines to swipl 9.0.4, byte
+for byte: the results (16), the limits (11), the levels (7), what is in
+place (26), the constructs (27), the builtins and library(error)'s raises
+(53), the list predicates (61), the declarations (17), the cleanups (26),
+the answers (18), the nesting (9), iterative deepening (4) and the
+properties (3). Cocolog's own:
+test/engine.pl's `dl_runs` (the case traced, under a collector every 2 000
+cells, and with each collection a freeze's materialisation put back and
+kept, all equal to its untraced answers; a machine frozen at every turn of
+25 inferences, `cocolog step`, answering five goals as it would unfrozen --
+a loop failed at its limit, a count's depth, each answer of a goal that
+left a choice point, a nested call and a count past its limit; and two
+million levels of a count, of one through an if-then-else and of one whose
+first clause fails, inside a stack limit of 60 MB), test/thread.pl's
+`depths_per_thread` (a thread's limit its own, a thread a limited goal
+starts free of its creator's limit, and the creator's depth counted as
+swipl's but for thread_create/2's one frame, COMPAT.md) and test/async.pl's
+`case_depths` (three tasks failed at their limits through the quanta they
+run in, a fourth reaching its depth through nine of them, beside the main
+task's limit over three yields and two waits).
+
+NOT SWIPL'S (a COMPAT.md row): a library predicate the two write in their
+own code takes its own frames, and so its own depth -- print_message/2 is
+exceeded up to 5 there, and raises
+existence_error(matching_rule, swi_option:option(frame(_), [])) at 6,
+where here it is exceeded up to 3 and answers 5 from 4 on; library(thread)'s
+thread_create/2 reaches 2 where swipl's clause over thread_create/3 reaches
+3; library(async) is cocolog's own; and swipl's predsort/3 is not here
+(queued). A limit that names the depth a program needs is safe where it is
+the program's own predicates that run deep.
+
+THE RULES, each its own arm (one build of the final tree with the rule out),
+each red where it is held -- the case's count the lines its diff against
+swipl's output shows, on the case as committed:
+
+- the call port and the stops (lib/solve-loop.cicili): the port asked
+  before every stop it is taken again after (P1: engine's three freeze
+  checks, and the green fixture's fourth task at 30004 and its main task
+  at 7 and 8), before a stop the loop's halt test makes (P2: the main
+  task's 7 and 8 over its three yields, in every run), before a turn's
+  ceiling (P3: engine's three freeze checks), before a green quantum's end
+  (P4: the fourth task's 30004), a resumed run's ceiling not sent to the
+  port (R1: engine's five freeze checks, and the green fixture never
+  answering), and a frozen machine keeping no depth state (F1: engine's
+  five);
+- the markers: a last call's marker kept over its owner's (M1: engine's two
+  million levels, past the stack limit), a step's second marker dropping
+  its first (M2: 2), a catch's recovery at its goal's structure level (M3:
+  4), a failure's cleanup at the frame's own level (M4: 6);
+- what is a frame: every goal of a clause a call, none in place (K1: 48),
+  the binary control constructs frames (C1: 504, and engine's, the green
+  fixture's and thread's), a structure call/N calls in a clause no frame of
+  its own (S1: 20), a structure a nested engine's goal is no frame of its
+  own (S2: 4), a nested engine run with no limit (N1: 26), a predicate
+  swipl writes in C no single frame (T1: 8, and thread's 3 for 2), and a
+  guard run under a limit (G1: 6, and engine's traced answers and its two
+  million levels);
+- the rows' own frames: findall/3,4 none (W1: 20), the list predicates
+  swipl writes as clauses none (W2: 64), the declarations' walk none (W3:
+  22), the folds and numlist/3 answered in C under a limit (L1: 34);
+- what runs no frame of its own: a single-sided rule's last clause a frame
+  (X1: 8), `'$numlist'/3` a frame (X2: 14), setup_call_cleanup/3's
+  machinery frames (X3: 48), the setup a frame where swipl's sig_atomic/1
+  runs it (X4: 36);
+- the Prolog halves: bagof/3 a frame more (B1: 6), and must_be/2's type
+  error thrown in place (E1: 2).
+
+TWO WERE GREEN WHERE THEY STOOD, AND ARE HELD NOW. E1 was green on the case
+the arms first met, which named must_be/2's raises in its header and held
+none of them: it holds fourteen now, each to swipl's depths, and
+`must_be(list, [a|b])` is caught at a limit of 4 under E1 where swipl's is
+exceeded there. P2 was red in three runs of five, where the main task's
+waits happened to block: the check now yields three times inside its
+limit, three blocks every run makes. The guard's test went to the det
+entry after the arms began (G1 and K1 are cut from the final code; the rest
+from the code before the move, which no rule of theirs touches), and the
+binary committed is the one measured and armed, byte for byte.
+
+WHAT IT COSTS the untraced engine: its own instructions are 3.73.2's to a
+few hundred. tools/flow/zero.sh against 3.73.2, the two from paths of one
+length, work less padding: nrev 66 064 307 (+173 059), queens 39 953 361
+(+2 331), lookup 48 060 707 (+6 568). Counted a function at a time, the
+no-ops apart: on nrev every engine function counts 3.73.2's but
+`coco_try_clause_det`, +17, and the 173 059 are glibc's: of the 20 growths
+of the machine's stacks the work makes, from the same capacities to the
+same ones (the heap 8 192 cells to 4 194 304, the trail 512 to 1 048 576),
+3.73.2's realloc moved 8 blocks and grew the rest in place where 3.74.0's
+moves 9 -- the arena holds the larger machine and engine where a block
+grew before -- and the ninth is a copy of 171 992 instructions. On queens
+the engine's own functions count some 400 more (findall/3's nested engine
+asks the depth limit at its start: `coco_engine_next` +186,
+`coco_engine_run` +186), on lookup some 3 000 (each of the 2 000 facts'
+first entry asks the limit's bit, `coco_try_clause_det` +2 006, and their
+compiles fill the code's two new fields, `coco_clause_code` +798 and
+`coco_code_put` +170). The first cut asked the limit in
+`coco_guard_budget`, which `coco_try_clause` inlines: queens' every guarded
+entry paid a jump, `coco_try_clause` 19 259 more where its other
+instructions were 3.73.2's, all of it block placement; under a limit a
+clause is entered by `coco_try_clause_det` alone (`dslow`), so the test
+went to its call of the budget, and the jump with it.
+
+A start (`cocolog query true`) counts 36 557 241 against 36 112 612,
+444 629 more (+1.23 %): the 1 381 characters the Prolog halves gained (the
+builtins' +728: the predicate's two clauses and its declaration, the
+setup's frame, the raisers, bagof/3's and setof/3's one clause each; the
+lists' +653: the four declined rows' swipl clauses, six of them
+single-sided rules), read at every start -- the lexer +76 462, the parse
++49 167, the interning +44 445, the bodies' compile +40 886, the store's
+put +35 445 among cocolog's +340 564 -- and libc +104 065, strcmp +28 024
+of it, every caller of it reading more clauses (`coco_assert_from` 8 089
+calls to 8 179). A limited goal runs every step through the call port:
+seven million levels of a count take 2.25 to 2.49 s in three runs, eleven
+times their 0.21 s unlimited, where swipl's take 0.14 s and 0.12.
+
+THE RUN, on the binary committed: the lint case first, then the files case
+(depth_limit with every other fixture, held to swipl 9.0.4), engine, trace,
+flowchart, errors, directives, library, script, gc, cyclic, reconsult,
+repl, journal, signal, process, stream, units and argv, and the seven test
+binaries (term, syntax, solve, module, state, and zigurat and shared with a
+server up), each alone; then with nothing building window, thread, async
+and flowdebug. All were green with no SKIP, the binary's md5 the same
+before and after, and the lint case once more after the card's cites were
+corrected. The dialect card's 33 cites are all anchored: I1's, whose anchor
+repeats in lib/kb.cicili, and nine others (R2's two, H2's, D4's, C3's,
+L1's, X3's, T1's and T2's) moved with the lines above them, and their lines
+are corrected.

@@ -38,7 +38,7 @@ main :-
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
     update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), repeat_runs(D), jit_runs(D),
     qk_runs(D),
-    gvars_runs(D), findnsols_runs(D), il_runs(D),
+    gvars_runs(D), findnsols_runs(D), il_runs(D), dl_runs(D),
     btree_places, op_names_frozen(D), own_properties, own_current, own_too_long,
     shl(['rm -rf ', D]),
     checks_done.
@@ -2496,6 +2496,76 @@ il_runs(D) :-
     proc_run(MCmd, 60000, MO, _), atom_codes(MA, MO),
     check('beside call_limited/3 and call_metered/4', MA,
           'A-inference_limit_exceeded\nA-inference_limit_exceeded\ninference_limit_exceeded-true\ninference_limit_exceeded-!\n').
+
+%% CALL_WITH_DEPTH_LIMIT/3 UNDER TRACE, A COLLECTOR, A FREEZE AND A THAW
+%% (3.74.0). test/files/depth_limit.pl holds swipl's answers untraced; here
+%% the same file's under trace, whose ports no level counts, and under a
+%% collection every 2000 cells, which moves each level marker the
+%% continuation holds ('$dl'/1, a term like any goal), and under the
+%% freeze's materialisation, which builds them as terms. A machine frozen
+%% inside a call (`cocolog step', 25 inferences a turn) keeps its depth
+%% state (the `D' section): thawed, a loop is failed at its limit eight
+%% turns on, a count reaches the depth it would have, each answer of a goal
+%% that left a choice point its own depth, and a nested call its own limit
+%% under the outer's. Each answer is swipl 9.0.4's.
+dl_runs(D) :-
+    section('call_with_depth_limit/3 under trace, a collector, a freeze and a thaw'),
+    cocolog(C),
+    findall(Tag-Out,
+            ( member(Tag-Pre-Opt, [ plain-''-'', trace-''-'--trace ',
+                                    gc-'COCOLOG_GC_CELLS=2000 '-'',
+                                    kmat1-'COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=1 '-'',
+                                    kmat2-'COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 '-'' ]),
+              sh_join([Pre, C, ' ', Opt, '--local run test/files/depth_limit.pl main 2>/dev/null'], Cmd),
+              proc_run(Cmd, 300000, O, _), atom_codes(Out, O) ),
+            [_-U, _-T, _-G, _-K1, _-K2]),
+    ( sub_atom(U, _, _, _, 'n4-call_with_depth_limit((call_with_depth_limit(h3,10,3),h3),10,4)') -> H = yes ; H = no ),
+    check('untraced: the case answers', H, yes),
+    check('traced: the same answers', T, U),
+    check('a collection every 2000 cells: the same answers', G, U),
+    check('each collection a freeze''s materialisation put back: the same answers', K1, U),
+    check('each collection a freeze''s materialisation kept: the same answers', K2, U),
+    atom_concat(D, '/dl_turns.pl', F),
+    fixture(F, [ 'cnt(0) :- !.', 'cnt(N) :- N1 is N - 1, cnt(N1).',
+                 'loop :- loop.',
+                 'dl1 :- call_with_depth_limit(loop, 200, R), write(R), nl.',
+                 'dl2 :- call_with_depth_limit(cnt(100), 1000, R), write(R), nl.',
+                 'dl3 :- call_with_depth_limit((member(X, [a,b,c]), cnt(10)), 30, R), write(X-R), nl, fail.',
+                 'dl3.',
+                 'dl4 :- call_with_depth_limit(call_with_depth_limit(cnt(50), 100, R1), 100, R2), write(R1-R2), nl.',
+                 'dl5 :- call_with_depth_limit(cnt(100), 50, R), write(R), nl.' ]),
+    atom_concat(D, '/dl_turns_kb', Kb),
+    sh_join([C, ' --embed ', Kb, ' consult ', F, ' >/dev/null 2>&1'], CCons),
+    shl([CCons]),
+    det_turns(C, Kb, dl1, E1),
+    check('frozen and thawed: a loop failed at its limit', E1, 'depth_limit_exceeded_'),
+    det_turns(C, Kb, dl2, E2),
+    check('frozen and thawed: a count reaches its depth', E2, '101_'),
+    det_turns(C, Kb, dl3, E3),
+    check('frozen and thawed: each answer of a goal that left a choice point', E3, 'a-12b-12c-12_'),
+    det_turns(C, Kb, dl4, E4),
+    check('frozen and thawed: a nested call under the outer one', E4, '51-2_'),
+    det_turns(C, Kb, dl5, E5),
+    check('frozen and thawed: a count past its limit', E5, 'depth_limit_exceeded_'),
+    %% a last call's level is one deeper and its frame its parent's: two
+    %% million levels of a count, a count through an if-then-else and one
+    %% whose first clause fails, inside a stack limit of 60 MB, as swipl's
+    %% runs them; a continuation that kept a marker a level held two
+    %% million of them, past the limit
+    atom_concat(D, '/dl_deep.pl', DF),
+    fixture(DF, [ 'cnt(0) :- !.', 'cnt(N) :- N1 is N - 1, cnt(N1).',
+                  'cnt2(N) :- ( N =:= 0 -> true ; N1 is N - 1, cnt2(N1) ).',
+                  'cnt3(N) :- N > 0, !, N1 is N - 1, cnt3(N1).', 'cnt3(0).',
+                  'main :- set_prolog_flag(stack_limit, 60000000),',
+                  '        call_with_depth_limit(cnt(2000000), 10000000, R1),',
+                  '        call_with_depth_limit(cnt2(2000000), 10000000, R2),',
+                  '        call_with_depth_limit(cnt3(2000000), 10000000, R3),',
+                  '        call_with_depth_limit(cnt(2000000), 1000000, R4),',
+                  '        write(R1-R2-R3-R4), nl.' ]),
+    sh_join([C, ' --local run ', DF, ' main 2>&1'], DCmd),
+    proc_run(DCmd, 120000, DO, _), atom_codes(DA, DO),
+    check('a recursion two million levels deep inside 60 MB', DA,
+          '2000001-2000002-2000002-depth_limit_exceeded\n').
 
 %% SWIPL'S JIT INDEX ANSWERS AS IT DOES UNDER TRACE, UNDER A COLLECTOR THAT
 %% RUNS EVERY 2000 CELLS, AND AFTER THE CLAUSES CHANGE (3.24.0).

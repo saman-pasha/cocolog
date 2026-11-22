@@ -51,6 +51,31 @@
 ;;; `$' took away; and a guard frame's two flags in its `clause_ix', under
 ;;; the guard below it (`coco_det_push')
 (DEFMACRO coco-det-none () `(cast size_t -1))
+;;; DGK SET, and with it DSLOW (3.74.0): the one word a clause's entry asks
+;;; (`coco_det_code'), 1 while a guard is on or a depth limit is
+(DEFMACRO coco-dgk-set (e v)
+  `(block (set (-> ,e dgk) ,v)
+          (set (-> ,e dslow) (bitor (? (!= (-> ,e dgk) (coco-det-none)) 1 0)
+                                    (? (bitand (-> ,e tclock) 2) 1 0)))))
+;;; THE NAMES THE DEPTH LIMIT'S ROWS ASK (3.74.0, `coco_depth_row'),
+;;; builtins of the builtins module's table, which has no dispatch id:
+;;; interned once a machine into `dlids' (`coco-dl-ids-fill')
+(DEFPARAMETER *depth-names*
+  '("findall" "forall" "aggregate_all" "with_output_to" "format" "length" "memberchk"
+    "nb_setval" "count" "sum" "max" "min" "nth0" "nth1" "last" "reverse"
+    "garbage_collect" "working_directory" "string_to_atom" "$numlist" "$ssu_none"
+    "dynamic" "discontiguous" "multifile" "$declare" "as" "$cleanup_call" "$c_setup"))
+;;; 32 is the machine's `dlids'
+(DEFMACRO coco-dlid (m name)
+  (WHEN (> (LENGTH *depth-names*) 32)
+    (ERROR "cocolog: ~D depth names, and coco_machine.dlids holds 32" (LENGTH *depth-names*)))
+  `(nth ,(OR (POSITION name *depth-names* :TEST #'STRING=)
+             (ERROR "cocolog: no depth name ~S -- add it to *depth-names*" name))
+        (-> ,m dlids)))
+(DEFMACRO coco-dl-ids-fill (m)
+  `(block ,@(LOOP FOR nm IN *depth-names* FOR i FROM 0
+                  COLLECT `(set (nth ,i (-> ,m dlids)) (coco_intern ,m ,nm)))
+          (set (-> ,m dlready) 1)))
 (DEFMACRO coco-det-gone () `288230376151711744)
 (DEFMACRO coco-det-on (cx) `(bitand ,cx 1))
 (DEFMACRO coco-det-set (cx) `(bitand ,cx 2))
@@ -94,7 +119,7 @@
         (set (-> e st) st)
         (set (-> e trace) coco_trace_default)
         ;; no guard on (3.21.0, $/0)
-        (set (-> e dgk) (coco-det-none))
+        (coco-dgk-set e (coco-det-none))
         ;; the root's names are the store's names; a green alias points at
         ;; the host, which outlives every task's machine
         (set (-> st name_m) (cast (void *) (coco_troot m))))
@@ -143,6 +168,16 @@
             (block (set (-> e max_steps) (-> e tcap))
                    (set (-> e tcap) 0)
                    (set (-> e ilcap) 0)))
+        ;; and no depth limit's step (3.74.0): a query's call_with_depth_limit/3
+        ;; arms its own, a nested engine's narrow its outer one's -- and with
+        ;; nothing running on the machine, none of the machine's either, a
+        ;; limit a query stopped inside left armed
+        (coco_depth_off e)
+        (set (-> e dnar) 0)
+        (if (== (-> (-> e m) running) 0)
+            (block (set (-> (-> e m) dlim) 0)
+                   (set (-> (-> e m) dreach) 0)
+                   (set (-> (-> e m) dclev) 0)))
         (set (-> e resume) 0)
         (set (-> e halted) 0)
         ;; `halt' is `halt(0)': halt/0 sets only the flag, so the code it
@@ -197,7 +232,7 @@
         ;; its exit marker closes: the `'<meta-call>'/1' swipl compiles a
         ;; query into, its height the search's floor
         (set (-> e dgh) 0)
-        (set (-> e dgk) (coco-det-none))
+        (coco-dgk-set e (coco-det-none))
         (set (-> e goals)
              (coco_k_push e goal 0
                           (? (coco_det0_in (-> e m) goal)
@@ -1346,10 +1381,10 @@
   ;;; its guard is on, else none
   (func coco_det_top ((coco_engine * e) (size_t dgh))
         (set (-> e dgh) dgh)
-        (set (-> e dgk) (coco-det-none))
+        (coco-dgk-set e (coco-det-none))
         (if (!= dgh 0)
             (let ((coco_choice * c . #'(aof (nth (- dgh 1) (-> e choices)))))
-              (if (coco-det-on (-> c clause_ix)) (set (-> e dgk) (-> c goals))))))
+              (if (coco-det-on (-> c clause_ix)) (coco-dgk-set e (-> c goals))))))
 
   ;;; whether the frame at D is a guard frame
   (weak)
@@ -1376,7 +1411,7 @@
           (set ($ (nth d (-> e choices)) clause_ix) (bitor (<< (-> e dgh) 2) (? own 3 1)))
           (set ($ (nth d (-> e tchoices)) printr) 0)
           (set (-> e dgh) (+ d 1))
-          (set (-> e dgk) mk)
+          (coco-dgk-set e mk)
           (return 1)))
 
   ;;; a frame above D that may still retry: none DEAD, CATCH, CATCH_RETRY
@@ -1629,7 +1664,7 @@
             (set (-> c barrier) ow)
             (if tr
                 (block (set (-> c clause_ix) (- (-> c clause_ix) 1))
-                       (set (-> e dgk) (coco-det-none)))
+                       (coco-dgk-set e (coco-det-none)))
                 (set (-> c clause_ix) (- (-> c clause_ix) (coco-det-set (-> c clause_ix))))))
           (return 1)))
 
@@ -1676,7 +1711,7 @@
           (set lco (not (coco_det_live e d)))
           (if (and lco (coco_det_transparent e nid n (cast size_t -1)))
               (block (set ($ (nth d (-> e choices)) clause_ix) (- cx 1))
-                     (set (-> e dgk) (coco-det-none))
+                     (coco-dgk-set e (coco-det-none))
                      (return 1)))
           (set ow (bitor (coco-bar-of (coco_functor_id m nid n)) (coco-bar-sysbit)))
           (set (-> e kcall) g)
@@ -1763,7 +1798,7 @@
                     (size_t mk . 0))
                 (set mk (coco_k_push e de ow kk))
                 (set ($ (nth (- (-> e dgh) 1) (-> e choices)) goals) mk)
-                (set (-> e dgk) mk)
+                (coco-dgk-set e mk)
                 (return (coco_k_push e (coco_new_atom_id m (coco-id m "$det_hide")) ow mk))))
           (return k)))
 
@@ -2169,7 +2204,7 @@
                      (if (!= de 0)
                          (block (set kx (coco_k_push e de cb kx))
                                 (set ($ (nth (- (-> e dgh) 1) (-> e choices)) goals) kx)
-                                (set (-> e dgk) kx)))
+                                (coco-dgk-set e kx)))
                      (if (not (coco_push_choice e COCO_CH_CATCH cr kr cb))
                          (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
                      (set mb (coco_meta_bar e (coco_arg m g 0) 0 k
@@ -2283,6 +2318,14 @@
                   ((and (== n 0) (== nid (coco-id m "$det_hide")))
                    (block (set (-> e frees) (+ (-> e frees) 1))
                           (set (-> e goals) k)))
+                  ;; the depth limit's marker, where no limit asks it (3.74.0):
+                  ;; nothing, and no inference; and a goal it wrapped, the goal
+                  ((and (== n 1) (== nid (coco-id m "$dl")))
+                   (block (set (-> e frees) (+ (-> e frees) 1))
+                          (set (-> e goals) k)))
+                  ((and (== n 1) (== nid (coco-id m "$dl_call")))
+                   (block (set (-> e frees) (+ (-> e frees) 1))
+                          (set (-> e goals) (coco_k_push e (coco_arg m g 0) b k))))
                   ((and (== n 3) (== nid (coco-id m "$det_exit")))
                    (return (coco_det_exit e g k ret)))
                   ((and (== n 2) (== nid (coco-id m "$det_fail")))
@@ -2299,6 +2342,80 @@
 
                   (#t (return 0)))
           (return 1)))
+
+  ;;; ---- the depth limit's step (3.74.0, call_with_depth_limit/3) ---------
+  ;;;
+  ;;; swipl asks a frame's level at its call port while a limit is armed
+  ;;; (pl-vmi.c's depart_or_retry_continue, under LD->alerted): the deepest
+  ;;; level called is kept, and a frame past the limit fails before it runs.
+  ;;; A frame's level is its parent's plus one, a last call's too
+  ;;; (lcoSetNextFrameFlags). Here a frame's level is in the marker
+  ;;; '$dl'(W) its call pushes where its body runs on to
+  ;;; (`coco_depth_push'), W the level times four and its kind: 0 a frame,
+  ;;; 1 an opaque one (a predicate swipl writes in C and cocolog in
+  ;;; clauses: nothing inside it is a frame), 2 the frame swipl compiles a
+  ;;; meta-called control structure into, never asked; a goal's owner is
+  ;;; the first marker after it (`coco_depth_owner'), and backtracking puts
+  ;;; the continuation back with its markers. While the machine's limit is
+  ;;; armed (`dlim') TCLOCK's bit 2 is on, RMAX holds the ceiling the loop
+  ;;; would test and MAX_STEPS sends every step to `coco_limit_go', which
+  ;;; asks `coco_depth_step' first; a window's clock (bit 1) keeps RMAX so
+  ;;; already.
+
+  ;;; MAX_STEPS ONE BELOW THE STEP, so the next step comes to the limit's
+  ;;; branch whatever this one does with its count (`coco_ilim_hit''s
+  ;;; rule): 1 at least, a MAX_STEPS of 0 being none
+  (static)
+  (func coco_depth_force ((coco_engine * e))
+        (set (-> e max_steps) (? (> (-> e steps) 1) (- (-> e steps) 1) 1)))
+
+  ;;; EVERY STEP OF E ASKED from its next on, the ceiling the loop tested
+  ;;; kept in RMAX
+  (func coco_depth_on ((coco_engine * e))
+        (if (not (bitand (-> e tclock) 2))
+            (block
+             (if (not (bitand (-> e tclock) 1)) (set (-> e rmax) (-> e max_steps)))
+             (set (-> e tclock) (bitor (-> e tclock) 2))
+             (set (-> e dslow) 1)))
+        (coco_depth_force e))
+
+  ;;; WHETHER E RUNS UNDER ONE, for a C half that declines there
+  (func coco_depth_mode ((coco_engine * e)) (out int)
+        (return (!= (bitand (-> e tclock) 2) 0)))
+
+  ;;; AND NONE: the ceiling back where the loop tests it, or the clock's
+  (func coco_depth_off ((coco_engine * e))
+        (if (bitand (-> e tclock) 2)
+            (block
+             (set (-> e tclock) (bitand (-> e tclock) 1))
+             (if (not (bitand (-> e tclock) 1))
+                 (block (set (-> e max_steps) (-> e rmax)) (set (-> e rmax) 0)))
+             (set (-> e dslow) (? (!= (-> e dgk) (coco-det-none)) 1 0)))))
+
+  ;;; WHETHER THE GOAL AT G, its qualifiers off, is a control structure
+  ;;; swipl compiles into a frame of its own when it is called (pl-funct.c's
+  ;;; CONTROL_F, `:' stripped first by i_usercall_common), EXTRA arguments
+  ;;; added to it (call/N's)
+  (static)
+  (func coco_depth_structure_n ((coco_machine * m) (size_t g) (u32 extra)) (out int)
+        (let ((size_t s . #'(coco_deref m g)) (u32 hops . 0) (u64 nm . 0) (u32 ar . 0))
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
+          (while (and (coco-is-colon m s (coco-fid m ":" 2)) (< hops 64))
+            (set s (coco_deref m (coco_arg m s 1)))
+            (set hops (+ hops 1)))
+          (cond ((coco-tag-is FUN (nth s (-> m heap)))
+                 (block (set nm (coco_name_of m s)) (set ar (+ (coco_arity m s) extra))))
+                ((coco-tag-is ATOM (nth s (-> m heap)))
+                 (block (set nm (cast u64 (coco-payload (nth s (-> m heap))))) (set ar extra)))
+                (#t (return 0)))
+          (if (== ar 2)
+              (return (or (== nm (coco-id m ",")) (== nm (coco-id m ";")) (== nm (coco-id m "|"))
+                          (== nm (coco-id m "->")) (== nm (coco-id m "*->")) (== nm (coco-id m "@")))))
+          (if (== ar 1) (return (or (== nm (coco-id m "\\+")) (== nm (coco-id m "$")))))
+          (return 0)))
+  (static)
+  (func coco_depth_structure ((coco_machine * m) (size_t g)) (out int)
+        (return (coco_depth_structure_n m g 0)))
 
   ;;; THE STEP PAST A LIMIT IN INFERENCES (1.12.2): the run goes on while
   ;;; its steps less its free ones (`frees': `true', `=/2') are within
@@ -2361,11 +2478,15 @@
   ;;; the ceiling in steps a clamp kept back in MAX_STEPS then; one left low
   ;;; under MAX_INF or a green quantum only asks early, where
   ;;; `coco_limit_room' makes it again
+  ;;; -- into RMAX while a depth limit asks every step (3.74.0), whose
+  ;;; MAX_STEPS is its own
   (func coco_ilim_set ((coco_engine * e) (u64 v))
         (set (-> e ilim) v)
         (if (== v 0)
             (if (-> e ilcap)
-                (block (set (-> e max_steps) (-> e tcap))
+                (block (if (bitand (-> e tclock) 2)
+                           (block (set (-> e rmax) (-> e tcap)) (coco_depth_force e))
+                           (set (-> e max_steps) (-> e tcap)))
                        (set (-> e tcap) 0)
                        (set (-> e ilcap) 0)))
             (coco_ilim_clamp e)))
@@ -2377,9 +2498,21 @@
   ;;; Each starter of a nested engine calls this once the steps are added,
   ;;; before it throws anything again; a limit SUB's own call armed and
   ;;; disarmed is SUB's, and its exit put the narrowed one back.
+  ;;; AND THE DEPTH LIMIT'S STATE (3.74.0): where SUB ended with a limit its
+  ;;; goal armed still armed -- a search stopped short of its exit, by a
+  ;;; limit in inferences, a halt -- the machine's is put back as SUB began
+  ;;; with it, and E asks its steps as before. A search that ended as it
+  ;;; should left it so already, its deepest level E's too.
   (func coco_ilim_back ((coco_engine * e) (coco_engine * sub))
         (if (and (-> sub ilnar) (== (-> sub ilim) 0) (!= (-> e ilim) 0))
-            (coco_ilim_set e 0)))
+            (coco_ilim_set e 0))
+        (if (-> sub dnar)
+            (let ((coco_machine * m . #'(-> e m)))
+              (if (or (!= (-> m dlim) (-> sub dolim)) (!= (-> m dclev) (-> sub doclev)))
+                  (block (set (-> m dlim) (-> sub dolim))
+                         (set (-> m dclev) (-> sub doclev))
+                         (set (-> m dreach) (-> sub doreach))))
+              (if (and (!= (-> m dlim) 0) (bitand (-> e tclock) 2)) (coco_depth_force e)))))
 
   ;;; A NESTED ENGINE SPENDS ITS OUTER ENGINE'S BUDGET, never more (1.12.2,
   ;;; in two clocks): an inference limit outside narrows SUB's (MAX_INF,
@@ -2420,7 +2553,7 @@
              (set (-> sub max_steps) (-> sub tcap))
              (set (-> sub tcap) 0))
             (#t (set (-> sub max_steps) 0)))
-          (if (-> e tclock) (coco_clock_narrow e sub))
+          (if (bitand (-> e tclock) 1) (coco_clock_narrow e sub))
           ;; AND E'S RAISE LIMIT (3.73.0): what it has left, counted from
           ;; SUB's zero, so SUB raises where E would; ILNAR, so that SUB's
           ;; raise disarms E's too (`coco_ilim_back')
@@ -2428,7 +2561,29 @@
               (let ((u64 spent . #'(- (-> e steps) (-> e frees))))
                 (set (-> sub ilim) (? (>= spent (-> e ilim)) 1 (- (-> e ilim) spent)))
                 (set (-> sub ilnar) 1)
-                (coco_ilim_clamp sub)))))
+                (coco_ilim_clamp sub)))
+          ;; AND THE DEPTH LIMIT (3.74.0): SUB asks every step too, its
+          ;; goal's owner the level E's step left (DSUB), a level more where
+          ;; the goal is a structure swipl compiles into a frame of its own
+          ;; (DSK 1, a meta-call) or calls as ','/2 and then compiles (2,
+          ;; swipl's C's call: DROOT that frame's level), none for forall/2's
+          ;; two goals, meta-called each (3); and the machine's state kept
+          ;; for `coco_ilim_back'. SUB's goal is asked already
+          (if (and (bitand (-> e tclock) 2) (!= (-> (-> e m) dlim) 0))
+              (let ((coco_machine * m . #'(-> e m)) (int kind . #'(-> e dsk)) (int strc . 0))
+                (if (== kind 0) (set kind 1))
+                (set strc (coco_depth_structure m (-> sub query)))
+                (set (-> sub dnar) kind)
+                (set (-> sub dolim) (-> m dlim))
+                (set (-> sub doreach) (-> m dreach))
+                (set (-> sub doclev) (-> m dclev))
+                (set (-> sub droot) 0)
+                (cond ((== kind 3) (set (-> sub dbase) (-> e dsub)))
+                      ((== kind 2)
+                       (block (set (-> sub dbase) (+ (-> e dsub) (? strc 2 0)))
+                              (if strc (set (-> sub droot) (+ (-> e dsub) 1)))))
+                      (#t (set (-> sub dbase) (+ (-> e dsub) (? strc 1 0)))))
+                (coco_depth_on sub)))))
 
   ;;; WHETHER THE NEXT STEP IS THE TRACER'S `$trace_exit' MARKER (1.12.2),
   ;;; asked only past the limit: a marker gives back the step taking it
@@ -2491,6 +2646,20 @@
           (coco_k_flush e)
           (return 1)))
 
+  ;;; PAST THE DEPTH LIMIT'S ASK (3.74.0), THE CEILING THE LOOP WOULD HAVE
+  ;;; TESTED (RMAX), asked as `coco_limit_go' asks one, and MAX_STEPS sent
+  ;;; to the next step again. 0 where the run stops
+  (static)
+  (func coco_depth_rest ((coco_engine * e)) (out int)
+        (if (and (!= (-> e rmax) 0) (> (-> e steps) (-> e rmax)))
+            (block (set (-> e max_steps) (-> e rmax))
+                   (if (not (coco_limit_room e))
+                       (if (not (coco_step_free e))
+                           (if (not (coco_rec_open e)) (return 0))))
+                   (set (-> e rmax) (-> e max_steps))))
+        (coco_depth_force e)
+        (return 1))
+
   ;;; A STEP UNDER A WINDOW'S CLOCK (1.13.3): the reading -- what passed
   ;;; since the last is the step that ran, from here on the step at hand's
   ;;; -- then E's own limit, RMAX, asked as `coco_limit_go' asks one, and
@@ -2503,7 +2672,9 @@
         (let ((coco_rec * r . #'(cast (coco_rec *) ($ (cof (-> e m)) rec)))
               (u64 a . 0) (u64 now . 0))
           (if (== r nil)
-              (block (set (-> e tclock) 0)
+              (block (set (-> e tclock) (bitand (-> e tclock) 2))
+                     ;; a depth limit's step keeps RMAX (3.74.0)
+                     (if (bitand (-> e tclock) 2) (return (coco_depth_rest e)))
                      (set (-> e max_steps) (-> e rmax))
                      (if (or (== (-> e max_steps) 0) (<= (-> e steps) (-> e max_steps))) (return 1))
                      (if (coco_limit_room e) (return 1))
@@ -2642,6 +2813,564 @@
         (set (-> e halted) 129)
         (return 1))
 
+  ;;; THE OWNER OF A GOAL whose continuation is K, as a marker's word W:
+  ;;; the first '$dl'(W) on the way, through `'$k'' frames and from an
+  ;;; environment's units to the continuation its body returns to, else
+  ;;; the engine's base (DBASE, a search's root's owner). A goal of
+  ;;; call_with_depth_limit/3's own clause (BAR's owner, `dlptag') looks
+  ;;; sixteen frames at most: where no limit was armed as its clause was
+  ;;; entered no marker follows its body, and its owner is the machine's
+  ;;; DCLEV, the level that clause's frame has
+  (weak) (cold)
+  (func coco_depth_owner ((coco_engine * e) (size_t k) (u64 bar)) (out u64)
+        (let ((coco_machine * m . #'(-> e m)) (size_t f . #'(coco_deref (-> e m) k))
+              (u32 hops . 0) (int own . 0))
+          (set own (and (!= (-> m dlptag) 0) (== (cast u64 (coco-bar-pred bar)) (-> m dlptag))
+                        (not (coco-bar-sys bar)) (not (coco-bar-meta bar))))
+          (while (or (not own) (< hops 16))
+            (let ((u64 c . #'(nth f (-> m heap))))
+              (cond
+                ((== c (coco-cell FUN (coco-fid m "$k" 3)))
+                 (let ((size_t g . #'(coco_deref m (+ f 1))))
+                   (if (== (nth g (-> m heap)) (coco-cell FUN (coco-fid m "$dl" 1)))
+                       (return (cast u64 (coco-signed-payload (nth (coco_deref m (+ g 1)) (-> m heap))))))
+                   (set f (coco_deref m (+ f 3)))))
+                ((coco-tag-is POS c)
+                 (let ((size_t env . #'(- f (>> (cast size_t (coco-payload c)) 16))))
+                   (set f (coco_deref m (coco_arg m env 1)))))
+                (#t break)))
+            (set hops (+ hops 1)))
+          (return (<< (? own (-> m dclev) (-> e dbase)) 2))))
+
+  ;;; THE GOAL AT HAND HANDED OVER (`ngoal', `nbar'), the continuation
+  ;;; after it the engine's: a call in the registers is so already, a goal
+  ;;; on a `'$k'' frame comes off it
+  (static)
+  (func coco_depth_hand ((coco_engine * e))
+        (if (== (-> e nset) 0)
+            (let ((coco_machine * m . #'(-> e m)) (size_t kf . #'(coco_deref (-> e m) (-> e goals))))
+              (set (-> e ngoal) (coco_deref m (coco_arg m kf 0)))
+              (set (-> e nbar) (cast size_t (coco-signed-payload
+                                              (nth (coco_deref m (coco_arg m kf 1)) (-> m heap)))))
+              (set (-> e goals) (coco_arg m kf 2))
+              (set (-> e nset) 1))))
+
+  ;;; THE MARKER '$dl'(W) where the goal at hand's body will run on to; 0
+  ;;; where the heap would not grow (`coco_k_room': the run stops at the
+  ;;; halt's test). The second marker a step pushes, a structure's over
+  ;;; its call's: a catch's frame keeps the pair, and its recovery runs a
+  ;;; level below the call (`coco_depth_recovery')
+  (static)
+  (func coco_depth_push_over ((coco_engine * e) (u64 w)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (size_t f . 0))
+          (coco_depth_hand e)
+          (set f (coco_k_push e (coco_make1_f m (coco-fid m "$dl" 1) (coco_new_int m (cast i64 w)))
+                              0 (-> e goals)))
+          (if (== f 0) (return 0))
+          (set (-> e goals) f)
+          (return 1)))
+
+  ;;; AND A STEP'S FIRST: a goal whose continuation begins with a marker is
+  ;;; its owner's last goal -- the marker is the first after it -- and the
+  ;;; owner's body is done once it is called, so its marker goes, and the
+  ;;; markers right after it, which no goal names its owner either: the
+  ;;; owner of what runs after is the first marker past them. As swipl's
+  ;;; last call reuses its parent's frame at a level one deeper
+  ;;; (lcoSetNextFrameFlags): a recursion's continuation is one marker deep
+  ;;; however deep it goes, where a marker a call grew it a frame a level --
+  ;;; a loop under a limit of a million levels held a million markers, and
+  ;;; one under a larger limit reached the stack limit where swipl's runs
+  ;;; on. What a choice point or a catch frame holds is its own
+  ;;; continuation, which nothing here changes
+  (static)
+  (func coco_depth_push ((coco_engine * e) (u64 w)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (size_t kf . 0))
+          (coco_depth_hand e)
+          (set kf (coco_deref m (-> e goals)))
+          (while (and (== (nth kf (-> m heap)) (coco-cell FUN (coco-fid m "$k" 3)))
+                      (== (nth (coco_deref m (+ kf 1)) (-> m heap)) (coco-cell FUN (coco-fid m "$dl" 1))))
+            (set (-> e goals) (coco_arg m kf 2))
+            (set kf (coco_deref m (-> e goals))))
+          (return (coco_depth_push_over e w))))
+
+  ;;; THE FRAME AT HAND FAILS AT ITS CALL PORT: its goal `$fail', silent, in
+  ;;; the step that was its
+  (static)
+  (func coco_depth_fail ((coco_engine * e)) (out int)
+        (coco_depth_hand e)
+        (set (-> e ngoal) (coco_new_atom_id (-> e m) (coco-id (-> e m) "$fail")))
+        (set (-> e nset) 1)
+        (return 2))
+
+  ;;; A FRAME OF LEVEL L CALLED: the deepest level kept, the step's level
+  ;;; known (`dcur', which '$depth_limit'/3 reads), and 1 where it is past
+  ;;; the limit
+  (static)
+  (func coco_depth_frame ((coco_engine * e) (u64 l)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (if (> l (-> m dreach)) (set (-> m dreach) l))
+          (set (-> e dcur) l)
+          (return (> l (-> m dlim)))))
+
+  ;;; WHETHER NID/N IS A CONTROL CONSTRUCT, no frame wherever it stands:
+  ;;; swipl's CONTROL_F, and the engine's own markers and steps, which no
+  ;;; program writes (`$true', '$cut'/1, '$catch_exit'/1 ...)
+  (static)
+  (func coco_depth_control ((coco_machine * m) (u64 nid) (u32 n)) (out int)
+        (if (== n 2)
+            (if (or (== nid (coco-id m ",")) (== nid (coco-id m ";")) (== nid (coco-id m "|"))
+                    (== nid (coco-id m "->")) (== nid (coco-id m "*->")) (== nid (coco-id m "@"))
+                    (== nid (coco-id m ":")))
+                (return 1)))
+        (if (and (== n 1) (or (== nid (coco-id m "\\+")) (== nid (coco-id m "$")))) (return 1))
+        (if (and (coco_is_construct m nid) (!= nid (coco-id m "$")))
+            (let ((const char * s . #'(coco_atom_name m nid)))
+              (if (and (!= s nil) (== (nth 0 s) (cast char 36))) (return 1))))
+        (return 0))
+
+  ;;; WHETHER NID/N IS setup_call_cleanup/3's MACHINERY: a '$scc_...' helper
+  ;;; or '$cleanup_call'/3
+  (static)
+  (func coco_depth_scc_name ((coco_machine * m) (u64 nid) (u32 n)) (out int)
+        (if (and (== n 3) (== nid (coco-dlid m "$cleanup_call"))) (return 1))
+        (let ((const char * s . #'(coco_atom_name m nid)))
+          (return (and (!= s nil) (== 0 (strncmp s "$scc_" 5))))))
+
+  ;;; WHETHER THE PREDICATE CALLED IS ONE FRAME TO THE LIMIT: a library
+  ;;; predicate swipl writes in C and cocolog in clauses (`coco_det_opaque''s
+  ;;; table), and cocolog's halves of the two limits' own that swipl's are
+  ;;; (`$depth_limit_true'/5, `$inference_limit_true'/3)
+  (static)
+  (func coco_depth_opaque ((coco_engine * e) (size_t g) (u64 nid) (u32 n)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (coco_store * st . #'(-> e st))
+              (size_t pi . 0) (u64 fi . 0) (int haf . 0))
+          (cond ((== (-> e nset) 2) (block (set fi (-> e afid)) (set haf 1)))
+                ((> n 0) (block (set fi (cast u64 (coco-payload (nth g (-> m heap))))) (set haf 1))))
+          (if (and haf (== ($ (nth fi (-> m functors)) pst) (cast (void *) st))
+                   (== ($ (nth fi (-> m functors)) pserial) (-> st serial)))
+              (set pi ($ (nth fi (-> m functors)) pidx))
+              (block (if (== (-> e nset) 2) (return 0))
+                     (set pi (coco_pred_of st m g))))
+          (if (>= pi ($ (cof st) npreds)) (return 0))
+          (if (or (not ($ (coco-pred-at ($ (cof st) predp) pi) library))
+                  ($ (coco-pred-at ($ (cof st) predp) pi) own))
+              (return 0))
+          (let ((const char * s . #'(coco_atom_name m nid)))
+            (if (== s nil) (return 0))
+            (if (or (and (== n 5) (== 0 (strcmp s "$depth_limit_true")))
+                    (and (== n 3) (== 0 (strcmp s "$inference_limit_true"))))
+                (return 1))
+            (return (coco_det_foreign_name s n)))))
+
+  ;;; ---- what swipl's clauses take where cocolog's C answers (3.74.0) ----
+  ;;;
+  ;;; A C half of cocolog's whose predicate swipl writes as clauses takes
+  ;;; the frames swipl's clauses take, worked out from its arguments where
+  ;;; their shape alone decides it (each measured against swipl 9.0.4,
+  ;;; test/files/depth_limit.pl), and 0 where the half declines to its own
+  ;;; clause, which counts itself. A need past what a limit can be is
+  ;;; COCO-DL-FAR, which no limit passes.
+
+  (DEFMACRO coco-dl-far () `1073741824)
+
+  ;;; whether A and B unify, nothing bound after
+  (static)
+  (func coco_depth_unifies ((coco_machine * m) (size_t a) (size_t b)) (out int)
+        (let ((size_t mark . #'(-> m trail_len)) (int r . #'(coco_unify m a b)))
+          (coco_undo_to m mark)
+          (return r)))
+
+  ;;; nth0/3 and nth1/3 with the index bound, swipl's '$seek_list'/4 and
+  ;;; nth0_det/3: the seek a frame below, and nth0_det/3 there and one
+  ;;; more for each cell it makes past an unbound tail; one below it where
+  ;;; its `M >= 0' is asked -- the element that does not unify, an index
+  ;;; under the base over a cell or a variable. An index that is no integer
+  ;;; is must_be/2's raise, four below
+  (static)
+  (func coco_depth_nth ((coco_machine * m) (size_t g) (i64 base)) (out u32)
+        (let ((size_t ix . #'(coco_deref m (coco_arg m g 0)))
+              (size_t p . #'(coco_deref m (coco_arg m g 1))) (i64 want . 0))
+          (if (coco-tag-is REF (nth ix (-> m heap))) (return 0))
+          (if (not (coco-is-int (nth ix (-> m heap)))) (return 4))
+          (set want (coco_int_val m (nth ix (-> m heap))))
+          (if (< want (+ (- 0 9223372036854775807) base)) (return 2))
+          (set want (- want base))
+          (if (< want 0)
+              (return (? (or (coco_is_cons m p) (coco-tag-is REF (nth p (-> m heap)))) 2 1)))
+          (while (and (> want 0) (coco_is_cons m p))
+            (set p (coco_deref m (coco_arg m p 1)))
+            (set want (- want 1)))
+          (if (coco-tag-is REF (nth p (-> m heap)))
+              (return (? (>= want (coco-dl-far)) (coco-dl-far) (cast u32 (+ want 1)))))
+          (if (and (== want 0) (coco_is_cons m p))
+              (return (? (coco_depth_unifies m (coco_arg m p 0) (coco_arg m g 2)) 1 2)))
+          (return 1)))
+
+  ;;; last/2, swipl's last_/3 a frame a cell, past a tail that is no list
+  ;;; too; a list that is its own tail walks for ever there
+  (static)
+  (func coco_depth_last ((coco_machine * m) (size_t g)) (out u32)
+        (let ((size_t p . #'(coco_deref m (coco_arg m g 0))) (size_t k . 0)
+              (size_t lim . #'(-> m heap_len)))
+          (while (coco_is_cons m p)
+            (set k (+ k 1))
+            (if (or (> k lim) (>= k (coco-dl-far))) (return (coco-dl-far)))
+            (set p (coco_deref m (coco_arg m p 1))))
+          (if (coco-tag-is REF (nth p (-> m heap))) (return 0))
+          (return (cast u32 k))))
+
+  ;;; reverse/2, swipl's reverse/4 a frame below and one more a cell of the
+  ;;; first list, no further than the second's cells let its `[_|Bound]'
+  ;;; match -- a partial second list any number
+  (static)
+  (func coco_depth_reverse ((coco_machine * m) (size_t g)) (out u32)
+        (let ((size_t p . #'(coco_deref m (coco_arg m g 0)))
+              (size_t q . #'(coco_deref m (coco_arg m g 1)))
+              (size_t n . 0) (size_t c . 0) (size_t lim . #'(-> m heap_len)))
+          (while (coco_is_cons m p)
+            (set n (+ n 1))
+            (if (> n lim) (return 0))
+            (set p (coco_deref m (coco_arg m p 1))))
+          (if (coco-tag-is REF (nth p (-> m heap))) (return 0))
+          (while (and (< c n) (coco_is_cons m q))
+            (set c (+ c 1))
+            (set q (coco_deref m (coco_arg m q 1))))
+          (if (coco-tag-is REF (nth q (-> m heap))) (set c n))
+          (if (>= c (coco-dl-far)) (return (coco-dl-far)))
+          (return (cast u32 (+ c 1)))))
+
+  ;;; memberchk/2, swipl's '$memberchk'/3 a frame below, and memberchk/2's
+  ;;; call of itself once more past an unbound tail no element matched
+  (static)
+  (func coco_depth_memberchk ((coco_machine * m) (size_t g)) (out u32)
+        (let ((size_t x . #'(coco_arg m g 0)) (size_t p . #'(coco_deref m (coco_arg m g 1)))
+              (size_t k . 0) (size_t lim . #'(-> m heap_len)))
+          (while (coco_is_cons m p)
+            (if (coco_depth_unifies m x (coco_arg m p 0)) (return 1))
+            (set k (+ k 1))
+            (if (> k lim) (return 1))
+            (set p (coco_deref m (coco_arg m p 1))))
+          (return (? (coco-tag-is REF (nth p (-> m heap))) 2 1))))
+
+  ;;; A DECLARATION'S SPEC S at D below the predicate's frame, swipl's
+  ;;; '$set_pattr'/4 (boot/syspred.pl): a predicate indicator, or what is
+  ;;; none, five below it, the error raised there; `[]' nothing; an unbound
+  ;;; spec its uninstantiation error two below; `as/2' ten; and a list's
+  ;;; elements and a conjunction's parts each a frame deeper than the one
+  ;;; before -- walked along the spine, so a long list is no recursion
+  (static)
+  (func coco_depth_spec ((coco_machine * m) (size_t s) (u32 d)) (out u32)
+        (let ((u32 best . 0))
+          (while 1
+            (set s (coco_deref m s))
+            (if (> d 100000) (return best))
+            (cond
+              ((coco-tag-is REF (nth s (-> m heap))) (return (? (> (+ d 2) best) (+ d 2) best)))
+              ((coco_is_nil m s) (return (? (> d best) d best)))
+              ((coco_is_cons m s)
+               (let ((u32 h . #'(coco_depth_spec m (coco_arg m s 0) (+ d 1))))
+                 (if (> h best) (set best h))
+                 (set s (coco_arg m s 1))
+                 (set d (+ d 1))))
+              ((and (coco-tag-is FUN (nth s (-> m heap))) (== (coco_arity m s) 2)
+                    (== (coco_name_of m s) (coco-id m ",")))
+               (let ((u32 h . #'(coco_depth_spec m (coco_arg m s 0) (+ d 1))))
+                 (if (> h best) (set best h))
+                 (set s (coco_arg m s 1))
+                 (set d (+ d 1))))
+              ((and (coco-tag-is FUN (nth s (-> m heap))) (== (coco_arity m s) 2)
+                    (== (coco_name_of m s) (coco-dlid m "as")))
+               (return (? (> (+ d 10) best) (+ d 10) best)))
+              (#t (return (? (> (+ d 5) best) (+ d 5) best)))))
+          (return best)))
+
+  ;;; a declaration's own, its spec from two below (swipl's '$set_pattr'/3
+  ;;; and /4): the top's module taken off, as '$set_pattr'/3 takes it
+  (static)
+  (func coco_depth_decl ((coco_machine * m) (size_t s)) (out u32)
+        (set s (coco_deref m s))
+        (while (coco-is-colon m s (coco-fid m ":" 2)) (set s (coco_deref m (coco_arg m s 1))))
+        (return (coco_depth_spec m s 2)))
+
+  ;;; WHAT A BUILTIN'S OWN FRAMES TAKE, by a row of each swipl writes with
+  ;;; frames of its own inside (findall/3 over '$bags':findall_loop/4,
+  ;;; library(aggregate), with_output_to/2's callProlog()), measured against
+  ;;; swipl 9.0.4 (test/files/depth_limit.pl): NEED the deepest of them
+  ;;; below the builtin's frame -- past the limit the builtin fails before
+  ;;; it runs -- and for a search it starts, OFF its goal's owner's level
+  ;;; below the frame and KIND how the goal is called (`coco_limit_narrow':
+  ;;; 1 a meta-call, 2 swipl's C's, 3 forall/2's two)
+  (static)
+  (func coco_depth_row ((coco_engine * e) (size_t g) (u64 nid) (u32 n) (u32 * need) (u32 * off)
+                        (int * kind))
+        (let ((coco_machine * m . #'(-> e m)))
+          (set (cof need) 0)
+          (set (cof off) 0)
+          (set (cof kind) 1)
+          (if (== (-> m dlready) 0) (coco-dl-ids-fill m))
+          (cond
+            ((and (== n 3) (== nid (coco-dlid m "findall"))) (block (set (cof need) 6) (set (cof off) 4)))
+            ((and (== n 4) (== nid (coco-dlid m "findall"))) (block (set (cof need) 5) (set (cof off) 3)))
+            ((and (== n 2) (== nid (coco-dlid m "forall"))) (set (cof kind) 3))
+            ((and (== n 3) (== nid (coco-dlid m "aggregate_all")))
+             (let ((size_t s . #'(coco_deref m (coco_arg m g 0))))
+               (cond
+                 ((coco-tag-is ATOM (nth s (-> m heap)))
+                  (if (== (cast u64 (coco-payload (nth s (-> m heap)))) (coco-dlid m "count"))
+                      (block (set (cof need) 2) (set (cof off) 1))))
+                 ((coco-tag-is FUN (nth s (-> m heap)))
+                  (let ((u64 sn . #'(coco_name_of m s)))
+                    (if (or (== sn (coco-dlid m "sum")) (== sn (coco-dlid m "max"))
+                            (== sn (coco-dlid m "min")))
+                        (set (cof need) 1)
+                        (block (set (cof need) 7) (set (cof off) 5))))))))
+            ((and (== n 2) (== nid (coco-dlid m "with_output_to")))
+             (block (set (cof off) 1) (set (cof kind) 2)))
+            ((and (or (== n 2) (== n 3)) (== nid (coco-dlid m "format")))
+             (block (set (cof off) 1) (set (cof kind) 2)))
+            ((and (== n 2) (or (== nid (coco-dlid m "length")) (== nid (coco-dlid m "nb_setval"))
+                               (== nid (coco-dlid m "working_directory"))
+                               (== nid (coco-dlid m "string_to_atom"))))
+             (set (cof need) 1))
+            ;; format/1 is swipl's format(F, []); garbage_collect/0 its C
+            ;; under a clause
+            ((or (and (== n 1) (== nid (coco-dlid m "format")))
+                 (and (== n 0) (== nid (coco-dlid m "garbage_collect"))))
+             (set (cof need) 1))
+            ;; the list predicates swipl writes as clauses (above)
+            ((and (== n 2) (== nid (coco-dlid m "memberchk"))) (set (cof need) (coco_depth_memberchk m g)))
+            ((and (== n 3) (== nid (coco-dlid m "nth0"))) (set (cof need) (coco_depth_nth m g 0)))
+            ((and (== n 3) (== nid (coco-dlid m "nth1"))) (set (cof need) (coco_depth_nth m g 1)))
+            ((and (== n 2) (== nid (coco-dlid m "last"))) (set (cof need) (coco_depth_last m g)))
+            ((and (== n 2) (== nid (coco-dlid m "reverse"))) (set (cof need) (coco_depth_reverse m g)))
+            ;; the declarations, swipl's '$set_pattr' walk: dynamic/1 and
+            ;; its two kin are C rows here, public/1 and the rest clauses
+            ;; over '$declare'/2, a frame below (meta_predicate/1, its kind
+            ;; 7, is swipl's C, so no frame inside it is asked)
+            ((and (== n 1) (or (== nid (coco-dlid m "dynamic")) (== nid (coco-dlid m "discontiguous"))
+                               (== nid (coco-dlid m "multifile"))))
+             (set (cof need) (coco_depth_decl m (coco_arg m g 0))))
+            ((and (== n 2) (== nid (coco-dlid m "$declare")))
+             (let ((u32 d . #'(coco_depth_decl m (coco_arg m g 1))))
+               (set (cof need) (? (> d 0) (- d 1) 0)))))))
+
+  ;;; THE STEP AT HAND AT THE DEPTH LIMIT'S CALL PORT (3.74.0): markers at
+  ;;; the continuation's head pass, in no step of theirs; an environment's
+  ;;; unit is handed over as its term (`coco_env_hand'); and the goal is
+  ;;; asked as swipl's call port asks its frame -- by its owner's level and
+  ;;; how the owner calls it: in its clause (1), as a part of a structure
+  ;;; meta-called (2: `'<meta-call>'/1''s word, or a part of a search's
+  ;;; root), or meta-called itself (3). No control construct is a frame;
+  ;;; nor in a clause or a structure `true', `fail', `!', `$' and call/N;
+  ;;; nor in a clause a goal swipl compiles in place (`coco_dl_kind' 10)
+  ;;; but where '$dl_call'/1 wraps it (`coco_dl_wrap'). Any other goal is a
+  ;;; frame a level below its owner, failed past the limit before it runs,
+  ;;; and a predicate's call and a meta-call push the marker its body runs
+  ;;; on to; a builtin's own frames are asked by its row
+  ;;; (`coco_depth_row'). 1 the step goes on, 2 it fails here.
+  (weak) (cold)
+  (func coco_depth_step ((coco_engine * e)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t g . 0) (u64 w . 0) (size_t k . 0)
+              (u64 nid . 0) (u32 n . 0) (u64 ow . 0) (u64 p . 0) (int okd . 1))
+          (while (== (-> e nset) 0)
+            (let ((size_t kf . #'(coco_deref m (-> e goals))) (u64 c . 0))
+              (set c (nth kf (-> m heap)))
+              (cond
+                ((== c (coco-cell FUN (coco-fid m "$k" 3)))
+                 (block
+                  (if (!= (nth (coco_deref m (+ kf 1)) (-> m heap)) (coco-cell FUN (coco-fid m "$dl" 1)))
+                      break)
+                  (set (-> e goals) (coco_arg m kf 2))))
+                ((coco-tag-is POS c)
+                 (if (< (coco_env_hand e kf) 0) (return 1)))
+                (#t (return 1)))))
+          (cond
+            ((== (-> e nset) 2)
+             (block (set nid ($ (nth (cast size_t (-> e afid)) (-> m functors)) name))
+                    (set n ($ (nth (cast size_t (-> e afid)) (-> m functors)) arity))
+                    (set w (-> e nbar))
+                    (set k (-> e goals))))
+            ((== (-> e nset) 1)
+             (block (set g (coco_deref m (-> e ngoal))) (set w (-> e nbar)) (set k (-> e goals))))
+            (#t
+             (let ((size_t kf . #'(coco_deref m (-> e goals))))
+               (set g (coco_deref m (coco_arg m kf 0)))
+               (set w (cast u64 (coco-signed-payload (nth (coco_deref m (coco_arg m kf 1)) (-> m heap)))))
+               (set k (coco_arg m kf 2)))))
+          (if (!= (-> e nset) 2)
+              (let ((u64 c . #'(nth g (-> m heap))))
+                (cond ((coco-tag-is FUN c) (block (set nid (coco_name_of m g)) (set n (coco_arity m g))))
+                      ((coco-tag-is ATOM c) (block (set nid (cast u64 (coco-payload c))) (set n 0)))
+                      ;; a variable, or what is no goal: the loop raises
+                      (#t (return 1)))))
+          ;; '$dl_call'(G): G, a frame of its clause's, handed over
+          (if (and (== n 1) (== nid (coco-id m "$dl_call")))
+              (let ((size_t x . #'(coco_deref m (coco_arg m g 0))))
+                (coco_depth_hand e)
+                (set (-> e ngoal) x)
+                (set ow (coco_depth_owner e k w))
+                (if (== (bitand ow 3) 1) (return 1))
+                (if (coco_depth_frame e (+ (>> ow 2) 1)) (return (coco_depth_fail e)))
+                (return 1)))
+          (if (coco_depth_control m nid n) (return 1))
+          (set ow (coco_depth_owner e k w))
+          ;; inside a predicate swipl writes in C nothing is a frame
+          (if (== (bitand ow 3) 1) (return 1))
+          (set p (>> ow 2))
+          (if (== (-> m dlready) 0) (coco-dl-ids-fill m))
+          ;; NO FRAME OF THEIR OWN: a single-sided rule's last clause, whose
+          ;; raise swipl's machine makes at the predicate's frame -- nothing
+          ;; inside it a frame either -- and '$numlist'/3, whose clause is
+          ;; swipl's numlist/3 body, its frames where numlist/3's are
+          (if (and (== n 2) (== nid (coco-dlid m "$ssu_none")))
+              (block (coco_depth_push e (bitor (<< p 2) 1)) (return 1)))
+          (if (and (== n 3) (== nid (coco-dlid m "$numlist")))
+              (block (coco_depth_push e (<< p 2)) (return 1)))
+          ;; and setup_call_cleanup/3's own: swipl's goal is a meta-call of
+          ;; setup_call_catcher_cleanup/4's frame, its cleanup a call two
+          ;; below it, where cocolog's goal runs under catch/3 and
+          ;; '$scc_run'/1, and its cleanup under '$cleanup_call'/3
+          ;; -- and the rest of its machinery, swipl's VM's (I_CALLCLEANUP,
+          ;; I_EXITCLEANUP, frameFinished()), which no frame stands for:
+          ;; every '$scc_...' helper, and a catch/3 around the goal or the
+          ;; cleanup, so a goal's ball passes at the limit as swipl's does
+          (if (and (== n 3) (== nid (coco-id m "catch")) (!= (-> e nset) 2))
+              (let ((size_t cg . #'(coco_deref m (coco_arg m g 0))))
+                (if (and (coco-tag-is FUN (nth cg (-> m heap)))
+                         (coco_depth_scc_name m (coco_name_of m cg) (coco_arity m cg)))
+                    (block (coco_depth_push e (<< p 2)) (return 1)))))
+          (if (coco_depth_scc_name m nid n)
+              (block (coco_depth_push e (<< p 2)) (return 1)))
+          ;; the setup, swipl's sig_atomic/1 and the query its callProlog()
+          ;; opens: a frame below the owner, then `true' none (callProlog()
+          ;; answers it with no query) and any other goal two below it
+          (if (and (== n 1) (== nid (coco-dlid m "$c_setup")))
+              (block
+               (if (coco_depth_frame e (+ p 1)) (return (coco_depth_fail e)))
+               (let ((size_t sg . #'(coco_deref m (? (== (-> e nset) 2)
+                                                      (nth (* (cast size_t (-> e acur)) 8) (-> e areg))
+                                                      (coco_arg m g 0)))))
+                 (if (and (coco-tag-is ATOM (nth sg (-> m heap)))
+                          (== (cast u64 (coco-payload (nth sg (-> m heap)))) (coco-id m "true")))
+                     (coco_depth_push e (bitor (<< (+ p 1) 2) 1))
+                     (coco_depth_push e (<< (+ p 2) 2))))
+               (return 1)))
+          (cond ((== (coco-bar-tag w) (coco_mc_tag m)) (set okd 2))
+                ((== (coco-bar-tag w) 0) (set okd (? (== g (coco_deref m (-> e query))) 3 2)))
+                ((or (coco-bar-sys w) (coco-bar-meta w)) (set okd 3)))
+          ;; `true', `fail', `!', `$': in place but meta-called
+          (if (and (== n 0) (or (== nid (coco-id m "true")) (== nid (coco-id m "fail"))
+                                (== nid (coco-id m "!")) (== nid (coco-id m "$"))))
+              (block
+               (if (!= okd 3) (return 1))
+               (if (coco_depth_frame e (+ p 1)) (return (coco_depth_fail e)))
+               (return 1)))
+          ;; call/N: in place in a clause and a structure, its goal a frame
+          ;; below the owner, a structure's frame between; meta-called, a
+          ;; frame of its own
+          (if (and (>= n 1) (== nid (coco-id m "call")) (!= (-> e nset) 2))
+              (let ((int strc . #'(coco_depth_structure_n m (coco_arg m g 0) (- n 1))))
+                (if (!= okd 3)
+                    (block (if strc (coco_depth_push e (bitor (<< (+ p 1) 2) 2)))
+                           (return 1)))
+                (if (coco_depth_frame e (+ p 1)) (return (coco_depth_fail e)))
+                (if (not (coco_depth_push e (<< (+ p 1) 2))) (return 1))
+                (if strc (coco_depth_push_over e (bitor (<< (+ p 2) 2) 2)))
+                (return 1)))
+          ;; once/1, ignore/1, not/1, catch/3: a frame, their goal below it
+          (if (and (!= (-> e nset) 2)
+                   (or (and (== n 1) (or (== nid (coco-id m "once")) (== nid (coco-id m "ignore"))
+                                         (== nid (coco-id m "not"))))
+                       (and (== n 3) (== nid (coco-id m "catch")))))
+              (block
+               (if (coco_depth_frame e (+ p 1)) (return (coco_depth_fail e)))
+               (if (not (coco_depth_push e (<< (+ p 1) 2))) (return 1))
+               (if (coco_depth_structure m (coco_arg m g 0))
+                   (coco_depth_push_over e (bitor (<< (+ p 2) 2) 2)))
+               (return 1)))
+          ;; in a clause, a goal swipl compiles in place
+          (if (and (== okd 1) (!= (-> e nset) 2) (== (coco_dl_kind m nid n) 10)) (return 1))
+          ;; a builtin -- a row of the engine's or of a compiled-in module's
+          ;; C, which the program did not take over, as the tracer asks it
+          ;; (`coco_trace_hc') -- a frame, its own frames asked by its row
+          (let ((int crow . 0))
+            (if (!= (-> e nset) 2)
+                (block
+                 (if (> n 0)
+                     (let ((coco_functor * f . #'(aof (nth (cast size_t (coco-payload (nth g (-> m heap))))
+                                                          (-> m functors)))))
+                       (if (== (-> f bix) 0) (set (-> f bix) (coco_bix_fill m (-> e st) nid n)))
+                       (set crow (>= (-> f bix) 2)))
+                     (set crow (and (>= (coco_builtin_index m nid 0) 0)
+                                    (not (and (!= ($ (cof (-> e st)) ntaken) 0)
+                                              (coco_pred_taken (-> e st) nid 0))))))
+                 (if (and (not crow) (!= coco_sysclaims_hook nil)
+                          (coco_sysclaims_hook (coco_atom_name m nid) n)
+                          (not (and (!= ($ (cof (-> e st)) ntaken) 0) (coco_pred_taken (-> e st) nid n))))
+                     (set crow 1))))
+            (if crow
+                (let ((u32 need . 0) (u32 off . 0) (int kind . 1) (u64 l . #'(+ p 1)))
+                  (coco_depth_row e g nid n (aof need) (aof off) (aof kind))
+                  (if (coco_depth_frame e l) (return (coco_depth_fail e)))
+                  (if (> need 0)
+                      (block
+                       (if (> (+ l need) (-> m dlim))
+                           (block (if (< (-> m dreach) (+ (-> m dlim) 1)) (set (-> m dreach) (+ (-> m dlim) 1)))
+                                  (return (coco_depth_fail e))))
+                       (if (> (+ l need) (-> m dreach)) (set (-> m dreach) (+ l need)))))
+                  (set (-> e dsub) (+ l off))
+                  (set (-> e dsk) kind)
+                  ;; ITS FRAME'S MARKER, for a row that declines to its
+                  ;; clause (`:declines'), whose body is a level below it --
+                  ;; opaque where swipl's predicate is C. A row that answers
+                  ;; leaves it at the continuation's head, which the next
+                  ;; step passes in no step of its own
+                  (coco_depth_push e (bitor (<< l 2) (? (coco_depth_opaque e g nid n) 1 0)))
+                  (return 1))))
+          ;; a predicate: a frame, its body below it -- opaque where swipl's
+          ;; is C and cocolog's is clauses
+          (if (coco_depth_frame e (+ p 1)) (return (coco_depth_fail e)))
+          (coco_depth_push e (bitor (<< (+ p 1) 2) (? (coco_depth_opaque e g nid n) 1 0)))
+          (return 1)))
+
+  ;;; A CAUGHT BALL'S RECOVERY UNDER A DEPTH LIMIT (`coco_throw'): GOALS the
+  ;;; catch frame's continuation, which starts with the marker of the
+  ;;; frame of a structure the catch's goal was, none of the recovery's --
+  ;;; passed by -- and a recovery that is a structure has its own, a level
+  ;;; below the catch frame
+  (func coco_depth_recovery ((coco_engine * e) (size_t goals) (size_t recovery)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m)) (size_t f . #'(coco_deref (-> e m) goals)) (u64 ow . 0))
+          (if (== (nth f (-> m heap)) (coco-cell FUN (coco-fid m "$k" 3)))
+              (let ((size_t g . #'(coco_deref m (+ f 1))))
+                (if (and (== (nth g (-> m heap)) (coco-cell FUN (coco-fid m "$dl" 1)))
+                         (== (bitand (coco-signed-payload (nth (coco_deref m (+ g 1)) (-> m heap))) 3) 2))
+                    (set goals (coco_arg m f 2)))))
+          (if (not (coco_depth_structure m recovery)) (return goals))
+          (set ow (coco_depth_owner e goals 0))
+          (let ((size_t mk . #'(coco_k_push e (coco_make1_f m (coco-fid m "$dl" 1)
+                                                            (coco_new_int m (cast i64 (bitor (<< (+ (>> ow 2) 1) 2) 2))))
+                                           0 goals)))
+            (return (? (== mk 0) goals mk)))))
+
+  ;;; A NESTED ENGINE'S FIRST STEP AT THE CALL PORT, before its loop: a
+  ;;; MAX_STEPS of 0 being none, no ceiling sends it to `coco_limit_go'. The
+  ;;; goal swipl's C calls (`dnar' 2) is no frame where it is `true', and
+  ;;; one it calls as ','/2 is that frame first (DROOT)
+  (weak) (cold)
+  (func coco_depth_first ((coco_engine * e))
+        (let ((coco_machine * m . #'(-> e m)))
+          (if (== (-> e dnar) 2)
+              (let ((size_t q . #'(coco_deref m (-> e query))))
+                (while (coco-is-colon m q (coco-fid m ":" 2)) (set q (coco_deref m (coco_arg m q 1))))
+                (if (and (coco-tag-is ATOM (nth q (-> m heap)))
+                         (== (cast u64 (coco-payload (nth q (-> m heap)))) (coco-id m "true")))
+                    (return))
+                (if (!= (-> e droot) 0)
+                    (block (if (coco_depth_frame e (-> e droot)) (coco_depth_fail e))
+                           (return)))))
+          (coco_depth_step e)))
+
   ;;; PAST THE LIMIT, WHETHER THE RUN GOES ON (1.12.2): room left in a
   ;;; limit in inferences, the tracer's Exit marker next, or a window
   ;;; opening -- asked in that order, in ONE call out of line, the shape
@@ -2651,6 +3380,24 @@
   ;;; every step comes here, and the clock asks them (1.13.3).
   (weak)
   (func coco_limit_go ((coco_engine * e)) (out int)
+        ;; THE DEPTH LIMIT'S CALL PORT (3.74.0), before the raise limit's,
+        ;; as swipl's asks the depth first: a frame it fails runs `$fail'
+        ;; in its step -- and asked only of a step that runs. One the run
+        ;; stops at is taken again by the run that resumes it, its call
+        ;; port with it, and a port asked twice is a level counted twice:
+        ;; a stop the loop's halt test makes (a green block pending, a
+        ;; signal, a halt), a turn's ceiling, a green quantum's end. The
+        ;; first cut asked the port first, and a machine `cocolog step'
+        ;; ran a level deeper at every turn it was frozen in
+        (if (bitand (-> e tclock) 2)
+            (block
+             (if (!= (-> e halted) 0) (return 1))
+             (if (and (not (bitand (-> e tclock) 1)) (!= (-> e rmax) 0) (> (-> e steps) (-> e rmax)))
+                 (block
+                  (if (-> e greenq)
+                      (block (set (-> e gstop) 1) (coco_k_flush e) (return 0)))
+                  (if (not (coco_depth_rest e)) (return 0))))
+             (if (== (coco_depth_step e) 2) (return (coco_depth_rest e)))))
         ;; PAST A RAISE LIMIT (3.73.0): the step raises before anything else
         ;; is asked, in a green task and under a window's clock too
         (if (and (!= (-> e ilim) 0) (> (- (-> e steps) (-> e frees)) (-> e ilim)))
@@ -2672,17 +3419,25 @@
         ;; (test/async.pl, `quantum_block'). The halt is asked next, and a
         ;; signal or a memory stop pending here is raised now, not a run
         ;; later.
+        ;; UNDER A DEPTH LIMIT (3.74.0) the quantum's end is in RMAX, and a
+        ;; step short of it goes on
         (if (-> e greenq)
             (block
+             (if (and (bitand (-> e tclock) 2)
+                      (or (== (-> e rmax) 0) (<= (-> e steps) (-> e rmax))))
+                 (block (coco_depth_force e) (return 1)))
              (if (!= (-> e halted) 0) (return 1))
              (set (-> e gstop) 1)
              (coco_k_flush e)
              (return 0)))
-        ;; the clock's next reading passes no raise limit's point (3.73.0)
-        (if (-> e tclock)
+        ;; the clock's next reading passes no raise limit's point (3.73.0),
+        ;; and under a depth limit the next step comes here too (3.74.0)
+        (if (bitand (-> e tclock) 1)
             (let ((int r . #'(coco_clock_go e)))
               (coco_ilim_clamp e)
+              (if (bitand (-> e tclock) 2) (coco_depth_force e))
               (return r)))
+        (if (bitand (-> e tclock) 2) (return (coco_depth_rest e)))
         (if (coco_limit_room e) (return 1))
         (if (coco_step_free e) (return 1))
         (return (coco_rec_open e)))
@@ -2971,6 +3726,9 @@
           (if (-> e resume)
               (block (set (-> e resume) 0)
                      (if (not (coco_backtrack e)) (return 0))))
+          ;; A NESTED ENGINE'S FIRST STEP UNDER A DEPTH LIMIT (3.74.0), which
+          ;; no ceiling sends to the limit's branch: asked here
+          (if (and (bitand (-> e tclock) 2) (== (-> e steps) 0)) (coco_depth_first e))
 
           (while 1
             (set (-> e steps) (+ (-> e steps) 1))
@@ -3575,6 +4333,13 @@
           ;; a ceiling a host or a scheduler set passes no raise limit's
           ;; point (3.73.0): a green quantum, a turn's, a thawed machine's
           (if (!= (-> e ilim) 0) (coco_ilim_clamp e))
+          ;; and under a depth limit it is the ceiling RMAX keeps (3.74.0):
+          ;; one past the next step is a ceiling set since, never the
+          ;; limit's own (`coco_depth_force', 1 at least), and so is none
+          ;; at all, 0 -- a thawed machine run to its end (`cocolog step')
+          (if (and (bitand (-> e tclock) 2)
+                   (or (== (-> e max_steps) 0) (> (-> e max_steps) (+ (-> e steps) 1))))
+              (block (set (-> e rmax) (-> e max_steps)) (coco_depth_force e)))
           (set rc (coco_engine_run e))
           (set coco_refuse_m was)
           (set (-> m eng) (-> e outer))

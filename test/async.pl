@@ -207,6 +207,28 @@ il_spent(L, R) :-
 
 il_loop :- il_loop.
 
+%% CALL_WITH_DEPTH_LIMIT/3'S LIMIT IS A TASK'S (3.74.0): a task's machine
+%% is its own, and so are its limit and the depth it reached -- three tasks,
+%% each a recursion failed at its own limit through the quanta it is run in
+%% (a quantum is 10 000 steps, and each runs two to six of them), a fourth
+%% reaching the depth its count does through nine quanta -- a quantum's end
+%% is no call port, and the step it stops at is asked once, by the run that
+%% takes it -- beside the main task's limit, which none of their frames
+%% count against and its waits leave as they found it: three yields are
+%% three blocks the main task surely makes, each its step asked once, by
+%% the run that takes it up again
+case_depths(Rs) :-
+    findall(F, ( member(L, [12000, 23000, 31000]), go(dl_spent(L, _), F) ), Fs),
+    go(call_with_depth_limit(spin(30000), 100000, _), F4),
+    call_with_depth_limit(( yield, yield, yield, await_all(Fs), await(F4, G4) ), 10, R0),
+    findall(R, ( member(F, Fs), await(F, dl_spent(_, R)) ), Rs1),
+    G4 = call_with_depth_limit(_, _, R4),
+    append(Rs1, [R4, R0], Rs).
+
+dl_spent(L, R) :- call_with_depth_limit(dl_deep(0), L, R).
+
+dl_deep(N) :- N1 is N + 1, dl_deep(N1).
+
 result(Goal, R) :-
     async_run(Goal, W),
     arg(1, W, R).
@@ -278,7 +300,10 @@ values :-
           G4, [[[1,2],[3,4],[5]], [[1,2,3],[4,5,6],[7]], [[1],[2],[3]], [[1,2,3,4]], [[1,2],[3]]]),
     answer(result(case_limits(R5), R5), R5, G5),
     check('call_with_inference_limit/3 in four tasks and the main one, each its limit',
-          G5, [inference_limit_exceeded, inference_limit_exceeded, inference_limit_exceeded, !, !]).
+          G5, [inference_limit_exceeded, inference_limit_exceeded, inference_limit_exceeded, !, !]),
+    answer(result(case_depths(R6), R6), R6, G6),
+    check('call_with_depth_limit/3 in four tasks and the main one, each its limit and depth',
+          G6, [depth_limit_exceeded, depth_limit_exceeded, depth_limit_exceeded, 30001, 6]).
 
 %% ---- go and await -------------------------------------------------------
 joining :-
