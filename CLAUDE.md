@@ -2483,7 +2483,16 @@ into its `at_modules/1`. What a session must keep:
   filed under walks the qualifiers the same way**, `:`/2 told by its
   functor id (`coco-is-colon`, the machine's ids filled first): told by
   its name, a strcmp of every clause a start reads, the walk cost a start
-  59 837 instructions.
+  59 837 instructions. **retractall/1 takes an atom's qualifiers alone**,
+  as swipl's PL_strip_module() (3.73.1, `coco_retract_head` beside
+  `coco_retract`, the clause check's mode 2, test/files/
+  assert_qualified.pl): a module that is no atom ends the strip, and the
+  head left under it is no clause's -- nothing taken, nothing declared,
+  no error, where retract/1 and assertz/1 raise type_error(module, M) as
+  swipl's do. Through 3.73.0 retractall/1 read every qualified head as one
+  of (:)/2 and took nothing, `retractall(user:q(1))` too. clause/2 and
+  retract/1 ask a hook's head of the hook (`coco_db_parts`), as the
+  assert filed it.
 * **A predicate is single-sided rules or clauses, never both** (3.65.0,
   swipl's; the kind check in `coco_assert_from`, test/files/ssu_mixed.pl):
   its live clauses fix the kind (`pattrs` 1024 rules, set as a clause comes
@@ -2977,7 +2986,13 @@ into its `at_modules/1`. What a session must keep:
   setarg/3 on it writes the global. nb_getval/2, b_getval/2 and
   nb_current/2 read a live box before the store's global; nb_setval/2
   detaches it (`box` -1); the collector marks every live box and moves
-  it. **A load's goal ends what it did** (`lb_goal_hook`, swipl's
+  it. **A read hands out what the value cell refers to, or an atomic
+  value in a cell of its own** (3.73.1, `coco_gvb_out`): bound to the
+  value cell itself, a variable named the box's own cell, which the key's
+  next b_setval/2 writes -- through 3.73.0 `b_setval(k, 1), b_getval(k,
+  V), b_setval(k, 2)` left V = 2 and `b_setval(k, [V])` a cycle, and
+  prolog_load_context(term, T) read '$term' so. **A new reader of a box
+  goes through `coco_gvb_out`.** **A load's goal ends what it did** (`lb_goal_hook`, swipl's
   failure-driven load): a directive's and an initialization goal's
   success undoes its trail (`\+ \+ G`) **but the sentinels of the ground
   globals' copies it read** (`coco_undo_older`'s KEEP: the consult's mark

@@ -2087,6 +2087,16 @@ compiled(D) :-
     retractall(cc_static(2)),
     ( predicate_property(cc_static(_), dynamic) -> R4 = (dynamic) ; R4 = static ),
     check('retractall/1 that takes no clause of a static predicate leaves it static', R4, static),
+    %% a hook's head is the hook's to clause/2 and retractall/1, as to an
+    %% assert (3.73.1, `coco_db_parts', `coco_retract_head'): swipl's
+    %% prolog:message/3 is static, and its retractall/1 raises (COMPAT.md)
+    assertz(prolog:message(cc_hook, [x|T6], T6)),
+    ( clause(prolog:message(cc_hook, _, _), true) -> R6 = found ; R6 = none ),
+    retractall(prolog:message(cc_hook, _, _)),
+    ( clause(prolog:message(cc_hook, _, _), _) -> S6 = found ; S6 = none ),
+    assertz(prolog:message(cc_hook, [y|V6], V6)),
+    ( retract(prolog:message(cc_hook, _, _)) -> U6 = taken ; U6 = none ),
+    check('clause/2, retractall/1 and retract/1 of a hook\'s head ask the hook', R6-S6-U6, found-none-taken),
     %% a dynamic predicate's clause is stored as written, and a second
     %% process that reads it back keeps it so, though the predicate's
     %% declaration is read after its rows

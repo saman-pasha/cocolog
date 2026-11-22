@@ -22386,3 +22386,125 @@ than the 108 bytes it holds (green with the default TMPDIR, as the suite
 runs); and thread's memcheck of five halted threads dies at start under an
 address-space limit, `coco_cstack_reserve` writing past the 8 MB main stack
 valgrind simulates (a finding, queued: green with no limit set).
+
+## b_getval/2 of an atomic value is the value, and retractall/1 takes its head's qualifiers off as swipl's (3.73.1)
+
+Two bugs the reasoning session found on 3.72.0 and recorded in its
+CLAUDE.md, both reproduced on 3.72.0 and 3.73.0, and a third that this
+patch's probe found beside the second. A patch: each answer was wrong.
+
+THE READ OF A BOX (lib/builtins-db.cicili, `coco_gvb_out`). b_setval/2
+keeps a key's value in a box on the heap, `'$gv'(Serial, Value)`, its value
+cell written as setarg/3 writes an argument: a compound or a variable as a
+reference to it, an atomic value as the word itself. b_getval/2,
+nb_getval/2, nb_current/2 and prolog_load_context(term, T) unified their
+variable with the value cell, so where the value was atomic the variable
+was bound to the cell itself, and the key's next b_setval/2, which writes
+that cell, moved it. `b_setval(k, 1), b_getval(k, V), b_setval(k, 2)` left
+V = 2, where swipl's is 1. `b_setval(k, [V])` wrote a list whose element
+was the list's own cell, a cycle (`@(S_1,[S_1=[S_1]])`, where swipl's is
+[1]). And '$term' read after expand_term/2 had left it `[]` became whatever
+was written there next. A read now hands out what the value cell refers to
+(the term itself, linked, as swipl's, or the variable), and an atomic value
+in a cell of its own, the word copied: an integer, a big one, a rational, a
+float, an atom, `[]`, a string. It is the same fault as #276, a variable an
+arg/3 bound to an atomic argument following nb_setarg/3 into it, which is
+the unifier's and stays queued.
+
+RETRACTALL/1'S HEAD (lib/kb-consult.cicili's `coco_retract_head`, mode 2 of
+lib/solve-db.cicili's clause check). retractall(H) is a clause over
+`'$retractall'((C :- _))`, whose C half read H as written.
+`retractall(user:q(1))` looked for clauses of (:)/2, took none and left
+q(1). So did every qualified head, `user:user:q(2)` too, where retract/1
+(the walk, 3.28.0) and assertz/1 (3.64.8) took theirs off. It is swipl's
+pl_retractall() now, over PL_strip_module():
+
+- an atom's qualifiers come off, every one of them, the innermost the
+  module named;
+- a module that is no atom ends the strip (`_:q(1)`, `[]:q(1)`,
+  `f(x):q(1)`, `user:(_:q(1))`), and the head left under it is no clause's:
+  nothing taken, nothing declared, and the call succeeds. 3.73.0 raised
+  instantiation_error or type_error(module, M) there, as retract/1 and
+  assertz/1 still do, as swipl's;
+- a cycle of qualifiers (`X = user:X`) is type_error(acyclic_term, X), as
+  before;
+- the declaration retractall/1 makes of a predicate with no clauses reads
+  the head the same way (`coco_retractall_none`).
+
+THE HOOK'S HEAD (`coco_db_parts`). A hook's head is the hook's, as an
+assert files it: a file's `prolog:message//1` is stored as
+'$prolog_message'/3. clause/2 of `prolog:message(T, L, R)` asked message/3,
+which holds none of it, where swipl's answers the clause. clause/2 and
+retract/1 ask the innermost module's hook head now, and so does
+retractall/1. swipl's prolog:message/3 is a static predicate of its boot
+files, so its retract/1 and retractall/1 of the head raise
+permission_error(modify, static_procedure, prolog:message/3). cocolog's
+take the clause, as of any file's clause: COMPAT.md's row 18 names
+retractall/1 and the hook now.
+
+NOT SWIPL'S (COMPAT.md, a new row beside the modules row): a head another
+module qualifies is user's to every one of them, one namespace's.
+`retractall(foo:q(2))` takes user's q(2), where swipl's declares foo:q/1;
+`retract(lists:q(3))` and `assertz(lists:q(5))` likewise. retractall/1 has
+been one of them since 3.73.1; through 3.73.0 it matched swipl's answer
+there only by taking nothing at all.
+
+HELD:
+- test/files/global_vars.pl's t(41) to t(51), to swipl 9.0.4 byte for
+  byte, also run by test/engine.pl traced, under a collector every 2000
+  cells and through a freeze's materialisation;
+- test/files/assert_qualified.pl's retractall/1 lines and clause/2 of the
+  hook's head, to swipl;
+- test/engine.pl's check of clause/2, retractall/1 and retract/1 of a
+  hook's head, which is cocolog's own answer.
+
+THIRTEEN RULES, EACH TAKEN OUT IN A BUILD OF ITS OWN on the final code;
+twelve made a check red, the lines differing from swipl's in brackets:
+- the read (lib/builtins-db.cicili): the helper handing out the box's own
+  cell at every site (G1: global_vars, 18), and at each site alone:
+  b_getval/2 and nb_getval/2 (G2: 14), nb_current/2 (G3: 2) and
+  prolog_load_context(term, T) (G4: 2);
+- retractall/1's head: the qualifiers left on (Q1: assert_qualified, 12);
+  a module that is no atom taken off too (Q2: 6); no hook head in the take
+  (Q3: engine's hook check); the clause check raising for a module that
+  is no atom, as it did (Q4: 10); the declaration stripping every
+  qualifier, 3.73.0's walk (Q6: 2); and retractall/1's body asked as an
+  assert's (Q7: global_vars, 3). Q7 is a rule because the clause check's
+  retractall mode is 2, where a test of `asserting' as a truth would take
+  it for an assert: the body check took retractall/1's own `_' for a
+  variable goal, and `retractall(term_expansion(_, _))' inside a hook
+  raised instantiation_error;
+- clause/2 and retract/1 of a hook's head: no hook head in the walk (C1:
+  assert_qualified, 2), and retract/1's alone (C2: engine's hook check).
+
+ONE STAYED GREEN AND WENT. The clause check's own return for a head left
+under a module that is no atom (Q5): the checks after it pass such a head,
+a callable term of (:)/2 that no static predicate names, and the take finds
+nothing for it, so the return changed no answer. The released code is the
+Q5 arm's, and its binary was green on all three checks.
+
+TWO PATHS HAVE NO ARM, as neither can be told apart from the other road.
+The helper's reference shortcut hands out the value cell where it refers
+on, where a copy of its word would name the same cell. Its 0 for a cell
+refused ends the builtin with resource_error(memory), where the push that
+was refused has already finished the machine, so the run ends `out of
+memory' either way.
+
+COST. The untraced engine runs the same instructions as 3.73.0's
+(tools/flow/zero.sh, the two in one invocation, work and padding alike):
+nrev 65 891 220 less padding, queens 39 951 030, lookup 48 054 153. A
+second invocation counted nrev 1 375 more and lookup 14 more, for both
+binaries alike: the run's environment, not the code. A start counts 2 726
+instructions fewer, 36 109 919 against 36 112 645 (-0.008 %, layout). A
+read of an atomic value pushes one cell: 100 000 reads of an integer box
+cost 17 instructions a read more, on the some 1 160 a read already costs
+(+1.5 %), and a read of a compound costs what it did.
+
+THE RUN, on the binary committed: the lint case first, then the files case
+(global_vars and assert_qualified with every other fixture, held to swipl
+9.0.4), engine, argv, directives, library, errors, reconsult, trace, repl,
+gc and script, and the seven test binaries (term, syntax, solve, module,
+state, and zigurat and shared with a server up), each alone. All were
+green with no SKIP, and the binary's md5 was the same before and after.
+The dialect card's 33 cites are all anchored: T2's moved with the lines
+above it, and its line is corrected.

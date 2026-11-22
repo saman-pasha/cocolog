@@ -11,7 +11,10 @@
 %% `user:user:w(1)' and `user:(user:y(1) :- true)' were clauses of (:)/2,
 %% `user:(z(a) => true)' a fact of (=>)/2, never a rule; and the assert
 %% marked (:)/2 dynamic for every qualified clause, so none of these
-%% predicates was.
+%% predicates was. Through 3.73.0 retractall/1 read a qualified head as
+%% written, a head of (:)/2, and took nothing (raising for a module that
+%% is no atom, where swipl's takes nothing), and clause/2 of a hook's
+%% head asked message/3, which holds none of the hook's clauses.
 %%
 %% A file's clauses are filed the same way, and there the innermost module
 %% is the one a hook's head is asked of: a clause `prolog:(message(...) :-
@@ -44,6 +47,25 @@ main :-
     findall(H-B, clause(user:z(H), B), L2), writeln(L2),
     % a retract through a qualifier takes the clause
     said(retract(user:u(1))), said(u(_)),
+    % so does retractall/1, its qualifiers off as swipl's PL_strip_module()
+    % takes them: an atom's, every one, the innermost the module named; a
+    % module that is no atom ends the strip, and the head left is no
+    % clause's, so nothing is taken and nothing declared
+    assertz(ra(1)), assertz(ra(2)), assertz(ra(3)), assertz(ra(4)),
+    said(retractall(user:ra(1))), findall(X1, ra(X1), La), writeln(La),
+    said(retractall(user:user:ra(2))), findall(X2, ra(X2), Lb), writeln(Lb),
+    said(retractall(prolog:user:ra(3))), findall(X3, ra(X3), Lc), writeln(Lc),
+    said(retractall(_:ra(4))), said(retractall([]:ra(4))), said(retractall(f(x):ra(4))),
+    said(retractall(user:(_:ra(4)))), findall(X4, ra(X4), Ld), writeln(Ld),
+    said(retractall(user:_)), said(retractall(user:3)),
+    C5 = user:C5, catch(retractall(C5), error(type_error(T5, _), _), true), writeln(T5),
+    % a rule is no head of retractall/1's: nothing is taken
+    said(retractall(user:(ra(4) :- true))), findall(X6, ra(X6), Le), writeln(Le),
+    % a predicate with no clauses is declared dynamic: the head's own
+    said(retractall(user:rn(_))), said(predicate_property(rn(_), dynamic)),
+    said(retractall(_:rm(_))), said(predicate_property(rm(_), dynamic)),
+    % clause/2 of a hook's head asks the hook, as the load filed it
+    said(clause(prolog:message(qa_two, ['qualified clause'|T7], T7), true)),
     % listing/1 writes the declaration every one of them has
     listing(v/1), listing(w/1), listing(x/1), listing(y/1), listing(z/1), listing(q/1),
     writeln(done).

@@ -18,7 +18,10 @@
 %  was set before.
 %
 %  Through cocolog 3.51.0 b_setval/2 was nb_setval/2: it copied its term
-%  and nothing undid it. Not held here, as the two differ (COMPAT.md): a
+%  and nothing undid it. Through 3.73.0 a read of an atomic value bound
+%  its variable to the box's own cell, so the key's next b_setval/2 moved
+%  it, and `b_setval(k, [V])' made a cycle. Not held here, as the two
+%  differ (COMPAT.md): a
 %  hook's work on what is older than its term ends as the hook returns in
 %  cocolog, and as every term its expansion gave is done in swipl.
 
@@ -85,6 +88,23 @@ t(39) :- ( b_setval(p1, 1), fail ; true ), b_setval(p2, 2), show(39, p1), show(3
 %  anything is written there, no box
 t(40) :- ( b_setval(v40, x), garbage_collect, fail ; nb_current(v40, V) ), !, pr(40-V).
 t(40) :- pr(40-unset).
+%  a read of an atomic value is the value, never the box's own cell, which
+%  the key's next b_setval/2 writes: a compound is the term itself and a
+%  variable the variable, but an integer, a big one, a rational, a float,
+%  an atom, `[]' and a string are what they were when read
+t(41) :- b_setval(ka, 1), b_getval(ka, V), b_setval(ka, [V]), b_getval(ka, W), pr(41-V-W).
+t(42) :- b_setval(kb, 1), b_getval(kb, V), b_setval(kb, 2), pr(42-V).
+t(43) :- b_setval(kc, a), nb_getval(kc, V), b_setval(kc, b), pr(43-V).
+t(44) :- b_setval(kd, 1.5), nb_current(kd, V), b_setval(kd, 2.5), pr(44-V).
+t(45) :- X is 2 ^ 62, b_setval(ke, X), b_getval(ke, V), b_setval(ke, 0), pr(45-V).
+t(46) :- X is 1 rdiv 3, b_setval(kf, X), b_getval(kf, V), b_setval(kf, 0), pr(46-V).
+t(47) :- string_concat(ab, cd, S), b_setval(kg, S), b_getval(kg, V), b_setval(kg, f(V)), b_getval(kg, W), pr(47-V-W).
+t(48) :- b_setval(kh, []), b_getval(kh, V), b_setval(kh, x), pr(48-V).
+t(49) :- b_setval(ki, f(x)), b_getval(ki, V), b_setval(ki, g), pr(49-V).
+t(50) :- b_setval(kj, X), b_getval(kj, V), X = 7, b_setval(kj, 8), pr(50-V).
+%  and '$term' read after expand_term/2 left it `[]' is `[]' still once
+%  something else is written there
+t(51) :- \+ \+ ( expand_term(probe_51, _), prolog_load_context(term, T), b_setval('$term', bar), pr(51-T) ).
 
 %  a directive's b_setval/2 ends with it when the directive collected too:
 %  the collection dropped the trail entry that made the box, and the copy
@@ -199,7 +219,7 @@ write_file(N) :-
 main :-
     first_box,
     lterm(first),
-    forall(between(1, 40, N), ( t(N) -> true ; pr(N-failed) )),
+    forall(between(1, 51, N), ( t(N) -> true ; pr(N-failed) )),
     show(after, a), show(after, c), show(after, d), show(after, g), show(after, s), show(after, x),
     forall(lines(N, _), write_file(N)),
     format("-- a load~n"),

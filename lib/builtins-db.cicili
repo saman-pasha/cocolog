@@ -103,6 +103,23 @@
           (if (not (coco_m_unify_atom e (coco_m_arg e g 0) full)) (return 0))
           (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 (-> m sloc_line))))))
 
+  ;;; A BOX'S VALUE AS A READ HANDS IT OUT (3.73.1; the boxes are
+  ;;; b_setval/2's, below): its value cell BV where that refers on -- to a
+  ;;; compound, the term itself, linked as swipl's is, or to a variable --
+  ;;; and else a cell of the read's own holding the atomic word, as swipl's
+  ;;; b_getval/2 hands out an atomic's value. Bound to BV itself, a
+  ;;; variable named the box's own cell, which the key's next b_setval/2
+  ;;; writes: through 3.73.0 `b_setval(k, 1), b_getval(k, V), b_setval(k,
+  ;;; 2)' left V = 2, and `b_setval(k, [V])' a cycle (V's cell the list's
+  ;;; own), where swipl's V is 1 and its value [1]. 0 where no cell could
+  ;;; be had.
+  (static)
+  (func coco_gvb_out ((coco_machine * m) (size_t bv)) (out size_t)
+        (let ((u64 w . #'(nth bv (-> m heap))) (size_t s . #'(-> m heap_len)))
+          (if (coco-tag-is REF w) (return bv))
+          (if (!= (coco_push m w) s) (return 0))
+          (return s)))
+
   ;;; '$load_context'(+Key, -Value) (3.14.0), prolog_load_context/2's C
   ;;; half: `file', the file being read (an included one itself), and
   ;;; `source', the file the load reads (an included file's includer), each
@@ -144,7 +161,9 @@
                 (if (!= (-> m gvb_term) 0)
                     (let ((coco_gvbox * x . #'(aof (nth (- (-> m gvb_term) 1) (-> m gvb)))))
                       (if (and (coco-gvb-live m x) (> (-> x wclock) (-> m gvb_hook0)))
-                          (return (coco_m_unify e (coco_m_arg e g 1) (+ (cast size_t (-> x box)) 2))))))
+                          (let ((size_t c . #'(coco_gvb_out m (+ (cast size_t (-> x box)) 2))))
+                            (if (== c 0) (return (coco_mem_error e)))
+                            (return (coco_m_unify e (coco_m_arg e g 1) c))))))
                 (if (!= (-> m sloc_tp) nil)
                     (return (coco_m_unify e (coco_m_arg e g 1) (cof (-> m sloc_tp)))))
                 (if (== (-> m sloc_file) nil) (return 0))
@@ -2257,7 +2276,10 @@
                 (u64 name . #'(coco_name_of m k))
                 (size_t bv . #'(? (!= (-> m gvb_len) 0) (coco_gvb_value m name) 0))
                 (i64 at . -1))
-            (if (!= bv 0) (return (coco_m_unify e (coco_m_arg e g 1) bv)))
+            (if (!= bv 0)
+                (let ((size_t c . #'(coco_gvb_out m bv)))
+                  (if (== c 0) (return (coco_mem_error e)))
+                  (return (coco_m_unify e (coco_m_arg e g 1) c))))
             (set at (coco_global_find st name))
             (if (>= at 0)
                 (return (coco_m_unify e (coco_m_arg e g 1) (coco_b_global_term e (cast size_t at)))))
@@ -2285,7 +2307,10 @@
                 (u64 name . #'(coco_name_of m k))
                 (size_t bv . #'(? (!= (-> m gvb_len) 0) (coco_gvb_value m name) 0))
                 (i64 at . -1))
-            (if (!= bv 0) (return (coco_m_unify e (coco_m_arg e g 1) bv)))
+            (if (!= bv 0)
+                (let ((size_t c . #'(coco_gvb_out m bv)))
+                  (if (== c 0) (return (coco_mem_error e)))
+                  (return (coco_m_unify e (coco_m_arg e g 1) c))))
             (set at (coco_global_find st name))
             (if (< at 0) (return 0))
             (return (coco_m_unify e (coco_m_arg e g 1) (coco_b_global_term e (cast size_t at)))))))

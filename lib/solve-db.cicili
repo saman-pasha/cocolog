@@ -192,16 +192,18 @@
   ;;; T left on what they qualify, and 0; else what the raise answered --
   ;;; type_error(module, M) for a module that is no atom, which
   ;;; `coco_type_error' makes an instantiation error for a variable, and
-  ;;; for a cycle of them (`X = foo:X') type_error(acyclic_term, X), swipl's
+  ;;; for a cycle of them (`X = foo:X') type_error(acyclic_term, X), swipl's.
+  ;;; LAX, retractall/1's (3.73.1, swipl's PL_strip_module()): a module
+  ;;; that is no atom ends the strip, T left on the `M:H' it begins, and 0
   (static)
-  (func coco_clause_unqualify ((coco_engine * e) (size_t * t)) (out int)
+  (func coco_clause_unqualify ((coco_engine * e) (size_t * t) (int lax)) (out int)
         (let ((coco_machine * m . #'(-> e m)) (size_t steps . 0))
           (set (cof t) (coco_deref m (cof t)))
           (while (and (coco-tag-is FUN (nth (cof t) (-> m heap)))
                       (and (== (coco_arity m (cof t)) 2) (== (coco_name_of m (cof t)) (coco-id m ":"))))
             (let ((size_t q . #'(coco_deref m (coco_arg m (cof t) 0))))
               (if (not (and (coco-tag-is ATOM (nth q (-> m heap))) (not (coco_is_nil m q))))
-                  (return (coco_type_error e "module" q)))
+                  (return (? lax 0 (coco_type_error e "module" q))))
               (set steps (+ steps 1))
               (if (and (== steps 4096) (!= 1 (coco_acyclic m (cof t))))
                   (return (coco_type_error e "acyclic_term" (cof t))))
@@ -270,17 +272,19 @@
                          (coco_type_error e "callable" (coco_deref m body)))))
           (return 0)))
 
+  ;;; ASSERTING 1 an assert's, 0 retract/1's, 2 retractall/1's
   (static)
   (func coco_clause_check ((coco_engine * e) (size_t c) (int asserting)) (out int)
         (let ((coco_machine * m . #'(-> e m))
-              (size_t head) (size_t body . 0) (int rule . 0) (int bad . 0))
+              (size_t head) (size_t body . 0) (int rule . 0) (int bad . 0)
+              (int lax . #'(== asserting 2)))
           (set c (coco_deref m c))
           (if (coco-tag-is REF (nth c (-> m heap))) (return (coco_instantiation_error e)))
           ;; THE CLAUSE'S QUALIFIERS AND THE HEAD'S ARE TAKEN OFF (3.19.2,
           ;; swipl's): `assertz(foo:7)' is type_error(callable, 7), where it
           ;; failed, and `assertz(3:foo)' type_error(module, 3), where it
           ;; went in
-          (set bad (coco_clause_unqualify e (aof c)))
+          (set bad (coco_clause_unqualify e (aof c) lax))
           (if (!= bad 0) (return bad))
           (if (coco-tag-is REF (nth c (-> m heap))) (return (coco_instantiation_error e)))
           (set head c)
@@ -292,7 +296,11 @@
                   (block (set head (coco_deref m (coco_arg m c 0)))
                          (set body (coco_arg m c 1))
                          (set rule 1))))
-          (set bad (coco_clause_unqualify e (aof head)))
+          ;; retractall/1's head left under a module that is no atom (3.73.1)
+          ;; is a head of (:)/2 to the checks below, which pass it, and no
+          ;; clause's to the take (`coco_retract_head'): swipl's takes
+          ;; nothing there and succeeds, where 3.73.0 raised
+          (set bad (coco_clause_unqualify e (aof head) lax))
           (if (!= bad 0) (return bad))
           (if (coco-tag-is REF (nth head (-> m heap))) (return (coco_instantiation_error e)))
           (if (not (coco_is_callable m head)) (return (coco_type_error e "callable" head)))
@@ -300,7 +308,7 @@
               (return (coco_permission_error e "modify" "static_procedure"
                                              (coco_indicator m (coco_name_of m head)
                                                              (coco_arity m head)))))
-          (if (and asserting rule) (return (coco_body_check e head body)))
+          (if (and (== asserting 1) rule) (return (coco_body_check e head body)))
           (return 0)))
 
   (static)
@@ -406,7 +414,7 @@
         (return (? (== 1 (coco_throw e (coco_db_refused_ball e))) 2 -1)))
 
   (func coco_bi_retract ((coco_engine * e) (size_t g)) (out int)
-        (let ((int bad . #'(coco_clause_check e (coco_arg (-> e m) g 0) 0)))
+        (let ((int bad . #'(coco_clause_check e (coco_arg (-> e m) g 0) 2)))
           (if (!= bad 0) (return bad)))
         (with-green-write e
           (let ((int ok . #'(coco_retract (-> e st) (-> e m) (coco_arg (-> e m) g 0))))
@@ -482,12 +490,15 @@
   ;;; walked moved the walk.
 
   ;;; T with its module qualifiers taken off (one namespace: `user:q(X)' is
-  ;;; q(X), as is any other)
+  ;;; q(X), as is any other); QM the innermost module and HQ set where
+  ;;; there was one (3.73.1: a hook's head is asked of it, `coco_db_parts')
   (static)
-  (func coco_db_unq ((coco_machine * m) (size_t t)) (out size_t)
+  (func coco_db_unq ((coco_machine * m) (size_t t) (size_t * qm) (int * hq)) (out size_t)
         (set t (coco_deref m t))
         (while (and (coco-tag-is FUN (nth t (-> m heap))) (== (coco_arity m t) 2)
                     (== (coco_name_of m t) (coco-id m ":")))
+          (set (cof qm) (coco_arg m t 0))
+          (set (cof hq) 1)
           (set t (coco_deref m (coco_arg m t 1))))
         (return t))
 
@@ -497,14 +508,17 @@
   ;;; atom -- stays a head of (:)/2, which has no clause, where through
   ;;; 3.37.0 any qualifier came off and p/1's clauses answered. SYSQ says
   ;;; whether the innermost was `system': the system's definition alone
-  ;;; (`system:msort(_, _)').
+  ;;; (`system:msort(_, _)'). QM and HQ as `coco_db_unq''s.
   (static)
-  (func coco_db_unq_atoms ((coco_machine * m) (size_t t) (int * sysq)) (out size_t)
+  (func coco_db_unq_atoms ((coco_machine * m) (size_t t) (int * sysq) (size_t * qm) (int * hq))
+        (out size_t)
         (set t (coco_deref m t))
         (while (coco_is_compound2 m t ":")
           (let ((size_t q . #'(coco_deref m (coco_arg m t 0))))
             (if (or (not (coco-tag-is ATOM (nth q (-> m heap)))) (coco_is_nil m q)) break)
             (set (cof sysq) (== (coco_name_of m q) (coco_intern m "system")))
+            (set (cof qm) q)
+            (set (cof hq) 1)
             (set t (coco_deref m (coco_arg m t 1)))))
         (return t))
 
@@ -527,15 +541,18 @@
   ;;; G's head and body, MODE 1 retract(C)'s and 0 clause(H, B)'s: C's `H :-
   ;;; B', or C and 0 for `true' (a fact), and a `H => B' says SSU; clause/2's
   ;;; `f()' is the atom f, whose clauses the store keeps (3.12.0), and its
-  ;;; head's qualifiers swipl's (`coco_db_unq_atoms', SYSQ)
+  ;;; head's qualifiers swipl's (`coco_db_unq_atoms', SYSQ). A hook's head
+  ;;; is the hook's, the innermost module asked as an assert asks it
+  ;;; (3.73.1, `coco_hook_head'): through 3.73.0 `clause(prolog:message(T,
+  ;;; L, R), B)' asked message/3, which holds none of the hook's clauses.
   (static)
   (func coco_db_parts ((coco_machine * m) (size_t g) (int mode) (size_t * hp) (size_t * bp)
                        (int * ssu) (int * sysq))
-        (let ((size_t h . 0) (size_t bd . 0))
+        (let ((size_t h . 0) (size_t bd . 0) (size_t qm . 0) (int hq . 0))
           (set (cof ssu) 0)
           (set (cof sysq) 0)
           (if (== mode 1)
-              (let ((size_t c . #'(coco_db_unq m (coco_arg m g 0))))
+              (let ((size_t c . #'(coco_db_unq m (coco_arg m g 0) (aof qm) (aof hq))))
                 (set h c)
                 (if (and (coco-tag-is FUN (nth c (-> m heap))) (== (coco_arity m c) 2))
                     (if (== (coco_name_of m c) (coco-id m ":-"))
@@ -544,7 +561,9 @@
                             (block (set h (coco_arg m c 0)) (set bd (coco_arg m c 1))
                                    (set (cof ssu) 1))))))
               (block (set h (coco_arg m g 0)) (set bd (coco_arg m g 1))))
-          (set h (? (== mode 1) (coco_db_unq m h) (coco_db_unq_atoms m h sysq)))
+          (set h (? (== mode 1) (coco_db_unq m h (aof qm) (aof hq))
+                    (coco_db_unq_atoms m h sysq (aof qm) (aof hq))))
+          (if hq (set h (coco_hook_head m qm h)))
           (if (and (== mode 0) (coco-tag-is FUN (nth h (-> m heap))) (== (coco_arity m h) 0))
               (set h (coco_new_atom m (coco_atom_name m (coco_name_of m h)))))
           (set (cof hp) h)
@@ -656,7 +675,8 @@
                      (if (== tport 1) (coco_trace_port e "Call" td g))))
           (if (== mode 1)
               (set rc (coco_clause_check e (coco_arg m g 0) 0))
-              (let ((size_t h0 . #'(coco_db_unq_atoms m (coco_arg m g 0) (aof sysq))))
+              (let ((size_t qm . 0) (int hq . 0)
+                    (size_t h0 . #'(coco_db_unq_atoms m (coco_arg m g 0) (aof sysq) (aof qm) (aof hq))))
                 (if (not (coco_is_callable m h0)) (set rc (coco_type_error e "callable" h0)))))
           (if (!= rc 0) (return (coco_db_raised rc ret)))
           (coco_db_parts m g mode (aof h) (aof bd) (aof ssu) (aof sysq))
@@ -803,14 +823,12 @@
   (func coco_retractall_none ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st))
-              (size_t h . #'(coco_deref m (coco_arg m g 0)))
+              (size_t bd . 0)
+              ;; the head the take read (3.73.1, `coco_retract_head'): one
+              ;; under a module that is no atom declares nothing
+              (size_t h . #'(coco_retract_head m (coco_arg m g 0) (aof bd)))
               (size_t pi . 0) (int rc . 0))
-          (if (and (coco_is_callable m h)
-                   (and (== (coco_arity m h) 2) (== 0 (strcmp (coco_atom_name m (coco_name_of m h)) ":-"))))
-              (set h (coco_deref m (coco_arg m h 0))))
-          (while (and (coco_is_callable m h)
-                      (and (== (coco_arity m h) 2) (== 0 (strcmp (coco_atom_name m (coco_name_of m h)) ":"))))
-            (set h (coco_deref m (coco_arg m h 1))))
+          (if (== h (cast size_t -1)) (return 0))
           (if (not (coco_is_callable m h)) (return 0))
           (if (!= (coco_claim_kind m (coco_name_of m h) (coco_arity m h)) 0) (return 0))
           (set pi (coco_pred_find st (coco_name_of m h) (coco_arity m h)))

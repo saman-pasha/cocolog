@@ -4912,14 +4912,38 @@
                (set (-> st dead) (- (-> st dead) span))))
             (return 1))))
 
+  ;;; RETRACTALL/1'S HEAD AS THE STORE FILES IT (3.73.1): CLAUSE is
+  ;;; `(H :- B)', whose BODY B is set (0 where CLAUSE is no rule), or H,
+  ;;; and H's qualifiers come off as swipl's PL_strip_module() takes them
+  ;;; -- an atom's alone -- the innermost module's hook head the hook's
+  ;;; (`coco_hook_head'), as an assert files a clause
+  ;;; (`coco_assert_from'). Through 3.73.0 the head was read as written,
+  ;;; and `retractall(user:q(1))' looked for clauses of (:)/2 and took
+  ;;; none. A head left under a module that is no atom -- `_:q(1)',
+  ;;; `[]:q(1)', `f(x):q(1)' -- is no head a clause has, and swipl's takes
+  ;;; nothing there: (size_t)-1. Asked after `coco_clause_check' (mode 2),
+  ;;; which raises for a cycle of qualifiers, so the walk ends.
+  (func coco_retract_head ((coco_machine * m) (size_t clause) (size_t * body)) (out size_t)
+        (let ((size_t h . #'(coco_deref m clause)) (size_t q . 0) (size_t hm . 0) (int hq . 0))
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
+          (set (cof body) 0)
+          (if (and (coco_is_callable m h) (== (coco_arity m h) 2))
+              (if (== 0 (strcmp (coco_atom_name m (coco_name_of m h)) ":-"))
+                  (block (set (cof body) (coco_arg m h 1))
+                         (set h (coco_deref m (coco_arg m h 0))))))
+          (while (coco-is-colon m h (coco-fid m ":" 2))
+            (set q (coco_deref m (coco_arg m h 0)))
+            (if (or (not (coco-tag-is ATOM (nth q (-> m heap)))) (coco_is_nil m q))
+                (return (cast size_t -1)))
+            (set hm q)
+            (set hq 1)
+            (set h (coco_deref m (coco_arg m h 1))))
+          (return (? hq (coco_hook_head m hm h) h))))
+
   (func coco_retract ((coco_store * st) (coco_machine * m) (size_t clause)) (out int)
-        (set clause (coco_deref m clause))
-        (let ((size_t head . clause) (size_t body . 0) (int has_body . 0))
-          (if (and (coco_is_callable m clause) (== (coco_arity m clause) 2))
-              (if (== 0 (strcmp (coco_atom_name m (coco_name_of m clause)) ":-"))
-                  (block (set head (coco_deref m (coco_arg m clause 0)))
-                         (set body (coco_arg m clause 1))
-                         (set has_body 1))))
+        (let ((size_t body . 0) (size_t head . #'(coco_retract_head m clause (aof body)))
+              (int has_body . #'(!= body 0)))
+          (if (== head (cast size_t -1)) (return 0))
           (if (not (coco_is_callable m head)) (return 0))
           ;; INTERNED, not merely found. `retract' is a builtin, so its argument
           ;; is never solved as a goal and nothing has put the predicate in the
