@@ -593,6 +593,8 @@
     ("read_link" 3)
     ("getenv" 2) ("setenv" 2) ("unsetenv" 1) ("get_time" 1) ("sleep" 1)
     ("get_flag" 2) ("set_flag" 2) ("shell" 2)
+    ;; call_with_inference_limit/3's limit (3.73.0), named as swipl names it
+    ("$inference_limit" 2)
     ;; cocolog's own, which swipl 9.0.4 has not, named as a builtin's is
     ("text_concat" 3) ("call_limited" 3) ("call_metered" 4)
     ("read_file_to_codes" 2) ("write_file_from_codes" 2) ("append_file_from_codes" 2)
@@ -1275,7 +1277,21 @@
     ;; `coco_autoload_step'), whose Call port the tracer printed already, or
     ;; 0: the step that takes it again prints none (`coco_trace_call').
     ;; Appended.
-    (member u64         tskip))
+    (member u64         tskip)
+    ;; THE RAISE LIMIT (3.73.0, call_with_inference_limit/3): the count of
+    ;; inferences (`steps' less `frees') past which a step RAISES
+    ;; inference_limit_exceeded, once -- it is disarmed as it raises, as
+    ;; swipl's -- or 0 for none; beside MAX_INF, the count at which a run
+    ;; STOPS. No step ceiling passes its point (`coco_ilim_clamp'). ILNAR
+    ;; says it came from the engine outside (`coco_limit_narrow'), whose
+    ;; own is disarmed when this one ends disarmed (`coco_ilim_back').
+    ;; ILCAP says TCAP holds the ceiling in steps a raise limit lowered
+    ;; MAX_STEPS from, where MAX_INF is none (`coco_ilim_clamp'), which
+    ;; MAX_STEPS takes back when the limit goes (`coco_ilim_set').
+    ;; Appended.
+    (member u64         ilim)
+    (member int         ilnar)
+    (member int         ilcap))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
   ;;; their first goal. A per-engine affair after that -- `trace/0' and
@@ -1777,6 +1793,12 @@
   ;;; steps (1.12.2): SUB's own inference limit (MAX_INF, 0 for none) set
   ;;; first, narrowed here, MAX_STEPS set last.
   (decl) (func coco_limit_narrow ((coco_engine * e) (coco_engine * sub)))
+  ;;; THE RAISE LIMIT (3.73.0, call_with_inference_limit/3): E's set to V,
+  ;;; an inference count or 0 for none (`coco_ilim_set'), and a nested
+  ;;; engine's disarmed raise of E's given back to E as it ends
+  ;;; (`coco_ilim_back', every starter of one, once the steps are added)
+  (decl) (func coco_ilim_set ((coco_engine * e) (u64 v)))
+  (decl) (func coco_ilim_back ((coco_engine * e) (coco_engine * sub)))
 
   ;;; Throws BALL, exactly as `throw/1' does. A module's C half uses this to
   ;;; raise an error a program can catch, rather than filling in `err' and

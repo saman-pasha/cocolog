@@ -319,6 +319,15 @@ flow_mode('$bag_new', 1, ['-'], det).
 flow_mode('$bag_add', 3, ['+', '+', '-'], det).
 flow_mode('$bag_collect', 3, ['+', '?', '?'], semidet).
 flow_mode('$bag_free', 1, ['+'], det).
+%% call_with_inference_limit/3's halves (3.73.0): the limit set and the
+%% one before it given; a ball taken where it is the limit's, any other
+%% thrown again; the limit put back and fail; the limit put back and
+%% whether the goal left a choice point; the limit set again on a redo
+flow_mode('$inference_limit', 2, ['+', '-'], det).
+flow_mode('$inference_limit_except', 3, ['+', '+', '-'], semidet).
+flow_test('$inference_limit_false', 1).
+flow_mode('$inference_limit_exit', 2, ['+', '-'], det).
+flow_mode('$inference_limit_redo', 2, ['+', '+'], det).
 flow_mode(source_location, 2, ['-', '-'], semidet).
 %% prolog_load_context/2's C half (3.14.0): the load's file, its source and
 %% the term's place while a hook or a directive of it runs, failing

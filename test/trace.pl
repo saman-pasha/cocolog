@@ -100,6 +100,10 @@ main :-
     %% depth and cleanup ports are not swipl's yet
     forall(member(Q, [ 'fn(L)', 'fm(L)' ]),
            own_ports(Swipl, [Library], Q, "findnsols(")),
+    %% CALL_WITH_INFERENCE_LIMIT/3'S OWN PORTS (3.73.0), as swipl's, read
+    %% apart from its goal's, which swipl's catch/3 puts a frame deeper
+    forall(member(Q, [ 'il(R)', 'ig(R)' ]),
+           own_ports(Swipl, [Library], Q, "call_with_inference_limit(")),
     %% A GOAL ANSWERS UNDER TRACE AS IT DOES UNTRACED (3.72.0): a clause
     %% frame the tracer keeps at its last candidate is no choice point to
     %% setup_call_cleanup/3's exit, so call_cleanup/2's cleanup runs at its

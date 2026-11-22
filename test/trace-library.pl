@@ -75,6 +75,11 @@ mt2(G) :- call(G).
 %% retry its Redo
 fn(L) :- findnsols(1, X, md(X), L).
 fm(L) :- findnsols(1, X, md(X), L), L = [2].
+%% call_with_inference_limit/3 (3.73.0), one too: its Exit showing its goal
+%% said of user and the Result of each answer, the Redo into its goal, and
+%% its Fail. The limit has room: swipl's tracer counts its own work
+il(R) :- call_with_inference_limit(md(X), 100000, R), X > 1.
+ig(R) :- call_with_inference_limit(fail, 100000, R).
 %% and what a goal answers under trace is what it answers untraced
 %% (3.72.0): call_cleanup/2's cleanup at its goal's last answer, and
 %% findnsols/4's last chunk the last

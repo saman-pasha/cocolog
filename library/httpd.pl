@@ -209,9 +209,10 @@
 %% THE CEILING IS WHY THIS IS SAFE TO POINT AT A NETWORK AT ALL. Everything
 %% else here is about not handing out files; the ceiling is about still
 %% being running afterwards. `call_limited/3' is cocolog's own -- NOT SWI's
-%% `call_with_inference_limit/3', which keeps the goal's choice points and
-%% this does not, and lib/builtins.cicili says at length why it did not
-%% borrow the name.
+%% `call_with_inference_limit/3' (cocolog's too since 3.73.0), which raises
+%% inside the goal and keeps its choice points, where this stops the
+%% goal's search and commits to its first solution: a page's search
+%% stops with no catch of its own asked.
 %%
 %% KEEP-ALIVE, AND WHAT IT COSTS HERE. Connections persist by default,
 %% RFC 7230 section 6.3 in both directions: HTTP/1.1 unless the client says

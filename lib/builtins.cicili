@@ -154,6 +154,13 @@
     ("$bag_add"                3 coco_b_bag_add)
     ("$bag_collect"            3 coco_b_bag_collect)
     ("$bag_free"               1 coco_b_bag_free)
+    ;; the raise limit's halves (3.73.0); call_with_inference_limit/3 and
+    ;; '$inference_limit_true'/3 are clauses over them (the Prolog half)
+    ("$inference_limit"        2 coco_b_ilim_set)
+    ("$inference_limit_except" 3 coco_b_ilim_except)
+    ("$inference_limit_false"  1 coco_b_ilim_false)
+    ("$inference_limit_exit"   2 coco_b_ilim_exit)
+    ("$inference_limit_redo"   2 coco_b_ilim_redo)
 
     ("source_location"         2 coco_b_source_location)
     ("$load_context"           2 coco_b_load_context)
@@ -1032,7 +1039,16 @@
            "'$nsols_loop'(Count, Templ, Goal, Bag, List, Tail) :- '$nsols_count'(Count, FirstStop), State = state(FirstStop), ( call_cleanup(Goal, Det = true), '$bag_add'(Bag, Templ, Found), Det \\== true, arg(1, State, Found), '$bag_collect'(Bag, List, Tail), ( true ; '$nsols_count'(Count, Incr), NextStop is Found+Incr, nb_setarg(1, State, NextStop), fail ) ; '$bag_collect'(Bag, List, Tail) )."
            "'$nsols_count'(count(N), N)."
            "'$nsols_type_error'(Count) :- var(Count), !, throw(error(instantiation_error, _))."
-           "'$nsols_type_error'(Count) :- throw(error(type_error(integer, Count), _)).")))
+           "'$nsols_type_error'(Count) :- throw(error(type_error(integer, Count), _))."
+           ;; call_with_inference_limit/3 (3.73.0), swipl's boot/syspred.pl
+           ;; word for word, over the raise limit's halves
+           ;; (lib/builtins-db.cicili); '$inference_limit_true'/3 is swipl's
+           ;; nondeterministic C, here its first answer (the limit put
+           ;; back, `!' where the goal left no choice point, else `true')
+           ;; and its redo (the limit set again, and fail, into the goal)
+           ":- meta_predicate call_with_inference_limit(0, +, -)."
+           "call_with_inference_limit(G, Limit, Result) :- '$inference_limit'(Limit, OLimit), ( catch(G, Except, system:'$inference_limit_except'(OLimit, Except, Result0)), ( Result0 == inference_limit_exceeded -> ! ; system:'$inference_limit_true'(Limit, OLimit, Result0), ( Result0 == ! -> ! ; true ) ), Result = Result0 ; system:'$inference_limit_false'(OLimit) )."
+           "'$inference_limit_true'(Limit, OLimit, Result) :- '$inference_limit_exit'(OLimit, Det), ( Det == true -> Result = ! ; ( Result = true ; '$inference_limit_redo'(Limit, OLimit), fail ) ).")))
 
 (generic decl-builtins
   ()
@@ -1132,12 +1148,13 @@
   ;;; `inference_limit_exceeded' if the ceiling stopped it; the whole thing
   ;;; FAILS if Goal failed, which is what makes it usable where `once/1' was.
   ;;;
-  ;;; NOT NAMED `call_with_inference_limit/3', deliberately. SWI's leaves the
-  ;;; goal's choice points alive and this commits to the first solution, and
-  ;;; the rule this file already states about bagof and setof applies: a
-  ;;; predicate that agrees with SWI until it does not is worse than one that
-  ;;; never claimed to. Somebody porting code gets an existence error and
-  ;;; reads this, rather than a program that works until a page backtracks.
+  ;;; NOT `call_with_inference_limit/3', which is swipl's since 3.73.0 (its
+  ;;; clauses in the Prolog half, its halves in lib/builtins-db.cicili):
+  ;;; that one RAISES inference_limit_exceeded inside the goal, once, and
+  ;;; keeps the goal's choice points, a limit a solution; this one STOPS the
+  ;;; goal's own search, nothing raised and no catch inside it asked, and
+  ;;; commits to the first solution. Each keeps its name, so a program asks
+  ;;; for the contract it means.
   ;;;
   ;;; WHAT IT IS FOR. library(httpd) runs a page with it, so a page that loops
   ;;; costs one request instead of the server. Before this there was no way to

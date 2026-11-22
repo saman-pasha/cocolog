@@ -538,6 +538,10 @@
   (func coco_guard_budget ((coco_engine * e) (coco_code * cd)) (out u32)
         (if (!= (-> e trace) 0) (return 0))
         (if (== (-> e max_steps) 0) (return (-> cd ngd)))
+        ;; under a window's clock RMAX is the limit, which a raise limit
+        ;; does not lower (3.73.0): no guard runs while one is armed, and
+        ;; the steps take them, inference for inference
+        (if (and (-> e tclock) (!= (-> e ilim) 0)) (return 0))
         (let ((u64 lim . #'(? (-> e tclock) (-> e rmax) (-> e max_steps))))
           (if (== lim 0) (return (-> cd ngd)))
           (if (>= (-> e steps) lim) (return 0))

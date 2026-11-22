@@ -98,6 +98,7 @@ main :-
     use_module(Work),
     a_thread, what_it_sees, a_channel, closed, backpressure, helpers, contention, imports,
     parallel, locks, conditions, message_refused(D), flags_shared, halt_hooks(D), bags_per_thread(D),
+    limits_per_thread(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -560,3 +561,21 @@ bags_per_thread(D) :-
               Out2-Exit2, '[false,false,false,false,false]'-0)
     ;   format("   SKIP (no valgrind here)~n", [])
     ).
+
+%% CALL_WITH_INFERENCE_LIMIT/3'S LIMIT IS A THREAD'S (3.73.0), as swipl's is
+%% its thread's: a thread's call raises in it, at its limit, and a thread a
+%% limited goal starts spends none of its creator's limit -- its count is
+%% its own machine's, from 0
+limits_per_thread(D) :-
+    section('call_with_inference_limit/3 in a thread: its limit its own'),
+    atom_concat(D, '/il_thread.pl', F1),
+    fixture(F1, ['loop :- loop.',
+                 'cnt(0) :- !.', 'cnt(N) :- N1 is N - 1, cnt(N1).',
+                 'main :- thread_create((call_with_inference_limit(loop, 1000, R), print(R), nl), T1),',
+                 '        thread_join(T1, S1),',
+                 '        call_with_inference_limit((thread_create(cnt(100000), T2), thread_join(T2, S2)), 1000, R2),',
+                 '        print(S1-S2-R2), nl.']),
+    sh_join(['-s ', F1, ' 2>&1'], A1),
+    cocolog_run(A1, Got1, Rc1),
+    check('a thread''s limit raises in it, and a thread spends none of its creator''s',
+          Got1-Rc1, 'inference_limit_exceeded\ntrue-true-!'-0).

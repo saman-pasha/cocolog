@@ -270,6 +270,12 @@
               (coco_sb_putc b (cast char (? (== 15 (% i 16)) 10 32)))))
           (coco_sb_putc b (cast char 10))
 
+          ;; THE RAISE LIMIT (3.73.0): the inference count past which a
+          ;; call_with_inference_limit/3 open in the machine raises, 0 for
+          ;; none, the count kept in `E' and `I'. Last, as `L' is.
+          (coco_sb_put b "X ")
+          (coco_sb_put_sz b (cast size_t (-> e ilim))) (coco_sb_putc b (cast char 10))
+
           (return (? (== ($ (cof b) s) nil) 0 1))))
 
   ;;; THE IMAGE IS WRITTEN FROM A MACHINE THAT REACHES NO ENVIRONMENT
@@ -606,6 +612,14 @@
                                      (== ($ (nth i (-> e choices)) kind) COCO_CH_DB))
                                  (< v 4294967295))
                             (set ($ (nth i (-> e choices)) cend) (cast u32 v))))))))
+
+          ;; ---- the raise limit (3.73.0), if it has one; none before, which
+          ;; no call_with_inference_limit/3 could have armed ----
+          (if (and ok (not ($ z bad)))
+              (block
+               (set (-> e ilim) 0)
+               (if (coco_scan_section (aof z) 88)          ; `X'
+                   (set (-> e ilim) (coco_scan_u64 (aof z) 10)))))
 
           (coco_sb_free (aof nm))
           ;; AN OPEN CALL WHOSE PREDICATE COULD NOT BE READ BACK (2.11.1):

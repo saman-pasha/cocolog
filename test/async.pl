@@ -184,6 +184,29 @@ case_bags(Rs) :-
 fb_chunks(N, M, Ls) :-
     findall(L, findnsols(N, X, ( between(1, M, X), yield ), L), Ls).
 
+%% CALL_WITH_INFERENCE_LIMIT/3'S LIMIT IS A TASK'S (3.73.0): a task's machine
+%% is its own, and so is its limit -- three tasks, each raising at its own
+%% through the quanta it is run in (a quantum is 10 000 steps), where the
+%% limit is and not at the end of the quantum it falls in, a fourth under
+%% a limit it keeps to, beside the main task's limit, which their work
+%% does not spend
+case_limits(Rs) :-
+    findall(F, ( member(L, [25000, 37000, 51000]), go(il_spent(L, _), F) ), Fs),
+    go(call_with_inference_limit(spin(3000), 100000, _), F4),
+    call_with_inference_limit(( await_all(Fs), await(F4, G4) ), 1000, R0),
+    findall(R, ( member(F, Fs), await(F, il_spent(_, R)) ), Rs1),
+    G4 = call_with_inference_limit(_, _, R4),
+    append(Rs1, [R4, R0], Rs).
+
+il_spent(L, R) :-
+    statistics(inferences, I0),
+    call_with_inference_limit(il_loop, L, E),
+    statistics(inferences, I1),
+    D is I1 - I0 - L,
+    ( D >= 0, D < 100 -> R = E ; R = spent(D) ).
+
+il_loop :- il_loop.
+
 result(Goal, R) :-
     async_run(Goal, W),
     arg(1, W, R).
@@ -252,7 +275,10 @@ values :-
     check('a recursion in the shared store runs to its end', G3, spin(2000)),
     answer(result(case_bags(R4), R4), R4, G4),
     check('findnsols/4 in five tasks and the main one, each its bags',
-          G4, [[[1,2],[3,4],[5]], [[1,2,3],[4,5,6],[7]], [[1],[2],[3]], [[1,2,3,4]], [[1,2],[3]]]).
+          G4, [[[1,2],[3,4],[5]], [[1,2,3],[4,5,6],[7]], [[1],[2],[3]], [[1,2,3,4]], [[1,2],[3]]]),
+    answer(result(case_limits(R5), R5), R5, G5),
+    check('call_with_inference_limit/3 in four tasks and the main one, each its limit',
+          G5, [inference_limit_exceeded, inference_limit_exceeded, inference_limit_exceeded, !, !]).
 
 %% ---- go and await -------------------------------------------------------
 joining :-

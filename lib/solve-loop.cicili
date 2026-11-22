@@ -31,6 +31,15 @@
                       (return 2)))))
      ,@body))
 
+;;; WHETHER THE NAME S AND ARITY AR ARE ONE OF ROWS, each `(NAME ARITY)'
+;;; (3.73.0, the raise limit's tables): one compare of the arity and a
+;;; strcmp a row of it, on the cold path past the limit alone
+(DEFMACRO coco-ilim-named (s ar &REST rows)
+  (LET ((tests (LOOP FOR row IN rows
+                     COLLECT `(and (== ,ar ,(SECOND row)) (== 0 (strcmp ,s ,(FIRST row)))))))
+    ;; one row is its test: Cicili writes a one-argument `or' as a call
+    (IF (CDR tests) `(or ,@tests) (FIRST tests))))
+
 ;;; the word a construct of swipl's own frame -- once/1, ignore/1, not/1,
 ;;; catch/3 -- gives its parts: B's height, SYS, G's own functor
 (DEFMACRO coco-sys-bar (b g)
@@ -125,6 +134,15 @@
         ;; and the free ones with them (1.12.2): an engine asked again --
         ;; the REPL's, at each query -- counted `steps - frees' below zero
         (set (-> e frees) 0)
+        ;; and no raise limit, which a count from zero would misread
+        ;; (3.73.0): the query's call_with_inference_limit/3 arms its own
+        (set (-> e ilim) 0)
+        (set (-> e ilnar) 0)
+        ;; and the ceiling a raise limit lowered back where it was
+        (if (-> e ilcap)
+            (block (set (-> e max_steps) (-> e tcap))
+                   (set (-> e tcap) 0)
+                   (set (-> e ilcap) 0)))
         (set (-> e resume) 0)
         (set (-> e halted) 0)
         ;; `halt' is `halt(0)': halt/0 sets only the flag, so the code it
@@ -389,6 +407,8 @@
           (if (-> e tclock) (coco_clock_back e))
           (set (-> e steps) (+ (-> e steps) ($ sub steps)))
           (set (-> e frees) (+ (-> e frees) ($ sub frees)))
+          ;; a raise of this engine's limit inside is this engine's (3.73.0)
+          (coco_ilim_back e (aof sub))
           (coco_gc_nested_end m gsaved)
           ;; and everything this frame told the collector, as it left it --
           ;; read before the free, which memsets the inner engine
@@ -508,6 +528,8 @@
           (if (-> e tclock) (coco_clock_back e))
           (set (-> e steps) (+ (-> e steps) ($ sub steps)))
           (set (-> e frees) (+ (-> e frees) ($ sub frees)))
+          ;; a raise of this engine's limit inside is this engine's (3.73.0)
+          (coco_ilim_back e (aof sub))
           (let ((int threw . 0) (size_t cell . 0) (size_t bsize . 0)
                 (void * bstor . nil) (size_t bmark . 0))
             (if (== rc 1) (set out 1))
@@ -2286,16 +2308,78 @@
   ;;; MAX_STEPS, which a limit sets at the inference limit itself (at most
   ;;; that many steps are inferences), so a run that takes no free step
   ;;; asks nothing it did not ask (`coco_limit_go').
+  ;;;
+  ;;; A RAISE LIMIT IS NO STOP (3.73.0, call_with_inference_limit/3): its
+  ;;; point -- ILIM plus the free steps so far, past which `coco_limit_go'
+  ;;; raises -- caps the next ceiling, and where it lowered the ceiling in
+  ;;; steps a host or a window set (ILCAP, that ceiling kept in TCAP) the
+  ;;; run goes on to whichever comes first. Without MAX_INF the ceiling in
+  ;;; steps is still the stop it was: through the first cut ILIM stood in
+  ;;; for MAX_INF here, and a window's end under its clock moved to the
+  ;;; raise's point (`coco_clock_go' reads RMAX back from MAX_STEPS).
   (static)
   (func coco_limit_room ((coco_engine * e)) (out int)
         (let ((u64 t . 0))
-          (if (== (-> e max_inf) 0) (return 0))
+          (if (== (-> e max_inf) 0)
+              (block
+               (if (not (-> e ilcap)) (return 0))
+               (if (and (!= (-> e tcap) 0) (> (-> e steps) (-> e tcap))) (return 0))
+               (set t (+ (-> e ilim) (-> e frees)))
+               (if (and (!= (-> e tcap) 0) (> t (-> e tcap))) (set t (-> e tcap)))
+               (set (-> e max_steps) t)
+               (return 1)))
           (if (> (- (-> e steps) (-> e frees)) (-> e max_inf)) (return 0))
           (set t (+ (-> e max_inf) (-> e frees)))
           (if (and (!= (-> e tcap) 0) (> t (-> e tcap))) (set t (-> e tcap)))
+          (if (and (!= (-> e ilim) 0) (> t (+ (-> e ilim) (-> e frees))))
+              (set t (+ (-> e ilim) (-> e frees))))
           (if (> (-> e steps) t) (return 0))
           (set (-> e max_steps) t)
           (return 1)))
+
+  ;;; NO STEP CEILING PASSES A RAISE LIMIT'S POINT (3.73.0): MAX_STEPS at
+  ;;; most the step past which ILIM is passed were every step from here an
+  ;;; inference, the earliest the raise can be due, where `coco_limit_go'
+  ;;; asks again. Where MAX_INF is none the ceiling in steps it lowers -- a
+  ;;; window's end, a host's -- is kept in TCAP first (ILCAP), where
+  ;;; `coco_limit_room' caps by it and `coco_ilim_set' takes it back; a
+  ;;; green quantum and a window's clock set theirs again at each run and
+  ;;; reading, and a ceiling lowered early only asks early. Every setter of
+  ;;; MAX_STEPS a raise limit may be armed under calls it after.
+  (static)
+  (func coco_ilim_clamp ((coco_engine * e))
+        (if (!= (-> e ilim) 0)
+            (let ((u64 at . #'(+ (-> e ilim) (-> e frees))))
+              (if (and (== (-> e max_inf) 0) (not (-> e ilcap))
+                       (not (-> e greenq)) (not (-> e tclock)))
+                  (block (set (-> e tcap) (-> e max_steps))
+                         (set (-> e ilcap) 1)))
+              (if (or (== (-> e max_steps) 0) (> (-> e max_steps) at))
+                  (set (-> e max_steps) at)))))
+
+  ;;; THE RAISE LIMIT SET (3.73.0): V, an inference count, or 0 for none --
+  ;;; the ceiling in steps a clamp kept back in MAX_STEPS then; one left low
+  ;;; under MAX_INF or a green quantum only asks early, where
+  ;;; `coco_limit_room' makes it again
+  (func coco_ilim_set ((coco_engine * e) (u64 v))
+        (set (-> e ilim) v)
+        (if (== v 0)
+            (if (-> e ilcap)
+                (block (set (-> e max_steps) (-> e tcap))
+                       (set (-> e tcap) 0)
+                       (set (-> e ilcap) 0)))
+            (coco_ilim_clamp e)))
+
+  ;;; A NESTED ENGINE'S RAISE WAS ITS OUTER ENGINE'S (3.73.0): SUB, given E's
+  ;;; raise limit (ILNAR) and ended with it disarmed, raised it -- the one
+  ;;; limit swipl keeps a thread -- so E's goes with it, whether the ball
+  ;;; comes out of SUB to be thrown again here or a catch inside took it.
+  ;;; Each starter of a nested engine calls this once the steps are added,
+  ;;; before it throws anything again; a limit SUB's own call armed and
+  ;;; disarmed is SUB's, and its exit put the narrowed one back.
+  (func coco_ilim_back ((coco_engine * e) (coco_engine * sub))
+        (if (and (-> sub ilnar) (== (-> sub ilim) 0) (!= (-> e ilim) 0))
+            (coco_ilim_set e 0)))
 
   ;;; A NESTED ENGINE SPENDS ITS OUTER ENGINE'S BUDGET, never more (1.12.2,
   ;;; in two clocks): an inference limit outside narrows SUB's (MAX_INF,
@@ -2313,7 +2397,12 @@
         ;; call_limited, and under green every page stopped at the first
         ;; 10,000 steps with "page exceeded its inference limit". The sub
         ;; keeps its own limits; the task yields when the search returns.
-        (let ((u64 emax . #'(? (-> e greenq) 0 (? (-> e tclock) (-> e rmax) (-> e max_steps)))))
+        ;; A RAISE LIMIT'S CEILING IS NO LIMIT OF E'S (3.73.0): where one
+        ;; lowered MAX_STEPS, E's own ceiling in steps is in TCAP (ILCAP),
+        ;; and SUB is given the raise itself, below
+        (let ((u64 emax . #'(? (-> e greenq) 0
+                               (? (-> e tclock) (-> e rmax)
+                                  (? (-> e ilcap) (-> e tcap) (-> e max_steps))))))
           (if (!= (-> e max_inf) 0)
               (let ((u64 spent . #'(- (-> e steps) (-> e frees))) (u64 left . 0))
                 (set left (? (>= spent (-> e max_inf)) 1 (- (-> e max_inf) spent)))
@@ -2331,7 +2420,15 @@
              (set (-> sub max_steps) (-> sub tcap))
              (set (-> sub tcap) 0))
             (#t (set (-> sub max_steps) 0)))
-          (if (-> e tclock) (coco_clock_narrow e sub))))
+          (if (-> e tclock) (coco_clock_narrow e sub))
+          ;; AND E'S RAISE LIMIT (3.73.0): what it has left, counted from
+          ;; SUB's zero, so SUB raises where E would; ILNAR, so that SUB's
+          ;; raise disarms E's too (`coco_ilim_back')
+          (if (!= (-> e ilim) 0)
+              (let ((u64 spent . #'(- (-> e steps) (-> e frees))))
+                (set (-> sub ilim) (? (>= spent (-> e ilim)) 1 (- (-> e ilim) spent)))
+                (set (-> sub ilnar) 1)
+                (coco_ilim_clamp sub)))))
 
   ;;; WHETHER THE NEXT STEP IS THE TRACER'S `$trace_exit' MARKER (1.12.2),
   ;;; asked only past the limit: a marker gives back the step taking it
@@ -2379,7 +2476,11 @@
                 ;; the window's end is a limit in steps, which replaces any
                 (set (-> x max_inf) 0)
                 (set (-> x tcap) 0)
-                (set (-> x max_steps) (? (== (-> r to) 0) 0 (- (-> r to) base))))
+                (set (-> x max_steps) (? (== (-> r to) 0) 0 (- (-> r to) base)))
+                ;; but a raise limit's (3.73.0), which raises in the window
+                ;; where it would have outside it
+                (set (-> x ilcap) 0)
+                (coco_ilim_clamp x))
               (if (== (cast (void *) x) (-> r root)) break)
               (set x (cast (coco_engine *) (-> x outer)))))
           (set (-> r state) 1)
@@ -2435,6 +2536,112 @@
               (set (-> e max_steps) (-> e rmax)))
           (return 1)))
 
+  ;;; THE STEP AT HAND PAST A RAISE LIMIT, AS SWIPL'S TEST WOULD MEET IT
+  ;;; (3.73.0): swipl asks its limit where a predicate's frame is entered
+  ;;; or a clause retried (pl-vmi.c's depart_or_retry_continue), never in an
+  ;;; instruction a body compiles in place, and passes over a frame of the
+  ;;; limit's own six (pl-prims.c's raiseInferenceLimitException). So the
+  ;;; step is QUIET -- it runs, and the next asks again -- where its goal is
+  ;;; one of those six or cocolog's two halves of '$inference_limit_true'/3;
+  ;;; a construct, wherever it stands (`call_with_inference_limit((true,
+  ;;; true), 0, R)' is `!' in swipl: a structure catch/3 calls raises
+  ;;; nothing of its own); an environment's control unit; or a goal swipl
+  ;;; compiles in place (pl-comp.c's `=', `==', `\==', var/1, nonvar/1 and
+  ;;; the type tests) where its word's owner is a clause or the
+  ;;; `'<meta-call>'/1' swipl compiles a control structure it calls into. A
+  ;;; goal meta-called itself -- catch/3's, call/N's, a search's root -- is
+  ;;; a frame of its own in swipl, and raises (`call_with_inference_limit(X =
+  ;;; 1, 0, R)' is exceeded there), the goal past a construct asking next.
+  ;;; Read as the loop will take it (`coco_clock_key'): the registers, a
+  ;;; goal handed over, the continuation's `'$k'' frame, an environment's
+  ;;; unit. A step that names no goal -- a solution handed back, a variable
+  ;;; -- is quiet.
+  (static)
+  (func coco_ilim_quiet ((coco_engine * e)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (size_t g . 0) (u64 w . 0)
+              (size_t nm . 0) (u32 ar . 0) (const char * s . nil) (int inl . 0))
+          (cond ((== (-> e nset) 2)
+                 (block (set nm ($ (nth (-> e afid) (-> m functors)) name))
+                        (set ar ($ (nth (-> e afid) (-> m functors)) arity))
+                        (set w (-> e nbar))))
+                ((== (-> e nset) 1) (block (set g (-> e ngoal)) (set w (-> e nbar))))
+                (#t
+                 (let ((size_t kf . #'(coco_deref m (-> e goals))) (u64 c . 0))
+                   (set c (nth kf (-> m heap)))
+                   (cond ((coco-tag-is FUN c)
+                          (block (set g (coco_arg m kf 0))
+                                 (set w (cast u64 (coco-signed-payload (nth (+ kf 2) (-> m heap)))))))
+                         ((coco-tag-is POS c)
+                          (let ((size_t pay . #'(cast size_t (coco-payload c)))
+                                (size_t env . 0) (coco_code * cd . nil) (coco_egoal * eg . nil)
+                                (u32 kind . 0))
+                            (set env (- kf (>> pay 16)))
+                            (set cd (coco-env-code m env))
+                            (set eg (aof (nth (bitand pay 65535) (-> cd egoals))))
+                            (set kind (-> eg kind))
+                            ;; a clause's own control: its cut, `true', `fail',
+                            ;; an if-then-else, a disjunction, a `,''s item
+                            (if (and (!= kind (cc-eg "TERM")) (!= kind (cc-eg "BUILTIN"))
+                                     (!= kind (cc-eg "CALL")) (!= kind (cc-eg "GUARD"))
+                                     (!= kind (cc-eg "SIDES")) (!= kind (cc-eg "GUARDX")))
+                                (return 1))
+                            (set w (-> eg tag))
+                            (if (or (== kind (cc-eg "TERM")) (== kind (cc-eg "BUILTIN")))
+                                (set g (+ env (cast size_t (-> eg soff))))
+                                (block (set nm ($ (nth (-> eg fid) (-> m functors)) name))
+                                       (set ar ($ (nth (-> eg fid) (-> m functors)) arity))))))
+                         (#t (return 1))))))
+          (if (!= g 0)
+              (let ((size_t d . #'(coco_deref m g)) (u64 cg . 0))
+                (set cg (nth d (-> m heap)))
+                (cond ((coco-tag-is FUN cg) (block (set nm (coco_name_of m d)) (set ar (coco_arity m d))))
+                      ((coco-tag-is ATOM cg) (block (set nm (cast size_t (coco-payload cg))) (set ar 0)))
+                      (#t (return 1)))))
+          (set s (coco_atom_name m (cast u64 nm)))
+          (if (== s nil) (return 1))
+          (if (coco-ilim-named s ar ("call_with_inference_limit" 3) ("$inference_limit" 2)
+                               ("$inference_limit_true" 3) ("$inference_limit_false" 1)
+                               ("$inference_limit_except" 3) ("catch" 3)
+                               ("$inference_limit_exit" 2) ("$inference_limit_redo" 2))
+              (return 1))
+          (set inl (or (and (!= (coco-bar-pred w) 0) (not (coco-bar-sys w)) (not (coco-bar-meta w)))
+                       (== (coco-bar-tag w) (coco_mc_tag m))))
+          ;; swipl's in-place goals first, `true' and `fail' among them,
+          ;; constructs here: called on their own they are predicates there
+          ;; (`call_with_inference_limit(true, 0, R)' is exceeded)
+          (if (coco-ilim-named s ar ("true" 0) ("fail" 0) ("=" 2) ("==" 2) ("\\==" 2)
+                               ("var" 1) ("nonvar" 1) ("integer" 1) ("rational" 1)
+                               ("float" 1) ("number" 1) ("atomic" 1) ("atom" 1)
+                               ("string" 1) ("compound" 1) ("callable" 1))
+              (return inl))
+          ;; and `false', which swipl's body compiles as a call
+          (if (coco-ilim-named s ar ("false" 0)) (return 0))
+          (return (coco_is_construct m nm))))
+
+  ;;; PAST THE RAISE LIMIT (3.73.0): the step raises inference_limit_exceeded
+  ;;; at the halt's test (HALTED 129, `coco_halted_step', which flushes the
+  ;;; continuation, disarms the limit -- it raises once, as swipl's -- and
+  ;;; throws), unless it is quiet (`coco_ilim_quiet') or a stop is asked
+  ;;; already at this step, either of which lets it run and asks again at
+  ;;; the next. Always 1: the step goes on, to the halt's test or its goal.
+  ;;; MAX_STEPS ONE BELOW THE STEP, so the next step asks whatever this one
+  ;;; does with its count: the tracer's Exit marker -- a construct, quiet --
+  ;;; gives its step back, and so does a stop the halt's test takes back
+  ;;; (the stack limit's, under it after a collection), so the step after
+  ;;; it has this one's number. At MAX_STEPS
+  ;;; the step, the first cut, that number was no step past the ceiling,
+  ;;; the loop asked nothing, and a traced run raised a step late: a goal's
+  ;;; second answer under a limit of 1 was `true' where untraced it was
+  ;;; exceeded (test/files/inference_limit.pl, `s10', under --trace; the
+  ;;; engine case's traced check). STEPS is past ILIM plus the free steps,
+  ;;; which is 1 at least, so the ceiling is never 0, which is none.
+  (weak) (cold)
+  (func coco_ilim_hit ((coco_engine * e)) (out int)
+        (if (or (!= (-> e halted) 0) (coco_ilim_quiet e))
+            (block (set (-> e max_steps) (- (-> e steps) 1)) (return 1)))
+        (set (-> e halted) 129)
+        (return 1))
+
   ;;; PAST THE LIMIT, WHETHER THE RUN GOES ON (1.12.2): room left in a
   ;;; limit in inferences, the tracer's Exit marker next, or a window
   ;;; opening -- asked in that order, in ONE call out of line, the shape
@@ -2444,6 +2651,10 @@
   ;;; every step comes here, and the clock asks them (1.13.3).
   (weak)
   (func coco_limit_go ((coco_engine * e)) (out int)
+        ;; PAST A RAISE LIMIT (3.73.0): the step raises before anything else
+        ;; is asked, in a green task and under a window's clock too
+        (if (and (!= (-> e ilim) 0) (> (- (-> e steps) (-> e frees)) (-> e ilim)))
+            (return (coco_ilim_hit e)))
         ;; A GREEN QUANTUM (2.8.0): stop at this step, the continuation
         ;; flushed as a yield's stop flushes it, and let the scheduler run
         ;; the task again. NOT the inference-limit path: a direct resume
@@ -2467,7 +2678,11 @@
              (set (-> e gstop) 1)
              (coco_k_flush e)
              (return 0)))
-        (if (-> e tclock) (return (coco_clock_go e)))
+        ;; the clock's next reading passes no raise limit's point (3.73.0)
+        (if (-> e tclock)
+            (let ((int r . #'(coco_clock_go e)))
+              (coco_ilim_clamp e)
+              (return r)))
         (if (coco_limit_room e) (return 1))
         (if (coco_step_free e) (return 1))
         (return (coco_rec_open e)))
@@ -2609,6 +2824,19 @@
               (block (set (-> e halted) 0)
                      (coco_k_flush e)
                      (return 0)))
+          ;; THE RAISE LIMIT PASSED (3.73.0, `coco_ilim_hit'): disarmed, so
+          ;; that it raises once, as swipl's, and inference_limit_exceeded
+          ;; thrown -- 2 where a catch took it, and the loop goes round; a
+          ;; ball nothing in this engine caught ends the run with it, for
+          ;; the engine that started this one to throw again. With no room
+          ;; to flush, the stop is memory's, as a signal's is
+          (if (== (-> e halted) 129)
+              (block
+               (set (-> e halted) 0)
+               (if (not (coco_k_flush e)) (block (set (-> e halted) 2) (return 0)))
+               (coco_ilim_set e 0)
+               (set (-> e kcall) 0)
+               (return (? (== 1 (coco_throw e (coco_new_atom m "inference_limit_exceeded"))) 2 -1))))
           (if (and (> (-> e halted) 3) (< (-> e halted) 128))
               (let ((int signo . #'(- (-> e halted) 3)))
                 (set (-> e halted) 0)
@@ -3344,6 +3572,9 @@
           (set (-> e outer) (-> m eng))
           (set (-> m eng) (cast (void *) e))
           (set (-> m haltp) (aof (-> e halted)))
+          ;; a ceiling a host or a scheduler set passes no raise limit's
+          ;; point (3.73.0): a green quantum, a turn's, a thawed machine's
+          (if (!= (-> e ilim) 0) (coco_ilim_clamp e))
           (set rc (coco_engine_run e))
           (set coco_refuse_m was)
           (set (-> m eng) (-> e outer))

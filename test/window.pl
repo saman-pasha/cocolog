@@ -27,7 +27,7 @@
 :- use_module('test/trace-program.pl').
 
 main :-
-    clock, printed, turns, window, tried, asked, timed, retried, cpu, run_timed, checks_done.
+    clock, printed, turns, window, tried, asked, timed, retried, cpu, run_timed, limited, checks_done.
 
 %% ---- the programs the windows watch -----------------------------------
 
@@ -898,3 +898,34 @@ win_refused(Opts, R) :-
     (   G = error(error(domain_error(trace_window_option, _), _)) -> R = domain
     ;   R = G
     ).
+
+%% ---- a raise limit under a window and a clock (3.73.0) -----------------
+%% A WINDOW'S END IS NO RAISE LIMIT'S, NOR IS A CLOCK'S NEXT READING: a
+%% window that opens inside call_with_inference_limit/3's goal sets the
+%% run's ceiling in steps to its end (`coco_rec_open'), and a clock sets it
+%% to its next reading (`coco_clock_go'), and each puts the limit's point
+%% back under it, so the goal raises where a probe's does -- over a goal
+%% whose free steps leave the count short of the steps when the ceiling
+%% is reached. And under a clock no guard runs while a limit is armed
+%% (`coco_guard_budget': the clock's limit is RMAX, which the raise limit
+%% does not lower), so a clause's guards raise where they do untimed.
+w_eqs(N) :- N1 is N + 1, X = f(N), X = f(_), w_eqs(N1).
+w_gl(N) :- N1 is N + 1, N1 > 0, w_gl(N1).
+
+limited :-
+    section('a raise limit under a window and under a clock'),
+    '$trace_window'(call_with_inference_limit(w_eqs(0), 300, _), [], _, end(H0, I0, _)),
+    %% a window counts steps, the free ones too: 300 inferences are some 600
+    ( I0 < 1000 -> R0 = near ; R0 = I0 ),
+    check('a probe of a goal with free steps: it raises near its limit', H0-R0, answer-near),
+    '$trace_window'(call_with_inference_limit(w_eqs(0), 300, _), [from(100), to(5000)], _, end(H1, I1, _)),
+    check('a window opened inside the goal: it raises where the probe does', H1-I1, H0-I0),
+    '$trace_window'(call_with_inference_limit(w_eqs(0), 300, _), [time(5000, 0)], _, end(H2, I2, _)),
+    check('under a clock that starts past its limit: where the probe does', H2-I2, H0-I0),
+    findall(L-I3-I4, ( member(L, [300, 301, 302, 303]),
+                       '$trace_window'(call_with_inference_limit(w_gl(0), L, _), [], _, end(_, I3, _)),
+                       '$trace_window'(call_with_inference_limit(w_gl(0), L, _), [time(1, 0)], _, end(_, I4, _)) ),
+            Ps),
+    findall(L, member(L-I-I, Ps), Same),
+    check('a clause''s guards under a clock: each limit raises where it does untimed',
+          Same, [300, 301, 302, 303]).

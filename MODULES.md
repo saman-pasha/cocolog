@@ -715,13 +715,13 @@ below 1 is a `domain_error(positive_integer, _)` and **not** "no limit" —
 zero is how `max_steps` spells unbounded one layer down, so a caller asking
 for nothing would otherwise have got everything.
 
-**It is not named `call_with_inference_limit/3`, on purpose.** SWI's keeps the
-goal's choice points alive; this commits to the first solution, because the
-nested engine that carries the ceiling dies with its own choice stack. The
-rule is the one `lib/builtins.cicili` already states about `bagof` and
-`setof`: *a predicate that agrees with SWI until it does not is worse than one
-that never claimed to.* Somebody porting code gets an existence error and
-reads this, rather than a program that works until a page backtracks.
+**It is not `call_with_inference_limit/3`**, which is there too since 3.73.0,
+as swipl's: that one raises `inference_limit_exceeded` inside the goal, once,
+and keeps the goal's choice points, a limit each solution. This one stops the
+goal's own search -- nothing is raised, and no catch inside the goal is asked
+-- and commits to the first solution, because the nested engine that carries
+the ceiling dies with its own choice stack. Each keeps its name, so a program
+asks for the contract it means.
 
 **Why it exists at all.** `max_steps` belonged to the composition root —
 `cocolog step` was the only thing that ever set it — so nothing a *program*

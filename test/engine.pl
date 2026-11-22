@@ -38,7 +38,7 @@ main :-
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
     update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), repeat_runs(D), jit_runs(D),
     qk_runs(D),
-    gvars_runs(D), findnsols_runs(D),
+    gvars_runs(D), findnsols_runs(D), il_runs(D),
     btree_places, op_names_frozen(D), own_properties, own_current, own_too_long,
     shl(['rm -rf ', D]),
     checks_done.
@@ -2413,6 +2413,64 @@ findnsols_runs(D) :-
     sh_join(['ulimit -v 120000; ', C, ' --local run ', LF, ' main 2>&1'], LCmd),
     shell(LCmd, LOut, LExit),
     check('a hundred thousand calls cut: each bag given back', LOut-LExit, '[c,d]'-0).
+
+%% CALL_WITH_INFERENCE_LIMIT/3 UNDER TRACE, A COLLECTOR, A FREEZE AND A THAW
+%% (3.73.0). test/files/inference_limit.pl holds swipl's answers untraced;
+%% here the same file's under trace -- which counts what an untraced run
+%% counts -- and under a collection every 2000 cells, whose moves the limit
+%% (a count, no cell) passes untouched. A machine frozen inside a call
+%% (`cocolog step') keeps its limit (the `X' section): thawed, the goal
+%% raises where it would have, a loop's limit two turns and a half away,
+%% and a goal under it answers `!' and `true' as it would. And the limit
+%% beside call_limited/3, cocolog's own: a limit raised inside its search
+%% comes out of it, its stop inside a limit's goal is its own answer, and
+%% a goal that raised spends what its limit gave it, not what the meter
+%% around it would have let it.
+il_runs(D) :-
+    section('call_with_inference_limit/3 under trace, a collector, a freeze and a thaw'),
+    cocolog(C),
+    findall(Tag-Out,
+            ( member(Tag-Pre-Opt, [ plain-''-'', trace-''-'--trace ',
+                                    gc-'COCOLOG_GC_CELLS=2000 '-'',
+                                    kmat1-'COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=1 '-'',
+                                    kmat2-'COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 '-'' ]),
+              sh_join([Pre, C, ' ', Opt, '--local run test/files/inference_limit.pl main 2>/dev/null'], Cmd),
+              proc_run(Cmd, 300000, O, _), atom_codes(Out, O) ),
+            [_-U, _-T, _-G, _-K1, _-K2]),
+    ( sub_atom(U, _, _, _, 'n2-yes(call_with_inference_limit(call_with_inference_limit(loop,100000,inference_limit_exceeded),1000,!))') -> H = yes ; H = no ),
+    check('untraced: the case answers', H, yes),
+    check('traced: the same answers', T, U),
+    check('a collection every 2000 cells: the same answers', G, U),
+    check('each collection a freeze''s materialisation put back: the same answers', K1, U),
+    check('each collection a freeze''s materialisation kept: the same answers', K2, U),
+    atom_concat(D, '/il_turns.pl', F),
+    fixture(F, [ 'cnt(0) :- !.', 'cnt(N) :- N1 is N - 1, cnt(N1).',
+                 'loop :- loop.',
+                 'il1 :- call_with_inference_limit(loop, 1500, R), write(R), nl.',
+                 'il2 :- call_with_inference_limit(cnt(400), 1000, R), write(R), nl.',
+                 'il3 :- call_with_inference_limit(member(X, [a,b]), 1000, R), write(X-R), nl, fail.',
+                 'il3.' ]),
+    atom_concat(D, '/il_turns_kb', Kb),
+    sh_join([C, ' --embed ', Kb, ' consult ', F, ' >/dev/null 2>&1'], CCons),
+    shl([CCons]),
+    det_turns(C, Kb, il1, 600, E1),
+    check('frozen and thawed: a loop raises at its limit', E1, 'inference_limit_exceeded_'),
+    det_turns(C, Kb, il2, E2),
+    check('frozen and thawed: a goal under its limit', E2, '!_'),
+    det_turns(C, Kb, il3, E3),
+    check('frozen and thawed: each answer of a goal that left a choice point', E3, 'a-trueb-!_'),
+    atom_concat(D, '/il_metered.pl', MF),
+    fixture(MF, [ 'loop :- loop.',
+                  'pv(T) :- \\+ \\+ ( numbervars(T, 0, _), print(T) ), nl.',
+                  'main :- call_with_inference_limit(call_limited(loop, 100000, R1), 1000, R2), pv(R1-R2),',
+                  '        call_limited(call_with_inference_limit(loop, 100000, R3), 1000, R4), pv(R3-R4),',
+                  '        call_metered(call_with_inference_limit(loop, 1000, R5), 100000, U5, S5),',
+                  '        ( U5 < 1100 -> pv(R5-S5) ; pv(spent(U5)) ),',
+                  '        call_with_inference_limit(call_limited(loop, 100, R6), 1000, R7), pv(R6-R7).' ]),
+    sh_join([C, ' --local run ', MF, ' main 2>&1'], MCmd),
+    proc_run(MCmd, 60000, MO, _), atom_codes(MA, MO),
+    check('beside call_limited/3 and call_metered/4', MA,
+          'A-inference_limit_exceeded\nA-inference_limit_exceeded\ninference_limit_exceeded-true\ninference_limit_exceeded-!\n').
 
 %% SWIPL'S JIT INDEX ANSWERS AS IT DOES UNDER TRACE, UNDER A COLLECTOR THAT
 %% RUNS EVERY 2000 CELLS, AND AFTER THE CLAUSES CHANGE (3.24.0).

@@ -3386,6 +3386,35 @@ into its `at_modules/1`. What a session must keep:
   new frame kind in `coco_backtrack` gets its own equality test**: folded
   into an `or` with the kinds beside it, it cost the step loop its jump
   table (queens +0.08 %).
+* **call_with_inference_limit/3 RAISES where swipl's does, and a limit
+  that raises is no stop** (3.73.0; `coco_ilim_*` in lib/solve-loop.cicili,
+  the halves `coco_b_ilim_*` in lib/builtins-db.cicili, swipl's clauses in
+  the builtins' Prolog half, test/files/inference_limit.pl): the engine's
+  `ilim` is the inference past which a step raises inference_limit_exceeded,
+  0 for none, beside `max_inf`, past which a run stops. The loop tests
+  nothing new: **no ceiling of `max_steps` passes `ilim` plus the frees**
+  (`coco_ilim_clamp`), so the one limit test the loop makes reaches
+  `coco_limit_go`, which asks `coco_ilim_hit` first -- the step QUIET where
+  swipl's test would not meet it (`coco_ilim_quiet`: a construct, an
+  environment's control unit, a goal swipl compiles in place in a clause
+  or a meta-called structure, the limit's own frames and catch/3), else
+  `halted` 129, which `coco_halted_step` throws, the limit disarmed first:
+  it raises once. **A quiet step's ceiling is one below its own number**,
+  so the next step asks whatever this one does with the count: the
+  tracer's Exit marker gives its step back, and at the step's own number,
+  the first cut, a traced run raised a step late (the engine case's traced
+  check). **Every setter of `max_steps` a limit may be armed under
+  clamps after it** (a nested engine's narrow, a window's clock, the room
+  past a limit, `coco_engine_next`), or the raise passes unseen; a ceiling
+  in steps the clamp lowered (a window's end, a host's) waits in `tcap`
+  (`ilcap`) and comes back when the limit goes. A nested engine is handed
+  what is left (`ilnar`), and **its starter takes the disarm back**
+  (`coco_ilim_back`: findall/3, call_limited/3, with_output_to/2's capture)
+  -- swipl keeps one limit a thread -- so a new starter calls it once the
+  steps are added. The guards run none under a clock and a limit
+  (`coco_guard_budget`), a frozen machine keeps `ilim` (section `X`), and
+  `coco_engine_ask` disarms it. What it counts is cocolog's own: an `is/2`
+  is an inference, where swipl's compiler makes most none (COMPAT.md).
 * **The whole run's clock charges a step to what its goal is NAMED by**
   (1.15.0, `run_time(R)`, library(flow/debug)'s `flow_run_time/3`): the
   same clock from the first step, but each reading charges its time to a

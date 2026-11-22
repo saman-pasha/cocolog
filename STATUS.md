@@ -22170,3 +22170,219 @@ gc, and the seven test binaries (term, syntax, solve, module, state, and
 zigurat and shared with a server up), each alone, green with no SKIP, the
 binary's md5 the same before and after; engine and thread again alone once
 their last checks were in; the dialect card's 33 cites all anchored.
+
+## call_with_inference_limit/3 is swipl's (3.73.0)
+
+Backlog #254's second item, the third of COMPAT.md's search group of
+useful predicates: through 3.72.0 cocolog had none, and a call raised
+existence_error -- by design, cocolint's card row X3 said, beside
+cocolog's own call_limited/3, whose contract is another (its note in
+lib/builtins.cicili says so now: each keeps its name, so a program asks for
+the contract it means). A minor: something new reachable from a program.
+
+THE PREDICATE is swipl 9.0.4's boot/syspred.pl clause word for word, in the
+builtins' Prolog half, over five C rows of lib/builtins-db.cicili that
+stand for swipl's pl-prims.c: `'$inference_limit'/2` (the limit set,
+OLimit the one before and the choice stack's height),
+`'$inference_limit_except'/3` (the limit put back, the call's own ball
+taken, any other thrown again), `'$inference_limit_false'/1` (put back,
+and fail), and swipl's nondeterministic C `'$inference_limit_true'/3` as a
+clause over two halves: `'$inference_limit_exit'/2` (put back, and whether
+the goal left a choice point) and `'$inference_limit_redo'/2` (on
+backtracking into the goal, its limit again). What is swipl's:
+
+- the result: `!` where the goal succeeded leaving no choice point, `true`
+  where it left one, each answer as the goal gives it,
+  inference_limit_exceeded where the goal ran out, a failure where it
+  failed, its ball thrown again, and the Result given unified last;
+- the limit: an integer of 0 or more, else swipl's error in
+  system:'$inference_limit'/2's context (a row of `*error-contexts*`);
+  the count plus Limit plus the call's own steps before the goal's first,
+  so that a goal spends Limit inferences and the next raises --
+  `call_with_inference_limit(f, 0, R)` is exceeded, `(f, 1, R)` is `!`;
+- where it raises, as swipl's: where a predicate's frame is entered or a
+  clause retried (pl-vmi.c's depart_or_retry_continue), never at a goal
+  swipl's compiler puts in place -- `=`, `==`, `\==`, var/1, nonvar/1, the
+  type tests, true, fail -- in a clause or in the `'<meta-call>'/1` swipl
+  compiles a control structure it calls into, never at a control construct,
+  nor at the limit's own frames or catch/3's; a goal meta-called itself
+  (`call_with_inference_limit(X = 1, 0, R)`) is a frame of its own there,
+  and raises;
+- a solution's limit: a redo into the goal has the limit again;
+- once: the limit is disarmed as it raises, so a catch inside the goal
+  takes the ball and the goal runs on with no limit; any raise of
+  inference_limit_exceeded is the call's, a program's throw/1 of it too;
+- nesting: an inner call's lower limit is the one in force, a higher one
+  leaves the outer's, whose raise the inner call takes, and the outer's
+  limit put back raises at its next call; on a redo the inner call's limit
+  replaces the outer's until the goal's next exit;
+- the goal's own errors, named as swipl's catch/3 names them; the goal
+  under findall/3, forall/2, `\+`, setup_call_cleanup/3, with_output_to/2
+  and a cut after an answer; determinism as the caller sees it --
+  call_cleanup/2's Det, $/1, a guard; and the predicate as
+  predicate_property/2, current_predicate/1 and clause/2 see it.
+
+WHAT IS COCOLOG'S OWN, the limit's life in the engine (lib/solve-loop.cicili,
+CLAUDE.md's new bullet):
+
+- the limit is `ilim`, the inference count past which a step raises,
+  appended to coco_engine beside `max_inf`, the count at which a run stops
+  (call_limited/3's, call_metered/4's, a host's): a raise limit is no stop;
+- THE LOOP TESTS NOTHING NEW. No ceiling of `max_steps`, the one limit test
+  the loop makes, passes `ilim` plus the free steps (`coco_ilim_clamp`),
+  so the step past the limit reaches `coco_limit_go`, which asks
+  `coco_ilim_hit` before anything else: QUIET where swipl's test would not
+  meet the step (`coco_ilim_quiet`, reading the goal the loop is about to
+  take as the clock's key does) -- the step runs, and the next asks again
+  -- else `halted` 129, which `coco_halted_step` turns into the throw, the
+  limit disarmed first;
+- a ceiling in steps the clamp lowered (a window's end, a host's turn)
+  waits in `tcap` (`ilcap`) and comes back when the limit goes; a nested
+  engine is handed what is left of the limit (`ilnar`), and its starter
+  takes the disarm back from it (`coco_ilim_back`: findall/3,
+  call_limited/3, with_output_to/2's capture) -- swipl keeps one limit a
+  thread;
+- no guard runs under a window's clock while a limit is armed (the guards'
+  budget reads the clock's RMAX, which the raise does not lower: the steps
+  take them, inference for inference);
+- a frozen machine keeps the limit (section `X`), and an engine asked again
+  (the REPL's) begins with none.
+
+WHAT IT COUNTS is cocolog's count, never swipl's (a COMPAT.md row):
+an is/2 is an inference here, where swipl's compiler puts it into the
+clause's code, so `cnt(N) :- N1 is N - 1, cnt(N1).` over `cnt(0) :- !.`
+counts 204 for cnt(100) here and 102 there, and a predicate swipl writes
+in Prolog that cocolog writes in C counts the other way (numlist/3). The
+case's limits stand far from both counts, but the small ones the two agree
+on. Cocolog's call spends three steps before the goal's
+first where swipl's spends two -- the `user:` the meta-predicate puts
+before the goal is a step here -- which the limit's overhead takes back.
+
+THE CASES. test/files/inference_limit.pl holds 120 lines to swipl 9.0.4,
+byte for byte: the results (19 checks), the limits (21), the solutions
+(11), the goals (7), the nesting (18), inside the goal (16), determinism
+(7) and the properties (3). Cocolog's own: test/engine.pl's `il_runs` (the
+case traced, under a collector every 2 000 cells, and with each collection a
+freeze's materialisation put back and kept, all equal to its untraced
+answers; a machine frozen and thawed inside a call raising where it would
+have, a loop's limit two turns and a half away, and a goal under its limit
+answering `!` and `true` as it would; and the limit beside call_limited/3
+and call_metered/4), test/thread.pl's `limits_per_thread` (a thread's
+limit raises in it, and a thread spends none of its creator's),
+test/async.pl's `case_limits` (three tasks' limits each its own across
+yields, a fourth task's call awaited, and the main task's) and
+test/window.pl's `limited` (a probe raising near its limit, a window opened
+inside the goal and a clock that starts past the limit raising where the
+probe does, and a clause's guards under a clock raising where they do
+untimed), and test/trace.pl's own ports of the call (test/trace-library.pl's
+`il` and `ig`: its Call, each answer's Exit with the goal said of user and
+its Result, the Redo into the goal and its Fail, held to swipl's).
+
+THE CARD AND THE NOTES: cocolint's card row X3 names
+call_with_inference_limit/3 no more (its pattern, its why, and its cite,
+the unknown procedure's raise in lib/solve-control.cicili now), and its
+example finding and table row in tools/cocolint/GUIDE.md;
+library/httpd.pl's note on call_limited/3; COMPAT.md's paragraph of what
+is there, its list of what is absent and its new row; and the card's three
+cites that 3.72.0's lines and this release's moved, corrected.
+
+A RAISE A STEP LATE UNDER TRACE, which the engine case's traced check
+found once the solutions held a goal's second answer at a limit of 1
+(`s10`, over `sol(1). sol(2) :- f, f, f. sol(3) :- f.`): untraced the
+second answer is exceeded, as swipl's, and traced it was `true`, the third
+`!`. A quiet step set MAX_STEPS to its own number, and the tracer's Exit
+marker -- a construct, so quiet -- gives back the step taking it: the step
+after it had the marker's number, no step past the ceiling, and the loop
+asked nothing until the step after that. `coco_ilim_hit` sets the ceiling
+one below the step now, so the next step asks whatever the step in hand
+does with the count (the stack limit's stop given back after a
+collection hands its number on the same way). The arm T1 below is the
+first cut's line.
+
+WHAT IT COSTS: nothing on the engine's paths. tools/flow/zero.sh against
+3.72.0, work less padding: nrev 65 891 289 (-1 927), queens 39 951 007
+(-18 888), lookup 48 053 694 (-35 911). It is all `coco_try_clause`'s and
+`coco_try_env`'s code, which inline the guards' budget, whose new test (no
+guard under a clock and a raise limit) moved their registers and layout:
+on nrev, which runs no guard, `coco_try_clause` counts 1 999 fewer, on
+queens 19 259 fewer, and on lookup `coco_try_env` counts 20 000 fewer and
+`coco_try_clause` 19 999 more, every one of them a no-op of the jump
+padding; every other engine function counts within a few hundred (queens:
+findall/3's engine -277, its next answer +186, the narrow +5, an ask +4),
+and lookup's glibc -16 392 (memcpy). The fix to the raise a step late moved
+nothing: the build before it counts the three the same to the instruction.
+A start (`cocolog query true`) counts 36 116 602 against 35 999 473,
+117 129 more (+0.33 %): cocolog's own functions +100 332, the declaration
+and the two clauses the builtins' Prolog half reads at every start, 597
+characters (the lexer +21 452, the body's compile +12 380 in
+`coco_cbody_n` and +7 174 and +4 382 beside it, the parse +10 961, the
+interning +7 442 and the store's put +9 180 among them); libc +16 723; ld.so
++108.
+
+THE RULES, each its own arm (one build of the final tree with the rule out),
+each red where it is held -- the files case's count the lines its diff
+against swipl's output shows:
+
+- the engine (lib/solve-loop.cicili): no ceiling clamped to the raise's
+  point (E1: 120 -- no limit ever raised), a construct raising (E2: 27),
+  a goal swipl compiles in place raising in a clause (E3: 29) or in a
+  meta-called structure (E4: 6), the limit's own frames raising (E5: 29),
+  false/0 quiet as a construct (E6: 2), the raise disarming nothing (E7:
+  9), a nested engine handed no limit (E9: 49), its raise leaving its
+  starter's limit armed (E10: 4), the ceiling in steps the clamp lowers
+  not kept (E11: 119), the guards run under a clock and a limit (E12:
+  window's guards under a clock), a frozen machine keeping no limit (E13:
+  engine's loop frozen and thawed), a window opened inside a limit
+  clamping nothing (E15: window's window inside the goal), the room past
+  an inference limit passing the raise's point (E16: engine's beside
+  call_limited/3 and call_metered/4), a ceiling the clamp lowered stopping
+  the run at the raise's point (E17: 119), a nested engine's ceiling the
+  lowered one (E18: 21), a host's run clamping nothing (E19: async's four
+  tasks and the main one), a clock's reading passing the raise's point
+  (E20: window's clock that starts past its limit), and a quiet step's
+  ceiling at its own number, the first cut (T1: engine's traced answers);
+- the C halves (lib/builtins-db.cicili): the limit set where it is farther
+  than the one in force (H1: 2), two steps of overhead (H2: 9), a negative
+  limit no domain error (H3: 4), the goal's own ball not thrown again (H4:
+  13), the limit not put back at a ball (H5: 51), at a failure (H6: 135)
+  or at an exit (H9: 135), a goal never deterministic (H7: 98), every
+  frame a choice point (H8: engine's traced answers, the frame the tracer
+  keeps), the redo's limit set only where it is nearer (H10: 1), three
+  steps of overhead at a redo (H11: 3), and a limit that is no integer
+  failing (H12: 8);
+- the clauses (the builtins' Prolog half): no meta_predicate declaration
+  (P1: trace's own ports of `il` and `ig`, the goal not said of user), no
+  cut where the goal was deterministic (P3: 12) or where the limit was
+  exceeded (P4: 18), and the redo going on, no fail into the goal (P5:
+  121); and '$inference_limit'/2 with no row of `*error-contexts*` (R1:
+  12).
+
+FOUR STAY GREEN AND STAY. catch/3 quiet by name (E5c): catch/3 is a
+construct here, and quiet as every construct is -- the name keeps the list as
+swipl's, raiseInferenceLimitException()'s six frames. A stop asked at the
+step left to stand (E8, 3.62.3's rule for the quantum): only a signal, or a
+stack or memory stop, landing on the very step the limit passes would tell
+it, and no fixture times one -- forty tasks yielding under limits at every
+offset answer the same both ways, the raise being the outcome either way.
+An engine asked again disarmed (E14): no query ends with a limit armed,
+every way out of the call putting it back before a query can answer, so
+the ask's reset guards an invariant, as the ask's other resets do. And
+the Result unified after the goal (P2): swipl's clause as it stands, and
+with no attributed variables no goal here can tell the two orders apart (a
+probe of ten shapes, Result shared with the goal, given, compared, copied,
+answered the same, as swipl's does).
+
+THE RUN, on the final binary: the lint case first, then engine, trace and
+the files case (inference_limit with every other fixture, held to swipl
+9.0.4), flowchart, errors, directives, library, script, gc, cyclic,
+reconsult, repl, journal, signal, process, stream, units, and the seven
+test binaries (term, syntax, solve, module, state, and zigurat and shared
+with a server up), each alone; then with nothing building window, thread,
+async and flowdebug, green with no SKIP, the binary's md5 the same
+before and after; the dialect card's 33 cites all anchored. Two of the
+round's reds were the box's: async's five socket waits deadlock where
+TMPDIR names the scratchpad, whose path makes a unix socket's name longer
+than the 108 bytes it holds (green with the default TMPDIR, as the suite
+runs); and thread's memcheck of five halted threads dies at start under an
+address-space limit, `coco_cstack_reserve` writing past the 8 MB main stack
+valgrind simulates (a finding, queued: green with no limit set).

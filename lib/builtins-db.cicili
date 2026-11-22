@@ -1087,6 +1087,99 @@
             (set (-> m fnbn) (- (-> m fnbn) 1)))
           (return 1)))
 
+  ;;; ---- call_with_inference_limit/3 (3.73.0), swipl 9.0.4's pl-prims.c --
+  ;;;
+  ;;; The engine's raise limit (`ilim', lib/solve.cicili) is swipl's
+  ;;; LD->inference_limit.limit: the count of inferences (`steps' less
+  ;;; `frees') past which a step raises inference_limit_exceeded, once
+  ;;; (`coco_ilim_hit'), 0 for none. The call's OLimit is '$il'(Old, H): the
+  ;;; limit before it, and the choice stack's height as it began, where the
+  ;;; disjunction of call_with_inference_limit/3's clause pushes its frame
+  ;;; next. The limit is the count plus Limit plus three, where swipl's is
+  ;;; its count plus Limit plus two (INFERENCE_LIMIT_OVERHEAD): the three
+  ;;; steps before the goal's first, the disjunction's, catch/3's and the
+  ;;; `user:' the meta-predicate put before the goal (one written in a
+  ;;; clause the store drops, and takes none), where swipl's two calls are
+  ;;; catch/3's and the goal's own, so that a goal spends Limit inferences
+  ;;; and the next raises (`call_with_inference_limit(f, 0, R)' exceeded,
+  ;;; `(f, 1, R)' `!', as swipl's). What a goal spends is cocolog's count,
+  ;;; never swipl's: a construct is a step here and an instruction there,
+  ;;; and cnt(N) of a recursion over is/2 costs 2N where swipl's costs N + 1.
+
+  ;;; the limit OLIMIT names put back -- '$il'(Old, _)'s Old
+  (static)
+  (func coco_ilim_restore ((coco_engine * e) (size_t ol))
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t d . #'(coco_deref m ol)) (i64 v . 0))
+          (if (and (coco-tag-is FUN (nth d (-> m heap))) (== (coco_arity m d) 2))
+              (if (coco_m_int e (coco_arg m d 0) (aof v))
+                  (coco_ilim_set e (cast u64 v))))))
+
+  ;;; '$inference_limit'(+Limit, -OLimit): Limit an integer of 0 or more
+  ;;; (swipl's PL_get_int64_ex, then its domain check), OLimit the limit
+  ;;; before and the height, and the limit lowered to Limit past the count
+  ;;; where that is nearer than the one in force
+  (func coco_b_ilim_set ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (i64 lim . 0) (size_t a . #'(coco_m_arg e g 0))
+              (u64 nl . 0) (size_t args [2]))
+          (if (not (coco_m_int e a (aof lim))) (return (coco_m_type_error e "integer" a)))
+          (if (< lim 0) (return (coco_m_domain_error e "not_less_than_zero" a)))
+          (set (nth 0 args) (coco_new_int m (cast i64 (-> e ilim))))
+          (set (nth 1 args) (coco_new_int m (cast i64 (-> e nchoices))))
+          (if (not (coco_m_unify e (coco_m_arg e g 1) (coco_make m "$il" 2 args))) (return 0))
+          (set nl (+ (+ (- (-> e steps) (-> e frees)) (cast u64 lim)) 3))
+          (if (or (== (-> e ilim) 0) (< nl (-> e ilim))) (coco_ilim_set e nl))
+          (return 1)))
+
+  ;;; '$inference_limit_except'(+OLimit, +Ball, -Result): the limit put
+  ;;; back, and Result inference_limit_exceeded where Ball is that atom --
+  ;;; any raise of it, a program's throw too, as swipl's -- else Ball thrown
+  ;;; again
+  (func coco_b_ilim_except ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t b . #'(coco_deref (coco_m_machine e) (coco_m_arg e g 1)))
+              (u64 c . 0))
+          (coco_ilim_restore e (coco_m_arg e g 0))
+          (set c (nth b (-> m heap)))
+          (if (and (coco-tag-is ATOM c)
+                   (== 0 (strcmp (coco_atom_name m (cast u64 (coco-payload c))) "inference_limit_exceeded")))
+              (return (coco_m_unify e (coco_m_arg e g 2) b)))
+          (return (? (coco_m_thrown e b) 2 -1))))
+
+  ;;; '$inference_limit_false'(+OLimit): the limit put back, and fail --
+  ;;; the goal failed
+  (func coco_b_ilim_false ((coco_engine * e) (size_t g)) (out int)
+        (coco_ilim_restore e (coco_m_arg e g 0))
+        (return 0))
+
+  ;;; '$inference_limit_exit'(+OLimit, -Det): the limit put back, and Det
+  ;;; true where the goal left no choice point -- no frame above the
+  ;;; disjunction's at H that is one (`coco-choice-live': a catch whose goal
+  ;;; exited and a frame the tracer keeps are none, as swipl's unify_det()
+  ;;; passes CHP_CATCH and CHP_DEBUG) -- else false:
+  ;;; '$inference_limit_true'/3's first answer, whose second is the redo
+  (func coco_b_ilim_exit ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t d . #'(coco_deref (coco_m_machine e) (coco_m_arg e g 0)))
+              (i64 h . 0) (int det . 1))
+          (coco_ilim_restore e d)
+          (if (and (coco-tag-is FUN (nth d (-> m heap))) (== (coco_arity m d) 2))
+              (if (coco_m_int e (coco_arg m d 1) (aof h))
+                  (for ((size_t i . #'(cast size_t (+ h 1)))) (< i (-> e nchoices)) ((++ i))
+                    (let ((int fk . #'($ (nth i (-> e choices)) kind)))
+                      (if (coco-choice-live e i fk)
+                          (block (set det 0) break))))))
+          (return (coco_m_unify e (coco_m_arg e g 1) (coco_new_atom m (? det "true" "false"))))))
+
+  ;;; '$inference_limit_redo'(+Limit, +OLimit): on backtracking into the
+  ;;; goal, Limit past the count again whatever limit stands -- swipl's
+  ;;; FRG_REDO sets it so, an outer call's nearer one passed over until the
+  ;;; goal's next exit puts it back -- plus two, as swipl's redo adds, where
+  ;;; its own count holds the redo's step: the goal spends one inference
+  ;;; more on a redo than on its first call, in both
+  (func coco_b_ilim_redo ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 lim . 0))
+          (if (coco_m_int e (coco_m_arg e g 0) (aof lim))
+              (coco_ilim_set e (+ (+ (- (-> e steps) (-> e frees)) (cast u64 lim)) 2)))
+          (return 1)))
+
   ;;; ---- the clause database ----------------------------------------------
 
   ;;; '$unbind_template'(T) (3.19.0, swipl's), which aggregate.pl's foreach/2

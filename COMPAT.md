@@ -68,6 +68,7 @@ an existence error, an instantiation error, a refusal by name.
 | a full stop and then a space past ASCII that iswspace() does not call one (a file holding `a.`, U+202F and `b.` on one line), or a text whose last code is a symbol past ASCII with a UTF-8 that ends in the byte 0xA0 (`term_to_atom(T, '፠')`, U+1360) | its raw read and its tokeniser disagree: the raw read takes no full stop before U+202F, and reads the byte 0xA0 as its Latin-1 no-break space, so the file reads `a` and then `end_of_file`, the clause after the stop lost, and the text raises `syntax_error(illegal_character)` | reads both as swipl's tokeniser does (3.35.0, the first release that reads a name past ASCII): `a` and then `b`, and the atom `፠` | put a newline after a full stop, and a space after a symbol past ASCII at a text's end |
 | an atom holding the code 0 (`char_code(X, 0)`, `atom_codes(A, [0'a, 0, 0'b])`, `'a\0\b'`) | an atom of that many characters, the NUL among them: `'\u0000'` of length 1, `'a\u0000b'` of length 3, which writeq/1 writes `'a\x0\b'` | the atom ends at the NUL, an atom's text being a C string here: char_code(X, 0) gives `''`, `atom_codes(A, [97, 0, 98])` gives `a`, atom_length/2 counts 1 of `'a\0\b'`, and atom_chars/2 of a list holding `''` is type_error(character, ''), and a NUL byte a loaded file holds inside a quoted atom (`p('a<NUL>b').`) is the code 0 as the escape is since 3.58.0 (through 3.57.0 it ended the file), so the atom ends there. A string keeps it, in both: `string_codes(S, [97, 0, 98])` is three characters, as a file's `"a<NUL>b"` is under `double_quotes` codes or string, and `0'<NUL>` is 0 | a string or a code list for text with a NUL in it |
 | `sub_atom/5` or `sub_string/5` of a Sub given and no place, whose Before, Length or After are one variable (`sub_atom(abab, X, X, _, b)`, `sub_atom(abab, X, _, X, b)`) | 9.0.4's search succeeds at the last place the Sub fits whether or not its unifications did (pl-prims.c's SUB_SEARCH goes to `exit_succeed` without asking `match`), keeping what they bound: `X = 3` with After unbound, and `X = 3` with Length 1 | the answers the unifications give, none for either; every other mode, place and walk is swipl's since 3.58.2, choice points too (test/files/sub_text.pl) | name each argument apart |
+| `call_with_inference_limit/3` of a goal the two count differently (`cnt(0) :- !.` and `cnt(N) :- N1 is N - 1, cnt(N1).`, and `call_with_inference_limit(cnt(100), 150, R)`) | `R = !`: its compiler puts the `is/2` into the clause's code, which counts no inference, and cnt(100) counts 102; a predicate swipl writes in Prolog that cocolog writes in C counts the other way (`numlist/3`, and its first call's autoload is charged to the limit too) | `R = inference_limit_exceeded`: an `is/2` is an inference wherever it runs, a guard's too (CLAUDE.md's two clocks), and cnt(100) counts 204; so is each control construct a meta-called goal is made of, which swipl compiles in place (`call_with_inference_limit((f, f), 2, R)` is `!` there, exceeded here). What is swipl's since 3.73.0 is the rest (test/files/inference_limit.pl): the limit raised once, at the call or the retry that passes it -- never at a control construct, nor at a goal both compile in place (`=`, `==`, `\==`, `var/1` and the other type tests, `true`, `fail`) in a clause or a meta-called structure -- and the choice points kept, a limit each solution | a limit bounds a runaway search: give it room, and read no answer at its edge as the program's |
 
 ## Loud: an error where SWI enumerates or accepts
 
@@ -138,8 +139,9 @@ since 3.67.0, `nb_delete/1`, `term_variables/3`, `term_singletons/2`,
 `unifiable/3`, `?=/2` and `same_term/2` since 3.68.0, `divmod/4`,
 `nth_integer_root_and_remainder/4`, `float_class/2`, `float_parts/4` and
 `bounded_number/3` since 3.69.0, `flag/3`, `get_flag/2`, `set_flag/2`,
-`current_flag/1` and `shell/1,2` since 3.70.0, and `at_halt/1` and
-`cancel_halt/1` since 3.71.0.)
+`current_flag/1` and `shell/1,2` since 3.70.0, `at_halt/1` and
+`cancel_halt/1` since 3.71.0, `findnsols/4,5` since 3.72.0, and
+`call_with_inference_limit/3` since 3.73.0.)
 `freeze/2` and coroutining, `table/1` and tabling (since 3.2.0
 `:- table p/2.` reads, `table` being swipl's 1150 fx operator, and the load
 reports `table/1` as an unknown procedure and goes on), swipl's dicts and the
@@ -209,12 +211,12 @@ third, in arithmetic (`divmod/4`, `nth_integer_root_and_remainder/4`,
 the process's flags and its shell (`flag/3`, `get_flag/2`, `set_flag/2`,
 `current_flag/1`, `shell/1,2`) since 3.70.0, and its halt hooks
 (`at_halt/1`, `cancel_halt/1`) since 3.71.0, and `findnsols/4,5` since
-3.72.0.
+3.72.0, and `call_with_inference_limit/3` since 3.73.0.
 
 1. **Small built-ins a swipl program calls as it stands**:
-   * of a search: `call_with_inference_limit/3` and
-     `call_with_depth_limit/3` (swipl's contracts, beside cocolog's
-     `call_limited/3`; `findnsols/4,5` is swipl's since 3.72.0);
+   * of a search: `call_with_depth_limit/3` (swipl's contract, beside
+     cocolog's `call_limited/3`; `findnsols/4,5` is swipl's since 3.72.0
+     and `call_with_inference_limit/3` since 3.73.0);
    * of the program and the clock: `current_module/1`, `source_file/1,2`,
      `format_time/3`, `stamp_date_time/3`, `date_time_stamp/2`.
 2. **swipl's libraries written in Prolog**, kept in `lib/swipl` as assoc
