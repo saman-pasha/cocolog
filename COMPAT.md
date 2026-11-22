@@ -80,7 +80,7 @@ an existence error, an instantiation error, a refusal by name.
 | integers | unbounded | **64-bit**, −2^63 … 2^63−1 (since 2.0.0; through 1.15.0 61-bit, and a result past them wrapped in silence): a result outside that raises `evaluation_error(int_overflow)` — `X is 2**63` and `9223372036854775807 + 1`, and `2**63 - 1` too, whose `2**63` overflows before the subtraction, and since 3.69.0 `divmod(-9223372036854775808, -1, Q, R)` and `bounded_number(L, H, 9223372036854775807)`, whose High is 2^63, and since 3.70.0 `flag(K, _, 2**63)`, where swipl's set_flag/2 refuses the bignum with `representation_error(int64_t)` — and a float made an integer outside it as well (a NaN or an infinity is handed back as it came, as SWI's is, since 2.2.0). A literal outside it is refused, `syntax error ... integer out of range` (`9223372036854775808`, `0x8000000000000000`); `atom_number/2` fails for such a numeral, and `number_codes/2` and `number_chars/2` raise `syntax_error(illegal_number)`, as `atom_to_term/3` and its kin raise `syntax_error(integer_overflow)` | `library(bigint)` for anything that can get that large |
 | `bounded_number(Low, High, Num)` of a Num that is no number (`bounded_number(_, _, a)`, `bounded_number(1, 5, a)`) | its 9.0.4 names Low, where its manual says Num: `instantiation_error` where Low is unbound, else `type_error(number, Low)` -- `type_error(number, 1)` of the second | `type_error(number, Num)`, the manual's, and `instantiation_error` where Num is unbound (3.69.0, test/engine.pl) | give it a number |
 | powm/3 of a float (`X is powm(1.5, 2, 3)`) | ar_powm() leaves `type_error(integer, 1.5)` raised and answers all the same, X = 1, the exception said as a warning: `foreign predicate system:is/2 did not clear exception` (9.0.4) | raises `type_error(integer, 1.5)`, the argument a float found first in swipl's order of checks; a powm/3 of floats is no case of test/files/arith_depth.pl for that | integers |
-| `current_prolog_flag/2` | dozens of flags | twenty: `argv`, `os_argv`, `executable`, `double_quotes`, `text_units`, since 2.0.0 `bounded` (`true`), `max_integer`, `min_integer`, `max_tagged_integer` and `min_tagged_integer`, since 2.2.2 the four float flags and `float_min`, `float_max` and `float_max_integer`, since 2.16.0 `verbose`, since 3.15.0 `optimise_unify`, and since 3.32.0 `stack_limit`; any other fails, `generate_debug_info` among them, which `set_prolog_flag/2` takes | — |
+| `current_prolog_flag/2` | dozens of flags | twenty-one: `argv`, `os_argv`, `executable`, `double_quotes`, `text_units`, since 2.0.0 `bounded` (`true`), `max_integer`, `min_integer`, `max_tagged_integer` and `min_tagged_integer`, since 2.2.2 the four float flags and `float_min`, `float_max` and `float_max_integer`, since 2.16.0 `verbose`, since 3.15.0 `optimise_unify`, since 3.32.0 `stack_limit`, and since 3.71.0 `exit_status` (the code of the halt whose at_halt/1 hooks run, from the first such halt on, as swipl's); any other fails, `generate_debug_info` among them, which `set_prolog_flag/2` takes | — |
 | rational numbers (2.5.0) | exact, unbounded: a numerator and a denominator may be bignums | **64-bit** on both, reduced to lowest terms with a positive denominator; a result past them raises `evaluation_error(int_overflow)` where SWI bignums — `X is 1r2 ** 100`, `X is rational(1.0e308)`, `X is rdiv(9223372036854775807, 2) * 2 + 1`, `lcm(9223372036854775807, 2)`, and `rational(1.0Inf)` is `rational_overflow` while `rational(1.5NaN)` and `rationalize(1.5NaN)` are `undefined` | `library(bigint)`, or keep the values in range |
 | `random/1` (function), `random_float/0`, `set_random/1`, `random_property/1` (2.5.0) | SWI's Mersenne Twister; `state(S)` is SWI's own term | the API is SWI's and the SEQUENCE is cocolog's (xoshiro128\*\*): `set_random(seed(N))` repeats within cocolog and not across systems, and the state is `'$rng_state'(A,B,C,D)`, four 32-bit words in hex — an ordinary term, but not SWI's | seed and compare within one system |
 | `roundtoward/2` (2.5.0) | the C rounding mode set around libm, and swipl's own caveat that some functions ignore it | the same: the mode is set around the evaluation of its first argument and put back | — |
@@ -121,6 +121,9 @@ an existence error, an instantiation error, a refusal by name.
 | `consult/1` as a goal of a running program, of a file holding `:- initialization(G, main).` | runs G once the program's goal is done (the toplevel's place), and halts | runs G when that consult ends and halts: the rest of the goal that consulted is not run | `initialization(G, main)` in the script |
 | current_flag/1 with its key unbound | walks its hash table: the keys in an order of its own | the keys in the order they were made (3.70.0; test/files/system_flags.pl holds the rest of the flags to swipl, the walk's keys sorted) | sort what the walk finds |
 | shell/1,2 of a child a signal ended (`shell('kill -9 $$', S)`) | 9.0.4 says on stderr that its shell/2 `did not clear exception` and answers 1, the error it raised lost; its later releases raise it | raises it, error(shell(signal(9), Command), context(shell/2, _)), `Caught signal 9 on ...` in messages.pl's words (3.70.0, test/errors.pl) | catch the error, or test the status a shell's own `trap` makes |
+| a cancel_halt/1 in a hook the program's end runs (`swipl -g main -t halt`'s halt, cocolog's end of `-s`, `run`, `query` or the REPL) | the toplevel halts again, and a cancel there is honoured until the tenth | the hooks before it have run, the cancel is said, `% Halt cancelled: R`, and the process ends with its status: no host's end is cancelled (3.71.0) | cancel a halt/0,1 the program calls, which fails as swipl's does (test/files/at_halt.pl) |
+| the at_halt/1 hooks as a predicate | clauses of `system:'$at_halt'/2`, which clause/2, listing/1 and retract/1 see | a table of the process's, kept as text, no predicate's (3.71.0) | cancel_halt/1 in a hook rather than a retract of it |
+| halt/0,1 in a library(thread) thread | ends the process, and its at_halt/1 hooks run | ends that thread alone, which thread_join/2 answers false; no hook runs, and the process goes on, its hooks run at its own end (3.71.0, test/thread.pl) | halt in the main thread |
 | a shell/1,2 child's output where with_output_to/2, `~@` or set_output/1 has moved the output | goes to user_output: the child writes to the descriptor of swipl's user_output stream | goes where fd 1 goes, into the capture or the stream, as a library(process) child's does: the capture moves fd 1 (3.70.0) | redirect the command's own output |
 | a first call of a predicate one of cocolog's own modules holds (`open/3`, `with_mutex/2`, `on_signal/3`), made in a thread or a green task while the module is not loaded | autoloads it there, as anywhere | `existence_error(procedure, open/3)`: a first call loads the module (3.66.0, swipl's autoloader) only while no other thread runs an engine -- a library(thread) thread, a green world's workers, a swarm's -- because the module registry is the process's and unguarded; the main thread loads it once they are done | load the module with use_module/1 before the threads start |
 
@@ -133,8 +136,9 @@ constructs swipl's compiler makes them; `repeat/0` since 3.39.0,
 since 3.67.0, `nb_delete/1`, `term_variables/3`, `term_singletons/2`,
 `unifiable/3`, `?=/2` and `same_term/2` since 3.68.0, `divmod/4`,
 `nth_integer_root_and_remainder/4`, `float_class/2`, `float_parts/4` and
-`bounded_number/3` since 3.69.0, and `flag/3`, `get_flag/2`, `set_flag/2`,
-`current_flag/1` and `shell/1,2` since 3.70.0.)
+`bounded_number/3` since 3.69.0, `flag/3`, `get_flag/2`, `set_flag/2`,
+`current_flag/1` and `shell/1,2` since 3.70.0, and `at_halt/1` and
+`cancel_halt/1` since 3.71.0.)
 `freeze/2` and coroutining, `table/1` and tabling (since 3.2.0
 `:- table p/2.` reads, `table` being swipl's 1150 fx operator, and the load
 reports `table/1` as an unknown procedure and goes on), swipl's dicts and the
@@ -202,10 +206,10 @@ globals (`nb_delete/1`, `term_variables/3`, `term_singletons/2`,
 third, in arithmetic (`divmod/4`, `nth_integer_root_and_remainder/4`,
 `float_class/2`, `float_parts/4`, `bounded_number/3`), since 3.69.0, and
 the process's flags and its shell (`flag/3`, `get_flag/2`, `set_flag/2`,
-`current_flag/1`, `shell/1,2`) since 3.70.0.
+`current_flag/1`, `shell/1,2`) since 3.70.0, and its halt hooks
+(`at_halt/1`, `cancel_halt/1`) since 3.71.0.
 
 1. **Small built-ins a swipl program calls as it stands**:
-   * of the process: `at_halt/1` and `cancel_halt/1`;
    * of a search: `findnsols/4,5`, `call_with_inference_limit/3` and
      `call_with_depth_limit/3` (swipl's contracts, beside cocolog's
      `call_limited/3`);

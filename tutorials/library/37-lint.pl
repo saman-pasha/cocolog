@@ -242,16 +242,16 @@ t37_where :-
 
 t37_lookahead :-
     format("~n-- 7. THE NEGATIVE LOOKAHEAD POSIX HAS NO FORM FOR~n"),
-    format("   Rule P1: twenty prolog flags answer here -- executable,~n"),
+    format("   Rule P1: twenty-one prolog flags answer here -- executable,~n"),
     format("   argv, os_argv, double_quotes, text_units, since 2.0.0 bounded~n"),
     format("   and the four integer bounds, since 2.2.2 the four float flags~n"),
     format("   and the three float bounds, since 2.16.0 verbose, since 3.15.0~n"),
-    format("   optimise_unify and since 3.32.0 stack_limit -- and every other~n"),
-    format("   one FAILS, so a portability shim written against another flag~n"),
-    format("   takes the wrong branch, silently. The rule has to fire on every~n"),
-    format("   flag BUT those (one of them, here). In a DCG the lookahead is \\+,~n"),
-    format("   one word; in POSIX it does not exist and a port of it fails~n"),
-    format("   without saying so.~n"),
+    format("   optimise_unify, since 3.32.0 stack_limit and since 3.71.0~n"),
+    format("   exit_status -- and every other one FAILS, so a portability shim~n"),
+    format("   written against another flag takes the wrong branch, silently.~n"),
+    format("   The rule has to fire on every flag BUT those (one of them,~n"),
+    format("   here). In a DCG the lookahead is \\+, one word; in POSIX it does~n"),
+    format("   not exist and a port of it fails without saying so.~n"),
     ( cl_match(seq([lit(current_prolog_flag), ws, lit('('), ws,
                     notword(executable), oneof(abcdefghijklmnopqrstuvwxyz_)]),
                "p :- current_prolog_flag(occurs_check, B).", OffP, _)

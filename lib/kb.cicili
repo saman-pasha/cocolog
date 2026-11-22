@@ -1563,7 +1563,12 @@
     ;; `coco_assert_from'): a rule to a predicate of clauses, or a clause
     ;; to one of rules, which `coco_assert_goal' raises as swipl's
     ;; permission_error(assert, procedure, PI). Appended.
-    (member int          kind_err))
+    (member int          kind_err)
+    ;; 1 FOR AN ISOLATED RUN'S STORE (3.71.0, `coco_m_run_isolated': a
+    ;; library(thread) thread's, run_isolated/2's), whose halt ends the run
+    ;; and not the process, and so runs no at_halt/1 hook -- a green task
+    ;; of a world inside the run halts over this store too. Appended.
+    (member int          isolated))
 
   (decl) (func coco_store_init ((coco_store * st)))
   (decl) (func coco_store_free ((coco_store * st)))
@@ -2527,8 +2532,9 @@
   ;;; stops the load where it stands -- after the store's `on_halt', when it
   ;;; has one, has finished the run: KEEP commits what it wrote, as a halt
   ;;; after the CLI's goal is committed, and 0 rolls it back, as a goal
-  ;;; that threw is. Never returns.
-  (decl) (func coco_halt_load ((coco_store * st) (int code) (int keep)))
+  ;;; that threw is. The at_halt/1 hooks no halt ran run first, over the
+  ;;; load's machine M (3.71.0, `coco_exit_install'). Never returns.
+  (decl) (func coco_halt_load ((coco_store * st) (coco_machine * m) (int code) (int keep)))
 
   ;;; THE BACKTRACE OF THE ERROR JUST REPORTED (1.10.17): the machine's
   ;;; `bt', put on stderr after the message when SAY -- the run the message
@@ -2703,7 +2709,26 @@
           (if (== coco_cp_hook nil) (return 0))
           (return (coco_cp_hook (coco_atom_name m nid) n 0))))
 
-  (func coco_halt_load ((coco_store * st) (int code) (int keep))
+  ;;; THE PROCESS'S END FROM A LOAD (3.71.0): the at_halt/1 hooks no halt
+  ;;; ran, filled in by the builtins module (`coco_b_at_halt_exit'); with
+  ;;; none, in a binary with no such module, nothing
+  (static) (var func coco_exit_hook ((coco_store * st) (coco_machine * m) (int code)))
+
+  (func coco_exit_install ((func h ((coco_store * st) (coco_machine * m) (int code))))
+        (set coco_exit_hook h))
+
+  ;;; A FILE READ AGAIN REGISTERS ITS DIRECTIVES' at_halt/1 HOOKS AFRESH
+  ;;; (3.71.0), as swipl's reconsult does the file's '$at_halt'/2 clauses:
+  ;;; asked by `coco_consult_oid' as M's read of a file its store read
+  ;;; before begins (END 0) and ends (1 read to its end, 2 not), the
+  ;;; builtins module's walk (`coco_b_at_halt_reread')
+  (static) (var func coco_reread_hook ((coco_machine * m) (const char * file) (int end)))
+
+  (func coco_reread_install ((func h ((coco_machine * m) (const char * file) (int end))))
+        (set coco_reread_hook h))
+
+  (func coco_halt_load ((coco_store * st) (coco_machine * m) (int code) (int keep))
+        (if (!= coco_exit_hook nil) (coco_exit_hook st m code))
         ;; the program's output first: a failed commit says so on stderr
         (fflush nil)
         (if (!= (-> st on_halt) nil)

@@ -161,7 +161,7 @@ a `pattern`. `tool.sh card --patterns` prints the terms.
 | C2 | `error(T, context(_,_))` | `error(T, _)` | a refusal (a library found and refused, a module's own failure) is `error(cocolog_error(Text), _)`, a missing file swipl's `existence_error(source_sink, Spec)` since 3.4.0, both with the context unbound, and the house style puts a bare `Name/Arity` second |
 | L1 | `'[|]'` | `'.'/2` or `[_|_]` | a list cell is `'.'/2` |
 | X3 | `predsort/3` `freeze/2` `dif/2` `when/2` … | write it out; `call_limited/3` | deliberately absent so ported code errors instead of differing |
-| P1 | `current_prolog_flag(occurs_check, B)` | do not branch on a flag | twenty flags answer — `executable`, `argv`, `os_argv`, `double_quotes`, `text_units`, since 2.0.0 `bounded`, `max_integer`, `min_integer`, `max_tagged_integer`, `min_tagged_integer`, since 2.2.2 the four float flags and `float_min`, `float_max`, `float_max_integer`, since 2.16.0 `verbose`, since 3.15.0 `optimise_unify` and since 3.32.0 `stack_limit` — and every other one FAILS |
+| P1 | `current_prolog_flag(occurs_check, B)` | do not branch on a flag | twenty-one flags answer — `executable`, `argv`, `os_argv`, `double_quotes`, `text_units`, since 2.0.0 `bounded`, `max_integer`, `min_integer`, `max_tagged_integer`, `min_tagged_integer`, since 2.2.2 the four float flags and `float_min`, `float_max`, `float_max_integer`, since 2.16.0 `verbose`, since 3.15.0 `optimise_unify`, since 3.32.0 `stack_limit` and since 3.71.0 `exit_status` — and every other one FAILS |
 
 The card has eighteen more rows that inform the prompt rather than the
 linter — row T1 on probing a library as a goal, Z1 on the page budget, the

@@ -555,8 +555,10 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   `min_integer`, `max_tagged_integer` and `min_tagged_integer`, and since
   2.2.2 swipl's four float flags and `float_min`, `float_max` and
   `float_max_integer`, since 2.16.0 `verbose` (`normal`), since 3.15.0
-  `optimise_unify` (`true`), and since 3.32.0 `stack_limit` (1073741824),
-  are the only flags answered; set_prolog_flag/2
+  `optimise_unify` (`true`), since 3.32.0 `stack_limit` (1073741824), and
+  since 3.71.0 `exit_status` (the code of the halt whose at_halt/1 hooks
+  ran, from the first such halt on), are the only flags answered;
+  set_prolog_flag/2
   sets `double_quotes`, `text_units`, `generate_debug_info` (swipl's
   booleans, the read's own since 3.27.0: what it defines after the flag is
   false hides its children from the tracer; taken and unused through
@@ -591,6 +593,30 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   new starter of a nested search hands a halt up through `coco_halt_up`**,
   or the program goes on past it -- all but `'$trace_window'/4`'s run,
   which reports it as how the run ended, `halt(Code)` (library(flow/debug)).
+* **The at_halt/1 hooks are the process's, and every way out runs what is
+  left** (3.71.0, swipl's boot/init.pl and PL_cleanup(); the `coco_b_*halt*`
+  functions in lib/builtins-db.cicili, `host_at_halt` in cocolog.cicili,
+  test/files/at_halt*.pl): one table under `ah_mx`, each hook kept as TEXT
+  (a thread's machine has atoms of its own) and no Prolog run while the lock
+  is held; a goal's at_halt/1 in front, a `:- at_halt(G)` behind with its
+  File:Line (coco_directive hands it to `'$at_halt_directive'/1`), one
+  directive's hook once however many stores read its file, and a file read
+  again registers its hooks afresh, the ones its text repeats kept in their
+  place (`coco_b_at_halt_reread`, asked through `coco_reread_hook` as
+  `coco_consult_oid` begins and ends a read of a file the store read
+  before). halt/0,1 runs them through `'$run_at_halt'/0` in a search of its
+  own, untraced: a hook's cancel_halt/1 makes the halt fail, nine times; a
+  halt while they run fails (`ah_running`); a store run_isolated/2 made
+  (`isolated`: a library(thread) thread's, an httpd worker's) runs none, its
+  halt ending the run alone (COMPAT.md). **A host runs what is left as it
+  ends** -- `-s` and `run` after the line that says the goal failed, `query`
+  after its count, the REPL at its end, `consult` after its report with a
+  commit of its own, a load's end of the process through `coco_exit_hook`
+  in `coco_halt_load` (over the load's own machine: a fresh one reads the
+  store's terms with another atom table) -- with the status it ends with,
+  before the commit, and honours no cancel; **a new way for a host to end
+  calls `host_at_halt`**, or the hooks of a program that ends so never run.
+  A halt that went on (`ah_done`) leaves nothing for a later end.
 * **An error nothing caught is followed on stderr by its backtrace**
   (1.10.17; TRACING.md): `ERROR: In:`, the goal that raised, then each
   engine's goals left to run -- or, under `--backtrace` (trace 3, which

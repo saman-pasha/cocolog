@@ -307,6 +307,11 @@ flow_mode('$flag_known', 1, ['+'], semidet).
 flow_mode('$flag_keys', 1, ['-'], det).
 %% shell/2 (3.70.0): the command's exit status
 flow_mode(shell, 2, ['+', '-'], det).
+%% the halt's hooks (3.71.0): one added, the hooks as they stand, one that
+%% has run taken away
+flow_mode('$at_halt_add', 3, ['+', '+', '+'], det).
+flow_mode('$at_halt_list', 1, ['-'], det).
+flow_mode('$at_halt_erase', 1, ['+'], det).
 flow_mode(source_location, 2, ['-', '-'], semidet).
 %% prolog_load_context/2's C half (3.14.0): the load's file, its source and
 %% the term's place while a hook or a directive of it runs, failing

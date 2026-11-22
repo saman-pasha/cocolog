@@ -441,7 +441,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.70.0"))
+  (func coco_version_text () (out const char *) (return "3.71.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -669,6 +669,18 @@
   (func gate_halt ((coco_store * st))
         (if (!= db nil) (set (-> st on_halt) halt_finish)))
 
+  ;;; THE PROGRAM'S at_halt/1 HOOKS AT ITS END (3.71.0), as swipl's process
+  ;;; runs them in PL_halt(): STATUS is the exit status the host is about
+  ;;; to give, current_prolog_flag(exit_status, S)'s in a hook, and they
+  ;;; run before the host commits, so what they write is the run's. Those a
+  ;;; halt of the program ran run not again, and a cancel here is not
+  ;;; honoured (COMPAT.md). E is the host's engine, or nil for a host that
+  ;;; ran none (`consult'), which then makes one over its machine.
+  (func host_at_halt ((coco_machine * m) (coco_store * st) (coco_engine * e) (int status))
+        (if (not (coco_b_at_halt_pending)) (return))
+        (if (!= e nil) (block (coco_b_at_halt_host e status) (return)))
+        (coco_b_at_halt_exit st m status))
+
   (func cmd_consult ((int argc) (char ** argv) (int from)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_zg z) (char err [4096]) (int total . 0))
           (host-machine (aof m) 1)
@@ -709,6 +721,7 @@
                          (coco_out_fresh stderr)
                          (fprintf stderr "ERROR: %s\n" err)
                          (coco_load_ball_drop (aof st) (aof m))
+                         (host_at_halt (aof m) (aof st) nil 1)
                          (coco_store_free (aof st)) (coco_machine_free (aof m))
                          (return 1)))
               (set total (+ total n))))
@@ -725,6 +738,19 @@
                          (coco_store_free (aof st)) (coco_machine_free (aof m))
                          (return 1))))
           (printf "consulted %d clause(s) into '%s'\n" total ($ opts kb))
+          ;; THE FILES' at_halt/1 HOOKS (3.71.0), as the process ends: after
+          ;; the report of what was consulted, which the commit before it
+          ;; makes true, and with a commit of their own, so that what a hook
+          ;; writes is kept
+          (if (coco_b_at_halt_pending)
+              (block
+                (host_at_halt (aof m) (aof st) nil 0)
+                (if (!= db nil)
+                    (if (not (and (coco_zg_batch (aof z) 0) (zg_commit db)))
+                        (block (fprintf stderr "cocolog: commit failed: %s\n" (zg_error db))
+                               (zg_rollback db)
+                               (coco_store_free (aof st)) (coco_machine_free (aof m))
+                               (return 1))))))
           (coco_store_free (aof st))
           (coco_machine_free (aof m))
           (return 0)))
@@ -997,6 +1023,10 @@
           ;; -- exit 1 -- whatever the program said in `halt(N)'. The code is
           ;; the program's; what it wrote is committed as a proved goal's is.
           (if ($ e halted) (block (set halted 1) (set halt_code ($ e halt_code))))
+          ;; the program's at_halt/1 hooks (3.71.0), with the status it ends
+          ;; with
+          (host_at_halt (aof m) (aof st) (aof e)
+                        (? ended 1 (? (and halted (!= rc -1)) halt_code (goal_status rc))))
           (if (!= db nil)
               (if (== rc -1)
                   (block (batch_drop (aof z) batched) (zg_rollback db))
@@ -1043,6 +1073,13 @@
           ;; a `halt(N)' in the goal is the program's exit status, and not
           ;; a `false.' -- the same rule as cmd_script's
           (if ($ e halted) (block (set halted 1) (set halt_code ($ e halt_code))))
+          (if (not halted)
+              (if (== n 0) (printf "false.\n") (printf "%d answer(s).\n" n)))
+          ;; the goal's at_halt/1 hooks (3.71.0), with the status it ends
+          ;; with: after the answers' count, which is the goal's, and before
+          ;; the commit, so that what a hook writes is kept
+          (host_at_halt (aof m) (aof st) (aof e)
+                        (? (and halted (!= rc -1)) halt_code (? (== rc -1) 1 0)))
 
           ;; A QUERY CAN WRITE. `assert', `retract' and `dynamic' reach the
           ;; database through the store's hooks, and until this commit was here
@@ -1057,8 +1094,6 @@
                     (block (fprintf stderr "cocolog: commit failed: %s\n" (zg_error db))
                            (set rc -1)))))
 
-          (if (not halted)
-              (if (== n 0) (printf "false.\n") (printf "%d answer(s).\n" n)))
           (coco_engine_free (aof e))
           (coco_store_free (aof st))
           (coco_machine_free (aof m))
@@ -1634,6 +1669,14 @@
                   (coco_reader_free (aof r))))
               (coco_sb_free (aof line))))
 
+          ;; the session's at_halt/1 hooks (3.71.0), with its status, and
+          ;; what they write is committed as a goal's is
+          (if (coco_b_at_halt_pending)
+              (block
+                (host_at_halt (aof m) (aof st) (aof e) session_rc)
+                (if (!= db nil)
+                    (if (not (and (batch_close (aof z) batched) (zg_commit db)))
+                        (fprintf stderr "cocolog: commit failed: %s\n" (zg_error db))))))
           (coco_engine_free (aof e))
           (coco_store_free (aof st))
           (coco_machine_free (aof m))
@@ -2538,6 +2581,11 @@
         (coco_portray_install coco_portray_call)
         (coco_print_install coco_b_print)
         (coco_trace_text_install coco_b_trace_text)
+        ;; and the at_halt/1 hooks halt/0 and a load's end of the process
+        ;; run, which a file read again takes its own away from (3.71.0)
+        (coco_halt_install coco_b_halt_hook)
+        (coco_exit_install coco_b_at_halt_exit)
+        (coco_reread_install coco_b_at_halt_reread)
         (if (not (coco_dcg_module))
             (block (fprintf stderr "cocolog: the dcg module would not register\n")
                    (return 0)))
@@ -2613,6 +2661,7 @@
                          (coco_out_fresh stderr)
                          (fprintf stderr "ERROR: %s\n" err)
                          (coco_load_ball_drop (aof st) (aof m))
+                         (host_at_halt (aof m) (aof st) (aof e) 1)
                          (free text) (coco_engine_free (aof e)) (coco_store_free (aof st))
                          (coco_machine_free (aof m)) (return 1)))
               (free text)))
@@ -2641,6 +2690,10 @@
           ;; a halted goal ends as a proved one does -- its writes kept, its
           ;; `halt(N)' the exit status -- the rule cmd_script states
           (if ($ e halted) (block (set halted 1) (set halt_code ($ e halt_code))))
+          ;; the program's at_halt/1 hooks (3.71.0), with the status it ends
+          ;; with
+          (host_at_halt (aof m) (aof st) (aof e)
+                        (? (and halted (!= rc -1)) halt_code (goal_status rc)))
           (if (!= db nil)
               (if (or (== rc 1) halted)
                   ;; the turn's writes go out FIRST and the commit only if

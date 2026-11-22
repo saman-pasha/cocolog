@@ -97,7 +97,7 @@ main :-
               'bump(N) :- flag(th_count, C, C + 1), M is N - 1, bump(M).' ]),
     use_module(Work),
     a_thread, what_it_sees, a_channel, closed, backpressure, helpers, contention, imports,
-    parallel, locks, conditions, message_refused(D), flags_shared,
+    parallel, locks, conditions, message_refused(D), flags_shared, halt_hooks(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -480,3 +480,47 @@ flags_shared :-
               forall(member(J2, Is2), thread_join(J2, _)),
               get_flag(th_count, V2) ), V2, G2),
     check('four threads'' 5000 flag/3 updates each are 20000', G2, '20000').
+
+%% THE at_halt/1 HOOKS ARE THE PROCESS'S (3.71.0), as swipl's '$at_halt'/2
+%% is one predicate every thread asserts into: a hook a thread registers
+%% runs as the process ends. A library(thread) thread's halt is not the
+%% process's here -- it ends the thread alone, where swipl's ends the
+%% process -- so it runs none, and the main thread's hooks run at its own
+%% end (COMPAT.md). A module's `:- at_halt(G)', read again into the store of
+%% every thread that loads it and by every consult of it, registers once:
+%% the same goal at the same place is the same hook
+halt_hooks(D) :-
+    section('the at_halt/1 hooks are the process''s, and a thread''s halt is its own'),
+    atom_concat(D, '/hk_reg.pl', F1),
+    fixture(F1, ['main :- thread_create(at_halt((write(from_thread), nl)), T),',
+                 '        thread_join(T, S), print(S), nl.']),
+    sh_join(['-s ', F1, ' 2>&1'], A1),
+    cocolog_run(A1, Got1, Rc1),
+    check('a hook a thread registers runs as the process ends', Got1-Rc1, 'true\nfrom_thread'-0),
+    atom_concat(D, '/hk_halt.pl', F2),
+    fixture(F2, ['main :- at_halt((write(main_hook), nl)), thread_create(halt(3), T),',
+                 '        thread_join(T, S), print(S), nl.']),
+    sh_join(['-s ', F2, ' 2>&1'], A2),
+    cocolog_run(A2, Got2, Rc2),
+    check('a thread''s halt ends the thread and runs no hook; main''s end does', Got2-Rc2,
+          'false\nmain_hook'-0),
+    atom_concat(D, '/hk_mod.pl', M3),
+    fixture(M3, [':- module(hk_mod, [hk_go/0]).',
+                 ':- at_halt((write(module_hook), nl)).',
+                 'hk_go.']),
+    atom_concat(D, '/hk_dup.pl', F3),
+    %% the goals name the module by its path: a goal looks in the working
+    %% directory, the checkout's root here
+    format(atom(L3), 'main :- thread_create(use_module(~q), T), thread_join(T, S), print(S), nl.', [M3]),
+    fixture(F3, [':- use_module(hk_mod).', L3]),
+    sh_join(['-s ', F3, ' 2>&1'], A3),
+    cocolog_run(A3, Got3, Rc3),
+    check('a module''s directive read into a thread''s store as well runs once',
+          Got3-Rc3, 'true\nmodule_hook'-0),
+    atom_concat(D, '/hk_dup2.pl', F4),
+    format(atom(L5), 'main :- thread_create(use_module(~q), T), thread_join(T, S), print(S), nl,', [M3]),
+    format(atom(L6), '        consult(~q), consult(~q).', [M3, M3]),
+    fixture(F4, [':- use_module(hk_mod).', L5, L6]),
+    sh_join(['-s ', F4, ' 2>&1'], A4),
+    cocolog_run(A4, Got4, Rc4),
+    check('...and consulted twice after, once still', Got4-Rc4, 'true\nmodule_hook'-0).

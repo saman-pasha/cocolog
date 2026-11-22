@@ -1180,6 +1180,27 @@
                                    (return 2)))
                         (return 0))))))
 
+          ;; ---- `:- at_halt(G).' (3.71.0) ------------------------------
+          ;;
+          ;; A HOOK OF THE FILE'S, BEHIND THE OTHERS: swipl's term
+          ;; expansion makes the directive a clause '$at_halt'(M:G,
+          ;; File:Line) of the file, in its order, where a goal's
+          ;; at_halt/1 is asserta/1's. The goal hook runs
+          ;; '$at_halt_directive'(G) (library(builtins)' Prolog half),
+          ;; which reads the directive's place; with no hook, a binary
+          ;; with no such module, the directive is the goal below.
+          (if (and (== n 1) (!= coco_goal_hook nil) (== 0 (strcmp name "at_halt")))
+              (let ((int r . 0))
+                (set (-> m dgc) vouch)
+                (set r (coco_goal_hook st m (coco_make1 m "$at_halt_directive" (coco_arg m g 0))
+                                       0 err errlen))
+                (set (-> m dgc) 0)
+                (if (== r 1) (return 1))
+                (if (== r 0)
+                    (block (coco_directive_failed m g err errlen)
+                           (return 2)))
+                (return 0)))
+
           ;; `:- op(P, T, N)'. THIS ONE HAS TO BE HERE and not left to the
           ;; engine, because a declaration has to take effect for the REST OF
           ;; THE FILE being read -- the clauses after it are parsed with it in

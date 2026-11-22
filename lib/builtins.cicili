@@ -143,6 +143,11 @@
     ("$flag_known"             1 coco_b_flag_known)
     ("$flag_keys"              1 coco_b_flag_keys)
     ("shell"                   2 coco_b_shell)
+    ;; the halt's hooks (3.71.0); at_halt/1, cancel_halt/1 and the run are
+    ;; clauses over them (the Prolog half)
+    ("$at_halt_add"            3 coco_b_at_halt_add)
+    ("$at_halt_list"           1 coco_b_at_halt_list)
+    ("$at_halt_erase"          1 coco_b_at_halt_erase)
 
     ("source_location"         2 coco_b_source_location)
     ("$load_context"           2 coco_b_load_context)
@@ -981,7 +986,25 @@
            "flag(Name, Old, New) :- '$flag_update'(Name, Old, New)."
            "current_flag(K) :- var(K), !, '$flag_keys'(Ks), '$cp_member'(K, Ks)."
            "current_flag(K) :- '$flag_known'(K)."
-           "shell(Command) :- shell(Command, 0).")))
+           "shell(Command) :- shell(Command, 0)."
+           ;; at_halt/1 and cancel_halt/1 (3.71.0), swipl's boot/init.pl: a
+           ;; hook in the process's table, a goal's in front (swipl's
+           ;; asserta/1) and a directive's behind, its File:Line beside it
+           ;; (coco_directive hands `:- at_halt(G)' to
+           ;; '$at_halt_directive'/1, as swipl's term expansion makes it a
+           ;; clause of the file); a halt runs them through '$run_at_halt'/0,
+           ;; each in catch/3 and erased once it has run, a cancel failing
+           ;; the halt and leaving its hook and the ones after it
+           ":- meta_predicate at_halt(0)."
+           "at_halt(Goal) :- '$at_halt_add'(0, Goal, (-):0)."
+           "'$at_halt_directive'(Goal) :- source_location(File, Line), !, prolog_load_context(module, M), '$at_halt_add'(1, M:Goal, File:Line)."
+           "'$at_halt_directive'(Goal) :- at_halt(Goal)."
+           "'$run_at_halt' :- '$at_halt_list'(Hs), '$run_at_halt'(Hs)."
+           "'$run_at_halt'([])."
+           "'$run_at_halt'(['$h'(Id, Goal, Src)|Hs]) :- \\+ \\+ '$call_at_halt'(Goal, Src), '$at_halt_erase'(Id), '$run_at_halt'(Hs)."
+           "'$call_at_halt'(Goal, _Src) :- catch(Goal, E, true), !, ( var(E) -> true ; subsumes_term(cancel_halt(_), E) -> print_message(informational, E), fail ; print_message(error, E) )."
+           "'$call_at_halt'(Goal, _Src) :- print_message(warning, goal_failed(at_halt, Goal))."
+           "cancel_halt(Reason) :- throw(cancel_halt(Reason)).")))
 
 (generic decl-builtins
   ()

@@ -2262,6 +2262,10 @@
                 (int sreload . #'(-> m sloc_reload)))
             (set (-> m ssu_mod) 0)
             (set (-> m sloc_reload) (!= again 0))
+            ;; what the file's text registers is its text's now: its
+            ;; at_halt/1 directives' hooks are registered afresh (3.71.0)
+            (if (and again (and (!= origin nil) (!= coco_reread_hook nil)))
+                (coco_reread_hook m origin 0))
             ;; THE READS UNDER WAY (3.7.0): the outermost runs the main goal
             ;; a nested one hands it (`ltop', which every outermost read
             ;; sets as it begins: no read but a nested one reads it)
@@ -2284,6 +2288,8 @@
               (coco_refuse_give m)
               (set n (coco_consult_owned st m text origin oid (aof seen) err errlen
                                          nil nil 0))
+              (if (and again (and (!= origin nil) (!= coco_reread_hook nil)))
+                  (coco_reread_hook m origin (? (>= n 0) 1 2)))
               (coco_refuse_give rwas)
               (set (-> m lfloor) lfl))
             ;; its end puts the last clause after each of its predicates'
@@ -4813,7 +4819,7 @@
             ;; the run wrote is finished as the CLI finishes its own goal's:
             ;; committed when G proved or failed, rolled back when it threw.
             (if halt_after
-                (coco_halt_load st halt_code (? (== halt_code 2) 0 1))))
+                (coco_halt_load st m halt_code (? (== halt_code 2) 0 1))))
           (return n)))
 
   ;;; CLAUSE I OF PI TAKEN OUT, its cells SPAN long in the store: retract/1's

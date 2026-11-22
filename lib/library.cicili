@@ -79,7 +79,7 @@
            ":- set_prolog_flag(generate_debug_info, false)."
            ;; the flags current_prolog_flag/2 answers, for a flag it was not
            ;; given (3.0.0): its C half declines that goal to this clause
-           "current_prolog_flag(F, V) :- var(F), member(F, [bounded, max_integer, min_integer, max_tagged_integer, min_tagged_integer, float_overflow, float_zero_div, float_undefined, float_underflow, float_min, float_max, float_max_integer, double_quotes, text_units, verbose, optimise_unify, stack_limit, argv, os_argv, executable]), current_prolog_flag(F, V)."
+           "current_prolog_flag(F, V) :- var(F), member(F, [bounded, max_integer, min_integer, max_tagged_integer, min_tagged_integer, float_overflow, float_zero_div, float_undefined, float_underflow, float_min, float_max, float_max_integer, double_quotes, text_units, verbose, optimise_unify, stack_limit, exit_status, argv, os_argv, executable]), current_prolog_flag(F, V)."
            "consult(Files) :- '$lf_load'(Files, true)."
            ;; ONE FILE IN BRACKETS IS consult/1 OF THE FILE (2.14.0), swipl's
            ;; `[X] :- !, consult(X).': a missing one raises, as consult(F)
@@ -461,6 +461,12 @@
           ;; left it -- 1073741824, swipl's, by default
           (if (== 0 (strcmp flag "stack_limit"))
               (return (coco_m_unify_int e (coco_m_arg e g 1) (-> (coco_m_machine e) slimit))))
+          ;; `exit_status' (3.71.0): swipl's, the status a halt ran the
+          ;; at_halt/1 hooks for, from that run on, as PL_cleanup() sets it
+          (if (== 0 (strcmp flag "exit_status"))
+              (let ((int s . 0))
+                (if (not (coco_b_exit_status (aof s))) (return 0))
+                (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 s)))))
           (if (!= 0 (strcmp flag "executable")) (return 0))
           (lb_exe_resolve)
           (if (== (nth 0 lb_exe_path) (cast char 0)) (return 0))
@@ -2148,7 +2154,7 @@
           ;; reported by no one here
           (if (or ends (not (and (== rc -1) ($ e has_ball)))) (coco_bt_say m 0))
           (coco_engine_free (aof e))
-          (if halted (coco_halt_load st code 1))
+          (if halted (coco_halt_load st m code 1))
           (if (== rc 1) (return 1))
           (if (== rc 0) (return 0))
           (if ends (return -2))

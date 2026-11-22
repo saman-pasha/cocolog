@@ -1505,6 +1505,9 @@
           (if (== src nil) (return -1))
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
+          ;; a halt here ends the run, not the process: it runs no at_halt/1
+          ;; hook (3.71.0)
+          (set ($ st isolated) 1)
           (coco_engine_init (aof e) (aof m) (aof st))
           ;; the heap collector may run: nothing here touches the machine's
           ;; cells once the goal is asked

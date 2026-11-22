@@ -815,6 +815,10 @@ message_to_string(Term, Str) :-
     ).
 '$pm_prolog_message'(goal_failed(Context, Goal)) -->
     [ 'Goal (~w) failed: ~p'-[Context, Goal] ].
+%% cancel_halt/1's (3.71.0): a hook's, informational, and one raised outside
+%% a hook
+'$pm_prolog_message'(cancel_halt(Reason)) -->
+    [ 'Halt cancelled: ~p'-[Reason] ].
 '$pm_prolog_message'(initialization_error(_, E, File:Line)) -->
     !,
     [ url(File:Line), ': Initialization goal raised exception:', nl ],

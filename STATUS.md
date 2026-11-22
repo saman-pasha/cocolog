@@ -21826,3 +21826,159 @@ flowdebug, signal, repl, process, directives, stream and units, and the
 seven test binaries (term, syntax, solve, module, state, and zigurat and
 shared with a server up), each alone, green with no SKIP, the binary's
 md5 the same before and after; the dialect card's 33 cites all anchored.
+
+## at_halt/1 and cancel_halt/1 are swipl's (3.71.0)
+
+Backlog #267, the last two of the process's group of COMPAT.md's useful
+predicates: through 3.70.0 cocolog had neither, and a call raised
+existence_error. A minor: something new reachable from a program, and one
+more flag answered (`exit_status`).
+
+THE HOOKS (lib/builtins-db.cicili's at_halt section, swipl's boot/init.pl
+and PL_cleanup() in pl-init.c) are ONE TABLE OF THE PROCESS'S, as swipl's
+system:'$at_halt'/2 is one predicate every thread asserts into. Each hook is
+kept as the TEXT of its goal and its source, quoted and without operators as
+a green task's goal travels -- a library(thread) thread's machine has atoms
+of its own -- under one lock (`ah_mx`), the texts written before it is taken
+and read back after it is given up, so no Prolog runs while it is held; and
+nothing goes into the knowledge base, which would hand a hook to the next
+process. What is swipl 9.0.4's:
+
+- at_halt/1 is meta_predicate at_halt(0), checks nothing as it registers,
+  and puts its hook in front (swipl's asserta/1); a `:- at_halt(G)`
+  directive puts its hook behind with its File:Line, in the file's order
+  (swipl's term expansion makes the directive a clause of the file):
+  `coco_directive` hands it to `'$at_halt_directive'/1`, which qualifies G
+  by the read's module, and a directive that is more than at_halt/1
+  registers as a goal does;
+- halt/0,1 runs them ('$run_at_halt'/0 over a copy of the table, in a search
+  of its own, untraced as swipl's debugmode(false) runs them), each under
+  catch/3: a failure the warning goal_failed(at_halt, G), an error said by
+  print_message/2 -- an unknown goal, a number, an unbound one -- and each
+  hook erased once it has run;
+- cancel_halt(R) throws cancel_halt(R): in a hook it is said, informational
+  (`% Halt cancelled: R`), and the halt FAILS, the hooks before it erased,
+  it and those after it run at the next halt; the tenth cancel is not
+  honoured (MAX_HALT_CANCELLED) and the process ends, the hooks behind the
+  canceller never run. Uncaught, it is an error said in messages.pl's words,
+  `Halt cancelled: R` (the engine's text, `coco_error_body`, and
+  library(print_message)'s rule);
+- a halt asked while the hooks run fails (PL_CLEANUP_RECURSIVE), a hook's
+  own among them; a hook registered while they run is not run then; the
+  exit_status flag is the halt's code from the first run on, and none before
+  it (cocolint's P1 knows 21 flags now);
+- A FILE READ AGAIN REGISTERS ITS DIRECTIVES' HOOKS AFRESH, as swipl's
+  reconsult does the file's '$at_halt'/2 clauses (`coco_b_at_halt_reread`,
+  asked through `coco_reread_hook` as `coco_consult_oid` begins and ends a
+  read of a file the store read before): as the read begins the file's
+  hooks are marked stale; one the new text repeats is kept where it stands,
+  among another file's hooks too; a new one goes beside the file's others
+  (`coco_ah_reread_at`); and the stale are taken away at the read's end --
+  kept where the read did not reach its end, which read no absence. A first
+  read of the file into another store -- a module read into a thread's --
+  registers nothing twice, the same goal at the same place being the same
+  hook.
+
+THE PROCESS'S ENDS, cocolog's own. swipl runs the hooks at halt/0,1 and at
+its toplevel's halt; cocolog's hosts end in more ways, and each runs what is
+left with the status it ends with (`host_at_halt` in cocolog.cicili): `-s`
+and `run` after the line that says the goal failed or threw and before the
+commit, so that what a hook writes is kept; `query` after the count of its
+answers and before its commit (the count, printed after the commit through
+3.70.0, comes before it now, so a commit refused says so after the count);
+the REPL at its end of input or its halt; `consult` after its report, which
+the commit before it makes true, and with a commit of its own after them;
+and a load's end of the process -- initialization(G, main), a directive's
+halt -- through `coco_exit_hook` in `coco_halt_load`, over the load's own
+machine: a fresh machine would read the store's terms with another atom
+table. A cancel at a host's end is said and not honoured, where swipl's
+toplevel halts again (COMPAT.md); a halt that went on (`ah_done`) leaves
+nothing for a later end; and a store run_isolated/2 made (`isolated`: a
+library(thread) thread's, an httpd worker's) runs none at its halt, which
+ends the run alone where swipl's thread ends the process (COMPAT.md).
+
+THE CASES, held to swipl 9.0.4 and equal to it once the case wrote no
+unbound variable (two prints of a head with its variable, the names each
+system's): test/files/at_halt.pl (44 lines: the order, the directives, the
+failure's and the errors' words, two cancels and the halts they fail, a halt
+inside a hook, a late hook, exit_status before, during and after, the
+qualified goal, the two as predicate_property/2 sees them),
+at_halt_limit.pl (10: the tenth cancel), at_halt_reload.pl (6: a file read
+again whose directives changed, moved, went and stayed), at_halt_late.pl (2:
+a hook a hook registers, and no end after the halt) and at_halt_load.pl (2:
+a halt in a directive, and no load's end after it). Cocolog's own:
+test/script.pl's `at_halted` (19 checks: every host's end, the statuses, a
+failed goal's line before them, the cancel at an end, cancel_halt/1
+uncaught, the untraced run, and a hook's write under --embed read back by a
+second process through `-s` and through `consult`), test/thread.pl's
+`halt_hooks` (4: a thread's hook the process's, a thread's halt its own, a
+module's directive read into a thread's store as well running once, and
+once still after two consults of it).
+
+THE RULES, each its own arm (one build of the final tree with the rule out),
+each red where it is held -- a files case's count the lines its diff against
+swipl's output shows:
+
+- the order: a goal's hook in front (A1: last; at_halt 33, at_halt_limit 2,
+  script's end-of-program cancel), a directive's behind (A2: in front;
+  at_halt 4, at_halt_reload 6), the directive handed to
+  '$at_halt_directive'/1 (A3: a goal's at_halt/1; at_halt 4, at_halt_reload
+  10, at_halt_load 4, thread's module check), its goal qualified by the
+  read's module (A25: unqualified; at_halt 2), at_halt/1 a meta-predicate
+  (A24: none; at_halt 2);
+- the run: each hook erased once it has run (A5: kept; at_halt 5,
+  at_halt_limit 11), and only then, the canceller kept for the next halt
+  (A27: erased first; at_halt 5, at_halt_limit 9), untraced (A11: traced;
+  script's trace check), a cancel said informational and failing the halt
+  (A26: said as an error, the halt going on; at_halt 11, at_halt_limit 11,
+  script's informational line), honoured (A6: never; at_halt 25,
+  at_halt_limit 11) but for the tenth (A7: the twelfth; at_halt_limit 4), a
+  halt while they run failing (A8: going on; at_halt 16), and halt/0 and
+  halt/1 each asking them (A31: halt/0 not; at_halt 23 -- A34: halt/1 not;
+  at_halt 28, at_halt_limit 10, at_halt_late 3, script's REPL halt(6));
+- the flag and the words: exit_status (A12: no flag; at_halt 8, script's
+  three status checks), cancel_halt/1 uncaught in the engine's text (A13:
+  none; script's uncaught check) and print_message/2's (A14, the library's
+  rule out, the binary the final's: at_halt 2, script's informational line);
+- the ends: an isolated run's halt running none (A9: running them; thread's
+  halt check), no end after a halt that went on (A10: `ah_done` not asked;
+  at_halt_load 3, the late hook run at the load's end), each host's --
+  `-s` (A15: script's -s checks, thread's three), `run` (A16: at_halt 18,
+  at_halt_reload 7, script's run check), `query` (A17), the REPL (A18),
+  `consult` (A19: script's consult checks), a load's end of the process
+  (A20: script's initialization(main, main) check) -- query's count before
+  them (A21: after; script's query check), consult's report before them
+  (A22: after; script's consult check) and their commit of their own (A23:
+  none; script's second process read nothing);
+- the re-read: a first read's directive hook once (A4: twice; thread's
+  module read into a thread's store), the re-read's begin asked (A33: not;
+  at_halt_reload 4), a hook the new text repeats kept in its place (A32:
+  not; at_halt_reload 4), a new one beside the file's others (A30: last;
+  at_halt_reload 2), the stale taken away at the read's end (A29: kept;
+  at_halt_reload 2), and the file's place kept at all (A28: its hooks taken
+  away as the read begins and the new ones appended, the first cut;
+  at_halt_reload 2).
+
+Two arms were green at first. A10 was held by nothing until
+test/files/at_halt_load.pl: a host's own engine has halted when its end
+comes, so it runs nothing after a halt anyway, and a halt in a directive,
+whose load's end of the process makes an engine of its own, is the one end
+that asks `ah_done`. And A4's check consulted the module twice after the
+thread read it, which registered its hooks afresh and took the duplicate
+away with them: the check is two now, and A4 is red on the first.
+
+WHAT IT COSTS: nothing on the engine's paths. tools/flow/zero.sh against
+3.70.0, work less padding: nrev 65 958 959 (-864), queens 39 969 885 (+83),
+lookup 48 095 358 (-427). A start (`cocolog query true`) counts 35 724 627
+against 35 576 243, 148 384 more (+0.42 %): cocolog's own functions
++124 203, the eleven clauses and the declaration the builtins' Prolog half
+reads at every start; libc +21 690 and ld.so +1 643, once strdup's 75 787,
+counted against libc on 3.70.0 and against ld.so here, is put back.
+
+THE RUN, on the final binary: the lint case first, then files, thread,
+errors, journal, async, flowchart, library, engine, script, trace, window,
+flowdebug, signal, repl, process, directives, stream, units and reconsult,
+and the seven test binaries (term, syntax, solve, module, state, and zigurat
+and shared with a server up), each alone, green with no SKIP, the binary's
+md5 the same before and after; lesson 37, whose narration counts the flags,
+alone, ending `done`; the dialect card's 33 cites all anchored.

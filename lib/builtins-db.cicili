@@ -567,6 +567,370 @@
           (return (coco_m_unify_int e (coco_m_arg e g 1)
                                     (? (and (>= w 0) (WIFEXITED st)) (cast i64 (WEXITSTATUS st)) 1)))))
 
+  ;;; ---- at_halt/1 and cancel_halt/1 (3.71.0) -----------------------------
+  ;;;
+  ;;; THE HALT'S HOOKS, swipl's '$at_halt'/2 and PL_cleanup() (boot/init.pl,
+  ;;; pl-init.c): ONE TABLE OF THE PROCESS'S, as swipl's is its system
+  ;;; module's, that every thread and green task registers in, each hook
+  ;;; kept as the TEXT of its goal and of its source -- quoted and without
+  ;;; operators, as a green task's goal travels -- never a machine's cells:
+  ;;; the halt reads them back into its own machine. A goal's at_halt/1
+  ;;; goes in front (swipl's asserta/1), a directive's `:- at_halt(G)'
+  ;;; behind with its File:Line (swipl's term expansion makes it a clause
+  ;;; of the file, in the file's order). A DIRECTIVE'S HOOK REGISTERED
+  ;;; AGAIN, its goal from the same place, is not added twice: a module is
+  ;;; read again into each store made after it -- a library(thread)
+  ;;; thread's, an isolated run's -- and its directives with it, where
+  ;;; swipl's process reads it once. NOTHING IN THE KNOWLEDGE BASE: a hook
+  ;;; is the process's, and a database written through would hand it to
+  ;;; the next process. No Prolog runs while `ah_mx' is held: the texts are
+  ;;; written before it is taken and read after it is given back. A
+  ;;; directive's hook keeps the file whose read registered it (FILE, the
+  ;;; loaded file's path, an include's includer's): a read of that file
+  ;;; again registers its hooks afresh, as swipl's reconsult does the
+  ;;; file's clauses of '$at_halt'/2 (`coco_b_at_halt_reread'). A goal's
+  ;;; has none.
+  (struct coco_ahook
+    (member u64 id)
+    (member char * goal)
+    (member char * src)
+    (member char * file)
+    ;; a re-read of FILE under way has not registered it again yet, and
+    ;; the re-read that registered it (its serial), as swipl's reload
+    ;; marks the file's old clauses and keeps those the new text repeats
+    (member int stale)
+    (member u64 rd))
+
+  ;;; A FILE BEING READ AGAIN, by a machine (a store's read; another
+  ;;; machine's read of the same file is a read of its own store), and the
+  ;;; serial its hooks carry
+  (struct coco_ahread
+    (member void * m)
+    (member char * file)
+    (member u64 serial))
+
+  (static) (var coco_ahook * ah_tab)
+  (static) (var size_t ah_n)
+  (static) (var size_t ah_cap)
+  (static) (var u64 ah_next)
+  (static) (var pthread_mutex_t ah_mx . PTHREAD_MUTEX_INITIALIZER)
+  ;; a halt running the hooks (swipl's GD->cleaning): a halt asked
+  ;; meanwhile, a hook's own among them, fails, as PL_CLEANUP_RECURSIVE does
+  (static) (var int ah_running)
+  ;; the cancels counted (GD->halt_cancelled): the tenth is not honoured,
+  ;; MAX_HALT_CANCELLED's rule
+  (static) (var int ah_cancels)
+  ;; the status the hooks were run for, current_prolog_flag(exit_status, S)
+  ;; from the first run on, as PL_cleanup() sets the flag
+  (static) (var int ah_status)
+  (static) (var int ah_has_status)
+  ;; a halt has gone on, the process is ending: no end after it runs a hook
+  ;; again (the host's, a load's `initialization(G, main)')
+  (static) (var int ah_done)
+  ;; the re-reads under way, nested as loads nest
+  (static) (var coco_ahread * ah_reads)
+  (static) (var size_t ah_nreads)
+  (static) (var size_t ah_creads)
+  (static) (var u64 ah_rdnext)
+
+  ;; the serial of M's re-read of FILE under way, or 0 (`ah_mx' held)
+  (static)
+  (func coco_ah_read_of ((void * m) (const char * file)) (out u64)
+        (if (== file nil) (return 0))
+        (for ((size_t i . ah_nreads)) (> i 0) ((-- i))
+          (let ((coco_ahread * r . #'(aof (nth (- i 1) ah_reads))))
+            (if (and (== (-> r m) m) (== 0 (strcmp (-> r file) file)))
+                (return (-> r serial)))))
+        (return 0))
+
+  ;; where a re-read's new hook goes (`ah_mx' held): after the last one
+  ;; this re-read registered of its file, else where the file's old ones
+  ;; stand, else last -- the file's hooks keep their place among the
+  ;; others, as swipl's reload keeps a file's clauses where they were
+  (static)
+  (func coco_ah_reread_at ((const char * file) (u64 serial)) (out size_t)
+        (let ((size_t at . #'ah_n) (int seen . 0))
+          (for ((size_t i . 0)) (< i ah_n) ((++ i))
+            (let ((coco_ahook * h . #'(aof (nth i ah_tab))))
+              (if (and (!= (-> h file) nil) (== 0 (strcmp (-> h file) file)))
+                  (if (and (not (-> h stale)) (== (-> h rd) serial))
+                      (block (set at (+ i 1)) (set seen 1))
+                    (if (and (-> h stale) (not seen) (== at ah_n))
+                        (set at i))))))
+          (return at)))
+
+  ;; T's text, or nil: one too deep for the C stack to write (WSHORT left
+  ;; for the caller to raise) or one the buffer was refused room for
+  (static)
+  (func coco_ah_text ((coco_machine * m) (size_t t)) (out char *)
+        (let ((coco_strbuf b) (char * out . nil) (size_t r0 . #'(coco_refusals))
+              (coco_machine * was . #'(coco_refuse_take)))
+          (coco_sb_init (aof b))
+          (coco_write_term m (aof b) t 1 1)
+          (if (and (!= ($ b s) nil) (and (not (-> m wshort)) (== (coco_refusals) r0)))
+              (set out (strdup ($ b s))))
+          (coco_sb_free (aof b))
+          (coco_refuse_give was)
+          (return out)))
+
+  ;;; '$at_halt_add'(Where, Goal, Src): Goal in front (0, at_halt/1's) or
+  ;;; behind (1, a directive's, where the same Goal and Src stand not yet,
+  ;;; its file the read's)
+  (func coco_b_at_halt_add ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (i64 where . 0)
+              (char * gt . nil) (char * st . nil) (char * ft . nil) (int dup . 0)
+              (int room . 1) (u64 serial . 0))
+          (if (not (coco_m_int e (coco_m_arg e g 0) (aof where))) (return 0))
+          (set gt (coco_ah_text m (coco_m_arg e g 1)))
+          (if (!= gt nil) (set st (coco_ah_text m (coco_m_arg e g 2))))
+          (if (and (and (!= st nil) (== where 1)) (!= (-> m sloc_src) nil))
+              (block (set ft (strdup (-> m sloc_src)))
+                     (if (== ft nil) (block (free st) (set st nil)))))
+          (if (or (== gt nil) (== st nil))
+              (block (free gt) (free st)
+                     (if (-> m wshort) (return (coco_cstack_error e)))
+                     (return (coco_m_resource_error e "memory"))))
+          (pthread_mutex_lock (aof ah_mx))
+          ;; A DIRECTIVE'S: in a re-read of its file, the old hook its text
+          ;; repeats is kept where it stands; in a first read, the same
+          ;; goal at the same place registered already -- another store's
+          ;; read of the file -- is not registered twice
+          (if (== where 1)
+              (block
+                (set serial (coco_ah_read_of m ft))
+                (for ((size_t i . 0)) (< i ah_n) ((++ i))
+                  (let ((coco_ahook * h . #'(aof (nth i ah_tab))))
+                    (if (and (== 0 (strcmp (-> h goal) gt)) (== 0 (strcmp (-> h src) st)))
+                        (if (== serial 0)
+                            (block (set dup 1) break)
+                          (if (and (-> h stale) (and (!= (-> h file) nil)
+                                                     (== 0 (strcmp (-> h file) ft))))
+                              (block (set (-> h stale) 0) (set (-> h rd) serial)
+                                     (set dup 1) break))))))))
+          (if (and (not dup) (== ah_n ah_cap))
+              (let ((size_t cap . #'(? (== ah_cap 0) 8 (* ah_cap 2)))
+                    (coco_ahook * grown . #'(cast (coco_ahook *)
+                                                  (realloc ah_tab (* cap (sizeof coco_ahook))))))
+                (if (== grown nil)
+                    (set room 0)
+                  (block (set ah_tab grown) (set ah_cap cap)))))
+          (if (and (not dup) room)
+              (let ((size_t at . #'(? (== where 1)
+                                       (? (== serial 0) ah_n (coco_ah_reread_at ft serial))
+                                       0)))
+                (if (< at ah_n)
+                    (memmove (aof (nth (+ at 1) ah_tab)) (aof (nth at ah_tab))
+                             (* (- ah_n at) (sizeof coco_ahook))))
+                (let ((coco_ahook * h . #'(aof (nth at ah_tab))))
+                  (set ah_next (+ ah_next 1))
+                  (set (-> h id) ah_next)
+                  (set (-> h goal) gt)
+                  (set (-> h src) st)
+                  (set (-> h file) ft)
+                  (set (-> h stale) 0)
+                  (set (-> h rd) serial))
+                (set ah_n (+ ah_n 1))))
+          (pthread_mutex_unlock (aof ah_mx))
+          (if (or dup (not room)) (block (free gt) (free st) (free ft)))
+          (if (not room) (return (coco_m_resource_error e "memory")))
+          (return 1)))
+
+  ;;; '$at_halt_list'(Hs): the hooks as they stand, each '$h'(Id, Goal,
+  ;;; Src) read back into this machine, in the order they run
+  (func coco_b_at_halt_list ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (coco_ahook * cp . nil) (size_t n . 0)
+              (size_t lst . 0) (int bad . 0))
+          (pthread_mutex_lock (aof ah_mx))
+          (set n ah_n)
+          (if (> n 0) (set cp (cast (coco_ahook *) (calloc n (sizeof coco_ahook)))))
+          (if (!= cp nil)
+              (for ((size_t i . 0)) (< i n) ((++ i))
+                (let ((coco_ahook * h . #'(aof (nth i ah_tab))) (coco_ahook * c . #'(aof (nth i cp))))
+                  (set (-> c id) (-> h id))
+                  (set (-> c goal) (strdup (-> h goal)))
+                  (set (-> c src) (strdup (-> h src)))
+                  (if (or (== (-> c goal) nil) (== (-> c src) nil)) (set bad 1)))))
+          (pthread_mutex_unlock (aof ah_mx))
+          (if (and (> n 0) (== cp nil)) (return (coco_m_resource_error e "memory")))
+          ;; read back from the last, each consed on to the list's front
+          (set lst (coco_new_nil m))
+          (if (not bad)
+              (for ((size_t i . n)) (> i 0) ((-- i))
+                (let ((coco_ahook * c . #'(aof (nth (- i 1) cp))) (size_t gt . 0) (size_t sr . 0)
+                      (size_t a [3]))
+                  (if (or (not (coco_read_term_from m (-> c goal) (aof gt)))
+                          (not (coco_read_term_from m (-> c src) (aof sr))))
+                      (block (set bad 1) break))
+                  (set (nth 0 a) (coco_new_int m (cast i64 (-> c id))))
+                  (set (nth 1 a) gt)
+                  (set (nth 2 a) sr)
+                  (set lst (coco_cons m (coco_make m "$h" 3 a) lst)))))
+          (for ((size_t i . 0)) (< i n) ((++ i))
+            (let ((coco_ahook * c . #'(aof (nth i cp))))
+              (free (-> c goal))
+              (free (-> c src))))
+          (free cp)
+          (if bad (return (coco_m_resource_error e "memory")))
+          (return (coco_m_unify e (coco_m_arg e g 0) lst))))
+
+  ;;; '$at_halt_erase'(Id): the hook that has run, swipl's erase(Ref)
+  (func coco_b_at_halt_erase ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 id . 0))
+          (if (not (coco_m_int e (coco_m_arg e g 0) (aof id))) (return 0))
+          (pthread_mutex_lock (aof ah_mx))
+          (for ((size_t i . 0)) (< i ah_n) ((++ i))
+            (let ((coco_ahook * h . #'(aof (nth i ah_tab))))
+              (if (== (-> h id) (cast u64 id))
+                  (block
+                    (free (-> h goal))
+                    (free (-> h src))
+                    (free (-> h file))
+                    (memmove (aof (nth i ah_tab)) (aof (nth (+ i 1) ah_tab))
+                             (* (- (- ah_n i) 1) (sizeof coco_ahook)))
+                    (set ah_n (- ah_n 1))
+                    break))))
+          (pthread_mutex_unlock (aof ah_mx))
+          (return 1)))
+
+  ;;; A FILE READ AGAIN REGISTERS WHAT ITS TEXT SAYS NOW, as swipl's
+  ;;; reconsult does of the file's '$at_halt'/2 clauses: as the read begins
+  ;;; (END 0) the file's hooks are marked stale, each one its new text
+  ;;; repeats is kept where it stands, a new one goes beside the file's
+  ;;; others (`coco_ah_reread_at'), and as the read ends (END 1) the stale
+  ;;; are taken away -- unless the read did not reach its end (END 2), which
+  ;;; read no absence, and keeps them. Asked by M's read of a file its
+  ;;; store read before (`coco_reread_hook'), never by a first read -- a
+  ;;; module's into a new store, a thread's, is one. A re-read whose entry
+  ;;; there was no memory for registers as a first read does
+  (func coco_b_at_halt_reread ((coco_machine * m) (const char * file) (int end))
+        (pthread_mutex_lock (aof ah_mx))
+        (if (== end 0)
+            (let ((char * f . #'(strdup file)))
+              (if (and (!= f nil) (== ah_nreads ah_creads))
+                  (let ((size_t cap . #'(? (== ah_creads 0) 4 (* ah_creads 2)))
+                        (coco_ahread * grown . #'(cast (coco_ahread *)
+                                                       (realloc ah_reads (* cap (sizeof coco_ahread))))))
+                    (if (== grown nil)
+                        (block (free f) (set f nil))
+                      (block (set ah_reads grown) (set ah_creads cap)))))
+              (if (!= f nil)
+                  (let ((coco_ahread * r . #'(aof (nth ah_nreads ah_reads))))
+                    (set ah_rdnext (+ ah_rdnext 1))
+                    (set (-> r m) (cast (void *) m))
+                    (set (-> r file) f)
+                    (set (-> r serial) ah_rdnext)
+                    (set ah_nreads (+ ah_nreads 1))
+                    (for ((size_t i . 0)) (< i ah_n) ((++ i))
+                      (let ((coco_ahook * h . #'(aof (nth i ah_tab))))
+                        (if (and (!= (-> h file) nil) (== 0 (strcmp (-> h file) file)))
+                            (set (-> h stale) 1)))))))
+          (let ((u64 serial . #'(coco_ah_read_of (cast (void *) m) file)) (size_t k . 0))
+            (if (!= serial 0)
+                (block
+                  (for ((size_t i . 0)) (< i ah_n) ((++ i))
+                    (let ((coco_ahook * h . #'(aof (nth i ah_tab))))
+                      (if (and (-> h stale) (== end 1)
+                               (and (!= (-> h file) nil) (== 0 (strcmp (-> h file) file))))
+                          (block (free (-> h goal)) (free (-> h src)) (free (-> h file)))
+                        (block
+                          (if (and (-> h stale) (and (!= (-> h file) nil)
+                                                     (== 0 (strcmp (-> h file) file))))
+                              (set (-> h stale) 0))
+                          (if (!= k i) (set (nth k ah_tab) (nth i ah_tab)))
+                          (set k (+ k 1))))))
+                  (set ah_n k)
+                  ;; its entry, the innermost of M's for FILE
+                  (for ((size_t i . ah_nreads)) (> i 0) ((-- i))
+                    (let ((coco_ahread * r . #'(aof (nth (- i 1) ah_reads))))
+                      (if (== (-> r serial) serial)
+                          (block
+                            (free (-> r file))
+                            (memmove (aof (nth (- i 1) ah_reads)) (aof (nth i ah_reads))
+                                     (* (- ah_nreads i) (sizeof coco_ahread)))
+                            (set ah_nreads (- ah_nreads 1))
+                            break))))))))
+        (pthread_mutex_unlock (aof ah_mx)))
+
+  ;;; THE HOOKS RUN AT A HALT, swipl's PL_cleanup(): a search of E's own,
+  ;;; untraced as swipl's debugmode(FALSE) runs them, of '$run_at_halt'/0,
+  ;;; which walks a copy of the table and erases each hook once it has run.
+  ;;; 1 the halt goes on. 0 it does not: a halt asked while the hooks run
+  ;;; -- a hook's own -- fails, as PL_CLEANUP_RECURSIVE does, and so does
+  ;;; one a hook's cancel_halt/1 cancelled, but for the tenth cancel and at
+  ;;; the HOST'S END (HOST 1), whose cancel is not honoured (COMPAT.md).
+  ;;; 2 a raise of the search's own, handed on. CODE is the status,
+  ;;; current_prolog_flag(exit_status, S)'s from then on. A HALT THAT ENDS
+  ;;; NO PROCESS RUNS NONE: an isolated run's (a library(thread) thread's,
+  ;;; run_isolated/2's) ends the run alone (COMPAT.md).
+  (func coco_b_halt_run ((coco_engine * e) (int code) (int host)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t n . 0) (int running . 0)
+              (int rc . 0) (size_t out . 0) (int tr . 0) (int ok . 0) (int cancel . 0))
+          (if (-> (-> e st) isolated) (return 1))
+          (pthread_mutex_lock (aof ah_mx))
+          (set running ah_running)
+          (set n (? ah_done 0 ah_n))
+          (if (and (not running) (== n 0)) (set ah_done 1))
+          (if (and (not running) (> n 0))
+              (block (set ah_running 1) (set ah_status code) (set ah_has_status 1)))
+          (pthread_mutex_unlock (aof ah_mx))
+          (if running (return 0))
+          (if (== n 0) (return 1))
+          (set tr (-> e trace))
+          (set (-> e trace) 0)
+          (set rc (coco_engine_findall e (coco_new_atom m "true") (coco_new_atom m "$run_at_halt")
+                                       (aof out) nil 1))
+          (set (-> e trace) tr)
+          (set ok (and (== rc 1) (coco_is_cons m (coco_deref m out))))
+          (pthread_mutex_lock (aof ah_mx))
+          (set ah_running 0)
+          (if (and (not ok) (!= rc 2))
+              (block (set ah_cancels (+ ah_cancels 1))
+                     (set cancel (and (not host) (< ah_cancels 10)))))
+          (if (and (not cancel) (!= rc 2)) (set ah_done 1))
+          (pthread_mutex_unlock (aof ah_mx))
+          (if (== rc 2) (return 2))
+          (return (? cancel 0 1))))
+
+  ;;; halt/0's, installed in the engine (`coco_halt_install')
+  (func coco_b_halt_hook ((coco_engine * e) (int code)) (out int)
+        (return (coco_b_halt_run e code 0)))
+
+  ;; whether a hook waits that no halt has run, for a host that has no
+  ;; engine to run one in yet
+  (func coco_b_at_halt_pending () (out int)
+        (let ((int n . 0))
+          (pthread_mutex_lock (aof ah_mx))
+          (set n (? (and (> ah_n 0) (not ah_done)) 1 0))
+          (pthread_mutex_unlock (aof ah_mx))
+          (return n)))
+
+  ;;; THE PROGRAM'S END (cocolog.cicili's hosts): the hooks a halt/0,1 of
+  ;;; the program did not run, with the status the host is about to give
+  (func coco_b_at_halt_host ((coco_engine * e) (int status))
+        (if (-> e halted) (return))
+        (coco_b_halt_run e status 1))
+
+  ;;; A LOAD'S END OF THE PROCESS (`coco_halt_load', kb.cicili): its
+  ;;; `initialization(G, main)' done, or a directive's halt, whose own run
+  ;;; left nothing. In an engine of its own over the load's machine and
+  ;;; store: their terms are the machine's ids
+  (func coco_b_at_halt_exit ((coco_store * st) (coco_machine * m) (int code))
+        (if (not (coco_b_at_halt_pending)) (return))
+        (let ((coco_engine he))
+          (coco_engine_init (aof he) m st)
+          (set ($ he max_steps) 0)
+          (coco_b_at_halt_host (aof he) code)
+          (coco_engine_free (aof he))))
+
+  ;;; current_prolog_flag(exit_status, S): S once the hooks have run
+  (func coco_b_exit_status ((int * s)) (out int)
+        (let ((int has . 0))
+          (pthread_mutex_lock (aof ah_mx))
+          (set has ah_has_status)
+          (set (cof s) ah_status)
+          (pthread_mutex_unlock (aof ah_mx))
+          (return has)))
+
   ;;; TAB EVALUATES ITS ARGUMENT (3.0.0), as swipl's
   ;;; PL_eval_expression_to_int64(): `tab(1+1)' writes two, `tab(a)' is
   ;;; type_error(evaluable, a/0), and an answer that is no integer
@@ -2383,10 +2747,14 @@
   ;;; the code an integer, as swipl's: an unbound one instantiation_error,
   ;;; anything else type_error(integer, C) (3.0.0; through 2.16 `halt(a)'
   ;;; halted with status 0)
+  ;;; halt/1. ITS HOOKS RUN FIRST (3.71.0, `coco_b_halt_run'), and a halt
+  ;;; they cancel fails, as swipl's halt/1 then fails
   (func coco_b_halt1 ((coco_engine * e) (size_t g)) (out int)
-        (let ((i64 code . 0))
+        (let ((i64 code . 0) (int r . 0))
           (if (not (coco_m_int e (coco_m_arg e g 0) (aof code)))
               (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
+          (set r (coco_b_halt_run e (cast int code) 0))
+          (if (!= r 1) (return r))
           (set (-> e halted) 1)
           (set (-> e halt_code) (cast int code))
           (return 1)))
