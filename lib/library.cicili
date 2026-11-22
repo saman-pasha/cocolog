@@ -1585,8 +1585,11 @@
   ;;; under if(If); the Coco half walks a list and reads the options.
   ;;;
   ;;; library(Name) is the library loader's, as SWI loads a library: a
-  ;;; module, loaded once, whatever IF says, and imported (3.42.0): all of
-  ;;; it, or what load_files/2's imports(I) says (`lb_import_lf'); a name
+  ;;; module, and imported (3.42.0): all of it, or what load_files/2's
+  ;;; imports(I) says (`lb_import_lf'). Loaded once by not_loaded and
+  ;;; must_be_module(true), and a file of Prolog this store read is READ
+  ;;; AGAIN under the other IFs (3.73.2, `lb_lib_again'), as a file named by
+  ;;; its path is -- through 3.73.1 it was loaded once whatever IF said; a name
   ;;; swipl gives what this build carries elsewhere loads, as use_module/1's
   ;;; (through 3.41.0 existence_error). Any other spec names a file by
   ;;; its text -- an atom, a string, a number, whose text SWI's error gives
@@ -1702,6 +1705,52 @@
             (set opts (coco_deref m (coco_arg m opts 1))))
           (return 1)))
 
+  ;;; THE MODULE library(Name) NAMES THAT THIS STORE READ FROM A FILE OF
+  ;;; PROLOG (3.73.2), or nil: by its name, as the library loader finds a
+  ;;; module registered (`lb_load_known'), else by the real path of the
+  ;;; file the library path finds (`lb_module_of': a file first named by its
+  ;;; path). Nil for a module compiled in or a `.so', and for one this store
+  ;;; has not read -- a store made after another read it (a thread's,
+  ;;; run_isolated/2's) -- which the library loader loads into it.
+  (static)
+  (func lb_lib_module ((coco_store * st) (coco_machine * m) (size_t spec)) (out const coco_module *)
+        (let ((char name [4096]) (char path [4096]) (char full [4096]) (int kind . 0)
+              (size_t inner . #'(coco_deref m (coco_arg m spec 0)))
+              (const coco_module * mod . nil))
+          (if (coco-tag-is REF (nth inner (-> m heap))) (return nil))
+          (if (not (lb_spec_text m inner name (sizeof name))) (return nil))
+          (set mod (coco_module_find name))
+          (if (and (== mod nil)
+                   (and (lb_find name path (sizeof path) (aof kind))
+                        (and (== kind 2) (!= nil (realpath path full)))))
+              (set mod (lb_module_of full)))
+          (if (or (== mod nil) (or (== (-> mod file) nil) (-> mod foreign))) (return nil))
+          (for ((size_t i . 0)) (< i (-> st libs)) ((++ i))
+            (if (== (coco_module_at i) mod) (return mod)))
+          (return nil)))
+
+  ;;; A LIBRARY'S FILE READ AGAIN (3.73.2), as swipl's consult/1, `[File]'
+  ;;; and load_files/2 read library(Name) again ('$noload'/3 is false of
+  ;;; if(true)): MOD, the module `lb_lib_module' found, read again as that
+  ;;; module (`lb_reread'), always under if(true) and under if(changed) and
+  ;;; if(exists) (CHANGED) once its time is past its last read's, unless its
+  ;;; reads defined nothing. Answers as `lb_load_file': 1, or a raise's
+  ;;; answer -- a file that is gone existence_error(source_sink, SPEC).
+  (static)
+  (func lb_lib_again ((coco_engine * e) (const coco_module * mod) (size_t spec)
+                      (int changed) (int lf) (size_t opts)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (const char * path . #'(? (== (-> mod real) nil) (-> mod file) (-> mod real)))
+              (double now . 0.0) (int eo . 0) (int rr . 0))
+          (lb_defined m)
+          (if (not (coco_file_mtime path (aof now))) (set now 0.0))
+          (if (and changed (and (not (lb_mod_unloaded mod)) (<= now (-> mod time)))) (return 1))
+          (set eo (lb_enc_option e lf opts))
+          (if (!= eo 1) (return eo))
+          (set rr (lb_reread e mod path now))
+          (if (== rr 0) (return (coco_m_existence_error e "source_sink" spec)))
+          (return rr)))
+
   (static)
   (func lb_load_file ((coco_engine * e) (size_t g)) (out int)
         (coco-mod-args e g ((spec 0) (how 1))
@@ -1728,6 +1777,17 @@
                 (block
                  ;; what it imports, noted before the load (3.42.0)
                  (lb_import_lf st m spec lf opts)
+                 ;; A FILE OF PROLOG THIS STORE READ IS READ AGAIN (3.73.2),
+                 ;; as a file named by its path is (below): through 3.73.1 a
+                 ;; library was loaded once whatever IF said, and a clause
+                 ;; the program retracted never came back. not_loaded and
+                 ;; must_be_module(true) load what is not loaded, as
+                 ;; ensure_loaded/1 and use_module/1 do.
+                 (if (not (or (== 0 (strcmp mode "not_loaded")) (== 0 (strcmp mode "module"))))
+                     (let ((const coco_module * lm . #'(lb_lib_module st m spec)))
+                       (if (!= lm nil)
+                           (return (lb_lib_again e lm spec (or (== 0 (strcmp mode "changed")) exists)
+                                                 lf opts)))))
                  (set was (-> m dgc))
                  (set (-> m dgc) (? (-> e gc) 1 0))
                  (set r (coco_library_load st m e spec err (sizeof err)))

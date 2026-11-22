@@ -14,7 +14,9 @@
 %  one asked (a call from the registers, which no guard of $/0 takes), and
 %  by the answers and their order. Run by BOTH SWI-Prolog and cocolog,
 %  output compared byte for byte; each line is one of swipl 9.0.4's
-%  answers. Not here (COMPAT.md): a predicate of eight clauses or more
+%  answers. And since 3.73.2 (`later') a compound in a later argument
+%  where the first leaves no fewer clauses. Not here (COMPAT.md): a
+%  predicate of eight clauses or more
 %  whose call's key leaves four candidates or fewer, which cocolog keys on
 %  the argument with the fewest and goes no deeper; keys of floats and
 %  strings; an index of two arguments together; and what swipl's indexes
@@ -222,4 +224,46 @@ answers :-
     p(N4, dd2(f(g(_), x), N4)), p(L5, dl(L5, z)), p(X6, wv(f(X6, _), _)),
     p(N7, wv12(f(_, N7))).
 
-main :- det, shapes, changes, views, handles, spread, answers.
+%  A COMPOUND IN A LATER ARGUMENT (cocolog 3.73.2): past eight clauses, a
+%  call whose first argument is unbound, or bound to a key that leaves as
+%  many clauses as the compound's argument does, goes down into the
+%  compound, where swipl's list index takes it (its assessment finds no
+%  better argument); a first argument that leaves fewer is walked, in
+%  both. Through 3.73.1 every one of them walked the whole predicate, and
+%  left a choice point. Each call on a predicate of its own: swipl's
+%  indexes stay with the calls that built them
+lrows(t1, R) :- findall([es, [W]], (between(1, 20, I), atom_concat(w, I, W)), R).
+lrows(t2, R) :- findall([K, [W]], (between(1, 20, I), atom_concat(w, I, W), atom_concat(k, I, K)), R).
+lrows(t4, R) :-
+    findall([A, g(W), h(W)], (between(1, 20, I), atom_concat(w, I, W), (I mod 2 =:= 1 -> A = a ; A = b)), R).
+lrows(t5, R) :- findall([A, [W]], (between(1, 20, I), atom_concat(w, I, W), (I =< 19 -> A = es ; A = fr)), R).
+lrows(t6, R) :- findall([I, x, f(W)], (between(1, 20, I), atom_concat(w, I, W)), R).
+lrows(t7, R) :- findall([_, [W]], (between(1, 20, I), atom_concat(w, I, W)), R).
+lrows(t8, R) :- findall([I, [W], [W]], (between(1, 20, I), atom_concat(w, I, W)), R).
+%  a variable in one clause's second argument makes it no list index, and
+%  the third, which is, takes the call; an atom there leaves it one
+lrows(t9, R) :- findall([I, A, [W]], (between(1, 20, I), atom_concat(w, I, W), (I =:= 7 -> true ; A = [W])), R).
+lrows(t10, R) :- findall([I, A, [W]], (between(1, 20, I), atom_concat(w, I, W), (I =:= 7 -> A = x ; A = f(W))), R).
+%  two list indexes tie, and the first keeps the call, though inside the
+%  second every clause holds the same atom
+lrows(t11, R) :- findall([I, [W], [x]], (between(1, 20, I), atom_concat(w, I, W)), R).
+lcalls([ t1-[es, [w3]], t1-[_, [w3]], t1-[_, [w20]], t1-[_, [none]], t1-[_, [_]],
+         t2-[_, [w3]], t2-[k3, [w3]], t2-[k3, [_]], t2-[_, [w3, w4]],
+         t4-[_, g(w3), _], t4-[_, _, h(w3)], t4-[a, g(w3), _], t4-[b, g(w3), _],
+         t5-[es, [w3]], t5-[_, [w3]], t5-[fr, [w20]],
+         t6-[_, _, f(w9)], t6-[_, x, f(w9)], t6-[_, y, f(w9)],
+         t7-[_, [w6]], t8-[_, [w6], _], t8-[_, _, [w6]], t8-[_, [w6], [w6]], t8-[_, [w6], [w7]],
+         t9-[_, [w5], [w5]], t9-[_, _, [w5]], t9-[_, [w7], [w7]], t10-[_, f(w5), [w5]], t10-[_, x, [w7]],
+         t11-[_, [w5], [x]], t11-[_, [w5], _], t11-[_, _, [x]] ]).
+lnew(N, B, P) :-
+    atom_concat(B, '_', B1), atom_concat(B1, N, P), lrows(B, Rows),
+    forall(member(R, Rows), ( T =.. [P|R], assertz(T) )).
+later :-
+    lcalls(Cs),
+    forall(nth1(N, Cs, B-Args), ( lnew(N, B, P), G =.. [P|Args], d(G) )),
+    lnew(a1, t2, P1), G1 =.. [P1, K1, [w5]], p(K1, G1),
+    lnew(a2, t4, P2), G2 =.. [P2, X2, g(_), h(w7)], p(X2, G2),
+    lnew(a3, t1, P3), G3 =.. [P3, _, [W3]], p(W3, G3),
+    lnew(a4, t6, P4), G4 =.. [P4, I4, _, f(w9)], p(I4, G4).
+
+main :- det, shapes, changes, views, handles, spread, answers, later.

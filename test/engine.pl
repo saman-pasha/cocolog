@@ -301,7 +301,9 @@ sorting(D) :-
 %% a program four minutes a sentence. Children under a timeout with a
 %% wide margin again: 50 000 lookups by the second argument take a fraction
 %% of a second and took about forty, the same through a shared first
-%% argument hours, and the walk through one key's 200 000 clauses minutes.
+%% argument hours, and the walk through one key's 200 000 clauses minutes;
+%% and (3.73.2) 40 000 lookups by a list in the second argument took some
+%% fifty seconds.
 any_argument(D) :-
     section('a call is keyed on whichever bound argument chooses'),
     atom_concat(D, '/aix.pl', F),
@@ -313,13 +315,26 @@ any_argument(D) :-
                  'shared :- fill(50000), forall(between(1, 50000, I), ( atom_concat(k, I, K), w(es, K, _) )),',
                  '    write(done), nl.',
                  'walk :- fill(200000), findall(K, w(es, K, _), Ks), length(Ks, 200000),',
-                 '    findall(K, w(es, K, _), _), write(done), nl.' ]),
+                 '    findall(K, w(es, K, _), _), write(done), nl.',
+                 ':- dynamic l/2, l2/2.',
+                 'lfill(N) :- forall(between(1, N, I), ( atom_concat(k, I, K), atom_concat(w, I, W),',
+                 '    assertz(l(K, [W])), assertz(l2(es, [W])) )).',
+                 'later :- lfill(40000), forall(between(1, 20000, I), ( atom_concat(w, I, W), l(K, [W]),',
+                 '    atom_concat(k, I, K) )), forall(between(1, 20000, I), ( atom_concat(w, I, W), l2(es, [W]) )),',
+                 '    write(done), nl.' ]),
     last_line_of(F, second, 15000, G1),
     check('50000 lookups by the second argument of 50000 facts', G1, done),
     last_line_of(F, shared, 15000, G2),
     check('...and by the second when every first argument is the same', G2, done),
     last_line_of(F, walk, 15000, G3),
     check('backtracking through one key''s 200000 clauses stays linear', G3, done),
+    %% A LIST IN A LATER ARGUMENT (3.73.2), the reasoning session's verb
+    %% table: a lookup keyed by a one-element list whose first argument is
+    %% unbound, or bound to a key every clause shares, walked all of the
+    %% 40000 facts, 1.2 ms a lookup; it goes down into the list, as swipl's
+    %% list index does. 40000 lookups took some 50 s and take under one.
+    last_line_of(F, later, 15000, G3a),
+    check('40000 lookups by a list in the second argument of 40000 facts', G3a, done),
     %% and the answers come in the program's order whichever argument chose:
     %% a clause whose indexed argument is a variable is a candidate for every
     %% key, and asserta, retract and assertz keep every table true

@@ -298,7 +298,15 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   consult/1 with their meta_predicate, `[user:a, b]` consult/1 of
   `user:[a, b]`. Their
   `if(not_loaded)` and `must_be_module(true)` are the module loader's, as
-  are `library(X)`. **The store keeps the files read into it** (`loads`,
+  are `library(X)`. **A library's file of Prolog this store read is read
+  again under the other IFs** (3.73.2, `lb_lib_again`, as a file named by
+  its path is: always under `if(true)`, under `if(changed)` and
+  `if(exists)` once its time is past its last read's; test/files/
+  library_reload.pl): through 3.73.1 `consult(library(X))` loaded it once
+  whatever IF said, and a clause the program retracted never came back. A
+  module another store read and this one has not is the loader's, once
+  (`lb_lib_module` asks `st->libs`): read again here, the store's next
+  load would read it a second time. **The store keeps the files read into it** (`loads`,
   their real path and `time_file/2`, noted before the read by every host's
   consult too, `coco_library_note_load`): `if(changed)` and `if(exists)`
   read a file again only when it is NEWER than that time (swipl's; through
@@ -2781,9 +2789,16 @@ into its `at_modules/1`. What a session must keep:
   left a choice point where swipl's leaves none, and a lookup by a handle
   `n(D, I, G)` over 100 000 facts walked every fact of the handle's
   functor, 1.4 ms a lookup against swipl's 0.0055 (0.0050 now with the
-  index built in the run, 0.0008 once built, swipl's 0.0010).
-  test/files/deep_index.pl holds 105 lines to swipl, 33 of them 3.63.2's
-  wrong. What a session must keep:
+  index built in the run, 0.0008 once built, swipl's 0.0010). **A tie in
+  `coco_pred_select`'s count goes to a compound's argument over a choice
+  that is no list index** (3.73.2; the reasoning session's finding): an
+  unbound first argument, a key every clause shares, a compound a clause's
+  variable keeps from being one, as swipl's assessment finds the list
+  index no worse; a list index the loop chose keeps the tie. Through
+  3.73.1 the first argument kept every tie, and `p(_, [w])` over 40 000
+  facts `p(K, [W])` walked every one, 1.2 ms a lookup.
+  test/files/deep_index.pl holds 141 lines to swipl, 33 of them 3.63.2's
+  wrong and 17 of the `later` section's 3.73.1's. What a session must keep:
   - **A choice frame names a node's table with bit 31 of `ixpos`**
     (`coco_deep_pos`, the node above the table's three bits), read back by
     `coco_call_arg_key` and `coco_pred_next_at`, the two readers of a

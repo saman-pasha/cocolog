@@ -114,6 +114,15 @@ fixtures(reload, Sandbox) :- !,
                     'g2.pl'-[':- writeln(read_g_v2).', ':- dynamic gd/1.', 'gd(file2).']-'2026-10-28T12:00:01Z' ]),
            ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines),
              shl(['touch -d ', When, ' ', P]) )).
+%% the libraries the reload case reads again (`lrl/2'), in the sandbox's
+%% library/: a file of facts, a module, and one a directory down, each at
+%% 12:00:00, so that the case's touch makes lr_a.pl newer; lr_u.pl starts
+%% with a BOM, which names UTF-8 to swipl too, whose default is the locale's
+fixtures(library_reload, Sandbox) :- !,
+    shl(['mkdir -p ', Sandbox, '/library/sub']),
+    forall(lrl(F, Lines),
+           ( atomic_list_concat([Sandbox, '/library/', F], P), fixture(P, Lines),
+             shl(['touch -d 2026-10-28T12:00:00Z ', P]) )).
 %% each file and the versions the case renames in its place, a version a
 %% list of lines (`ro/2')
 fixtures(reload_order, Sandbox) :- !,
@@ -591,6 +600,15 @@ ro('sh.v2.pl', [':- dynamic sh/2.', 'sh(_A, _B).']).
 ro('g1.pl', [':- multifile mg/1.', ':- dynamic mg/1.', 'mg(1).']).
 ro('g1.v2.pl', [':- multifile mg/1.', ':- dynamic mg/1.', 'mg(2).', 'mg(1).']).
 ro('g2.pl', [':- multifile mg/1.', ':- dynamic mg/1.', 'mg(2).']).
+
+lrl('lr_a.pl', [':- writeln(read_la).', ':- dynamic la/1.', 'la(1).', 'la(2).']).
+lrl('lr_m.pl', [':- module(lr_m, [lm/1]).', ':- writeln(read_lm).', ':- dynamic lm/1.', 'lm(1).', 'lm(2).']).
+lrl('sub/lr_s.pl', [':- writeln(read_ls).', ':- dynamic ls/1.', 'ls(1).']).
+lrl('lr_p.pl', [':- module(lr_p, [lp/1]).', ':- writeln(read_lp).', ':- dynamic lp/1.', 'lp(1).']).
+lrl('lr_g.pl', [':- writeln(read_lg).']).
+lrl('lr_x.pl', [':- writeln(read_lx).', 'lx(1).']).
+lrl('../lr_w.pl', [':- writeln(read_lw).', ':- consult(library(lr_a)).']).
+lrl('lr_u.pl', ['\xFEFF\:- writeln(read_lu).', 'lu(\'é\').']).
 
 %% The vendored SWI libraries a case needs consulted first. SWI finds them on
 %% its own library path from the `:- use_module' line in the case; cocolog

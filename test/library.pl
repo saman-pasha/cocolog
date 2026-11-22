@@ -41,7 +41,7 @@
 
 main :-
     scratch(D),
-    registered, from_the_path(D), keeps_builtins(D), lends_ops(D), errors(D), includes(D),
+    registered, from_the_path(D), held_store(D), keeps_builtins(D), lends_ops(D), errors(D), includes(D),
     nested_loads(D), shared_object(D), across_processes(D),
     always_present, still_answers, expansions(D), module_names(D), first_calls(D),
     shl(['rm -rf ', D]),
@@ -269,6 +269,27 @@ from_the_path(D) :-
     sh_join(['run ', Uses, ' "both(G), write(answer(G)), nl"'], Args3),
     cocolog_answer(Args3, G3),
     check('the :- use_module directive loads it too', G3, answer(hello_from_pl)).
+
+%% A LIBRARY ANOTHER STORE READ (3.73.2): consult(library(Name)) reads a
+%% file of the library path again in a store that read it
+%% (test/files/library_reload.pl), and loads it once into a store that did
+%% not -- here the outer one, after the store run_isolated/2 made read it
+%% first -- so that the store's next load, which loads what the registry
+%% holds and the store does not, reads it no more: read again there too,
+%% the file's directives ran twice (its clauses, which the second read
+%% replaces, once). The count is a global, which a store keeps its own of.
+held_store(D) :-
+    section('consult(library(Name)) of a file another store read'),
+    (   catch(use_module(library(thread)), _, fail)
+    ->  atom_concat(D, '/plib/held.pl', Held),
+        fixture(Held, [':- dynamic hs/1.', 'hs(1).', 'hs(2).',
+                       ':- ( nb_current(held_reads, K) -> K1 is K + 1 ; K1 = 1 ), nb_setval(held_reads, K1).']),
+        written(( run_isolated(consult(library(held)), _), consult(library(held)),
+                  consult(library(lists)), findall(X1, hs(X1), L1), nb_getval(held_reads, R1) ),
+                L1-R1, G1),
+        check('a module another store read loads once into this one, its directives once', G1, '[1,2]-1')
+    ;   format("     (skipped: no library/thread.so -- sh modules/thread/build.sh)~n", [])
+    ).
 
 %% A LIBRARY KEEPS THE BUILTIN A PROGRAM FILE TAKES OVER (3.1.0): the
 %% program's garbage_collect/0, msort/2 and not/1 answer the program's own

@@ -2340,8 +2340,16 @@
                  (set best (+ (-> p nvar) (? (== (-> sl key) 0) 0 (-> sl count)))))
                (if (<= best (coco_aix_enough)) (return r))))
           ;; and how many each other bound one does, the fewest winning --
-          ;; the earlier argument on a tie. A predicate of one argument has
-          ;; none, and is asked only below, whether to look inside it.
+          ;; the earlier argument on a tie, but A COMPOUND'S OVER A CHOICE
+          ;; THAT IS NO LIST INDEX (3.73.2): the call may go down into it
+          ;; (below), as swipl's list index takes it where its assessment
+          ;; finds no other argument better -- over an unbound first
+          ;; argument, a key every clause shares, a compound a clause's
+          ;; variable keeps from being a list index; one that is keeps the
+          ;; tie, swipl's first. Through 3.73.1 `p(_, [w])' over
+          ;; forty thousand facts of `p(K, [W])' walked every one of them.
+          ;; A predicate of one argument has none, and is asked only
+          ;; below, whether to look inside it.
           (set call (coco_deref m call))
           (set n (? (< (-> p arity) 2) 0 (- (-> p arity) 1)))
           (if (> n (coco_aix_count)) (set n (coco_aix_count)))
@@ -2353,7 +2361,11 @@
                         (let ((coco_kslot * sl . #'(coco_aix_slot x kj))
                               (size_t c . 0))
                           (set c (+ (-> x nvar) (? (== (-> sl key) 0) 0 (-> sl count))))
-                          (if (< c best)
+                          (if (or (< c best)
+                                  (and (== c best)
+                                       (and (coco-tag-is FUN kj)
+                                            (not (and (coco-tag-is FUN ($ r key))
+                                                      (coco_root_list st m p ($ r pos) -1.0))))))
                               (block (set best c) (set ($ r pos) j) (set ($ r key) kj)))))))))
           ;; A FUNCTOR TOO MANY CLAUSES SHARE, where swipl's list index would
           ;; hold them, keys the call inside its compound (3.64.0,

@@ -22508,3 +22508,110 @@ state, and zigurat and shared with a server up), each alone. All were
 green with no SKIP, and the binary's md5 was the same before and after.
 The dialect card's 33 cites are all anchored: T2's moved with the lines
 above it, and its line is corrected.
+
+## consult(library(Name)) reads the file again, and a call keyed by a compound in a later argument goes down into it (3.73.2)
+
+Two findings the reasoning session reported on 3.65.0 and recorded in its
+CLAUDE.md, both reproduced on 3.73.1. A patch: the first answer was wrong,
+the second walked every clause.
+
+A LIBRARY'S FILE READ AGAIN (lib/library.cicili, `lb_lib_module` and
+`lb_lib_again`). consult/1, `[File]` and load_files/2 of library(Name)
+went to the library loader, which loads a module once whatever IF says.
+So a program that retracted a file's clauses and consulted the library
+again got none of them back, where swipl's consult/1 reads the file again
+('$noload'/3 is false of if(true)). The reasoning session reads its
+templates that way, `consult(library(reasoning/templates/Name))`. Named by
+its path, the same file was read again, as it always was. Now a file of
+Prolog the store read, named by library(Name), is read again as the module
+it was loaded as, as the path road reads it (`lb_reread`):
+
+- always under if(true): consult/1, `[File]`, load_files/2 with no if(_);
+- under if(changed) and if(exists) once its time is past its last read's,
+  or where its reads defined nothing;
+- if(not_loaded) and must_be_module(true) still go to the library loader,
+  as ensure_loaded/1 and use_module/1 do;
+- the module is found by its name, as the loader finds a registered one,
+  else by the real path of the file the library path finds (a file first
+  named by its path);
+- a module compiled in or a `.so` is the loader's, and so is one this
+  store has not read, which a store run_isolated/2 or a thread made read:
+  read again here, the store's next load would read it a second time, its
+  directives twice;
+- load_files/2's encoding(E) is checked as for a path, and a file that is
+  gone is existence_error(source_sink, library(Name)).
+
+A COMPOUND IN A LATER ARGUMENT (lib/kb-pred.cicili, `coco_pred_select`).
+Past eight clauses a call is keyed on the bound argument whose table
+leaves the fewest candidates, the earlier one on a tie, and the deep index
+(3.64.0) goes down only into the argument chosen. A lookup
+`ty_verb(_, _, _, _, _, [W])` over the reasoning session's 27 676 facts
+left the choice to the first argument, unbound, every clause a candidate:
+the sixth argument's table holds every clause under '[|]'/2, as many, so
+the tie kept the first and the call walked every row, 1.2 to 2.4 ms a
+lookup where swipl's takes 0.15 to 0.33 us. Now a tie goes to a compound's
+argument over a choice that is no list index, as swipl's assessment finds
+the list index no worse (bestHash's speedup, the first on a tie). That
+covers an unbound first argument, a key every clause shares, and a
+compound one clause's variable keeps from being a list index. A list
+index the loop chose keeps the tie. The lookups take 0.31 to 0.40 us.
+
+HELD:
+- test/files/library_reload.pl, 56 lines to swipl 9.0.4, 31 of them
+  3.73.1's wrong: consult/1, `[File]` and load_files/2 under each IF, a
+  module, a file a directory down, a list, a file first loaded by its
+  path, a file of goals alone, encoding(nosuch), a file that is gone, a
+  file whose one directive loads the library, and an encoding that is the
+  read's alone. Its UTF-8 file starts with a BOM, which names the
+  encoding to swipl too: swipl's default is the locale's, and under C it
+  read the file's é as two characters;
+- test/files/deep_index.pl's `later` section, 36 lines to swipl, 17 of
+  them 3.73.1's wrong. Each call is on a predicate of its own, as swipl's
+  indexes stay with the calls that built them (a probe that called one
+  predicate twice read the index its first call had made);
+- test/engine.pl: 40 000 lookups by a list in the second argument of
+  40 000 facts, under a 15 s ceiling (some 50 s through 3.73.1);
+- test/library.pl: a module another store read loads once into this
+  store, its directives once.
+
+TWELVE RULES, EACH TAKEN OUT IN A BUILD OF ITS OWN on the final code;
+eleven made a check red, the lines differing from swipl's in brackets:
+- the reread: none in the library branch (L1: library_reload, 44); the
+  module by its name alone (L2: 3, the file first named by its path); a
+  module another store read taken for this store's (L3: test/library.pl,
+  its directives ran twice); not_loaded and must_be_module(true) read
+  again too (L4: 7); if(changed) and if(exists) read again whatever the
+  time (L5: 13); a file whose reads defined nothing kept to its time (L6:
+  1); the reread defining nothing in the file it stands in (L7: 2,
+  ensure_loaded/1 read the file again); encoding(E) not asked (L8: 2); a
+  file that is gone failing (L9: 10, the goal failed and main with it);
+- the tie: the earlier argument keeping every tie, 3.73.1's (I1:
+  deep_index, 34, and the engine's 40 000 lookups past their ceiling); a
+  list index not keeping it (I2: 2, two list indexes tied and the second,
+  inside which every clause holds one atom, took the call).
+
+ONE STAYED GREEN AND WENT. The machine's encoding set back after the
+reread (L10): `lb_slurp` takes it as the read begins, so nothing is left.
+The released code is the L10 arm's, whose binary was green on every
+check; the case's line for it stays, as the read's encoding is its own.
+A first cut of the tie also asked whether the tying compound's argument
+is a list index. It changes no answer, as a compound that is none is
+displaced by any list index after it, and where none follows, its walk
+costs what the other walk does. It went before the arms.
+
+COST. The untraced engine runs 3.73.1's instructions exactly
+(tools/flow/zero.sh, the two from paths of one length: nrev 65 891 440
+less padding, queens 39 951 007, lookup 48 054 027, the padding alike). A
+start counts 188 instructions fewer, 36 259 693 against 36 259 881
+(layout). The reread costs what a consult of the file costs, where
+through 3.73.1 nothing was read. A tie asks the list rule of the choice
+so far, which is kept until the clauses change (`tver`).
+
+THE RUN, on the binary committed: the lint case first, then the files case
+(library_reload and deep_index with every other fixture, held to swipl
+9.0.4), engine, argv, directives, library, errors, reconsult, trace, repl,
+gc, script, async and thread, and the seven test binaries (term, syntax,
+solve, module, state, and zigurat and shared with a server up), each alone.
+All were green with no SKIP, and the binary's md5 was the same before and
+after. The dialect card's 33 cites are all anchored: D4's, T1's and H2's
+moved with the lines above them, and their lines are corrected.
