@@ -1905,7 +1905,11 @@ into its `at_modules/1`. What a session must keep:
   runs G with its own cut and then `'$det_exit'(CI, $(G), Ctx)`, which asks
   whether a frame above CI may still retry -- none DEAD, CATCH_RETRY or
   SPENT, the kinds `coco_catch_exit` passes over: **a new kind that is no
-  choice point goes into that list too**. Neither step is an inference
+  choice point goes into that list too**, which is the head's macro
+  `coco-choice-live` (3.72.0), asked by setup_call_cleanup/3's exit as
+  well: **a new check of whether a goal left a choice point asks it**, or
+  under trace a frame the tracer kept is one (through 3.71.0 the cleanup's
+  exit counted it, and a cleanup waited for a cut). Neither step is an inference
   (`frees`). **Under trace a clause frame stays at its last candidate, and
   its shadow frame's `last` says so**: set by the selection, cleared by the
   traced push alone, which `printr` marks -- a clear in every push cost
@@ -2576,6 +2580,22 @@ into its `at_modules/1`. What a session must keep:
   **Its condition runs before its action is asked** (3.47.0): an action
   that is no goal raises once the condition has an answer, never before --
   `forall(fail, _)` holds -- the condition run alone as `(C, true)`.
+* **findnsols/4,5 are swipl's boot/bags.pl over a bag of the machine's**
+  (3.72.0; the builtins' Prolog half over `'$bag_new'/1`, `'$bag_add'/3`,
+  `'$bag_collect'/3` and `'$bag_free'/1` in lib/builtins-db.cicili,
+  test/files/findnsols.pl): the goal runs in the caller's own search, so a
+  chunk's answers wait across the backtracking into it in a PRIVATE store
+  of the bag's own -- never the engine's `pst`, findall/3's, whose answers
+  are a stack the bags' lifetimes need not keep to -- which the table
+  reclamation marks. A bag is a slot of the machine's `fnb` (appended),
+  given back by the call's cleanup (setup_call_cleanup/3's) and, where no
+  cleanup ran -- a halt in a thread, a machine frozen and let go --, by the
+  machine's free (`coco_fnbag_free_hook`, which term.cicili calls and the
+  builtins module installs: a store is no type term.cicili can name). **A
+  frozen machine keeps no bag**: a handle is a number seeded from the
+  clock, the process and the machine (`fnbid`), so the answer after a thaw
+  raises existence_error(findall_bag, B) rather than finding a bag made
+  since, and nothing of a chunk in hand outlives the freeze.
 * **Text builtins work on CHARACTERS, SWI's, and on BYTES when a program
   asks** (`text_units`: 1.13.0, and characters the default since 2.0.0;
   bytes were through 1.x). A code is a code point, a char one character of
@@ -3046,7 +3066,8 @@ into its `at_modules/1`. What a session must keep:
   rewritten. It waits for `tlimit` entries made (65 536 at first) AND half
   the heap's length, and `coco_table_made` asks for a collection on that
   rule; a new holder of float or string cells outside those three is a
-  root it must be taught. The atom table is never reclaimed.
+  root it must be taught, as findnsols/4,5's bags are (3.72.0: each bag's
+  private store, the machine's `fnb`). The atom table is never reclaimed.
 * **The atom, functor and predicate tables are hashed** (open addressing, an
   entry its id plus one, kept under half full -- checked BEFORE the probe, so
   a failed rehash still leaves an empty slot). **A name's hash is spread

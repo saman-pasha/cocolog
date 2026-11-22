@@ -441,7 +441,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.71.0"))
+  (func coco_version_text () (out const char *) (return "3.72.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -2586,6 +2586,8 @@
         (coco_halt_install coco_b_halt_hook)
         (coco_exit_install coco_b_at_halt_exit)
         (coco_reread_install coco_b_at_halt_reread)
+        ;; and findnsols/4,5's bags a machine being freed still holds (3.72.0)
+        (coco_fnbag_free_install coco_b_bags_free)
         (if (not (coco_dcg_module))
             (block (fprintf stderr "cocolog: the dcg module would not register\n")
                    (return 0)))

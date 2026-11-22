@@ -946,6 +946,147 @@
           (for ((i64 i . 0)) (< i n) ((++ i)) (coco_out_putc stdout 32))
           (return 1)))
 
+  ;;; ---- findnsols/4,5's bags (3.72.0) --------------------------------------
+  ;;;
+  ;;; swipl's findall bag (pl-bag.c) for its boot/bags.pl's findnsols/4,5,
+  ;;; whose clauses are the builtins' Prolog half: a chunk's answers put
+  ;;; aside as the goal finds them, across the backtracking into the goal
+  ;;; that finds the next, and made a list when the chunk is full. A bag
+  ;;; is a slot of the machine's own (`fnb'), its answers in a PRIVATE
+  ;;; store of its own -- never the engine's, whose findall/3 answers are
+  ;;; a stack the bags' lifetimes need not keep to -- which the table
+  ;;; reclamation marks (`coco_tables_reclaim'), the floats, strings and
+  ;;; big numbers of its answers living in the machine's tables. The
+  ;;; handle is a number of the machine's (`fnbid'), seeded from the
+  ;;; clock, the process and the machine at its first bag: a frozen
+  ;;; machine keeps no bag, and a handle it kept names none of the machine
+  ;;; it thaws into, whose next answer then raises.
+
+  ;;; the handle the first bag of a machine takes: below 2^58, and never 0
+  (static)
+  (func coco_fnbag_seed ((coco_machine * m)) (out u64)
+        (return (bitor (bitand (xor (<< (cast u64 (time nil)) 24)
+                                       (xor (<< (cast u64 (getpid)) 8)
+                                               (>> (cast u64 (cast size_t m)) 4)))
+                               (cast u64 288230376151711743))
+                       1)))
+
+  ;;; a bag given back: its store and its answers' cells
+  (static)
+  (func coco_fnbag_drop ((coco_fnbag * b))
+        (if (!= (-> b st) nil)
+            (block (coco_store_free (cast (coco_store *) (-> b st)))
+                   (free (-> b st))))
+        (free (-> b kept))
+        (memset b 0 (sizeof coco_fnbag)))
+
+  ;;; THE BAGS OF A MACHINE BEING FREED (`coco_fnbag_free_hook' in
+  ;;; lib/term.cicili, which frees the slots): a call whose cleanup never
+  ;;; ran, its engine let go of with its frames
+  (func coco_b_bags_free ((coco_machine * m))
+        (for ((size_t i . 0)) (< i (-> m fnbn)) ((++ i))
+          (if (!= ($ (nth i (-> m fnb)) id) 0) (coco_fnbag_drop (aof (nth i (-> m fnb))))))
+        (set (-> m fnbn) 0))
+
+  ;;; THE BAG HANDLE T NAMES, in *OUT: 1, or the raise of a handle that
+  ;;; names no bag of this machine's -- its call's bag gone with a machine
+  ;;; frozen inside it (`cocolog step'), as a frozen machine keeps none
+  (static)
+  (func coco_fnbag_of ((coco_engine * e) (size_t t) (coco_fnbag ** out)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (i64 id . 0))
+          (if (coco_m_int e t (aof id))
+              (for ((size_t i . 0)) (< i (-> m fnbn)) ((++ i))
+                (let ((coco_fnbag * b . #'(aof (nth i (-> m fnb)))))
+                  (if (and (!= (-> b id) 0) (== (-> b id) (cast u64 id)))
+                      (block (set (cof out) b) (return 1))))))
+          (return (coco_m_error_msg e "existence_error" "findall_bag" nil t
+                                    "no bag of this machine's: a machine frozen inside findnsols/4,5 keeps none"))))
+
+  ;;; '$bag_new'(B): a bag made, B its handle -- swipl's '$new_findall_bag'
+  (func coco_b_bag_new ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t at . 0) (coco_store * st . nil)
+              (coco_fnbag * b . nil))
+          ;; a slot given back, else one more
+          (set at (-> m fnbn))
+          (for ((size_t i . 0)) (< i (-> m fnbn)) ((++ i))
+            (if (== ($ (nth i (-> m fnb)) id) 0) (block (set at i) break)))
+          (if (and (== at (-> m fnbn)) (>= (-> m fnbn) (-> m fnbcap)))
+              (let ((size_t ncap . #'(? (== (-> m fnbcap) 0) 4 (* (-> m fnbcap) 2)))
+                    (coco_fnbag * grown . #'(cast (coco_fnbag *)
+                                                  (realloc (-> m fnb) (* ncap (sizeof coco_fnbag))))))
+                (if (== grown nil) (return (coco_m_resource_error e "memory")))
+                (set (-> m fnb) grown)
+                (set (-> m fnbcap) ncap)))
+          (set st (cast (coco_store *) (malloc (sizeof coco_store))))
+          (if (== st nil) (return (coco_m_resource_error e "memory")))
+          (coco_store_init st)
+          ;; no backend and no write barrier: one machine's answers
+          (set (-> st private) 1)
+          (if (== at (-> m fnbn)) (set (-> m fnbn) (+ (-> m fnbn) 1)))
+          (if (== (-> m fnbid) 0) (set (-> m fnbid) (coco_fnbag_seed m)))
+          (set b (aof (nth at (-> m fnb))))
+          (memset b 0 (sizeof coco_fnbag))
+          (set (-> b st) (cast (void *) st))
+          (set (-> b id) (-> m fnbid))
+          (set (-> m fnbid) (+ (-> m fnbid) 1))
+          (return (coco_m_unify e (coco_m_arg e g 0) (coco_new_int m (cast i64 (-> b id)))))))
+
+  ;;; '$bag_add'(B, T, Found): a copy of T put in the bag, and Found the
+  ;;; answers put since it was made -- swipl's '$add_findall_bag'/2, whose
+  ;;; count a chunk's collection does not set back
+  (func coco_b_bag_add ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (coco_fnbag * b . nil) (coco_store * st . nil)
+              (size_t cell . 0) (int rc . 0))
+          (set rc (coco_fnbag_of e (coco_m_arg e g 0) (aof b)))
+          (if (!= rc 1) (return rc))
+          (set st (cast (coco_store *) (-> b st)))
+          (if (>= (-> b n) (-> b cap))
+              (let ((size_t ncap . #'(? (== (-> b cap) 0) 16 (* (-> b cap) 2)))
+                    (size_t * grown . #'(cast (size_t *) (realloc (-> b kept) (* ncap (sizeof size_t))))))
+                (if (== grown nil) (return (coco_m_resource_error e "memory")))
+                (set (-> b kept) grown)
+                (set (-> b cap) ncap)))
+          (set cell (coco_store_put st m (coco_m_arg e g 1)))
+          ;; an answer the store had no room for: the put wrote nothing and
+          ;; finished the machine, whose run ends `out of memory' (3.62.3)
+          (if (coco_store_put_refused m) (return 0))
+          (set (nth (-> b n) (-> b kept)) cell)
+          (set (-> b n) (+ (-> b n) 1))
+          (set (-> b found) (+ (-> b found) 1))
+          (return (coco_m_unify e (coco_m_arg e g 2) (coco_new_int m (cast i64 (-> b found)))))))
+
+  ;;; '$bag_collect'(B, List, Tail): the chunk's answers, in the order they
+  ;;; were found, read back and made a list ending in Tail, and the bag
+  ;;; emptied whether List unifies or not -- swipl's '$collect_findall_bag'
+  (func coco_b_bag_collect ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (coco_fnbag * b . nil) (coco_store * st . nil)
+              (size_t lst . 0) (int rc . 0))
+          (set rc (coco_fnbag_of e (coco_m_arg e g 0) (aof b)))
+          (if (!= rc 1) (return rc))
+          (set st (cast (coco_store *) (-> b st)))
+          (set lst (coco_m_arg e g 2))
+          (for ((size_t i . #'(-> b n))) (> i 0) ((-- i))
+            (set lst (coco_cons m (coco_store_read m st (nth (- i 1) (-> b kept))) lst)))
+          (set (-> b n) 0)
+          (set (-> st len) 0)
+          (coco_store_shrink_empty st)
+          (return (coco_m_unify e (coco_m_arg e g 1) lst))))
+
+  ;;; '$bag_free'(B): the bag given back, its answers with it -- swipl's
+  ;;; '$destroy_findall_bag', the cleanup of findnsols/4,5's call; a handle
+  ;;; that names no bag gives back nothing
+  (func coco_b_bag_free ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (i64 id . 0))
+          (if (not (coco_m_int e (coco_m_arg e g 0) (aof id))) (return 1))
+          (for ((size_t i . 0)) (< i (-> m fnbn)) ((++ i))
+            (let ((coco_fnbag * b . #'(aof (nth i (-> m fnb)))))
+              (if (and (!= (-> b id) 0) (== (-> b id) (cast u64 id)))
+                  (block (coco_fnbag_drop b) break))))
+          ;; the free slots at the end go with it
+          (while (and (> (-> m fnbn) 0) (== ($ (nth (- (-> m fnbn) 1) (-> m fnb)) id) 0))
+            (set (-> m fnbn) (- (-> m fnbn) 1)))
+          (return 1)))
+
   ;;; ---- the clause database ----------------------------------------------
 
   ;;; '$unbind_template'(T) (3.19.0, swipl's), which aggregate.pl's foreach/2

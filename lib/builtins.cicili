@@ -148,6 +148,12 @@
     ("$at_halt_add"            3 coco_b_at_halt_add)
     ("$at_halt_list"           1 coco_b_at_halt_list)
     ("$at_halt_erase"          1 coco_b_at_halt_erase)
+    ;; findnsols/4,5's bags (3.72.0); findnsols/4,5 are clauses over them
+    ;; (the Prolog half)
+    ("$bag_new"                1 coco_b_bag_new)
+    ("$bag_add"                3 coco_b_bag_add)
+    ("$bag_collect"            3 coco_b_bag_collect)
+    ("$bag_free"               1 coco_b_bag_free)
 
     ("source_location"         2 coco_b_source_location)
     ("$load_context"           2 coco_b_load_context)
@@ -1004,7 +1010,29 @@
            "'$run_at_halt'(['$h'(Id, Goal, Src)|Hs]) :- \\+ \\+ '$call_at_halt'(Goal, Src), '$at_halt_erase'(Id), '$run_at_halt'(Hs)."
            "'$call_at_halt'(Goal, _Src) :- catch(Goal, E, true), !, ( var(E) -> true ; subsumes_term(cancel_halt(_), E) -> print_message(informational, E), fail ; print_message(error, E) )."
            "'$call_at_halt'(Goal, _Src) :- print_message(warning, goal_failed(at_halt, Goal))."
-           "cancel_halt(Reason) :- throw(cancel_halt(Reason)).")))
+           "cancel_halt(Reason) :- throw(cancel_halt(Reason))."
+           ;; findnsols/4,5 (3.72.0), swipl's boot/bags.pl over a bag of the
+           ;; machine's ('$bag_new'/1 and its kin, lib/builtins-db.cicili):
+           ;; the template and the goal copied once, the goal run as
+           ;; findall/3's is, its answers gathered a chunk at a time, each
+           ;; chunk an answer and the next found on backtracking into it,
+           ;; the chunk's size read again from a count(N) term before each
+           ;; chunk after the first; a chunk the goal's last answer fills,
+           ;; the goal leaving no choice point (call_cleanup/2's Det), is
+           ;; the last, and a goal that ends otherwise leaves the answers
+           ;; after the last full chunk for one more, [] where there are none
+           ":- meta_predicate findnsols(+, ?, 0, -), findnsols(+, ?, 0, -, ?)."
+           "findnsols(Count, Template, Goal, List) :- findnsols(Count, Template, Goal, List, [])."
+           "findnsols(Count, Template, Goal, List, Tail) :- integer(Count), !, '$nsols2'(count(Count), Template, Goal, List, Tail)."
+           "findnsols(Count, Template, Goal, List, Tail) :- Count = count(Integer), integer(Integer), !, '$nsols2'(Count, Template, Goal, List, Tail)."
+           "findnsols(Count, _, _, _, _) :- '$nsols_type_error'(Count)."
+           "'$nsols2'(Count, Template, Goal, List, Tail) :- '$nsols_count'(Count, N), N > 0, !, copy_term(Template+Goal, Templ+G), setup_call_cleanup('$bag_new'(Bag), '$nsols_loop'(Count, Templ, G, Bag, List, Tail), '$bag_free'(Bag))."
+           "'$nsols2'(Count, _, _, List, Tail) :- '$nsols_count'(Count, 0), !, Tail = List."
+           "'$nsols2'(Count, _, _, _, _) :- '$nsols_count'(Count, N), throw(error(domain_error(not_less_than_zero, N), _))."
+           "'$nsols_loop'(Count, Templ, Goal, Bag, List, Tail) :- '$nsols_count'(Count, FirstStop), State = state(FirstStop), ( call_cleanup(Goal, Det = true), '$bag_add'(Bag, Templ, Found), Det \\== true, arg(1, State, Found), '$bag_collect'(Bag, List, Tail), ( true ; '$nsols_count'(Count, Incr), NextStop is Found+Incr, nb_setarg(1, State, NextStop), fail ) ; '$bag_collect'(Bag, List, Tail) )."
+           "'$nsols_count'(count(N), N)."
+           "'$nsols_type_error'(Count) :- var(Count), !, throw(error(instantiation_error, _))."
+           "'$nsols_type_error'(Count) :- throw(error(type_error(integer, Count), _)).")))
 
 (generic decl-builtins
   ()

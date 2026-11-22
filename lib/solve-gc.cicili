@@ -377,6 +377,13 @@
                 (set seen (+ seen (coco_tables_mark_store
                                    m fb sb bb rb (aof (-> x bst))))))
             (set x (cast (coco_engine *) (-> x outer))))
+          ;; AND FINDNSOLS' BAGS (3.72.0): the chunk a findnsols/4,5 call is
+          ;; gathering waits in a store of its bag's own, across the goal's
+          ;; search, and names them as a findall's private answers do
+          (for ((size_t i . 0)) (< i (-> m fnbn)) ((++ i))
+            (if (!= ($ (nth i (-> m fnb)) id) 0)
+                (set seen (+ seen (coco_tables_mark_store
+                                   m fb sb bb rb (cast (coco_store *) ($ (nth i (-> m fnb)) st)))))))
           ;; the dead: a string's bytes go, the tail is cut off
           (for ((size_t i . 0)) (< i ns) ((++ i))
             (if (coco_gc_marked sb i)

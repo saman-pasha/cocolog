@@ -312,6 +312,13 @@ flow_mode(shell, 2, ['+', '-'], det).
 flow_mode('$at_halt_add', 3, ['+', '+', '+'], det).
 flow_mode('$at_halt_list', 1, ['-'], det).
 flow_mode('$at_halt_erase', 1, ['+'], det).
+%% findnsols/4,5's bags (3.72.0): one made, an answer put in it with the
+%% count of its answers so far, its chunk made a list, and the bag given
+%% back
+flow_mode('$bag_new', 1, ['-'], det).
+flow_mode('$bag_add', 3, ['+', '+', '-'], det).
+flow_mode('$bag_collect', 3, ['+', '?', '?'], semidet).
+flow_mode('$bag_free', 1, ['+'], det).
 flow_mode(source_location, 2, ['-', '-'], semidet).
 %% prolog_load_context/2's C half (3.14.0): the load's file, its source and
 %% the term's place while a hook or a directive of it runs, failing

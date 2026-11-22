@@ -38,7 +38,7 @@ main :-
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
     update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), repeat_runs(D), jit_runs(D),
     qk_runs(D),
-    gvars_runs(D),
+    gvars_runs(D), findnsols_runs(D),
     btree_places, op_names_frozen(D), own_properties, own_current, own_too_long,
     shl(['rm -rf ', D]),
     checks_done.
@@ -2350,6 +2350,70 @@ gvars_runs(D) :-
     shell(CCmd, COut, CExit),
     check('a directive''s copy of a ground global, shared by the directives after it', COut-CExit, shared-0).
 
+%% FINDNSOLS/4,5'S BAGS (3.72.0) under trace, under a collector that runs
+%% every 2000 cells and with each collection a freeze's materialisation:
+%% test/files/findnsols.pl holds swipl's answers untraced; here the same
+%% file's -- a chunk's answers wait in a store of their bag's own, outside
+%% every heap a collection moves, and their floats and strings kept by the
+%% table reclamation's mark. A machine frozen inside a findnsols/4 call
+%% (`cocolog step') keeps no bag: the answer after the thaw raises
+%% existence_error(findall_bag, B), and names no bag another call made
+%% since. And what a call's cleanup gives back is given back: a hundred
+%% thousand calls cut after their first chunk run under a ceiling a
+%% hundred thousand bags would pass.
+findnsols_runs(D) :-
+    section('findnsols/4 under trace, a collector, a freeze and a thaw'),
+    cocolog(C),
+    findall(Tag-Out,
+            ( member(Tag-Pre-Opt, [ plain-''-'', trace-''-'--trace ',
+                                    gc-'COCOLOG_GC_CELLS=2000 '-'',
+                                    kmat1-'COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=1 '-'',
+                                    kmat2-'COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 '-'' ]),
+              sh_join([Pre, C, ' ', Opt, '--local run test/files/findnsols.pl main 2>/dev/null'], Cmd),
+              proc_run(Cmd, 120000, O, _), atom_codes(Out, O) ),
+            [_-U, _-T, _-G, _-K1, _-K2]),
+    ( sub_atom(U, _, _, _, 'c1-[11,12]-last') -> H = yes ; H = no ),
+    check('untraced: the case answers', H, yes),
+    check('traced: the same answers', T, U),
+    check('a collection every 2000 cells: the same answers', G, U),
+    check('each collection a freeze''s materialisation put back: the same answers', K1, U),
+    check('each collection a freeze''s materialisation kept: the same answers', K2, U),
+    atom_concat(D, '/fn_turns.pl', F),
+    fixture(F, [ 'cnt(0) :- !.', 'cnt(N) :- N1 is N - 1, cnt(N1).',
+                 'fz :- findnsols(3, X, ( between(1, 9, X), cnt(5) ), L), write(L), nl, fail.',
+                 'fz.' ]),
+    atom_concat(D, '/fn_turns_kb', Kb),
+    sh_join([C, ' --embed ', Kb, ' consult ', F, ' >/dev/null 2>&1'], CCons),
+    shl([CCons]),
+    det_turns(C, Kb, fz, E1),
+    ( sub_atom(E1, 0, _, _, 'error(existence_error(findall_bag,') -> R1 = raised ; R1 = E1 ),
+    check('frozen and thawed: the bag gone, the next answer raises', R1, raised),
+    %% and a bag the goal makes after the thaw, still open at that answer,
+    %% has another handle: the machine it thawed into counts from its own
+    %% seed, not from the first handle again. The turn of 600 inferences
+    %% ends inside cnt(400), some 800 of them, once the outer bag is made
+    %% and before the inner one is, and the next turn holds the inner call
+    %% and the outer's next answer: a thawed machine that counted from 1
+    %% again gave the inner bag the outer's handle, and the outer's chunk
+    %% was the inner's answers (`[[p]]', then the raise)
+    atom_concat(D, '/fn_turns2.pl', F2),
+    fixture(F2, [ 'cnt(0) :- !.', 'cnt(N) :- N1 is N - 1, cnt(N1).',
+                  'fy :- findnsols(2, Z, ( between(1, 3, _), cnt(400), findnsols(1, Y, member(Y, [p, q]), Z) ), L),',
+                  '      write(L), nl, fail.',
+                  'fy.' ]),
+    atom_concat(D, '/fn_turns2_kb', Kb2),
+    sh_join([C, ' --embed ', Kb2, ' consult ', F2, ' >/dev/null 2>&1'], CCons2),
+    shl([CCons2]),
+    det_turns(C, Kb2, fy, 600, E2),
+    ( sub_atom(E2, 0, _, _, 'error(existence_error(findall_bag,') -> R2 = raised ; R2 = E2 ),
+    check('frozen and thawed: a bag made after the thaw takes no stale handle', R2, raised),
+    atom_concat(D, '/fn_loop.pl', LF),
+    fixture(LF, [ 'main :- forall(between(1, 100000, _), once(findnsols(1, X, member(X, [a, b]), _))),',
+                  '        findnsols(2, Y, member(Y, [c, d, e]), L), write(L), nl.' ]),
+    sh_join(['ulimit -v 120000; ', C, ' --local run ', LF, ' main 2>&1'], LCmd),
+    shell(LCmd, LOut, LExit),
+    check('a hundred thousand calls cut: each bag given back', LOut-LExit, '[c,d]'-0).
+
 %% SWIPL'S JIT INDEX ANSWERS AS IT DOES UNDER TRACE, UNDER A COLLECTOR THAT
 %% RUNS EVERY 2000 CELLS, AND AFTER THE CLAUSES CHANGE (3.24.0).
 %% test/files/jit_index.pl holds swipl's answers untraced; here the same
@@ -2388,27 +2452,30 @@ jit_runs(D) :-
     proc_run(Cmd3, 30000, Out3, _), atom_codes(A3, Out3),
     check('the argument chosen again after an assertz', A3, 'det\ndet\ndet\ndet\n').
 
-%% GOAL run as machine NAME of store KB, 25 inferences a turn: what it
-%% printed, its variables `_'
+%% GOAL run as machine NAME of store KB, 25 inferences a turn, or STEPS:
+%% what it printed, its variables `_'
 det_turns(C, Kb, Goal, Printed) :-
+    det_turns(C, Kb, Goal, 25, Printed).
+
+det_turns(C, Kb, Goal, Steps, Printed) :-
     atom_concat(m_, Goal, Name),
     sh_join([C, ' --embed ', Kb, ' start ', Name, ' "catch(', Goal, ', E, true), print(E), nl" >/dev/null 2>&1'],
             Start),
     shl([Start]),
-    det_turn(C, Kb, Name, 0, [], Cs),
+    det_turn(C, Kb, Name, Steps, 0, [], Cs),
     atom_codes(A0, Cs),
     det_text(A0, Printed).
 
-det_turn(_, _, _, 40, Acc, Acc) :- !.
-det_turn(C, Kb, Name, I, Acc, Cs) :-
-    sh_join([C, ' --embed ', Kb, ' --steps 25 step ', Name, ' 2>&1'], Cmd),
+det_turn(_, _, _, _, 40, Acc, Acc) :- !.
+det_turn(C, Kb, Name, Steps, I, Acc, Cs) :-
+    sh_join([C, ' --embed ', Kb, ' --steps ', Steps, ' step ', Name, ' 2>&1'], Cmd),
     proc_run(Cmd, 30000, Out, _),
     atom_codes(A, Out),
     (   sub_atom(A, B, _, _, ': suspended at')
     ->  sub_atom(A, 0, B, _, Before), det_before(Before, Name, Mine),
         atom_codes(Mine, MC), append(Acc, MC, Acc1),
         I1 is I + 1,
-        det_turn(C, Kb, Name, I1, Acc1, Cs)
+        det_turn(C, Kb, Name, Steps, I1, Acc1, Cs)
     ;   sub_atom(A, B, _, _, ': finished after')
     ->  sub_atom(A, 0, B, _, Before), det_before(Before, Name, Mine0),
         atom_codes(Mine0, MC0), append(Acc, MC0, Cs)

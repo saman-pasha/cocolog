@@ -94,6 +94,19 @@ main :-
     %% came before the declaration
     forall(member(Q, [ 'mt1(atom(a))', 'mt1(fail)', 'mt2(atom(a))', 'mt2(fail)' ]),
            qualified_ports(Swipl, [Library], Q)),
+    %% FINDNSOLS/4'S OWN PORTS (3.72.0), as swipl's: its Call, each chunk's
+    %% Exit with its goal said of user, a chunk's Redo -- read apart from
+    %% the frames between it and its goal, setup_call_cleanup/3's, whose
+    %% depth and cleanup ports are not swipl's yet
+    forall(member(Q, [ 'fn(L)', 'fm(L)' ]),
+           own_ports(Swipl, [Library], Q, "findnsols(")),
+    %% A GOAL ANSWERS UNDER TRACE AS IT DOES UNTRACED (3.72.0): a clause
+    %% frame the tracer keeps at its last candidate is no choice point to
+    %% setup_call_cleanup/3's exit, so call_cleanup/2's cleanup runs at its
+    %% goal's last answer and findnsols/4's last chunk is the last. Through
+    %% 3.71.0 the cleanup waited for a cut, and findnsols/4 gave one more
+    forall(member(Q, [ cd, fa ]),
+           traced_answers(Swipl, [Library], Q)),
     %% THE FLAG IS THE FILE'S: test/trace-library.pl ends with it false, and
     %% the file read after it is the program's again (swipl's load puts the
     %% flag back at a file's end)
@@ -193,6 +206,53 @@ qp_goals(Codes, Gs) :-
     findall(P-G, ( member(L, Lines), td_port(L, P, _, G0),
                    memberchk(P, ['Exit', 'Fail']), atom_codes(G, G0) ),
             Gs).
+
+%% every port of Q's trace whose goal begins with PREFIX, its variables and
+%% spaces taken out and its qualifiers left (3.72.0)
+own_ports(Swipl, Files, Q, Prefix) :-
+    findall(S1, ( member(F1, Files), sh_join(['consult(''', F1, '''), '], S1) ), Cs),
+    sh_join(Cs, Consults),
+    sh_join(['yes '''' | timeout 20 ', Swipl, ' -q -g "leash(-all), ', Consults,
+             'trace, ( ', Q, ' -> true ; true ), notrace, halt" -t halt 2>&1'], SwiCmd),
+    proc_run(SwiCmd, 30000, Swi0, _),
+    cocolog(C),
+    findall(S2, ( member(F2, Files), sh_join([F2, ' '], S2) ), Fs),
+    sh_join(Fs, Paths),
+    sh_join(['timeout 20 ', C, ' run ', Paths, '"trace, ( ', Q, ' -> true ; true ), notrace" 2>&1 >/dev/null'],
+            CocoCmd),
+    proc_run(CocoCmd, 30000, Coco0, _),
+    op_goals(Swi0, Prefix, Swi), op_goals(Coco0, Prefix, Coco),
+    atom_concat('the own ports of ', Q, Name),
+    check(Name, Coco, Swi).
+
+op_goals(Codes, Prefix, Gs) :-
+    td_lines(Codes, Lines),
+    findall(P-G, ( member(L, Lines), td_port(L, P, _, G0),
+                   td_strip_var(G0, G1), td_strip_space(G1, G2),
+                   append(Prefix, _, G2), atom_codes(G, G2) ),
+            Gs).
+
+%% what Q prints traced, swipl's and cocolog's, and what cocolog's prints
+%% untraced: one text (3.72.0)
+traced_answers(Swipl, Files, Q) :-
+    findall(S1, ( member(F1, Files), sh_join(['consult(''', F1, '''), '], S1) ), Cs),
+    sh_join(Cs, Consults),
+    sh_join(['yes '''' | timeout 20 ', Swipl, ' -q -g "leash(-all), ', Consults,
+             'trace, ( ', Q, ' -> true ; true ), notrace, halt" -t halt 2>/dev/null'], SwiCmd),
+    proc_run(SwiCmd, 30000, Swi, _),
+    cocolog(C),
+    findall(S2, ( member(F2, Files), sh_join([F2, ' '], S2) ), Fs),
+    sh_join(Fs, Paths),
+    sh_join(['timeout 20 ', C, ' run ', Paths, '"trace, ( ', Q, ' -> true ; true ), notrace" 2>/dev/null'],
+            TracedCmd),
+    proc_run(TracedCmd, 30000, Traced, _),
+    sh_join(['timeout 20 ', C, ' run ', Paths, '"( ', Q, ' -> true ; true )" 2>/dev/null'], PlainCmd),
+    proc_run(PlainCmd, 30000, Plain, _),
+    atom_codes(SwiA, Swi), atom_codes(TracedA, Traced), atom_codes(PlainA, Plain),
+    atom_concat('traced as swipl: ', Q, N1),
+    check(N1, TracedA, SwiA),
+    atom_concat('traced as untraced: ', Q, N2),
+    check(N2, TracedA, PlainA).
 
 %% a fixture each, traced from inside the goal, and a line it must print or
 %% must not. A program's clause joins a library's predicate (card row N1):

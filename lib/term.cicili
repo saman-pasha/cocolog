@@ -679,6 +679,21 @@
     (member u64    serial)
     (member u64    wclock))
 
+  ;;; A BAG OF ANSWERS THAT OUTLIVES BACKTRACKING (3.72.0, findnsols/4,5's,
+  ;;; swipl's findall bag in pl-bag.c): the handle a program holds, ID, 0 a
+  ;;; free slot; the private term store its answers are put into, ST, a
+  ;;; `coco_store' this file cannot name; and the cells of the answers the
+  ;;; chunk in hand holds, KEPT, N of them in CAP, with FOUND the answers
+  ;;; put since the bag was made, which a chunk's collection does not set
+  ;;; back. See `coco_b_bag_new' in lib/builtins-db.cicili.
+  (struct coco_fnbag
+    (member u64      id)
+    (member void *   st)
+    (member size_t * kept)
+    (member size_t   n)
+    (member size_t   cap)
+    (member u64      found))
+
   ;;; A SIGNAL'S HANDLER WRITES THE ENGINE'S `halted' CELL, and nothing
   ;;; else (2.6.0): C allows an asynchronous handler to assign only a
   ;;; `volatile sig_atomic_t', which is what every `halted' now is. The
@@ -1242,7 +1257,17 @@
     ;; is swipl's long atom, which checks nothing. 202 when the machine is
     ;; made, swipl's default, and saved and put back around each file's
     ;; read (`coco_consult_oid'), as swipl's '$save_lex_state'. Appended.
-    (member int        style))
+    (member int        style)
+    ;; FINDNSOLS' BAGS (3.72.0): FNBN slots of FNBCAP, each a bag a
+    ;; findnsols/4,5 call on this machine has open, and FNBID the handle the
+    ;; next one takes -- seeded from the clock, the process and the machine
+    ;; at the first (`coco_b_bag_new'), so that a handle a frozen machine
+    ;; kept names no bag of the machine it thaws into. Freed with the
+    ;; machine through `coco_fnbag_free_hook'. Appended.
+    (member coco_fnbag * fnb)
+    (member size_t     fnbn)
+    (member size_t     fnbcap)
+    (member u64        fnbid))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -2030,7 +2055,23 @@
           (if (!= coco_tbl_mx nil) (pthread_mutex_unlock coco_tbl_mx)))
         (return 1))
 
+  ;;; THE BAGS' FREE (3.72.0): findnsols/4,5's bags still open on a machine
+  ;;; being freed -- a call whose cleanup never ran, its engine let go of --
+  ;;; each with a store this file cannot name, freed by the builtins
+  ;;; module's walk (`coco_b_bags_free', installed by cocolog.cicili's
+  ;;; setup); the slots' array is freed here
+  (static) (var func coco_fnbag_free_hook ((coco_machine * m)))
+
+  (func coco_fnbag_free_install ((func h ((coco_machine * m))))
+        (set coco_fnbag_free_hook h))
+
+  (static)
+  (func coco_fnbags_free ((coco_machine * m))
+        (if (and (> (-> m fnbn) 0) (!= coco_fnbag_free_hook nil)) (coco_fnbag_free_hook m))
+        (free (-> m fnb)))
+
   (func coco_machine_free ((coco_machine * m))
+        (coco_fnbags_free m)
         (if (!= (-> m tbase) nil)
             (block
              ;; the alias list is shared: unlink under the same mutex

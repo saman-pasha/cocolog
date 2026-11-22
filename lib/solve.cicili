@@ -324,6 +324,22 @@
   `(? (coco-is-colon ,m (coco_deref ,m ,g) (coco-fid ,m ":" 2))
       (coco_user_plain ,e (coco_deref ,m ,g)) ,g))
 
+;;; `(coco-choice-live e i fk)': whether the frame at I, of kind FK, is a
+;;; choice point a goal exiting above it leaves -- none DEAD (a catch's that
+;;; exited, a soft cut's else), CATCH_RETRY or SPENT, and no CLAUSE frame
+;;; only trace kept, its last candidate entered (`last', set by
+;;; `coco_select_clause', cleared where a traced call pushes the frame,
+;;; whose PRINTR says so). `$'/1's exit (`coco_det_exit') and
+;;; setup_call_cleanup/3's (`coco_bi_scc_exit', which passes CATCH by too:
+;;; its goal's catch/3 is below the exit) ask it, so a goal exits under
+;;; trace as it does untraced (3.72.0: through 3.71.0 the cleanup's exit
+;;; counted a kept frame, and under trace its cleanup waited for a cut)
+(DEFMACRO coco-choice-live (e i fk)
+  `(and (!= ,fk COCO_CH_DEAD) (!= ,fk COCO_CH_CATCH_RETRY) (!= ,fk COCO_CH_SPENT)
+        (not (and (-> ,e trace) (== ,fk COCO_CH_CLAUSE)
+                  ($ (nth ,i (-> ,e tchoices)) printr)
+                  ($ (nth ,i (-> ,e tchoices)) last)))))
+
 ;;; THE EVALUABLE FUNCTORS, interned beside the dispatch names (1.8.46).
 ;;; `is/2' compared the operator's name with `strcmp' down a chain -- the
 ;;; name read back from the atom table, then `+', `-', `*', `/' ... until

@@ -168,6 +168,22 @@ case_retract(R) :-
     ( catch(q(2), _, fail) -> R = still ; R = gone ),
     X = gone.
 
+%% FINDNSOLS/4'S BAGS ARE A TASK'S (3.72.0): a task's machine is its own, and
+%% so are its bags -- four tasks gathering chunks at once, each yielding
+%% between its answers, and a fifth whose goal ends with its call's frames
+%% open, its bag freed with its machine
+case_bags(Rs) :-
+    findall(F, ( member(N-M, [2-5, 3-7, 1-3, 4-4]), go(fb_chunks(N, M, _), F) ), Fs),
+    go(findnsols(2, X, between(1, 9, X), _), F5),
+    await(F5, _),
+    findall(Ls, ( member(F, Fs), await(F, fb_chunks(_, _, Ls)) ), Rs0),
+    fb_chunks(2, 3, Own),
+    append(Rs0, [Own], Rs),
+    var(X).
+
+fb_chunks(N, M, Ls) :-
+    findall(L, findnsols(N, X, ( between(1, M, X), yield ), L), Ls).
+
 result(Goal, R) :-
     async_run(Goal, W),
     arg(1, W, R).
@@ -233,7 +249,10 @@ values :-
            W2, G2),
     check('the caller\'s own variables are not bound by it', G2, unbound),
     answer(async_run(spin(2000), R3), R3, G3),
-    check('a recursion in the shared store runs to its end', G3, spin(2000)).
+    check('a recursion in the shared store runs to its end', G3, spin(2000)),
+    answer(result(case_bags(R4), R4), R4, G4),
+    check('findnsols/4 in five tasks and the main one, each its bags',
+          G4, [[[1,2],[3,4],[5]], [[1,2,3],[4,5,6],[7]], [[1],[2],[3]], [[1,2,3,4]], [[1,2],[3]]]).
 
 %% ---- go and await -------------------------------------------------------
 joining :-

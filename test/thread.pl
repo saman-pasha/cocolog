@@ -97,7 +97,7 @@ main :-
               'bump(N) :- flag(th_count, C, C + 1), M is N - 1, bump(M).' ]),
     use_module(Work),
     a_thread, what_it_sees, a_channel, closed, backpressure, helpers, contention, imports,
-    parallel, locks, conditions, message_refused(D), flags_shared, halt_hooks(D),
+    parallel, locks, conditions, message_refused(D), flags_shared, halt_hooks(D), bags_per_thread(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -524,3 +524,39 @@ halt_hooks(D) :-
     sh_join(['-s ', F4, ' 2>&1'], A4),
     cocolog_run(A4, Got4, Rc4),
     check('...and consulted twice after, once still', Got4-Rc4, 'true\nmodule_hook'-0).
+
+%% FINDNSOLS/4'S BAGS ARE A MACHINE'S (3.72.0): a thread's chunks are its
+%% own, beside the main thread's, and a thread whose goal ends with its
+%% findnsols/4 call's frames open leaves its bag to its machine's free
+%% (`coco_b_bags_free'), its next one made as before
+bags_per_thread(D) :-
+    section('findnsols/4 in a thread: its bags its machine''s'),
+    atom_concat(D, '/fn_thread.pl', F1),
+    fixture(F1, ['ch(N, M, Ls) :- findall(L, findnsols(N, X, between(1, M, X), L), Ls).',
+                 'open(L) :- findnsols(2, X, between(1, 9, X), L).',
+                 'main :- thread_create(ch(2, 5, _), T1), ch(3, 7, B),',
+                 '        thread_join(T1, S1), print(S1-B), nl,',
+                 '        findall(S, ( between(1, 20, _), thread_create(open(_), T), thread_join(T, S) ), Ss),',
+                 '        print(Ss), nl, ch(4, 5, C), print(C), nl.']),
+    sh_join(['-s ', F1, ' 2>&1'], A1),
+    cocolog_run(A1, Got1, Rc1),
+    check('a thread''s chunks and the main thread''s, and threads ended with a bag open',
+          Got1-Rc1,
+          'true-[[1,2,3],[4,5,6],[7]]\n[true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true]\n[[1,2,3,4],[5]]'-0),
+    %% a thread that halts inside its findnsols/4 call ends with no cut, its
+    %% cleanup never run: its machine's free gives the bag back, which
+    %% memcheck counts. Where the box has no valgrind the check says so
+    (   sh_exit('command -v valgrind >/dev/null 2>&1', 0)
+    ->  atom_concat(D, '/fn_halt.pl', F2),
+        fixture(F2, [':- use_module(library(thread)).',
+                     'hl :- findnsols(2, X, between(1, 9, X), _), halt.',
+                     'main :- findall(S, ( between(1, 5, _), thread_create(hl, T), thread_join(T, S) ), Ss),',
+                     '        print(Ss), nl.']),
+        cocolog(C),
+        sh_join(['valgrind --leak-check=full --show-leak-kinds=definite --errors-for-leak-kinds=definite ',
+                 '-q --error-exitcode=9 ', C, ' -s ', F2, ' 2>&1'], Cmd2),
+        shell(Cmd2, Out2, Exit2),
+        check('a thread halted inside findnsols/4: its bag freed with its machine',
+              Out2-Exit2, '[false,false,false,false,false]'-0)
+    ;   format("   SKIP (no valgrind here)~n", [])
+    ).

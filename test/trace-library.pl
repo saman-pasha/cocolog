@@ -70,6 +70,18 @@ mt1(G) :- call(G).
 mt2(G) :- call(G).
 :- mt2(true).
 :- meta_predicate mt2(0).
+%% findnsols/4 (3.72.0), a system meta-predicate written as clauses: its
+%% own call a port, its Exit showing its goal said of user, a chunk's
+%% retry its Redo
+fn(L) :- findnsols(1, X, md(X), L).
+fm(L) :- findnsols(1, X, md(X), L), L = [2].
+%% and what a goal answers under trace is what it answers untraced
+%% (3.72.0): call_cleanup/2's cleanup at its goal's last answer, and
+%% findnsols/4's last chunk the last
+cd :- call_cleanup(md(X), D = true), ( var(D) -> print(X-open) ; print(X-D) ), nl, fail.
+cd.
+fa :- findnsols(1, X, md(X), L), print(L), nl, fail.
+fa.
 
 %% generate_debug_info false: what this file defines from here on hides its
 %% children as a library's predicates do, until the flag is true again --

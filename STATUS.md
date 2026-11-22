@@ -21982,3 +21982,191 @@ and the seven test binaries (term, syntax, solve, module, state, and zigurat
 and shared with a server up), each alone, green with no SKIP, the binary's
 md5 the same before and after; lesson 37, whose narration counts the flags,
 alone, ending `done`; the dialect card's 33 cites all anchored.
+
+## findnsols/4,5 are swipl's (3.72.0)
+
+Backlog #254's first item, the first two of COMPAT.md's search group of
+useful predicates: through 3.71.0 cocolog had neither, and a call raised
+existence_error. A minor: something new reachable from a program.
+
+THE PREDICATES are swipl 9.0.4's boot/bags.pl, their clauses the builtins'
+Prolog half, over four C rows of lib/builtins-db.cicili that stand for
+swipl's findall bag (pl-bag.c): `'$bag_new'/1`, `'$bag_add'/3`,
+`'$bag_collect'/3` and `'$bag_free'/1`, the first and the last
+setup_call_cleanup/3's setup and cleanup. The goal runs in the caller's own
+search -- a chunk is an answer of findnsols/4,5, and backtracking into it is
+backtracking into the goal -- so a chunk's answers wait across that
+backtracking in a store of the bag's own, PRIVATE (no backend, no write
+barrier), never the engine's `pst`: findall/3's answers are a stack, and a
+bag's life need not keep to one (findnsols/4 inside findnsols/4's goal, or
+two side by side in a conjunction). What is swipl's:
+
+- the chunks: the goal's answers in the order it found them, each chunk
+  findnsols/4,5's answer and the next found on backtracking into it,
+  findnsols/5's ending in its Tail and findnsols/4's in []; a chunk the
+  goal's last answer fills is the last where the goal leaves no choice
+  point there, as findnsols/4,5 then leave none (call_cleanup/2's
+  `Det = true`: `findnsols(2, X, between(1, 4, X), L)` is [1,2] and then
+  [3,4], deterministically, between/3 being deterministic on its last
+  answer since 3.22.0), and where the goal ends otherwise the answers after
+  the last full chunk are one more, [] where there are none;
+- the count: an integer, or count(N), whose N is read again before each
+  chunk after the first, so nb_setarg/3 on it sizes the next; a count of 0
+  is [] at once, the goal never called, and 0 or a negative N after the
+  first chunk sets a stop the answers never reach, so the rest of them are
+  one chunk;
+- the found count is the bag's from its making (swipl's bag->solutions),
+  never set back at a chunk, and the next stop is that count plus N;
+- the copies: the template and the goal copied once, so nothing of the
+  caller's is bound, and each answer put in the bag a copy of its own --
+  fresh variables, a cyclic term in its factors, floats and strings that a
+  collection between two answers must keep;
+- a List given: unified once its chunk is made, the chunk spent whether it
+  unified or not; one that did not unify set no next stop, so the rest of
+  the answers are one chunk (`findnsols(2, X, member(X, [a,b,c,d,e]),
+  [c|T])` is T = [d,e], as swipl's);
+- the errors: the count's -- domain_error(not_less_than_zero, N),
+  type_error(integer, C), instantiation_error, each with the context
+  unbound -- before the goal is asked anything, and the goal's, raised by
+  call_cleanup/2's frame and named system:setup_call_catcher_cleanup/4;
+- a cut after a chunk and inside the goal, findnsols/4 under findall/3,
+  forall/2, aggregate_all/3 and itself, and $/0 and $/1 over a call that
+  leaves a choice point and one that leaves none: swipl's answers, each;
+- predicate_property/2, current_predicate/1 and clause/2 see the two as
+  swipl's (lib/swipl-props.cicili had their rows already: imported from
+  '$bags', transparent, their meta_predicate specs, nodebug).
+
+WHAT IS COCOLOG'S OWN, the bags' lives:
+
+- a bag is a slot of the machine's own (`fnb`, `fnbn`, `fnbcap`, appended
+  to coco_machine), reused once given back, and the table reclamation marks
+  each live bag's store (`coco_tables_reclaim`): an answer's floats,
+  strings and big numbers live in the machine's tables, and no heap cell
+  names them once the goal has backtracked past the answer, so a
+  collection between two answers of a chunk would reclaim them and the
+  next answer's take their entries;
+- a bag is given back by its call's cleanup, setup_call_cleanup/3's, which
+  every way out of the call runs -- the last chunk, a cut, an exception --
+  and where no cleanup ran (a thread that halts inside the call, a machine
+  frozen and let go of with its frames) by the machine's free, through a
+  hook the builtins module installs (`coco_fnbag_free_hook` in
+  lib/term.cicili, which can name no store);
+- A FROZEN MACHINE KEEPS NO BAG: a handle is a number of the machine's
+  (`fnbid`), seeded at its first bag from the clock, the process and the
+  machine, so a machine frozen inside a findnsols/4 call (`cocolog step`)
+  thaws with a handle that names nothing there, and the call's next answer
+  raises existence_error(findall_bag, B) (the context unbound), rather than
+  finding a bag made since, which would hand it another call's answers --
+  a machine counting its handles from 1 would.
+
+A TRACER'S FRAME IS NO CHOICE POINT TO A CLEANUP. Under trace a clause
+frame stays at its last candidate, its shadow frame's `last` saying so, for
+the Fail port to be printed from; $/1's exit passed such a frame by, and
+setup_call_cleanup/3's did not (`coco_bi_scc_exit`): under trace a cleanup
+at its goal's deterministic last answer waited for a cut, and findnsols/4
+gave one chunk more, `[]`. The two ask one macro now, `coco-choice-live` in
+lib/solve.cicili, and a new check of whether a goal left a choice point is
+to ask it (CLAUDE.md). Found by test/trace.pl's own ports of findnsols/4,
+which then read the call's Redo after its last chunk, where swipl's has
+none.
+
+TWO FAULTS FOUND ON THE WAY, older than this release and queued, neither
+findnsols/4's: a variable a clause's arg/3 bound to an atomic argument
+follows a later nb_setarg/3 of that argument (with `next(S, N) :- arg(1,
+S, N), N1 is N + 1, nb_setarg(1, S, N1).`, three calls of next/2 on s(0)
+answer 0, 3 and 3, where swipl's answer 0, 1 and 2; the same goals in
+one clause's body answer swipl's; backlog #276, its own release, as it is
+the clause's unification), and setup_call_cleanup/3
+under trace prints its goal a depth further down than swipl's and its
+cleanup's ports where swipl's prints none, or none where swipl's prints
+them (backlog #277, a COMPAT.md row since this release). The case reads
+round the first (n6 writes the chunks alone) and test/trace.pl the second
+(the own ports of findnsols/4 alone, and a goal's answers traced against
+untraced).
+
+THE CASES. test/files/findnsols.pl holds 96 lines to swipl 9.0.4, byte for
+byte: the chunks (16 checks), the counts (6, nb_setarg/3 among them), the
+copies (7), a List given (5), the errors (16), the control (9), the guards
+(4) and the properties (6). Cocolog's own: test/engine.pl's
+`findnsols_runs` (the case's answers traced, under a collector every 2 000
+cells, and with each collection a freeze's materialisation put back and
+kept, all equal to its untraced answers; a machine frozen and thawed inside
+a call raising at its next answer, and a bag made after the thaw taking no
+stale handle; a hundred thousand calls cut after their first chunk under
+`ulimit -v 120000`, which a hundred thousand bags would pass -- each is
+about 1.9 KB), test/thread.pl's `bags_per_thread` (a thread's chunks beside
+the main thread's, twenty threads ended with a bag open, and five threads
+that halt inside a call, their bags freed with their machines, which
+memcheck counts where there is a valgrind), test/async.pl's `case_bags`
+(four tasks gathering chunks at once with a yield between answers, a fifth
+whose goal ends with its call open, and the main task's own), and
+test/trace.pl's own ports of findnsols/4 (its Call, each chunk's Exit with
+the goal said of user, a chunk's Redo, held to swipl's) and two goals'
+answers traced against swipl's and against untraced (call_cleanup/2's
+cleanup at the last answer, findnsols/4's last chunk).
+
+THE RULES, each its own arm (one build of the final tree with the rule out),
+each red where it is held -- the files case's count the lines its diff
+against swipl's output shows:
+
+- the bags: the reclamation marks each bag's store (B1: not; 6, k5's and
+  k7's floats and strings made again after a collection), a chunk spent
+  whether its List unified or not (B2: kept for the next; 4, g1 and g4),
+  the found count never set back (B3: set back at each chunk; 43, the
+  counts, the chunks of c1 and c5 and the control's, engine's untraced
+  answers, thread's chunks), the call's cleanup giving its bag back (B4:
+  not; engine's hundred thousand calls under the ceiling), the machine's
+  free giving back the bags no cleanup did (B5: not; thread's memcheck of
+  five threads halted inside a call), each machine's handles from a seed
+  of its own (B6: from 1; engine's bag made after a thaw), a handle that
+  names no bag raising (B7: failing; engine's two thaw checks), and a
+  frame the tracer keeps no choice point to setup_call_cleanup/3's exit
+  (B8: counted; engine's traced answers, trace's cd and fa against swipl
+  and against untraced);
+- the clauses: the template and the goal copied (P1: not; 42, and trace's
+  own ports of fn and fm), the last chunk at the goal's deterministic last
+  answer (P2: one more; 32, c2 to c4, c10 to c15, d2, d4, e10 to e12, o6
+  and o7, and trace's fa), the count read before each chunk (P3: once; 24,
+  n3 to n6), an unbound count an instantiation error (P4: a type error; 2,
+  e3), a negative one a domain error (P5: a type error; 8, e1, e6, e9 and
+  e16), count(N) a count (P6: a type error; 88, the case ending at n6's
+  uncaught error), a count of 0 the empty list (P7: a domain error; 4, n1
+  and e15), the two meta-predicates (P8: not; trace's own ports of fn and
+  fm, the goal not said of user -- the case's properties are the props
+  table's), and findnsols/4's chunks proper lists (P9: partial; 124,
+  engine's three run checks, thread's chunks, trace's three).
+
+B6 was green at first: the check's turns of 25 inferences froze the
+machine between the inner call's bag and the outer call's next answer as
+often as before it, and a thaw there makes the inner handle the stale one,
+which raises either way. Its turn is 600 inferences now, over a count of
+400 (some 800 inferences) between the outer bag and the inner: the thaw
+lands in the count, and the inner bag is made in the thawed machine and
+the outer's answer asked in the same turn. On B6 the outer chunk is then
+the inner call's answers, `[[p]]`, before the raise. And P2's thread run
+was red on its check that four threads' work takes well under four times
+one's, a clock check the four builds beside it slowed; green alone.
+
+WHAT IT COSTS: nothing on the engine's paths. tools/flow/zero.sh against
+3.71.0, work less padding: nrev 65 893 216 (-65 735), queens 39 969 895
+(+10), lookup 48 089 605 (-5 509). Each is the allocator's or the store's
+placement, function by function: on nrev every engine function counts the
+same to the instruction but the builtins' dispatcher (-2), and memcpy
+-65 552 -- the machine is 32 bytes larger, and one realloc of the heap is
+an mremap where 3.71.0's copied; on lookup glibc's allocator -3 900 and the
+code table's probes -1 478 (`coco_clause_code`, `coco_code_put`): the
+program's clauses stand further on in the store, past the builtins' new
+clauses, and hash to other slots. A start (`cocolog query true`) counts
+35 999 473 against 35 717 441, 282 032 more (+0.79 %): cocolog's own
+functions +242 310, the eleven clauses and the declaration the builtins'
+Prolog half reads at every start, some 1 450 characters (the lexer
++64 951, the parse +33 495, the body's compile +33 183 and the store's
+put +29 373 among them); libc +39 934, malloc's and free's; ld.so -1 229.
+
+THE RUN, on the final binary: the lint case first, then trace, thread,
+async, engine, files, errors, journal, flowchart, library, script, window,
+flowdebug, signal, repl, process, directives, stream, units, reconsult and
+gc, and the seven test binaries (term, syntax, solve, module, state, and
+zigurat and shared with a server up), each alone, green with no SKIP, the
+binary's md5 the same before and after; engine and thread again alone once
+their last checks were in; the dialect card's 33 cites all anchored.
