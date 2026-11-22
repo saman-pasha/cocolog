@@ -77,7 +77,7 @@ an existence error, an instantiation error, a refusal by name.
 | a float flag set in a thread | that thread's alone: a thread starts with its creator's flags, so a later thread of `main` reads `main`'s | the thread's, and the process's default as well: a thread made after it starts with the value set last anywhere, as for `text_units` | set it in `main` before the threads are made |
 | a numeric argument of `format/2` past a C int (`~99999999999\|`, `~2147483648c`) | its check of the digits is compiled away, and the number wraps at 32 bits: the first writes 1 215 752 191 spaces, the second nothing | `format('argument overflow')`, the error swipl's source raises there | an argument a C int holds |
 | a `"..."` text given to `sub_atom/5`, `sub_string/5`, `atom_concat/3` or `string_concat/3` | a string, which each of them takes | a list of codes (the default `double_quotes`, below), which each refuses as swipl's own does a list: `type_error(atom, L)`, `type_error(string, L)`, `type_error(atomic, L)` -- `sub_string(S, 0, 1, _, "#")` raises. Since 3.0.0; through 2.16 they read a list as text | `'#'`, or `:- set_prolog_flag(double_quotes, string).` |
-| integers | unbounded | **64-bit**, −2^63 … 2^63−1 (since 2.0.0; through 1.15.0 61-bit, and a result past them wrapped in silence): a result outside that raises `evaluation_error(int_overflow)` — `X is 2**63` and `9223372036854775807 + 1`, and `2**63 - 1` too, whose `2**63` overflows before the subtraction, and since 3.69.0 `divmod(-9223372036854775808, -1, Q, R)` and `bounded_number(L, H, 9223372036854775807)`, whose High is 2^63 — and a float made an integer outside it as well (a NaN or an infinity is handed back as it came, as SWI's is, since 2.2.0). A literal outside it is refused, `syntax error ... integer out of range` (`9223372036854775808`, `0x8000000000000000`); `atom_number/2` fails for such a numeral, and `number_codes/2` and `number_chars/2` raise `syntax_error(illegal_number)`, as `atom_to_term/3` and its kin raise `syntax_error(integer_overflow)` | `library(bigint)` for anything that can get that large |
+| integers | unbounded | **64-bit**, −2^63 … 2^63−1 (since 2.0.0; through 1.15.0 61-bit, and a result past them wrapped in silence): a result outside that raises `evaluation_error(int_overflow)` — `X is 2**63` and `9223372036854775807 + 1`, and `2**63 - 1` too, whose `2**63` overflows before the subtraction, and since 3.69.0 `divmod(-9223372036854775808, -1, Q, R)` and `bounded_number(L, H, 9223372036854775807)`, whose High is 2^63, and since 3.70.0 `flag(K, _, 2**63)`, where swipl's set_flag/2 refuses the bignum with `representation_error(int64_t)` — and a float made an integer outside it as well (a NaN or an infinity is handed back as it came, as SWI's is, since 2.2.0). A literal outside it is refused, `syntax error ... integer out of range` (`9223372036854775808`, `0x8000000000000000`); `atom_number/2` fails for such a numeral, and `number_codes/2` and `number_chars/2` raise `syntax_error(illegal_number)`, as `atom_to_term/3` and its kin raise `syntax_error(integer_overflow)` | `library(bigint)` for anything that can get that large |
 | `bounded_number(Low, High, Num)` of a Num that is no number (`bounded_number(_, _, a)`, `bounded_number(1, 5, a)`) | its 9.0.4 names Low, where its manual says Num: `instantiation_error` where Low is unbound, else `type_error(number, Low)` -- `type_error(number, 1)` of the second | `type_error(number, Num)`, the manual's, and `instantiation_error` where Num is unbound (3.69.0, test/engine.pl) | give it a number |
 | powm/3 of a float (`X is powm(1.5, 2, 3)`) | ar_powm() leaves `type_error(integer, 1.5)` raised and answers all the same, X = 1, the exception said as a warning: `foreign predicate system:is/2 did not clear exception` (9.0.4) | raises `type_error(integer, 1.5)`, the argument a float found first in swipl's order of checks; a powm/3 of floats is no case of test/files/arith_depth.pl for that | integers |
 | `current_prolog_flag/2` | dozens of flags | twenty: `argv`, `os_argv`, `executable`, `double_quotes`, `text_units`, since 2.0.0 `bounded` (`true`), `max_integer`, `min_integer`, `max_tagged_integer` and `min_tagged_integer`, since 2.2.2 the four float flags and `float_min`, `float_max` and `float_max_integer`, since 2.16.0 `verbose`, since 3.15.0 `optimise_unify`, and since 3.32.0 `stack_limit`; any other fails, `generate_debug_info` among them, which `set_prolog_flag/2` takes | — |
@@ -119,6 +119,9 @@ an existence error, an instantiation error, a refusal by name.
 | `use_module(F)` of a file with no `:- module/2` | refuses it, ``Domain error: `module_header' expected``, and the load directive fails; the file is a loaded file all the same, as swipl's source files are | loads it, one namespace, its clauses callable as any file's; a file read that way is loaded on swipl's rule (3.6.0: once a read of it defined something) | `ensure_loaded(F)` for a file with no module |
 | `swipl -g Goal file.pl` against `cocolog run file.pl Goal`, `file.pl` holding `:- initialization(G, main).` | runs Goal, then G in the toplevel's place, and halts | runs G after the load and halts; Goal is not run (the main goal IS the program: `-s file.pl` would otherwise call main/0 and then G, main twice). Since 3.7.0 G is the whole load's, a nested file's too, after every after_load goal, the last one registered | the goal in the main, or no main |
 | `consult/1` as a goal of a running program, of a file holding `:- initialization(G, main).` | runs G once the program's goal is done (the toplevel's place), and halts | runs G when that consult ends and halts: the rest of the goal that consulted is not run | `initialization(G, main)` in the script |
+| current_flag/1 with its key unbound | walks its hash table: the keys in an order of its own | the keys in the order they were made (3.70.0; test/files/system_flags.pl holds the rest of the flags to swipl, the walk's keys sorted) | sort what the walk finds |
+| shell/1,2 of a child a signal ended (`shell('kill -9 $$', S)`) | 9.0.4 says on stderr that its shell/2 `did not clear exception` and answers 1, the error it raised lost; its later releases raise it | raises it, error(shell(signal(9), Command), context(shell/2, _)), `Caught signal 9 on ...` in messages.pl's words (3.70.0, test/errors.pl) | catch the error, or test the status a shell's own `trap` makes |
+| a shell/1,2 child's output where with_output_to/2, `~@` or set_output/1 has moved the output | goes to user_output: the child writes to the descriptor of swipl's user_output stream | goes where fd 1 goes, into the capture or the stream, as a library(process) child's does: the capture moves fd 1 (3.70.0) | redirect the command's own output |
 | a first call of a predicate one of cocolog's own modules holds (`open/3`, `with_mutex/2`, `on_signal/3`), made in a thread or a green task while the module is not loaded | autoloads it there, as anywhere | `existence_error(procedure, open/3)`: a first call loads the module (3.66.0, swipl's autoloader) only while no other thread runs an engine -- a library(thread) thread, a green world's workers, a swarm's -- because the module registry is the process's and unguarded; the main thread loads it once they are done | load the module with use_module/1 before the threads start |
 
 ## Not there at all (`existence_error`)
@@ -128,9 +131,10 @@ constructs swipl's compiler makes them; `repeat/0` since 3.39.0,
 `numbervars/3,4` since 3.40.0, `style_check/1` with
 `garbage_collect_atoms/0`, `garbage_collect_clauses/0` and `trim_stacks/0`
 since 3.67.0, `nb_delete/1`, `term_variables/3`, `term_singletons/2`,
-`unifiable/3`, `?=/2` and `same_term/2` since 3.68.0, and `divmod/4`,
+`unifiable/3`, `?=/2` and `same_term/2` since 3.68.0, `divmod/4`,
 `nth_integer_root_and_remainder/4`, `float_class/2`, `float_parts/4` and
-`bounded_number/3` since 3.69.0.)
+`bounded_number/3` since 3.69.0, and `flag/3`, `get_flag/2`, `set_flag/2`,
+`current_flag/1` and `shell/1,2` since 3.70.0.)
 `freeze/2` and coroutining, `table/1` and tabling (since 3.2.0
 `:- table p/2.` reads, `table` being swipl's 1150 fx operator, and the load
 reports `table/1` as an unknown procedure and goes on), swipl's dicts and the
@@ -139,7 +143,7 @@ has not got, so cocolog's writer leaves the atom `'.'` bare where swipl's
 brackets it as an operator's operand: `-'.'`, `'.'=a`, swipl's `- ('.')`,
 `('.')=a` -- since 3.64.2 the one way the two writers' spaces and brackets
 differ, over random terms in eight writers),
-`flag/3`, `recorda/2` and the recorded database.
+`recorda/2` and the recorded database.
 (`print_message/2` is there since 2.16.0, and `expand_term/2`, `expand_goal/2`,
 `prolog_load_context/2` and `non_terminal/1` since 3.14.0; `setup_call_cleanup/3` and its
 kin, `absolute_file_name/3`, `sub_atom_icasechk/3` and `name/2` since
@@ -196,11 +200,12 @@ below; `library(option)` is item 2's. The second group, on terms and
 globals (`nb_delete/1`, `term_variables/3`, `term_singletons/2`,
 `unifiable/3`, `?=/2`, `same_term/2`), is swipl's since 3.68.0, and the
 third, in arithmetic (`divmod/4`, `nth_integer_root_and_remainder/4`,
-`float_class/2`, `float_parts/4`, `bounded_number/3`), since 3.69.0.
+`float_class/2`, `float_parts/4`, `bounded_number/3`), since 3.69.0, and
+the process's flags and its shell (`flag/3`, `get_flag/2`, `set_flag/2`,
+`current_flag/1`, `shell/1,2`) since 3.70.0.
 
 1. **Small built-ins a swipl program calls as it stands**:
-   * of the process: `flag/3`, `get_flag/2`, `set_flag/2`, `shell/1,2`,
-     `at_halt/1`;
+   * of the process: `at_halt/1` and `cancel_halt/1`;
    * of a search: `findnsols/4,5`, `call_with_inference_limit/3` and
      `call_with_depth_limit/3` (swipl's contracts, beside cocolog's
      `call_limited/3`);

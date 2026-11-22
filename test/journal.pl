@@ -23,7 +23,7 @@
 main :-
     scratch(D), nb_setval(j_dir, D),
     record(D), replay(D), diverged(D), raised(D), processes(D), refusals(D), sized(D),
-    partial(D),
+    partial(D), shelled(D),
     checks_done.
 
 %% the journal's entries as terms: j(I, Module, Name/Arity, CallText, Outcome)
@@ -285,3 +285,32 @@ partial(D) :-
     ( exists_file(F1) -> W3 = written ; W3 = absent ),
     check('replayed: the record''s end, no divergence at the write, and the file not written again',
           E3-W3, E1-absent).
+
+%% ---- a shell's child ----------------------------------------------------------------
+
+%% shell/2 runs a child (3.70.0), so it is a portal by name: recorded with
+%% its status, and a replay answers it from its entry and runs no command
+%% -- the mark the child appends to is the record's alone
+j_shell :-
+    nb_getval(j_dir, D),
+    atomic_list_concat(['echo s >> ', D, '/shell.mark; exit 7'], C),
+    shell(C, S), nb_setval(j_shell, S).
+
+shelled(D) :-
+    section('a shell''s child is a portal: recorded, and run once'),
+    atom_concat(D, '/shell.jrnl', J1), atom_concat(D, '/shell.mark', M1),
+    nb_setval(j_shell, none),
+    '$trace_window'(j_shell, [journal(record(J1))], _, E1),
+    nb_getval(j_shell, S1),
+    entries(J1, Es1),
+    findall(M-P-O, ( member(j(_, M, P, _, Out), Es1), functor(Out, O, _) ), MPO1),
+    ( E1 = end(answer, _, _) -> End1 = answer ; End1 = E1 ),
+    check('recorded: the run''s answer, the status, and one entry, shell/2''s exit',
+          End1-S1-MPO1, answer-7-[builtins-shell/2-exit]),
+    nb_setval(j_shell, none),
+    '$trace_window'(j_shell, [from(1), journal(replay(J1))], _, E2),
+    nb_getval(j_shell, S2),
+    text_of(M1, T2),
+    ( E2 == E1 -> End2 = same ; End2 = E2 ),
+    check('replayed: the record''s end, its status, and the command not run again',
+          End2-S2-T2, same-7-'s\n').

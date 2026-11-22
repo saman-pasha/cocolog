@@ -79,7 +79,40 @@ main :-
     stack_limit_said,
     portray_stops,
     file_no_ceiling,
+    shell_signalled,
     checks_done.
+
+%% ---- a shell/2 child a signal ended (3.70.0) --------------------------------
+%%
+%% swipl 9.0.4's shell/2 answers 1 for it and says on stderr that the
+%% predicate `did not clear exception', the error it raised and lost; its
+%% later releases raise it (pl-sys.c asks PL_exception(0) after System()),
+%% and so does cocolog: error(shell(signal(N), Command), context(shell/2,
+%% _)), said in messages.pl's sentence by print_message/2 and uncaught alike
+%% (COMPAT.md). test/files/system_flags.pl holds the rest of shell/1,2 to
+%% swipl.
+shell_signalled :-
+    section('a shell/2 child a signal ended raises, in swipl''s sentence'),
+    % cocolint: C2 -- the ball is shell/2's own, whose context names it as swipl's
+    written(catch(( shell('kill -9 $$', _), R1 = none ), error(F1, context(C1, _)), R1 = F1-C1),
+            R1, G1),
+    check('error(shell(signal(9), Command), context(shell/2, _))', G1,
+          'shell(signal(9),kill -9 $$)-shell/2'),
+    written(catch(( shell('kill -15 $$', S2), R2 = S2 ), error(shell(signal(N2), _), _), R2 = sig(N2)),
+            R2, G2),
+    check('a child SIGTERM ended is signal 15', G2, 'sig(15)'),
+    scratch(D),
+    atom_concat(D, '/said.pl', F),
+    fixture(F, [ 'main :- catch(shell(''kill -9 $$''), E, print_message(error, E)), shell(''kill -9 $$'').' ]),
+    cocolog(C),
+    sh_join([C, ' --no-backtrace --local -s ', F, ' 2>&1'], Cmd),
+    shell(Cmd, Out, Rc),
+    check('the program ends with the uncaught error', Rc, 2),
+    has('print_message/2 says swipl''s sentence',
+        'ERROR: shell/2: Caught signal 9 on `kill -9 $$''\n', Out),
+    has('and the uncaught error the same, the -s main line''s',
+        'ERROR: -s main: shell/2: Caught signal 9 on `kill -9 $$''', Out),
+    shl(['rm -rf ', D]).
 
 %% ---- where a text would not read, uncaught (3.10.0) -------------------------
 %%

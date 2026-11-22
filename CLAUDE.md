@@ -3476,7 +3476,8 @@ into its `at_modules/1`. What a session must keep:
   `'$stream_lastc_set'/1`, 3.56.0), by name for the modules that are not
   (`coco_jr_named`: files' twenty, getenv/setenv/unsetenv, statistics/2,
   current_prolog_flag/2, sha_file/3, the green world's size
-  `'$async_workers'/1`, and format/3 unless its sink is a term), and by
+  `'$async_workers'/1`, shell/2 since 3.70.0, and format/3 unless its sink
+  is a term), and by
   `coco_m_portal` for a module out of the tree. **A core
   builtin is never one**, nor a load (`use_module/1` reads the program's own
   clauses again in every run). What bites:
@@ -4540,7 +4541,25 @@ into its `at_modules/1`. What a session must keep:
   `with_mutex/2`. An httpd `workers(N)` request runs through
   `run_isolated/2` (fresh store, its own connection, one commit), so pages
   must be loaded with `use_module` -- consulted or asserted pages are a
-  silent 404 in a pool.
+  silent 404 in a pool. **swipl's flags are the one thing all of them share**
+  (3.70.0, flag/3, get_flag/2, set_flag/2, current_flag/1; the `coco_fl_*`
+  functions in lib/builtins-db.cicili, swipl's pl-flag.c, and
+  test/files/system_flags.pl): one table of the process's under one lock
+  (`fl_mx`), keys and values kept as TEXT -- each machine has its own atom
+  table -- and no frozen machine carrying it. flag/3 is swipl's two clauses,
+  the second one C call under the lock (`'$flag_update'/3`, as swipl's
+  `with_mutex('$flag', _)` holds its update), so **no Prolog runs while
+  `fl_mx` is held**: a unification, an evaluation and a raise run none (a
+  raise's cleanups and its backtrace's text come after it), and a new path
+  that takes the lock keeps it so, or a portray/1 or a cleanup that calls
+  flag/3 deadlocks.
+* **shell/1,2 is a declared foreign call** (3.70.0, `coco_b_shell`,
+  swipl's System()): posix_spawn(3) of /bin/sh -c with PROLOGCHILD=yes,
+  SIGINT ignored and SIGTSTP the default while the child runs, nothing
+  flushed first, a child a signal ended `error(shell(signal(N), Cmd),
+  context(shell/2, _))` as swipl's later releases raise it; the child writes
+  to fd 1, so with_output_to/2's capture takes its output in where swipl's
+  goes to user_output (COMPAT.md).
 * **`library(stream)`** owns the stream table and ISO's stream names
   (`open/3,4`, `set_output/1`, `read_term/3`, …). `format/3` and
   `with_output_to/2` reach it through a sink hook

@@ -297,6 +297,16 @@ flow_mode(notrace, 0, [], det).
 flow_mode(getenv, 2, ['+', '-'], semidet).
 flow_mode(setenv, 2, ['+', '+'], det).
 flow_mode(unsetenv, 1, ['+'], det).
+%% swipl's flags (3.70.0): a key's value, the key made worth 0 where it is
+%% new; a value set; flag/3's update, which fails where Old does not
+%% unify; whether a key was made; and every key made
+flow_mode(get_flag, 2, ['+', '?'], semidet).
+flow_mode(set_flag, 2, ['+', '+'], det).
+flow_mode('$flag_update', 3, ['+', '?', '+'], semidet).
+flow_mode('$flag_known', 1, ['+'], semidet).
+flow_mode('$flag_keys', 1, ['-'], det).
+%% shell/2 (3.70.0): the command's exit status
+flow_mode(shell, 2, ['+', '-'], det).
 flow_mode(source_location, 2, ['-', '-'], semidet).
 %% prolog_load_context/2's C half (3.14.0): the load's file, its source and
 %% the term's place while a hook or a directive of it runs, failing

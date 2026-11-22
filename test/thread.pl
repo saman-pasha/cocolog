@@ -89,10 +89,15 @@ main :-
               '    ;   use_module(library(lists))',
               '    ),',
               '    current_predicate(append/3),',
-              '    M is N - 1, loads(M).' ]),
+              '    M is N - 1, loads(M).',
+              '',
+              '%% ---- what the flags section spawns ----',
+              '%% N updates of one flag, each read and written under the lock',
+              'bump(0) :- !.',
+              'bump(N) :- flag(th_count, C, C + 1), M is N - 1, bump(M).' ]),
     use_module(Work),
     a_thread, what_it_sees, a_channel, closed, backpressure, helpers, contention, imports,
-    parallel, locks, conditions, message_refused(D),
+    parallel, locks, conditions, message_refused(D), flags_shared,
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -460,3 +465,18 @@ mr_sweep(Path) :-
               'if [ -n "$bad" ]; then echo "wrong of $n:$bad" | cut -c1-400',
               'elif [ $seen = 1 ]; then echo clean',
               'else echo "none withheld of $n"; fi' ]).
+
+%% SWIPL'S FLAGS ARE THE PROCESS'S (3.70.0), as its GD->flags are: what a
+%% thread sets the main thread reads after the join, and four threads'
+%% flag/3 updates of one key are each read and written under the table's
+%% lock, as swipl's with_mutex('$flag', _) makes them -- none is lost
+flags_shared :-
+    section('flags are the process''s, every thread''s'),
+    written(( set_flag(th_seen, 0), thread_create(set_flag(th_seen, from_thread), I1),
+              thread_join(I1, _), get_flag(th_seen, V1) ), V1, G1),
+    check('a thread''s set_flag/2 is the main thread''s get_flag/2', G1, from_thread),
+    written(( set_flag(th_count, 0),
+              findall(I2, ( between(1, 4, _), thread_create(bump(5000), I2) ), Is2),
+              forall(member(J2, Is2), thread_join(J2, _)),
+              get_flag(th_count, V2) ), V2, G2),
+    check('four threads'' 5000 flag/3 updates each are 20000', G2, '20000').

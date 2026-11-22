@@ -2941,6 +2941,21 @@
                        (snprintf out len "Caught signal %s (%s)" a2 a1)
                        (return)))
 
+            ;; shell/2's two (3.70.0), messages.pl's sentences, the
+            ;; command ~w: a child a signal ended, and one no shell ran
+            (if (and (== fa 2) (== 0 (strcmp fn "shell")))
+                (let ((size_t w . #'(coco_deref m (coco_arg m f 0))))
+                  (coco_err_say_w m (coco_arg m f 1) a2 (sizeof a2))
+                  (if (and (coco_is_callable m w) (== (coco_arity m w) 1)
+                           (== 0 (strcmp (coco_atom_name m (coco_name_of m w)) "signal")))
+                      (block (coco_err_say_w m (coco_arg m w 0) a1 (sizeof a1))
+                             (snprintf out len "Caught signal %s on `%s'" a1 a2)
+                             (return)))
+                  (if (and (coco_is_callable m w) (== (coco_arity m w) 0)
+                           (== 0 (strcmp (coco_atom_name m (coco_name_of m w)) "execute")))
+                      (block (snprintf out len "Could not execute `%s'" a2)
+                             (return)))))
+
             ;; cocolog's own ball, which carries a sentence and not a term:
             ;; `cocolog_error('use_module: p.pl: no such file')' is already
             ;; the message, and wrapping it in "Unknown error term" would

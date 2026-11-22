@@ -135,6 +135,14 @@
     ("getenv"                  2 coco_b_getenv)
     ("setenv"                  2 coco_b_setenv)
     ("unsetenv"                1 coco_b_unsetenv)
+    ;; swipl's flags and shell (3.70.0); flag/3, current_flag/1 and
+    ;; shell/1 are clauses over them (the Prolog half)
+    ("get_flag"                2 coco_b_get_flag)
+    ("set_flag"                2 coco_b_set_flag)
+    ("$flag_update"            3 coco_b_flag_update)
+    ("$flag_known"             1 coco_b_flag_known)
+    ("$flag_keys"              1 coco_b_flag_keys)
+    ("shell"                   2 coco_b_shell)
 
     ("source_location"         2 coco_b_source_location)
     ("$load_context"           2 coco_b_load_context)
@@ -961,7 +969,19 @@
            ;; that keep what they grew to
            "garbage_collect_atoms."
            "garbage_collect_clauses."
-           "trim_stacks.")))
+           "trim_stacks."
+
+           ;; ---- flag/3, current_flag/1 and shell/1, swipl's (3.70.0) -------
+           ;; boot/syspred.pl's flag/3, its second clause's update made under
+           ;; the table's lock as swipl's with_mutex('$flag', _) makes it
+           ;; ('$flag_update'/3, lib/builtins-db.cicili); current_flag/1 over
+           ;; the keys made, a choice point at each, as swipl's C walk leaves
+           ;; one, or asked of the key given; and shell/1 shell/2's 0
+           "flag(Name, Old, New) :- Old == New, !, get_flag(Name, Old)."
+           "flag(Name, Old, New) :- '$flag_update'(Name, Old, New)."
+           "current_flag(K) :- var(K), !, '$flag_keys'(Ks), '$cp_member'(K, Ks)."
+           "current_flag(K) :- '$flag_known'(K)."
+           "shell(Command) :- shell(Command, 0).")))
 
 (generic decl-builtins
   ()
@@ -987,6 +1007,12 @@
   ;; and current_predicate/1's answer of NAME/ARITY the system or a library
   ;; defines, CROW what a construct or a C row of it says (`coco_cp_hook')
   (decl) (func coco_b_cp_current ((const char * name) (u32 arity) (int crow)) (out int))
+
+  ;; shell/2's child (3.70.0, lib/builtins-db.cicili): the environment it
+  ;; is handed, the process's own, and the dispositions put aside while it
+  ;; runs, std's `sigaction_t' being C's `struct sigaction'
+  (extern) (var char ** environ)
+  (@define (code "sigaction_t struct sigaction"))
 
   ) ; decl-builtins
 

@@ -21,6 +21,13 @@
 (DEFMACRO coco-pp-add (atom)
   `(block (set (nth n v) (coco_new_atom m ,atom)) (++ n)))
 
+;;; A flag's key's hash (3.70.0, `coco_fl_find'): its kind and its integer
+;;; spread by the FNV prime, consecutive integers to consecutive slots of
+;;; the probe, and a name's `coco_hash' over it
+(DEFMACRO coco-fl-hash (k)
+  `(xor (* (+ (cast u64 (-> ,k ki)) (cast u64 (+ (-> ,k kk) 1))) 1099511628211)
+        (? (== (-> ,k kn) nil) 0 (coco_hash (-> ,k kn) (strlen (-> ,k kn))))))
+
 (generic impl-builtins-db
   ()
 
@@ -203,6 +210,362 @@
           (unsetenv (coco_tx_s (aof nb)))
           (coco_sb_free (aof nb))
           (return 1)))
+
+  ;;; ---- flag/3, get_flag/2, set_flag/2 and current_flag/1 (3.70.0) -------
+  ;;;
+  ;;; SWIPL'S FLAGS (pl-flag.c), THE PROCESS'S as its GD->flags are: one
+  ;;; table that every thread, green task and isolated run reads and
+  ;;; writes, under one lock, and no frozen machine carries. A key is an
+  ;;; atom, an integer or a compound's name and arity, a value an atom, an
+  ;;; integer or a float, each kept as its TEXT, never a machine's id: a
+  ;;; library(thread) thread has an atom table of its own. A key asked is
+  ;;; a key made, worth 0, as swipl's lookupFlag() makes it, and
+  ;;; current_flag/1 names it from then on, in the order the keys were
+  ;;; made (swipl's walks its hash table: COMPAT.md).
+  (struct coco_flag
+    ;; the key: 0 an atom, 1 [], 2 an integer, 3 a compound's name and arity
+    (member int kk)
+    (member char * kn)
+    ;; the integer, or the compound's arity
+    (member i64 ki)
+    ;; the value: 0 an atom, 1 [], 2 an integer, 3 a float
+    (member int vk)
+    (member char * va)
+    (member i64 vi)
+    (member double vf))
+
+  (static) (var coco_flag * fl_tab)
+  (static) (var size_t fl_n)
+  (static) (var size_t fl_cap)
+  ;; the hash: a slot an entry's index plus one, 0 none, never past half
+  ;; full; FL_NSLOTS a power of two, 0 before the first key
+  (static) (var u32 * fl_slots)
+  (static) (var size_t fl_nslots)
+  (static) (var pthread_mutex_t fl_mx . PTHREAD_MUTEX_INITIALIZER)
+
+  ;; the lock given back at every way out of its holder, where HELD says
+  ;; it was taken. No Prolog runs while it is held: a unification, an
+  ;; evaluation and a raise each run none, a raise's cleanups and its
+  ;; backtrace's text coming after it
+  (static)
+  (func coco_fl_unlock ((int * held)) (out void)
+        (if (nth 0 held) (pthread_mutex_unlock (aof fl_mx))))
+
+  ;;; A KEY AS SWIPL'S getKeyEx() READS IT (pl-rec.c): an atom, [] among
+  ;;; them; an integer its cell tags, within 2^56 either side -- swipl
+  ;;; 9.0.4's max_tagged_integer on 64 bits, past which its integer is no
+  ;;; key --; a compound, by its name and arity, f() of none. Unbound
+  ;;; instantiation_error, any other type_error(key, K), each named
+  ;;; system:NAME/ARITY (get_flag/2's whatever asks: flag/3's update calls
+  ;;; it). K's name is the machine's, for the call. 1, else the raise's
+  ;;; answer.
+  (static)
+  (func coco_fl_key ((coco_engine * e) (size_t t) (coco_flag * k)
+                     (const char * name) (u32 arity)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (u64 c . 0) (i64 v . 0))
+          (set t (coco_deref m t))
+          (set c (nth t (-> m heap)))
+          (set (-> k kn) nil)
+          (set (-> k ki) 0)
+          (cond
+            ((coco_is_nil m t) (set (-> k kk) 1))
+            ((coco-tag-is ATOM c)
+             (block (set (-> k kk) 0)
+                    (set (-> k kn) (cast (char *) (coco_atom_name m (coco_name_of m t))))))
+            ((coco-tag-is FUN c)
+             (block (set (-> k kk) 3)
+                    (set (-> k kn) (cast (char *) (coco_atom_name m (coco_name_of m t))))
+                    (set (-> k ki) (cast i64 (coco_arity m t)))))
+            ((coco-tag-is REF c)
+             (return (coco_raise_named e (coco_new_atom m "instantiation_error") "system" name arity)))
+            (#t
+             (block
+               (if (coco-is-int c) (set v (coco_int_val m c)))
+               (if (or (not (coco-is-int c))
+                       (or (< v -72057594037927936) (> v 72057594037927935)))
+                   (return (coco_raise_named e (coco_make2 m "type_error" (coco_new_atom m "key") t)
+                                             "system" name arity)))
+               (set (-> k kk) 2)
+               (set (-> k ki) v))))
+          (return 1)))
+
+  ;;; The entry of key K, under the lock: made, worth 0, where none is and
+  ;;; MAKE says so (swipl's lookupFlag()), nil where there is none or no
+  ;;; memory to make one.
+  (static)
+  (func coco_fl_find ((coco_flag * k) (int make)) (out coco_flag *)
+        (let ((u64 h . #'(coco-fl-hash k)) (size_t i . 0))
+          (if (!= fl_nslots 0)
+              (block
+                (set i (bitand (cast size_t h) (- fl_nslots 1)))
+                (while (!= (nth i fl_slots) 0)
+                  (let ((coco_flag * f . #'(aof (nth (- (nth i fl_slots) 1) fl_tab))))
+                    (if (and (== (-> f kk) (-> k kk))
+                             (and (== (-> f ki) (-> k ki))
+                                  (or (== (-> k kn) nil) (== 0 (strcmp (-> f kn) (-> k kn))))))
+                        (return f)))
+                  (set i (bitand (+ i 1) (- fl_nslots 1))))))
+          (if (not make) (return nil))
+          (if (>= fl_n fl_cap)
+              (let ((size_t cap . #'(? (== fl_cap 0) 16 (* fl_cap 2)))
+                    (coco_flag * grown . #'(cast (coco_flag *) (realloc fl_tab (* cap (sizeof coco_flag))))))
+                (if (== grown nil) (return nil))
+                (set fl_tab grown)
+                (set fl_cap cap)))
+          ;; the hash made again at twice the slots, half full at most
+          (if (> (* (+ fl_n 1) 2) fl_nslots)
+              (let ((size_t ns . #'(? (== fl_nslots 0) 64 (* fl_nslots 2)))
+                    (u32 * sl . #'(cast (u32 *) (calloc ns (sizeof u32)))) (size_t j . 0))
+                (if (== sl nil) (return nil))
+                (while (< j fl_n)
+                  (let ((coco_flag * q . #'(aof (nth j fl_tab))))
+                    (set i (bitand (cast size_t (coco-fl-hash q)) (- ns 1))))
+                  (while (!= (nth i sl) 0) (set i (bitand (+ i 1) (- ns 1))))
+                  (set (nth i sl) (cast u32 (+ j 1)))
+                  (set j (+ j 1)))
+                (free fl_slots)
+                (set fl_slots sl)
+                (set fl_nslots ns)))
+          (let ((coco_flag * f . #'(aof (nth fl_n fl_tab))))
+            (set (-> f kn) nil)
+            (if (!= (-> k kn) nil)
+                (block (set (-> f kn) (strdup (-> k kn)))
+                       (if (== (-> f kn) nil) (return nil))))
+            (set (-> f kk) (-> k kk))
+            (set (-> f ki) (-> k ki))
+            (set (-> f vk) 2)
+            (set (-> f va) nil)
+            (set (-> f vi) 0)
+            (set (-> f vf) 0.0)
+            (set i (bitand (cast size_t h) (- fl_nslots 1)))
+            (while (!= (nth i fl_slots) 0) (set i (bitand (+ i 1) (- fl_nslots 1))))
+            (set (nth i fl_slots) (cast u32 (+ fl_n 1)))
+            (set fl_n (+ fl_n 1))
+            (return f))))
+
+  ;;; F's value unified with T, as swipl's get_flag/2 unifies it: an atom,
+  ;;; an integer, and a float as PL_unify_float() does -- a float T holds
+  ;;; already is compared as a C double, so -0.0 is 0.0 and a NaN nothing
+  (static)
+  (func coco_fl_unify ((coco_engine * e) (size_t t) (coco_flag * f)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)))
+          (cond
+            ((== (-> f vk) 0) (return (coco_m_unify_atom e t (-> f va))))
+            ((== (-> f vk) 1) (return (coco_m_unify e t (coco_new_nil m))))
+            ((== (-> f vk) 2) (return (coco_m_unify_int e t (-> f vi)))))
+          (set t (coco_deref m t))
+          (if (coco-tag-is FLT (nth t (-> m heap)))
+              (return (? (== (nth (cast size_t (coco-payload (nth t (-> m heap)))) (-> m floats))
+                             (-> f vf))
+                         1 0)))
+          (return (coco_m_unify_float e t (-> f vf)))))
+
+  ;;; A value into F, under the lock: an atom's name copied and the old
+  ;;; one's freed; 0 where there was no memory for the copy, F as it was
+  (static)
+  (func coco_fl_put ((coco_flag * f) (int vk) (const char * va) (i64 vi) (double vf)) (out int)
+        (let ((char * nv . nil))
+          (if (== vk 0)
+              (block (set nv (strdup va)) (if (== nv nil) (return 0))))
+          (if (== (-> f vk) 0) (free (-> f va)))
+          (set (-> f vk) vk)
+          (set (-> f va) nv)
+          (set (-> f vi) vi)
+          (set (-> f vf) vf)
+          (return 1)))
+
+  ;;; `get_flag(+Key, -Value)', swipl's: the key read, made worth 0 where
+  ;;; it is new, and its value unified.
+  (func coco_b_get_flag ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_flag k) (int rc . 0) (coco_flag * f . nil)
+              (defer () coco_fl_unlock) (int held . 0))
+          (set rc (coco_fl_key e (coco_m_arg e g 0) (aof k) "get_flag" 2))
+          (if (!= rc 1) (return rc))
+          (pthread_mutex_lock (aof fl_mx))
+          (set held 1)
+          (set f (coco_fl_find (aof k) 1))
+          (if (== f nil) (return (coco_m_resource_error e "memory")))
+          (return (coco_fl_unify e (coco_m_arg e g 1) f))))
+
+  ;;; `set_flag(+Key, +Value)', swipl's: an atom, [] among them, an
+  ;;; integer or a float; a rational and any other term
+  ;;; type_error(flag_value, V), and an unbound one instantiation_error,
+  ;;; named flag/3 as swipl's pl-flag.c names them; the key's errors
+  ;;; system:set_flag/2's. swipl's integer past 64 bits is
+  ;;; representation_error(int64_t), which no integer of cocolog's is.
+  (func coco_b_set_flag ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (coco_flag k) (int rc . 0)
+              (size_t t . 0) (u64 c . 0) (coco_flag * f . nil)
+              (int vk . 0) (const char * va . nil) (i64 vi . 0) (double vf . 0.0)
+              (defer () coco_fl_unlock) (int held . 0))
+          (set rc (coco_fl_key e (coco_m_arg e g 0) (aof k) "set_flag" 2))
+          (if (!= rc 1) (return rc))
+          (set t (coco_deref m (coco_m_arg e g 1)))
+          (set c (nth t (-> m heap)))
+          (cond
+            ((coco_is_nil m t) (set vk 1))
+            ((coco-tag-is ATOM c) (set va (coco_atom_name m (coco_name_of m t))))
+            ((coco-is-int c) (block (set vk 2) (set vi (coco_int_val m c))))
+            ((coco-tag-is FLT c)
+             (block (set vk 3) (set vf (nth (cast size_t (coco-payload c)) (-> m floats)))))
+            ((coco-tag-is REF c)
+             (return (coco_raise_named e (coco_new_atom m "instantiation_error") "" "flag" 3)))
+            (#t
+             (return (coco_raise_named e (coco_make2 m "type_error" (coco_new_atom m "flag_value") t)
+                                       "" "flag" 3))))
+          (pthread_mutex_lock (aof fl_mx))
+          (set held 1)
+          (set f (coco_fl_find (aof k) 1))
+          (if (or (== f nil) (not (coco_fl_put f vk va vi vf)))
+              (return (coco_m_resource_error e "memory")))
+          (return 1)))
+
+  ;;; `'$flag_update'(+Key, ?Old, +New)', the second clause of swipl's
+  ;;; flag/3 (boot/syspred.pl) under its lock, as with_mutex('$flag', _)
+  ;;; holds it: get_flag(Key, Old) -- its key's errors get_flag/2's, Old
+  ;;; unified with the value, failing there --, then New stored as it is
+  ;;; where it is an atom, else New evaluated, its errors swipl's
+  ;;; '$syspreds':update_flag/3's (the row's), and the value set_flag/2
+  ;;; takes: an integer or a float, a rational type_error(flag_value, R)
+  ;;; named flag/3. So New may name Old: flag(K, N, N+1).
+  (func coco_b_flag_update ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (coco_flag k) (int rc . 0)
+              (size_t t . 0) (coco_flag * f . nil)
+              (int isf . 0) (i64 iv . 0) (double fv . 0.0)
+              (defer () coco_fl_unlock) (int held . 0))
+          (set rc (coco_fl_key e (coco_m_arg e g 0) (aof k) "get_flag" 2))
+          (if (!= rc 1) (return rc))
+          (pthread_mutex_lock (aof fl_mx))
+          (set held 1)
+          (set f (coco_fl_find (aof k) 1))
+          (if (== f nil) (return (coco_m_resource_error e "memory")))
+          (if (not (coco_fl_unify e (coco_m_arg e g 1) f)) (return 0))
+          (set t (coco_deref m (coco_m_arg e g 2)))
+          (if (and (coco-tag-is ATOM (nth t (-> m heap))) (not (coco_is_nil m t)))
+              (return (? (coco_fl_put f 0 (coco_atom_name m (coco_name_of m t)) 0 0.0) 1
+                         (coco_m_resource_error e "memory"))))
+          (set rc (coco_arith_top e t (aof isf) (aof iv) (aof fv)))
+          (if (== rc 3) (return (coco_type_error e "expression" t)))
+          (if (!= rc 1) (return rc))
+          (if (== isf 2)
+              (return (coco_raise_named e (coco_make2 m "type_error" (coco_new_atom m "flag_value")
+                                                      (coco_new_rat m (-> m arith_n) (-> m arith_d)))
+                                        "" "flag" 3)))
+          (if (not (? (== isf 0) (coco_fl_put f 2 nil iv 0.0) (coco_fl_put f 3 nil 0 fv)))
+              (return (coco_m_resource_error e "memory")))
+          (return 1)))
+
+  ;;; `'$flag_known'(+Key)', current_flag/1 of a key given: whether the
+  ;;; key was made, its errors system:current_flag/1's (swipl's
+  ;;; pl_current_flag()). Nothing is made.
+  (func coco_b_flag_known ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_flag k) (int rc . 0) (defer () coco_fl_unlock) (int held . 0))
+          (set rc (coco_fl_key e (coco_m_arg e g 0) (aof k) "current_flag" 1))
+          (if (!= rc 1) (return rc))
+          (pthread_mutex_lock (aof fl_mx))
+          (set held 1)
+          (return (? (== (coco_fl_find (aof k) 0) nil) 0 1))))
+
+  ;;; `'$flag_keys'(-Keys)', current_flag/1's walk: the keys in the order
+  ;;; they were made, a compound's name and arity a compound of fresh
+  ;;; arguments -- of none, the atom, as swipl's PL_unify_functor() binds
+  ;;; f/0 (`f()' is the key `f' there)
+  (func coco_b_flag_keys ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t l . 0) (size_t j . 0)
+              (defer () coco_fl_unlock) (int held . 0))
+          (pthread_mutex_lock (aof fl_mx))
+          (set held 1)
+          (set l (coco_new_nil m))
+          (set j fl_n)
+          (while (> j 0)
+            (set j (- j 1))
+            (let ((coco_flag * f . #'(aof (nth j fl_tab))) (size_t kt . 0))
+              (cond
+                ((== (-> f kk) 1) (set kt (coco_new_nil m)))
+                ((== (-> f kk) 2) (set kt (coco_new_int m (-> f ki))))
+                ((or (== (-> f kk) 0) (== (-> f ki) 0)) (set kt (coco_new_atom m (-> f kn))))
+                (#t
+                 (block
+                   (set kt (coco_push m (coco-cell FUN (coco_functor_id m (coco_intern m (-> f kn))
+                                                                       (cast u32 (-> f ki))))))
+                   (for ((i64 a . 0)) (< a (-> f ki)) ((++ a)) (coco_new_var m)))))
+              (set l (coco_cons m kt l))))
+          (return (coco_m_unify e (coco_m_arg e g 0) l))))
+
+  ;;; ---- shell/1,2 (3.70.0) -----------------------------------------------
+  ;;;
+  ;;; swipl's System() (pl-os.c): COMMAND, CVT_ALL text as getenv/2's, run
+  ;;; by /bin/sh -c (swipl's posix_shell flag's default; cocolog has no
+  ;;; such flag) in a child whose environment says PROLOGCHILD=yes, its
+  ;;; standard streams the process's 0, 1 and 2 -- so a capture of fd 1
+  ;;; takes its output in, as it takes library(process)'s (COMPAT.md) --
+  ;;; and nothing flushed first: swipl's user_output keeps its buffer too,
+  ;;; and a child's line comes before the text a pipe holds unwritten.
+  ;;; SIGINT is ignored and SIGTSTP the default while the child runs, each
+  ;;; put back after, and the status is the child's exit status, 0 to
+  ;;; 255. A child a signal ended raises error(shell(signal(N), Command),
+  ;;; context(shell/2, _)), as swipl's later releases do (9.0.4 printed
+  ;;; that its shell/2 `did not clear exception' and answered 1:
+  ;;; COMPAT.md); a spawn refused resource_error(memory) or system_error,
+  ;;; as swipl's refused fork(). It is a FOREIGN CALL
+  ;;; (`coco_g_foreign_begin'), as sleep/1 is: a green task that waits on
+  ;;; its child holds no write of the world's.
+  (func coco_b_shell ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (coco_strbuf cb) (int r . 0)
+              (int err . 0) (int st . 0) (pid_t pid . 0) (pid_t w . 0)
+              (char ** env . nil) (size_t ne . 0) (size_t j . 0) (size_t n . 0)
+              (char * argv [4]) (sigaction_t ign) (sigaction_t oint) (sigaction_t ostp))
+          (set r (coco_tx_get e (coco_m_arg e g 0) 31 (aof cb)))
+          (if (!= r 1) (return r))
+          ;; the environment, PROLOGCHILD=yes in place of any it says
+          (while (!= (nth ne environ) nil) (set ne (+ ne 1)))
+          (set env (cast (char **) (malloc (* (+ ne 2) (sizeof (char *))))))
+          (if (== env nil)
+              (block (coco_sb_free (aof cb)) (return (coco_m_resource_error e "memory"))))
+          (while (< j ne)
+            (if (!= 0 (strncmp (nth j environ) "PROLOGCHILD=" 12))
+                (block (set (nth n env) (nth j environ)) (set n (+ n 1))))
+            (set j (+ j 1)))
+          (set (nth n env) "PROLOGCHILD=yes")
+          (set (nth (+ n 1) env) nil)
+          (set (nth 0 argv) "sh")
+          (set (nth 1 argv) "-c")
+          (set (nth 2 argv) (cast (char *) (coco_tx_s (aof cb))))
+          (set (nth 3 argv) nil)
+          (coco_g_foreign_begin)
+          (set err (code "posix_spawn(&pid, \"/bin/sh\", NULL, NULL, argv, env)"))
+          (if (== err 0)
+              (block
+                (memset (aof ign) 0 (sizeof sigaction_t))
+                (sigemptyset (aof ($ ign sa_mask)))
+                (code "ign.sa_handler = SIG_IGN")
+                (sigaction SIGINT (aof ign) (aof oint))
+                (code "ign.sa_handler = SIG_DFL")
+                (sigaction SIGTSTP (aof ign) (aof ostp))
+                (set w (waitpid pid (aof st) 0))
+                (while (and (< w 0) (== errno EINTR)) (set w (waitpid pid (aof st) 0)))
+                (sigaction SIGINT (aof oint) nil)
+                (sigaction SIGTSTP (aof ostp) nil)))
+          (coco_g_foreign_end)
+          (free env)
+          (cond
+            ((!= err 0)
+             (block
+               (coco_sb_free (aof cb))
+               (if (== err ENOMEM) (return (coco_m_resource_error e "memory")))
+               (return (coco_raise_ctx e (coco_new_atom m "system_error")
+                                       (coco_ectx_pi m "" (coco_new_atom m "shell") 2
+                                                     (coco_new_atom m (strerror err)))))))
+            ((and (>= w 0) (WIFSIGNALED st))
+             (let ((size_t sa [1]) (size_t ca [2]))
+               (set (nth 0 sa) (coco_new_int m (cast i64 (WTERMSIG st))))
+               (set (nth 0 ca) (coco_make m "signal" 1 sa))
+               (set (nth 1 ca) (coco_new_atom m (coco_tx_s (aof cb))))
+               (coco_sb_free (aof cb))
+               (return (coco_raise_named e (coco_make m "shell" 2 ca) "" "shell" 2)))))
+          (coco_sb_free (aof cb))
+          (return (coco_m_unify_int e (coco_m_arg e g 1)
+                                    (? (and (>= w 0) (WIFEXITED st)) (cast i64 (WEXITSTATUS st)) 1)))))
 
   ;;; TAB EVALUATES ITS ARGUMENT (3.0.0), as swipl's
   ;;; PL_eval_expression_to_int64(): `tab(1+1)' writes two, `tab(a)' is

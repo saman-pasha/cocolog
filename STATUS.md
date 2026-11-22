@@ -21689,3 +21689,140 @@ directly too, by a build of the same md5: its 162 cases agree with swipl,
 this one among them), rationals, string, engine, errors, units, library,
 directives, script, repl, trace, cyclic and flowchart, each alone, green
 with no SKIP.
+
+## flag/3, get_flag/2, set_flag/2, current_flag/1 and shell/1,2 are swipl's (3.70.0)
+
+BACKLOG #266, the fourth group of COMPAT.md's small built-ins, the
+process's: through 3.69.1 cocolog had none of them, and a call raised
+existence_error. They are swipl 9.0.4's now.
+
+THE FLAGS (the `coco_fl_*` functions in lib/builtins-db.cicili, swipl's
+pl-flag.c and pl-rec.c's getKeyEx()):
+
+- one table of the PROCESS'S, as swipl's GD->flags is: every thread, green
+  task and isolated run reads and writes it, under one lock (`fl_mx`), and
+  no frozen machine carries it. A key and a value are kept as TEXT, never
+  a machine's id: a library(thread) thread has an atom table of its own.
+  The table is a hash of open addressing over the entries, which keep the
+  order they were made in;
+- a key is an atom, [] apart from '[]'; an integer swipl's cell tags,
+  within 2^56 either side (swipl 9.0.4's max_tagged_integer on 64 bits:
+  2^56 itself is type_error(key, 72057594037927936) there, and here); a
+  compound by its name and arity, `f(a)` the key `f(b)` is and `f()` apart
+  from `f`. Unbound instantiation_error, anything else -- a string, a
+  float, a rational -- type_error(key, K), each named by the predicate
+  asked: system:get_flag/2, system:set_flag/2, system:current_flag/1;
+- a key asked is a key made, worth 0, as swipl's lookupFlag() makes it:
+  get_flag/2 of a new key, flag/3 of one whose Old fails;
+- a value is an atom, [] apart from '[]', an integer of 64 bits or a float
+  (-0.0, an infinity and a NaN kept); a rational, a compound or a string
+  type_error(flag_value, V) and unbound instantiation_error, named flag/3
+  (swipl's PL_error("flag", 3, ...)). get_flag/2 unifies as swipl's
+  PL_unify_float() does: a float the argument holds already is compared
+  as a C double, so a flag of -0.0 is get_flag(K, 0.0) and a NaN no float;
+- flag/3 is boot/syspred.pl's two clauses: Old == New a get, else
+  `'$flag_update'/3`, swipl's second clause in one C call under the lock
+  (its with_mutex('$flag', _)): Old unified with the value, failing there
+  before New is asked; New stored as it is where it is an atom (`pi` stays
+  `pi`), else evaluated, its errors swipl's '$syspreds':update_flag/3's (a
+  :MAP row), and the value set_flag/2 takes (a rational named flag/3). No
+  Prolog runs while the lock is held: a unification, an evaluation and a
+  raise run none;
+- current_flag/1 of a key given asks the table and makes nothing, its
+  errors its own; with the key unbound it walks the keys made, a choice
+  point at each as swipl's C walk leaves one, `f()` walked as `f` (swipl's
+  PL_unify_functor() binds f/0 to the atom), in the order they were made
+  where swipl's walks its hash table (COMPAT.md).
+
+SHELL/1,2 (`coco_b_shell`, swipl's System() in pl-os.c): the command
+CVT_ALL text as getenv/2's, run by posix_spawn(3) of /bin/sh -c in a child
+whose environment says PROLOGCHILD=yes, nothing flushed first (a child's
+line comes before the text the output's buffer holds, as swipl's), SIGINT
+ignored and SIGTSTP the default while the child runs and each put back;
+the status the child's exit status; shell/1 shell/2's 0. A child a signal
+ended raises error(shell(signal(N), Command), context(shell/2, _)), said
+`Caught signal N on `Command'` by print_message/2 and by the engine's own
+text for an uncaught one (`coco_error_text`, messages.pl's two sentences):
+swipl 9.0.4 answered 1 there and said that its shell/2 `did not clear
+exception', and its later releases raise it (pl-sys.c's PL_exception(0)
+after System()) -- COMPAT.md. A spawn refused is resource_error(memory) or
+system_error with the system's reason. It is a FOREIGN CALL
+(`coco_g_foreign_begin`), as sleep/1 is, so a green task that waits on its
+child holds no write in the world; and a portal of the journal
+(`coco_jr_named`), so a replay answers it from its entry and runs no
+command. Its child writes to fd 1, which with_output_to/2's and `~@`'s
+captures and set_output/1 move: its output is captured where swipl's goes
+to user_output (COMPAT.md).
+
+THE CASE: test/files/system_flags.pl, 200 lines held to swipl 9.0.4 --
+keys, values, flag/3's update and errors, current_flag/1 and its walk over
+every key made (sorted: the walk's order is each system's), shell/1,2's
+statuses, texts, errors, the child's line before the buffer's, PROLOGCHILD
+and a SIGINT the child sends its parent, and the six as
+predicate_property/2, listing/1 and clause/2 see them -- equal to swipl's
+on the first run. Cocolog's own checks: test/thread.pl's `flags_shared` (a
+thread's set_flag/2 the main thread's get_flag/2, and four threads' 5 000
+flag/3 updates each 20 000), test/errors.pl's `shell_signalled` (the ball,
+SIGTERM's, the two sentences), test/async.pl's `fw_kind(shell, ...)` (a
+write is not held by a task in shell/2), test/journal.pl's `shelled` (one
+entry, shell/2's exit, and a replay that runs no command).
+
+THE RULES, each its own arm (one build of the final tree with the rule
+out), each red where it is held -- in the case but where a line says
+otherwise:
+
+- the keys: [] apart from '[]' (F1: one key, 3 lines); swipl's tagged
+  integers alone (F2: any integer, 5 lines); f() apart from f (F3: one
+  key, 2 lines); an unbound key instantiation_error (F4:
+  type_error(key, _), 3 lines); flag/3's key errors named get_flag/2
+  (F5: flag/3, 3 lines); a key asked a key made (F6: get_flag/2 makes
+  none, 5 lines);
+- the values: [] apart from '[]' (F7, 3 lines); a float bound already
+  compared as a C double (F8: unified, 2 lines, -0.0 and the NaN); the
+  value's errors named flag/3 (F9: set_flag/2, 5 lines); a rational
+  refused (F10: stored as the float it rounds to, 5 lines);
+- flag/3: an atom New stored as it is (F11: evaluated, 7 lines); its
+  evaluation errors '$syspreds':update_flag/3's (F12: no row, 7 lines);
+  Old unified before New is evaluated (F13: after, 14 lines); the read
+  and the store under one hold of the lock (F14: the lock given back
+  between them, test/thread.pl's four threads 15 000 where 20 000); Old
+  == New a get (F19: updated as any other, 2 lines, `flag(va, [], [])`
+  type_error(evaluable, []) and clause/2's first clause);
+- current_flag/1: f() walked as f (F15: as f(), 1 line, the walk's);
+  its errors its own (F16: named get_flag/2, 3 lines); a key given made
+  by nothing (F17: made, 5 lines);
+- shell/1,2: shell/1 the status 0 (F20: any status, 3 lines,
+  `shell(false)` true); the exit status (S1: the wait's word, 7 lines,
+  768 for 3); PROLOGCHILD=yes (S2: none, 1 line); SIGINT ignored while
+  the child runs (S3: left as it is, 23 lines: the child's `kill -INT
+  $PPID` ended the process, and the case's last lines with it); a child
+  a signal ended raised (S4: answered 1, test/errors.pl, five checks);
+  a foreign call (S5: none, test/async.pl's fixture held a write 1.8 s
+  for the child's 1.5); nothing flushed first (S6: flushed, 2 lines,
+  `beforechild` where swipl's child writes first); the command any text
+  (S7: an atom alone, 7 lines, codes, characters and a string); the
+  error in messages.pl's sentence (S8: none, test/errors.pl's uncaught
+  line, `Unknown error term`); a portal of the journal (S9: none,
+  test/journal.pl: no entry recorded, and the replay ran the command
+  again, its mark written twice).
+
+S8 was green at first: the check for the uncaught error's text looked for
+a piece of print_message/2's line, which says the same sentence, so it
+held without the engine's own words. It holds the `-s main` line now, and
+S8 is red on it.
+
+WHAT IT COSTS: nothing on the engine's paths. tools/flow/zero.sh against
+3.69.1, work less padding: nrev 65 960 015 (-35), queens 39 969 852 (+33),
+lookup 48 096 181 (+3 171, +0.007 %). A start (`cocolog query true`)
+counts 35 498 233 against 35 515 455, 17 222 fewer (-0.05 %): cocolog's
+own functions +50 438 (the five clauses its builtins read more, flag/3's
+two, current_flag/1's two and shell/1), ld.so +2 376 (posix_spawn,
+sigaction and the wait resolved), and libc -70 491, its strcmp counting by
+where the string literals the new code moved now fall.
+
+THE RUN, on the final binary: the lint case first, then files, thread,
+errors, journal, async, flowchart, library, engine, script, trace, window,
+flowdebug, signal, repl, process, directives, stream and units, and the
+seven test binaries (term, syntax, solve, module, state, and zigurat and
+shared with a server up), each alone, green with no SKIP, the binary's
+md5 the same before and after; the dialect card's 33 cites all anchored.

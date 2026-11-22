@@ -439,6 +439,9 @@ fw_common([
 %% the wait (w_block) and what ends it where somebody must (w_after)
 fw_kind(sleep, 'sleep/1', [],
         [ 'w_prep(_).', 'w_block(_) :- sleep(1.5).', 'w_after.' ]).
+%% shell/2's wait for its child (3.70.0)
+fw_kind(shell, 'shell/2', [],
+        [ 'w_prep(_).', 'w_block(_) :- shell(''sleep 1.5'', _).', 'w_after.' ]).
 fw_kind(accept, 'tcp_accept/4', [tcp],
         [ ':- use_module(library(tcp)).',
           'w_prep(S) :- getenv(''W_SOCK'', P), tcp_listen(unix(P), S).',
