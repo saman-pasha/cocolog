@@ -22860,3 +22860,115 @@ corrected. The dialect card's 33 cites are all anchored: I1's, whose anchor
 repeats in lib/kb.cicili, and nine others (R2's two, H2's, D4's, C3's,
 L1's, X3's, T1's and T2's) moved with the lines above them, and their lines
 are corrected.
+
+## aggregate_all/3's count(T), and a bag or a set over T^G, are swipl's (3.75.0)
+
+A minor, as 3.65.0's was: a program's answer changes. Through 3.74.0
+`aggregate_all(count(X), G, C)` counted G's solutions, where swipl
+9.0.4's own library answers something else; and a bag or a set over a
+goal `T^G` raised an unknown procedure, where swipl's answers.
+
+WHAT THE NATIVE ONE ANSWERS (lib/builtins.cicili, `coco_b_aggregate_all`).
+The C half answers what swipl's specific clauses answer -- count, sum(T),
+max(T), min(T), max(T, W) and min(T, W), each calling the goal as it
+stands -- and bag(T) and set(T) over a goal that is no T^G, which swipl's
+general clause collects with findall/3, and sort/2 for a set. Everything
+else it declines to the vendored library's general clause. That clause is
+lib/swipl/aggregate.pl, swipl 9.0.4's own file byte for byte:
+
+- count(T), a compound named count whose argument is a template. swipl's
+  templ_to_pattern/5 has no rule for count/1, so the term is a template of
+  templates, and an unbound T unifies with the head of the first rule,
+  sum(X), whose pattern is X:
+  - `aggregate_all(count(X), member(X, [a, b, a]), C)` binds X to sum(_),
+    finds no solution of member(sum(_), [a, b, a]), and answers count(0);
+  - `aggregate_all(count(X), q(X), 3)` fails;
+  - count(1) is type_error(aggregate_template, 1);
+  - count(f(X)) is domain_error(aggregate_template, f(_)), and count(q)
+    domain_error(aggregate_template, q);
+  - count(count) answers count(N), count(sum(X)) count(Sum), and
+    count(bag(X)) count(List);
+  - count(_) over solutions that leave `_` unbound raises is/2's
+    instantiation_error, the sum of an unbound variable.
+- a bag or a set over T^G, the goal's qualifiers off first (`user:(X^G)`,
+  `_:(X^G)`; `coco_agg_hat`): the general clause's existential_vars//2
+  takes the `^` off before its findall/3. Through 3.74.0 the native one
+  ran X^G as a goal, an unknown procedure (^)/2. sum, max, min and count
+  over T^G stay that error, in context aggregate:aggregate_all/3, as
+  swipl's specific clauses call the goal as it stands.
+
+Nothing in the tree used either shape: the lessons and libraries count
+with `count`.
+
+UNDER A DEPTH LIMIT, FOUND ON THE WAY. 3.74.0's depth row gave
+aggregate_all/3 one need a spec (2 for count, 1 for sum, max and min, 7
+for any other compound), and the C answered under it, so a spec it refused
+was raised at the call's own level, where swipl's raisers are frames below
+it. The least limit at which each goal raised:
+
+| goal | swipl 9.0.4 | 3.74.0 |
+|---|---|---|
+| `aggregate_all(foo, f, _)`, and `[]` or `1` for the spec | 6 | 1 |
+| `aggregate_all(_, f, _)` | 3 | 1 |
+| `aggregate_all(sum(_), 3, _)` | 1 | 2 |
+| `aggregate_all(count, _, _)` | 2 | 3 |
+| `aggregate_all(max(x, _), f, _)` | 3 | 2 |
+
+Since 3.75.0 the C declines everything to the vendored clauses under a
+limit (`coco_depth_mode`), as sum_list/2 and its kin have since 3.74.0.
+The clauses are swipl's own, so every frame is swipl's:
+
+- a refused spec takes its raisers' frames (invalid_template/1,
+  domain_error/2, throw/1);
+- call/1 of a goal that is no goal raises with no frame;
+- a witness that is no number takes type_error/2's frame and throw/1's.
+
+The row is gone, and with it five of the depth names (aggregate_all,
+count, sum, max, min).
+
+HELD:
+- test/files/aggregate.pl, 71 lines to swipl 9.0.4 byte for byte: 32
+  count(T) shapes (`counts`) and 23 over T^G (`hats`), beside the 16
+  lines it held;
+- test/files/depth_limit.pl, 307 lines to swipl (278 in 3.74.0): 29
+  aggregate_all/3 goals at each limit from 0 to 9. They cover count(T),
+  the bags and sets over T^G, the refused specs and goals, and the
+  specific clauses over several answers.
+
+FIVE RULES, EACH TAKEN OUT IN A BUILD OF ITS OWN on the final code. Each
+made a check red; the lines that differ from swipl's are in brackets:
+- count(T) answered by the C again, counting (C1: aggregate, 27);
+- a bag or a set over T^G answered by the C, the goal run as it stands
+  (H1: aggregate, 15);
+- the `^` test taking no qualifier off (Q1: aggregate, 2);
+- no decline under a depth limit (D1: depth_limit, 14);
+- 3.74.0's row kept, the C declining under it (R1: depth_limit, 2). The
+  row failed sum(_) over 3 and count over an unbound goal at the port, a
+  level short.
+
+The `^` test's bound of 1024 qualifiers has no arm. It is a guard, not a
+rule: it keeps a goal cyclic through its qualifiers (`G = user:G`) from
+looping in the test, and no answer turns on it. Such a goal still runs
+for ever in findall/3, before and after the test, as it did in 3.74.0
+(CLAUDE.md's cyclic-term bullet: call/1 of a cyclic goal is not swipl's
+yet). swipl 9.0.4's call/1 raises type_error(acyclic_term, G) for it,
+and its findall/3 ends with a SIGSEGV.
+
+COST. The untraced engine runs 3.74.0's instructions to the last one
+(tools/flow/zero.sh, the two in one invocation, work and padding alike):
+nrev 69 779 369, queens 42 155 798, lookup 50 299 602. A start counts 522
+instructions more, 36 561 280 against 36 560 758 (+0.001 %), from layout.
+A count(T) or a bag over T^G now runs the library's general clause, at
+swipl's cost. The shapes the C answers cost what they did, plus one walk
+of a bag's or a set's goal qualifiers.
+
+THE RUN, on the binary committed: the lint case first, then:
+- files (aggregate and depth_limit with every other fixture, held to swipl
+  9.0.4);
+- engine, errors, library, trace, flowchart, gc, units, cyclic, script,
+  directives, thread, async and store-lock;
+- the solve binary;
+- lessons basics/06, 11 and 13 and library/10, each alone.
+
+All were green with no SKIP, and the binary's md5 was the same before and
+after. The dialect card's 33 cites are all anchored.

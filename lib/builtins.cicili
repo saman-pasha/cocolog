@@ -1895,18 +1895,46 @@
           (if abad (return (coco_m_goal_bad e (coco_m_arg e g 1) "$apply" "forall" 2)))
           (return 0)))
 
-  ;;; `aggregate_all(Spec, Goal, Result)'. count, count(T), sum(T), max(T),
-  ;;; min(T), bag(T) and set(T) -- the seven SWI documents for the form that
-  ;;; does not group. Any other compound is a template of templates,
-  ;;; `r(count, sum(X))', `bag(X)-count', and declined to the vendored
+  ;;; WHETHER GOAL G, its qualifiers off -- each `M:', whatever M -- is
+  ;;; T^G0 (3.75.0): swipl's general clause takes the `^' off
+  ;;; (existential_vars//2) before its findall/3, where its specific ones
+  ;;; call the goal as it stands
+  (static)
+  (func coco_agg_hat ((coco_machine * m) (size_t g)) (out int)
+        (let ((size_t s . #'(coco_deref m g)) (u32 hops . 0))
+          (while (and (coco_is_compound2 m s ":") (< hops 1024))
+            (set s (coco_deref m (coco_arg m s 1)))
+            (set hops (+ hops 1)))
+          (return (coco_is_compound2 m s "^"))))
+
+  ;;; `aggregate_all(Spec, Goal, Result)': swipl 9.0.4's specific clauses
+  ;;; -- count, sum(T), max(T), min(T), max(T, W), min(T, W), each calling
+  ;;; the goal as it stands -- and bag(T) and set(T), which its general
+  ;;; clause answers with findall/3 and, for set, sort/2. Any other
+  ;;; compound is a template of templates and declined to the vendored
   ;;; library's own clause (3.0.0, the `:declines' row), which answers it
-  ;;; and names a part that is none as swipl does (`f(x)' names x).
+  ;;; and names a part that is none as swipl does (`f(x)' names x): count(T)
+  ;;; among them since 3.75.0, which swipl's general clause reads as a term
+  ;;; named count whose argument is a template -- an unbound T unified with
+  ;;; sum(_), the answer count(Sum) -- where through 3.74.0 it counted the
+  ;;; solutions; and a bag or a set whose goal is T^G0, the general clause's
+  ;;; to take the `^' off (through 3.74.0 the goal ran with it, an unknown
+  ;;; procedure (^)/2).
   (func coco_b_aggregate_all ((coco_engine * e) (size_t g) (int * found)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t spec . #'(coco_m_arg e g 0))
               (size_t goal . #'(coco_m_arg e g 1))
               (size_t tmpl) (const char * what)
               (size_t lst . 0) (size_t * v . nil) (size_t n . 0))
+
+          ;; UNDER A DEPTH LIMIT THE VENDORED CLAUSES ANSWER ALL OF IT
+          ;; (3.75.0, `coco_depth_mode'): they are swipl 9.0.4's own, so
+          ;; their frames are swipl's -- a spec's refusal is its raiser's
+          ;; frames down (invalid_template/1, domain_error/2), a goal that is
+          ;; no goal raises at call/1 with none -- where through 3.74.0 this
+          ;; C answered under the row's one need a spec, raising a refusal
+          ;; at the call's own level
+          (if (coco_depth_mode e) (block (coco_m_decline e) (set (cof found) 0) (return 0)))
 
           ;; A SPEC THAT IS NONE is swipl's error, with no context as its
           ;; library raises it (3.0.0; domain_error(aggregate_spec, S) through
@@ -1937,9 +1965,12 @@
                 (set tmpl (coco_make2 m "-" (coco_arg m spec 0) (coco_arg m spec 1)))
                 (set what (? (== 0 (strcmp what "max")) "max2" "min2")))
                ((and (== (coco_arity m spec) 1)
-                     (or (or (== 0 (strcmp what "count")) (== 0 (strcmp what "sum")))
-                         (or (or (== 0 (strcmp what "max")) (== 0 (strcmp what "min")))
-                             (or (== 0 (strcmp what "bag")) (== 0 (strcmp what "set"))))))
+                     (or (or (== 0 (strcmp what "sum")) (== 0 (strcmp what "max")))
+                         (== 0 (strcmp what "min"))))
+                (set tmpl (coco_arg m spec 0)))
+               ((and (== (coco_arity m spec) 1)
+                     (or (== 0 (strcmp what "bag")) (== 0 (strcmp what "set")))
+                     (not (coco_agg_hat m goal)))
                 (set tmpl (coco_arg m spec 0)))
                (#t (block (coco_m_decline e) (set (cof found) 0) (return 0))))))
 
@@ -1952,13 +1983,11 @@
             (if bad (return bad)))
 
           ;; an unknown procedure at the search's root is findall_loop/4's
-          ;; for bag, set and count(T), which swipl's general clause
-          ;; collects with findall/3, and aggregate_all/3's for the rest
+          ;; for bag and set, which swipl's general clause collects with
+          ;; findall/3, and aggregate_all/3's for the rest
           (let ((int fr . #'(coco_engine_findall e tmpl goal (aof lst) (aof g)
-                                                 (? (or (or (== 0 (strcmp what "bag"))
-                                                            (== 0 (strcmp what "set")))
-                                                        (and (== 0 (strcmp what "count"))
-                                                             (not (coco_m_is_atom e spec))))
+                                                 (? (or (== 0 (strcmp what "bag"))
+                                                        (== 0 (strcmp what "set")))
                                                     1 3))))
             (if (== fr 2) (return 2))
             (if (not fr) (return -1)))

@@ -244,7 +244,33 @@ builtins :-
                       must_be(oneof([a, b]), c), must_be(var, a), must_be(acyclic, _),
                       must_be(nosuchtype, a), is_of_type(integer, a), must_be(callable, 3),
                       must_be(atom, f(x))]),
-           d(e, G, 9)).
+           d(e, G, 9)),
+    %% aggregate_all/3's general clause, the library's own (3.75.0):
+    %% count(T) a term of templates, and a bag or a set over T^G
+    forall(member(G, [aggregate_all(count(X2), member(X2, [a]), _),
+                      aggregate_all(count(_), fail, _), aggregate_all(count(X3), f1(X3), _),
+                      aggregate_all(count(f(_)), f, _), aggregate_all(count(1), f, _),
+                      aggregate_all(count(X4), X4^f1(X4), _),
+                      aggregate_all(count(X5), (f1(X5), g), _),
+                      aggregate_all(r(count(_), sum(1)), f, _),
+                      aggregate_all(bag(X6), X6^f1(X6), _),
+                      aggregate_all(set(X7), Y7^member(X7-Y7, [a-1, a-2]), _),
+                      aggregate_all(bag(X8), _:(X8^f1(X8)), _),
+                      aggregate_all(bag(X9), X9^Y9^member(X9-Y9, [a-1]), _),
+                      aggregate_all(bag(X10), X10^g, _), aggregate_all(set(x), _^g, _),
+                      %% a spec or a goal refused, by the raiser's frames
+                      aggregate_all(foo, f, _), aggregate_all([], f, _), aggregate_all(1, f, _),
+                      aggregate_all(_, f, _), aggregate_all(count(a, b), f, _),
+                      aggregate_all(sum(_), 3, _), aggregate_all(bag(_), 3, _),
+                      aggregate_all(count, _, _), aggregate_all(max(_), f, _),
+                      aggregate_all(max(x, _), f, _),
+                      %% the specific clauses over several answers
+                      aggregate_all(count, member(_, [a, b]), _),
+                      aggregate_all(sum(X11), member(X11, [1, 2]), _),
+                      aggregate_all(max(X12), member(X12, [1, 3, 2]), _),
+                      aggregate_all(min(X13, W13), member(X13-W13, [2-a, 1-b]), _),
+                      aggregate_all(max(X14, W14), member(X14-W14, [1-a, 3-b]), _)]),
+           d(a, G, 9)).
 
 lists :-
     forall(member(G, [nth0(0, [a,b,c], _), nth0(2, [a,b,c], _), nth0(5, [a,b,c], _),

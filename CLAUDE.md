@@ -3483,13 +3483,15 @@ into its `at_modules/1`. What a session must keep:
   row is a frame with a computed need** (`coco_depth_row`: an engine row or
   a compiled-in module's, asked as the tracer asks them,
   `coco_sysclaims_hook`, never one the program took over): the frames
-  swipl's code for it runs below it -- findall/3's six, aggregate_all/3's by
-  its template, memberchk/2's, nth0/3's and the declarations' by their
-  arguments -- and a row whose C answers what swipl's clauses walk declines
-  under a limit (`coco_depth_mode`) to swipl's clauses (sum_list/2,
-  max_list/2, min_list/2, numlist/3), so **a new C row of what swipl writes
-  as clauses gets a line in `coco_depth_row` or declines**, or its depth is
-  1. A nested engine (findall/3, forall/2, with_output_to/2) is armed by its
+  swipl's code for it runs below it -- findall/3's six, memberchk/2's,
+  nth0/3's and the declarations' by their arguments -- and a row whose C
+  answers what swipl's clauses walk declines under a limit
+  (`coco_depth_mode`) to swipl's clauses (sum_list/2, max_list/2,
+  min_list/2, numlist/3, and since 3.75.0 aggregate_all/3, whose vendored
+  clauses are swipl's own file: 3.74.0's row for it raised a refused spec
+  at the call's own level, where swipl's raisers are frames below it), so
+  **a new C row of what swipl writes as clauses gets a line in
+  `coco_depth_row` or declines**, or its depth is 1. A nested engine (findall/3, forall/2, with_output_to/2) is armed by its
   narrow, its goal's owner the level its starter's step left (`dsub`,
   `dsk`, `droot`), and its first step asked before its loop
   (`coco_depth_first`); setup_call_cleanup/3's machinery is no frame (every

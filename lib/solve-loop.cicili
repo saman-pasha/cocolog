@@ -61,8 +61,8 @@
 ;;; builtins of the builtins module's table, which has no dispatch id:
 ;;; interned once a machine into `dlids' (`coco-dl-ids-fill')
 (DEFPARAMETER *depth-names*
-  '("findall" "forall" "aggregate_all" "with_output_to" "format" "length" "memberchk"
-    "nb_setval" "count" "sum" "max" "min" "nth0" "nth1" "last" "reverse"
+  '("findall" "forall" "with_output_to" "format" "length" "memberchk"
+    "nb_setval" "nth0" "nth1" "last" "reverse"
     "garbage_collect" "working_directory" "string_to_atom" "$numlist" "$ssu_none"
     "dynamic" "discontiguous" "multifile" "$declare" "as" "$cleanup_call" "$c_setup"))
 ;;; 32 is the machine's `dlids'
@@ -3094,12 +3094,14 @@
 
   ;;; WHAT A BUILTIN'S OWN FRAMES TAKE, by a row of each swipl writes with
   ;;; frames of its own inside (findall/3 over '$bags':findall_loop/4,
-  ;;; library(aggregate), with_output_to/2's callProlog()), measured against
-  ;;; swipl 9.0.4 (test/files/depth_limit.pl): NEED the deepest of them
-  ;;; below the builtin's frame -- past the limit the builtin fails before
-  ;;; it runs -- and for a search it starts, OFF its goal's owner's level
-  ;;; below the frame and KIND how the goal is called (`coco_limit_narrow':
-  ;;; 1 a meta-call, 2 swipl's C's, 3 forall/2's two)
+  ;;; with_output_to/2's callProlog()), measured against swipl 9.0.4
+  ;;; (test/files/depth_limit.pl): NEED the deepest of them below the
+  ;;; builtin's frame -- past the limit the builtin fails before it runs --
+  ;;; and for a search it starts, OFF its goal's owner's level below the
+  ;;; frame and KIND how the goal is called (`coco_limit_narrow': 1 a
+  ;;; meta-call, 2 swipl's C's, 3 forall/2's two). aggregate_all/3 has no
+  ;;; row since 3.75.0: under a limit its C declines to the vendored
+  ;;; clauses, swipl's own, whose frames count themselves
   (static)
   (func coco_depth_row ((coco_engine * e) (size_t g) (u64 nid) (u32 n) (u32 * need) (u32 * off)
                         (int * kind))
@@ -3112,18 +3114,6 @@
             ((and (== n 3) (== nid (coco-dlid m "findall"))) (block (set (cof need) 6) (set (cof off) 4)))
             ((and (== n 4) (== nid (coco-dlid m "findall"))) (block (set (cof need) 5) (set (cof off) 3)))
             ((and (== n 2) (== nid (coco-dlid m "forall"))) (set (cof kind) 3))
-            ((and (== n 3) (== nid (coco-dlid m "aggregate_all")))
-             (let ((size_t s . #'(coco_deref m (coco_arg m g 0))))
-               (cond
-                 ((coco-tag-is ATOM (nth s (-> m heap)))
-                  (if (== (cast u64 (coco-payload (nth s (-> m heap)))) (coco-dlid m "count"))
-                      (block (set (cof need) 2) (set (cof off) 1))))
-                 ((coco-tag-is FUN (nth s (-> m heap)))
-                  (let ((u64 sn . #'(coco_name_of m s)))
-                    (if (or (== sn (coco-dlid m "sum")) (== sn (coco-dlid m "max"))
-                            (== sn (coco-dlid m "min")))
-                        (set (cof need) 1)
-                        (block (set (cof need) 7) (set (cof off) 5))))))))
             ((and (== n 2) (== nid (coco-dlid m "with_output_to")))
              (block (set (cof off) 1) (set (cof kind) 2)))
             ((and (or (== n 2) (== n 3)) (== nid (coco-dlid m "format")))

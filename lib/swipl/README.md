@@ -59,20 +59,23 @@ meaningful. Everything these files needed was built in cocolog instead:
 | `copy_term_nat/2`, `instantiation_error/1`, `strip_module/3`, `compound_name_arguments/3`, `cyclic_term/1`, `acyclic_term/1` | `lib/builtins.cicili` -- yall.pl's runtime path. `copy_term_nat` IS `copy_term` here (no attributed variables), and `cyclic_term` answers no, consistently with an engine that assumes acyclic terms throughout |
 | `'>>'(?, 0)` after a prefix operator | the reader: a quoted name, or any name with `(` right against it, begins an operand -- `coco_starts_term` in `lib/syntax.cicili` said no to infix-only names and mis-read yall's `meta_predicate` block as `>>`/2 |
 | `:- dynamic system:goal_expansion/2` | the qualifier peels off in `coco_dynamic_spec`, the same rule a qualified clause head follows |
-| `max(Expr, Witness)`, `min(Expr, Witness)` | added to the NATIVE `aggregate_all/3` in `lib/builtins.cicili`, which shadows the vendored clauses (builtins dispatch ahead of the store) -- the incremental `nb_setarg' paths in aggregate.pl are therefore never reached, which is as well: cocolog has no non-backtrackable assignment |
+| `max(Expr, Witness)`, `min(Expr, Witness)` | added to the NATIVE `aggregate_all/3` in `lib/builtins.cicili`, which shadows the vendored clauses (builtins dispatch ahead of the store) -- the incremental `nb_setarg' paths in aggregate.pl are therefore never reached. The native one answers what swipl's specific clauses answer (count, sum, max, min and the two witness forms) and a bag or a set over a goal that is no `T^G`; anything else -- count(T) and any other template of templates, a bag or a set over `T^G` -- it declines to the vendored general clause (3.75.0) |
 | `error:has_type(assoc, _)` (a module-qualified clause head) | the qualifier is stripped on assert -- one namespace |
 | `:- module`, `:- use_module`, `:- autoload`, `:- meta_predicate`, `:- multifile` | accepted and ignored by `coco_directive` in `lib/kb-pred.cicili` |
 | `:- set_prolog_flag(generate_debug_info, false)` | accepted and ignored: cocolog never generates what it asks to switch off |
 
-**Known divergences, recorded rather than papered over.**
-`aggregate_all(count(Expr), Goal, R)`: SWI 9.0.4 reads the compound
-template through its nested-template rules and answers `count(0)`;
-cocolog's native builtin reads it as "count the solutions" -- which is
-what SWI's own documentation says -- and answers their number. Nothing in
-cocolog or its tests uses that shape; test/files/aggregate.pl covers
-everything both systems agree on. `foreach/2` (exported by aggregate.pl)
-runs since 3.19.0, over the `'$unbind_template'/1` built for it
-(test/files/vendored.pl); through 3.18.0 it raised existence_error.
+**Known divergences, recorded rather than papered over -- and the ones
+closed.** `aggregate_all(count(Expr), Goal, R)` is SWI 9.0.4's since
+3.75.0: the native builtin declines it to the vendored general clause,
+which reads the compound template through its nested-template rules --
+an unbound Expr is `sum(_)`, the answer `count(Sum)` -- where through
+3.74.0 it counted the solutions, as SWI's own documentation says count/1
+does; so is a bag or a set over a goal `T^G`, whose `^` the general
+clause takes off (through 3.74.0 the goal ran as it stood, an unknown
+procedure (^)/2). test/files/aggregate.pl holds both to swipl.
+`foreach/2` (exported by aggregate.pl) runs since 3.19.0, over the
+`'$unbind_template'/1` built for it (test/files/vendored.pl); through
+3.18.0 it raised existence_error.
 
 **`:- module/2`'s export list is ignored**, because cocolog has one namespace.
 Every predicate in these files is callable, including the ones upstream keeps
