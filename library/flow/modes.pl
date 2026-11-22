@@ -307,6 +307,10 @@ flow_mode('$flag_known', 1, ['+'], semidet).
 flow_mode('$flag_keys', 1, ['-'], det).
 %% shell/2 (3.70.0): the command's exit status
 flow_mode(shell, 2, ['+', '-'], det).
+%% collation_key/2 (3.76.0): an atom's key, the string its text is; a key
+%% given is compared as a term
+flow_mode(collation_key, 2, ['+', '-'], det).
+flow_mode(collation_key, 2, ['+', '+'], semidet).
 %% the halt's hooks (3.71.0): one added, the hooks as they stand, one that
 %% has run taken away
 flow_mode('$at_halt_add', 3, ['+', '+', '+'], det).

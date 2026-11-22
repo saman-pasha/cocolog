@@ -143,6 +143,8 @@
     ("$flag_known"             1 coco_b_flag_known)
     ("$flag_keys"              1 coco_b_flag_keys)
     ("shell"                   2 coco_b_shell)
+    ;; library(sort)'s locale_sort/2 keys its atoms with it (3.76.0)
+    ("collation_key"           2 coco_b_collation_key)
     ;; the halt's hooks (3.71.0); at_halt/1, cancel_halt/1 and the run are
     ;; clauses over them (the Prolog half)
     ("$at_halt_add"            3 coco_b_at_halt_add)

@@ -7,7 +7,8 @@
 %% (lib/solve-loop.cicili):
 %%
 %% *swipl-transparent*: every predicate of swipl's module `system', and of
-%% the libraries cocolog carries compiled in or reads at start-up, that
+%% the libraries cocolog carries compiled in, reads at start-up or reads
+%% when a program asks (library(sort), 3.76.0), that
 %% swipl marks transparent -- a meta-predicate, or one module_transparent/1
 %% named (pl-proc.c's P_TRANSPARENT). swipl's last call to such a predicate,
 %% where it takes the caller's frame over, clears the frame's determinism
@@ -32,12 +33,13 @@
 :- use_module(library(yall)).   % cocolint: T1 -- swipl runs this file, and loads the library to read its predicates
 :- use_module(library(aggregate)).   % cocolint: T1 -- swipl runs this file, and loads the library to read its predicates
 :- use_module(library(ugraphs)).   % cocolint: T1 -- swipl runs this file, and loads the library to read its predicates
+:- use_module(library(sort)).
 :- use_module(library(dcg/basics)).
 :- use_module(library(dcg/high_order)).
 :- use_module(library(error)).
 
 modules([system, lists, apply, assoc, pairs, ordsets, yall, aggregate, ugraphs,
-         dcg_basics, dcg_high_order, error]).
+         dcg_basics, dcg_high_order, error, sort]).
 
 main :-
     findall(N-A, transparent_pred(N, A), T0),

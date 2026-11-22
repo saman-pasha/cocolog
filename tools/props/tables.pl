@@ -22,6 +22,7 @@
 :- use_module(library(ordsets)).   % cocolint: T1 -- swipl runs this file, and loads the library to read its predicates
 :- use_module(library(yall)).   % cocolint: T1 -- swipl runs this file, and loads the library to read its predicates
 :- use_module(library(ugraphs)).   % cocolint: T1 -- swipl runs this file, and loads the library to read its predicates
+:- use_module(library(sort)).
 :- use_module(library(dcg/basics)).
 :- use_module(library(dcg/high_order)).
 :- use_module(library(error)).
@@ -29,7 +30,7 @@
 
 library_module(M) :-
     member(M, [lists, apply, aggregate, assoc, pairs, ordsets, yall, ugraphs,
-               dcg_basics, dcg_high_order, error, prolog_listing]).
+               dcg_basics, dcg_high_order, error, prolog_listing, sort]).
 
 %% WHAT COCOLOG DEFINES THAT swipl's AUTOLOADER BRINGS FROM A LIBRARY
 %% COCOLOG DOES NOT CARRY (3.48.0): their rows say where swipl's come from,

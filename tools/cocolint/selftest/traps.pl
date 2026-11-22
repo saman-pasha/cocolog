@@ -78,8 +78,9 @@ selftest_main :-
     %% call of open/3 loads library(stream), as swipl's autoloader would)
 
     %% ---- X3: absent, deliberately, so ported code errors --------------
-    %% (setup_call_cleanup/3 left the row at 3.1.0, numbervars/3 at 3.40.0)
-    predsort(compare, [b, a], _),   % cocolint: X3 -- walked into on purpose
+    %% (setup_call_cleanup/3 left the row at 3.1.0, numbervars/3 at 3.40.0,
+    %% predsort/3 at 3.76.0)
+    freeze(_F3, true),   % cocolint: X3 -- walked into on purpose
 
     %% ---- P1: ten flags answer, and this is none of them ---------------
     current_prolog_flag(occurs_check, _B),   % cocolint: P1 -- walked into on purpose

@@ -22972,3 +22972,153 @@ THE RUN, on the binary committed: the lint case first, then:
 
 All were green with no SKIP, and the binary's md5 was the same before and
 after. The dialect card's 33 cites are all anchored.
+
+## predsort/3 and locale_sort/2 are swipl's own library(sort) (3.76.0)
+
+A minor: three predicates a program can call, where through 3.75.0
+each was an unknown procedure -- `predsort/3`, `locale_sort/2` and the
+`collation_key/2` the second keys its atoms with. cocolint's card said so
+(row X3, "not there at all"), and COMPAT.md listed library(sort) among
+swipl's Prolog libraries cocolog could carry as it stood.
+
+THE LIBRARY IS SWIPL'S FILE. lib/swipl/sort.pl is swipl 9.0.4's
+library/sort.pl byte for byte (md5 2ee15f29b98c719ec841506d5dfb4fee,
+116 lines; lib/swipl/README.md has the row). It is NOT preloaded:
+lb_always reads the eight vendored libraries every start pays for, and
+library(sort) is read when a program asks --
+- by `use_module(library(sort))`, as any library on the path is;
+- or by the first call of one of its exports, as swipl's autoloader does
+  (3.66.0's lb_autoload). lib/autoload.cicili rows predsort/3 and
+  locale_sort/2 beside library(stream)'s, library(thread)'s and
+  library(signal)'s names: tools/autoload/tables.pl reads the exports of
+  each library its new at_libraries/1 names from the file's module/2
+  (`at_libraries([sort])`), so a vendored library's names are its own
+  file's, never a list kept by hand.
+
+What the file's clauses do is swipl's, mistakes included:
+- predsort/3 calls `call(P, Delta, A, B)` for each pair it merges, drops
+  the second of two elements its comparator calls `=`, and gives a
+  comparator's second answer as a second sort (it is not
+  deterministic: `$(predsort(nd, [a, b], _))` raises the determinism
+  error swipl's raises);
+- a list that is no proper list is `must_be(L, list)`, its arguments the
+  other way round in swipl's own source, so `[a|b]` raises
+  existence_error(type, [a|b]), a partial list `[b, a|_]`
+  existence_error(type, [b, a|_]) and an unbound one instantiation_error;
+- a comparator nothing defines is an unknown procedure only where the
+  merge calls it, in sort:predsort/5's context: `predsort(nosuch, [a],
+  L)` gives `[a]`;
+- locale_sort/2 walks its list with collation_keys/2, so an atom that is
+  no list fails (`locale_sort(foo, L)`), an unbound list is `[]` and a
+  partial one is closed (`locale_sort([a|_], L)` gives `[a]`).
+
+collation_key/2 IS C, in the builtins module (lib/builtins-db.cicili,
+`coco_b_collation_key`; its row in lib/builtins.cicili, its context in
+`*error-contexts*`, its modes in library/flow/modes.pl): the text as a
+string, swipl's key under LC_COLLATE C and C.UTF-8, where wcsxfrm() hands
+the text back. The text is an atom's or a string's (swipl's
+CVT_ATOM|CVT_STRING, `coco_tx_get` 21): a number, a list or a compound is
+type_error(atom, T), an unbound one instantiation_error, each in
+system:collation_key/2's context; a key given is compared as a term, so
+`collation_key(b, b)` fails, as swipl's does. cocolog has no locales, so
+locale_sort/2 sorts by code points whatever LANG says (COMPAT.md's new
+row): `locale_sort([b, a, 'B'], L)` is `['B', a, b]`.
+
+WHAT ELSE KNOWS THE NAMES, each generated, never edited:
+- lib/swipl-props.cicili (tools/props/tables.pl, run again under the
+  reference swipl with library(sort) loaded): predsort/3 imported_from
+  sort, meta_predicate(predsort(3, +, -)), transparent; locale_sort/2
+  imported_from sort; and the six helpers swipl's user does not see
+  (predsort/5, predmerge/4,7, sort2/4, collation_keys/2, unkey/2) rows of
+  flag 4096, so predicate_property/2 answers nothing of them -- no
+  property of predmerge/4, no number_of_clauses of collation_keys/2 --
+  as swipl's does, though one namespace holds their clauses
+  (current_predicate/1 fails of them with or without the rows: a
+  library's clauses are no program's). 1 165 rows, 297 hidden.
+- lib/swipl-det.cicili (tools/det/tables.pl): predsort/3 among the
+  transparent predicates, as swipl marks it. 201 transparent.
+
+NOT SWIPL'S, two rows of COMPAT.md that name library(sort) now:
+- a first call made while another thread runs an engine -- a
+  library(thread) thread, a green world's workers -- is the unknown
+  procedure it was, the registry being the process's and unguarded; load
+  it with use_module/1 before the threads start, as for library(stream);
+- a call imports nothing, so current_predicate(locale_sort/2) is no after
+  the first call that loaded the library, where swipl's autoload imports
+  what it resolves.
+And the one namespace (COMPAT.md's row of a program's own clause for a
+library predicate): a program that defines its own predsort/3 has it
+called while nothing loads library(sort), and once something does -- a
+use_module/1, or locale_sort/2's first call -- the library's clause joins
+the program's, and predsort/3 answers twice, the program's first.
+
+LESSONS. tutorials/library/57-sort.pl is the new library's lesson: a
+comparator of one's own, `=` dropping an element, a comparator's second
+answer and once/1 against it, the errors, locale_sort/2 and the key.
+Lesson 10's header said count(Expr) counted "with a template (the value
+is ignored)", which 3.75.0 made untrue: it says what swipl's library does
+with it now, and counts six specifications.
+
+HELD: test/files/sort.pl, 95 lines to swipl 9.0.4 byte for byte, with
+no use_module/1 (its first line asks current_predicate(predsort/3) before
+anything has loaded the library, `no` in both): the sorts, the errors,
+the properties (the helpers' none), two comparators' second answers and
+a `$/1` around each, a guarded clause's last call of each export --
+predsort/3 takes the guard off with the frame, being transparent, and a
+choice point locale_sort/2 leaves is determinism_error(sort:locale_sort/2,
+det, nondet, guard_in_caller) -- the keys and locale_sort/2, and ten
+goals at each depth limit from 0 to 9. The properties are asked before
+anything calls locale_sort/2: swipl's call of an export imports it into
+user, where cocolog's call imports nothing (COMPAT.md's row, which names
+library(sort) now), so asked after the calls,
+current_predicate(locale_sort/2) is yes in swipl and no here. swipl's key
+follows the process's locale, so the case sets swipl's collation to C
+first where the system has setlocale/3 (swipl; cocolog has none): on a
+box whose LANG collates otherwise the case holds all the same.
+
+TEN RULES, EACH TAKEN OUT ON ITS OWN on the final code, seven of them a
+build each (3.75.0 with this release's changes and the one rule out). Nine
+made a check red; the lines that differ from swipl's, or what went red, are
+in brackets:
+- no autoload rows for library(sort) (A1: sort, 144 -- every call an
+  unknown procedure);
+- no collation_key/2 row (K1: sort, 50);
+- no error context for it (E1: sort, 14 -- each error's context unbound);
+- no export rows in the props table (P1: sort, 2 --
+  current_predicate(predsort/3) is no after its import: the
+  predicate's own declarations still answer imported_from, the
+  meta_predicate spec and transparent);
+- no hidden rows (P2: sort, 4 -- predicate_property/2 of predmerge/4 and
+  collation_keys/2 answers);
+- collation_key/2 reading a number as text (X1: sort, 10 -- `1` and `1.5`
+  keyed, and the compound's and the list's errors type_error(atomic, T));
+- the generator without at_libraries/1's library (G1: library, its table
+  check -- lib/autoload.cicili is no longer what tools/autoload/tables.pl
+  writes);
+- no modes rows (M1: flowchart -- collation_key/2 missing from the mode
+  table);
+- predsort/3 still in cocolint's card row X3 (L1: lint -- 59 HARD over the
+  case and the lesson).
+
+The det table's row (T1) has no arm that goes red, and is redundant here:
+predsort/3's spec `3` names a module, which makes it transparent to a
+guarded last call already (3.48.2's `coco_meta_spec_module`), so the guard
+is taken off with or without the row. The row is the generator's, swipl's
+word, and is kept as generated.
+
+COST. The untraced engine runs 3.75.0's instructions (tools/flow/zero.sh,
+the two in one invocation, from paths of one length): nrev 69 778 438
+(3.75.0: 69 778 681), queens 42 155 787 (42 155 798), lookup 50 299 603
+(50 299 602), the padding the same but lookup's one more. A start
+counts 6 785 instructions fewer, 36 554 495 against 36 561 280
+(-0.019 %), from layout: no start reads library(sort), and the same
+11 720 calls of strcmp cost 6 910 fewer, the literal strings they compare
+having moved with the binary. A first call of predsort/3 or locale_sort/2
+pays the library's read, once a process.
+
+THE RUN, on the binary committed: the lint case first, then files (sort
+with every other fixture, held to swipl 9.0.4), library (the autoload
+table to its generator), flowchart, errors, engine, trace, thread and
+async, and lessons library/57 and library/10, each alone. All were green
+with no SKIP, and the binary's md5 was the same before and after. The
+dialect card's 33 cites are all anchored.

@@ -4,22 +4,27 @@
 %%
 %% TIER 1: no import. SWI's own file, vendored unedited -- and the
 %% `aggregate_all/3' you will actually call is cocolog's own C
-%% implementation of the seven specifications that do not group.
+%% implementation of the six specifications below that do not group.
 %%
 %% `findall' THEN `length' IS THE THING THIS REPLACES. Counting a
 %% million solutions by building a million-element list and measuring it
 %% is a lot of memory for one integer. `aggregate_all(count, Goal, N)'
 %% keeps a counter.
 %%
-%% THE SEVEN SPECIFICATIONS:
+%% THE SIX SPECIFICATIONS:
 %%
 %%     count            how many solutions
-%%     count(Expr)      the same, with a template (the value is ignored)
 %%     sum(Expr)        add them up      -- 0 for no solutions
 %%     max(Expr)        the largest      -- FAILS for no solutions
 %%     min(Expr)        the smallest     -- FAILS for no solutions
 %%     bag(Expr)        exactly findall/3
 %%     set(Expr)        findall then sort: ordered, duplicates gone
+%%
+%% `count(Expr)' IS NOT A SEVENTH, though it reads like one: swipl's
+%% library takes it for a template of templates, a term named count whose
+%% argument is sum(_), so `aggregate_all(count(X), member(X, [a, b]), C)'
+%% binds X to sum(_) and answers count(0). Count with `count' (cocolog
+%% 3.75.0 answers as swipl does; through 3.74.0 it counted).
 %%
 %% NOTE WHICH ONES FAIL ON NOTHING. `sum' of no numbers is 0 and that is
 %% arithmetic; `max' of no numbers is not a number at all, so it fails

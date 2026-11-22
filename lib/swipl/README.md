@@ -15,6 +15,7 @@ the notice, the conditions and the disclaimer travel with it.
 | `yall.pl` | `library/yall.pl` | BSD-2-Clause |
 | `aggregate.pl` | `library/aggregate.pl` | BSD-2-Clause |
 | `ugraphs.pl` | `library/ugraphs.pl` | BSD-2-Clause |
+| `sort.pl` | `library/sort.pl` | BSD-2-Clause |
 
 Copyright (c) Jan Wielemaker, University of Amsterdam, VU University Amsterdam,
 SWI-Prolog Solutions b.v. All rights reserved. cocolog is BSD-2-Clause too, so
@@ -35,6 +36,7 @@ there are no two licences to reconcile — see `../../LICENSE`.
 | `yall.pl` | md5 `91983f247a4684d0dc849d4e8409e802`, 574 lines |
 | `aggregate.pl` | md5 `a4628e5414a10e58b32d365a9909fa49`, 721 lines |
 | `ugraphs.pl` | md5 `d98ed91adeaf7c3426ea4c5b949c8df7`, 627 lines |
+| `sort.pl` | md5 `2ee15f29b98c719ec841506d5dfb4fee`, 116 lines (taken on 2026-11-22, for 3.76.0) |
 
 The checksums are here so a later reader can tell a clean copy from an edited
 one, and diff either against a newer upstream without first having to work out
@@ -61,8 +63,18 @@ meaningful. Everything these files needed was built in cocolog instead:
 | `:- dynamic system:goal_expansion/2` | the qualifier peels off in `coco_dynamic_spec`, the same rule a qualified clause head follows |
 | `max(Expr, Witness)`, `min(Expr, Witness)` | added to the NATIVE `aggregate_all/3` in `lib/builtins.cicili`, which shadows the vendored clauses (builtins dispatch ahead of the store) -- the incremental `nb_setarg' paths in aggregate.pl are therefore never reached. The native one answers what swipl's specific clauses answer (count, sum, max, min and the two witness forms) and a bag or a set over a goal that is no `T^G`; anything else -- count(T) and any other template of templates, a bag or a set over `T^G` -- it declines to the vendored general clause (3.75.0) |
 | `error:has_type(assoc, _)` (a module-qualified clause head) | the qualifier is stripped on assert -- one namespace |
+| `collation_key/2`, and `'$skip_list'/3`, `plus/3`, `must_be/2` | sort.pl's: `collation_key/2` in `lib/builtins-db.cicili` (3.76.0), the text itself as a string, which is swipl's key under LC_COLLATE C and C.UTF-8 -- cocolog has no locales (COMPAT.md); the other three were here already. sort.pl's own `must_be(L, list)`, its arguments the other way round, answers a list that is no proper list with swipl's existence_error(type, L) |
 | `:- module`, `:- use_module`, `:- autoload`, `:- meta_predicate`, `:- multifile` | accepted and ignored by `coco_directive` in `lib/kb-pred.cicili` |
 | `:- set_prolog_flag(generate_debug_info, false)` | accepted and ignored: cocolog never generates what it asks to switch off |
+
+**sort.pl is not read at start-up** (3.76.0), where the eight above are: it is
+read when a program asks, by a `use_module(library(sort))`, which finds it on
+the library path (`<exedir>/lib/swipl` is its last entry), or by a first
+call of `predsort/3` or `locale_sort/2`, which lib/autoload.cicili rows
+beside cocolog's own modules' names (tools/autoload/tables.pl reads the
+file's module/2), as swipl's autoloader brings it. So no start pays for it.
+A first call made while another thread runs an engine is the unknown
+procedure it was (COMPAT.md, the autoload's row).
 
 **Known divergences, recorded rather than papered over -- and the ones
 closed.** `aggregate_all(count(Expr), Goal, R)` is SWI 9.0.4's since
