@@ -24573,3 +24573,96 @@ in front`, whose child stopped at the section's ceiling of 60 seconds
 box's four cores. Run again alone on a quiet box, the case is green
 (268 s). The section's reader walks no text: it reads nothing this
 change touches.
+
+## The first thread's stack grows a megabyte at a time, and valgrind's is 16 MB at most (3.78.10)
+
+A patch (backlog #283): cocolog under valgrind and an address-space limit
+died at its start. 3.73.0's round found it: test/thread.pl's memcheck of
+five halted threads, run under `ulimit -v`, ended on `Invalid write of
+size 1 at coco_cstack_reserve` and a SIGSEGV. So does every cocolog under
+valgrind and a limit, with memcheck or with nulgrind, because 3.62.6's
+reserve grew the first thread's stack with one store at its floor,
+megabytes below the stack pointer.
+
+THE CAUSE. An access that far below the stack pointer is one only this
+box's kernel allows. Since 4.20, x86 Linux grows the stack for any access
+within RLIMIT_STACK. Before 4.20 it refused one more than 64 KB below the
+stack pointer (`address + 65536 + 32 * sizeof(long) < sp` in the fault
+handler). Valgrind extends a client's stack only for an access at or
+above its stack pointer. Valgrind's client stack is also RLIMIT_STACK's
+size up to 16 MB (its `--main-stacksize` default), while the program reads
+RLIMIT_STACK unchanged. So under `ulimit -s 65536` both sizes of the first
+thread's stack took 64 MB that valgrind had not made: the reserve's
+under a limit, and `coco_cstack_bounds`'s without one. The reserve died at
+the start. Without a limit, a read deeper than 16 MB was a SIGSEGV
+(valgrind's `can't grow stack`) where it should have raised
+resource_error(c_stack).
+
+THE FIX (lib/syntax.cicili).
+
+- The stack pointer goes down to the reserve's floor by alloca, a
+  megabyte a step, and each step is touched where it stands. Memcheck
+  takes a move of the stack pointer past `--max-stackframe` (2 MB) for a
+  switch of stacks, and the touch after one alloca of the whole reserve is
+  an invalid write. Nothing probes each page: clang's alloca here is a
+  `sub` and a `mov` to %rsp, and the touch is one store a megabyte.
+- A first thread's stack the kernel did not make is 16 MB at most
+  (`coco_cstack_kernels`). The kernel's record of the stack's start,
+  /proc/self/stat's 28th field, is the stack pointer it handed the
+  program, and it lies in a stack the kernel made: 1 337 bytes above
+  main()'s frame, with 20 000 arguments and with 1.4 MB of environment
+  alike. Under valgrind it is valgrind's own stack, at 0x7ff..., while the
+  client's frame is at 0x1ffeff.... Where the field lies outside the stack
+  being sized -- the reserve's [frame, top), or `coco_cstack_bounds`'s
+  [lo, lo + size) from glibc, which may first be asked deep in the stack
+  -- RLIMIT_STACK is read as 16 MB at most, and the stack's floor is 16 MB
+  below its top. The field is read only where RLIMIT_STACK is past 16 MB,
+  so under the default 8 MB no process reads it.
+
+HELD. test/cyclic.pl's new section, `c_stack_reserved`, has eight checks:
+
+- Natively under `ulimit -v 4000000`, the reserve is RLIMIT_STACK's size:
+  64 MB, and 8 MB.
+- Under valgrind and the limit, with memcheck, the process starts and
+  memcheck says nothing. Its stack is 8 MB under `ulimit -s 8192`, and
+  16 MB under 65536 and unlimited; there a read 60 000 brackets deep
+  raises resource_error(c_stack).
+- With no limit, valgrind's stack is 16 MB under `ulimit -s 65536`, and
+  the same read raises the error.
+
+3.78.9 is red on six of them: exit 139 with nothing printed, and
+67 108 864 with no limit. test/thread.pl's memcheck section under
+`ulimit -v 4000000`, the finding itself, is red on 3.78.9 and green on
+3.78.10.
+
+ARMS, one build of the final code each with one rule taken out, on the
+section, all red:
+
+- one store at the floor: 4 checks;
+- one alloca of the whole reserve: 3 (memcheck's exit 9, over the right
+  size);
+- no cap on the reserve: 3;
+- no cap on the size without a limit: 2;
+- every stack taken for another program's: 1 (natively under the limit
+  the reserve is 16 MB).
+
+COST. With no limit nothing new is asked. A start (`cocolog query true`,
+each binary swapped in at the checkout's path) counts 36 334 078 and
+36 326 390 instructions, the reserve returning at its first test. The
+untraced engine runs 3.78.9's instructions within 55 (tools/flow/zero.sh
+at paths of one length, work less padding: nrev 65 889 861 and
+65 889 883, queens 39 952 712 and 39 952 767, lookup 48 073 223 and
+48 073 265). Under `ulimit -v 4000000` a start of 3.78.10 counts
+36 330 709 under callgrind; 3.78.9 does not survive that run.
+
+NOT DONE. Under valgrind with `--main-stacksize` below
+min(RLIMIT_STACK, 16 MB), the reserve still passes the stack valgrind
+made: the program cannot ask valgrind its size. Such a run wants a
+`ulimit -s` no larger than the stack it asks valgrind for.
+
+THE RUN, the final binary. The lint case first (58 s), then cyclic,
+thread, store-lock, errors, engine, script, directives, repl, stream,
+async, gc and backtrace, and the syntax, term, solve, module and state
+binaries: green, no SKIP. The helper's body went under an `__APPLE__` guard after the
+round, as its two callers' are: the binary built with it is the one the
+round ran, byte for byte (md5 85066d9ada537c55ea87b76055d6a892).

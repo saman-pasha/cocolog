@@ -29,7 +29,8 @@
 main :-
     scratch(D),
     shapes(D), long_and_deep(D), entries(D), errors(D), caught(D),
-    questions, arithmetic(D), walks(D), c_stack(D), c_stack_read(D), arith_depth(D),
+    questions, arithmetic(D), walks(D), c_stack(D), c_stack_read(D), c_stack_reserved,
+    arith_depth(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -928,6 +929,75 @@ c_stack_limit_said(Limit, Want) :-
     proc_run(Cmd, 120000, Raw, _), atom_codes(R, Raw), atomic_list_concat([L|_], '\n', R),
     sh_join(['under ulimit -s ', Limit, ', the main thread''s is ', Want], Label),
     check(Label, L, Want).
+
+%% THE FIRST THREAD'S STACK, RESERVED UNDER AN ADDRESS-SPACE LIMIT
+%% (3.62.6, `coco_cstack_reserve'), IS GROWN A MEGABYTE AT A TIME, AND A
+%% STACK THE KERNEL DID NOT MAKE IS 16 MB AT MOST (3.78.10,
+%% `coco_cstack_kernels'). Under `ulimit -v' the reserve is the kernel's
+%% stack, all of RLIMIT_STACK's size. Under valgrind, whose client stack is
+%% RLIMIT_STACK's size up to 16 MB and grows only for an access at or above
+%% the stack pointer, the process starts and the reserve is valgrind's
+%% stack: through 3.78.9 one store at the reserve's floor, megabytes below
+%% the stack pointer, was a SIGSEGV there before main() had begun its work,
+%% and memcheck takes a move of the stack pointer past two megabytes for a
+%% switch of stacks, its write an invalid one. With no address-space limit
+%% the thread's size is RLIMIT_STACK's, and valgrind's 16 MB under a larger
+%% one (`coco_cstack_bounds'): through 3.78.9 it was 64 MB under `ulimit -s
+%% 65536', and a read past valgrind's 16 MB a SIGSEGV, `can't grow stack',
+%% where it raises resource_error(c_stack). Linux's alone (Darwin enforces
+%% no RLIMIT_AS), valgrind's where the box has one.
+c_stack_reserved :-
+    section('the first thread''s stack reserved under an address-space limit: the kernel''s and valgrind''s'),
+    (   catch(use_module(library(os)), _, fail), os_is(linux)
+    ->  V = 'ulimit -v 4000000; ',
+        M = 'valgrind -q --error-exitcode=9 ',
+        N = 'valgrind -q --tool=none ',
+        c_stack_reserved_said(V, '65536', '67108864',
+                              'under ulimit -v the kernel''s stack is reserved to RLIMIT_STACK''s size'),
+        c_stack_reserved_said(V, '8192', '8388608', '...under ulimit -s 8192 too'),
+        (   sh_exit('command -v valgrind >/dev/null 2>&1', 0)
+        ->  atom_concat(V, M, VM), atom_concat(V, N, VN),
+            c_stack_reserved_said(VM, '8192', '8388608',
+                                  'under valgrind and ulimit -v the process starts, its stack grown a megabyte at a time, and memcheck says nothing'),
+            c_stack_reserved_said(VM, '65536', '16777216',
+                                  '...and valgrind''s stack, 16 MB under a larger RLIMIT_STACK, is reserved no deeper'),
+            c_stack_reserved_said(VM, unlimited, '16777216', '...nor under none'),
+            c_stack_reserved_deep(VN, '...where a read too deep for it raises resource_error(c_stack)'),
+            c_stack_reserved_said(N, '65536', '16777216',
+                                  'with no address-space limit, valgrind''s stack is 16 MB under a larger RLIMIT_STACK'),
+            c_stack_reserved_deep(N, '...and a read too deep for it raises resource_error(c_stack)')
+        ;   format("  SKIP: no valgrind here~n", [])
+        )
+    ;   format("  SKIP: the reserve is Linux's alone~n", [])
+    ).
+
+%% statistics(c_stack, L) in the main thread under `ulimit -s LIMIT', run
+%% under PRE, and the exit status; a shell that may not raise its stack
+%% limit so far says so
+c_stack_reserved_said(Pre, Limit, Want, Label) :-
+    c_stack_reserved_run(Pre, Limit, 'statistics(c_stack, L), print(L), nl', L, Exit),
+    (   L == nostack
+    ->  format("  SKIP: the shell may not set ulimit -s ~w~n", [Limit])
+    ;   check(Label, L-Exit, Want-0)
+    ).
+
+%% a read 60 000 brackets deep under `ulimit -s 65536', run under PRE: it
+%% raises resource_error(c_stack), and the process ends as it should
+c_stack_reserved_deep(Pre, Label) :-
+    c_stack_reserved_run(Pre, '65536',
+                         'format(atom(A), ''~*ca~*c'', [60000, 0''(, 60000, 0'')]), catch(( term_to_atom(T, A), T == a, R = ok ), E, R = E), write(deep(R)), nl',
+                         L, Exit),
+    (   L == nostack
+    ->  format("  SKIP: the shell may not set ulimit -s 65536~n", [])
+    ;   ( sub_atom(L, 0, _, _, 'deep(error(resource_error(c_stack)') -> Got = c_stack ; Got = L ),
+        check(Label, Got-Exit, c_stack-0)
+    ).
+
+c_stack_reserved_run(Pre, Limit, Goal, First, Exit) :-
+    cocolog(C),
+    sh_join(['ulimit -s ', Limit, ' 2>/dev/null || { echo nostack; exit 0; }; ',
+             Pre, C, ' query "', Goal, '" 2>/dev/null'], Cmd),
+    proc_run(Cmd, 300000, Raw, Exit), atom_codes(R, Raw), atomic_list_concat([First|_], '\n', R).
 
 %% AN EXPRESSION OF ANY DEPTH EVALUATES (3.61.0), on stacks of the
 %% evaluator's own past its hundredth compound, as swipl's valueExpression()

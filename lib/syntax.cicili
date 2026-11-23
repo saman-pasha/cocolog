@@ -3941,6 +3941,11 @@
   ;;; its number, 3, on Linux alone: Darwin's main thread's size is still
   ;;; pthread_get_stacksize_np()'s, unmeasured against the limit (COMPAT.md).
   ;;; cocolog's main() says which thread is the first (`coco_cstack_main').
+  ;;; A FIRST THREAD'S STACK THE KERNEL DID NOT MAKE IS 16 MB AT MOST
+  ;;; (3.78.10, `coco_cstack_kernels'): valgrind's client stack, which
+  ;;; glibc finds 64 MB deep under `ulimit -s 65536' and valgrind grows to
+  ;;; 16 MB alone -- a read deeper was a SIGSEGV there, `can't grow stack',
+  ;;; where it raises resource_error(c_stack) now.
   (thread-local) (var size_t coco_cs_lo)
   (thread-local) (var size_t coco_cs_size)
   (thread-local) (var int coco_cs_main)
@@ -3956,6 +3961,36 @@
                    if (getrlimit(which, &rl) == 0 && rl.cur != (unsigned long) -1) v = (size_t) rl.cur; }")
           (return v)))
 
+  ;;; WHETHER THE FIRST THREAD'S STACK [LO, TOP) IS THE KERNEL'S (3.78.10):
+  ;;; the start of the stack the kernel recorded at the exec, the stack
+  ;;; pointer it handed the program (/proc/self/stat's 28th field), lies in
+  ;;; it -- 1 337 bytes above main()'s frame whatever the arguments and the
+  ;;; environment. Under valgrind it is valgrind's own stack, far from the
+  ;;; client's, which valgrind made: RLIMIT_STACK's size but never past 16
+  ;;; MB (its --main-stacksize), though the program reads RLIMIT_STACK
+  ;;; unchanged, and a stack the kernel did not make is taken for 16 MB at
+  ;;; most by the two that size the first thread's (`coco_cstack_reserve',
+  ;;; `coco_cstack_bounds'). 0, no stack the kernel's, where the field
+  ;;; does not read. Linux's alone, as its two callers are.
+  (weak) (cold)
+  (func coco_cstack_kernels ((size_t lo) (size_t top)) (out int)
+        (@ifdef (code "__APPLE__"))
+        (return 0)
+        (@else)
+        (let ((size_t ss . 0) (const char * statf . "/proc/self/stat"))
+          (code "{ extern int open(const char *, int, ...);
+                   extern long read(int, void *, unsigned long);
+                   extern int close(int);
+                   char sb[1024]; const char *p = NULL; int f = 2;
+                   int fd = open(statf, 0);
+                   long n = fd >= 0 ? read(fd, sb, sizeof sb - 1) : 0;
+                   if (fd >= 0) close(fd);
+                   if (n > 0) { sb[n] = 0; p = strrchr(sb, 41); }
+                   for (f = 2; p != NULL && *p != 0 && f < 28; p++) if (*p == 32) f++;
+                   for (; p != NULL && *p >= 48 && *p <= 57; p++) ss = ss * 10 + (size_t) (*p - 48); }")
+          (return (and (> ss lo) (< ss top))))
+        (@endif))
+
   ;;; THE FIRST THREAD'S STACK IS RESERVED UNDER AN ADDRESS-SPACE LIMIT
   ;;; (3.62.6). RLIMIT_AS counts that thread's stack as the kernel grows it,
   ;;; a page at a time, and a growth the limit refuses is a SIGSEGV nothing
@@ -3969,11 +4004,25 @@
   ;;; main()'s frame (the stack's top is where the kernel put the program's
   ;;; name, AT_EXECFN), nor past what the limit leaves beside what the process
   ;;; holds (/proc/self/statm) and a megabyte, and not at all where that is
-  ;;; under 256 KB. One store at the reserve's floor grows it: the kernel
-  ;;; maps the rest as the stack, unwritten, one page touched. The reserve is
-  ;;; then the thread's stack (`coco_cs_lo', `coco_cs_size'), so a read or a
-  ;;; write deeper than it raises resource_error(c_stack), where past it the
-  ;;; kernel could refuse the page. Linux alone: Darwin enforces no RLIMIT_AS.
+  ;;; under 256 KB. The stack pointer goes down to the reserve's floor and
+  ;;; grows it: the kernel maps the rest as the stack, unwritten, a page a
+  ;;; megabyte touched. The reserve is then the thread's stack (`coco_cs_lo',
+  ;;; `coco_cs_size'), so a read or a write deeper than it raises
+  ;;; resource_error(c_stack), where past it the kernel could refuse the
+  ;;; page. Linux alone: Darwin enforces no RLIMIT_AS.
+  ;;; THE STACK POINTER GOES DOWN A MEGABYTE AT A TIME (3.78.10), by alloca,
+  ;;; each step touched where it stands: through 3.78.9 one store at the
+  ;;; floor, megabytes below the stack pointer, grew the stack, and that is
+  ;;; an access only this box's kernel allows -- valgrind extends a client's
+  ;;; stack only for an access at or above its stack pointer (memcheck
+  ;;; takes a move of more than two megabytes for a switch of stacks), as
+  ;;; x86 kernels before 4.20 refused an access more than 64 KB below it,
+  ;;; and under `ulimit -v' cocolog under valgrind died of a SIGSEGV before
+  ;;; main() had begun its work. AND A STACK THE KERNEL DID NOT MAKE IS
+  ;;; RESERVED NO DEEPER THAN 16 MB (`coco_cstack_kernels'): valgrind's
+  ;;; client stack is RLIMIT_STACK's size up to 16 MB, and RLIMIT_STACK is
+  ;;; read as 16 MB at most where main()'s frame is in no stack the kernel
+  ;;; made.
   (weak) (cold)
   (func coco_cstack_reserve ()
         (@ifdef (code "__APPLE__"))
@@ -3999,6 +4048,7 @@
                      held = held * 10 + (size_t) (buf[k] - 48);
                    held *= pg;
                    if (held > 0) {
+                     if (st > 16777216 && !coco_cstack_kernels(at, top)) st = 16777216;
                      above = top - at;
                      if (st != (size_t) -1) full = st > above + 65536 ? st - above - 65536 : 0;
                      if (r >= full) { r = full; whole = 1; }
@@ -4006,7 +4056,10 @@
                      r &= ~(pg - 1);
                      if (r >= 262144) {
                        lo = (at - r) & ~(pg - 1);
-                       *(volatile char *) lo = 0;
+                       for (k = at - lo; k > 0; ) {
+                         size_t c = k > 1048576 ? 1048576 : k;
+                         volatile char *sp = (volatile char *) __builtin_alloca(c);
+                         sp[0] = 0; k -= c; }
                        coco_cs_lo = lo;
                        coco_cs_size = whole ? st : top - lo; } } }"))
         (@endif))
@@ -4029,7 +4082,11 @@
                    if (pthread_attr_getstack(&a, &lo, &sz) != 0) { lo = NULL; sz = 0; }
                    pthread_attr_destroy(&a); }
                  coco_cs_size = sz; coco_cs_lo = (lo != NULL && sz > 0) ? (size_t) lo : 1;
-                 if (coco_cs_main && coco_cs_lo != 1) coco_cs_size = coco_rlimit_cur(3); }")
+                 if (coco_cs_main && coco_cs_lo != 1) {
+                   coco_cs_size = coco_rlimit_cur(3);
+                   if (coco_cs_size > 16777216 && !coco_cstack_kernels((size_t) lo, (size_t) lo + sz)) {
+                     coco_cs_size = 16777216;
+                     if (sz > 16777216) coco_cs_lo = (size_t) lo + sz - 16777216; } } }")
         (@endif))
 
   ;;; The C stack left below the caller's frame, in bytes, down to the

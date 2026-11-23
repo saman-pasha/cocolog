@@ -1065,7 +1065,21 @@ expansion can be read.
   build at one limit and 0 of another's. main() grows the stack's mapping
   first (a sixteenth of the limit, within RLIMIT_STACK and what the limit
   leaves), and the reserve is the thread's C stack from then on, so a read
-  deeper than it raises resource_error(c_stack). **A check that a process
+  deeper than it raises resource_error(c_stack). **The stack pointer goes
+  down to the reserve a megabyte at a time** (3.78.10), alloca touched at
+  each step: one store megabytes below it, 3.62.6's, is an access only a
+  kernel since 4.20 allows -- x86's before refused one more than 64 KB
+  below the stack pointer, and valgrind extends a client's stack only for
+  one at or above it (memcheck takes a move past 2 MB for a switch of
+  stacks) -- and cocolog under valgrind and `ulimit -v` died of a SIGSEGV
+  at its start. **A first thread's stack the kernel did not make is 16 MB
+  at most** (`coco_cstack_kernels`): where the stack's start the kernel
+  recorded (/proc/self/stat's 28th field) is not in it, the stack is
+  valgrind's, RLIMIT_STACK's size up to 16 MB whatever RLIMIT_STACK says,
+  in the reserve and in the size `coco_cstack_bounds` gives the thread
+  with no limit -- **a new sizer of the first thread's stack asks it
+  too**. test/cyclic.pl's `c_stack_reserved` holds them, under valgrind
+  where there is one. **A check that a process
   ends by no signal near a limit's edge is a lottery unless it makes the
   stack grow there**: test/store-lock.pl's `lim_deep` reads 800 brackets
   deep across the floor, which 3.62.3 ended by SIGSEGV across 192 KB of
