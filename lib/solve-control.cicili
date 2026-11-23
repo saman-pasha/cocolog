@@ -1148,6 +1148,30 @@
                 ))))
           (return 0)))
 
+  ;;; setup_call_cleanup/3's clauses to the printer (3.78.3,
+  ;;; `coco_trace_scc'): name, arity and where each one's body stands, bits
+  ;;; of 1 (no frame of swipl's: its body at its caller's level), 2 (its
+  ;;; body a level deeper) and 4 (its body a query of its own, as swipl's
+  ;;; callProlog() runs the setup and the cleanup: what it calls is shown, a
+  ;;; builtin too). Each is a `$' name, so no port wherever it runs
+  ;;; (`coco_trace_hidden'), as every clause of the machinery is. The frames
+  ;;; a setup or a cleanup that is call/1 or a control structure runs in
+  ;;; (`coco_c_goal': `'$c_and'/2' swipl's ','/2, and the rest) are no rows:
+  ;;; no ports by their names, and hiding what they call as the builtins'
+  ;;; clauses do, where swipl's frame and its parts are ports (COMPAT.md). A
+  ;;; macro of the table, whose rows the function asks in turn
+  (DEFPARAMETER *trace-scc-frames*
+    '(("$scc_run" 1 1) ("$cleanup_call" 3 1) ("$scc_fail" 2 1) ("$scc_raised" 4 1)
+      ("$scc_unwind" 3 1) ("$c_setup" 1 6) ("$c_call" 1 4)))
+  (DEFMACRO coco-trace-scc-rows (s n)
+    `(block ,@(MAPCAR (LAMBDA (r)
+                        `(if (and (== ,n ,(SECOND r)) (== 0 (strcmp ,s ,(FIRST r))))
+                             (return ,(THIRD r))))
+                      *trace-scc-frames*)))
+  ;;; the level a body of kind K runs at against its call's
+  (DEFMACRO coco-trace-scc-adj (k)
+    `(? (bitand ,k 1) -1 (? (bitand ,k 2) 1 0)))
+
   ;;; ---- what the printer hides (3.27.0, swipl's HIDE_CHILDS) --------------
   ;;;
   ;;; swipl's isDebugFrame: a predicate that HIDES ITS CHILDREN -- a builtin,
@@ -1194,16 +1218,83 @@
               (return (!= (bitand ($ (coco-pred-at (-> st predp) pi) pattrs) 32) 0)))
           (return 0)))
 
-  ;;; whether the printer hides a call of G: its predicate hides its
+  ;;; SETUP_CALL_CLEANUP/3'S MACHINERY TO THE PRINTER (3.78.3): where the
+  ;;; body of a call of G stands, `*trace-scc-frames*''s bits -- 0 for any
+  ;;; other; `'$scc_run'/1' (whose body calls the goal, as swipl's
+  ;;; I_CALLCLEANUP frame does), `'$cleanup_call'/3' and the three that call
+  ;;; it (as frameFinished() calls the cleanup) no frame of swipl's, their
+  ;;; bodies at their caller's level; `'$c_setup'/1' a level deeper,
+  ;;; swipl's sig_atomic/1 and the query its callProlog() opens, and with
+  ;;; `'$c_call'/1' (the cleanup's, swipl's '$c_call_prolog'/0) a query of
+  ;;; its own, so a setup or a cleanup is shown though it is a builtin's
+  ;;; call. None is a port, by its name (`coco_trace_hidden'), wherever it
+  ;;; is called: a cut runs `'$cleanup_call'/3' in the program's clause, a
+  ;;; ball `'$scc_unwind'/3' where it was raised. So the setup is four below
+  ;;; setup_call_cleanup/3's call, the goal two, a cleanup three -- and two
+  ;;; below the clause whose cut ran it -- as swipl's are. The depth limit's
+  ;;; frames are its own (`coco_depth_row')
+  (static)
+  (func coco_trace_scc ((coco_machine * m) (size_t g)) (out int)
+        (let ((u64 c . 0) (u32 n . 0) (const char * s . nil))
+          (set g (coco_deref m g))
+          (set c (nth g (-> m heap)))
+          (if (not (coco-tag-is FUN c)) (return 0))
+          (set s (coco_atom_name m (coco_name_of m g)))
+          ;; `$', 36
+          (if (or (== s nil) (!= (nth 0 s) (cast char 36))) (return 0))
+          (set n (coco_arity m g))
+          (coco-trace-scc-rows s n)
+          (return 0)))
+
+  ;;; THE LEVEL THE BODY OF THE CALL AT FRAME CI RUNS AT, for the printer:
+  ;;; the call's depth, but for a hidden clause of setup_call_cleanup/3's
+  ;;; machinery its caller's or one deeper (`coco_trace_scc'). The traced
+  ;;; entry asks it (`coco_trace_enter') and so does the search for the call
+  ;;; a `;' in a body is in (`coco_trace_redo_at'), whose GOAL frame keeps
+  ;;; the body's level; the exit marker keeps the call's own depth. (The
+  ;;; region a Redo is reported on, and the call a cut is in, ask the
+  ;;; depth: no clause of the machinery cuts, and no retry reaches a region
+  ;;; through one)
+  (static)
+  (func coco_trace_bdepth ((coco_engine * e) (size_t ci)) (out int)
+        (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))) (int k . 0))
+          (if (or (!= (-> e trace) 1) (!= (-> tc printr) 2)) (return (-> tc depth)))
+          (set k (coco_trace_scc (-> e m) ($ (nth ci (-> e choices)) call)))
+          (return (+ (-> tc depth) (coco-trace-scc-adj k)))))
+
+  ;;; whether the printer hides a call of G: its name begins with `$'
+  ;;; (3.78.3), which no predicate of swipl's is a port by, a program's own
+  ;;; too -- its resetProcedure() sets TRACE_ME on none -- wherever it is
+  ;;; called: setup_call_cleanup/3's machinery, and findnsols/4's bag in its
+  ;;; setup and cleanup, queries of their own; or its predicate hides its
   ;;; children (CHC, or asked of G where CHC is -1) and so does the context
   ;;; it is called in, the call whose body it is in or the builtin whose
-  ;;; search it is (`trace_goal')
+  ;;; search it is (`trace_goal') -- but for a setup's or a cleanup's frame,
+  ;;; a query of its own, which hides nothing. What a `$' call calls is
+  ;;; asked as anything's is: a program's hides nothing
   (weak)
   (func coco_trace_hidden ((coco_engine * e) (size_t g) (int chc)) (out int)
         (if (!= (-> e trace) 1) (return 0))
+        (let ((coco_machine * m . #'(-> e m)) (size_t d . #'(coco_deref (-> e m) g))
+              (const char * s . nil))
+          (if (or (coco-tag-is ATOM (nth d (-> m heap))) (coco-tag-is FUN (nth d (-> m heap))))
+              (block (set s (coco_atom_name m (coco_name_of m d)))
+                     ;; `$', 36
+                     (if (and (!= s nil) (== (nth 0 s) (cast char 36))) (return 1)))))
         (if (< chc 0) (set chc (coco_trace_hc e g)))
         (if (not chc) (return 0))
-        (return (coco_trace_hc e (-> e trace_goal))))
+        (if (coco_trace_hc e (-> e trace_goal))
+            (let ((int k . #'(coco_trace_scc (-> e m) (-> e trace_goal))))
+              (if (not (bitand k 4)) (return 1))
+              ;; a query of its own -- but swipl's sig_atomic/1 runs a
+              ;; setup `true' as none, so it is no port; a setup `fail', and
+              ;; a cleanup's `true' or `fail', are ports
+              (if (bitand k 2)
+                  (let ((coco_machine * m . #'(-> e m)) (size_t d . #'(coco_deref (-> e m) g)))
+                    (if (and (coco-tag-is ATOM (nth d (-> m heap)))
+                             (== (cast u64 (coco-payload (nth d (-> m heap)))) (coco-id m "true")))
+                        (return 1))))))
+        (return 0))
 
   ;;; THE CALL PORT OF A CALL THE STEP MAKES: 2 where the printer hides the
   ;;; call, which then has no port, else 1 and its Call printed -- the
@@ -1260,10 +1351,13 @@
   ;;; THE CALL A RETRY AT CI IS INSIDE, for the printer (`trace' 1): the
   ;;; frame whose Redo is printed, or -1 for none -- the region's outermost
   ;;; call (`coco_trace_region') when the retried call hides its children or
-  ;;; was hidden and that call has exited, its Redo then; CI itself for any
-  ;;; other call, as through 3.26. GOAL is the call's goal and DEPTH its
-  ;;; depth: a GOAL frame's call is the frame below it that is that call's
-  ;;; (a `;' in a library predicate's clause)
+  ;;; was hidden and that call has exited, its Redo then, and none where
+  ;;; that call is no port itself (3.78.3: a `$' name, whose caller hides
+  ;;; nothing -- swipl's dbgRedoFrame finds no frame to report); CI itself
+  ;;; for any other call, as through 3.26. GOAL is the call's goal and DEPTH
+  ;;; its depth: a GOAL frame's call is the frame below it that is that
+  ;;; call's (a `;' in a library predicate's clause), its body at that level
+  ;;; (3.78.3, `coco_trace_bdepth')
   (weak)
   (func coco_trace_redo_at ((coco_engine * e) (size_t ci) (size_t goal) (int depth)) (out i64)
         (let ((i64 f . #'(cast i64 ci)) (i64 t . 0))
@@ -1281,16 +1375,22 @@
                  (let ((int k . #'($ (nth (cast size_t f) (-> e choices)) kind))
                        (coco_tchoice * tc . #'(aof (nth (cast size_t f) (-> e tchoices)))))
                    (if (and (or (== k COCO_CH_CLAUSE) (== k COCO_CH_SPENT)) (!= (-> tc printr) 0)
-                            (== (-> tc depth) depth) (== ($ (nth (cast size_t f) (-> e choices)) call) goal))
+                            (== ($ (nth (cast size_t f) (-> e choices)) call) goal)
+                            (== (coco_trace_bdepth e (cast size_t f)) depth))
                        break))
                  (set f (- f 1)))
-               ;; a call no traced frame is kept for: as through 3.26
-               (if (< f 0) (return (cast i64 ci)))))
+               ;; a call no traced frame is kept for: as through 3.26 --
+               ;; but in a builtin's search, whose goal's call is no frame
+               ;; of this engine's, none (3.78.3): a `;' written in
+               ;; findall/3's goal was the Redo of findall/3 itself, and
+               ;; in with_output_to/2's, of the heap's first term
+               (if (< f 0) (return (? (-> e trace_bhc) -1 (cast i64 ci))))))
           (if (and (!= ($ (nth (cast size_t f) (-> e tchoices)) printr) 2)
                    (not (coco_trace_frame_hc e (cast size_t f))))
               (return (cast i64 ci)))
           (set t (coco_trace_region e (cast size_t f)))
           (if (< t 0) (return -1))
+          (if (== ($ (nth (cast size_t t) (-> e tchoices)) printr) 2) (return -1))
           (if (== ($ (nth (cast size_t t) (-> e tchoices)) exited) 0) (return -1))
           (return t)))
 
@@ -1408,6 +1508,17 @@
                 (coco_rec_mark e COCO_REV_NOHEAD depth (-> c call) (+ ix 1)))
             (set ix (coco_pred_next_at st m p (-> c ixpos) (-> r hkey) (+ ix 1))))
           (if entered (coco_rec_mark e COCO_REV_CLAUSE depth (-> c call) (+ upto 1)))))
+
+  ;;; THE BODY OF A TRACED CALL BEGINS: the call at frame CI, entered, its
+  ;;; context CTX (the frame's call, or `system:G''s kept head, 3.58.1),
+  ;;; its body at the level `coco_trace_bdepth' says (3.78.3), and the heads
+  ;;; a window records (`coco_rec_heads'). Out of line, as the recorder's
+  ;;; functions are: the step's traced entry is this one call
+  (weak)
+  (func coco_trace_enter ((coco_engine * e) (size_t ci) (size_t ctx))
+        (set (-> e trace_goal) ctx)
+        (set (-> e trace_depth) (coco_trace_bdepth e ci))
+        (coco_rec_heads e ci 0 1))
 
   ;;; A RETRY'S CALL, painted before the selection binds it: its text for
   ;;; the Redo line the printer writes once a clause is entered (the caller
@@ -1719,11 +1830,17 @@
           (return (coco_unify m (coco_arg m g 1) (coco_new_atom m (? det "true" "false"))))))
 
   ;;; `'$scc_pop'(F)': the goal raised, and the catch around it has the
-  ;;; ball: the frame goes, for the cleanup to run with exception(Ball)
+  ;;; ball: the frame goes, for the cleanup to run with exception(Ball) --
+  ;;; and where a frame stands above it, the frame the tracer keeps for
+  ;;; `'$scc_raised'/4''s own call, it dies in place, as a catch's does
+  ;;; (3.78.3): cut away with the stack, that call's frame went too, and the
+  ;;; retry of the if-then-else in its body was a Redo no call owned
   (func coco_bi_scc_pop ((coco_engine * e) (size_t g)) (out int)
         (let ((size_t f . #'(coco_scc_index e g)))
           (if (coco_scc_at e f (coco_intern (-> e m) "$scc_fail"))
-              (block (set (-> e nchoices) f)
+              (block (if (== (+ f 1) (-> e nchoices))
+                         (set (-> e nchoices) f)
+                         (set ($ (nth f (-> e choices)) kind) COCO_CH_DEAD))
                      (if (> (-> e ncleanup) 0) (set (-> e ncleanup) (- (-> e ncleanup) 1)))))
           (return 1)))
 

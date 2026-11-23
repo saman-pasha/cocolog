@@ -920,10 +920,7 @@
             (if (not (coco_select_clause e ci))
                 (block (if tport (coco_trace_nomatch e ci td gl))
                        (set (cof ok) 0))
-                (if tport
-                    (block (set (-> e trace_goal) kh)
-                           (set (-> e trace_depth) td)
-                           (coco_rec_heads e ci 0 1)))))
+                (if tport (coco_trace_enter e ci kh))))
           (return 1)))
 
   ;;; Whether GL, NID/N, is a goal nothing defines: no construct, builtin or
@@ -4225,11 +4222,9 @@
                                   (if (not (coco_select_clause e ci))
                                       (block (if tport (coco_trace_nomatch e ci tD g))
                                              (set ok 0))
-                                    ;; the body runs inside this call now
-                                    (if tport
-                                        (block (set (-> e trace_goal) g)
-                                               (set (-> e trace_depth) tD)
-                                               (coco_rec_heads e ci 0 1))))))))))
+                                    ;; the body runs inside this call now, at
+                                    ;; the level it runs at (3.78.3)
+                                    (if tport (coco_trace_enter e ci g)))))))))
                             ;; A READ OF THE KNOWLEDGE BASE THAT FAILED IS NOT AN
                             ;; EMPTY PREDICATE (2.11.1): `loaded' 0 after the
                             ;; ask, and the call raises it -- before the dynamic

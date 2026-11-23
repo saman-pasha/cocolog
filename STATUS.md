@@ -23685,3 +23685,130 @@ window, the term, solve, state and module binaries, and with the server up
 zigurat and kbs, each alone. All green, no SKIP. findnsols.pl's n6 and the
 lesson's must/3 were written after the round, and were run alone after it,
 green, with the lint case again.
+
+## setup_call_cleanup/3 stands where swipl's does under trace, and a `$` name is no port (3.78.3)
+
+A patch, the tracer's alone (backlog #277). Through 3.78.2 a traced
+setup_call_cleanup/3 printed its machinery and stood its parts a level
+off swipl's: the goal three levels below the call where swipl's is two, a
+cleanup four or five where swipl's is three, and a cleanup a cut ran
+printed `'$cleanup_call'(!, Catcher, Cleanup)`'s Call and Exit in the
+program's clause; the setup and the cleanup were hidden, where swipl
+shows a builtin or a library call there; a raise in the goal printed a
+Redo of `'$scc_raised'/4`; and findnsols/4, written over it, had those
+frames between its call and its goal (its goal 11 below the call, swipl's
+9). Two more of the same family: a `;` written in a builtin's goal
+(findall/3, forall/2, call_limited/3, with_output_to/2) printed a Redo of
+the builtin's own call, or in with_output_to/2's of the heap's first term
+(`Redo: (2) trace`); and a program's predicate whose name begins with `$`,
+or a `$` builtin it called (`'$skip_list'/3`), was a port, its retry its
+own Redo.
+
+SWIPL'S MODEL. setup_call_cleanup/3 is setup_call_catcher_cleanup/4's
+clause, `sig_atomic(Setup), '$call_cleanup'`: the setup runs in the query
+sig_atomic/1's callProlog() opens, four levels below the call (the
+clause, sig_atomic/1, `'$c_call_prolog'/0`, the setup); the goal under the
+I_CALLCLEANUP frame, two below; a cleanup where frameFinished() calls it,
+in a query of its own, three below where the goal exits, fails or raises
+and two below the clause whose cut finished the frame. `'$c_call_prolog'/0`
+hides no children (`'$get_predicate_attribute'(P, hide_childs, 0)`), so
+what a setup or a cleanup calls is a port, a builtin's call too -- but
+sig_atomic/1 runs a setup `true` as nothing. And no predicate whose name
+begins with `$` is a port, the program's own among them: pl-proc.c's
+resetProcedure() sets TRACE_ME on none (`trace(0)` for every `$` name, a
+user's `'$dx'/1` too). A retry inside one is the Redo dbgRedoFrame finds:
+the library call it is in, where its caller hides its children, and none
+where its caller hides nothing -- that call exits again with no Redo
+before it.
+
+THE FIX (lib/solve-control.cicili, lib/solve-loop.cicili).
+`*trace-scc-frames*` names the clauses of the machinery whose body stands
+elsewhere than one below their call, and `coco_trace_scc` reads them:
+`'$scc_run'/1` (whose body calls the goal), `'$cleanup_call'/3` and the
+three that call it at their caller's level, `'$c_setup'/1` a level deeper
+and a query of its own, `'$c_call'/1` (the cleanup's) a query of its own.
+`coco_trace_bdepth` is the level a hidden call's body runs at, asked by the
+traced entry (`coco_trace_enter`, out of line and weak: the step's traced
+entry is that one call now) and by the search for the call a `;` stands in
+(`coco_trace_redo_at`). `coco_trace_hidden` asks first whether the goal's
+name begins with `$`, and its context rule passes a query of its own by
+(nothing there hides what it calls) but for a setup `true`.
+`coco_trace_redo_at` reports no Redo where a `;` in a builtin's search has
+no call frame of the search's (`trace_bhc`), and none where the region's
+call is hidden. `coco_bi_scc_pop` kills setup_call_cleanup/3's frame in
+place where a frame stands above it -- the one the tracer keeps for
+`'$scc_raised'/4`'s call -- as a catch's frame dies, where it cut the
+stack to the frame, that call's frame with it, and the retry of the
+if-then-else in `'$scc_raised'/4`'s body was a Redo no call owned.
+Untraced no frame stands there, and the stack is cut as before.
+
+A `$` name is the rule the machinery needed: findnsols/4's setup and
+cleanup, queries of their own since the fix, call `'$bag_new'/1` and
+`'$bag_free'/1`, which swipl's own `'$new_findall_bag'/0` and
+`'$destroy_findall_bag'/0` stand for, `trace(0)` both; a first cut hid
+the machinery by a table of its names, and its findnsols/4 printed the two
+bag calls. The table keeps only where a body stands.
+
+NOT SWI'S (COMPAT.md's row 56, rewritten): a goal, a setup or a cleanup
+that is a control structure. swipl's is a frame of its own -- the goal's a
+meta-call's, the setup's and the cleanup's the `','/2` or `;/2` its
+callProlog() calls (`^  Call: a, b`) -- its parts a level or two deeper and
+a builtin in them a port; cocolog's goal structure has no frame, its parts
+a level less and a builtin in them hidden, and a setup's or a cleanup's
+runs in a frame of the machinery's (`'$c_and'/2` for `','/2`), no port,
+its parts hidden with it, as through 3.78.2. And swipl's catch/3 is a
+frame where cocolog's is none, so a query that raises through one is held
+from setup_call_cleanup/3's call on.
+
+HELD. test/trace.pl, 190 checks, green: test/trace-cleanup.pl (new), 21
+queries held to swipl line for line -- an exit at the last answer, the
+clause's cut, a caller's and the query's, a goal that fails,
+setup_call_catcher_cleanup/4 and its catcher, call_cleanup/2, forall/2's
+condition, a cut with a choice left, a cleanup that fails, a library goal,
+a setup with a choice, a nested setup_call_cleanup/3, builtin and library
+setups and cleanups, a retry inside a setup, a setup `fail` and a cleanup's
+`true` and `fail` -- and two that raise, from the goal and after it
+exited, held from the call on (`traced_from/4`, swipl's Exception port not
+shown); test/trace-dollar.pl (new), 10 queries: a program's `$` predicate,
+its retry under a caller that hides nothing and under one that hides,
+what it calls, a builtin's `$` predicate, a `$` setup and cleanup, a
+library's `$` helper called by the library and by the program;
+findnsols/4's two traces whole, which through 3.78.2 were held by their
+own ports alone; and cocolog's own lines -- a `;` in findall/3's,
+forall/2's and with_output_to/2's goal no Redo, a setup's conjunction no
+port, and the program's clause that joins a library predicate moved from
+member/2 to sumlist/2, whose library clause calls sum_list/2: member/2's
+calls `'$member_'/3`, no port now, which one line holds hidden, joined or
+not. On 3.78.2 37 of the 190 are red.
+
+ARMS: one build each of the final code with one rule out, test/trace.pl
+run. R1, a hidden call's body at its own level (`coco_trace_bdepth`'s
+adjustment 0): red, 26 -- every setup_call_cleanup/3 query, both raises,
+findnsols/4's two and the `$` setup. R2, no `$` rule: red, 22 -- the `$`
+queries but the library's two that the library calls (dl7, dl8: hidden by
+their context), the machinery's ports wherever a cut or a cleanup runs it,
+findnsols/4's bag, the joined member/2's helper and the setup's
+conjunction. R3, `'$scc_pop'` cutting the stack: red, the raise from the
+goal (its `Redo: '$scc_raised'(...)`). R4, a query of its own hiding what
+its context hides: red, 9 -- the builtin setups and cleanups, a setup
+`fail`, a cleanup's `true` and `fail`, findnsols/4's two. R5, a setup
+`true` a port: red, 19. R6, a Redo of a hidden region's call: red, 4 --
+the retries of a `$` call under a caller that hides nothing (dl2, dl3,
+dl9, dl10). R7, a `;` in a builtin's search its own call's Redo: red, the
+three lines. R9, the `;`'s call found by the call's own depth: red, sc10
+(a cleanup that fails) and the raise from the goal.
+
+COST, against 3.78.2's code at paths of one length: the untraced engine
+moves nothing (tools/flow/zero.sh, work less padding: nrev 65 890 482 to
+65 890 513, queens 39 953 184 to 39 953 175, lookup 48 060 239 in both) --
+the step's traced entry is one call where it set two fields and called
+the recorder, and no register of the untraced loop moved -- and a start
+(`cocolog query true`) is 539 instructions cheaper, 36 929 578 to
+36 929 039, of placement.
+
+THE RUN, on the binary committed (its md5 the same before the round and
+after it): the lint case first, then trace, backtrace, engine, errors,
+window, journal, flowdebug, files, script, async, gc, directives, cyclic,
+library, thread and the solve, state and module binaries, each alone.
+All green, no SKIP; the dialect card's cites all anchored (15 by a moved
+anchor, accepted).

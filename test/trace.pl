@@ -95,11 +95,14 @@ main :-
     forall(member(Q, [ 'mt1(atom(a))', 'mt1(fail)', 'mt2(atom(a))', 'mt2(fail)' ]),
            qualified_ports(Swipl, [Library], Q)),
     %% FINDNSOLS/4'S OWN PORTS (3.72.0), as swipl's: its Call, each chunk's
-    %% Exit with its goal said of user, a chunk's Redo -- read apart from
-    %% the frames between it and its goal, setup_call_cleanup/3's, whose
-    %% depth and cleanup ports are not swipl's yet
+    %% Exit with its goal said of user, a chunk's Redo -- and since 3.78.3
+    %% its whole trace, its goal at swipl's depth and its bag's setup and
+    %% cleanup no ports (`$' names), where through 3.78.2
+    %% setup_call_cleanup/3's frames stood between it and its goal
     forall(member(Q, [ 'fn(L)', 'fm(L)' ]),
            own_ports(Swipl, [Library], Q, "findnsols(")),
+    forall(member(Q, [ 'fn(L)', 'fm(L)' ]),
+           traced_in(Swipl, [Library], Q, Q)),
     %% CALL_WITH_INFERENCE_LIMIT/3'S OWN PORTS (3.73.0), as swipl's, read
     %% apart from its goal's, which swipl's catch/3 puts a frame deeper
     forall(member(Q, [ 'il(R)', 'ig(R)' ]),
@@ -111,6 +114,28 @@ main :-
     %% 3.71.0 the cleanup waited for a cut, and findnsols/4 gave one more
     forall(member(Q, [ cd, fa ]),
            traced_answers(Swipl, [Library], Q)),
+    %% SETUP_CALL_CLEANUP/3 (3.78.3, test/trace-cleanup.pl): its setup,
+    %% goal and cleanup where swipl's stand -- four, two and three below the
+    %% call, the cleanup a cut runs two below the clause that cut -- and none
+    %% of its machinery a port. Through 3.78.2 the goal was three below, a
+    %% cleanup four or five, a cut printed `'$cleanup_call'(!, _, C)''s Call
+    %% and Exit in the program's clause, and a raise in the goal a Redo of
+    %% `'$scc_raised'/4'. A raise is held from the call on (`traced_from'):
+    %% swipl's catch/3 is a frame, and cocolog's none
+    atom_concat(Root, '/test/trace-cleanup.pl', Cleanup),
+    forall(member(Q, [ sc1, sc2, sc3, sc4, sc5, sc6, sc7, sc8, sc9, sc10, sc11, sc12, sc13,
+                       sc14, sc15, sc16, sc17, sc18, sc19, sc20, sc21 ]),
+           traced_in(Swipl, [Cleanup], Q, Q)),
+    forall(member(Q, [ 'catch(sx1, _, true)', 'catch(sx2, _, true)' ]),
+           traced_from(Swipl, [Cleanup], Q, "setup_call_cleanup(")),
+    %% A PREDICATE WHOSE NAME BEGINS WITH `$' IS NO PORT (3.78.3,
+    %% test/trace-dollar.pl), as none of swipl's is, a program's own too:
+    %% what it calls is asked as any call's, and a retry inside it is the
+    %% Redo of the library call it is in, none where its caller hides
+    %% nothing. Through 3.78.2 each was a port and its retry its own Redo
+    atom_concat(Root, '/test/trace-dollar.pl', Dollar),
+    forall(member(Q, [ dl1, dl2, dl3, dl4, dl5, dl6, dl7, dl8, dl9, dl10 ]),
+           traced_in(Swipl, [Dollar], Q, Q)),
     %% THE FLAG IS THE FILE'S: test/trace-library.pl ends with it false, and
     %% the file read after it is the program's again (swipl's load puts the
     %% flag back at a file's end)
@@ -187,6 +212,39 @@ traced_in(Swipl, Files, Q, Name) :-
     ( td_compare(Swi, Coco, 1, Q) -> R = identical ; R = differs ),
     check(Name, R, identical).
 
+%% the ports of Q's trace from the first whose goal begins with PREFIX on,
+%% those at its depth or deeper, each trace rebased there (3.78.3): a query
+%% a catch/3 stands around, swipl's frame and cocolog's none, and swipl's
+%% Exception port not shown (`visible(-exception)'), which cocolog has none
+%% of
+traced_from(Swipl, Files, Q, Prefix) :-
+    findall(S1, ( member(F1, Files), sh_join(['consult(''', F1, '''), '], S1) ), Cs),
+    sh_join(Cs, Consults),
+    sh_join(['yes '''' | timeout 20 ', Swipl, ' -q -g "leash(-all), visible(-exception), ', Consults,
+             'trace, ( ', Q, ' -> true ; true ), notrace, halt" -t halt 2>&1'], SwiCmd),
+    proc_run(SwiCmd, 30000, Swi0, _),
+    cocolog(C),
+    findall(S2, ( member(F2, Files), sh_join([F2, ' '], S2) ), Fs),
+    sh_join(Fs, Paths),
+    sh_join(['timeout 20 ', C, ' run ', Paths, '"trace, ( ', Q, ' -> true ; true ), notrace" 2>&1 >/dev/null'],
+            CocoCmd),
+    proc_run(CocoCmd, 30000, Coco0, _),
+    td_ports(Swi0, Swi1), td_ports(Coco0, Coco1),
+    tf_window(Swi1, Prefix, Swi), tf_window(Coco1, Prefix, Coco),
+    atom_concat('from the call on: ', Q, Name),
+    ( Swi \== [], td_compare(Swi, Coco, 1, Name) -> R = identical ; R = differs ),
+    check(Name, R, identical).
+
+tf_window(Rows, Prefix, Out) :-
+    append(_, [p(P0, D0, G0)|Rest], Rows),
+    atom_codes(G0, Gc),
+    append(Prefix, _, Gc),
+    !,
+    findall(p(P, D, G),
+            ( member(p(P, D1, G), [p(P0, D0, G0)|Rest]), D1 >= D0, D is D1 - D0 + 1 ),
+            Out).
+tf_window(_, _, []).
+
 %% the Exit and the Fail ports of Q traced as `traced_in/4' traces it, each
 %% goal as it was printed, its qualifiers on (3.45.0)
 qualified_ports(Swipl, Files, Q) :-
@@ -260,24 +318,32 @@ traced_answers(Swipl, Files, Q) :-
 
 %% a fixture each, traced from inside the goal, and a line it must print or
 %% must not. A program's clause joins a library's predicate (card row N1):
-%% member/2 is the program's then as much as the library's, and what it calls
-%% is printed, the library's helper among it -- swipl's program's member/2 is
-%% user's, the library's out of sight. with_output_to/2 runs its goal as a
+%% sumlist/2 is the program's then as much as the library's, and what it
+%% calls is printed, the library's sum_list/2 -- swipl's program's sumlist/2
+%% is user's, the library's out of sight -- but a helper whose name begins
+%% with `$' is no port by its name (3.78.3), member/2's `'$member_'/3' among
+%% them, which through 3.78.2 this case held printed. with_output_to/2 runs its goal as a
 %% query of its own, as swipl's C does, so a library call in it is printed --
 %% swipl puts a frame of the goal between. call_limited/3's goal is in its
 %% context, as call_with_inference_limit/3's clause has it. print_message/2
 %% and async_workers/1 are a library's that says generate_debug_info false
 own_lines :-
     scratch(D),
-    own(D, joined, [ 'j(X) :- member(X, [1]).', 'member(z, [z]).' ], 'j(X)',
-        p('Call', 3, '''$member_''([],_,1)'), printed,
-        'a program''s clause for member/2 prints what the library''s clause calls'),
+    own(D, joined0, [ 'j(S) :- sumlist([1], S).' ], 'j(S)',
+        p('Call', 3, 'sum_list([1],_)'), hidden,
+        'a library''s sumlist/2 hides what its clause calls'),
+    own(D, joined, [ 'j(S) :- sumlist([1], S).', 'sumlist(z, z).' ], 'j(S)',
+        p('Call', 3, 'sum_list([1],_)'), printed,
+        'a program''s clause for sumlist/2 prints what the library''s clause calls'),
     %% the same read after the library's (a `run' file's first directive
     %% reads the libraries): the program's clause decides again, where the
-    %% one above is member/2's first and the library's joins it
-    own(D, joined2, [ ':- true.', 'j(X) :- member(X, [1]).', 'member(z, [z]).' ], 'j(X)',
-        p('Call', 3, '''$member_''([],_,1)'), printed,
+    %% one above is sumlist/2's first and the library's joins it
+    own(D, joined2, [ ':- true.', 'j(S) :- sumlist([1], S).', 'sumlist(z, z).' ], 'j(S)',
+        p('Call', 3, 'sum_list([1],_)'), printed,
         'and so does one read after the library''s, a directive having read it'),
+    own(D, joined3, [ 'j(X) :- member(X, [1]).', 'member(z, [z]).' ], 'j(X)',
+        p('Call', 3, '''$member_''([],_,1)'), hidden,
+        'but member/2''s `$'' helper is no port by its name, joined or not'),
     own(D, wo, [ 'wo(S) :- with_output_to(string(S), (member(X, [1]), write(X))).' ], 'wo(S)',
         p('Call', 3, 'member(_,[1])'), printed,
         'with_output_to/2''s goal is a query of its own: a library call in it is printed'),
@@ -295,6 +361,30 @@ own_lines :-
     own(D, aw, [ 'aw(N) :- async_workers(N).' ], 'aw(N)',
         p(_, 3, _), hidden,
         'async_workers/1''s clause calls nothing the printer shows'),
+    %% A `;' WRITTEN IN A BUILTIN'S GOAL (3.78.3): its retry is no Redo, as
+    %% swipl's prints none -- the goal's call is no frame of the search's
+    %% own. Through 3.78.2 it was the Redo of the builtin's own call, and in
+    %% with_output_to/2's of the heap's first term (`Redo: (2) trace').
+    %% (swipl's goal is a meta-call's frame, which shows the `fail' in it:
+    %% the two traces are not held line for line)
+    own(D, br1, [ 'br1 :- findall(X, (fail ; X = 1), _).' ], br1,
+        p('Redo', _, _), hidden,
+        'a `;'' in findall/3''s goal is no Redo of findall/3'),
+    own(D, br2, [ 'br2 :- forall((fail ; X = 1), integer(X)).' ], br2,
+        p('Redo', _, _), hidden,
+        'a `;'' in forall/2''s condition is no Redo of forall/2'),
+    own(D, br3, [ 'br3 :- with_output_to(string(_), (fail ; true)).' ], br3,
+        p('Redo', _, _), hidden,
+        'a `;'' in with_output_to/2''s goal is no Redo of the heap''s first term'),
+    %% A SETUP OR A CLEANUP THAT IS A CONTROL STRUCTURE (3.78.3) runs in a
+    %% frame of the machinery's, `'$c_and'/2' for a conjunction: no port,
+    %% though a setup is a query of its own whose builtins are shown -- as
+    %% through 3.78.2, where setup_call_cleanup/3's frame hid the setup.
+    %% (swipl's is the ','/2 frame, `^  Call: member(_, [1, 2]), _>1', its
+    %% parts ports: not held line for line, COMPAT.md)
+    own(D, sr1, [ 'sr1 :- setup_call_cleanup((member(X, [1, 2]), X > 1), true, true).' ], sr1,
+        p('Call', _, '''$c_and''(member(_,[1,2]),_>1)'), hidden,
+        'a setup''s conjunction runs in a frame of the machinery''s, no port'),
     %% a fact the program asserts under a compiled-in module's name is no
     %% predicate the call reaches -- files' C answers '$path_base'/2 -- so
     %% the store is asked after the modules, as the step dispatches

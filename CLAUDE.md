@@ -3711,14 +3711,42 @@ a session must keep:
   QUERY 0 where swipl's builtin is a clause (findall/3, forall/2,
   call_limited/3: the builtin's context) and 1 where it is C running a
   query (with_output_to/2: no context), one deeper and a boundary no Redo
-  crosses (`trace_bhc`); **a new system library says
+  crosses (`trace_bhc`: since 3.78.3 a `;` written in the search's goal,
+  whose call is no frame of the search's, is no Redo either -- it was
+  findall/3's own, and with_output_to/2's the heap's first term).
+  **A call of a `$` name is no port, wherever it runs and whoever
+  defined it** (3.78.3, `coco_trace_hidden`'s first test), as swipl's
+  resetProcedure() sets TRACE_ME on no such predicate: what it calls is
+  asked as anything's is (a program's `$` predicate hides nothing), and a
+  retry inside one whose caller hides nothing is no Redo
+  (`coco_trace_redo_at`: the region's call hidden), as swipl's
+  dbgRedoFrame finds none -- so **a helper the program must not see is a
+  `$` name**, and a name the program must see is not. **The bodies of
+  setup_call_cleanup/3's machinery stand where swipl's frames do**
+  (3.78.3, `coco_trace_scc` over `*trace-scc-frames*`): `'$scc_run'/1`,
+  `'$cleanup_call'/3` and the three that call it are no frame of swipl's,
+  their bodies at their caller's level; `'$c_setup'/1` a level deeper; and
+  `'$c_setup'/1` and `'$c_call'/1` queries of their own, which hide
+  nothing, as swipl's callProlog() runs a setup and a cleanup (a setup
+  `true` no port, as swipl's sig_atomic/1 runs it as nothing); the frames
+  of a setup or a cleanup that is call/1 or a control structure
+  (`'$c_and'/2` and its kin) hide what they call, as the builtins' clauses
+  do. **A frame's body level is `coco_trace_bdepth`'s**: the traced entry
+  (`coco_trace_enter`, out of line, the step's traced entry one call) and
+  the search for a `;`'s call ask it, the exit marker the call's own depth
+  -- so **a new clause of the machinery whose body stands elsewhere is a
+  row of the table**, or its body is a level of its own. `'$scc_pop'` kills its frame in place
+  where a traced frame stands above it (the recovery's own: cut away with
+  the stack, a retry in its body was a Redo no call owned). **A new system library says
   `:- set_prolog_flag(generate_debug_info, false).` at its head**, as the
   compiled-in halves, library/print_message.pl and library/async.pl do;
   **a new reader of `pattrs` masks the bits it means** (listing/1's guard
   reads 31). The recorder (2) and the quiet trace (3) keep 3.26's every
-  call. test/trace.pl holds 32 queries of test/trace-library.pl to swipl,
-  a second file after one that ends under false, and eight lines swipl has
-  none of to cocolog's own; COMPAT.md has what is not swipl's. **The
+  call. test/trace.pl holds 42 queries of test/trace-library.pl to swipl
+  (findnsols/4's two whole since 3.78.3), 23 of test/trace-cleanup.pl and
+  10 of test/trace-dollar.pl, a second file after one that ends under
+  false, and 24 lines swipl has none of to cocolog's own; COMPAT.md has
+  what is not swipl's. **The
   printer writes a goal as print/1 writes it** (3.40.0, `coco_write_print`
   in `coco_trace_port` and in the Redo's text, `coco_trace_paint`), as
   swipl's debugger writes it with portray: `'$VAR'(0)` is `A` and a quote

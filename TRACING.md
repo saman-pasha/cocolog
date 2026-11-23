@@ -137,12 +137,49 @@ ports were printed (`'$member_'/3`, `'$nth_gen'/5`, `'$between_n'/3`).
   choice point is printed as the `Redo` of the library call the program
   made, once that call has exited — `Redo: member(_G0,[a,b])` above —
   and nothing while it has not, as SWI's `dbgRedoFrame` reports it.
+* **A predicate whose name begins with `$` is no port** (3.78.3), wherever
+  it is called and whoever defined it, as none of swipl's is: its
+  resetProcedure() sets TRACE_ME on no such predicate, a program's own
+  `'$dx'/1` among them. What it calls is shown or hidden as anything's is,
+  so a program's `$` predicate hides nothing (`'$dy' :- atom(a)` shows
+  `atom(a)` a level below its caller). A retry inside one is the `Redo` of
+  the library call it is in, where its caller hides its children, and no
+  `Redo` at all where its caller hides nothing: the call it is in exits
+  again with no `Redo` before it, as swipl's. Through 3.78.2 each was a
+  port, and its retry its own `Redo`.
 * **A builtin's search is its own.** findall/3, forall/2 and
   call_limited/3 run their goals in the builtin's context, as swipl's
   clauses for them (and for call_with_inference_limit/3) do, so a library
   call in them is hidden; with_output_to/2, which swipl runs as a query
   of its own in C, shows a library call in it. A retry inside the search
   reaches no `Redo` of the program's past it.
+* **setup_call_cleanup/3 stands where swipl's does** (3.78.3). Its setup
+  is four levels below the call, its goal two, a cleanup three where the
+  goal exits, fails or raises, and two below the clause whose cut takes
+  the frame (a caller's cut, the query's). swipl's frames between them are
+  its VM's (I_CALLCLEANUP, frameFinished(), the query sig_atomic/1 opens);
+  cocolog's are the clauses of its builtins' Prolog half, `'$scc_run'/1`
+  and the rest, whose bodies the printer runs at the levels swipl's frames
+  stand at. None of them is a port, wherever it runs (`$` names, above):
+  through 3.78.2 a cut
+  printed `'$cleanup_call'(!, Catcher, Cleanup)`'s Call and Exit in the
+  program's clause, the goal was three levels down and a cleanup four or
+  five, and a raise in the goal printed a `Redo` of `'$scc_raised'/4`. A
+  setup and a cleanup are queries of their own, as swipl's callProlog()
+  runs them: a builtin or a library call there is shown, as at the
+  toplevel (`atom(a)`, `lists:member/2`); the goal is in
+  setup_call_cleanup/3's frame, and a library goal is hidden, its retry
+  setup_call_cleanup/3's `Redo`. A setup `true` is no port (swipl's
+  sig_atomic/1 runs it as nothing); a setup `fail` and a cleanup's `true`
+  are. A setup or a cleanup that is a control structure is not swipl's:
+  swipl's runs in a frame of the structure's own, `^  Call: a, b`, its
+  parts ports, and cocolog's runs hidden (COMPAT.md).
+* **A `;` written in a builtin's goal is no `Redo`** (3.78.3): findall/3's,
+  forall/2's, call_limited/3's, with_output_to/2's -- the goal's call is
+  no frame of the search's own, and through 3.78.2 its retry was a `Redo`
+  of the builtin's call, or in with_output_to/2's of the heap's first term
+  (`Redo: (2) trace`). swipl's goal is a meta-call's frame, which shows a
+  builtin in it (`Call: fail`), and cocolog's none (COMPAT.md).
 * **The recorder keeps every call.** The printer (`trace` 1) hides; a
   window's recorder (`library(flow/debug)`) records every call, a
   helper's too, where its chart and its profile need them, and the quiet
@@ -152,9 +189,14 @@ ports were printed (`'$member_'/3`, `'$nth_gen'/5`, `'$between_n'/3`).
 ## How it is held to SWI
 
 `test/trace.pl` — the `trace` case of `make test` — asks both tracers
-the same thirty-three queries over `test/trace-program.pl`, and since 3.27.0
+the same thirty-three queries over `test/trace-program.pl`, since 3.27.0
 thirty-two over `test/trace-library.pl` (library calls, a callback, a
 search, `generate_debug_info` false and back, a second file after it), and
+since 3.78.3 twenty-three over `test/trace-cleanup.pl` (setup_call_cleanup/3's
+setup, goal and cleanups; the two that raise held from its call on, as
+swipl's catch/3 is a frame and swipl's Exception port is not shown), ten
+over `test/trace-dollar.pl` (`$` names: a program's, a library's, a
+builtin's) and findnsols/4's two whole, and
 compares the port lines one for one: same ports, same order, same relative
 depths, same goals. Three things are normalised first, because the two
 writers are entitled to them: the depth base (SWI's toplevel starts about ten
