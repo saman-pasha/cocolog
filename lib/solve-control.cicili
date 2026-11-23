@@ -1394,23 +1394,134 @@
           (if (== ($ (nth (cast size_t t) (-> e tchoices)) exited) 0) (return -1))
           (return t)))
 
+  ;;; whether G, dereferenced, is a control structure swipl's I_USERCALL
+  ;;; compiles into a `'<meta-call>'/1': `,'/2, `;'/2, `->'/2, `*->'/2 or
+  ;;; `\+'/1, the structures `coco_meta_bar' runs in one -- under its
+  ;;; qualifiers, each an atom, which I_USERCALL takes off before it
+  ;;; compiles (`call(user:(A, B))'); a qualifier that is none is the `:'
+  ;;; step's error
+  (static)
+  (func coco_trace_ctl ((coco_machine * m) (size_t d)) (out int)
+        (while (and (coco-tag-is FUN (nth d (-> m heap))) (== (coco_arity m d) 2)
+                    (== (coco_name_of m d) (coco-id m ":")))
+          (let ((size_t mo . #'(coco_deref m (coco_arg m d 0))))
+            (if (or (not (coco-tag-is ATOM (nth mo (-> m heap)))) (coco_is_nil m mo)) (return 0))
+            (set d (coco_deref m (coco_arg m d 1)))))
+        (if (not (coco-tag-is FUN (nth d (-> m heap)))) (return 0))
+        (if (== (coco_arity m d) 2)
+            (let ((u64 nm . #'(coco_name_of m d)))
+              (return (or (== nm (coco-id m ",")) (== nm (coco-id m ";"))
+                          (== nm (coco-id m "->")) (== nm (coco-id m "*->"))))))
+        (return (and (== (coco_arity m d) 1) (== (coco_name_of m d) (coco-id m "\\+")))))
+
+  ;;; A CONTROL STRUCTURE META-CALLED, to the printer (3.78.4): swipl's
+  ;;; `'<meta-call>'/1' frame, which I_USERCALL compiles a structure into
+  ;;; -- a level below the call, no port (its TRACE_ME is off) and hiding
+  ;;; nothing, so the structure's parts stand a level deeper and a builtin
+  ;;; among them is a port, in a library's clause and a builtin's search
+  ;;; too, and a retry of a `;' or a `\+' in it is no Redo (its region's
+  ;;; call is hidden, `coco_trace_redo_at'). A SPENT frame, hidden (PRINTR
+  ;;; 2), its call and its goal the structure, naming no predicate, and an
+  ;;; exit marker after the structure that puts the caller's level and
+  ;;; context back, as a traced call's does. A cut in the structure leaves
+  ;;; the frame: the structure's barrier is taken before the push, at the
+  ;;; frame's height (`coco_det_kq'), and a cut to it puts the frame back,
+  ;;; the context's own (`coco_trace_cut'). G the
+  ;;; goal, B the barrier the marker runs under, K what follows: answers
+  ;;; what the structure goes before -- the marker on K -- or K itself,
+  ;;; where G is no structure or no room was left (the refusal the step's
+  ;;; next growth says)
+  (weak) (cold)
+  (func coco_trace_meta ((coco_engine * e) (size_t g) (size_t b) (size_t k)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m)) (size_t d . #'(coco_deref (-> e m) g))
+              (int td . #'(+ (-> e trace_depth) 1)) (size_t k2 . 0) (size_t margs [3]))
+          (if (or (!= (-> e trace) 1) (not (coco_trace_ctl m d))) (return k))
+          (set (nth 0 margs) (coco_new_int m (cast i64 d)))
+          (set (nth 1 margs) (coco_new_int m (cast i64 td)))
+          (set (nth 2 margs) (coco_new_int m (cast i64 (-> e trace_goal))))
+          (set k2 (coco_k_push e (coco_make_f m (coco-fid m "$trace_exit" 3) 3 margs) b k))
+          (if (== k2 0) (return k))
+          (if (not (coco_push_choice e COCO_CH_SPENT d k b)) (return k))
+          (let ((size_t ci . #'(- (-> e nchoices) 1)))
+            (set ($ (nth ci (-> e choices)) pred) (cast size_t -1))
+            (set ($ (nth ci (-> e tchoices)) goal) d)
+            (set ($ (nth ci (-> e tchoices)) depth) td)
+            (set ($ (nth ci (-> e tchoices)) printr) 2)
+            (set ($ (nth ci (-> e tchoices)) last) 0))
+          (set (-> e trace_depth) td)
+          (set (-> e trace_goal) d)
+          (return k2)))
+
+  ;;; THE ROOT OF A SEARCH A BUILTIN STARTS IN ITS CONTEXT (`coco_trace_inner'
+  ;;; QUERY 0), once asked (`coco_engine_ask'): a control structure there
+  ;;; is meta-called by swipl's clause -- findall/3's goal, aggregate_all/3's
+  ;;; -- so it stands in a `'<meta-call>'/1' frame (`coco_trace_meta'), its
+  ;;; root frame rebuilt over the frame's exit marker. Not forall/2's root,
+  ;;; `(C, \+ A)', which its own builtin made: each part of it that is a
+  ;;; structure is meta-called (`coco_trace_forall')
+  (weak) (cold)
+  (func coco_trace_root ((coco_engine * e))
+        (if (!= (-> e trace) 1) (return))
+        (let ((coco_machine * m . #'(-> e m)) (size_t k0 . #'(-> e goals))
+              (size_t g . 0) (size_t k2 . 0))
+          (if (not (coco-tag-is FUN (nth k0 (-> m heap)))) (return))
+          (set g (coco_deref m (coco_arg m k0 0)))
+          (if (not (coco_trace_ctl m g)) (return))
+          (set k2 (coco_trace_meta e g 0 (coco_arg m k0 2)))
+          (if (== k2 (coco_arg m k0 2)) (return))
+          (let ((size_t k1 . #'(coco_k_push e g 0 k2)))
+            (if (!= k1 0) (set (-> e goals) k1)))))
+
+  ;;; FORALL/2'S ROOT UNDER THE PRINTER (3.78.4): `(C, \+ A)', its
+  ;;; builtin's own (`coco_b_forall'), each part that is a control
+  ;;; structure meta-called -- `(call(C), \+ call(A))' -- as swipl's forall/2
+  ;;; calls its clause's variables, so that each stands in its
+  ;;; `'<meta-call>'/1' frame (`coco_trace_meta'); `(C, true)' where A is no
+  ;;; goal. The root frame is rebuilt over the same continuation, its
+  ;;; barrier 0 as `coco_engine_ask' makes every root's. A part made call/1
+  ;;; already -- one that holds $/0, or under a depth limit -- is no
+  ;;; structure here
+  (weak) (cold)
+  (func coco_trace_forall ((coco_engine * e))
+        (let ((coco_machine * m . #'(-> e m)) (size_t k0 . #'(-> e goals))
+              (size_t g . 0) (size_t c . 0) (size_t n . 0) (size_t k1 . 0))
+          (if (not (coco-tag-is FUN (nth k0 (-> m heap)))) (return))
+          (set g (coco_deref m (coco_arg m k0 0)))
+          (if (not (coco_is_compound2 m g ",")) (return))
+          (set c (coco_deref m (coco_arg m g 0)))
+          (set n (coco_deref m (coco_arg m g 1)))
+          (if (coco_trace_ctl m c) (set c (coco_make1 m "call" c)))
+          (if (and (coco-tag-is FUN (nth n (-> m heap))) (== (coco_arity m n) 1)
+                   (== (coco_name_of m n) (coco-id m "\\+"))
+                   (coco_trace_ctl m (coco_deref m (coco_arg m n 0))))
+              (set n (coco_make1 m "\\+" (coco_make1 m "call" (coco_deref m (coco_arg m n 0))))))
+          (set k1 (coco_k_push e (coco_make2 m "," c n) 0 (coco_arg m k0 2)))
+          (if (!= k1 0) (set (-> e goals) k1))))
+
   ;;; THE SEARCH A BUILTIN STARTS, for the printer (`trace' 1): its goals
   ;;; are one deeper than its Call, and a retry inside reaches no Redo of the
   ;;; program's past them (`trace_bhc'). Where swipl's builtin is a clause of
   ;;; its system -- findall/3's, forall/2's, call_with_inference_limit/3's
   ;;; for call_limited/3 -- they are in its context (`kcall', the builtin's
-  ;;; goal), so a library predicate in them is hidden; where it is C that
-  ;;; runs the goal as a query of its own (QUERY: with_output_to/2's), they
-  ;;; have no context, as the toplevel's goals have none, and a library
-  ;;; predicate's own call is shown. A window's recorder keeps 3.26's: the
-  ;;; goals in the caller's context and depth, where library(flow/debug)
-  ;;; charts them
+  ;;; goal), so a library predicate in them is hidden, and a structure at
+  ;;; the root stands in its `'<meta-call>'/1' frame (3.78.4,
+  ;;; `coco_trace_root'), forall/2's each part of its own root
+  ;;; (`coco_trace_forall'); where it is C that runs the goal as a query of
+  ;;; its own (QUERY: with_output_to/2's), they have no context, as the
+  ;;; toplevel's goals have none, and a library predicate's own call is
+  ;;; shown. A window's recorder keeps 3.26's: the goals in the caller's
+  ;;; context and depth, where library(flow/debug) charts them. The frames
+  ;;; are asked here, a call the untraced search already makes: a test of
+  ;;; their own cost findall/3's call seven instructions, and forall/2's
+  ;;; wraps four more
   (weak)
   (func coco_trace_inner ((coco_engine * e) (coco_engine * sub) (int query))
         (if (!= (-> e trace) 1) (return))
         (set (-> sub trace_depth) (+ (-> e trace_depth) 1))
         (set (-> sub trace_goal) (? query 0 (-> e kcall)))
-        (set (-> sub trace_bhc) 1))
+        (set (-> sub trace_bhc) 1)
+        (if (not query)
+            (if (== (-> sub rootn) 2) (coco_trace_forall sub) (coco_trace_root sub))))
 
   ;;; A WRITTEN `;' RETRIED: whether its Redo is its own call's -- 1, as
   ;;; through 3.26 -- or, in a clause of a predicate that hides its children

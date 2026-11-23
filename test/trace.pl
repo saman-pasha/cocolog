@@ -136,6 +136,17 @@ main :-
     atom_concat(Root, '/test/trace-dollar.pl', Dollar),
     forall(member(Q, [ dl1, dl2, dl3, dl4, dl5, dl6, dl7, dl8, dl9, dl10 ]),
            traced_in(Swipl, [Dollar], Q, Q)),
+    %% CALL/1 OF A CONTROL STRUCTURE (3.78.4, test/trace-meta.pl) stands in
+    %% swipl's `'<meta-call>'/1' frame, which I_USERCALL compiles it into --
+    %% a level below the call, no port and hiding nothing -- so its parts
+    %% are a level deeper, a builtin among them is a port in a library's
+    %% clause too, and a `;' retried in it is no Redo; under its
+    %% qualifiers, as a variable goal, as forall/2's condition and action
+    %% and as setup_call_cleanup/3's goal alike. Through 3.78.3 the parts
+    %% stood at the call's level, and a library's clause hid their builtins
+    atom_concat(Root, '/test/trace-meta.pl', Meta),
+    forall(between(1, 43, I),
+           ( atom_concat(mt, I, Q), traced_in(Swipl, [Meta], Q, Q) )),
     %% THE FLAG IS THE FILE'S: test/trace-library.pl ends with it false, and
     %% the file read after it is the program's again (swipl's load puts the
     %% flag back at a file's end)
@@ -365,8 +376,9 @@ own_lines :-
     %% swipl's prints none -- the goal's call is no frame of the search's
     %% own. Through 3.78.2 it was the Redo of the builtin's own call, and in
     %% with_output_to/2's of the heap's first term (`Redo: (2) trace').
-    %% (swipl's goal is a meta-call's frame, which shows the `fail' in it:
-    %% the two traces are not held line for line)
+    %% (swipl's findall/3 runs its goal frames deeper than cocolog's search
+    %% does, and with_output_to/2's is its ';'/2 predicate's frame: the two
+    %% traces are not held line for line)
     own(D, br1, [ 'br1 :- findall(X, (fail ; X = 1), _).' ], br1,
         p('Redo', _, _), hidden,
         'a `;'' in findall/3''s goal is no Redo of findall/3'),
@@ -380,11 +392,35 @@ own_lines :-
     %% frame of the machinery's, `'$c_and'/2' for a conjunction: no port,
     %% though a setup is a query of its own whose builtins are shown -- as
     %% through 3.78.2, where setup_call_cleanup/3's frame hid the setup.
-    %% (swipl's is the ','/2 frame, `^  Call: member(_, [1, 2]), _>1', its
-    %% parts ports: not held line for line, COMPAT.md)
+    %% (swipl's is the ','/2 frame, `^  Call: member(_, [1, 2]), _>1', a
+    %% port: not held line for line, COMPAT.md. Its parts stand where
+    %% swipl's do since 3.78.4, the `'<meta-call>'/1' frame of the
+    %% frame's call/1 between)
     own(D, sr1, [ 'sr1 :- setup_call_cleanup((member(X, [1, 2]), X > 1), true, true).' ], sr1,
         p('Call', _, '''$c_and''(member(_,[1,2]),_>1)'), hidden,
         'a setup''s conjunction runs in a frame of the machinery''s, no port'),
+    own(D, sr2, [ 'sr2 :- setup_call_cleanup((member(X, [1, 2]), X > 1), true, true).' ], sr2,
+        p('Call', 8, 'member(_,[1,2])'), printed,
+        'and its parts stand in the frame''s meta-call, six below, a library call a port'),
+    %% A STRUCTURE IN FINDALL/3'S, AGGREGATE_ALL/3'S OR CALL_LIMITED/3'S GOAL
+    %% (3.78.4) stands in a `'<meta-call>'/1' frame, as swipl's clauses
+    %% meta-call it: a builtin in it is a port, two below the builtin's call
+    %% -- swipl's findall/3 runs it six below, through findall_loop/4 and
+    %% its cleanup's frames, where cocolog's search is one -- and a plain
+    %% goal there is in the builtin's context, hidden as swipl's is.
+    %% Through 3.78.3 the structure's builtins were hidden too
+    own(D, fa1, [ 'fa1 :- findall(x, (atom(a) ; atom(b)), _).' ], fa1,
+        p('Call', 4, 'atom(a)'), printed,
+        'a structure in findall/3''s goal is meta-called: a builtin in it a port'),
+    own(D, fa2, [ 'fa2 :- aggregate_all(count, (atom(a), atom(b)), _).' ], fa2,
+        p('Call', 4, 'atom(b)'), printed,
+        'and in aggregate_all/3''s'),
+    own(D, fa3, [ 'fa3(R) :- call_limited((atom(a), atom(b)), 100, R).' ], 'fa3(R)',
+        p('Call', 4, 'atom(a)'), printed,
+        'and in call_limited/3''s'),
+    own(D, fa4, [ 'fa4 :- findall(x, atom(a), _).' ], fa4,
+        p('Call', _, 'atom(a)'), hidden,
+        'a plain goal in findall/3''s goal is in its context: a builtin no port'),
     %% a fact the program asserts under a compiled-in module's name is no
     %% predicate the call reaches -- files' C answers '$path_base'/2 -- so
     %% the store is asked after the modules, as the step dispatches

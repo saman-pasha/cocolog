@@ -7,10 +7,11 @@
 %% builtins' Prolog half, whose bodies the printer runs at the levels
 %% swipl's frames stand at.
 %%
-%% Each goal, setup and cleanup is a predicate of the program's: a goal that
-%% is a control structure is a frame of its own in swipl's (a meta-call), as
-%% everywhere in cocolog's tracer, and a cleanup whose body is `true' alone
-%% prints that `true' (COMPAT.md, the trace row).
+%% Each goal, setup and cleanup is a predicate of the program's: a setup or
+%% a cleanup that is a control structure is swipl's `','/2' predicate, a
+%% port cocolog has no frame for (a goal that is one stands in the
+%% meta-call frame of both since 3.78.4, test/trace-meta.pl), and a cleanup
+%% whose body is `true' alone prints that `true' (COMPAT.md, the trace rows).
 
 sc_g(1).
 sc_g(2).

@@ -365,6 +365,8 @@
           (set ($ sub trace) (-> e trace))
           (set ($ sub trace_depth) (-> e trace_depth))
           (set ($ sub trace_goal) (-> e trace_goal))
+          ;; (and a structure at the root in its `'<meta-call>'/1' frame,
+          ;; 3.78.4, `coco_trace_root', but forall/2's)
           (coco_trace_inner e (aof sub) 0)
           ;; THE SEARCH MAY COLLECT (1.9.4) when this engine may -- under
           ;; trace too (1.9.6): what the tracer holds is on the engines on
@@ -1818,20 +1820,30 @@
   ;;; it -- so a meta-call of a plain goal pays two tests. M:G OF A PLAIN G
   ;;; IS A PLAIN GOAL (3.45.0): the goal a meta-predicate's qualified
   ;;; argument hands call/1 holds no `$', and walked for one each such call
-  ;;; paid some 150 instructions
+  ;;; paid some 150 instructions. META (call/1's 1, a constant each
+  ;;; caller's, so inlined the test is gone where it is 0): under the
+  ;;; printer a structure stands in swipl's `'<meta-call>'/1' frame (3.78.4,
+  ;;; `coco_trace_meta'), its exit marker on K -- asked where a construct's
+  ;;; name already sends the goal, so a plain goal's call/1 pays nothing.
+  ;;; The structure's barrier B is taken before the frame is pushed, at its
+  ;;; height: a cut in the structure takes the stack there and puts the
+  ;;; frame back, as a cut puts back its own call's (`coco_trace_cut').
+  ;;; Asked before the barrier, the test cost every call/1 three
+  ;;; instructions, a structure's two more
   (static) (inline)
-  (func coco_det_kq ((coco_engine * e) (size_t g) (size_t b) (size_t k)) (out size_t)
+  (func coco_det_kq ((coco_engine * e) (size_t g) (size_t b) (size_t k) (int meta)) (out size_t)
         (let ((coco_machine * m . #'(-> e m))
               (size_t d . #'(coco_deref m g))
               (u64 nm . #'(coco_name_of m d)))
-          (if (!= (-> e dgk) (coco-det-none)) (return (coco_det_k e g b k)))
+          (if (!= (-> e dgk) (coco-det-none))
+              (return (coco_det_k e g b (? (and meta (-> e trace)) (coco_trace_meta e g b k) k))))
           (if (not (coco_is_construct m nm)) (return k))
           (if (coco-is-colon m d (coco-fid m ":" 2))
               (let ((size_t q . #'(coco_deref m (coco_arg m d 1))))
                 (if (and (or (coco-tag-is ATOM (nth q (-> m heap))) (coco-tag-is FUN (nth q (-> m heap))))
                          (not (coco_is_construct m (coco_name_of m q))))
                     (return k))))
-          (return (coco_det_k e g b k))))
+          (return (coco_det_k e g b (? (and meta (-> e trace)) (coco_trace_meta e g b k) k)))))
 
   ;;; A META-PREDICATE'S CALL THAT IS THE INNERMOST GUARDED FRAME'S LAST
   ;;; (K its exit): once/1, ignore/1, not/1 -- swipl's transparent
@@ -2148,10 +2160,12 @@
                      (if (not (coco_goal_ok m cg))
                          (return (coco_call_bad e g cg b k 1 ret)))
                      ;; and its goal no last call of the frame (I_USERCALL),
-                     ;; a $/0 in it its own frame's (3.21.0, `coco_det_kq')
+                     ;; a $/0 in it its own frame's (3.21.0, `coco_det_kq'),
+                     ;; and under the printer a structure in swipl's
+                     ;; `'<meta-call>'/1' frame (3.78.4: META 1)
                      (let ((size_t mb . #'(coco_meta_bar e cg b k
                                                          (cast u64 (coco-payload (nth g (-> m heap)))) g)))
-                       (set (-> e goals) (coco_k_push e cg mb (coco_det_kq e cg mb k))))))
+                       (set (-> e goals) (coco_k_push e cg mb (coco_det_kq e cg mb k 1))))))
 
                   ((and (== n 3) (== nid (coco-id m "catch")))
                    ;; The catcher and the recovery goal are put on the heap as
@@ -2213,7 +2227,7 @@
                                             (cast u64 (coco-payload (nth g (-> m heap))))
                                             (cast size_t -1)))
                      (set (-> e goals)
-                          (coco_k_push e (coco_arg m g 0) mb (coco_det_kq e (coco_arg m g 0) mb kx)))
+                          (coco_k_push e (coco_arg m g 0) mb (coco_det_kq e (coco_arg m g 0) mb kx 0)))
                      (if (not (coco_goal_ok m (coco_arg m g 0)))
                          (return (coco_construct_bad e g "catch" 3 ret))))))
 
@@ -2299,7 +2313,7 @@
                                                              (cast u64 (coco-payload (nth g (-> m heap))))
                                                              g)))
                            (set (-> e goals)
-                                (coco_k_push e built mb (coco_det_kq e built mb k))))))))
+                                (coco_k_push e built mb (coco_det_kq e built mb k 0))))))))
 
                   ;; M:G, a goal (3.1.0)
                   ((and (== n 2) (== nid (coco-id m ":")))

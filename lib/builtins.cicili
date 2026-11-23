@@ -1922,6 +1922,8 @@
           ;; its own frame and cuts nothing of the other's (3.21.0)
           ;; and under a depth limit each (3.74.0): swipl's forall/2 calls
           ;; them as variables of its clause, each a frame below forall's
+          ;; (and under the printer each that is a structure, 3.78.4:
+          ;; `coco_trace_forall', where the printer's search begins)
           (if (or (coco_det0_in m c) (bitand (-> e tclock) 2)) (set c (coco_make1 m "call" c)))
           (if (and (not abad) (or (coco_det0_in m a) (bitand (-> e tclock) 2)))
               (set a (coco_make1 m "call" a)))

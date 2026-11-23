@@ -108,6 +108,20 @@ deliberately, because SWI has them:
 * **The engine's own plumbing is invisible.** The `fail` a bare `->`
   desugars to, the `true`/`fail` arms of `\+` — the program never wrote
   them, so the trace never shows them.
+* **A structure call/1 runs is a level of its own** (3.78.4). SWI's
+  `call/1` compiles a control structure into a clause of its own and runs
+  it in a `'<meta-call>'/1` frame: no port, a level below the call, and
+  hiding nothing. The tracer does the same, so in `p :- G = (q(X), X > 1),
+  call(G).` the structure's `q/1` and `>/2` are two levels below `p`, not
+  one; a builtin among them is a port inside a library's clause too; and
+  a `;` in it retried is no `Redo` (the frame it is in is no port). Its
+  qualifiers come off first (`call(user:(a, b))`), and a variable goal (`G`
+  alone in a body), forall/2's condition and action, setup_call_cleanup/3's
+  goal and a structure that is findall/3's, aggregate_all/3's or
+  call_limited/3's goal stand in one too. Through 3.78.3 the structure's
+  goals stood at the call's own level. call/N of a structure it builds
+  (`call(',', a, b)`) runs it in place, where SWI calls the `','/2`
+  predicate of boot/init.pl, a port of its own (COMPAT.md).
 
 ## A library's calls
 
@@ -172,14 +186,19 @@ ports were printed (`'$member_'/3`, `'$nth_gen'/5`, `'$between_n'/3`).
   setup_call_cleanup/3's `Redo`. A setup `true` is no port (swipl's
   sig_atomic/1 runs it as nothing); a setup `fail` and a cleanup's `true`
   are. A setup or a cleanup that is a control structure is not swipl's:
-  swipl's runs in a frame of the structure's own, `^  Call: a, b`, its
-  parts ports, and cocolog's runs hidden (COMPAT.md).
+  swipl's runs in a frame of the structure's own, `^  Call: a, b`, a port,
+  and cocolog's in a frame of the machinery's (`'$c_and'/2`), none; its
+  parts stand where swipl's do since 3.78.4, the meta-call frame of that
+  frame's call/1 between, and a builtin among them is a port (COMPAT.md).
 * **A `;` written in a builtin's goal is no `Redo`** (3.78.3): findall/3's,
   forall/2's, call_limited/3's, with_output_to/2's -- the goal's call is
   no frame of the search's own, and through 3.78.2 its retry was a `Redo`
   of the builtin's call, or in with_output_to/2's of the heap's first term
-  (`Redo: (2) trace`). swipl's goal is a meta-call's frame, which shows a
-  builtin in it (`Call: fail`), and cocolog's none (COMPAT.md).
+  (`Redo: (2) trace`). A structure that is findall/3's, forall/2's or
+  call_limited/3's goal stands in a meta-call frame since 3.78.4, which
+  shows a builtin in it (`Call: fail`); swipl's findall/3 runs it frames
+  deeper than cocolog's search, and with_output_to/2's is swipl's `','/2`
+  port, which cocolog has not (COMPAT.md).
 * **The recorder keeps every call.** The printer (`trace` 1) hides; a
   window's recorder (`library(flow/debug)`) records every call, a
   helper's too, where its chart and its profile need them, and the quiet
@@ -196,7 +215,10 @@ since 3.78.3 twenty-three over `test/trace-cleanup.pl` (setup_call_cleanup/3's
 setup, goal and cleanups; the two that raise held from its call on, as
 swipl's catch/3 is a frame and swipl's Exception port is not shown), ten
 over `test/trace-dollar.pl` (`$` names: a program's, a library's, a
-builtin's) and findnsols/4's two whole, and
+builtin's) and findnsols/4's two whole, since 3.78.4 forty-three over
+`test/trace-meta.pl` (structures call/1 runs: their levels, a cut and a
+retry in one, a library's clause, qualifiers, a variable goal, forall/2's
+parts, setup_call_cleanup/3's goal), and
 compares the port lines one for one: same ports, same order, same relative
 depths, same goals. Three things are normalised first, because the two
 writers are entitled to them: the depth base (SWI's toplevel starts about ten
@@ -212,7 +234,9 @@ jumps several frame depths entering a `findall` (its inner machinery,
 hidden) where cocolog's inner engine is one deeper than the call; SWI
 shows once/1, ignore/1, not/1 and catch/3 as frames of their own,
 `^  Call: once(G)`, and hides a library call in them, where here they are
-control constructs and the call is the program's; SWI shows
+control constructs and the call is the program's; SWI calls the `','/2`
+predicate for call/N of a structure it builds (`call(',', a, b)`), a port,
+where cocolog runs the structure in place; SWI shows
 with_output_to/2's goal as a frame, two levels below it; apply's helper
 is `maplist_/3` there and `'$maplist_'/3` here; a clause whose body is
 `true` alone is a fact to SWI's compiler and prints that `true`'s ports

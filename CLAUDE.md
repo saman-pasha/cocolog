@@ -1178,7 +1178,12 @@ expansion can be read.
   (`DIR/t3482/cocolog`, `DIR/t3483/cocolog`), and count them in one
   invocation. A start is counted with each binary swapped in at the
   checkout's own path: from the scratchpad, realpath and strcmp count
-  some 31 000 more.
+  some 31 000 more. **Two paths of one length are not one path for a
+  start** (3.78.4): the paths a start interns hash apart, and 3.78.4's
+  start counted 1 804 more than 3.78.3's from `t3784` beside `t3783`
+  (1 256 of them coco_intern_len's probes, on the same code, the same
+  13 651 interns and the same atoms) and 548 more with each copied in
+  turn to one path, all of them the dynamic loader's strcmp.
 * **An inference count moves with where the binary stands too** (3.62.3):
   a program that takes the executable's path apart counts its components.
   a library's library-path walk does, with append/3, an inference a
@@ -3730,22 +3735,56 @@ a session must keep:
   nothing, as swipl's callProlog() runs a setup and a cleanup (a setup
   `true` no port, as swipl's sig_atomic/1 runs it as nothing); the frames
   of a setup or a cleanup that is call/1 or a control structure
-  (`'$c_and'/2` and its kin) hide what they call, as the builtins' clauses
-  do. **A frame's body level is `coco_trace_bdepth`'s**: the traced entry
+  (`'$c_and'/2` and its kin) are no ports, and the structure their call/1
+  runs stands in its meta-call frame (below). **A frame's body level is `coco_trace_bdepth`'s**: the traced entry
   (`coco_trace_enter`, out of line, the step's traced entry one call) and
   the search for a `;`'s call ask it, the exit marker the call's own depth
   -- so **a new clause of the machinery whose body stands elsewhere is a
   row of the table**, or its body is a level of its own. `'$scc_pop'` kills its frame in place
   where a traced frame stands above it (the recovery's own: cut away with
-  the stack, a retry in its body was a Redo no call owned). **A new system library says
+  the stack, a retry in its body was a Redo no call owned). **A control
+  structure call/1 runs stands in swipl's `'<meta-call>'/1` frame**
+  (3.78.4, `coco_trace_meta` in lib/solve-control.cicili), as its
+  I_USERCALL compiles one: call/1 asks it (a variable goal is call/1 of
+  it), and a search a builtin starts in its context asks it of its root
+  (`coco_trace_root`: findall/3's, aggregate_all/3's, call_limited/3's),
+  and of forall/2's parts, whose root `(C, \+ A)` is its builtin's own
+  (`coco_trace_forall`). The frame is SPENT and hidden (PRINTR 2), its
+  call and goal the structure, **naming no predicate** (`pred` -1:
+  `coco_push_choice` leaves 0, the store's first predicate to every reader
+  of `pred` -- the region walk's `coco_trace_frame_hc` read its attributes,
+  and under `run` it is the file's first: test/trace-meta.pl's head makes
+  it one that hides its children, and with 0 mt8's member/2 lost its
+  Redo), with an exit marker after the structure that puts the
+  caller's level and context back. The structure's barrier is taken
+  before the push, at the frame's height, so a cut in the structure takes
+  the stack there and puts the frame back, as a cut puts back its own
+  call's (`coco_trace_cut`). Its context is the structure, which hides
+  nothing (`coco_trace_hc` answers 0 for a construct), so a builtin among
+  its parts is a port in a library's clause too and a `;` retried in it
+  finds its call hidden: no Redo. `coco_trace_ctl` takes the qualifiers
+  off first, each an atom. **It is asked where the untraced path already
+  goes**: call/1's where `coco_det_kq` already sends a construct's name
+  (META, a constant of each caller's, 1 for call/1 alone), so a plain
+  goal's call/1 pays nothing -- a test before the barrier cost every
+  call/1 three instructions -- and a search's in `coco_trace_inner`,
+  which the untraced search already calls -- a test of its own cost
+  findall/3's call seven. Under the printer alone: the recorder and the
+  quiet trace keep 3.78.3's frames. call/N of a structure it builds, and
+  catch/3's goal, run in place (META 0), where swipl's are boot/init.pl's
+  `','/2`, a port, and catch/3's frame (COMPAT.md). **A new search a
+  builtin starts in its context goes through `coco_trace_inner` with
+  QUERY 0**, or a structure at its root stands at the search's own level.
+  **A new system library says
   `:- set_prolog_flag(generate_debug_info, false).` at its head**, as the
   compiled-in halves, library/print_message.pl and library/async.pl do;
   **a new reader of `pattrs` masks the bits it means** (listing/1's guard
   reads 31). The recorder (2) and the quiet trace (3) keep 3.26's every
   call. test/trace.pl holds 42 queries of test/trace-library.pl to swipl
-  (findnsols/4's two whole since 3.78.3), 23 of test/trace-cleanup.pl and
-  10 of test/trace-dollar.pl, a second file after one that ends under
-  false, and 24 lines swipl has none of to cocolog's own; COMPAT.md has
+  (findnsols/4's two whole since 3.78.3), 23 of test/trace-cleanup.pl, 10
+  of test/trace-dollar.pl and 43 of test/trace-meta.pl, a second file
+  after one that ends under false, and 29 lines swipl has none of to
+  cocolog's own; COMPAT.md has
   what is not swipl's. **The
   printer writes a goal as print/1 writes it** (3.40.0, `coco_write_print`
   in `coco_trace_port` and in the Redo's text, `coco_trace_paint`), as

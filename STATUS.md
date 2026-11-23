@@ -23812,3 +23812,133 @@ window, journal, flowdebug, files, script, async, gc, directives, cyclic,
 library, thread and the solve, state and module binaries, each alone.
 All green, no SKIP; the dialect card's cites all anchored (15 by a moved
 anchor, accepted).
+
+## A control structure call/1 runs stands in swipl's `'<meta-call>'/1` frame under trace (3.78.4)
+
+A patch, the tracer's alone (backlog #309). Through 3.78.3 a control
+structure call/1 ran stood at the call's own level under trace: `mt2 :-
+call((mt_p(X), X > 1)).` printed `mt_p/1` and `>/2` one level below `mt2`
+where swipl prints them two, and in a clause read under
+generate_debug_info false -- a library's -- the structure's builtins were
+hidden where swipl shows them (`mt_l(X) :- G = (mt_p(X), X > 0),
+call(G).`, called by the program, printed no `X > 0`). The same of a
+variable goal bound to a structure, a structure under its qualifiers,
+forall/2's condition and action, setup_call_cleanup/3's goal, and a
+structure that is findall/3's, aggregate_all/3's or call_limited/3's goal,
+whose builtins were hidden too.
+
+SWIPL'S MODEL. I_USERCALL -- call/1, a variable goal, the meta-call of a
+system predicate's clause -- compiles a control structure (`,`, `;`, `->`,
+`*->`, `\+`) into a clause of its own and runs it in a frame of
+`'<meta-call>'/1`: a level below the call, TRACE_ME off (no port),
+hide_childs off (what it calls is shown, a builtin too, whatever the frame
+around it hides). A retry inside it that is no call's own -- a `;`'s --
+finds no frame dbgRedoFrame reports, so it is no Redo. Its qualifiers come
+off first, each an atom (`call(user:(a, b))`, `lists:(...)`). findall/3,
+aggregate_all/3, forall/2 and setup_call_cleanup/3 meta-call their goals
+so.
+
+THE FIX (lib/solve-control.cicili, lib/solve-loop.cicili).
+`coco_trace_meta` (weak, cold) gives a structure the frame under the
+printer: a SPENT choice frame, hidden (PRINTR 2), its call and goal the
+structure, naming no predicate (`pred` -1), its depth one below the
+caller's, and an exit marker after the structure that puts the caller's
+level and context back; the structure's parts then run a level deeper, in
+its context, which hides nothing (`coco_trace_hc` answers 0 for a
+construct), and a `;` retried in it finds its call hidden: no Redo
+(`coco_trace_redo_at`, 3.78.3's rule). `coco_trace_ctl` says what is a
+structure, its atom qualifiers off. call/1 asks it in `coco_det_kq`, where
+the goal's name being a construct's already sends it (a new argument,
+META, a constant of each caller's: 1 for call/1, 0 for catch/3's goal and
+call/N's), after `coco_meta_bar` took the structure's barrier at the
+frame's height, so a cut in the structure takes the stack there and
+`coco_trace_cut` puts the frame back, as it puts back a call's own. A
+search a builtin starts in its context asks in `coco_trace_inner` (QUERY
+0): `coco_trace_root` gives the root of findall/3's, aggregate_all/3's
+and call_limited/3's search the frame, the root rebuilt over its marker,
+and `coco_trace_forall` meta-calls each part of forall/2's root `(C, \+
+A)`, its builtin's own, as swipl's forall/2 calls its clause's variables
+-- `(call(C), \+ call(A))`. Untraced, and under the recorder and the
+quiet trace, nothing changes.
+
+The first cut asked each in a test of its own -- before the barrier at
+call/1, at findall/3's call and in forall/2's two wraps -- and an untraced
+call/1 paid 6 instructions, a structure's 9, findall/3's and forall/2's 7
+(a value beside K kept live across `coco_meta_bar`, and the registers of
+two big functions); asked where the untraced path already goes, they pay
+nothing.
+
+NOT SWI'S (COMPAT.md's rows 56 and 291, rewritten), each a later patch:
+call/N of a structure it builds (`call(',', a, b)`, maplist/2 over
+`','(a)`) runs it in place, where swipl calls boot/init.pl's `','/2`, a
+port, the meta-call inside it -- and so do a setup or a cleanup that is a
+structure, whose `'$c_and'/2` frame is no port though its parts now stand
+at swipl's levels; and once/1, ignore/1, not/1 and catch/3 are constructs,
+where swipl's are frames with ports whose goal is meta-called.
+
+HELD. test/trace.pl, 238 checks, green: test/trace-meta.pl (new), 43
+queries held to swipl line for line -- a conjunction, a disjunction and an
+if-then-else meta-called; the clause going on after the structure; a cut
+in it, and a `;` retried after a cut; `\+`, a library predicate and call/1
+inside one; a choice point the structure leaves retried from the clause
+after it; an if-then, a soft cut, a disjunction that binds, nested
+meta-calls, a `\+` structure; variable goals in a body, in `\+` and in a
+condition; the qualifiers `user:`, `user:user:` and `lists:`;
+setup_call_cleanup/3's goal; forall/2's condition and action, five shapes,
+one qualified; five in a clause read under generate_debug_info false; and
+a head that makes the store's first predicate, under `run`, one that hides
+its children -- and five lines of cocolog's own: a setup's conjunction's
+parts six below setup_call_cleanup/3's call, as swipl's stand; the builtin
+of a structure that is findall/3's, aggregate_all/3's or call_limited/3's
+goal a port; a plain goal of findall/3's hidden. On 3.78.3's code 47 of
+the 238 are red: every query of test/trace-meta.pl and the four lines the
+frame decides. The answers are untraced's under trace: ten probes of a
+guard, `$(G)`, a cut, setup_call_cleanup/3, findall/3, forall/2, catch/3,
+an if-then-else and `\+` over a meta-called structure print what they
+print untraced, and seven errors raised inside one are untraced's and
+swipl's.
+
+ARMS: one build each of the final code with one rule out, test/trace.pl
+run. R1, call/1 asking for no frame (META 0): red, 44 -- every query of
+test/trace-meta.pl (forall/2's and setup_call_cleanup/3's among them, whose
+parts call/1 meta-calls) and the setup's conjunction line. R2, the
+qualifiers not taken off (`coco_trace_ctl`): red, 5 (mt25 to mt28, mt34).
+R3, forall/2's parts not meta-called (`coco_trace_forall` doing nothing):
+red, 5 (mt30 to mt34). R4, no frame at the root of findall/3's,
+aggregate_all/3's and call_limited/3's search: red, the three lines of
+cocolog's own. R5, forall/2's root framed whole, as findall/3's is: red, 6
+-- mt30, mt31, mt33, mt34 and test/trace-library.pl's `c` and
+test/trace-cleanup.pl's `sc7`, whose condition's library call the frame
+showed. R6, the frame naming the store's first predicate (`pred` 0, what
+`coco_push_choice` leaves): green on the case as it stood, whose first
+predicate hides nothing, and red with the head test/trace-meta.pl has now,
+a first predicate read under generate_debug_info false: mt8 and mt37,
+whose member/2 lost its Redo (the region walk read the predicate's
+attributes as the frame's). R7, a cut taking the frame (`coco_trace_cut`
+keeping none that names no predicate): red, 5 (mt6, mt40 to mt43). R8, `\+`
+no structure: red, mt19. R9, the frame a port's (PRINTR 1): red, 45 -- every
+query and two of 3.78.3's lines, a `;` in findall/3's goal and in forall/2's
+condition no Redo. R10, the structure's parts in their caller's context
+(`trace_goal` kept): red, 24.
+
+COST, against 3.78.3's code: the untraced engine runs 3.78.3's
+instructions to the one (tools/flow/zero.sh at paths of one length, work
+less padding: nrev 65 890 875, queens 39 953 175 and lookup 48 055 590 in
+both); a call/1 of a plain goal is one instruction cheaper, and one of a
+structure, findall/3's call and forall/2's cost what they did (a thousand
+calls of each, callgrind); and a start (`cocolog run FILE true`, each
+binary copied in turn to one path) is 548 instructions dearer, every one of
+them the dynamic loader's strcmp, over the three weak functions the binary
+exports beside its others (`coco_trace_meta`, `coco_trace_root`,
+`coco_trace_forall`). From two paths of one length the start read 1 804
+more, 1 256 of them coco_intern_len's probes over the paths it interns, on
+the same code, the same 13 651 interns and the same atoms (CLAUDE.md,
+Measuring).
+
+THE RUN, on the binary committed (its md5 and the library's the same
+before the round and after it): the lint case first, then trace,
+backtrace, engine, errors, window, journal, flowdebug, files, script,
+async, gc, directives, cyclic, library, thread and the solve, state and
+module binaries, each alone. All green, no SKIP; the dialect card's cites
+all anchored (15 by a moved anchor, accepted). The trace case again after
+test/trace-meta.pl's head: green, 238.
