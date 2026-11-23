@@ -379,14 +379,23 @@
             (if (> i (cast i64 (coco_arity m t))) (return 0))
             (return (coco_arg m t (cast u32 (- i 1)))))))
 
-  ;;; What an argument cell holds for the value V, dereferenced: an atomic
-  ;;; value itself, as `coco_make' stores one, and a variable or a compound
-  ;;; a reference to it.
+  ;;; What an argument cell holds for the value V, dereferenced: a reference
+  ;;; to V where it is a variable or a compound, and to a cell of its own
+  ;;; that holds an atomic V's word -- as `coco_make' stores every argument
+  ;;; (3.78.2). A binding is a reference to the cell it was bound to
+  ;;; (`coco_bind'), and an atomic word written into the argument itself
+  ;;; was a cell a variable could be bound to: arg/3 bound it to the
+  ;;; argument, the next write changed it, and the counter idiom's
+  ;;; `arg(1, C, N0), N is N0 + 1, nb_setarg(1, C, N)' collected 0, 2, 3
+  ;;; where swipl's binding copies the word, and collects 0, 1, 2. A cell
+  ;;; refused finishes the machine (`oom'), which the caller asks.
   (static)
   (func coco_setarg_word ((coco_machine * m) (size_t v)) (out u64)
         (let ((u64 c . #'(nth v (-> m heap))))
           (if (or (coco-tag-is REF c) (coco-tag-is FUN c)) (return (coco-cell REF v)))
-          (return c)))
+          (let ((size_t s . #'(-> m heap_len)))
+            (coco_push m c)
+            (return (coco-cell REF s)))))
 
   ;;; `setarg(+N, +T, +V)': undone on backtracking. The old content of the
   ;;; cell is kept in a cell of its own and the trail's value entry
@@ -400,6 +409,7 @@
           (let ((u64 old . #'(nth a (-> m heap)))
                 (u64 nw . #'(coco_setarg_word m (coco_a e g 2)))
                 (size_t s . #'(-> m heap_len)))
+            (if (-> m oom) (return 0))
             (if (or (!= (coco_push m old) s) (not (coco_trail_pair m s a)))
                 (return (coco_mem_error e)))
             (set (nth a (-> m heap)) nw)
@@ -460,9 +470,13 @@
 
   ;;; `nb_setarg(+N, +T, +V)': NOT undone on backtracking, and V is COPIED
   ;;; when it is compound, so a later binding of a variable in it is not
-  ;;; seen in T -- SWI's duplicate_term/2. An atomic V is written as it is,
-  ;;; and an unbound one LINKED, as SWI does (a later binding of it is seen
-  ;;; in T; backtracking takes that binding back, and the link stays).
+  ;;; seen in T -- SWI's duplicate_term/2. An atomic V is written in a cell
+  ;;; of its own (3.78.2, `coco_setarg_word'), and an unbound one LINKED, as
+  ;;; SWI does (a later binding of it is seen in T; backtracking takes that
+  ;;; binding back, and the link stays). The cell the argument refers to
+  ;;; outlives the backtracking the write outlives where it is newer than
+  ;;; the argument -- a copy and an atomic value's cell always are -- every
+  ;;; mark over the argument raised over it (`coco_heap_freeze').
   (func coco_bi_nb_setarg ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(-> e m)) (int rc . 0)
               (size_t a . #'(coco_setarg_cell e g (aof rc))))
@@ -474,10 +488,11 @@
                 (block (set v (coco_copy m v))
                        (if (-> m oom) (return 0))))
             (let ((u64 nw . #'(coco_setarg_word m v)))
+              (if (-> m oom) (return 0))
               ;; a ground global's copy written into is kept as the global
               ;; (1.12.1): its write lasts, as SWI's
               (coco_gcache_pin e a)
-              (if (and (coco-tag-is REF nw) (> v a)) (coco_heap_freeze e (+ a 1)))
+              (if (> (coco-payload nw) a) (coco_heap_freeze e (+ a 1)))
               (set (nth a (-> m heap)) nw)
               (return 1)))))
 

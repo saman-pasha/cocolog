@@ -105,14 +105,15 @@
 
   ;;; A BOX'S VALUE AS A READ HANDS IT OUT (3.73.1; the boxes are
   ;;; b_setval/2's, below): its value cell BV where that refers on -- to a
-  ;;; compound, the term itself, linked as swipl's is, or to a variable --
-  ;;; and else a cell of the read's own holding the atomic word, as swipl's
-  ;;; b_getval/2 hands out an atomic's value. Bound to BV itself, a
-  ;;; variable named the box's own cell, which the key's next b_setval/2
-  ;;; writes: through 3.73.0 `b_setval(k, 1), b_getval(k, V), b_setval(k,
-  ;;; 2)' left V = 2, and `b_setval(k, [V])' a cycle (V's cell the list's
-  ;;; own), where swipl's V is 1 and its value [1]. 0 where no cell could
-  ;;; be had.
+  ;;; compound, the term itself, linked as swipl's is, to a variable, or
+  ;;; since 3.78.2 to an atomic value's own cell, as b_setval/2 writes every
+  ;;; value (`coco_setarg_word') -- and else a cell of the read's own
+  ;;; holding the word the cell holds, as swipl's b_getval/2 hands out an
+  ;;; atomic's value. Bound to BV itself, a variable named the box's own
+  ;;; cell, which the key's next b_setval/2 writes: through 3.73.0
+  ;;; `b_setval(k, 1), b_getval(k, V), b_setval(k, 2)' left V = 2, and
+  ;;; `b_setval(k, [V])' a cycle (V's cell the list's own), where swipl's V
+  ;;; is 1 and its value [1]. 0 where no cell could be had.
   (static)
   (func coco_gvb_out ((coco_machine * m) (size_t bv)) (out size_t)
         (let ((u64 w . #'(nth bv (-> m heap))) (size_t s . #'(-> m heap_len)))
@@ -2465,6 +2466,7 @@
                     (u64 old . #'(nth a (-> m heap)))
                     (u64 nw . #'(coco_setarg_word m v))
                     (size_t s . #'(-> m heap_len)))
+                (if (-> m oom) (return 0))
                 (if (or (!= (coco_push m old) s) (not (coco_trail_pair m s a)))
                     (return (coco_mem_error e)))
                 (set (nth a (-> m heap)) nw)

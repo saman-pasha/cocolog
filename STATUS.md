@@ -23565,3 +23565,123 @@ syntax, module, solve, state, and with the server up zigurat and kbs, each
 alone, and files again alone after the second hook file. All green, no
 SKIP. A first round begun on the build before `coco_pred_known`'s guard was
 stopped at trace and run again from the start on the guarded build.
+
+## A value setarg/3, nb_setarg/3 and b_setval/2 write is the value a variable bound to it keeps (3.78.2)
+
+A patch. A variable that arg/3 or a unification bound to an argument
+setarg/3 or nb_setarg/3 had written an atomic value into followed the
+argument's next write. The counter idiom, `C = c(0), findall(N0, (
+between(1, 3, _), arg(1, C, N0), N is N0 + 1, nb_setarg(1, C, N) ), L)`,
+collected `[0, 2, 3]` where swipl's collects `[0, 1, 2]`, and 3.72.0's
+finding, `next(S, N) :- arg(1, S, N), N1 is N + 1, nb_setarg(1, S, N1).`,
+answered 0, 3 and 3 over three calls on `s(0)` where swipl's answers 0, 1
+and 2 (backlog #276; findnsols/4's case had read round it since).
+
+THE CAUSE IS THE WRITE, not the clause's unification 3.72.0's note took it
+for, nor the unifier 3.73.1's did. A binding is a reference to the cell it
+binds to (`coco_bind`), and every constructor makes an argument a
+reference to a cell of its own -- `coco_make` stores one for every
+argument, and so do the clause compiler's programs, the readers,
+copy_term/2, findall/3's store, `=../2` and the rest: an arg/3 and a
+setarg/3 after each of 21 constructors (a fact, a
+clause's head and body, a call's registers, an assert, term_to_atom/2,
+nb_getval/2, b_getval/2, msort/2, bagof/3, atom_to_term/3,
+compound_name_arguments/3, keysort/2, functor/3 and a unification,
+clause/2, length/2, numlist/3, atom_codes/2) answered swipl's on 3.78.1
+already. setarg/3 and nb_setarg/3 were the one writer that put an atomic
+value's own word in the argument (`coco_setarg_word`): arg/3 bound its
+variable to the argument cell itself, and the next write over that cell
+moved the variable. swipl's binding copies an atomic word, so there the
+variable keeps it whatever the argument holds next.
+
+THE FIX (lib/solve-text.cicili). `coco_setarg_word` pushes an atomic value
+into a cell of its own and writes a reference to it into the argument, as
+`coco_make` stores every argument; a compound or a variable is referred to
+as before. nb_setarg/3 raises the marks over the argument where the cell
+the argument now refers to is newer than the argument
+(`(> (coco-payload nw) a)`) -- an atomic value's own cell always is --
+never asked of the value's own cell, which may be older: so asked, a value
+made before the argument and written in a member/2 or between/3 loop had
+its new cell taken back by the retry, and the argument referred to
+whatever the heap held there next (the arm below). b_setval/2 writes its
+box's value cell the same way, so a live box's value cell always refers
+on, and 3.73.1's copy in `coco_gvb_out` is for a word nothing writes there
+now (kept: the one reader of a box). A cell refused finishes the machine
+(`oom`), and each of the three writers asks it and writes nothing, as
+nb_setarg/3 already did after a copy refused: the run ends out of memory at
+its next step either way, so no arm can tell the ask from its absence
+(stated, as the copy's was).
+
+NOT SWI'S (COMPAT.md, a row): a clause's own variable unified with an
+argument that was a variable is still the clause's, and stays as it was
+when setarg/3 writes the argument: `functor(C, c, 1), arg(1, C, V),
+setarg(1, C, 5)` leaves V unbound where swipl's V is 5, and `X = Y, T =
+f(X), setarg(1, T, z)` leaves X unbound where swipl's X is z. A clause's
+variables are made as the clause is entered, before the compound, the
+younger of two variables is bound to the older as swipl's, and so the
+argument names the variable and the write takes the argument's cell. It is
+1.12.0's note (CLAUDE.md, test/engine.pl's T9 check), wider than its one
+example said; `T = f(X)` as a clause's first goal agrees with swipl, the
+head making f(X) around X.
+
+HELD. test/files/setarg_value.pl (new), 46 lines to swipl 9.0.4 byte for
+byte: the counter idiom in findall/3, three calls of next/2 and of a
+setarg/3 next_b/2, findall/3 over next/2, two reads between two writes, an
+argument functor/3 made and nb_setarg/3 wrote, a global's copy's counter,
+a thousand failures' sum; each atomic kind -- an integer, an atom, `[]`, a
+float, a big integer (2^62, a BIG cell), a string, an atom before a
+compound -- read between two writes by arg/3 and by unification, and a
+rational, and an atom setarg/3 wrote before a compound nb_setarg/3 wrote;
+setarg/3's writes undone around the reads and nb_setarg/3's kept, in
+`;`, findall/3 and forall/2; a variable written into an argument linked, a
+binding of it seen through the argument and the argument's undo; b_setval/2's
+four (an integer, a list with a variable, an atom across a failed branch, a
+float); and a value older than its argument -- the compound made after it,
+by functor/3, copy_term/2 or a clause's body -- written in a member/2 or a
+between/3 loop: an integer, an atom, a big integer, a float. On 3.78.1 25
+of its 46 lines differ. test/files/findnsols.pl's n6, which 3.72.0 had
+write the chunks alone, writes the count its arg/3 read beside each chunk
+now, as swipl's (`n6-2-[2,3]`; 3.78.1 wrote `n6-3-[2,3]`, three of its
+lines differing). And lesson basics/12 says it with a must/3 of its own,
+the counter idiom's three reads in findall/3 (`[0, 1, 2]`; on 3.78.1 the
+lesson fails there, `[0,2,3]  BUT THIS LESSON SAYS [0,1,2]`).
+
+ARMS: one build each of the final code with one rule out, the case run as
+test/files.pl runs it (swipl's `-g main` against cocolog's `run FILE
+main`), with test/files/global_vars.pl beside it; the base green in both.
+S1, the atomic value written into the argument itself (3.78.1's
+`coco_setarg_word`): red, the 25 lines 3.78.1 differs in. S2, nb_setarg/3's
+freeze asked of the value's own cell (3.78.1's test): red, four of the
+`older` section's five lines -- `c(<?>)` where the argument referred past
+the heap, `c(3)` where the cell held the next term's -- and green through
+the first round of the arms, whose `older` section built the compound in
+the meta-called conjunction before the value: there the value's cell was
+the newer and 3.78.1's test froze too, so the section makes the compound
+after the value now. global_vars.pl green on all three, b_getval/2's copy
+(3.73.1) holding the box's reads whichever way the box was written.
+
+COST, counted against 3.78.1 at paths of one length: the untraced engine
+moves nothing (tools/flow/zero.sh, work less padding: nrev 65 890 482,
+queens 39 953 184, lookup 48 060 239 in both, the padding the same to the
+instruction), and a start (`cocolog query true`) is 195 instructions
+cheaper, 36 929 713 to 36 929 518, of placement. The counter idiom pays 51
+instructions a turn: 100 000 turns of `between/3, arg/3, is/2,
+nb_setarg/3, fail` 290 002 670 to 295 102 524 (+1.76 %), nb_setarg/3 itself
+73 to 117 an inference (the cell, and the marks it raises over the
+argument: an atomic write raises them now, as a copy always did) and arg/3's
+unification 8 (the argument's reference followed); a global's counter the
+same 51 (357 714 354 to 362 814 405); setarg/3 under forall/2 12 a turn
+(323 486 232 to 324 686 068); aggregate_all/3's count, max and sum, C rows,
+nothing (716 676 159 to 716 676 005). The raised marks keep each turn's
+cells until a collection, as swipl's freezeGlobal() keeps its global stack:
+5 000 000 turns took 9 collections where 3.78.1 took 7, at the same peak
+resident memory (43.4 MB for 3.78.1, 43.3 MB for 3.78.2).
+
+THE RUN, on the binary committed (its md5 the same before the round and
+after it): the lint case first, then files, lessons basics/12, basics/13,
+library/37 and library/54, engine, gc, errors, cyclic, async, flowdebug,
+journal, library, meter, rationals, reconsult, trace, flowchart, thread,
+window, the term, solve, state and module binaries, and with the server up
+zigurat and kbs, each alone. All green, no SKIP. findnsols.pl's n6 and the
+lesson's must/3 were written after the round, and were run alone after it,
+green, with the lint case again.

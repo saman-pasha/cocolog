@@ -8,7 +8,8 @@
 %    where the goal ends otherwise the answers after the last full chunk
 %    are one more, [] where there are none;
 %  - the count: an integer, or count(N), whose N is read again before
-%    each chunk after the first, so nb_setarg/3 sizes the next -- 0 or a
+%    each chunk after the first, so nb_setarg/3 sizes the next and arg/3
+%    reads the size it wrote (3.78.2: n6 wrote the chunks alone) -- 0 or a
 %    negative N the rest of the answers as one chunk;
 %  - the copies: the template and the goal copied once, nothing of the
 %    caller's bound, each answer a copy of its own (fresh variables, a
@@ -121,7 +122,7 @@ counts :-
     C6 = count(1),
     forall(( findnsols(C6, I6, between(1, 9, I6), L6),
              arg(1, C6, K6), K7 is K6 + 1, nb_setarg(1, C6, K7) ),
-           ( pv(n6-L6), nl )).
+           ( pv(n6-K6-L6), nl )).
 
 copies :-
     t(k1, ( X1 = 5, findnsols(2, X1, member(X1, [1,5]), L1) )),

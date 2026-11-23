@@ -73,6 +73,12 @@ main :-
     C = count(0),
     ( between(1, 10, I), arg(1, C, N0), N is N0 + I, nb_setarg(1, C, N), fail ; true ),
     must('the sum of 1..10, kept across ten failures', C, count(55)),
+    %% what arg/3 read is what the argument held then: the writes after it
+    %% leave it be (through cocolog 3.78.1 a value nb_setarg/3 wrote was
+    %% followed by the variable bound to it, and this was [0, 2, 3])
+    C8 = count(0),
+    findall(N8, ( between(1, 3, _), arg(1, C8, N8), M8 is N8 + 1, nb_setarg(1, C8, M8) ), L8),
+    must('what each of three turns read before it wrote', L8, [0, 1, 2]),
 
     format("~n-- a ground global is one term every read shares: nb_setarg/3 on it changes the global~n"),
     nb_setval(lesson_tally, tally(0)),

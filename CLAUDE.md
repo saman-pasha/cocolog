@@ -1741,7 +1741,22 @@ a session must keep:
   inward along the chain, so the walk stops at the first one below. The argument
   CELL is written: a body's variable lives in its environment or frame and
   f(X)'s argument names it, so `T = f(X), setarg(1, T, z)` leaves X unbound
-  where SWI (which made X in the argument) binds it. **unifiable/3 and ?=/2
+  where SWI (which made X in the argument) binds it (COMPAT.md's row; as a
+  clause's first goal the head makes f(X) around X, and the two agree).
+  **The argument is written as a reference to its value's cell** (3.78.2,
+  `coco_setarg_word`): a compound's or a variable's own, an atomic value
+  pushed into a cell of its own -- as `coco_make` stores every argument --
+  so a variable arg/3 or a unification bound to the argument keeps the
+  value it was bound to, as swipl's binding copies the word. Through 3.78.1
+  an atomic value was the argument's own word, a variable bound to it named
+  the argument, and the next write moved it: the counter idiom `arg(1, C,
+  N0), N is N0 + 1, nb_setarg(1, C, N)` collected 0, 2, 3, and swipl's 0, 1,
+  2. So an atomic nb_setarg/3 raises the marks over the argument too (its
+  cell is newer than the argument, `(> (coco-payload nw) a)`, never the
+  value's own cell, which may be older: a member/2 retry took the cell
+  back from under the argument), 51 instructions a write in all; **a new
+  writer of an argument or a box's value cell writes through
+  `coco_setarg_word`**, never an atomic word in place. **unifiable/3 and ?=/2
   read a unify's work off the trail** (3.68.0, `coco_b_unifiable`,
   `coco_b_can_compare` in lib/builtins.cicili): every binding is trailed
   (`coco_bind`) and the younger of two variables bound to the older, as
@@ -3081,7 +3096,10 @@ a session must keep:
   value cell itself, a variable named the box's own cell, which the key's
   next b_setval/2 writes -- through 3.73.0 `b_setval(k, 1), b_getval(k,
   V), b_setval(k, 2)` left V = 2 and `b_setval(k, [V])` a cycle, and
-  prolog_load_context(term, T) read '$term' so. **A new reader of a box
+  prolog_load_context(term, T) read '$term' so. Since 3.78.2 the value
+  cell always refers on, b_setval/2 writing an atomic value into a cell
+  of its own as setarg/3 does (`coco_setarg_word`), and the read's copy
+  is for a word nothing writes there now. **A new reader of a box
   goes through `coco_gvb_out`.** **A load's goal ends what it did** (`lb_goal_hook`, swipl's
   failure-driven load): a directive's and an initialization goal's
   success undoes its trail (`\+ \+ G`) **but the sentinels of the ground
