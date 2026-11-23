@@ -40,8 +40,33 @@ main :-
     qk_runs(D),
     gvars_runs(D), findnsols_runs(D), il_runs(D), dl_runs(D),
     btree_places, op_names_frozen(D), own_properties, own_current, own_too_long,
+    clock_machine,
     shl(['rm -rf ', D]),
     checks_done.
+
+%% THE CLOCK'S STAMPS PAST A LONG ARE x86-64'S ON EVERY MACHINE (3.77.0).
+%% swipl's pl-tai.c makes a double a long in C, which leaves a NaN and a
+%% value past the range undefined: x86-64's conversion answers the least
+%% long, and so does `coco_ft_i64' on every machine, where AArch64's answers
+%% the nearer end of the range, and a NaN 0. test/files/clock.pl holds these
+%% lines to the reference swipl, which no Mac has, so the files case skips
+%% there: here they are held wherever the suite runs. On x86-64 a plain
+%% cast answers the same (the arm that took the range checks out was green
+%% on the Linux box): Apple silicon's job is the one this holds.
+clock_machine :-
+    section('the clock''s stamps past a long are x86-64''s on every machine'),
+    W1 = date(292277026596, 12, 4, 15, 30, 8.0, 0, 'UTC', -),
+    findall(S1-D1, ( member(S1, [1.0Inf, -1.0Inf, 1.0e19, 9223372036854775807, -9223372036854775808]),
+                     stamp_date_time(S1, D1, 'UTC'), D1 \== W1 ), L1),
+    check('an infinity and a stamp past a long: the least long''s date', L1, []),
+    stamp_date_time(1.5NaN, D2, 'UTC'),
+    check('a NaN: the least long''s date, its seconds made from its fraction', D2,
+          date(292277026596, 12, 4, 15, 30, 9223372044.854776, 0, 'UTC', -)),
+    stamp_date_time(1.0e300, D3, 3600),
+    check('past a long, an hour west', D3, date(292277026596, 12, 4, 14, 30, 8.0, 3600, -, -)),
+    stamp_date_time(4.6e18, D4, 'UTC'),
+    check('a long''s range but past TAI''s origin: libtai''s own arithmetic', D4,
+          date(145768199101, 5, 2, 17, 46, 40.0, 0, 'UTC', -)).
 
 %% AN IF-THEN'S ELSE GOAL IS REACHED: a clause's goal is a last call of a
 %% guarded frame only where its guard frame is the frame's own and what

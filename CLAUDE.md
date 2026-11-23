@@ -140,7 +140,8 @@ sh tools/cloud/docker-build.sh  # the same two images on a Claude Code session's
 * **A heavy lib file is pieces of one translation unit** (2.16.1):
   lib/solve.cicili is eight files (the journal went into solve-journal in
   3.0.0, when the head had grown back to 3 154 lines), lib/kb.cicili four,
-  lib/builtins.cicili three and lib/term.cicili two, each piece an `impl-`
+  lib/builtins.cicili four (the clock's since 3.77.0) and lib/term.cicili
+  two, each piece an `impl-`
   generic of its own,
   emitted right after the one before it by cocolog.cicili and by every test
   binary that emits the head (lib/builtins.cicili's pieces by cocolog.cicili
@@ -732,7 +733,10 @@ line said only `BUILD FAILED`, over a tail ending on clang's command line.
   hold would be reported as cocolog's failures. Its `module_context` case
   (3.0.2) builds a fixture module from `test/md5.cicili` with Cicili, as
   `library` builds hoot, and is skipped by name, indented, without Cicili,
-  sbcl or a compiler; it also loads `library/thread.so`. **Count the SKIPs
+  sbcl or a compiler; it also loads `library/thread.so`. **A case that
+  needs an environment of its own names it in `case_env/2`**, and both
+  systems run under it: the clock's `TZ` (a POSIX rule, no zoneinfo file)
+  and `LC_ALL=C.UTF-8` (3.77.0). **Count the SKIPs
   and run `pgrep ziguratip`** before believing a green run; the number of
   SKIPs is a fact about the machine.
 * **CI runs the whole suite on GitHub** (`.github/workflows/ci.yml`, 2026-10-29):
@@ -3655,7 +3659,9 @@ a session must keep:
   (`coco_jr_named`: files' twenty, getenv/setenv/unsetenv, statistics/2,
   current_prolog_flag/2, sha_file/3, the green world's size
   `'$async_workers'/1`, shell/2 since 3.70.0, and format/3 unless its sink
-  is a term), and by
+  is a term, format_time/3,4 the same since 3.77.0: **a new builtin that
+  writes to a sink is a portal to a stream and none to a term**, which
+  `coco_jr_tsink` asks and the answer is not kept on the functor), and by
   `coco_m_portal` for a module out of the tree. **A core
   builtin is never one**, nor a load (`use_module/1` reads the program's own
   clauses again in every run). What bites:
@@ -4524,6 +4530,33 @@ a session must keep:
   **The text a format built before it went wrong
   reaches every stream sink** (`coco_fmt_term_sink`: the console,
   user_output, user_error, a library(stream) stream), never a term.
+* **The clock is swipl 9.0.4's pl-tai.c, ported** (3.77.0,
+  lib/builtins-time.cicili, a piece of the builtins module;
+  test/files/clock.pl): stamp_date_time/3, date_time_stamp/2 and
+  format_time/3,4 over libtai's arithmetic, a time 64 unsigned bits of
+  seconds from TAI's origin, a date the proleptic calendar of any year a
+  long holds. What swipl's C leaves to the machine is x86-64's, written
+  out (`coco_ft_i64`, `coco_ft_i32`: a double past the range, or a NaN, the
+  least integer), and its int arithmetic wraps where swipl's does (a
+  year less 1900, an hour times 60). Local time is the C library's:
+  tzset(3) once a process, `timezone` and `tzname` read as they stand,
+  localtime_r(3), and mktime(3) where a date gives no offset and no
+  daylight word -- and the two zone names are kept for the process the
+  first time each is asked (`coco_tz_kept`), as swipl's tz_name_as_atom()
+  keeps its atoms, so a TZ changed after them changes the offset and not
+  the names. cal_ftm()'s `missing` is the exclusive or of what is known
+  and what is asked, so what is known is worked out again, and a date
+  whose fields mktime(3) did not make whole gives swipl's stamps
+  (`%a%s` of 61 seconds is `Thu121`). format_time/3 reads its format,
+  then its time, then its sink (format/3's). **The piece defines `tm` as
+  `struct tm` at its head and undefines it at its end** (std/c/time names
+  the struct in one token, as `timespec`): no identifier between the two
+  may be `tm`, and a new piece that needs the struct defines it the same
+  way. COMPAT.md has what is not swipl's: no locale, a posix name past its
+  table `?`, x86-64's answers on every machine -- which test/engine.pl's
+  `clock_machine` holds where the files case skips (the Macs): on x86-64
+  a plain cast answers the same, so an arm that takes the range checks
+  out is green on the Linux box.
 * **The reader is written ONCE and emitted TWICE** (1.10.7): the bodies of
   `coco_parse_term`, `_primary`, `_named`, `_args` and `_list` are macros at
   the top of `lib/syntax.cicili`, emitted as the family every consult uses
@@ -5248,7 +5281,7 @@ than its cause:
 | `lib/solve.cicili`, `solve-journal`, `solve-control`, `solve-gc`, `solve-loop`, `solve-arith`, `solve-text`, `solve-db` | the engine: the builtin table, its vocabulary, every declaration, the recorder and the clocks; `solve-journal` the journal; `solve-control` the continuation, choice points, clause selection, throwing and error text; `solve-gc` the heap collector; `solve-loop` the loop; `solve-arith` unification, type tests and arithmetic; `solve-text` terms built and taken apart and text; `solve-db` output, the database, listing and the dispatcher |
 | `lib/module.cicili`, `lib/sdk.cicili` | the module seam and the SDK an out-of-tree module is written against |
 | `lib/library.cicili` | `use_module`, the library path, directive goals |
-| `lib/builtins.cicili`, `builtins-format`, `builtins-db`, `lists`, `apply`, `files`, `dcg`, `state` | tier-1 modules (`files` has `get_time/1` and, since 3.8.0, `sleep/1`; builtins keeps its table and Prolog half first, format and character classes in `builtins-format`, its dispatcher last in `builtins-db`) |
+| `lib/builtins.cicili`, `builtins-format`, `builtins-time`, `builtins-db`, `lists`, `apply`, `files`, `dcg`, `state` | tier-1 modules (`files` has `get_time/1` and, since 3.8.0, `sleep/1`; builtins keeps its table and Prolog half first, format and character classes in `builtins-format`, the clock in `builtins-time` since 3.77.0, its dispatcher last in `builtins-db`) |
 | `lib/zigurat-kb.cicili`, `lib/zeytun-kb.cicili` | the binary-protocol and HTTP backends |
 | `lib/swipl/` | SWI's vendored libraries -- do not edit |
 | `client/` | pure C wire client; `client/tls.c` the one TLS unit |

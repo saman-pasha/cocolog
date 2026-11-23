@@ -23122,3 +23122,147 @@ table to its generator), flowchart, errors, engine, trace, thread and
 async, and lessons library/57 and library/10, each alone. All were green
 with no SKIP, and the binary's md5 was the same before and after. The
 dialect card's 33 cites are all anchored.
+
+## The clock is swipl's pl-tai.c: stamp_date_time/3, date_time_stamp/2 and format_time/3,4 (3.77.0)
+
+A minor: four predicates a program can call, where through 3.76.0 each
+was an unknown procedure -- `stamp_date_time/3`, `date_time_stamp/2`,
+`format_time/3` and `format_time/4`. COMPAT.md's list of the small
+built-ins a swipl program calls as it stands named them (item 1, which
+keeps current_module/1 and source_file/1,2 for 3.78.0).
+
+THE CLOCK IS PORTED, NOT REWRITTEN. lib/builtins-time.cicili is a piece
+of the builtins module (`impl-builtins-time`, which cocolog.cicili emits
+after the format piece and before the dispatcher; lib/builtins.cicili is
+four pieces now), swipl 9.0.4's pl-tai.c with the parts of libtai it
+uses (caltime_utc, caldate_frommjd, caldate_mjd, caltime_tai):
+- a time is a count of seconds in 64 unsigned bits from TAI's origin,
+  1970 at 2^62 + 10, and a date the proleptic Gregorian calendar of any
+  year a long holds;
+- what swipl's C leaves to the machine is x86-64's, written out
+  (`coco_ft_i64`, `coco_ft_i32`): a double past a long's range, or a NaN,
+  is the least long, as cvttsd2si makes it, so an infinity, a NaN and
+  1e20 seconds are all 292277026596-12-04 15:30:08; an int's the least
+  int. The C leaves both undefined, and AArch64's conversion answers the
+  nearer end of the range, a NaN 0 (COMPAT.md's row);
+- int arithmetic wraps where swipl's does (a year less 1900, an hour
+  times 60), and a digit of a negative field is the character C's
+  remainder makes: `%d` of a day -7 is `0)`.
+
+LOCAL TIME IS THE C LIBRARY'S, as swipl's is: tzset(3) once a process,
+`timezone` and `tzname` read as they stand, localtime_r(3) for a stamp's
+local date, and mktime(3) where a date gives no offset and no daylight
+word -- which makes the fields whole and binds the unbound offset,
+daylight word and zone. The offset is west of UTC (CET is -3600). The
+two zone names are kept for the process the first time each is asked
+(`coco_tz_kept`, under a lock of its own), as swipl's tz_name_as_atom()
+keeps its two atoms: a TZ changed after them changes the offset and not
+the names.
+
+THE FIELDS ARE WORKED OUT AS cal_ftm() WORKS THEM: its `missing` is the
+exclusive or of what is known and what is asked, so a field that is
+known is worked out again, and a date whose fields mktime(3) did not make
+whole gives swipl's stamps -- `%s` of -0.5 is `-2`, and `%a%s` of 61
+seconds `Thu121`. stamp_date_time/3 takes a stamp that is an integer, a
+float or a rational, and an offset that is `'UTC'`, `local` or seconds
+west; a date is date/9 or date/3 in swipl's order of reading, its integer
+fields an int's range (representation_error(int) past it), its daylight
+word true, false, on, off, 1, 0 or `-`, and `[]` an atom where a zone or
+a locale stands, as swipl's PL_get_atom() reads it.
+
+format_time/3 reads its format (any text), then its time, then its sink
+-- format/3's: a stream, atom(A), string(S), codes(C), codes(C, T),
+chars(C), chars(C, T) -- and format_time/4 its locale before all of
+them, an atom (`posix` alone). Each directive is pl-tai.c's; the ones
+swipl hands to strftime(3) -- `%c`, `%x`, `%X`, `%p`, `%P`, `%h`, and
+the names outside `posix` -- are the C locale's, as cocolog sets none
+(COMPAT.md). A directive's key is its code's low byte, as swipl's char
+names it, so an unknown `%€` is existence_error(format, '%¬'); what a
+format wrote before a directive it refuses stays on a stream sink, as
+format/3's partial text does, never on a term. Under `posix` a weekday
+or a month past its table is `?`, where swipl 9.0.4 reads past its
+array, another table's name or a SIGSEGV (COMPAT.md).
+
+THE PIECE DEFINES `tm` AS `struct tm` at its head and undefines it at its
+end: std/c/time names the struct in one token, as it does `timespec`, so
+no identifier between the two may be `tm`, and a piece that needs the
+struct defines it the same way.
+
+THE JOURNAL. format_time/3,4 are portals as format/3 is: to a stream
+journalled, and to a term no portal, as nothing leaves the process
+(`coco_jr_tsink`, its answer the goal's and so not kept on the functor).
+Without that, as the release's first build stood, a record kept no entry
+of a format_time/3 to a stream and a replay ran the call -- writing
+nowhere, as a replay writes to a stream it never opened
+(`coco_m_replay_sink`) -- so a replay that wrote another text went on
+where it now diverges, the call's text not the journal's.
+
+HELD. test/files/clock.pl, 240 lines to swipl 9.0.4 byte for byte:
+stamps, stamps past a long, local stamps, dates, local dates, the
+directives, odd directives, the names, the sinks, sixty errors, and the
+kept zone names last (a `setenv('TZ', 'UTC0')` the names do not follow).
+It is the first case that needs an environment of its own, and both
+systems run it under it: test/files.pl's new `case_env/2` names
+`TZ=CET-1CEST,M3.5.0,M10.5.0/3`, a POSIX rule that needs no zoneinfo
+file, and `LC_ALL=C.UTF-8`. The files case skips on the Macs (no
+reference swipl there), so test/engine.pl's new `clock_machine` section
+holds the stamps past a long to the same x86-64 answers wherever the
+suite runs, and test/journal.pl's record checks that format_time/3 into
+a stream is journalled and into an atom not; its fixture writes a fifth
+term to the stream with format_time/3 and the replay reads it back from
+the journal.
+
+SIXTEEN RULES, EACH TAKEN OUT ON ITS OWN on the final code, a build each
+but M1 (3.76.0 with this release's changes and the one rule out), the
+lines that went red against swipl's, or the checks, in brackets:
+- no rows (R1: clock, 421 -- every line an unknown procedure);
+- no error contexts (E1: clock, 130 -- each error's context unbound);
+- cal_ftm's missing as what is asked and not known (C1: clock, 6 --
+  `%s` of -0.5 `-0` where swipl's is `-2`, and `%s|%f` of an infinity
+  and of 1e300 the float's own digits);
+- the zone names read afresh at each ask (K1: clock, 6 -- `UTC` after
+  the setenv/2 where swipl's names stay `CET`);
+- the range checks of the two conversions taken out (X1: green -- on
+  x86-64 the plain cast is cvttsd2si, which answers what the checks do;
+  the rule is for AArch64, where engine.pl's `clock_machine` holds it on
+  GitHub's Apple-silicon job, which no run on this box can be);
+- the sink asked before the format and the time (O1: clock, 4 -- a bad
+  time's and a bad format's errors hidden under the sink's);
+- no partial text on a stream sink (P1: clock, 2 -- what came before
+  `%q`'s error not written);
+- the daylight word true, false or `-` alone (B1: clock, 8 -- on, off,
+  1 and 0 refused);
+- a directive's key its whole code (Y1: clock, 4 -- the culprit of `%€`
+  and of `%` before U+0100);
+- `[]` no atom (N1: clock, 6 -- a zone of `[]` refused, and the
+  offset's error a type error where swipl's is a domain error);
+- a local stamp's seconds made from its nanoseconds (L1: clock, 6 --
+  `stamp_date_time(-0.5, D, local)` 59.5 seconds where swipl's are 58.5,
+  `%s` of -0.5, and `%s` of a NaN);
+- no modes rows (M1: flowchart -- the four missing from the mode table);
+- format_time/3,4 no portal (J1: journal -- into a stream not
+  journalled; the replay's own checks green, its write going nowhere);
+- the term sink journalled too (J2: journal, 2 -- the record's first four
+  entries take in format_time/3 into an atom, and the sinks journalled
+  are a term and a stream);
+- the branch that asks format_time's sink taken out, a named portal like
+  any other (J3: journal, the same two);
+- its answer kept on the functor (J4: journal -- the first call, into an
+  atom, said no portal for the call into the stream after it).
+
+COST. The untraced engine runs 3.76.0's instructions (tools/flow/zero.sh,
+the two in one invocation, from paths of one length): nrev 69 779 332
+(3.76.0: 69 779 312), queens 42 155 944 (42 155 787), lookup 50 299 241
+(50 299 459), the padding the same but nrev's and lookup's one fewer. A
+start counts 16 791 instructions more, 36 569 934 against 36 553 143
+(+0.046 %), none of them the clock's: the same 71 720 calls of strcmp
+and 1 176 of strncmp cost 13 468 more, the literals they compare having
+moved with the binary, and the dynamic linker makes two lookups more at
+load, the C library's `timezone` and `tzname`, which the piece reads and
+which are bound as the binary loads.
+
+THE RUN, on the binary committed: the lint case first, then files (clock
+with every other fixture, held to swipl 9.0.4), journal, engine,
+flowchart, library, errors, argv, flowdebug, window and trace, each
+alone. All were green with no SKIP, and the binary's md5 was the same
+before and after. The dialect card's 33 cites are all anchored.

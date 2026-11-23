@@ -640,6 +640,13 @@ checkout(Root) :-
     working_directory(W, W),
     ( atom_concat(Root, '/', W) -> true ; Root = W ).
 
+%% THE ENVIRONMENT A CASE RUNS UNDER, both systems alike (3.77.0): the
+%% clock's zone, a POSIX rule the C library reads with no zoneinfo file
+%% (CET in winter, CEST in summer), and a locale whose strftime(3) is the
+%% C locale's, cocolog's. Every other case runs in the caller's.
+case_env(clock, 'TZ=CET-1CEST,M3.5.0,M10.5.0/3 LC_ALL=C.UTF-8 ') :- !.
+case_env(_, '').
+
 %% One run of one system in a clean sandbox.
 run_one(Sandbox, C, Cmd, Text) :-
     shl(['rm -rf ', Sandbox, ' && mkdir -p ', Sandbox]),
@@ -653,13 +660,14 @@ one_case(Swipl, Sandbox, C) :-
     (   exists_file(Pl), unready(C, Why)
     ->  format("     ~w: skipped (~w)~n", [C, Why])
     ;   exists_file(Pl)
-    ->  sh_join([Swipl, ' -q -g main -t halt ', Pl], SwiCmd),
+    ->  case_env(C, Env),
+        sh_join([Env, Swipl, ' -q -g main -t halt ', Pl], SwiCmd),
         run_one(Sandbox, C, SwiCmd, Swi),
         %% `run' takes the LAST argument as the goal when it is given more than
         %% one, so `main' is written out even though it is also the default
         libs_for(Root, C, Libs),
         cocolog(Bin),
-        sh_join([Bin, ' --local run ', Libs, Pl, ' main'], CocoCmd),
+        sh_join([Env, Bin, ' --local run ', Libs, Pl, ' main'], CocoCmd),
         run_one(Sandbox, C, CocoCmd, Coco),
         sh_join([C, ': agrees with SWI'], Label),
         (   Swi == Coco

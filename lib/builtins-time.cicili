@@ -1,0 +1,835 @@
+;;;; cocolog -- stamp_date_time/3, date_time_stamp/2 and format_time/3,4
+;;;
+;;; A PIECE OF THE BUILTINS MODULE (3.77.0), emitted by cocolog.cicili after
+;;; builtins-format and before builtins-db, one translation unit with them:
+;;; format_time/3's sinks are format/3's (`coco_sink_check',
+;;; `coco_sink_deliver', `coco_fmt_term_sink'), and the four rows are
+;;; lib/builtins.cicili's.
+;;;
+;;; THE CLOCK IS SWIPL 9.0.4'S pl-tai.c, PORTED, its arithmetic libtai's
+;;; (caltime_utc, caldate_frommjd, caldate_mjd, caltime_tai): a time is a
+;;; count of seconds in 64 unsigned bits from TAI's origin, 1970 at 2^62 +
+;;; 10, and a date the proleptic Gregorian calendar of any year a long
+;;; holds (year 0 before year 1). Through 3.76.0 the four were unknown
+;;; procedures. What a program sees is swipl's to the letter, and so are
+;;; its edges:
+;;;
+;;; - WHAT SWIPL'S C LEAVES TO THE MACHINE IS x86-64'S, WRITTEN OUT. A
+;;;   double past a long's range, or a NaN, converts to the least long
+;;;   (cvttsd2si), so an infinity, a NaN and 1e20 seconds are all
+;;;   292277026596-12-04 15:30:08, and a NaN's nanoseconds 2^63 (its
+;;;   seconds 9223372044.854776); an int's the least int. The C leaves
+;;;   both undefined; `coco_ft_i64' and `coco_ft_i32' say which.
+;;; - INT ARITHMETIC WRAPS where swipl's does (a year less 1900, a month
+;;;   less one, an hour times 60), and a digit of a negative field is the
+;;;   character C's remainder makes: %d of a day -7 is `0)'.
+;;; - THE OFFSET IS WEST OF UTC, swipl's: CET is -3600. Local time is the C
+;;;   library's -- tzset(3) once a process, the `timezone' it sets, the
+;;;   names in `tzname', localtime_r(3) and mktime(3) -- and a zone's name
+;;;   is kept for the process the first time each of the two is asked, as
+;;;   swipl's tz_name_as_atom() keeps its atoms.
+;;; - format_time/3 reads its format, then its time, then its sink, and
+;;;   what it wrote before a directive it refuses stays on a stream sink,
+;;;   as format/3's does.
+;;;
+;;; Not swipl's, and in COMPAT.md: no locale -- the strftime(3) directives
+;;; (%c %x %X %p %P, and %a %A %b %B outside `posix') are the C locale's,
+;;; as cocolog sets none; under `posix' a weekday or month past its table
+;;; is `?', where swipl 9.0.4 reads past its array (another table's name,
+;;; or a crash); a stamp `local' cannot place (localtime(3) refused: a year
+;;; past an int) is read from what localtime_r(3) wrote over zeros, where
+;;; swipl's stamp_date_time/3 reads an uninitialised struct; no leap-second
+;;; table is read, as swipl's libtai reads none where there is no
+;;; /etc/leapsecs.dat.
+
+(DEFPACKAGE :cocolog
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :cocolog)
+
+;;; libtai's TAI_UTC_OFFSET: the label of 1970-01-01 00:00:00 UTC, 2^62 + 10
+(DEFMACRO coco-tai-origin () 4611686018427387914)
+
+;;; swipl's NO_UTC_OFFSET: date/9 with no offset given
+(DEFMACRO coco-ft-nooff () 2147483647)
+
+;;; pl-tai.c's OUT1DIGIT, OUT2DIGITS, OUT3DIGITS and OUT2DIGITS_SPC into
+;;; the buffer B: the last digits of the int V by C's division and
+;;; remainder, so a negative V writes the characters below `0' swipl's
+;;; does (-5 is `0+')
+(DEFMACRO coco-ft-1d (b v)
+  `(coco_sb_putc ,b (cast char (+ 48 (% ,v 10)))))
+
+(DEFMACRO coco-ft-2d (b v)
+  `(let ((int dv . 0))
+     (set dv ,v)
+     (coco-ft-1d ,b (/ dv 10))
+     (coco-ft-1d ,b dv)))
+
+(DEFMACRO coco-ft-3d (b v)
+  `(let ((int dv . 0))
+     (set dv ,v)
+     (coco-ft-1d ,b (/ dv 100))
+     (coco-ft-1d ,b (/ dv 10))
+     (coco-ft-1d ,b dv)))
+
+(DEFMACRO coco-ft-2s (b v)
+  `(let ((int dv . 0))
+     (set dv ,v)
+     (if (== (/ dv 10) 0) (coco_sb_putc ,b (cast char 32)) (coco-ft-1d ,b (/ dv 10)))
+     (coco-ft-1d ,b dv)))
+
+;;; ... and OUTNUMBER: V written by the C library's printf(3) as FMT says
+(DEFMACRO coco-ft-num (b fmt v)
+  `(let ((char nb [32]))
+     (snprintf nb 32 ,fmt ,v)
+     (coco_sb_put ,b nb)))
+
+;;; THE NAMES `posix' WRITES, pl-tai.c's four tables: the abbreviated and
+;;; the full weekday from Sunday, the abbreviated and the full month
+(DEFPARAMETER *ft-names*
+  '(("Sun" "Mon" "Tue" "Wed" "Thu" "Fri" "Sat")
+    ("Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday")
+    ("Jan" "Feb" "Mar" "Apr" "May" "Jun" "Jul" "Aug" "Sep" "Oct" "Nov" "Dec")
+    ("January" "February" "March" "April" "May" "June" "July" "August"
+     "September" "October" "November" "December")))
+
+;;; table K's I-th name, one switch a table, as the macro expands
+(DEFMACRO coco-ft-names-body (k i)
+  `(switch ,k
+     ,@(LOOP FOR names IN *ft-names* FOR kk FROM 0
+             COLLECT `(case ,kk
+                        (switch ,i
+                          ,@(LOOP FOR nm IN names FOR ii FROM 0
+                                  COLLECT `(case ,ii (return ,nm))))
+                        break))))
+
+(generic impl-builtins-time
+  ()
+
+  ;;; std/c/time declares `struct tm', whose C name is two tokens; this
+  ;;; piece alone names it, and the name is given back at its end
+  (@define (code "tm struct tm"))
+
+  ;;; libtai's struct caltime (its struct caldate inside it): a year, a
+  ;;; month and a day, the time of day, and an offset in minutes
+  (struct coco_caltime
+    (member i64 year)
+    (member int month)
+    (member int day)
+    (member int hour)
+    (member int minute)
+    (member int second)
+    (member i64 offset))
+
+  ;;; swipl's struct ftm: the broken-down time T, its seconds as a double,
+  ;;; the offset WEST of UTC in seconds (`coco-ft-nooff' none given), the
+  ;;; zone's name -- TZS the C library's, else TZN an atom's id, -2 the
+  ;;; list's end `[]', -1 none -- the daylight-saving word (-2 asked, -1
+  ;;; not known, 0, 1), the stamp, and FLAGS, which of the stamp (1) and the
+  ;;; week and year days (2) are known
+  (struct coco_ftm
+    (member tm t)
+    (member double sec)
+    (member int utcoff)
+    (member const char * tzs)
+    (member i64 tzn)
+    (member int isdst)
+    (member double stamp)
+    (member int flags))
+
+  ;;; ---- the C library's zone ----------------------------------------------
+
+  (static) (var int coco_tz_done)
+  (static) (var char * coco_tz_kept0)
+  (static) (var char * coco_tz_kept1)
+  (static) (var pthread_mutex_t coco_tz_mx . PTHREAD_MUTEX_INITIALIZER)
+
+  ;;; do_tzset(): tzset(3) the first time a clock predicate asks, once a
+  ;;; process (swipl's GD->date.tz_initialized)
+  (static)
+  (func coco_tz_set ()
+        (if (not coco_tz_done)
+            (block (code "tzset()")
+                   (set coco_tz_done 1))))
+
+  ;;; tz_offset(): the zone's standard offset west of UTC, the C library's
+  ;;; `timezone' as it stands now (mktime(3) sets it again)
+  (static)
+  (func coco_tz_offset () (out int)
+        (coco_tz_set)
+        (return (cast int (code "timezone"))))
+
+  ;;; tz_name(): the C library's name of standard (0) or daylight time
+  (static)
+  (func coco_tz_name ((int dst)) (out const char *)
+        (coco_tz_set)
+        (if (!= dst 0) (return (code "tzname[1]")))
+        (return (code "tzname[0]")))
+
+  ;;; tz_name_as_atom(): the name of standard (DST 0 or less) or daylight
+  ;;; time as swipl keeps it, read from the C library the first time each of
+  ;;; the two is asked and kept for the process, `<unknown>' for none
+  (static)
+  (func coco_tz_kept ((int dst)) (out const char *)
+        (let ((const char * s . nil) (char * c . nil))
+          (pthread_mutex_lock (aof coco_tz_mx))
+          (set c (? (> dst 0) coco_tz_kept1 coco_tz_kept0))
+          (if (== c nil)
+              (block (set s (coco_tz_name (? (> dst 0) 1 0)))
+                     (set c (strdup (? (== s nil) "<unknown>" s)))
+                     (if (> dst 0) (set coco_tz_kept1 c) (set coco_tz_kept0 c))))
+          (pthread_mutex_unlock (aof coco_tz_mx))
+          ;; a copy refused is the C library's name, unkept
+          (if (== c nil) (return (? (== s nil) "<unknown>" s)))
+          (return c)))
+
+  ;;; ---- what swipl's C leaves to the machine ------------------------------
+
+  ;;; A double made a long as x86-64's cvttsd2si makes it: truncated toward
+  ;;; zero, and the least long for a NaN or a value past the range, which C
+  ;;; leaves undefined
+  (static) (inline)
+  (func coco_ft_i64 ((double d)) (out i64)
+        (if (or (!= d d) (or (>= d 9223372036854775808.0) (< d -9223372036854775808.0)))
+            (return (- -9223372036854775807 1)))
+        (return (cast i64 d)))
+
+  ;;; ... and an int, the least int
+  (static) (inline)
+  (func coco_ft_i32 ((double d)) (out int)
+        (if (or (!= d d) (or (>= d 2147483648.0) (<= d -2147483649.0)))
+            (return (- -2147483647 1)))
+        (return (cast int d)))
+
+  ;;; ---- libtai -------------------------------------------------------------
+
+  ;;; caldate_frommjd(): the date of DAY, counted from the Modified Julian
+  ;;; Day's origin, and its weekday (Sunday 0) and day of the year (from 0)
+  (static)
+  (func coco_tai_frommjd ((coco_caltime * ct) (i64 day) (int * pwday) (int * pyday))
+        (let ((i64 year . 0) (i64 month . 0) (int yday . 0))
+          (set year (/ day 146097))
+          (set day (% day 146097))
+          (set day (+ day 678881))
+          (while (>= day 146097)
+            (set day (- day 146097))
+            (set year (+ year 1)))
+          (if (!= pwday nil) (set (cof pwday) (cast int (% (+ day 3) 7))))
+          (set year (* year 4))
+          (if (== day 146096)
+              (block (set year (+ year 3)) (set day 36524))
+              (block (set year (+ year (/ day 36524))) (set day (% day 36524))))
+          (set year (* year 25))
+          (set year (+ year (/ day 1461)))
+          (set day (% day 1461))
+          (set year (* year 4))
+          (set yday (? (< day 306) 1 0))
+          (if (== day 1460)
+              (block (set year (+ year 3)) (set day 365))
+              (block (set year (+ year (/ day 365))) (set day (% day 365))))
+          (set yday (+ yday (cast int day)))
+          (set day (* day 10))
+          (set month (/ (+ day 5) 306))
+          (set day (/ (% (+ day 5) 306) 10))
+          (if (>= month 10)
+              (block (set yday (- yday 306)) (set year (+ year 1)) (set month (- month 10)))
+              (block (set yday (+ yday 59)) (set month (+ month 2))))
+          (set (-> ct year) year)
+          (set (-> ct month) (+ (cast int month) 1))
+          (set (-> ct day) (cast int (+ day 1)))
+          (if (!= pyday nil) (set (cof pyday) yday))))
+
+  ;;; caldate_mjd(): the day of CT's date, from the Modified Julian Day's
+  ;;; origin. A month past twelve or before one is taken as many years on
+  ;;; or back, and a day past the month's as days on: 1970-13-01 is
+  ;;; 1971-01-01. Its table montab[] is (306 * M + 5) / 10, times365[] and
+  ;;; times36524[] multiples
+  (static)
+  (func coco_tai_mjd ((coco_caltime * ct)) (out i64)
+        (let ((i64 y . 0) (i64 m . 0) (i64 d . 0))
+          (set d (- (cast i64 (-> ct day)) 678882))
+          (set m (cast i64 (cast int (- (cast i64 (-> ct month)) 1))))
+          (set y (-> ct year))
+          (set d (+ d (* 146097 (/ y 400))))
+          (set y (% y 400))
+          (if (>= m 2) (set m (- m 2)) (block (set m (+ m 10)) (set y (- y 1))))
+          (set y (+ y (/ m 12)))
+          (set m (% m 12))
+          (if (< m 0) (block (set m (+ m 12)) (set y (- y 1))))
+          (set d (+ d (/ (+ (* 306 m) 5) 10)))
+          (set d (+ d (* 146097 (/ y 400))))
+          (set y (% y 400))
+          (if (< y 0) (block (set y (+ y 400)) (set d (- d 146097))))
+          (set d (+ d (* 365 (bitand y 3))))
+          (set y (/ y 4))
+          (set d (+ d (* 1461 (% y 25))))
+          (set y (/ y 25))
+          (set d (+ d (* 36524 (bitand y 3))))
+          (return d)))
+
+  ;;; caltime_tai(): CT's label, an hour times 60 an int's wrap, as libtai's
+  (static)
+  (func coco_tai_from_cal ((coco_caltime * ct)) (out u64)
+        (let ((i64 day . #'(coco_tai_mjd ct)) (i64 s . 0))
+          (set s (cast i64 (cast int (+ (* (cast i64 (-> ct hour)) 60) (cast i64 (-> ct minute))))))
+          (set s (+ (* (- s (-> ct offset)) 60) (cast i64 (-> ct second))))
+          (return (+ (+ (* (cast u64 day) 86400) 4611686014920671114) (cast u64 s)))))
+
+  ;;; caltime_utc(): the date and time of the label X, and its weekday and
+  ;;; day of the year
+  (static)
+  (func coco_tai_utc ((coco_caltime * ct) (u64 x) (int * pwday) (int * pyday))
+        (let ((u64 u . #'(+ x 58486)) (i64 s . 0))
+          (set s (cast i64 (% u 86400)))
+          (set (-> ct second) (cast int (% s 60)))
+          (set s (/ s 60))
+          (set (-> ct minute) (cast int (% s 60)))
+          (set s (/ s 60))
+          (set (-> ct hour) (cast int s))
+          (set u (/ u 86400))
+          (coco_tai_frommjd ct (- (cast i64 u) 53375995543064) pwday pyday)
+          (set (-> ct offset) 0)))
+
+  ;;; ---- reading a time -----------------------------------------------------
+
+  ;;; T as a double, as swipl's PL_get_float() takes it: an integer, a
+  ;;; rational (correctly rounded) or a float; 0 for anything else
+  (static)
+  (func coco_ft_num ((coco_engine * e) (size_t t) (double * d)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (u64 c . 0))
+          (set t (coco_deref m t))
+          (set c (nth t (-> m heap)))
+          (if (coco-rat-p c)
+              (let ((coco_rat * r . #'(aof (nth (cast size_t (coco-rat-index c)) (-> m rats)))))
+                (set (cof d) (coco_rat_double (-> r n) (-> r d)))
+                (return 1)))
+          (return (coco_m_float e t d))))
+
+  ;;; get_taia(): a stamp T, seconds since 1970, as its label X and
+  ;;; nanoseconds NANO, a fraction below zero borrowed from the seconds, and
+  ;;; T itself as SECS; 0 where T is no number
+  (static)
+  (func coco_ft_taia ((coco_engine * e) (size_t t) (u64 * x) (u64 * nano) (double * secs)) (out int)
+        (let ((double d . 0.0) (double ip . 0.0) (double fp . 0.0))
+          (if (not (coco_ft_num e t (aof d))) (return 0))
+          (if (!= secs nil) (set (cof secs) d))
+          (set fp (modf d (aof ip)))
+          (if (< fp 0.0) (block (set fp (+ fp 1.0)) (set ip (- ip 1.0))))
+          (set (cof x) (+ (cast u64 (coco_ft_i64 ip)) (coco-tai-origin)))
+          (set (cof nano) (cast u64 (coco_ft_i64 (* fp 1000000000.0))))
+          (return 1)))
+
+  ;;; representation_error(WHAT), raised
+  (static)
+  (func coco_ft_repr ((coco_engine * e) (const char * what)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)))
+          (return (coco_m_raise e (coco_make1 m "representation_error" (coco_new_atom m what))))))
+
+  ;;; An int, as swipl's PL_get_integer_ex() reads one: an integer within a
+  ;;; C int; past it representation_error(int), anything else
+  ;;; type_error(integer, A). 0 with the raise's answer in RC
+  (static)
+  (func coco_ft_int ((coco_engine * e) (size_t a) (int * v) (int * rc)) (out int)
+        (let ((i64 iv . 0))
+          (if (coco_m_int e a (aof iv))
+              (block
+               (if (or (< iv -2147483648) (> iv 2147483647))
+                   (block (set (cof rc) (coco_ft_repr e "int")) (return 0)))
+               (set (cof v) (cast int iv))
+               (return 1)))
+          (set (cof rc) (coco_m_type_error e "integer" a))
+          (return 0)))
+
+  ;;; THE ARGUMENTS OF date/9 AND date/3 READ INTO F, swipl's get_ftm(), in
+  ;;; their order, each raising its own error: the year, month, day, hour
+  ;;; and minute ints, the seconds any number (type_error(float, S)), the
+  ;;; offset unbound or an int, the zone unbound or an atom (`-' none, `[]'
+  ;;; an atom to swipl), the daylight word unbound, `-', or a boolean as
+  ;;; swipl's PL_get_bool() takes one (true, false, on, off, 1, 0), else
+  ;;; type_error(bool, D). Anything else is type_error(time, T). Then the
+  ;;; seconds' whole part is the second (a fraction below zero borrowed),
+  ;;; the year 1900-based and the month 0-based, and with no offset given
+  ;;; and no daylight word, mktime(3) makes the time whole -- its fields
+  ;;; normalised, -1 representation_error(dst) -- and date/9's unbound
+  ;;; offset, daylight word and zone are bound from it, the zone a name
+  ;;; swipl keeps (`coco_tz_kept'). 1 read; 0 with the raise's answer in RC,
+  ;;; 0 for a binding that failed
+  (static)
+  (func coco_ft_get ((coco_engine * e) (size_t t) (coco_ftm * f) (int * rc)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t d . 0) (u32 ar . 0)
+              (size_t a . 0) (int date9 . 0) (double ip . 0.0) (double fp . 0.0))
+          (memset f 0 (sizeof (cof f)))
+          (set (-> f tzn) -1)
+          (set (cof rc) 0)
+          (set d (coco_deref m t))
+          (if (and (coco-tag-is FUN (nth d (-> m heap)))
+                   (== 0 (strcmp (coco_atom_name m (coco_name_of m d)) "date")))
+              (set ar (coco_arity m d)))
+          (if (and (!= ar 9) (!= ar 3))
+              (block (set (cof rc) (coco_m_type_error e "time" t)) (return 0)))
+          (if (not (coco_ft_int e (coco_arg m d 0) (aof ($ (-> f t) tm_year)) rc)) (return 0))
+          (if (not (coco_ft_int e (coco_arg m d 1) (aof ($ (-> f t) tm_mon)) rc)) (return 0))
+          (if (not (coco_ft_int e (coco_arg m d 2) (aof ($ (-> f t) tm_mday)) rc)) (return 0))
+          (if (== ar 9)
+              (block
+               (set date9 1)
+               (if (not (coco_ft_int e (coco_arg m d 3) (aof ($ (-> f t) tm_hour)) rc)) (return 0))
+               (if (not (coco_ft_int e (coco_arg m d 4) (aof ($ (-> f t) tm_min)) rc)) (return 0))
+               (if (not (coco_ft_num e (coco_arg m d 5) (aof (-> f sec))))
+                   (block (set (cof rc) (coco_m_type_error e "float" (coco_arg m d 5))) (return 0)))
+               (set a (coco_arg m d 6))
+               (if (coco_m_is_var e a)
+                   (set (-> f utcoff) (coco-ft-nooff))
+                   (if (not (coco_ft_int e a (aof (-> f utcoff)) rc)) (return 0)))
+               (set a (coco_deref m (coco_arg m d 7)))
+               (if (not (coco_m_is_var e a))
+                   (block
+                    (if (not (coco-tag-is ATOM (nth a (-> m heap))))
+                        (block (set (cof rc) (coco_m_type_error e "atom" a)) (return 0)))
+                    (if (coco_is_nil m a)
+                        (set (-> f tzn) -2)
+                        (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m a)) "-"))
+                            (set (-> f tzn) (cast i64 (coco_name_of m a)))))))
+               (set a (coco_deref m (coco_arg m d 8)))
+               (set (-> f isdst) -3)
+               (if (coco_m_is_var e a) (set (-> f isdst) -2))
+               (if (and (coco-tag-is ATOM (nth a (-> m heap))) (not (coco_is_nil m a)))
+                   (let ((const char * nm . #'(coco_atom_name m (coco_name_of m a))))
+                     (if (or (== 0 (strcmp nm "true")) (== 0 (strcmp nm "on"))) (set (-> f isdst) 1))
+                     (if (or (== 0 (strcmp nm "false")) (== 0 (strcmp nm "off"))) (set (-> f isdst) 0))
+                     (if (== 0 (strcmp nm "-")) (set (-> f isdst) -1))))
+               (if (== (-> f isdst) -3)
+                   (let ((i64 bv . 0))
+                     (if (and (coco_m_int e a (aof bv)) (or (== bv 0) (== bv 1)))
+                         (set (-> f isdst) (cast int bv))
+                         (block (set (cof rc) (coco_m_type_error e "bool" a)) (return 0)))))
+               (set ($ (-> f t) tm_isdst) (? (== (-> f isdst) -2) -1 (-> f isdst))))
+              (block
+               (set ($ (-> f t) tm_isdst) -1)
+               (set (-> f utcoff) (coco-ft-nooff))))
+          ;; the fixup
+          (set fp (modf (-> f sec) (aof ip)))
+          (if (< fp 0.0) (block (set fp (+ fp 1.0)) (set ip (- ip 1.0))))
+          (set ($ (-> f t) tm_sec) (coco_ft_i32 ip))
+          (set ($ (-> f t) tm_year) (cast int (- (cast i64 ($ (-> f t) tm_year)) 1900)))
+          (set ($ (-> f t) tm_mon) (cast int (- (cast i64 ($ (-> f t) tm_mon)) 1)))
+          (if (!= (-> f utcoff) (coco-ft-nooff)) (return 1))
+          (if (< ($ (-> f t) tm_isdst) 0)
+              (let ((int off . 0))
+                (if (== (mktime (aof (-> f t))) (cast time_t -1))
+                    (block (set (cof rc) (coco_ft_repr e "dst")) (return 0)))
+                (set (-> f flags) (bitor (-> f flags) 2))
+                (set off (coco_tz_offset))
+                (if (> ($ (-> f t) tm_isdst) 0) (set off (- off 3600)))
+                (set (-> f utcoff) off)
+                (if (and date9 (not (coco_m_unify_int e (coco_arg m d 6) (cast i64 off))))
+                    (return 0))))
+          (if (not date9) (return 1))
+          (if (== (-> f isdst) -2)
+              (block
+               (set (-> f isdst) ($ (-> f t) tm_isdst))
+               (if (not (coco_m_unify_atom e (coco_arg m d 8)
+                                           (? (< (-> f isdst) 0) "-"
+                                              (? (!= (-> f isdst) 0) "true" "false"))))
+                   (return 0))))
+          (if (== (-> f tzn) -1)
+              (block
+               (set (-> f tzs) (coco_tz_kept (-> f isdst)))
+               (if (and (coco_m_is_var e (coco_arg m d 7))
+                        (not (coco_m_unify_atom e (coco_arg m d 7) (-> f tzs))))
+                   (return 0))))
+          (return 1)))
+
+  ;;; cal_ftm(): the stamp, and the week and year days, worked out from F's
+  ;;; fields where REQUIRED differs from what F knows -- swipl's `missing'
+  ;;; is the two words' exclusive or, so what is known is worked out again.
+  ;;; The days come from caltime_utc(), which normalises the date and time
+  ;;; it hands back, and the stamp is the label less that second plus F's
+  (static)
+  (func coco_ft_cal ((coco_ftm * f) (int required))
+        (let ((int missing . #'(xor (-> f flags) required)) (coco_caltime ct) (u64 x . 0))
+          (if (== missing 0) (return))
+          (set ($ ct year) (cast i64 (cast int (+ (cast i64 ($ (-> f t) tm_year)) 1900))))
+          (set ($ ct month) (cast int (+ (cast i64 ($ (-> f t) tm_mon)) 1)))
+          (set ($ ct day) ($ (-> f t) tm_mday))
+          (set ($ ct hour) ($ (-> f t) tm_hour))
+          (set ($ ct minute) ($ (-> f t) tm_min))
+          (set ($ ct second) ($ (-> f t) tm_sec))
+          (set ($ ct offset) 0)
+          (set x (coco_tai_from_cal (aof ct)))
+          (if (bitand missing 2)
+              (block (coco_tai_utc (aof ct) x (aof ($ (-> f t) tm_wday)) (aof ($ (-> f t) tm_yday)))
+                     (set (-> f flags) (bitor (-> f flags) 2))))
+          (set x (+ x (cast u64 (cast i64 (-> f utcoff)))))
+          (set (-> f stamp) (cast double (cast i64 (- x (coco-tai-origin)))))
+          (set (-> f stamp) (- (-> f stamp) (cast double ($ ct second))))
+          (set (-> f stamp) (+ (-> f stamp) (-> f sec)))
+          (set (-> f flags) (bitor (-> f flags) 1))))
+
+  ;;; ---- stamp_date_time/3 and date_time_stamp/2 ----------------------------
+
+  ;;; stamp_date_time(+Stamp, -Date, +TimeZone), swipl's: Date is
+  ;;; date(Y, M, D, H, Mn, S, Off, TZ, DST) of Stamp, any number, where
+  ;;; TimeZone is `local' (the C library's local time; TZ its name, DST
+  ;;; true or false, the seconds the local second plus Stamp's fraction as
+  ;;; modf(3) gives it), `UTC' (TZ `UTC', DST `-') or an offset in seconds
+  ;;; west, an int (TZ and DST `-'); any other atom, `[]' among them,
+  ;;; domain_error(timezone, TZ). Stamp is checked first, type_error(float,
+  ;;; S), and the seconds are the second and the nanoseconds
+  (func coco_b_stamp_date_time ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (u64 x . 0) (u64 nano . 0) (double argsec . 0.0) (coco_caltime ct)
+              (int wd . 0) (int yd . 0) (double sec . 0.0) (int off . 0) (int done . 0)
+              (int rc . 0) (const char * tzname . "-") (const char * dstname . "-")
+              (size_t a3 . 0) (size_t args [9]))
+          (if (not (coco_ft_taia e (coco_m_arg e g 0) (aof x) (aof nano) (aof argsec)))
+              (return (coco_m_type_error e "float" (coco_m_arg e g 0))))
+          (set a3 (coco_deref m (coco_m_arg e g 2)))
+          (if (coco-tag-is ATOM (nth a3 (-> m heap)))
+              (let ((const char * nm . #'(? (coco_is_nil m a3) "[]"
+                                            (coco_atom_name m (coco_name_of m a3)))))
+                (if (and (not (coco_is_nil m a3)) (== 0 (strcmp nm "local")))
+                    (let ((tm lt) (time_t ut . 0) (double ip . 0.0))
+                      (set off (coco_tz_offset))
+                      (set ut (cast time_t (cast i64 (- x (coco-tai-origin)))))
+                      (memset (aof lt) 0 (sizeof lt))
+                      (localtime_r (aof ut) (aof lt))
+                      (set sec (+ (cast double ($ lt tm_sec)) (modf argsec (aof ip))))
+                      (set ($ ct year) (cast i64 (cast int (+ (cast i64 ($ lt tm_year)) 1900))))
+                      (set ($ ct month) (cast int (+ (cast i64 ($ lt tm_mon)) 1)))
+                      (set ($ ct day) ($ lt tm_mday))
+                      (set ($ ct hour) ($ lt tm_hour))
+                      (set ($ ct minute) ($ lt tm_min))
+                      (set tzname (coco_tz_kept ($ lt tm_isdst)))
+                      (if (> ($ lt tm_isdst) 0)
+                          (block (set off (- off 3600)) (set dstname "true"))
+                          (set dstname "false"))
+                      (set done 1))
+                    (if (and (not (coco_is_nil m a3)) (== 0 (strcmp nm "UTC")))
+                        (block (set off 0) (set tzname "UTC"))
+                        (return (coco_m_domain_error e "timezone" a3)))))
+              (if (not (coco_ft_int e a3 (aof off) (aof rc))) (return rc)))
+          (if (not done)
+              (block
+               (set x (- x (cast u64 (cast i64 off))))
+               (coco_tai_utc (aof ct) x (aof wd) (aof yd))
+               (set sec (+ (cast double ($ ct second)) (/ (cast double nano) 1000000000.0)))))
+          (set (nth 0 args) (coco_m_new_int e ($ ct year)))
+          (set (nth 1 args) (coco_m_new_int e (cast i64 ($ ct month))))
+          (set (nth 2 args) (coco_m_new_int e (cast i64 ($ ct day))))
+          (set (nth 3 args) (coco_m_new_int e (cast i64 ($ ct hour))))
+          (set (nth 4 args) (coco_m_new_int e (cast i64 ($ ct minute))))
+          (set (nth 5 args) (coco_m_new_float e sec))
+          (set (nth 6 args) (coco_m_new_int e (cast i64 off)))
+          (set (nth 7 args) (coco_new_atom m tzname))
+          (set (nth 8 args) (coco_new_atom m dstname))
+          (return (coco_m_unify e (coco_m_arg e g 1) (coco_make m "date" 9 args)))))
+
+  ;;; date_time_stamp(+Date, -Stamp), swipl's: Date read as `coco_ft_get'
+  ;;; reads it and the stamp worked out (`coco_ft_cal'), a float, so a
+  ;;; Stamp given as an integer fails. An offset given is the date's own;
+  ;;; with none, a daylight word given leaves the offset swipl's
+  ;;; NO_UTC_OFFSET, 2147483647 seconds, as swipl's does
+  (func coco_b_date_time_stamp ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_ftm f) (int rc . 0))
+          (if (not (coco_ft_get e (coco_m_arg e g 0) (aof f) (aof rc))) (return rc))
+          (coco_ft_cal (aof f) 1)
+          (return (coco_m_unify_float e (coco_m_arg e g 1) ($ f stamp)))))
+
+  ;;; ---- format_time/3,4 ----------------------------------------------------
+
+  ;;; table K's I-th name (`*ft-names*'), `?' past the table, as strftime(3)
+  ;;; writes a field out of range
+  (static)
+  (func coco_ft_name ((int k) (int i)) (out const char *)
+        (coco-ft-names-body k i)
+        (return "?"))
+
+  ;;; a directive strftime(3) writes, %C, the C locale's: cocolog sets none
+  (static)
+  (func coco_ft_strftime ((coco_strbuf * b) (coco_ftm * f) (int c))
+        (let ((char fm [3]) (char buf [256]))
+          (set (nth 0 fm) (cast char 37))
+          (set (nth 1 fm) (cast char c))
+          (set (nth 2 fm) (cast char 0))
+          (set (nth 0 buf) (cast char 0))
+          (coco_ft_cal f 3)
+          (strftime buf 256 fm (aof (-> f t)))
+          (coco_sb_put b buf)))
+
+  ;;; iso_week_days(), glibc 2.3.5's as swipl copied it: the days from the
+  ;;; first day of the first ISO week of the year to YDAY, its weekday WDAY
+  (static)
+  (func coco_ft_iso_days ((int yday) (int wday)) (out int)
+        (return (+ (- yday (% (+ (- yday wday) 382) 7)) 3)))
+
+  (static)
+  (func coco_ft_leap ((int y)) (out int)
+        (return (? (and (== (% y 4) 0) (or (!= (% y 100) 0) (== (% y 400) 0))) 1 0)))
+
+  ;;; the code point C, UTF-8, into B
+  (static)
+  (func coco_ft_putcode ((coco_strbuf * b) (i64 c))
+        (let ((char u [8]) (int k . 0))
+          (set k (coco_utf8_enc u c))
+          (coco_sb_put_len b u (cast size_t k))))
+
+  ;;; FMT'S DIRECTIVES PUT INTO B AS SWIPL'S format_time() PUTS THEM, under
+  ;;; POSIX or not. Every directive is pl-tai.c's: digits before a letter
+  ;;; are an argument only %f reads (its places, 6 by default, none at 0),
+  ;;; %O and %: only before z (`+01:00'), %D %F %r %R %T a format of their
+  ;;; own, and %a %A %b %B under `posix' the English names, else
+  ;;; strftime(3)'s, with %c %p %P %x %X and %h. A directive that is none
+  ;;; ends the run with ERR 1, existence_error(format, '%C') of C's low byte
+  ;;; (swipl's key[] is a char, so `%é' names `%é' and `%Ā' `%'); a %C of a
+  ;;; year outside 0..9999 with ERR 2, ERRI the year. 1 when it ran through
+  (static)
+  (func coco_ft_run ((coco_machine * m) (coco_strbuf * b) (const char * fmt) (coco_ftm * f)
+                     (int posix) (int * err) (i64 * erri)) (out int)
+        (let ((size_t i . 0) (size_t n . #'(strlen fmt)) (i64 c . 0) (int arg . -1)
+              (int alto . 0) (int more . 0))
+          (while (< i n)
+            (set c (coco_utf8_get fmt n (aof i)))
+            (if (!= c 37)
+                (block (coco_ft_putcode b c) continue))
+            (set arg -1)
+            (set alto 0)
+            (while 1
+              (set more 0)
+              (set c (? (< i n) (coco_utf8_get fmt n (aof i)) 0))
+              (if (and posix (coco-ch-in c "aAbB"))
+                  (block
+                   (coco_ft_cal f 3)
+                   (if (== c (coco-ch "a")) (coco_sb_put b (coco_ft_name 0 ($ (-> f t) tm_wday))))
+                   (if (== c (coco-ch "A")) (coco_sb_put b (coco_ft_name 1 ($ (-> f t) tm_wday))))
+                   (if (== c (coco-ch "b")) (coco_sb_put b (coco_ft_name 2 ($ (-> f t) tm_mon))))
+                   (if (== c (coco-ch "B")) (coco_sb_put b (coco_ft_name 3 ($ (-> f t) tm_mon))))
+                   break))
+              (if (coco-ch-in c "aAbBcpPxX")
+                  (block (coco_ft_strftime b f (cast int c)) break))
+              (if (coco-ch-in c "GgV")
+                  (let ((int year . 0) (int days . 0) (int d2 . 0))
+                    (coco_ft_cal f 3)
+                    (set year (cast int (+ (cast i64 ($ (-> f t) tm_year)) 1900)))
+                    (set days (coco_ft_iso_days ($ (-> f t) tm_yday) ($ (-> f t) tm_wday)))
+                    (if (< days 0)
+                        (block
+                         (set year (cast int (- (cast i64 year) 1)))
+                         (set days (coco_ft_iso_days (+ ($ (-> f t) tm_yday) (+ 365 (coco_ft_leap year)))
+                                                     ($ (-> f t) tm_wday))))
+                        (block
+                         (set d2 (coco_ft_iso_days (- ($ (-> f t) tm_yday) (+ 365 (coco_ft_leap year)))
+                                                   ($ (-> f t) tm_wday)))
+                         (if (<= 0 d2) (block (set year (cast int (+ (cast i64 year) 1))) (set days d2)))))
+                    (if (== c (coco-ch "g")) (coco-ft-2d b (% (+ (% year 100) 100) 100)))
+                    (if (== c (coco-ch "G")) (coco-ft-num b "%d" year))
+                    (if (== c (coco-ch "V")) (coco-ft-2d b (+ (/ days 7) 1)))
+                    break))
+              (switch (cast int c)
+                (case (coco-ch "C")
+                  (let ((int year . #'(cast int (+ (cast i64 ($ (-> f t) tm_year)) 1900))))
+                    (if (or (< year 0) (>= year 10000))
+                        (block (set (cof err) 2) (set (cof erri) (cast i64 year)) (return 0)))
+                    (coco-ft-2d b (/ year 100)))
+                  break)
+                (case (coco-ch "d") (coco-ft-2d b ($ (-> f t) tm_mday)) break)
+                (case (coco-ch "D") (coco_ft_run m b "%m/%d/%y" f posix err erri) break)
+                (case (coco-ch "e") (coco-ft-2s b ($ (-> f t) tm_mday)) break)
+                (case (coco-ch "F") (coco_ft_run m b "%Y-%m-%d" f posix err erri) break)
+                (case (coco-ch "h") (coco_ft_strftime b f (coco-ch "b")) break)
+                (case (coco-ch "H") (coco-ft-2d b ($ (-> f t) tm_hour)) break)
+                (case (coco-ch "I")
+                  (let ((int h . #'(% ($ (-> f t) tm_hour) 12)))
+                    (if (== h 0) (set h 12))
+                    (coco-ft-2d b h))
+                  break)
+                (case (coco-ch "j")
+                  (coco_ft_cal f 2)
+                  (coco-ft-3d b (+ ($ (-> f t) tm_yday) 1))
+                  break)
+                (case (coco-ch "k") (coco-ft-2s b ($ (-> f t) tm_hour)) break)
+                (case (coco-ch "l")
+                  (let ((int h . #'(% ($ (-> f t) tm_hour) 12)))
+                    (if (== h 0) (set h 12))
+                    (coco-ft-2s b h))
+                  break)
+                (case (coco-ch "m") (coco-ft-2d b (cast int (+ (cast i64 ($ (-> f t) tm_mon)) 1))) break)
+                (case (coco-ch "M") (coco-ft-2d b ($ (-> f t) tm_min)) break)
+                (case (coco-ch "n") (coco_sb_putc b (cast char 10)) break)
+                (case (coco-ch "O")
+                  (if (and (< i n) (== (nth i fmt) (cast char (coco-ch "z"))))
+                      (block (set alto 1) (set more 1) break))
+                  (set (cof err) 1) (set (cof erri) c) (return 0))
+                (case (coco-ch ":")
+                  (if (and (< i n) (== (nth i fmt) (cast char (coco-ch "z"))))
+                      (block (set alto 1) (set more 1) break))
+                  (set (cof err) 1) (set (cof erri) c) (return 0))
+                (case (coco-ch "r") (coco_ft_run m b "%I:%M:%S %p" f posix err erri) break)
+                (case (coco-ch "R") (coco_ft_run m b "%H:%M" f posix err erri) break)
+                (case (coco-ch "f")
+                  (let ((int digits . #'(? (== arg -1) 6 arg)))
+                    (if (> digits 0)
+                        (let ((int k . 0) (char * nb . nil))
+                          (coco_ft_cal f 1)
+                          (set k (snprintf nil 0 "%.*f" digits (-> f stamp)))
+                          (if (>= k 0) (set nb (malloc (+ (cast size_t k) 1))))
+                          (if (!= nb nil)
+                              (let ((int j . 0))
+                                (snprintf nb (+ (cast size_t k) 1) "%.*f" digits (-> f stamp))
+                                (set j k)
+                                (while (and (> j 0) (coco-ch-between (nth (- j 1) nb) "0" "9"))
+                                  (set j (- j 1)))
+                                (coco_sb_put b (+ nb j))
+                                (free nb))))))
+                  break)
+                (case (coco-ch "s")
+                  (let ((char nb [400]))
+                    (coco_ft_cal f 1)
+                    (snprintf nb 400 "%.0f" (-> f stamp))
+                    (coco_sb_put b nb))
+                  break)
+                (case (coco-ch "S") (coco-ft-2d b ($ (-> f t) tm_sec)) break)
+                (case (coco-ch "t") (coco_sb_putc b (cast char 9)) break)
+                (case (coco-ch "T") (coco_ft_run m b "%H:%M:%S" f posix err erri) break)
+                (case (coco-ch "u")
+                  (coco_ft_cal f 2)
+                  (coco-ft-1d b (+ (% (+ (- ($ (-> f t) tm_wday) 1) 7) 7) 1))
+                  break)
+                (case (coco-ch "U")
+                  (coco_ft_cal f 2)
+                  (coco-ft-2d b (/ (+ (- ($ (-> f t) tm_yday)
+                                         (% (+ (- ($ (-> f t) tm_yday) ($ (-> f t) tm_wday)) 7) 7))
+                                      7)
+                                   7))
+                  break)
+                (case (coco-ch "w")
+                  (coco_ft_cal f 2)
+                  (coco-ft-1d b ($ (-> f t) tm_wday))
+                  break)
+                (case (coco-ch "W")
+                  (coco_ft_cal f 2)
+                  (coco-ft-2d b (/ (+ (- ($ (-> f t) tm_yday)
+                                         (% (+ (- ($ (-> f t) tm_yday) ($ (-> f t) tm_wday)) 8) 7))
+                                      7)
+                                   7))
+                  break)
+                (case (coco-ch "y")
+                  (coco-ft-2d b (% (cast int (+ (cast i64 ($ (-> f t) tm_year)) 1900)) 100))
+                  break)
+                (case (coco-ch "Y")
+                  (coco-ft-num b "%d" (cast int (+ (cast i64 ($ (-> f t) tm_year)) 1900)))
+                  break)
+                (case (coco-ch "z")
+                  (let ((int mn . #'(/ (cast int (- 0 (cast i64 (-> f utcoff)))) 60)))
+                    (if (>= mn 0)
+                        (coco_sb_putc b (cast char 43))
+                        (block (set mn (- 0 mn)) (coco_sb_putc b (cast char 45))))
+                    (coco-ft-2d b (/ mn 60))
+                    (if alto (coco_sb_putc b (cast char 58)))
+                    (coco-ft-2d b (% mn 60)))
+                  break)
+                (case (coco-ch "Z")
+                  (if (!= (-> f tzs) nil)
+                      (coco_sb_put b (-> f tzs))
+                      (if (== (-> f tzn) -2)
+                          (coco_sb_put b "[]")
+                          (if (>= (-> f tzn) 0)
+                              (coco_sb_put b (coco_atom_name m (cast u64 (-> f tzn))))
+                              (let ((const char * s . #'(coco_tz_name ($ (-> f t) tm_isdst))))
+                                (if (!= s nil) (coco_sb_put b s))))))
+                  break)
+                (case (coco-ch "+")
+                  (let ((char buf [26]))
+                    (set (nth 0 buf) (cast char 0))
+                    (coco_ft_cal f 2)
+                    (asctime_r (aof (-> f t)) buf)
+                    (set (nth 24 buf) (cast char 0))
+                    (coco_sb_put b buf))
+                  break)
+                (case (coco-ch "%") (coco_sb_putc b (cast char 37)) break)
+                (default
+                 (if (coco-ch-between c "0" "9")
+                     (block
+                      (set arg (? (== arg -1) (cast int (- c 48))
+                                  (cast int (+ (* (cast i64 arg) 10) (- c 48)))))
+                      (set more 1)
+                      break))
+                 (set (cof err) 1) (set (cof erri) c) (return 0)))
+              (if (not more) break)))
+          (return 1)))
+
+  ;;; FORMAT_TIME(+Out, +Format, +Stamp) AND ITS posix FORM, swipl's
+  ;;; pl_format_time(): the format first, any text (an atom, a string, a
+  ;;; list of codes or of characters; type_error(text, F)), then the time --
+  ;;; a stamp, any number, in local time (the C library's: its offset, its
+  ;;; name, the seconds the local second plus the stamp's fraction as
+  ;;; modf(3) gives it), or a date/9 or date/3 read as date_time_stamp/2
+  ;;; reads one -- then the sink, format/3's. What was written before a
+  ;;; directive that is none goes to a stream sink and is lost to a term
+  (static)
+  (func coco_ft_do ((coco_engine * e) (size_t out) (size_t fmt) (size_t tt) (int posix)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (coco_strbuf fb) (coco_strbuf b)
+              (coco_ftm f) (int rc . 0) (int tr . 0) (int sk . 0) (int ok . 0)
+              (u64 x . 0) (u64 nano . 0) (int err . 0) (i64 erri . 0))
+          (set tr (coco_tx_get e fmt 29 (aof fb)))
+          (if (!= tr 1) (return tr))
+          (memset (aof f) 0 (sizeof f))
+          (set ($ f tzn) -1)
+          (if (coco_ft_taia e tt (aof x) (aof nano) (aof ($ f stamp)))
+              (let ((time_t ut . 0) (double ip . 0.0))
+                (set ($ f utcoff) (coco_tz_offset))
+                (set ut (cast time_t (cast i64 (- x (coco-tai-origin)))))
+                (localtime_r (aof ut) (aof ($ f t)))
+                (set ($ f sec) (+ (cast double ($ ($ f t) tm_sec)) (modf ($ f stamp) (aof ip))))
+                (if (> ($ ($ f t) tm_isdst) 0)
+                    (block (set ($ f utcoff) (- ($ f utcoff) 3600)) (set ($ f isdst) 1)))
+                (set ($ f tzs) (coco_tz_kept ($ ($ f t) tm_isdst)))
+                (set ($ f flags) 3))
+              (if (not (coco_ft_get e tt (aof f) (aof rc)))
+                  (block (coco_sb_free (aof fb)) (return rc))))
+          (set sk (coco_sink_check e out))
+          (if (!= sk 1) (block (coco_sb_free (aof fb)) (return sk)))
+          (coco_sb_init (aof b))
+          (set ok (coco_ft_run m (aof b) (coco_tx_s (aof fb)) (aof f) posix (aof err) (aof erri)))
+          (coco_sb_free (aof fb))
+          ;; a text the buffer was refused is no text (3.62.3): the run ends
+          ;; `out of memory' at its next step, and nothing is written
+          (if (-> m oom) (block (coco_sb_free (aof b)) (return 0)))
+          (if (not ok)
+              (block
+               (if (not (coco_fmt_term_sink e out))
+                   (let ((int drc . #'(coco_sink_deliver e out (coco_tx_s (aof b)))))
+                     (if (!= drc 1) (block (coco_sb_free (aof b)) (return drc)))))
+               (coco_sb_free (aof b))
+               (if (== err 2)
+                   (return (coco_m_domain_error e "%C" (coco_m_new_int e erri))))
+               (let ((char key [8]) (int kb . #'(cast int (bitand erri 255))))
+                 (set (nth 0 key) (cast char 37))
+                 (set (nth 1 key) (cast char 0))
+                 (if (!= kb 0)
+                     (set (nth (+ 1 (coco_utf8_enc (+ key 1) (cast i64 kb))) key) (cast char 0)))
+                 (return (coco_m_existence_error e "format" (coco_new_atom m key))))))
+          (let ((int drc . #'(coco_sink_deliver e out (coco_tx_s (aof b)))))
+            (coco_sb_free (aof b))
+            (return drc))))
+
+  (func coco_b_format_time3 ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_ft_do e (coco_m_arg e g 0) (coco_m_arg e g 1) (coco_m_arg e g 2) 0)))
+
+  ;;; format_time/4: the locale first, an atom (type_error(atom, L)) that is
+  ;;; `posix' (domain_error(locale, L)), as swipl's
+  (func coco_b_format_time4 ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t l . #'(coco_deref (coco_m_machine e) (coco_m_arg e g 3))))
+          (if (not (coco-tag-is ATOM (nth l (-> m heap))))
+              (return (coco_m_type_error e "atom" l)))
+          (if (or (coco_is_nil m l) (!= 0 (strcmp (coco_atom_name m (coco_name_of m l)) "posix")))
+              (return (coco_m_domain_error e "locale" l)))
+          (return (coco_ft_do e (coco_m_arg e g 0) (coco_m_arg e g 1) (coco_m_arg e g 2) 1))))
+
+  ;;; `tm' is an identifier again after this piece
+  (@undef (code "tm"))
+
+  ) ; impl-builtins-time

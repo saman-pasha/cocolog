@@ -20,22 +20,27 @@ j_flip(Odd) :-
     append_file_from_codes(F, "x"),
     length(C, N0), N is N0 + 1,
     ( N mod 2 =:= 1 -> Odd = odd ; Odd = even ).
-%% format/3 into an atom writes nowhere: no portal
-j_world(r(T, H, A, Odd)) :- get_time(T), getenv('HOME', H), format(atom(A), "~w", [t]), j_flip(Odd).
+%% format/3 and format_time/3 into an atom write nowhere: no portal
+j_world(r(T, H, A, Y, Odd)) :-
+    get_time(T), getenv('HOME', H), format(atom(A), "~w", [t]),
+    format_time(atom(Y), '%Y', date(2023,7,1,12,0,0,0,-,-)), j_flip(Odd).
 
-%% a stream written -- format/3 into it, with_output_to/2 into it, and a
-%% float only seventeen digits say -- then read back a term at a time
+%% a stream written -- format/3 into it, with_output_to/2 into it, a float
+%% only seventeen digits say, and format_time/3 into it (3.77.0) -- then
+%% read back a term at a time
 j_stream(Ts) :-
     j_path('s.txt', P),
     open(P, write, S),
     format(S, "~q.~n", [f(1, "two", 3.25)]),
     with_output_to(S, (write(g(x)), write('.'), nl)),
     format(S, "x(0.30000000000000004).~n", []),
+    format_time(S, 'y(%Y).%n', date(2023,7,1,12,0,0,0,-,-)),
     close(S),
     open(P, read, R),
     read_term(R, T1, []), read_term(R, T2, []), read_term(R, T3, []), read_term(R, T4, []),
+    read_term(R, T5, []),
     close(R),
-    Ts = [T1, T2, T3, T4].
+    Ts = [T1, T2, T3, T4, T5].
 
 %% a raise a portal makes, caught; portals inside findall/3
 j_raise(E, L) :-

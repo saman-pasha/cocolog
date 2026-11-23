@@ -602,6 +602,7 @@
     ("read_link" 3)
     ("getenv" 2) ("setenv" 2) ("unsetenv" 1) ("get_time" 1) ("sleep" 1)
     ("get_flag" 2) ("set_flag" 2) ("shell" 2) ("collation_key" 2)
+    ("stamp_date_time" 3) ("date_time_stamp" 2) ("format_time" 3) ("format_time" 4)
     ;; call_with_inference_limit/3's limit (3.73.0), and
     ;; call_with_depth_limit/3's (3.74.0), named as swipl names them
     ("$inference_limit" 2) ("$depth_limit" 3)

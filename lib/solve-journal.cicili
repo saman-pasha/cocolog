@@ -51,7 +51,10 @@
   ;;; AND THE PORTALS OF THE MODULES THAT DO NOT: the files module's but the
   ;;; four that take a name apart; the environment, the clock and the
   ;;; statistics; format/3 to a stream (its three term sinks are no portal,
-  ;;; `coco_jr_term_sink'); the program's own arguments; sha's file; the
+  ;;; `coco_jr_term_sink'), and format_time/3,4 the same (3.77.0: its write
+  ;;; to a stream reaches the world, so a replay answers it from its entry,
+  ;;; and one that would write another text diverges there); the program's
+  ;;; own arguments; sha's file; the
   ;;; green world's size, which reads the environment and the cores as
   ;;; getenv/2 and os_cpus/1 do (async_workers/1, 2.15.0); and shell/2's
   ;;; child, whose status a replay is told and whose command it runs not
@@ -67,6 +70,7 @@
                     "files:tmp_file/2" "files:working_directory/2"
                     "builtins:getenv/2" "builtins:setenv/2" "builtins:unsetenv/1"
                     "builtins:statistics/2" "builtins:format/3" "builtins:shell/2"
+                    "builtins:format_time/3" "builtins:format_time/4"
                     "library:current_prolog_flag/2" "sha:sha_file/3"
                     "green:$async_workers/1"})
 
@@ -113,12 +117,15 @@
                 (return 1))
             (return 0))))
 
-  ;;; the goal's sink is a term, for format/3 -- asked BEFORE the call runs:
-  ;;; a raise it catches unwinds the heap the goal's cell was on
+  ;;; the goal's sink is a term, for format/3 and format_time/3,4, whose sink
+  ;;; is the first argument too -- asked BEFORE the call runs: a raise it
+  ;;; catches unwinds the heap the goal's cell was on
   (static)
   (func coco_jr_tsink ((coco_machine * m) (const char * name) (u32 arity) (size_t g)) (out int)
-        (if (or (!= arity 3) (!= 0 (strcmp name "format"))) (return 0))
-        (return (coco_jr_term_sink m g)))
+        (if (and (== arity 3) (== 0 (strcmp name "format"))) (return (coco_jr_term_sink m g)))
+        (if (and (or (== arity 3) (== arity 4)) (== 0 (strcmp name "format_time")))
+            (return (coco_jr_term_sink m g)))
+        (return 0))
 
   ;;; IS A CALL OF NAME/ARITY THAT MODULE MOD ANSWERED A PORTAL? TSINK says
   ;;; format/3's sink is a term, which makes it none. VARIES is set when the
@@ -137,7 +144,8 @@
           (for ((size_t i . 0)) (< i (/ (sizeof coco_jr_named) (sizeof (nth 0 coco_jr_named)))) ((++ i))
             (if (== 0 (strcmp key (nth i coco_jr_named)))
                 (block
-                 (if (== 0 (strcmp key "builtins:format/3"))
+                 (if (or (== 0 (strcmp key "builtins:format/3"))
+                         (== 0 (strncmp key "builtins:format_time/" 21)))
                      (block (set (cof varies) 1)
                             (return (? tsink 0 1))))
                  (return 1))))

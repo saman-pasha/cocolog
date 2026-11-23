@@ -124,6 +124,10 @@ an existence error, an instantiation error, a refusal by name.
 | `consult/1` as a goal of a running program, of a file holding `:- initialization(G, main).` | runs G once the program's goal is done (the toplevel's place), and halts | runs G when that consult ends and halts: the rest of the goal that consulted is not run | `initialization(G, main)` in the script |
 | current_flag/1 with its key unbound | walks its hash table: the keys in an order of its own | the keys in the order they were made (3.70.0; test/files/system_flags.pl holds the rest of the flags to swipl, the walk's keys sorted) | sort what the walk finds |
 | collation_key/2, and so locale_sort/2, under a locale whose collation is not code points (`LANG=en_US.UTF-8`) | the key wcsxfrm() makes under LC_COLLATE, which sorts `a` before `B` | the text itself as a string, swipl's key under C and C.UTF-8, which sort by code points: `locale_sort([b, a, 'B'], L)` is `['B', a, b]` whatever the locale (3.76.0; cocolog has no locales) | sort by a key you make, with keysort/2 or predsort/3 |
+| `format_time/3`'s directives strftime(3) writes -- `%c`, `%x`, `%X`, `%p`, `%P`, `%h`, and `%a`, `%A`, `%b`, `%B` without `posix` -- under a locale that is not C's (`LANG=en_US.UTF-8`) | the locale's text: `%c` of 1700000000 is `Tue 14 Nov 2023 10:13:20 PM UTC` | the C locale's whatever LANG says, `Tue Nov 14 22:13:20 2023` (3.77.0; cocolog has no locales). The rest is swipl 9.0.4's pl-tai.c, held under C.UTF-8 to the letter (test/files/clock.pl, 240 lines) | write dates out of `%Y`, `%m`, `%d`, `%H`, `%M`, `%S`, or ask format_time/4 with `posix` for the English names |
+| `format_time/4` under `posix` of a weekday or a month past its table, a date/9 with an offset given and no mktime(3) to make it whole (`%b` of `date(2023,13,1,0,0,0,0,-,-)`) | reads past pl-tai.c's name array: another table's name (`Sunday` for month 13), or a crash (`%b` of month 0, a SIGSEGV) | `?`, as strftime(3) writes a field out of its range (3.77.0) | give a month of 1 to 12, or a date with no offset, which mktime(3) makes whole |
+| a stamp past a long's seconds, an infinity or a NaN (`stamp_date_time(1.0Inf, D, 'UTC')`, `%s` of `1.0e300`), or a date/9's seconds past an int | the machine's double-to-integer conversion, which C leaves undefined: on x86-64 the least integer, so 292277026596-12-04 15:30:08 and a NaN's nanoseconds 2^63; on AArch64 the nearer end of the range, a NaN 0 | x86-64's answers on every machine, written out (3.77.0) | keep a stamp within the 64-bit seconds a date has |
+| `stamp_date_time(S, D, local)` of a stamp localtime(3) refuses (a year past an int, S past about 6.7e16 seconds); a box with `/etc/leapsecs.dat` | the fields of an uninitialised `struct tm`; libtai's leap seconds from the file, a stamp's date counted around them | what localtime_r(3) wrote over zeros (glibc writes the time of day and the year cut to an int); no leap seconds, as swipl counts none where the file is not there, as on Ubuntu (3.77.0) | stay within the years an int holds |
 | shell/1,2 of a child a signal ended (`shell('kill -9 $$', S)`) | 9.0.4 says on stderr that its shell/2 `did not clear exception` and answers 1, the error it raised lost; its later releases raise it | raises it, error(shell(signal(9), Command), context(shell/2, _)), `Caught signal 9 on ...` in messages.pl's words (3.70.0, test/errors.pl) | catch the error, or test the status a shell's own `trap` makes |
 | a cancel_halt/1 in a hook the program's end runs (`swipl -g main -t halt`'s halt, cocolog's end of `-s`, `run`, `query` or the REPL) | the toplevel halts again, and a cancel there is honoured until the tenth | the hooks before it have run, the cancel is said, `% Halt cancelled: R`, and the process ends with its status: no host's end is cancelled (3.71.0) | cancel a halt/0,1 the program calls, which fails as swipl's does (test/files/at_halt.pl) |
 | the at_halt/1 hooks as a predicate | clauses of `system:'$at_halt'/2`, which clause/2, listing/1 and retract/1 see | a table of the process's, kept as text, no predicate's (3.71.0) | cancel_halt/1 in a hook rather than a retract of it |
@@ -216,11 +220,11 @@ the process's flags and its shell (`flag/3`, `get_flag/2`, `set_flag/2`,
 (`at_halt/1`, `cancel_halt/1`) since 3.71.0, and the search's three
 (`findnsols/4,5` since 3.72.0, `call_with_inference_limit/3` since 3.73.0
 and `call_with_depth_limit/3` since 3.74.0, each beside cocolog's own
-`call_limited/3`).
+`call_limited/3`), and the clock (`stamp_date_time/3`,
+`date_time_stamp/2`, `format_time/3,4`) since 3.77.0.
 
-1. **Small built-ins a swipl program calls as it stands**: of the program
-   and the clock, `current_module/1`, `source_file/1,2`, `format_time/3`,
-   `stamp_date_time/3`, `date_time_stamp/2`.
+1. **Small built-ins a swipl program calls as it stands**: of the
+   program, `current_module/1` and `source_file/1,2`.
 2. **swipl's libraries written in Prolog**, kept in `lib/swipl` as assoc
    and ordsets are and read when a program asks: `library(option)`
    (`option/2,3`, `select_option/3,4`, `merge_options/3`),

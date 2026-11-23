@@ -145,6 +145,11 @@
     ("shell"                   2 coco_b_shell)
     ;; library(sort)'s locale_sort/2 keys its atoms with it (3.76.0)
     ("collation_key"           2 coco_b_collation_key)
+    ;; the clock, swipl's pl-tai.c (3.77.0, lib/builtins-time.cicili)
+    ("stamp_date_time"         3 coco_b_stamp_date_time)
+    ("date_time_stamp"         2 coco_b_date_time_stamp)
+    ("format_time"             3 coco_b_format_time3)
+    ("format_time"             4 coco_b_format_time4)
     ;; the halt's hooks (3.71.0); at_halt/1, cancel_halt/1 and the run are
     ;; clauses over them (the Prolog half)
     ("$at_halt_add"            3 coco_b_at_halt_add)

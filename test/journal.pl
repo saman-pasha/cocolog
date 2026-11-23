@@ -73,6 +73,9 @@ record(D) :-
                   ( sub_atom(S7a, 0, _, _, 'format(atom(') -> S7 = term ; S7 = stream ) ), Ss7),
     sort(Ss7, Sorted7),
     check('format/3 into a stream journalled, into an atom not: it writes nowhere', Sorted7, [stream]),
+    findall(S9, ( member(j(_, builtins, format_time/3, C9, _), Es1), atom_codes(S9a, C9),
+                  ( sub_atom(S9a, 0, _, _, 'format_time(atom(') -> S9 = term ; S9 = stream ) ), Ss9),
+    check('format_time/3 the same (3.77.0): into a stream journalled, into an atom not', Ss9, [stream]),
     text_of(J1, T8),
     ( sub_atom(T8, _, _, _, '0.30000000000000004') -> F8 = kept ; F8 = rounded ),
     check('a float written to read back bit for bit: 0.30000000000000004, its seventeen digits', F8, kept).

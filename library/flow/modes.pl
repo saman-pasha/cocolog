@@ -311,6 +311,14 @@ flow_mode(shell, 2, ['+', '-'], det).
 %% given is compared as a term
 flow_mode(collation_key, 2, ['+', '-'], det).
 flow_mode(collation_key, 2, ['+', '+'], semidet).
+%% the clock (3.77.0): a stamp's date, a date's stamp (a float, so a stamp
+%% given is a test), and a time written as a format says, to a sink
+flow_mode(stamp_date_time, 3, ['+', '-', '+'], det).
+flow_mode(stamp_date_time, 3, ['+', '+', '+'], semidet).
+flow_mode(date_time_stamp, 2, ['+', '-'], det).
+flow_mode(date_time_stamp, 2, ['+', '+'], semidet).
+flow_mode(format_time, 3, ['+', '+', '+'], det).
+flow_mode(format_time, 4, ['+', '+', '+', '+'], det).
 %% the halt's hooks (3.71.0): one added, the hooks as they stand, one that
 %% has run taken away
 flow_mode('$at_halt_add', 3, ['+', '+', '+'], det).
