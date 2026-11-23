@@ -23942,3 +23942,165 @@ async, gc, directives, cyclic, library, thread and the solve, state and
 module binaries, each alone. All green, no SKIP; the dialect card's cites
 all anchored (15 by a moved anchor, accepted). The trace case again after
 test/trace-meta.pl's head: green, 238.
+
+## A `\+` whose goal succeeds fails its clause shallow under trace, as swipl's (3.78.5)
+
+A patch, the tracer's alone (backlog #310). Through 3.78.4 a `\+` whose
+goal succeeded printed a Redo of the clause's call where swipl prints none:
+`sh1 :- \+ \+ atom(a).` printed `Redo: sh1` after atom/1's Exit, and so did
+a `\+` failing into its clause's own `;`, else or next clause (`sh34 :- \+
+atom(a).  sh34.`), and a bare if-then's or soft cut's condition failing
+(`sh23 :- ( sh_p(X), X > 5 -> true ).`), once/1's goal failing and a `\+`
+failing into the `;` of the goal once/1, ignore/1, not/1 or catch/3 runs.
+
+SWIPL'S MODEL. `\+`'s own fail is C_FAIL, a BODY_FAILED, and goes to
+shallow_backtrack (pl-vmi.c): where the newest choice point is the failing
+frame's own -- a jump of its clause (CHP_JUMP: a `;`, an if-then-else's
+else, another `\+`'s) or the frame's next clause (CHP_CLAUSE) -- it is
+taken with no port. A choice point of another call (a predicate's, a
+builtin's walk) is a deep backtrack, whose Redo is printed, and so is a
+frame's failure, FRAME_FAILED: a call that fails, `fail` (a frame under
+the debugger), not/1's own fail (not/1 is a frame of swipl's), a call past
+call_with_depth_limit/3's limit. A bare if-then and a bare soft cut
+(C_IFTHEN, C_SOFTIFTHEN) make no choice point at all, so their condition
+failing is no Redo either; and once/1's clause (boot/init.pl's `once(Goal)
+:- Goal, !.`) leaves no choice point of its own, so its goal failing fails
+its frame, where cocolog's construct keeps a choice frame for its cut.
+
+THE FIX (lib/solve-control.cicili, lib/solve-loop.cicili, lib/solve-db.cicili,
+lib/solve-text.cicili, lib/term.cicili), under the printer (trace 1) alone.
+`$fail`, the construct `\+` ends its goal with, calls `coco_trace_nfail`
+(weak, cold), which puts the tag of the word it ran under, plus one, in the
+machine's `tshal`: a shallow backtrack has begun. The frame the backtrack
+resumes ends it, whatever it is, and is taken with no Redo where it is the
+failing frame's own: a GOAL frame -- a `;`, an else, another `\+`'s --
+pushed in the same context (`trace_goal`, `trace_depth`) under a word of
+that tag (`coco_trace_quiet`, which coco_backtrack asks where it would
+print the Redo), or the clause frame of the context's own call, its next
+clause (`coco_trace_qclause`, which works the tag out from the call's
+functor as `coco-bar-of` makes it, and which `coco_trace_paint` asks
+before the selection binds the call: the paint leaves `tshal` -1 for a
+quiet retry -- `coco_trace_redo` reads it once a clause is entered, and
+every other reader takes it for none -- and 0 for any other, whether a
+clause is entered or none). A walk's retry and a DB frame's end it too
+(`coco_walk_retry`, `coco_db_retry`), and a clause frame pushed untraced,
+which no paint asks, in coco_backtrack's one new store; a frame only
+trace keeps at its last candidate (LAST) is none of swipl's and passes it
+by, as `coco_det_live` passes it. The tag tells not/1's own fail --
+`system:not/1`'s word, deep -- from a `\+` in the goal once/1, ignore/1,
+not/1 or catch/3 runs in place, whose `;` was pushed under the same word
+as the `\+`'s fail. A GOAL frame whose alternative is `$fail` -- a bare
+`->`'s or `*->`'s else, once/1's -- is no choice point of swipl's: no
+Redo, and its `$fail` carries the backtrack on as it was (`tscont`, which
+`coco_trace_nfail` reads and clears), as a frame's failure at the depth
+limit does (`coco_depth_fail` sets `tscont`): deep. Untraced, the new
+questions are `$fail`'s test of the trace mode and, under a depth limit,
+`coco_depth_fail`'s; every store of `tshal` is on a traced path.
+
+THE CUTS BEFORE IT. The first asked the word's system bit alone, and took
+the `\+` in catch/3's goal for not/1's own fail; it kept `tshal` and
+`tscont` on the engine, where they made the memset of every engine
+findall/3 and forall/2 start 24 instructions longer (22 a turn of a
+findall/3 loop); it ended a shallow backtrack at every port printed and
+asked the paint as well -- the paint's test could not be reached, and the
+end at a port moved nothing (a port printed before the frame resumed is a
+frame's that fails, which leaves no frame of the failure's context); and
+it ended one only where `coco_trace_quiet` or a clause's entry asked, so a
+walk's retry, clause/2's, a retry whose heads all failed and a frame
+pushed untraced left it set, and a deep backtrack into the clause's own
+`;` after them printed no Redo where 3.78.4 and swipl print one -- found
+by reading the rule again before the commit, the arms all red and the
+case green (`( arg(N, f(a, b), X), ( N == 1 -> \+ atom(X) ; fail ) ; true
+)`). The second decided the clause frame in coco_backtrack, before the
+selection, with a local and a call of its own there: every untraced
+backtrack paid a spill (its frame 0x38 bytes where 3.78.4's is 0x28),
+queens +58 489 instructions, +0.15 %, all of them coco_backtrack's
+(403 959 to 466 083); and it asked a frame only trace keeps at its last
+candidate, which printed a Redo after a call's last answer where swipl
+prints none (sh16 and seven others of the case). The paint decides now,
+and coco_backtrack is 3.78.4's but for the store.
+
+NOT SWI'S (COMPAT.md's row 291), each a later patch: once/1, ignore/1,
+not/1 and catch/3 are constructs, where swipl's are frames with ports, so
+their traces are not held line for line and a goal under catch/3 stands a
+level shallower (call_with_depth_limit/3's among them); a call past
+call_with_depth_limit/3's limit prints no line, where swipl's prints `Fail:
+[depth-limit exceeded] G`, and a builtin whose own frames below it pass the
+limit (memberchk/2's, findall/3's) no port, where swipl's prints its Call
+and Fail; swipl's debugger calls the goals its compiler puts in place
+(`true`, `=/2`), which the limit then counts; and a frame pushed while the
+tracer was off (before trace/0, after notrace/0) prints no port when it is
+retried under trace, where swipl's prints its Redo and its Exit -- as
+through 3.78.4, now in the row.
+
+HELD. test/trace.pl, 301 checks, green: test/trace-shallow.pl (new), 49
+queries held to swipl line for line -- `\+ \+ G` in eight shapes; a `\+`
+failing into its clause's `;`, else and another `\+`, seven; a call's
+choice point first, its Redo printed, and a call that exited leaving none;
+a port printed first, the program's `fail` and a builtin's Fail, deep; a
+bare if-then and soft cut alone, nested, after a choice point of the
+clause, through a call and after a call's choice point, three before a `;`
+with a goal between, and two if-then-elses, whose conditions fail shallow
+and deep; two inside a meta-called structure; the same predicate's other
+call, whose `;` and clause choice are its frame's; the frame's own next
+clause, and a call's choice point or a port before it, seven; two in
+clauses that hide their children; and a builtin's walk taken after the
+fail, arg/3's twice and clause/2's, deep, a later Redo of the clause
+printed -- and fourteen lines of cocolog's own: once/1's failure no Redo
+of its clause, and its clause's `;` one Redo, not two; not/1's own fail
+deep into a `;` and into the next clause, its caller's Redo printed; a
+`\+` in the goal not/1, catch/3, once/1 or ignore/1 runs failing back into
+the goal's `;` with no Redo; a call past the depth limit deep into its
+clause's `;` and next clause; a `;` and a next clause a shallow backtrack
+took ending it, so a depth failure after it is deep (memberchk/2 past a
+limit of 2); and a retry whose heads all fail and a frame pushed untraced
+ending it, a later Redo of the clause printed (`hr1`, `hr2`: not held line
+for line, the two divergences above). On 3.78.4's code 46 of the 301 are
+red: 38 of the queries and 8 of the own lines; green on both are the deep
+backtracks (a port first, not/1's own fail, the depth limit, a builtin's
+walk, a retry whose heads all fail), an if-then-else whose condition fails
+deep, the structures a meta-call runs (whose `;` is no Redo since 3.78.4)
+and the clauses that hide their children. On the first cut's code 5 are
+red: sh47 to sh49, `hr1` and `hr2`.
+
+ARMS: one build each of the final code with one rule out, test/trace.pl
+run; all seventeen red. `$fail` marking no shallow backtrack, 39 checks; a
+GOAL frame whose alternative is `$fail` taken as a Redo, 4 (sh23, sh24 and
+once/1's two lines); `coco_trace_nfail` reading no `tscont`, 6 (sh44, sh46
+and the depth limit's four lines); `coco_trace_quiet` asking no tag, 2
+(not/1's own fail, a `\+` in not/1's goal), asking no context, 1 (sh33),
+and ending no shallow backtrack, 2 (sh14, `dl3`); `coco_depth_fail`
+setting no `tscont`, 4 (the depth limit's lines); `coco_trace_qclause`
+never quiet, 9 (sh34 to sh40, sh42, `dl4`), asking no context, 1 (sh42),
+and asking no tag, 1 (`ng`, not/1's own fail into the next clause); the
+paint ending no shallow backtrack where its retry is not quiet, 1 (`hr1`);
+a `$fail` alternative clearing `tscont` where it sets it, 2 (sh44, sh46);
+the question asked after the selection, in `coco_trace_redo`, which a
+retry that enters no clause never reaches, 1 (`hr1`); `coco_walk_retry`
+ending none, 2 (sh47, sh48), `coco_db_retry` none, 1 (sh49), and
+coco_backtrack none for a frame pushed untraced, 1 (`hr2`); and a frame
+only trace keeps at its last candidate asked too, 8 (sh16, sh17, sh19,
+sh29, sh33, sh37, sh40, sh42).
+
+COST, against 3.78.4's code: the untraced engine runs 3.78.4's
+instructions to the one (tools/flow/zero.sh at paths of one length, work
+less padding: nrev 65 890 751, queens 39 953 175 and lookup 48 060 419 in
+both); a thousand turns of call/1 of a plain goal, call/1 of a
+conjunction, findall/3, forall/2 and `\+ \+` (whose `$fail` asks the new
+test once a turn) are 2, 4, 2, 2 and 3 instructions a turn cheaper,
+placement's (callgrind); and a start (`cocolog run FILE true`, each binary
+copied in turn to one path) is 246 instructions dearer: 229 of them the
+dynamic loader's (strcmp 221, do_lookup_x 8) over the three weak functions
+the binary exports beside its others (`coco_trace_nfail`,
+`coco_trace_quiet`, `coco_trace_qclause`), 16 memset's over the machine's
+two appended fields, and one cmd_run's.
+
+THE RUN, on the binary committed (its md5 and the library's the same
+before the round and after it): the lint case first, then trace,
+backtrace, engine, errors, window, journal, flowdebug, files, script,
+async, gc, directives, cyclic, library, thread and the solve, state and
+module binaries, each alone. All green, no SKIP; the dialect card's cites
+all anchored (15 by a moved anchor, accepted). The binary the arms and the
+counts were made from is the one committed, byte for byte: the rename of
+two own lines' names (`hr1`, `hr2`, which 3.78.3's setup_call_cleanup/3
+lines had as `sr1`, `sr2` already) touched comments alone.

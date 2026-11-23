@@ -762,6 +762,9 @@
                 (set td (+ (-> tc depth) 1))
                 (set (-> e trace_goal) (-> tc goal))
                 (set (-> e trace_depth) (-> tc depth))
+                ;; another call's choice point: the backtrack is deep, and a
+                ;; shallow one ends here (3.78.5, `coco_trace_nfail')
+                (set (-> m tshal) 0)
                 (if (== tport 1)
                     (block (coco_trace_port e "Redo" td g)
                            (coco_trace_reopen e ci td)))

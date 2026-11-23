@@ -3775,6 +3775,49 @@ a session must keep:
   `','/2`, a port, and catch/3's frame (COMPAT.md). **A new search a
   builtin starts in its context goes through `coco_trace_inner` with
   QUERY 0**, or a structure at its root stands at the search's own level.
+  **A `\+` whose goal succeeds fails its clause shallow** (3.78.5,
+  swipl's C_FAIL and shallow_backtrack; test/trace-shallow.pl): its
+  `$fail` (`coco_trace_nfail`) puts the tag of the word it ran under, plus
+  one, in the machine's `tshal`, and the frame the backtrack resumes is
+  taken with no Redo where it is the failing frame's own -- a GOAL frame
+  pushed in the same context under a word of that tag
+  (`coco_trace_quiet`), or the clause frame of the context's own call
+  (`coco_trace_qclause`, asked by `coco_trace_paint` before the selection
+  binds the call, a quiet answer left in `tshal` as -1 for
+  `coco_trace_redo`, which every other reader takes for none). The tag
+  tells not/1's own fail -- system:not/1's word, deep, swipl's not/1 a
+  frame -- from a `\+` in the goal once/1, ignore/1, not/1 or catch/3
+  runs in place, whose `;` was pushed under the same word; the system bit
+  alone, the first cut's test, took that `\+` for not/1. **Every frame
+  the backtrack resumes ends it**: a GOAL frame, a clause frame's retry
+  whether it enters a clause or none (the paint, and coco_backtrack's own
+  store for a frame pushed untraced), a walk's and a DB frame's retry
+  (`coco_walk_retry`, `coco_db_retry`) -- but a frame only trace keeps at
+  its last candidate (`last`) is none of swipl's and passes it by, as
+  `coco_det_live` passes it. **A new kind of frame a backtrack resumes
+  ends it too**, or a deep backtrack into the clause's own `;` after it
+  prints no Redo: the first cut left it set past arg/3's walk, clause/2's,
+  a retry whose heads all failed and a frame pushed untraced
+  (test/trace-shallow.pl's sh47 to sh49, test/trace.pl's own lines `hr1`
+  and `hr2`). **The decision is the paint's, never coco_backtrack's**: a
+  local and a call of its own in the clause frame's block there cost every
+  untraced backtrack a spill, queens +0.15 % (zero.sh). No forward step
+  sees `tshal` (a port printed before the resume is a frame's that fails,
+  which leaves no frame of the failure's context: an end at each port
+  moved nothing). A GOAL frame whose alternative is `$fail` -- a bare `->`'s or
+  `*->`'s else, once/1's -- is no choice point of swipl's: no Redo, and
+  its `$fail` carries the backtrack on as it was (`tscont`), as a frame's
+  failure at the depth limit does (`coco_depth_fail`), deep. **A new goal
+  `$fail` that is a frame's failure, no `\+`'s, sets `tscont` before
+  it**, as `coco_depth_fail` does, or the tracer reads it as a shallow
+  backtrack (a GOAL frame's `$fail` alternative needs nothing). `( C ->
+  T ) ; E` is one if-then-else, not a bare if-then and a `;`: a check of
+  a bare one before a `;` puts a goal between (`( C -> T ), true ; E`).
+  Under the printer alone, as the meta-call frame: the recorder and the
+  quiet trace take every retry as through 3.78.4 (`coco_trace_nfail` is
+  called under trace 1 only, and the two questions answer 0 elsewhere).
+  The two fields are the machine's, appended: on the engine they made
+  the memset of every engine findall/3 starts 24 instructions longer.
   **A new system library says
   `:- set_prolog_flag(generate_debug_info, false).` at its head**, as the
   compiled-in halves, library/print_message.pl and library/async.pl do;

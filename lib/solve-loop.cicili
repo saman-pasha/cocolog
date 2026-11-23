@@ -1932,7 +1932,10 @@
                   ;; silent, because the program never wrote these
                   ((and (== n 0) (== nid (coco-id m "$true")))
                    (set (-> e goals) k))
+                  ;; under the printer `\+''s own begins a shallow backtrack
+                  ;; (3.78.5, `coco_trace_nfail')
                   ((and (== n 0) (== nid (coco-id m "$fail")))
+                   (if (== (-> e trace) 1) (coco_trace_nfail e b))
                    (set (cof ok) 0))
 
                   ;; the tracer's own marker: the call it names has proven, so
@@ -2910,10 +2913,12 @@
           (return (coco_depth_push_over e w))))
 
   ;;; THE FRAME AT HAND FAILS AT ITS CALL PORT: its goal `$fail', silent, in
-  ;;; the step that was its
+  ;;; the step that was its -- a frame's failure, swipl's FRAME_FAILED, so
+  ;;; no shallow backtrack to the printer (3.78.5, `tscont')
   (static)
   (func coco_depth_fail ((coco_engine * e)) (out int)
         (coco_depth_hand e)
+        (if (== (-> e trace) 1) (set (-> (-> e m) tscont) 1))
         (set (-> e ngoal) (coco_new_atom_id (-> e m) (coco-id (-> e m) "$fail")))
         (set (-> e nset) 1)
         (return 2))

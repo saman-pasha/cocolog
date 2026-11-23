@@ -1293,7 +1293,20 @@
     ;; the read and puts the outer read's back after -- where a predicate a
     ;; clause or a declaration registers is noted (`coco_srcf_note').
     ;; Appended.
-    (member size_t     sfcur))
+    (member size_t     sfcur)
+    ;; A SHALLOW BACKTRACK, to the printer (3.78.5): TSHAL is the tag of
+    ;; the word `\+''s own fail ran under, plus one (swipl's C_FAIL, a
+    ;; BODY_FAILED), until the backtrack resumes a frame
+    ;; (`coco_trace_nfail', `coco_trace_quiet', `coco_trace_qclause', the
+    ;; walks' retries), and
+    ;; TSCONT says the `$fail' the step takes next carries a backtrack on
+    ;; -- a bare if-then's else, which swipl makes no choice point of, or
+    ;; a frame's failure at the depth limit, deep. The machine's, not an
+    ;; engine's: a backtrack is one engine's from its fail to its end, and
+    ;; two fields more in the engine made the memset of every engine
+    ;; findall/3 starts 24 instructions longer. Appended.
+    (member int        tshal)
+    (member int        tscont))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends

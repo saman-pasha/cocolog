@@ -147,6 +147,16 @@ main :-
     atom_concat(Root, '/test/trace-meta.pl', Meta),
     forall(between(1, 43, I),
            ( atom_concat(mt, I, Q), traced_in(Swipl, [Meta], Q, Q) )),
+    %% A SHALLOW BACKTRACK (3.78.5, test/trace-shallow.pl) prints no Redo:
+    %% `\+''s own fail is swipl's C_FAIL, and where the newest choice point
+    %% is a jump of its clause -- a `;', an else, another `\+''s -- swipl
+    %% takes it with no port, as a bare if-then and a bare soft cut, which
+    %% make no choice point, print none for their condition's failure; a
+    %% call's choice point, or a port printed first, is a deep backtrack and
+    %% its Redo. Through 3.78.4 `\+ \+ atom(a)' printed a Redo of its clause
+    atom_concat(Root, '/test/trace-shallow.pl', Shallow),
+    forall(between(1, 49, I),
+           ( atom_concat(sh, I, Q), traced_in(Swipl, [Shallow], Q, Q) )),
     %% THE FLAG IS THE FILE'S: test/trace-library.pl ends with it false, and
     %% the file read after it is the program's again (swipl's load puts the
     %% flag back at a file's end)
@@ -486,6 +496,75 @@ own_lines :-
                  'kr(R) :- system:aggregate_all(r(count), member(_, [a]), R).' ], 'kr(R)',
         p(_, 3, _), hidden,
         'a kept frame''s retry runs the next clause''s body hidden'),
+    %% A SHALLOW BACKTRACK BY ONCE/1, NOT/1, IGNORE/1 AND CATCH/3 (3.78.5):
+    %% once/1's else is no choice point of swipl's, so its failure prints no
+    %% Redo of its clause; not/1's own fail leaves its frame, deep, and the
+    %% caller's Redo is printed; and a `\+' in the goal one of the four runs
+    %% in place fails back into that goal's `;' with no Redo. (swipl's four
+    %% are frames, with ports cocolog's have none of yet: COMPAT.md, so the
+    %% traces are not held line for line)
+    own(D, on, [ 'on :- once(fail).' ], on,
+        p('Redo', _, on), hidden,
+        'once/1''s failure prints no Redo of its clause'),
+    own(D, on2, [ 'on2 :- once(fail) ; true.' ], on2,
+        p('Redo', _, on2), times(1),
+        'and its clause''s `;'' prints one Redo, not two'),
+    own(D, nt, [ 'nt :- ( not(atom(a)) ; true ).' ], nt,
+        p('Redo', _, nt), printed,
+        'not/1''s own fail is deep: its caller''s Redo is printed'),
+    own(D, nt2, [ 'nt2 :- ( not(( \\+ atom(a) ; true )) ; true ).' ], nt2,
+        p('Redo', _, nt2), times(1),
+        'and a `\\+'' in its goal fails back into the goal''s `;'' with no Redo'),
+    own(D, ct, [ 'ct :- catch(( \\+ atom(a) ; true ), _, true).' ], ct,
+        p('Redo', _, _), hidden,
+        'as a `\\+'' in catch/3''s goal does'),
+    own(D, oc, [ 'oc :- once(( \\+ atom(a) ; true )).' ], oc,
+        p('Redo', _, _), hidden,
+        'and in once/1''s'),
+    own(D, ig, [ 'ig :- ignore(( \\+ atom(a) ; true )).' ], ig,
+        p('Redo', _, _), hidden,
+        'and in ignore/1''s'),
+    own(D, ng, [ 'ng :- not(atom(a)).', 'ng.' ], ng,
+        p('Redo', _, ng), printed,
+        'not/1''s own fail is deep into its clause''s next clause too'),
+    %% a call past call_with_depth_limit/3's limit fails its frame, deep,
+    %% as swipl's `Fail: [depth-limit exceeded]' does: the Redo of the
+    %% clause it stood in is printed (cocolog says no Fail line: COMPAT.md)
+    own(D, dl1, [ 'dl1 :- call_with_depth_limit(dl_a, 1, _).',
+                  'dl_a :- ( dl_b ; true ).', 'dl_b.' ], dl1,
+        p('Redo', _, dl_a), printed,
+        'a call past the depth limit fails deep into its clause''s `;'''),
+    own(D, dl2, [ 'dl2 :- call_with_depth_limit(dl_c, 1, _).',
+                  'dl_c :- dl_b.', 'dl_c.', 'dl_b.' ], dl2,
+        p('Redo', _, dl_c), printed,
+        'and into its clause''s next clause'),
+    %% a frame a shallow backtrack resumed with no Redo ends it, a `;' or
+    %% the clause's next clause: a depth failure in what it runs next,
+    %% which prints no port, is deep, its Redo printed -- memberchk/2 past
+    %% a limit of 2 where atom/1 is within it, as in swipl
+    own(D, dl3, [ 'dl3 :- call_with_depth_limit(dl_f, 2, _).',
+                  'dl_f :- ( ( \\+ atom(a) ; memberchk(a, [a]) ) ; true ).' ], dl3,
+        p('Redo', _, dl_f), times(1),
+        'a `;'' a shallow backtrack took ends it: a depth failure after it is deep'),
+    own(D, dl4, [ 'dl4 :- call_with_depth_limit(dl_g, 2, _).',
+                  'dl_g :- \\+ atom(a).', 'dl_g :- ( memberchk(a, [a]) ; true ).' ], dl4,
+        p('Redo', _, dl_g), times(1),
+        'and so does the next clause a shallow backtrack took'),
+    %% the frame a shallow backtrack resumes ends it whatever it is: a
+    %% retry whose remaining heads all fail, and a frame pushed untraced
+    %% (after notrace/0) -- a deep backtrack into the clause's `;' after it
+    %% prints the clause's Redo, as swipl's does (the first cut of 3.78.5
+    %% printed none). Not held line for line: such a retry prints no Redo
+    %% and no Fail of its own, and an untraced frame no port retried, where
+    %% swipl prints them (COMPAT.md)
+    own(D, hr1, [ 'hr_r(1, 1).', 'hr_r(2, 3).',
+                  'hr1 :- ( hr_r(A, A), \\+ atom(a) ; true ).' ], hr1,
+        p('Redo', _, hr1), times(1),
+        'a retry whose heads all fail ends a shallow backtrack'),
+    own(D, hr2, [ 'hr_r(1, 1).', 'hr_r(2, 3).',
+                  'hr2 :- notrace, hr_r(A, B), trace, ( B == 3 -> ( true ; true ), fail ; \\+ atom(a) ), A > 0.' ], hr2,
+        p('Redo', _, hr2), times(2),
+        'and so does the retry of a frame pushed untraced'),
     shl(['rm -rf ', D]).
 
 own(D, Base, Lines, Q, Line, Expect, Name) :-
@@ -495,8 +574,14 @@ own(D, Base, Lines, Q, Line, Expect, Name) :-
     sh_join(['timeout 20 ', C, ' run ', F, ' "trace, ( ', Q, ' -> true ; true ), notrace" 2>&1 >/dev/null'], Cmd),
     proc_run(Cmd, 30000, Out, _),
     td_ports(Out, Rows),
-    ( memberchk(Line, Rows) -> R = printed ; R = hidden ),
+    own_seen(Expect, Line, Rows, R),
     check(Name, R, Expect).
+
+%% printed or hidden, or times(N): how many of the rows the line is
+own_seen(times(_), Line, Rows, times(N)) :- !,
+    aggregate_all(count, member(Line, Rows), N).
+own_seen(_, Line, Rows, R) :-
+    ( memberchk(Line, Rows) -> R = printed ; R = hidden ).
 
 %% the query run once untraced, then again with `trace/0' switched on
 %% between the two -- on both sides, and without --trace on this one

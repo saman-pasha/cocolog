@@ -1620,6 +1620,40 @@
             (set ix (coco_pred_next_at st m p (-> c ixpos) (-> r hkey) (+ ix 1))))
           (if entered (coco_rec_mark e COCO_REV_CLAUSE depth (-> c call) (+ upto 1)))))
 
+  ;;; WHETHER THE CLAUSE FRAME AT CI, of depth DEPTH, takes its next clause
+  ;;; with no Redo, under the printer (3.78.5): a shallow backtrack
+  ;;; (`coco_trace_nfail') reached the frame whose body's `\+' failed --
+  ;;; its call the failure's context, its predicate the owner of the word
+  ;;; the `\+' failed under -- where swipl's shallow_backtrack takes the
+  ;;; frame's own CHP_CLAUSE with no port. Asked by `coco_trace_paint' of
+  ;;; every traced clause frame coco_backtrack retries, before the
+  ;;; selection, so the context is still the failure's, and the paint ENDS
+  ;;; the shallow backtrack whatever it answers (TSHAL -1 for a quiet one,
+  ;;; which `coco_trace_redo' reads, else 0): the retry is the backtrack's
+  ;;; first frame, whether it enters a clause or none -- the frame's
+  ;;; remaining heads all failing, which is the frame failing, deep -- and
+  ;;; a frame pushed untraced is coco_backtrack's own end. Asked at a
+  ;;; traced frame's clause entry, the first cut left TSHAL set past a
+  ;;; retry that entered none and past an untraced frame's, and a deep
+  ;;; backtrack into the clause's own `;' after it printed no Redo
+  ;;; (test/trace.pl's own lines `hr1', `hr2')
+  (weak) (cold)
+  (func coco_trace_qclause ((coco_engine * e) (size_t ci) (int depth)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (int sh . #'(-> (-> e m) tshal))
+              (size_t g . 0) (u64 pf . 0) (u64 tag . 0))
+          (if (or (!= (-> e trace) 1) (<= sh 0)) (return 0))
+          (if (or (!= ($ (nth ci (-> e choices)) call) (-> e trace_goal))
+                  (!= depth (-> e trace_depth)))
+              (return 0))
+          (set g (coco_deref m ($ (nth ci (-> e choices)) call)))
+          (cond ((coco-tag-is FUN (nth g (-> m heap))) (set pf (cast u64 (coco-payload (nth g (-> m heap))))))
+                ((coco-tag-is ATOM (nth g (-> m heap)))
+                 (set pf (coco_functor_id m (cast u64 (coco-payload (nth g (-> m heap)))) 0)))
+                (#t (return 0)))
+          ;; the owner a clause's body carries (`coco_head_tag')
+          (if (< (+ pf 1) 33554431) (set tag (coco-bar-of pf)))
+          (return (== sh (+ (cast int (>> tag 32)) 1)))))
+
   ;;; THE BODY OF A TRACED CALL BEGINS: the call at frame CI, entered, its
   ;;; context CTX (the frame's call, or `system:G''s kept head, 3.58.1),
   ;;; its body at the level `coco_trace_bdepth' says (3.78.3), and the heads
@@ -1653,6 +1687,17 @@
                    (set (-> r hstart) ($ (nth ci (-> e choices)) clause_ix))
                    (coco_rec_hkey e ci)))
               (return nil)))
+        ;; WHETHER THE FRAME TAKES ITS NEXT CLAUSE SHALLOW (3.78.5), asked
+        ;; here, before the selection binds the call: TSHAL -1 for
+        ;; `coco_trace_redo' once a clause is entered, and a shallow
+        ;; backtrack ended whether one is entered or none
+        ;; (`coco_trace_qclause'); but a frame at its last candidate (LAST)
+        ;; is one only trace keeps and none of swipl's, which passes a
+        ;; shallow backtrack by, as `coco_det_live' passes it by. Here and
+        ;; not in coco_backtrack: a local and a call of its own there cost
+        ;; every untraced backtrack a spill, queens +0.15 %
+        (if (== ($ (nth ci (-> e tchoices)) last) 0)
+            (set (-> (-> e m) tshal) (? (coco_trace_qclause e ci depth) -1 0)))
         ;; the printer's Redo of a retry inside a library call is that
         ;; call's (3.27.0, `coco_trace_redo_at'), printed here, as the retry
         ;; begins, where the frame retried is a choice point swipl's run
@@ -1687,6 +1732,11 @@
                          (coco_rec_heads e ci (-> r hstart) 1)))
               (return)))
         (if (== (-> e trace) 3) (return))
+        ;; the frame whose `\+' failed takes its next clause shallow, no
+        ;; Redo (3.78.5): TSHAL -1, `coco_trace_paint''s answer as the retry
+        ;; began, before the selection bound the call
+        (if (== (-> (-> e m) tshal) -1)
+            (block (set (-> (-> e m) tshal) 0) (return)))
         ;; a retry inside a library call (3.27.0): its call's Redo was said
         ;; as the retry began (`coco_trace_paint'), or is none
         (if (or (== text nil)
@@ -2245,6 +2295,65 @@
 
   ;;; ---- backtracking ------------------------------------------------------
 
+  ;;; A SHALLOW BACKTRACK, to the printer (3.78.5, swipl's pl-vmi.c
+  ;;; shallow_backtrack): `\+''s own fail is C_FAIL, a BODY_FAILED, and
+  ;;; where the newest choice point is a jump of the frame that failed --
+  ;;; a `;', an if-then-else's else, another `\+''s -- swipl takes it with
+  ;;; no Redo; a choice point of another frame, or a port printed first,
+  ;;; makes the backtrack deep, and its Redo is printed. So `\+ \+ G' of a
+  ;;; G that succeeds prints no Redo of its clause, nor does a `;' its
+  ;;; `\+' fails back into. The `$fail' the step takes is `\+''s or
+  ;;; not/1's unless it carries a backtrack on (TSCONT,
+  ;;; `coco_trace_quiet'), and TSHAL keeps the frame it failed in as the
+  ;;; tag of the word it ran under, plus one: a choice point of that frame
+  ;;; is one pushed in the same context under a word of the same tag.
+  ;;; not/1 is a frame of swipl's, whose fail leaves it, deep -- its own
+  ;;; `$fail' runs under system:not/1's word, and the choice point after
+  ;;; it is its caller's -- where a `\+' in the goal once/1, ignore/1,
+  ;;; not/1 or catch/3 runs in place fails under that goal's word, which a
+  ;;; `;' of that goal was pushed under too (the system bit alone, the
+  ;;; first cut's test, took the `\+' for not/1). TSHAL is ended by the
+  ;;; frame the backtrack resumes, whatever it is: a GOAL frame
+  ;;; (`coco_trace_quiet'), a clause frame's retry, entering a clause or
+  ;;; none (`coco_trace_paint', or coco_backtrack's for a frame pushed
+  ;;; untraced), a walk's or a DB frame's (`coco_walk_retry',
+  ;;; `coco_db_retry'); never a frame only trace keeps at its last
+  ;;; candidate, which is none of swipl's. One the first cut asked nothing
+  ;;; of left it set, and a deep backtrack into the clause's own `;' after
+  ;;; it printed no Redo: arg/3's walk retried, clause/2's, a retry whose
+  ;;; heads all failed, a frame pushed untraced (test/trace-shallow.pl's
+  ;;; sh47 to sh49, test/trace.pl's own lines `hr1' and `hr2'). A port
+  ;;; printed between the fail and the resume is a frame's that fails,
+  ;;; which leaves no frame of the failure's context, so the first cut's
+  ;;; end at every port printed moved nothing
+  (weak) (cold)
+  (func coco_trace_nfail ((coco_engine * e) (size_t b))
+        (if (-> (-> e m) tscont) (block (set (-> (-> e m) tscont) 0) (return)))
+        (set (-> (-> e m) tshal) (+ (cast int (>> (coco-bar-tag b) 32)) 1)))
+
+  ;;; whether the GOAL frame at CI, its alternative CALL, is resumed with no
+  ;;; Redo, under the printer (3.78.5): it is no choice point of swipl's --
+  ;;; a bare if-then's else, a soft cut's, once/1's, all `$fail': C_IFTHEN
+  ;;; makes none -- and the `$fail' then carries the backtrack on, shallow
+  ;;; or deep as it was (TSCONT); or a shallow backtrack reached it (TSHAL)
+  ;;; in the frame whose `\+' failed: its context the failure's, its word's
+  ;;; tag the failure's. Any other frame resumed ends the shallow backtrack
+  (weak) (cold)
+  (func coco_trace_quiet ((coco_engine * e) (size_t ci) (size_t call)) (out int)
+        (if (!= (-> e trace) 1) (return 0))
+        (let ((coco_machine * m . #'(-> e m)) (size_t d . #'(coco_deref (-> e m) call))
+              (coco_tchoice * tc . #'(aof (nth ci (-> e tchoices))))
+              (int sh . #'(and (-> (-> e m) tshal) (== (-> tc goal) (-> e trace_goal))
+                               (== (-> tc depth) (-> e trace_depth))
+                               (== (-> (-> e m) tshal)
+                                   (+ (cast int (>> (coco-bar-tag ($ (nth ci (-> e choices)) barrier)) 32))
+                                      1)))))
+          (if (and (coco-tag-is ATOM (nth d (-> m heap)))
+                   (== (cast u64 (coco-payload (nth d (-> m heap)))) (coco-id m "$fail")))
+              (block (set (-> (-> e m) tscont) 1) (return 1)))
+          (set (-> (-> e m) tshal) 0)
+          (return sh)))
+
   ;;; Winds the machine back to the newest choice point that still has
   ;;; something to try, and puts the continuation back. Answers 0 when there is
   ;;; nothing left anywhere, which is the query failing.
@@ -2277,8 +2386,16 @@
                          ;; a `;' in a clause of a predicate that hides its
                          ;; children is the Redo of the library call it is
                          ;; inside, once that has exited, or none (3.27.0,
-                         ;; `coco_trace_goal_own', out of line)
-                         (if (and (!= (-> tc printr) 0) (> (-> tc depth) 0) (coco_trace_goal_own e ci))
+                         ;; `coco_trace_goal_own', out of line); none for a
+                         ;; frame swipl makes no choice point of, nor where a
+                         ;; `\+''s fail reaches it shallow (3.78.5,
+                         ;; `coco_trace_quiet', out of line, which ends a
+                         ;; shallow backtrack: a GOAL frame is pushed shown,
+                         ;; PRINTR 1, and one at the toplevel prints nothing
+                         ;; and carries no word a later frame's can match)
+                         (if (and (!= (-> tc printr) 0) (> (-> tc depth) 0)
+                                  (not (coco_trace_quiet e ci call))
+                                  (coco_trace_goal_own e ci))
                              (block
                               (coco_trace_port e "Redo" (-> tc depth) (-> tc goal))
                               ;; the redone call's own frame -- the SPENT one its
@@ -2355,7 +2472,11 @@
                                  (set rD (-> tc depth))
                                  (set rg (-> tc goal))
                                  (set rexited (-> tc exited))
-                                 (set rtext (coco_trace_paint e ci rD rg))))))
+                                 (set rtext (coco_trace_paint e ci rD rg)))
+                          ;; a frame pushed untraced ends a shallow backtrack
+                          ;; too: the retry is the backtrack's first frame
+                          ;; (3.78.5; a traced frame's is `coco_trace_paint''s)
+                          (set (-> m tshal) 0))))
                 (if (coco_select_clause e ci)
                     (block
                      (if traced

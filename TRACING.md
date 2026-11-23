@@ -84,6 +84,23 @@ deliberately, because SWI has them:
   clause body, the else of an `->`, the way out of a failed `\+` — each
   prints `Redo` on the *enclosing* call, bindings undone. At the
   toplevel there is no enclosing call, and nothing prints.
+* **...but not where a `\+` fails into it** (3.78.5). A `\+` whose goal
+  succeeds fails its clause with no port of its own (SWI's `C_FAIL`), and
+  where the newest choice point is the clause's own — a `;`, an else,
+  another `\+`'s, or the clause's next clause — SWI takes it with no
+  `Redo`: a shallow backtrack. So does the tracer: `p :- \+ \+ atom(a).`
+  prints the Call and Exit of `atom(a)` and no Redo of `p`, and neither
+  does `p :- \+ atom(a).  p.` taking its second clause. A choice point of
+  another call first (one that exited with an answer left, a recursive
+  call's own, a builtin's walk: arg/3's, clause/2's), a port printed on
+  the way (`fail`, a builtin's Fail, a call's), not/1's own fail (a frame
+  of SWI's, which fails deep) and a call past call_with_depth_limit/3's
+  limit (whose `[depth-limit exceeded]` Fail SWI prints and cocolog does
+  not) make it deep, and its Redo is printed, as is the Redo of every
+  frame the backtrack takes after the first. A bare `->` or `*->` makes
+  no choice point at all, so its condition failing prints no Redo either,
+  nor does once/1's goal failing. Through 3.78.4 each of these printed
+  the clause's Redo.
 * **A deeper Redo reopens its ancestors.** Once backtracking re-enters
   a call's subtree, that call is live again, and its `Fail` prints when
   the failure finally crosses it — even though its own `Exit` had
@@ -203,7 +220,10 @@ ports were printed (`'$member_'/3`, `'$nth_gen'/5`, `'$between_n'/3`).
   window's recorder (`library(flow/debug)`) records every call, a
   helper's too, where its chart and its profile need them, and the quiet
   trace (`--backtrace`) prints nothing either way. The depths count every
-  call, a hidden one too, as SWI's levels do.
+  call, a hidden one too, as SWI's levels do. The meta-call frame (3.78.4)
+  and the shallow backtrack (3.78.5) are the printer's alone: the recorder
+  keeps 3.78.3's levels, and records the Redo of a retry a `\+` failed
+  into.
 
 ## How it is held to SWI
 
@@ -218,7 +238,9 @@ over `test/trace-dollar.pl` (`$` names: a program's, a library's, a
 builtin's) and findnsols/4's two whole, since 3.78.4 forty-three over
 `test/trace-meta.pl` (structures call/1 runs: their levels, a cut and a
 retry in one, a library's clause, qualifiers, a variable goal, forall/2's
-parts, setup_call_cleanup/3's goal), and
+parts, setup_call_cleanup/3's goal), since 3.78.5 forty-nine over
+`test/trace-shallow.pl` (a `\+` failing into its clause's `;`, else,
+`\+` and next clause, and the deep backtracks beside them), and
 compares the port lines one for one: same ports, same order, same relative
 depths, same goals. Three things are normalised first, because the two
 writers are entitled to them: the depth base (SWI's toplevel starts about ten
@@ -240,8 +262,14 @@ where cocolog runs the structure in place; SWI shows
 with_output_to/2's goal as a frame, two levels below it; apply's helper
 is `maplist_/3` there and `'$maplist_'/3` here; a clause whose body is
 `true` alone is a fact to SWI's compiler and prints that `true`'s ports
-here; and SWI prefixes meta-predicates with `^` and library goals with
-their module (`lists:member`) — cocolog has neither modules nor the prefix.
+here; a call past call_with_depth_limit/3's limit is SWI's `Fail:
+[depth-limit exceeded] G` and here no line (and a builtin whose own frames
+below it pass the limit, memberchk/2's or findall/3's, SWI's Call and
+Fail), and SWI's debugger calls the goals its compiler puts in place
+(`true`, `=/2`), which the limit then counts, where cocolog keeps them in
+place; and SWI prefixes meta-predicates
+with `^` and library goals with their module (`lists:member`) — cocolog has
+neither modules nor the prefix.
 
 There is no interactive mode — no creep, skip or leap at a leashed
 port. The tracer is a printer, and the machine itself is the stepper:
@@ -361,11 +389,13 @@ took it. `'$trace_window'(Goal, Options, Events, End)`
 runs Goal at full speed, untraced, up to the step a window opens at
 (`from(I)`), and records from there (`to(J)`); the window opens in place,
 inside whichever engine — a `findall/3`'s too — reaches that step.
-It records the ports the printer prints, one for one -- a retry's Redo
-only once the retry enters a clause, as the printer writes it (1.10.13;
-through 1.10.12 a Redo was recorded as every retry began, so a call that
-had exited and was backtracked past quietly showed one the printer never
-wrote). It is what `library(flow/debug)` stands on: lib/builtins.cicili
+It records the ports the printer prints, one for one, but where the
+printer hides a call, stands a structure in a meta-call frame or takes a
+retry with no Redo (above). A retry's Redo is recorded only once the
+retry enters a clause, as the printer writes it (1.10.13; through 1.10.12
+a Redo was recorded as every retry began, so a call that had exited and
+was backtracked past quietly showed one the printer never wrote). It is
+what `library(flow/debug)` stands on: lib/builtins.cicili
 has the contract, DESIGN-flow.md 9.5 the plan, and `test/window.pl` holds
 the recorder to the printer over the trace case's queries, and a window
 to a recording of the whole run, event for event.
