@@ -640,14 +640,6 @@
           (free a)
           (return r)))
 
-  ;; a predicate defined, as swipl's isDefinedProcedure(): a live clause, or
-  ;; declared dynamic, discontiguous or multifile
-  (static)
-  (func coco_b_srcf_defined ((coco_store * st) (size_t pi)) (out int)
-        (if (>= pi (-> st npreds)) (return 0))
-        (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi))))
-          (return (or (> (coco_pred_live p) 0) (-> p dynamic) (!= 0 (bitand (-> p declared) 3))))))
-
   ;; whether NAME is a module current_module/1 answers (below)
   (static) (decl) (func coco_b_is_module ((const char * name)) (out int))
 
@@ -663,17 +655,11 @@
   ;; the predicate of ST that Module MD's Head H names: prolog:message/3
   ;; and prolog:error_message/3 the hooks print_message/2 reads, which the
   ;; store files as '$prolog_message'/3 and '$prolog_error_message'/3
-  ;; (`coco_hook_head'); anything else by its own name
+  ;; (`coco_hook_nid'); anything else by its own name
   (static)
   (func coco_b_srcf_pi ((coco_store * st) (coco_machine * m) (size_t md) (size_t h)) (out size_t)
-        (let ((const char * nm . #'(coco_atom_name m (coco_name_of m h))) (const char * to . nil))
-          (if (and (== (coco_arity m h) 3)
-                   (== 0 (strcmp (coco_atom_name m (coco_name_of m md)) "prolog")))
-              (block
-                (if (== 0 (strcmp nm "message")) (set to "$prolog_message"))
-                (if (== 0 (strcmp nm "error_message")) (set to "$prolog_error_message"))))
-          (if (== to nil) (return (coco_pred_find st (coco_name_of m h) (coco_arity m h))))
-          (return (coco_pred_find st (coco_intern m to) 3))))
+        (return (coco_pred_find st (coco_hook_nid m md (coco_name_of m h) (coco_arity m h))
+                                (coco_arity m h))))
 
   ;;; '$source_files'(Files): the loaded source files' paths, in the order
   ;;; their first defining reads began, as swipl's '$time_source_file'/3
@@ -713,6 +699,18 @@
           (if (or bad (== found -1)) (return (coco_m_resource_error e "memory")))
           (return (coco_m_unify e (coco_m_arg e g 1) r))))
 
+  ;; MODULE MD'S HEAD H WITH ITS QUALIFIERS TAKEN OFF as swipl's
+  ;; PL_strip_module() takes them (3.78.1): an atom's alone, the innermost
+  ;; module named, so `user:prolog:message(T, L, R)' is the hook's head;
+  ;; through 3.78.0 a second qualifier made a head of (:)/2, defined nowhere
+  (static)
+  (func coco_b_srcf_strip ((coco_machine * m) (size_t * md) (size_t * h))
+        (while (coco_is_compound2 m (cof h) ":")
+          (let ((size_t q . #'(coco_deref m (coco_arg m (cof h) 0))))
+            (if (not (coco_b_srcf_atom m q)) break)
+            (set (cof md) q)
+            (set (cof h) (coco_deref m (coco_arg m (cof h) 1))))))
+
   ;;; '$source_file'(Module:Head, File), swipl's: the file of Module's
   ;;; Head, the first loaded source file that registered it, where its
   ;;; predicate is defined. A Head that is no callable term is
@@ -725,9 +723,10 @@
           (if (not (coco_is_compound2 m mh ":")) (return 0))
           (set md (coco_deref m (coco_arg m mh 0)))
           (set h (coco_deref m (coco_arg m mh 1)))
+          (if (coco_b_srcf_atom m md) (coco_b_srcf_strip m (aof md) (aof h)))
           (if (not (coco_is_callable m h)) (return (coco_m_type_error e "callable" h)))
           (if (not (coco_b_srcf_atom m md)) (return 0))
-          (if (not (coco_b_srcf_defined st (coco_b_srcf_pi st m md h)))
+          (if (not (coco_pred_defined st (coco_b_srcf_pi st m md h)))
               (return 0))
           (set path (coco_srcf_of (coco_b_srcf_mod m md)
                                   (coco_atom_name m (coco_name_of m h)) (coco_arity m h) (aof refused)))
@@ -748,6 +747,7 @@
           (if (not (coco_is_compound2 m mh ":")) (return 0))
           (set md (coco_deref m (coco_arg m mh 0)))
           (set h (coco_deref m (coco_arg m mh 1)))
+          (if (coco_b_srcf_atom m md) (coco_b_srcf_strip m (aof md) (aof h)))
           (if (or (not (coco_is_callable m h)) (not (coco_b_srcf_atom m md))) (return 0))
           (set pi (coco_b_srcf_pi st m md h))
           (if (>= pi (-> st npreds)) (return 0))
@@ -755,8 +755,15 @@
             (if (== 0 (bitand (-> p declared) 2)) (return 0))
             ;; Module's own: a name that is no module has none, as swipl's
             ;; '$c_current_predicate'/2 finds none there, since a predicate's
-            ;; module is user or a module a read made
-            (if (!= 0 (strcmp (? (== (-> p pmod) 0) "user" (coco_atom_name m (- (-> p pmod) 1)))
+            ;; module is user or a module a read made -- and the two hooks
+            ;; print_message/2 reads are prolog's, as swipl's system declares
+            ;; them, whatever read gave them their first clause (3.78.1):
+            ;; read as user's, prolog:error_message/3 a file had declared
+            ;; dynamic took that file for its own, where swipl's has none
+            (if (!= 0 (strcmp (? (!= (coco_hook_nid m md (coco_name_of m h) (coco_arity m h))
+                                     (coco_name_of m h))
+                                 "prolog"
+                                 (? (== (-> p pmod) 0) "user" (coco_atom_name m (- (-> p pmod) 1))))
                               (coco_atom_name m (coco_name_of m md))))
                 (return 0))
             (set fs (cast (char **) (malloc (* (+ (-> p nclauses) 1) (sizeof (nth 0 fs))))))
@@ -3024,11 +3031,24 @@
                              (if (> a 2147483647)
                                  (return (coco_m_type_error e "predicate_indicator" s0))))))))
           (set s s0)
-          (while (coco_is_compound2 m s ":")
-            (let ((size_t md . #'(coco_deref m (coco_arg m s 0))))
-              (if (coco_m_is_var e md)
-                  (if (not (coco_m_unify e md (coco_new_atom m "user"))) (return 0)))
-              (set s (coco_deref m (coco_arg m s 1)))))
+          (let ((size_t inner . #'(cast size_t -1)))
+            (while (coco_is_compound2 m s ":")
+              (let ((size_t md . #'(coco_deref m (coco_arg m s 0))))
+                (if (coco_m_is_var e md)
+                    (if (not (coco_m_unify e md (coco_new_atom m "user"))) (return 0)))
+                (set inner md)
+                (set s (coco_deref m (coco_arg m s 1)))))
+            ;; prolog:message/3 is the hook (3.78.1), its arity 3 where
+            ;; unbound, as swipl's prolog module has it at 3 alone
+            (if (and (!= inner (cast size_t -1)) (coco_is_compound2 m s "/")
+                     (coco_m_is_atom e (coco_deref m (coco_arg m s 0))))
+                (let ((u64 nid . #'(coco_name_of m (coco_deref m (coco_arg m s 0))))
+                      (u64 hn . #'(coco_hook_nid m inner nid 3))
+                      (size_t ar . #'(coco_deref m (coco_arg m s 1))))
+                  (if (!= hn nid)
+                      (block
+                        (if (not (coco_m_unify e ar (coco_new_int m 3))) (return 0))
+                        (set s (coco_make2 m "/" (coco_new_atom_id m hn) (coco_new_int m 3))))))))
           (return (coco_m_unify e (coco_m_arg e g 1) s))))
 
   ;;; '$cp_defined'(Name/Arity), current_predicate/1 named whole (3.31.0),

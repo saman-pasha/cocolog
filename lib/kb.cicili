@@ -2360,6 +2360,11 @@
   ;;; memory or a refusing backend; the rest go the goal's way.
   (decl) (func coco_dynamic_spec ((coco_store * st) (coco_machine * m) (size_t spec)
                                 (int kind) (char * err) (size_t errlen)) (out int))
+  ;;; PRINT_MESSAGE/2'S HOOKS WHEREVER THEY ARE NAMED (3.78.1,
+  ;;; lib/kb-consult.cicili): a head under prolog: as its clause is filed,
+  ;;; and a name under one -- MOD (size_t) -1 for none -- as its predicate's
+  (decl) (func coco_hook_head ((coco_machine * m) (size_t mod) (size_t h)) (out size_t))
+  (decl) (func coco_hook_nid ((coco_machine * m) (size_t mod) (u64 nid) (u32 n)) (out u64))
   ;;; A DECLARATION'S NAME, by KIND; ONE INDICATOR NID/N DECLARED (1, 0
   ;;; out of memory, -1 refused by the backend, `write_err'); and whether
   ;;; a spec is plain enough to declare at once (lib/kb-pred.cicili)
@@ -2375,17 +2380,25 @@
   ;;; (`coco_srcf_free_list' frees an array of texts)
   (decl) (func coco_srcf_begin ((const char * path) (const char * real) (int again)) (out size_t))
   (decl) (func coco_srcf_end ((size_t sf) (int loaded)))
-  (decl) (func coco_srcf_note ((coco_store * st) (coco_machine * m) (size_t pi)))
+  ;; KNOWN: a declaration found the predicate defined before it (3.78.1,
+  ;; `coco_pred_defined'), which registers it only where the file's list
+  ;; holds it already; a clause passes 0
+  (decl) (func coco_srcf_note ((coco_store * st) (coco_machine * m) (size_t pi) (int known)))
   (decl) (func coco_srcf_module ((coco_machine * m) (const char * mod)))
   (decl) (func coco_srcf_paths ((size_t * n)) (out char **))
   (decl) (func coco_srcf_modules ((size_t * n)) (out char **))
   (decl) (func coco_srcf_loaded ((const char * path)) (out int))
   ;; a predicate a source file registered: its module (`user' where its
-  ;; read had no module/2), name and arity
+  ;; read had no module/2), name and arity; OLD while a read of the file
+  ;; again has not registered it yet (3.78.1, swipl's reload)
   (struct coco_srcp
     (member char * mod)
     (member char * name)
-    (member u32 arity))
+    (member u32 arity)
+    (member int old))
+  ;;; whether predicate PI of ST is defined, as swipl's isDefinedProcedure()
+  ;;; reads it (lib/kb-pred.cicili)
+  (decl) (func coco_pred_defined ((coco_store * st) (size_t pi)) (out int))
   (decl) (func coco_srcf_preds ((const char * path) (size_t * n) (int * found)) (out coco_srcp *))
   (decl) (func coco_srcf_free_preds ((coco_srcp * p) (size_t n)))
   (decl) (func coco_srcf_of ((const char * mod) (const char * name) (u32 arity) (int * refused)) (out char *))

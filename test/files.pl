@@ -397,8 +397,19 @@ srec('sr_qg.pl', [':- files(qg_in).']).
 srec('sr_g2.pl', [':- true.']).
 srec('sr_g2.v2.pl', ['sg2_p(1).']).
 srec('sr_h.pl', ['prolog:message(sr_msg) --> [hello].']).
+%% a second file that gives the message hook a clause: the hook's files are
+%% its clauses', both of them, where its first registration is one
+srec('sr_h2.pl', ['prolog:message(sr_msg2) --> [two].']).
 srec('sr_rc.pl', ['rc_a(1).', 'rc_b(1).']).
 srec('sr_rc.v2.pl', ['rc_a(2).', 'rc_c(1).']).
+%% a file that declares what another file defined, what was only called
+%% and something new; and a file read again in another order, one more
+srec('sr_d1.pl', [':- multifile sd_m/1.', ':- dynamic sd_d/1.', 'sd_c(1).', 'sd_k :- sd_only.']).
+srec('sr_d2.pl', [':- dynamic sd_m/1.', ':- multifile sd_d/1.', ':- discontiguous sd_c/1.',
+                  ':- meta_predicate sd_c(0).', ':- dynamic sd_only/0.', ':- dynamic sd_new/1.']).
+srec('sr_ro.pl', [':- dynamic ro1/1.', ':- dynamic ro2/1.', ':- multifile ro3/1.']).
+srec('sr_ro.v2.pl', [':- multifile ro3/1.', ':- dynamic ro2/1.', ':- dynamic ro1/1.',
+                     ':- dynamic ro4/1.']).
 
 %% what makes a file read once a source file, as swipl's, and what leaves it
 %% none, so that the next load reads it again: each file says so as it is read

@@ -1107,6 +1107,11 @@
                 (if (== rc 2) (return 1))
                 (set (cof ret) rc)
                 (return 2)))
+          ;; PRINT_MESSAGE/2'S HOOK CALLED (3.78.1): prolog:message/3 and
+          ;; prolog:error_message/3 run the hook `coco_hook_head' files their
+          ;; clauses as -- through 3.78.0 user's message/3, so
+          ;; phrase(prolog:message(T), L) found none of the program's rules
+          (if (== (coco_arity m gl) 3) (set gl (coco_hook_head m mo gl)))
           (let ((u64 mid . #'(coco_name_of m mo))
                 (u64 nid . #'(coco_name_of m gl))
                 (u32 n . #'(coco_arity m gl))

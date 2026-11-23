@@ -888,18 +888,26 @@
   ;;; '$set_predicate_attribute'/3, as swipl refuses to declare one. 1, or
   ;;; the raise's answer. A directive walks a spec that is not plain part by
   ;;; part through this, reporting each raise ('$decl_directive'/2).
+  (static) (decl) (func coco_decl_walk_in ((coco_engine * e) (size_t spec) (int kind) (size_t md)) (out int))
+
   (func coco_decl_walk ((coco_engine * e) (size_t spec) (int kind)) (out int)
+        (return (coco_decl_walk_in e spec kind (cast size_t -1))))
+
+  ;;; ...MD the innermost qualifier of what it walks, (size_t) -1 for none:
+  ;;; prolog:message//1 is the hook (`coco_hook_nid', 3.78.1)
+  (static)
+  (func coco_decl_walk_in ((coco_engine * e) (size_t spec) (int kind) (size_t md)) (out int)
         (let ((coco_machine * m . #'(-> e m)) (int r . 1))
           (set spec (coco_deref m spec))
           (if (coco-tag-is REF (nth spec (-> m heap)))
               (return (coco_decl_bad e (coco_make1 m "uninstantiation_error" spec) nil 0)))
           (if (or (coco_is_compound2 m spec ",") (coco_is_cons m spec))
-              (block (set r (coco_decl_walk e (coco_arg m spec 0) kind))
+              (block (set r (coco_decl_walk_in e (coco_arg m spec 0) kind md))
                      (if (!= r 1) (return r))
-                     (return (coco_decl_walk e (coco_arg m spec 1) kind))))
+                     (return (coco_decl_walk_in e (coco_arg m spec 1) kind md))))
           (if (coco_is_nil m spec) (return 1))
           (if (coco_is_compound2 m spec ":")
-              (return (coco_decl_walk e (coco_arg m spec 1) kind)))
+              (return (coco_decl_walk_in e (coco_arg m spec 1) kind (coco_deref m (coco_arg m spec 0)))))
           (if (and (not (coco_is_compound2 m spec "/")) (not (coco_is_compound2 m spec "//")))
               (return (coco_decl_bad e (coco_make2 m "type_error"
                                                    (coco_new_atom m "predicate_indicator") spec)
@@ -945,7 +953,8 @@
                   (set (nth 2 args) (coco_make2 m "/" nm (coco_new_int m n)))
                   (return (coco_decl_bad e (coco_make m "permission_error" 3 args)
                                          "$set_predicate_attribute" 3))))
-            (return (coco_decl_put e kind (coco_name_of m nm) (cast u32 n))))))
+            (return (coco_decl_put e kind (coco_hook_nid m md (coco_name_of m nm) (cast u32 n))
+                                   (cast u32 n))))))
 
   ;;; dynamic/1, discontiguous/1 and multifile/1 as goals -- what the
   ;;; directives are (`coco_directive', lib/kb-pred.cicili): one walk,

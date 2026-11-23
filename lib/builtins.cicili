@@ -713,7 +713,15 @@
            ;; six swipl's property_predicate/2 answers without
            "predicate_property(H, P) :- nonvar(H), ( var(P) -> true ; \\+ memberchk(P, [visible, undefined, iso, built_in, autoload(_), implementation_module(_)]) ), '$pp_autoload'(H), fail."
            "predicate_property(H, P) :- '$pp_walk'(H, P)."
-           "'$pp_walk'(H, P) :- nonvar(H), H = _:G, !, '$pp_walk'(G, P)."
+           ;; PRINT_MESSAGE/2'S HOOKS ARE ASKED OF (3.78.1): prolog:message(...)
+           ;; is the hook a clause of it is filed as (`coco_hook_head'),
+           ;; prolog's predicate, as swipl's -- through 3.78.0 user's
+           ;; message/3, which its declaration declared
+           "'$pp_walk'(H, P) :- nonvar(H), H = M:G, !, ( atom(M), nonvar(G), '$pp_hook'(M, G, HG) -> '$pp_hook_walk'(HG, P) ; '$pp_walk'(G, P) )."
+           "'$pp_hook'(prolog, message(A, B, C), '$prolog_message'(A, B, C))."
+           "'$pp_hook'(prolog, error_message(A, B, C), '$prolog_error_message'(A, B, C))."
+           "'$pp_hook_walk'(_, P) :- nonvar(P), P = implementation_module(M), !, M = prolog."
+           "'$pp_hook_walk'(H, P) :- '$pred_props'(H, Ps), ( nonvar(P) -> memberchk(P, Ps) ; '$cp_in'(P, Ps) )."
            ;; implementation_module(M) is no property the walk lists: swipl's
            ;; property_predicate/2 answers it of a head named (3.41.0)
            "'$pp_walk'(H, P) :- nonvar(P), P = implementation_module(M), !, nonvar(H), '$pred_impl'(H, M)."

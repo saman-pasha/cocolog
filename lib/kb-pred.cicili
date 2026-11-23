@@ -799,8 +799,24 @@
           (set ($ (coco-pred-at (-> st predp) pi) pattrs) (bitor ($ (coco-pred-at (-> st predp) pi) pattrs) 16))
           (return 1)))
 
+  ;;; WHETHER A DECLARATION OF NID/N FINDS IT DEFINED (3.78.1,
+  ;;; `coco_pred_defined') -- and the two hooks print_message/2 reads are
+  ;;; however early a file declares them: swipl's system declares them
+  ;;; before any file is read, where `run FILE' reads cocolog's library at
+  ;;; the file's first goal, after the declarations that come first
+  (static)
+  (func coco_pred_known ((coco_store * st) (coco_machine * m) (u64 nid) (u32 n)) (out int)
+        (if (== n 3)
+            (let ((const char * nm . #'(coco_atom_name m nid)))
+              (if (or (== 0 (strcmp nm "$prolog_message")) (== 0 (strcmp nm "$prolog_error_message")))
+                  (return 1))))
+        (return (coco_pred_defined st (coco_pred_find st nid n))))
+
   (func coco_decl_pi ((coco_store * st) (coco_machine * m) (u64 nid) (u32 n) (int kind)) (out int)
-        (let ((size_t pi . 0) (int ok . 1) (size_t head . 0))
+        (let ((size_t pi . 0) (int ok . 1) (size_t head . 0)
+              ;; defined before this declaration, read before it sets anything
+              (int known . #'(? (and (!= (-> m sfcur) 0) (<= kind 2))
+                                (coco_pred_known st m nid n) 0)))
           (cond
             ((or (== kind 0) (== kind 6))
              (set ok (coco_pred_dynamic st nid n))
@@ -827,10 +843,13 @@
           ;; (3.78.0, source_file/2), as swipl's: dynamic, discontiguous and
           ;; multifile -- not thread_local/1, public/1, volatile/1 or
           ;; module_transparent/1 (meta_predicate/1's is
-          ;; `coco_pred_meta_note')
+          ;; `coco_pred_meta_note') -- and, as swipl's, only a predicate it
+          ;; found undefined or the file's already (3.78.1, KNOWN): one
+          ;; another file defined is that file's alone, and a hook swipl's
+          ;; system declares is no file's
           (if (and (!= (-> m sfcur) 0) (<= kind 2))
               (let ((size_t spi . #'(coco_pred_intern st nid n)))
-                (if (< spi (-> st npreds)) (coco_srcf_note st m spi))))
+                (if (< spi (-> st npreds)) (coco_srcf_note st m spi known))))
           ;; A MODULE/2 READ'S DECLARATION NAMES THE PREDICATE'S MODULE, as
           ;; its first clause does (3.37.0, `coco_pred_note_mod'): listing/1
           ;; writes `:- dynamic mm:md/1.' of a predicate declared alone
@@ -903,8 +922,19 @@
         (if (!= (coco_arity m t) 2) (return 0))
         (return (? (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) name)) 1 0)))
 
+  ;;; ...the walk, MD the innermost qualifier of what it walks, (size_t) -1
+  ;;; for none: prolog:message//1 is the hook (`coco_hook_nid', 3.78.1)
+  (static) (decl)
+  (func coco_dynamic_spec_in ((coco_store * st) (coco_machine * m) (size_t spec) (int kind)
+                            (char * err) (size_t errlen) (size_t md)) (out int))
+
   (func coco_dynamic_spec ((coco_store * st) (coco_machine * m) (size_t spec) (int kind)
                          (char * err) (size_t errlen)) (out int)
+        (return (coco_dynamic_spec_in st m spec kind err errlen (cast size_t -1))))
+
+  (static)
+  (func coco_dynamic_spec_in ((coco_store * st) (coco_machine * m) (size_t spec) (int kind)
+                            (char * err) (size_t errlen) (size_t md)) (out int)
         (set spec (coco_deref m spec))
 
         ;; `a/1, b/2' -- what the reader makes of a comma separated list of
@@ -912,14 +942,15 @@
         ;; b/2]', a list of them, which some do.
         (if (or (coco_is_compound2 m spec ",") (coco_is_cons m spec))
             (block
-             (if (not (coco_dynamic_spec st m (coco_arg m spec 0) kind err errlen)) (return 0))
-             (return (coco_dynamic_spec st m (coco_arg m spec 1) kind err errlen))))
+             (if (not (coco_dynamic_spec_in st m (coco_arg m spec 0) kind err errlen md)) (return 0))
+             (return (coco_dynamic_spec_in st m (coco_arg m spec 1) kind err errlen md))))
 
         ;; `system:goal_expansion/2' -- a module-qualified spec, from a file
         ;; written for a Prolog with modules. One namespace: the qualifier
         ;; peels off, the same rule a qualified clause head follows.
         (if (coco_is_compound2 m spec ":")
-            (return (coco_dynamic_spec st m (coco_arg m spec 1) kind err errlen)))
+            (return (coco_dynamic_spec_in st m (coco_arg m spec 1) kind err errlen
+                                          (coco_deref m (coco_arg m spec 0)))))
 
         ;; the end of a list is not a spec and not an error either
         (if (coco_is_nil m spec) (return 1))
@@ -947,7 +978,8 @@
                                  (coco_decl_kind kind) (coco_atom_name m (coco_name_of m nm))
                                  (cast unsigned n))
                        (return 0)))
-            (let ((int ok . #'(coco_decl_pi st m (coco_name_of m nm) (cast u32 n) kind)))
+            (let ((int ok . #'(coco_decl_pi st m (coco_hook_nid m md (coco_name_of m nm) (cast u32 n))
+                                             (cast u32 n) kind)))
               (if (== ok 0)
                   (block (snprintf err errlen "%s: out of memory" (coco_decl_kind kind)) (return 0)))
               (if (< ok 0)
@@ -1031,8 +1063,11 @@
           (set (nth k s) (cast char 0))
           (set pi (coco_pred_make st (coco_name_of m t) k))
           (if (>= pi (-> st npreds)) (block (free s) (return)))
-          ;; the file being read registers it, as swipl's (3.78.0)
-          (coco_srcf_note st m pi)
+          ;; the file being read registers it, as swipl's (3.78.0), where it
+          ;; is undefined or the file's already (3.78.1): a meta_predicate/1
+          ;; declaration defines nothing, so what it finds is what was before
+          (if (!= (-> m sfcur) 0)
+              (coco_srcf_note st m pi (coco_pred_known st m (coco_name_of m t) k)))
           (free ($ (coco-pred-at (-> st predp) pi) pmeta))
           (set ($ (coco-pred-at (-> st predp) pi) pmeta) s)
           ;; TRANSPARENT AS THE SPEC SAYS (3.48.2), swipl's
@@ -1746,6 +1781,18 @@
 
   (func coco_pred_live ((coco_pred * p)) (out size_t)
         (return (- (-> p nclauses) (-> p ntomb))))
+
+  ;;; WHETHER PREDICATE PI OF ST IS DEFINED, swipl's isDefinedProcedure():
+  ;;; a live clause, or dynamic, discontiguous or multifile -- a library's
+  ;;; too, as swipl's user hooks (file_search_path/2) are defined from the
+  ;;; start, and the two hooks print_message/2 reads, which its library
+  ;;; declares multifile as swipl's system does. A declaration that finds
+  ;;; its predicate defined registers it with the file being read only
+  ;;; where the file's list holds it already (3.78.1, `coco_srcf_note')
+  (func coco_pred_defined ((coco_store * st) (size_t pi)) (out int)
+        (if (>= pi (-> st npreds)) (return 0))
+        (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi))))
+          (return (or (> (coco_pred_live p) 0) (-> p dynamic) (!= 0 (bitand (-> p declared) 3))))))
 
   (func coco_pred_live_before ((coco_pred * p) (size_t ix)) (out size_t)
         (if (== (-> p ntomb) 0) (return ix))

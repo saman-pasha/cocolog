@@ -32,7 +32,10 @@
 %% own its text with a grammar rule, prolog:message//1 (and an error's
 %% formal term with prolog:error_message//1), and intercepts a message with
 %% message_hook(+Term, +Kind, +Lines), which prints nothing more when it
-%% succeeds; both are read only where the program defines them.
+%% succeeds. The two grammar hooks are declared multifile here, as swipl's
+%% system declares them (3.78.1), so a program's rules join them with a
+%% declaration of their own or without, and a call of one with no rule
+%% fails.
 %%
 %%     :- multifile prolog:message//1.
 %%     prolog:message(no_such_user(U)) --> [ 'No user called ~w'-[U] ].
@@ -48,7 +51,10 @@
 %% NOT swipl's: no `Recursive' backtrace, no 0.1 s wait after a located
 %% error, no `Defined at' line for a static procedure, no list of the
 %% predicates a misspelled name could have meant (dwim), no thread_message_hook/3,
-%% message_property/2 or message_context flag; a debug(Topic) message is
+%% message_property/2 or message_context flag, and none of swipl's other
+%% hooks is asked (prolog:message_context//1, prolog:message_location//1,
+%% prolog:deprecated//1, prolog:message_line_element/2,
+%% prolog:message_prefix_hook/2, the //2 forms); a debug(Topic) message is
 %% printed with `% ', which swipl 9.0.4 raises for; and a stream's
 %% location is written as `Stream S:L:C ' with no file name.
 %%
@@ -103,6 +109,12 @@
 %% (3.48.0): a predicate with no clause until the program gives it some.
 :- dynamic(message_hook/3).
 :- multifile(message_hook/3).
+
+%% THE TWO HOOKS ARE MULTIFILE, as swipl's system declares prolog:message//1
+%% and prolog:error_message//1 (3.78.1): defined before the program gives
+%% them a clause, so a call of one fails and current_predicate/1 names it.
+:- multifile('$prolog_message'/3).
+:- multifile('$prolog_error_message'/3).
 
 print_message(Kind, Term) :-
     (   '$pm_push'(Term, Stack)

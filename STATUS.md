@@ -23435,3 +23435,133 @@ binary that emits lib/term.cicili includes no `<errno.h>`, which
 cocolog.cicili does, and `coco_source_text` asks `errno` now; the six of
 them include it, and each was run again alone. The dialect card's 33
 cites are all anchored.
+
+## print_message/2's hooks are swipl's where a program names them, and so are source_file/2's declarations and re-reads (3.78.1)
+
+A patch. A program that writes `:- multifile prolog:message//1.` -- the
+declaration every swipl program that gives a message its text carries --
+declared user's message/3 through 3.78.0, the qualifier peeled off, beside
+the hook its clauses are filed under ('$prolog_message'/3, `coco_hook_head`,
+2.16.0). And predicate_property/2, current_predicate/1, source_file/2 and a
+call of `prolog:message(T, L, R)` each asked user's message/3 too: the
+first two answered a predicate the program never wrote, the call raised an
+unknown procedure, and the declaring file's source_file/2 list named
+message/3 as user's (COMPAT.md's row 32, gone now).
+
+EVERY WAY A PROGRAM NAMES THE HOOKS REACHES THEM. `coco_hook_nid` (lib/
+kb-consult.cicili) maps message/3 and error_message/3 under `prolog` to
+the two hooks, the innermost qualifier deciding, so `user:prolog:message//1`
+is the hook too: the directive's walk (`coco_dynamic_spec_in`, which the
+public `coco_dynamic_spec` begins with no qualifier) and the goal's
+(`coco_decl_walk_in`) ask it at each indicator they declare. library(print_
+message) declares both hooks multifile, as swipl's system declares them, so
+a call of one with no rule fails and current_predicate/1 names it from the
+start. predicate_property/2 asks the hook's head where the qualifier is the
+hook's (`'$pp_hook'/3` in the builtins' Prolog half, before the qualifiers
+come off) and answers implementation_module(prolog); current_predicate/1
+(`coco_b_cp_spec`) asks the hook, an arity left unbound read as 3; a call
+(`coco_colon`, the `:` step) runs the hook's clauses; source_file/2
+(`coco_b_srcf_pi`) asks it, its multifile path takes the two as prolog's
+(the module check read the hook's `pmod`, user, and passed it to the path
+of registrations), and every atom's qualifier comes off first
+(`coco_b_srcf_strip`, PL_strip_module()'s rule): through 3.78.0 a second
+qualifier made a head of (:)/2, defined nowhere, for any predicate.
+
+AND A DECLARATION REGISTERS ITS PREDICATE ONLY WHERE IT FOUND IT UNDEFINED
+OR THE FILE'S ALREADY, as swipl's '$set_predicate_attribute'/3 registers a
+predicate with the file being loaded only where isDefinedProcedure() says
+no: a live clause, or dynamic, discontiguous or multifile. A file that
+declares what another file defined lists nothing for it, one that declares
+what was only called lists it, and a meta_predicate/1 declaration, which
+defines nothing, follows the same rule. `coco_pred_known` asks before the
+declaration sets anything, and counts the two message hooks defined however
+early a file declares them: swipl's system declares them before any file,
+where `run FILE` reads cocolog's preloaded libraries at the file's first
+goal, after the declarations that come before it (without the hooks'
+rule, the arm below, a file whose first directives declared the error hook
+listed it as its own). Through 3.78.0 every declaration registered its
+predicate, 3.78.0's case holding the rule only for predicates no file had
+defined.
+
+A FILE READ AGAIN KEEPS ITS LIST, as swipl's reload does: its entries are
+marked old as the read begins (`coco_srcf_age`, the `old` field of
+`coco_srcp`), what the new text registers again stays where it stood, what
+it registers first goes after them -- first in the answer, the list being
+the last registered first -- and what is still old as the last read of
+the file ends is dropped (`coco_srcf_drop_old`). Through 3.78.0 the list
+was cleared and built again in the new text's order: `[ro4, ro1, ro2,
+ro3]` where swipl's is `[ro4, ro3, ro2, ro1]`, and, cleared, a declaration
+of what the file itself defined last time would read as another file's
+under the rule above.
+
+NOT swipl's (COMPAT.md, three rows): swipl's other hooks of messages.pl
+are asked of no program (prolog:message_context//1, message_location//1,
+deprecated//1, message_line_element/2, message_prefix_hook/2 and the `//2`
+forms: the clauses are user's own predicates of the name, an error's
+context written as the library writes it, an unknown line element raised
+inside the printer); the tracer shows the hook's own Call and Exit, named
+`'$prolog_message'`, where swipl's `'$hide'` shows its body's calls alone
+(as print_message/2 has since 2.16.0); and a predicate whose declaration a
+file read again no longer makes has no file, where swipl's keeps the
+source it was defined from. The message hook's files are the program's
+alone, swipl's own libraries giving prolog:message//1 clauses first there
+(`boot/license.pl`; row 30 says so).
+
+HELD. test/files/message_hooks.pl (new), 45 lines to swipl 9.0.4 byte for
+byte: the hooks' properties declared as directives and as goals under one
+and two qualifiers, and user's message/3 and error_message/3 none;
+implementation_module; current_predicate/1 of the hooks, an arity
+unbound; phrase/2 and a call of each, through `user:prolog:` too, a term
+no rule takes failing; the error hook's clause count across an assert and
+a retract; and the hooks' source files and the file's lists. On 3.78.0 41
+of its lines differ. test/files/source_records.pl, 109 lines (99): two
+files declaring what the first defined, what it only called and something
+new, a file read again with its declarations in another order and one
+more, and a second file that gives the message hook a clause -- 6 lines
+differ on 3.78.0, the rest of the case held already.
+
+ARMS: one build each of the final code with one rule out, each case
+run as test/files.pl runs it (swipl's `-g main` against cocolog's `run
+FILE main`), the base green in both: the directive's walk naming the hook,
+the goal's, the library's two declarations, predicate_property/2's hook
+head, its implementation_module(prolog), current_predicate/1's hook, the
+call's hook, source_file/2's strip of every qualifier, and the hooks
+defined however early a file declares them, each red in message_hooks;
+the multifile path taking the hooks as prolog's, the file's list kept
+through a re-read, meta_predicate/1's registration asking what was
+defined, and the dropping of what a re-read did not register, each red in
+source_records; and the declaration's rule itself red in both. The
+multifile path's arm was green through the first round -- one file giving
+the hook its clauses, its first registration and its clauses' files are
+the one file -- and a second file that gives the hook a clause
+(`sr_h2.pl`) holds it now. The first round of arms checked under `-s`,
+which reads the preloaded libraries before the file and so could not see
+the hooks' rule; and test/files/message_hooks.pl ended in `:-
+initialization(main, main).`, under which swipl's `-g main` ran main
+twice (COMPAT.md's row on a main and the command line's goal), so it has
+none, as no other file case has.
+
+COST, counted against 3.78.0 at paths of one length: the untraced engine
+moves nothing (tools/flow/zero.sh, work less padding: nrev 65 988 929 to
+65 888 815, -0.15 %, placement; queens 39 953 259 to 39 953 184, lookup
+48 058 154 to 48 060 419), and a start (`cocolog query true`) is 98 975
+instructions more for the binary, 36 865 861 to 36 964 836 (+0.27 %), both
+reading the same library -- the reading of the builtins' Prolog half's
+five clauses for predicate_property/2's hook, as 3.78.0's five cost some
+85 000: the reader, the store and the clause compiler, and the names they
+intern -- and 2 181 more for library/print_message.pl's two declarations
+and their comments, which every start reads. The first build asked
+`coco_pred_known` at every meta_predicate/1 declaration the libraries make
+at start-up, where no file is being read and the note answers at once:
+asked only under a read, a start is 5 237 instructions cheaper.
+
+THE RUN: on the binary committed (its md5 the measured copy's, built
+before the round and not after): the lint case first -- red twice, the
+dialect card's I1 cite in lib/kb-pred.cicili moved by the new code above
+`coco_arg_key`, 13 lines and then 21, its range corrected to the
+function's own lines -- and then files, lesson 56, library, directives,
+reconsult, flowchart, trace, engine, errors, thread, journal, term,
+syntax, module, solve, state, and with the server up zigurat and kbs, each
+alone, and files again alone after the second hook file. All green, no
+SKIP. A first round begun on the build before `coco_pred_known`'s guard was
+stopped at trace and run again from the start on the guarded build.

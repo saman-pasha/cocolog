@@ -498,7 +498,7 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 * **The process keeps swipl's source file records** (3.78.0, the
   `coco_srcf_*` table in lib/kb-consult.cicili, read by source_file/1,2
   and current_module/1 through lib/builtins-db.cicili's halves;
-  test/files/source_records.pl holds 99 lines to swipl, test/thread.pl a
+  test/files/source_records.pl holds 109 lines to swipl, test/thread.pl a
   thread's load): one table of the process's under its lock
   (`coco_srcf_mx`), texts kept as text, as each machine has atoms of its
   own, and no Prolog run while it is held. `coco_consult_oid` opens a
@@ -537,10 +537,25 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   refused no compiled-in text, no clause without an origin
   (`coco_module_set_file`) -- each `coco_refuse`, the thread's machine
   finished: **a new copy a loader keeps asks its answer the same way**.
-  Not swipl's (COMPAT.md): a qualifier makes no module, a library cocolog
-  compiles in or preloads is no source file, no bookkeeping predicate is
-  listed, a thread's predicates are its store's, and `:- multifile
-  prolog:message//1.` still declares user's message/3.
+  **A declaration registers its predicate only where it found it
+  undefined, or the file's list holds it already** (3.78.1, swipl's
+  '$set_predicate_attribute'/3; `coco_pred_known`, asked BEFORE the
+  declaration sets anything, `coco_srcf_note`'s KNOWN): one another file
+  defined stays that file's alone, and the two message hooks count as
+  defined however early a file declares them -- `run FILE` reads the
+  preloaded libraries at the file's first goal, after the declarations
+  before it. **A file read again keeps its list** (`coco_srcf_age`,
+  `coco_srcf_drop_old`): its entries marked old as the read begins, what
+  the new text registers again kept where it stood, what it registers
+  first after them, the rest dropped as the last read of the file ends;
+  through 3.78.0 the list was cleared and built again in the new text's
+  order -- and cleared, a declaration of what the file itself defined last
+  time would read as another file's, registering nothing. Not swipl's
+  (COMPAT.md): a qualifier
+  makes no module, a library cocolog compiles in or preloads is no source
+  file, no bookkeeping predicate is listed, a thread's predicates are its
+  store's, and a predicate whose declaration a file read again no longer
+  makes has no file, where swipl's keeps it.
 * **A load asks the program's term_expansion/2 and goal_expansion/2**
   (3.14.0, swipl's; `coco_consult_xcall` in lib/kb-consult.cicili, the
   Prolog half in lib/dcg.cicili): each term read where the file is taken --
@@ -4504,7 +4519,24 @@ a session must keep:
   on what a clause is stored as, below): its conjunctions one. The two hooks
   print_message/2 reads, `prolog:message//1` and `prolog:error_message//1`,
   are stored as `'$prolog_message'/3` and `'$prolog_error_message'/3`
-  (`coco_hook_head`), apart from a program's own message/3.
+  (`coco_hook_head`), apart from a program's own message/3 -- **and every
+  way a program names them reaches the hook** (3.78.1,
+  test/files/message_hooks.pl): a dynamic, discontiguous or multifile
+  declaration, a directive's or a goal's, under any qualifiers
+  (`coco_hook_nid`, at the leaf of `coco_dynamic_spec_in` and
+  `coco_decl_walk_in`), predicate_property/2 (`'$pp_hook'/3` in the
+  builtins' Prolog half, implementation_module(prolog)), current_predicate/1
+  (`coco_b_cp_spec`, an arity left unbound read as 3), source_file/2
+  (`coco_b_srcf_pi`, the multifile path taking the two as prolog's, every
+  atom's qualifier off, `coco_b_srcf_strip`) and a call (`coco_colon`);
+  library(print_message) declares both multifile, as swipl's system does.
+  Through 3.78.0 the declaration declared user's message/3 and each of the
+  others asked user's. **A new reader of a predicate a program names maps
+  the hook through `coco_hook_nid`**, or a declaration of the hook and the
+  hook it reads are two predicates. Not asked (COMPAT.md): swipl's other
+  hooks of messages.pl (prolog:message_context//1 and the rest), and the
+  tracer shows the hook's own ports, named `'$prolog_message'`, where
+  swipl's `'$hide'` shows its body's calls alone.
 * **A report begins a line of its own, and `~N` asks where the line is**
   (2.16.0, `coco_out_note`, `coco_out_fresh` in lib/term.cicili): the
   engine keeps whether a line is open on stdout and on stderr, ONE column

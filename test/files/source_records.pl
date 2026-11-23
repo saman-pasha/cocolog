@@ -1,4 +1,4 @@
-%  source_file/1,2 and current_module/1, swipl 9.0.4's (cocolog 3.78.0):
+%  source_file/1,2 and current_module/1, swipl 9.0.4's (cocolog 3.78.0, 3.78.1):
 %  COMPAT.md's fifth group of small built-ins. The case holds:
 %  - the source files in the order their first defining reads began, a
 %    file a load reads inside another's read after it; a file while a read
@@ -23,7 +23,12 @@
 %    qualifier that names no module user's own predicate (swipl's lookup
 %    reads it as a new module whose default import is user, and makes
 %    none), one that names a module that module's own alone;
-%  - a file read again: what its new text registers;
+%  - a file read again: what its new text registers, the predicates it
+%    registered before where they stood and the new ones before them;
+%  - a declaration of a predicate defined before it (a clause, or declared
+%    dynamic, discontiguous or multifile) registers it only where the
+%    file's list holds it already (3.78.1): one another file defined stays
+%    that file's alone, where one only called is the file's;
 %  - the errors: a number for a file, a number for a predicate's file and
 %    one for its head, each in swipl's context;
 %  - current_module/1: user, system and prolog, a module a file defined
@@ -34,8 +39,8 @@
 %  library swipl reads (lists.pl) is left out of the lists, cocolog
 %  compiling the library in (COMPAT.md). Not here (COMPAT.md): swipl's own
 %  modules and its bookkeeping predicates ('$load_context_module'/3, in a
-%  file that loads another), a module a qualified assert or call names,
-%  and the message hooks' declaration.
+%  file that loads another) and a module a qualified assert or call names;
+%  the message hooks' declarations are test/files/message_hooks.pl's.
 
 % cocolint: T1 -- swipl loads lists.pl here, the module current_module/1 names
 :- use_module(library(lists)).
@@ -88,6 +93,7 @@ main :-
     rename_file('sr_g2.v2.pl', 'sr_g2.pl'),
     ensure_loaded(sr_g2),
     ensure_loaded(sr_h),
+    ensure_loaded(sr_h2),
     files(again),
     preds('sr_a.pl'), preds('sr_outer.pl'), preds('sr_q.pl'),
     forall(member(F, ['sr_b.pl', 'sr_mod.pl', 'sr_emod.pl', 'sr_inner.pl', 'sr_qg.pl',
@@ -120,6 +126,16 @@ main :-
     consult(sr_rc), mpreds('sr_rc.pl'), where(rc_b(_)),
     rename_file('sr_rc.v2.pl', 'sr_rc.pl'),
     consult(sr_rc), mpreds('sr_rc.pl'), where(rc_b(_)), where(rc_c(_)),
+    %% a declaration of a predicate defined before it registers it only
+    %% where the file's list holds it: one another file defined, or that
+    %% was only called, and a new one
+    ensure_loaded(sr_d1), ensure_loaded(sr_d2), mpreds('sr_d1.pl'), mpreds('sr_d2.pl'),
+    forall(member(H, [sd_m(_), sd_d(_), sd_c(_), sd_k, sd_only, sd_new(_)]), where(H)),
+    %% a file read again keeps its list: what it registers again where it
+    %% stood, what it registers first before it
+    consult(sr_ro), mpreds('sr_ro.pl'),
+    rename_file('sr_ro.v2.pl', 'sr_ro.pl'),
+    consult(sr_ro), mpreds('sr_ro.pl'),
     files(reconsulted),
     forall(member(M, [user, system, prolog, sr_mod, sr_emod, lists, sr_a, nosuch, 3, f(x), []]),
            t(current_module(M))),

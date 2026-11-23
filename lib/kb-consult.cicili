@@ -509,8 +509,36 @@
           (set ($ (nth (-> f n) (-> f preds)) mod) md)
           (set ($ (nth (-> f n) (-> f preds)) name) nm)
           (set ($ (nth (-> f n) (-> f preds)) arity) arity)
+          (set ($ (nth (-> f n) (-> f preds)) old) 0)
           (set (-> f n) (+ (-> f n) 1))
           (return 1)))
+
+  ;; A FILE READ AGAIN KEEPS ITS LIST (3.78.1, swipl's reload): every
+  ;; entry marked old as the read begins and its module forgotten for the
+  ;; new text's module/2; what the new text registers again stays where it
+  ;; stood (`coco_srcf_note'), what it registers first goes after them, and
+  ;; what is still old as the last read of the file ends is dropped
+  ;; (`coco_srcf_drop_old'). Through 3.78.0 the list was cleared and built
+  ;; again in the new text's order. The lock held
+  (static)
+  (func coco_srcf_age ((coco_srcf * f))
+        (for ((size_t i . 0)) (< i (-> f n)) ((++ i))
+          (set ($ (nth i (-> f preds)) old) 1))
+        (free (cast (void *) (-> f mod)))
+        (set (-> f mod) nil))
+
+  (static)
+  (func coco_srcf_drop_old ((coco_srcf * f))
+        (let ((size_t k . 0))
+          (for ((size_t i . 0)) (< i (-> f n)) ((++ i))
+            (if ($ (nth i (-> f preds)) old)
+                (block
+                  (free (cast (void *) ($ (nth i (-> f preds)) mod)))
+                  (free (cast (void *) ($ (nth i (-> f preds)) name))))
+                (block
+                  (if (!= k i) (set (nth k (-> f preds)) (nth i (-> f preds))))
+                  (set k (+ k 1)))))
+          (set (-> f n) k)))
 
   ;;; A READ OF PATH BEGUN: its entry plus one; 0 for no PATH, and
   ;;; (size_t) -1 where there was no room for an entry. REAL is the path its
@@ -546,7 +574,7 @@
                     (block (coco_srcf_clear f)
                            (set coco_srcf_seq (+ coco_srcf_seq 1))
                            (set (-> f seq) coco_srcf_seq))
-                    (if again (coco_srcf_clear f)))
+                    (if again (coco_srcf_age f)))
                 (set (-> f reading) (+ (-> f reading) 1))
                 (set r (+ i 1))))
           (pthread_mutex_unlock (aof coco_srcf_mx))
@@ -559,17 +587,26 @@
         (if (<= sf coco_nsrcf)
             (let ((coco_srcf * f . #'(aof (nth (- sf 1) coco_srcfs))))
               (if (> (-> f reading) 0) (set (-> f reading) (- (-> f reading) 1)))
-              (if loaded (set (-> f loaded) 1))))
+              (if loaded (set (-> f loaded) 1))
+              ;; the last read under way of it ended: what a read again did
+              ;; not register is the file's no more
+              (if (== (-> f reading) 0) (coco_srcf_drop_old f))))
         (pthread_mutex_unlock (aof coco_srcf_mx)))
 
   ;;; A PREDICATE THE READ UNDER WAY REGISTERS: PI of ST, under the read's
   ;;; module (module/2's, `ssu_mod'; user before one), into the read's
-  ;;; entry once. Nothing outside a read of a program file. The
-  ;;; two hooks print_message/2 reads are prolog:message/3 and
+  ;;; entry once -- where the entry holds it from a read before, kept in
+  ;;; its place (`coco_srcf_age'). Nothing outside a read of a program
+  ;;; file. The two hooks print_message/2 reads are prolog:message/3 and
   ;;; prolog:error_message/3 here, as swipl's (the store files their
   ;;; clauses as '$prolog_message'/3 and '$prolog_error_message'/3,
-  ;;; `coco_hook_head').
-  (func coco_srcf_note ((coco_store * st) (coco_machine * m) (size_t pi))
+  ;;; `coco_hook_head'). KNOWN, a declaration that found PI defined
+  ;;; (3.78.1, `coco_pred_defined'), registers nothing the entry does not
+  ;;; hold already, as swipl's '$set_predicate_attribute'/3 registers a
+  ;;; predicate with the file only where it finds it undefined: one another
+  ;;; file defined stays that file's, and a hook swipl's system declares
+  ;;; is no file's.
+  (func coco_srcf_note ((coco_store * st) (coco_machine * m) (size_t pi) (int known))
         (if (or (== (-> m sfcur) 0) (>= pi (-> st npreds))) (return))
         (let ((const char * name . #'(coco_atom_name m ($ (coco-pred-at (-> st predp) pi) name)))
               (u32 arity . #'($ (coco-pred-at (-> st predp) pi) arity))
@@ -588,8 +625,8 @@
                   (if (and (== ($ (nth i (-> f preds)) arity) arity)
                            (== 0 (strcmp ($ (nth i (-> f preds)) name) name))
                            (== 0 (strcmp ($ (nth i (-> f preds)) mod) mod)))
-                      (set seen 1)))
-                (if (and (not seen) (not (coco_srcf_put f mod name arity))) (set refused 1))))
+                      (block (set seen 1) (set ($ (nth i (-> f preds)) old) 0))))
+                (if (and (not seen) (not known) (not (coco_srcf_put f mod name arity))) (set refused 1))))
           (pthread_mutex_unlock (aof coco_srcf_mx))
           ;; refused: the machine finished, the lock given back first
           (if refused (coco_oom m))))
@@ -831,7 +868,7 @@
           (set (-> s n) (+ (-> s n) 1))
           (set (-> s last) (-> s n))
           ;; and the file being read registers it (3.78.0, source_file/2)
-          (coco_srcf_note st m pi)
+          (coco_srcf_note st m pi 0)
           (coco_pred_forget_from st m pi origin)
           ;; THE PREDICATE'S FIRST CLAUSE A FILE READ, what predicate_property/2
           ;; says as file(F) and line_count(L) (3.41.0), a library's too, as
@@ -1645,9 +1682,9 @@
   ;;; `prolog:error_message//1', the two a program extends to give a term of
   ;;; its own its text. One namespace keeps them apart from a program's own
   ;;; message/3 by name: their clauses are '$prolog_message'/3 and
-  ;;; '$prolog_error_message'/3, which library(print_message) calls. Any
+  ;;; '$prolog_error_message'/3, which library(print_message) calls and
+  ;;; declares multifile, as swipl's system declares the two (3.78.1). Any
   ;;; other qualified head loses its qualifier, as it always did.
-  (static)
   (func coco_hook_head ((coco_machine * m) (size_t mod) (size_t h)) (out size_t)
         (set mod (coco_deref m mod))
         (set h (coco_deref m h))
@@ -1663,6 +1700,24 @@
           (set (nth 1 args) (coco_arg m h 1))
           (set (nth 2 args) (coco_arg m h 2))
           (return (coco_make m to 3 args))))
+
+  ;;; THE HOOK A QUALIFIED NAME NAMES (3.78.1): MOD's NID/N is
+  ;;; '$prolog_message'/3 where MOD is the atom prolog and NID/N message/3,
+  ;;; '$prolog_error_message'/3 for error_message/3, and itself anywhere
+  ;;; else -- MOD (size_t) -1 where nothing qualified it, as heap cell 0 is
+  ;;; a cell. What a declaration, predicate_property/2, current_predicate/1
+  ;;; and a call of prolog:message(...) name, as `coco_hook_head' files the
+  ;;; hook's clauses: through 3.78.0 they named user's message/3, which
+  ;;; `:- multifile prolog:message//1.' declared.
+  (func coco_hook_nid ((coco_machine * m) (size_t mod) (u64 nid) (u32 n)) (out u64)
+        (if (or (!= n 3) (== mod (cast size_t -1))) (return nid))
+        (set mod (coco_deref m mod))
+        (if (not (coco-tag-is ATOM (nth mod (-> m heap)))) (return nid))
+        (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m mod)) "prolog")) (return nid))
+        (let ((const char * nm . #'(coco_atom_name m nid)))
+          (if (== 0 (strcmp nm "message")) (return (coco_intern m "$prolog_message")))
+          (if (== 0 (strcmp nm "error_message")) (return (coco_intern m "$prolog_error_message")))
+          (return nid)))
 
   (func coco_assert_stored ((coco_store * st) (coco_machine * m) (size_t t)) (out int)
         (let ((int was . #'(-> st nomove)) (int ok . 0))
