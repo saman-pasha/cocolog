@@ -24238,7 +24238,9 @@ compare now sit -- 837 962 instructions in 3.78.5's, 921 861 in
 3.78.6's and 929 856 in the build without the directive. The walk that
 makes those calls -- the dynamic operators asked by name at every infix
 test, 0.84 million instructions a start -- is a later patch's (backlog
-#324).
+#324). [Read wrongly, as 3.78.9 found: the walk is the reader's table of
+a clause's variables, `coco_var_for`, a strcmp a name and one more for
+`_`; the dynamic operators' table is empty at a start.]
 
 THE RUN, on the binary the arms and the counts were made from: the lint
 case first, then trace, backtrace, engine, errors, window, journal,
@@ -24508,3 +24510,66 @@ binaries, all green, with no SKIP; the card's 33 cites anchored (15 by a
 moved anchor); library(flow/chart)'s tables made again for `'$c_at'/2`. A
 first round on the build of swipl's text was stopped at errors, when its
 start said that text was the dearer.
+
+## The reader finds a clause's variables by a key, not by strcmp (3.78.9)
+
+A patch, the reader's cost alone (backlog #324). 3.78.6's entry counted
+37 513 calls of strcmp in the reader at every start and put them on the
+dynamic operators, asked by name at every infix test; #324 was to make
+that walk cheaper. The table of dynamic operators is empty at a start --
+current_op/3 answers the 65 built in, no more -- and the calls are the
+reader's table of a clause's variables: `coco_var_for` compared each
+variable token with "_" by strcmp, then walked the clause's names with
+strcmp until one matched. Callgrind's call sites, read against objdump:
+39 057 calls at a start, 27 764 of them the walk and 11 293 the
+anonymous test, 962 980 instructions of strcmp's own -- callgrind names
+37 521 of the calls under `coco_parse_term'2`, its name for a call of the
+function inside itself, and 1 536 under `coco_parse_term`; 3.78.6 counted
+the first alone. 3.78.9's start makes none of them: strcmp's own
+instructions 1 702 934 to 744 488, memcmp's 201 213 to 259 191.
+
+THE FIX (lib/syntax.cicili). Each name the reader records has a KEY beside
+it (`var_keys`, a third array of the variable table, grown and freed with
+the other two): its length over its first two bytes (`coco_var_key`). The
+walk compares keys, and a name only where its key is the token's and it
+is longer than two bytes, by memcmp of the token's length -- which the
+reader has, the token's own text -- so a name of two bytes or fewer, `X`,
+`Xs`, `H`, `T`, nearly every name a program writes, is decided by its key
+alone. `_` is a token of one byte that is `_`. What the walk answers is
+what it answered: the same variable for the same name, a new one for a
+new name.
+
+HELD. The new test/files/read_vars.pl holds 14 lines to swipl 9.0.4:
+names that share a key -- a length and two first bytes, `Xab` and `Xac`,
+`Abcdef1` and `Abcdef2`, `Été` and `Étè`, whose first character is two
+bytes -- told apart, `_` anonymous and `_A`, `__` and `_ab` not, names of
+one and two bytes beside longer ones, and a clause of 100 variables read
+twice over. 3.78.8 answers all 14 as swipl does: the change is a cost,
+and the case is what an arm of it is held to.
+
+ARMS, one build of the final code each with one rule taken out, on
+read_vars.pl: the keys alone, no name compared (RED), `_` told by its
+first byte alone (RED), the key without its second byte (RED).
+
+COST, against 3.78.8's code. A start (`cocolog query true`, each binary
+swapped in at the checkout's path) counts 802 532 fewer, 37 136 610 and
+36 334 078 (2.16 %). Reading tools/cocolint/lint.pl (1 320 lines) counts
+1 437 056 fewer, 45 562 978 and 44 125 922, the read alone 634 524 fewer
+(8 426 368 and 7 791 844, 7.5 %); a clause of 400 variables,
+each twice, 5 498 354 fewer, 48 333 739 and 42 835 385 -- its read,
+less the start, 6.5 million where it was 11.2, the walk still a walk over
+the names a clause has. The untraced engine runs 3.78.8's instructions
+within 330 (tools/flow/zero.sh at paths of one length, work less
+padding: nrev 65 889 611 and 65 889 861, queens 39 952 749 and
+39 952 712, lookup 48 073 553 and 48 073 223).
+
+THE RUN, the final binary. The lint case first (58 s), then the narrow
+cases -- backtrace, engine, errors, files, script, directives, cyclic,
+library, stream, repl, flowchart, trace, thread, gc, async -- and the
+syntax, term, solve, module and state binaries: green, no SKIP. async went
+red once, in one section: `retries along one key while another task writes
+in front`, whose child stopped at the section's ceiling of 60 seconds
+(exit 124, nothing printed) while four builds of the arms shared the
+box's four cores. Run again alone on a quiet box, the case is green
+(268 s). The section's reader walks no text: it reads nothing this
+change touches.

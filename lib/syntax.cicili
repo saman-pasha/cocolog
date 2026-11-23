@@ -427,7 +427,7 @@
         (return (coco_next_token r)))
 
        ((== (-> r tok) COCO_TK_VAR)
-        (set (cof out) (coco_var_for r ($ (-> r text) s)))
+        (set (cof out) (coco_var_for r ($ (-> r text) s) ($ (-> r text) len)))
         (if ,P (coco_pos_leaf r (-> r tstart) (-> r pos)))
         (return (coco_next_token r)))
 
@@ -957,11 +957,14 @@
     (member size_t       lfrom)
     (member size_t       lto)
 
-    ;; the variables of the clause being read
+    ;; the variables of the clause being read, and each name's KEY
+    ;; (3.78.9, `coco_var_key'): its length and its first two bytes, which
+    ;; the lookup compares before the name
     (member char **      var_names)
     (member size_t *     var_cells)
     (member size_t       nvars)
     (member size_t       var_cap)
+    (member u64 *        var_keys)
 
     (member char         err [192])
     (member int          failed)
@@ -2952,25 +2955,48 @@
   ;;; program's consult ran 0.74 % more instructions (169.97 M against
   ;;; 168.72 M). Cicili's (inline) inlines at every call since it was split
   ;;; from (weak), which is what (inline) emitted through Cicili 1.0.1.
+  ;;; A NAME'S KEY (3.78.9): its length over its first two bytes, the second
+  ;;; 0 for a name of one. Two names of one key are one name where the key
+  ;;; holds the whole of them, two bytes or fewer -- `X', `Xs', `H', `T',
+  ;;; nearly every variable a program names.
+  (static) (inline)
+  (func coco_var_key ((const char * name) (size_t len)) (out u64)
+        (return (bitor (bitor (<< (cast u64 len) 16)
+                              (<< (cast u64 (bitand (cast int (nth 0 name)) 255)) 8))
+                       (? (> len 1) (cast u64 (bitand (cast int (nth 1 name)) 255)) 0))))
+
   ;;; A variable by name, within the clause being read. `_' is anonymous: every
   ;;; occurrence is a different variable and none of them is recorded, which is
-  ;;; exactly what makes `foo(_, _)' mean two unrelated things.
+  ;;; exactly what makes `foo(_, _)' mean two unrelated things. LEN is the
+  ;;; name's length, the token's. THE NAMES ARE ASKED BY THEIR KEYS (3.78.9),
+  ;;; a name compared only where its key is the token's and it is longer
+  ;;; than the key holds: through 3.78.8 each was a strcmp, and every
+  ;;; variable token a strcmp with "_" first -- 39 057 calls of it at a
+  ;;; start, 0.96 million instructions, which 3.78.6's entry in STATUS.md
+  ;;; put on the dynamic operators, whose table is empty there -- and a
+  ;;; clause of 400 variables cost 11 million instructions to read.
   (static) (inline)
-  (func coco_var_for ((coco_reader * r) (const char * name)) (out size_t)
-        (if (== 0 (strcmp name "_")) (return (coco_new_var (-> r m))))
-        (for ((size_t i . 0)) (< i (-> r nvars)) ((++ i))
-          (if (== 0 (strcmp (nth i (-> r var_names)) name))
-              (return (nth i (-> r var_cells)))))
-        (if (>= (-> r nvars) (-> r var_cap))
-            (let ((size_t ncap . #'(? (== (-> r var_cap) 0) 8 (* (-> r var_cap) 2)))
-                  (char ** nn) (size_t * nc))
-              (set nn (cast (char **) (realloc (-> r var_names) (* ncap (sizeof (char *))))))
-              (if (== nn nil) (block (coco_refuse_count) (return (coco_new_var (-> r m)))))
-              (set (-> r var_names) nn)
-              (set nc (cast (size_t *) (realloc (-> r var_cells) (* ncap (sizeof size_t)))))
-              (if (== nc nil) (block (coco_refuse_count) (return (coco_new_var (-> r m)))))
-              (set (-> r var_cells) nc)
-              (set (-> r var_cap) ncap)))
+  (func coco_var_for ((coco_reader * r) (const char * name) (size_t len)) (out size_t)
+        (if (and (== len 1) (== (nth 0 name) (coco-ch "_"))) (return (coco_new_var (-> r m))))
+        (let ((u64 key . #'(coco_var_key name len)))
+          (for ((size_t i . 0)) (< i (-> r nvars)) ((++ i))
+            (if (and (== (nth i (-> r var_keys)) key)
+                     (or (<= len 2) (== 0 (memcmp (nth i (-> r var_names)) name len))))
+                (return (nth i (-> r var_cells)))))
+          (if (>= (-> r nvars) (-> r var_cap))
+              (let ((size_t ncap . #'(? (== (-> r var_cap) 0) 8 (* (-> r var_cap) 2)))
+                    (char ** nn) (size_t * nc) (u64 * nk))
+                (set nn (cast (char **) (realloc (-> r var_names) (* ncap (sizeof (char *))))))
+                (if (== nn nil) (block (coco_refuse_count) (return (coco_new_var (-> r m)))))
+                (set (-> r var_names) nn)
+                (set nc (cast (size_t *) (realloc (-> r var_cells) (* ncap (sizeof size_t)))))
+                (if (== nc nil) (block (coco_refuse_count) (return (coco_new_var (-> r m)))))
+                (set (-> r var_cells) nc)
+                (set nk (cast (u64 *) (realloc (-> r var_keys) (* ncap (sizeof u64)))))
+                (if (== nk nil) (block (coco_refuse_count) (return (coco_new_var (-> r m)))))
+                (set (-> r var_keys) nk)
+                (set (-> r var_cap) ncap)))
+          (set (nth (-> r nvars) (-> r var_keys)) key))
         ;; A NAME WITH NO MEMORY FOR ITS COPY IS NOT RECORDED (3.62.3), and
         ;; the refusal is counted as the table's is (`coco_refuse_count'):
         ;; the variable is a new one at its next occurrence, which is no
@@ -3227,6 +3253,7 @@
         (if (!= (-> r rf) (aof (nth 0 (-> r rfs)))) (free (-> r rf)))
         (free (-> r var_names))
         (free (-> r var_cells))
+        (free (-> r var_keys))
         (free (-> r cidx))
         (free (cast (void *) (-> r cs)))
         (coco_sb_free (aof (-> r text)))

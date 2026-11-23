@@ -4874,7 +4874,15 @@ a session must keep:
   **A change to the parser is a change to the macro**, and a helper both
   families call is `(inline)`. One parser with a flag at each site cost
   consulting the translator 1.3 %; the two cost `coco_next_token` nothing
-  and the parser within 0.13 %. **A term's operators are read on the
+  and the parser within 0.13 %. **A clause's variables are found by their
+  keys** (3.78.9, `coco_var_key`, `coco_var_for`): a name's length over its
+  first two bytes, the name itself compared only where the key is the
+  token's and it is longer than the key holds, `_` told by its length and
+  its byte. Through 3.78.8 each was a strcmp, and the anonymous test one
+  more: 39 057 calls at a start, 0.96 million instructions, which 3.78.6's
+  STATUS.md entry put on the dynamic operators (empty at a start). **A new
+  writer of the reader's variable table sets `var_keys` beside `var_names`
+  and `var_cells`**, or a name it adds is never found again. **A term's operators are read on the
   reader's own stack** (3.60.0, `coco-parse-term-body`, pl-read.c's
   complex_term): an infix operator that takes the term read so far, or a
   prefix operator where an operand stands (`coco-parse-named-body` answers
