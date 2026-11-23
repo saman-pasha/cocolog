@@ -413,23 +413,6 @@
   (func coco_db_refused ((coco_engine * e)) (out int)
         (return (? (== 1 (coco_throw e (coco_db_refused_ball e))) 2 -1)))
 
-  (func coco_bi_retract ((coco_engine * e) (size_t g)) (out int)
-        (let ((int bad . #'(coco_clause_check e (coco_arg (-> e m) g 0) 2)))
-          (if (!= bad 0) (return bad)))
-        (with-green-write e
-          (let ((int ok . #'(coco_retract (-> e st) (-> e m) (coco_arg (-> e m) g 0))))
-            ;; -2: the knowledge base refused the write, and the clause is
-            ;; where it stood (3.64.7, `coco_retract_at'), as assertz/1's
-            ;; refusal raises -- in retractall/1's context, its row's
-            (if (== ok -2) (return (coco_db_refused e)))
-            ;; -1: the predicate could not be read, and nothing was taken
-            (if (< ok 0) (return (coco_fetch_error e)))
-            (coco_store_maybe_compact (-> e st) (-> e m))
-            (if ok (return 1))))
-        (if (== 0 (strcmp (coco_atom_name (-> e m) (coco_name_of (-> e m) g)) "$retractall"))
-            (return (coco_retractall_none e g)))
-        (return 0))
-
   ;;; ---- the system's predicates (3.37.0, 3.38.0) ---------------------------
   ;;;
   ;;; What listing/1 writes as the system's, `%   Foreign: system:N/A', and
@@ -644,6 +627,135 @@
               (set ix nx)))
           (if fr (set (-> e nchoices) ci))
           (return 0)))
+
+  ;;; ---- retractall/1's walk (3.78.11) -----------------------------------
+
+  ;;; CLAUSE IX OF P TRIED BY RETRACTALL/1: copied from the store and its
+  ;;; head unified with H, whatever its body, the bindings undone and the
+  ;;; copy given back either way, so H binds nothing. 1 matched, SPAN its
+  ;;; cells in the store.
+  (static)
+  (func coco_ra_try ((coco_machine * m) (coco_store * st) (coco_pred * p) (size_t ix)
+                     (size_t h) (size_t * span)) (out int)
+        (let ((size_t mark . #'(-> m heap_len))
+              (size_t tmark . #'(-> m trail_len))
+              (size_t cand . #'(coco_store_get_span m st (nth ix (-> p clauses)) span))
+              (size_t ch . 0) (size_t cb . 0) (int ok . 0))
+          (coco_clause_parts m cand (aof ch) (aof cb))
+          (set ok (coco_unify m h ch))
+          (coco_undo_to m tmark)
+          (set (-> m heap_len) mark)
+          (return ok)))
+
+  ;;; THE DEAD OF DEATH ERA among P's first CEND clauses given back alive.
+  (static)
+  (func coco_ra_unkill ((coco_pred * p) (u32 cend) (u32 era))
+        (for ((size_t i . 0)) (< i (cast size_t cend)) ((++ i))
+          (if (== (nth i (-> p tomb)) era) (coco-tomb-unset p i))))
+
+  ;;; RETRACTALL/1'S ONE WALK (3.78.11, swipl's pl_retractall): the clauses
+  ;;; of the predicate CLAUSE's head names (`coco_retract_head') that stood
+  ;;; when the walk began and whose head unifies with it, whatever their
+  ;;; bodies, taken in one pass over the candidates a call of the head
+  ;;; would be offered (`coco_trace_kpos', as retract/1's walk keys them).
+  ;;; One match is taken out as retract/1 takes it (`coco_retract_at'); of
+  ;;; two or more each dies in place as it matches, all of ONE death -- the
+  ;;; count `coco_tomb_open' gives where a call is open on the predicate,
+  ;;; which keeps seeing them, else the next -- then the predicate is
+  ;;; dynamic, the database told once and the dead swept where no call is
+  ;;; open on them. Through 3.78.10 '$retractall'/1 took the first match
+  ;;; and retractall/1 called it again: each call walked from the
+  ;;; predicate's first clause, so matches late in a big predicate cost its
+  ;;; size each (20 000 after 100 000 others, 70.8 s), and each match taken
+  ;;; out of the arrays moved every clause after it (20 000 before them,
+  ;;; 4.7 s). 1 one or more taken; 0 none; -1 the predicate could not be
+  ;;; read (`fetch_err'); -2 the knowledge base refused the write, every
+  ;;; clause where it stood (`coco-retract-told'), as through 3.78.10 a
+  ;;; refused match was and the matches before it were not; -3 no memory
+  ;;; to keep the dead, or the machine finished, and nothing taken.
+  (static)
+  (func coco_retractall_walk ((coco_engine * e) (size_t clause)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st))
+              (size_t body . 0)
+              (size_t h . #'(coco_retract_head m clause (aof body)))
+              (size_t pi . 0))
+          (if (== h (cast size_t -1)) (return 0))
+          (if (not (coco_is_callable m h)) (return 0))
+          ;; INTERNED, not merely found: the head was never called, and a
+          ;; fresh process's first retractall/1 must still read the
+          ;; predicate from its knowledge base (`coco_pred_ensure')
+          (set pi (coco_pred_intern st (coco_name_of m h) (coco_arity m h)))
+          (if (>= pi (-> st npreds)) (return 0))
+          (if (not (coco_pred_ensure st pi)) (return -1))
+          (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi)))
+                (int tell . #'(and (not (coco_store_is_muted st)) (!= (-> st on_retract) nil)))
+                (int dyn . #'(-> p dynamic))
+                (u32 cend . #'(cast u32 (-> p nclauses)))
+                (u32 kpos . 0) (u64 key . 0) (u32 era . 0)
+                (size_t ix . 0) (size_t nx . 0) (size_t first . 0) (size_t fspan . 0)
+                (size_t span . 0) (size_t taken . 0))
+            (if (== cend 0) (return 0))
+            (set kpos (coco_trace_kpos e p h))
+            (set key (? (== kpos 0) (coco_arg_key m h) (coco_call_arg_key m p h kpos)))
+            ;; the dead of before are no candidates (`coco_frame_next''s
+            ;; FERA 0), and each next candidate is read before the clause in
+            ;; hand can die
+            (set ix (coco_db_next st m p kpos key 0 cend 0))
+            (while (< ix (cast size_t cend))
+              (set nx (coco_db_next st m p kpos key (+ ix 1) cend 0))
+              (if (coco_ra_try m st p ix h (aof span))
+                  (block
+                    (cond
+                      ((== taken 0) (block (set first ix) (set fspan span)))
+                      ((== taken 1)
+                       (block
+                         (set era (coco_tomb_open st m pi))
+                         (if (== era 0)
+                             (block
+                               (if (not (coco_tomb_ready st pi)) (return -3))
+                               (set era (+ (-> p tera) 1))
+                               (set (-> p tera) era)))
+                         (coco_tomb_set p first era)
+                         (coco_tomb_set p ix era)))
+                      (#t (coco_tomb_set p ix era)))
+                    (set taken (+ taken 1))))
+              ;; a copy refused outright is no clause to match
+              (if (-> m oom)
+                  (block (if (>= taken 2) (coco_ra_unkill p cend era))
+                         (return -3)))
+              (set ix nx))
+            (if (== taken 0) (return 0))
+            (if (== taken 1) (return (coco_retract_at st m pi first fspan)))
+            ;; anything retractable is dynamic, whether or not anybody said so
+            (set (-> p dynamic) 1)
+            (if tell (set (nth 0 (-> st write_err)) (cast char 0)))
+            (coco-retract-told (coco_ra_unkill p cend era))
+            (coco_tomb_try_sweep st m pi)
+            (return 1))))
+
+  ;;; '$retractall'((H :- _)), retractall/1's C half (3.78.11: the whole of
+  ;;; it, `coco_retractall_walk'), its errors named by its row as
+  ;;; retractall/1's: the clause check of mode 2, the knowledge base's
+  ;;; refusal and its failed read. Where it took nothing, a predicate with
+  ;;; no clauses is declared dynamic (`coco_retractall_none'). 1, or a
+  ;;; raise's answer.
+  (func coco_bi_retractall ((coco_engine * e) (size_t g)) (out int)
+        (let ((int bad . #'(coco_clause_check e (coco_arg (-> e m) g 0) 2)))
+          (if (!= bad 0) (return bad)))
+        (with-green-write e
+          (let ((int ok . #'(coco_retractall_walk e (coco_arg (-> e m) g 0))))
+            ;; -2: the knowledge base refused the write, and every clause is
+            ;; where it stood (3.64.7, `coco-retract-told'), as assertz/1's
+            ;; refusal raises -- in retractall/1's context, its row's
+            (if (== ok -2) (return (coco_db_refused e)))
+            (if (== ok -3) (return (coco_mem_error e)))
+            ;; -1: the predicate could not be read, and nothing was taken
+            (if (< ok 0) (return (coco_fetch_error e)))
+            (coco_store_maybe_compact (-> e st) (-> e m))
+            (if ok (return 1))))
+        (let ((int rc . #'(coco_retractall_none e g)))
+          (return (? (== rc 0) 1 rc))))
 
   ;;; A RAISE'S ANSWER RC as a construct answers it: 1 where a catch took
   ;;; the ball and the continuation is its recovery

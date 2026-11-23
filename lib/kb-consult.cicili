@@ -5239,8 +5239,9 @@
           (return n)))
 
   ;;; CLAUSE I OF PI TAKEN OUT, its cells SPAN long in the store: retract/1's
-  ;;; answer (3.28.0, `coco_db_walk', and '$retractall'/1's through
-  ;;; `coco_retract'). 1; or -2 where the knowledge base refused to write it
+  ;;; answer (3.28.0, `coco_db_walk'), and retractall/1's where it matched
+  ;;; one clause (3.78.11, `coco_retractall_walk', which kills two or more
+  ;;; in place itself). 1; or -2 where the knowledge base refused to write it
   ;;; (3.64.7, `coco-retract-told'): the clause where it stood, the reason
   ;;; on the store (`write_err'), for the caller to raise
   ;;; resource_error(knowledge_base) -- the backend's transaction went with
@@ -5355,76 +5356,5 @@
             (set hq 1)
             (set h (coco_deref m (coco_arg m h 1))))
           (return (? hq (coco_hook_head m hm h) h))))
-
-  (func coco_retract ((coco_store * st) (coco_machine * m) (size_t clause)) (out int)
-        (let ((size_t body . 0) (size_t head . #'(coco_retract_head m clause (aof body)))
-              (int has_body . #'(!= body 0)))
-          (if (== head (cast size_t -1)) (return 0))
-          (if (not (coco_is_callable m head)) (return 0))
-          ;; INTERNED, not merely found. `retract' is a builtin, so its argument
-          ;; is never solved as a goal and nothing has put the predicate in the
-          ;; store; with `coco_pred_find' a fresh interpreter's first `retract'
-          ;; failed against a knowledge base that plainly had the clause.
-          ;; Interning is what makes `coco_pred_ensure' below able to ask.
-          (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m head)
-                                               (coco_arity m head))))
-            (if (>= pi (-> st npreds)) (return 0))
-            ;; a predicate that could not be read is not written either
-            ;; (`coco_assert_from' says why): -1, and nothing is taken
-            (if (not (coco_pred_ensure st pi)) (return -1))
-            (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi)))
-                  ;; the head's first-argument key, the same cell the index keeps
-                  ;; per clause: two different non-zero keys cannot unify, so a
-                  ;; candidate with the wrong one is skipped BEFORE it is copied
-                  (u64 hkey . #'(coco_arg_key m head)))
-              (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
-                ;; WITHOUT THIS, RETRACT WAS QUADRATIC WITH A LARGE CONSTANT: every
-                ;; candidate was copied whole on to the heap and then unified, so
-                ;; 2 999 retracts by key over 3 000 clauses of 16 KB copied some
-                ;; thirty-six billion cells -- 153 s, measured -- for work the
-                ;; key decides in one comparison
-                (if (and (!= hkey 0) (!= (nth i (-> p keys)) 0)
-                         (!= hkey (nth i (-> p keys))))
-                    continue)
-                ;; a clause that died under an open call is retracted already
-                (if (coco_pred_dead p i) continue)
-                (let ((size_t mark . #'(-> m heap_len))
-                      (size_t tmark . #'(-> m trail_len))
-                      ;; SPAN is the clause's cells in the store, which the
-                      ;; copy's length is not (`coco_store_get_span')
-                      (size_t span . 0)
-                      (size_t cand . #'(coco_store_get_span m st (nth i (-> p clauses)) (aof span)))
-                      (size_t chead . 0) (size_t cbody . 0) (int ok . 0))
-                  ;; the candidate arrives as a fresh copy, so unifying against
-                  ;; it cannot bind anything in the store
-                  (set chead cand)
-                  (if (and (coco_is_callable m cand) (== (coco_arity m cand) 2))
-                      (if (== 0 (strcmp (coco_atom_name m (coco_name_of m cand)) ":-"))
-                          (block (set chead (coco_arg m cand 0))
-                                 (set cbody (coco_arg m cand 1)))))
-                  (set ok (coco_unify m head chead))
-                  ;; THE BODY ALWAYS CONSTRAINS -- SWI's rule, and the bug a
-                  ;; CivV capture paid to find: the shorthand `retract(F)' IS
-                  ;; `retract((F :- true))', and a stored FACT's body IS the
-                  ;; atom `true'. The old code skipped the body check entirely
-                  ;; for the shorthand -- so it pulled a same-headed RULE out
-                  ;; from over the facts -- and refused every fact in the
-                  ;; explicit form, so `retract((f(x) :- true))' failed
-                  ;; against a base that plainly held f(x). One `true' atom on
-                  ;; the heap (clause/2's own trick, builtins.cicili) makes
-                  ;; the two forms one rule: the asked body unifies against
-                  ;; the candidate's, a missing side standing in as `true'.
-                  ;; The atoms are re-made each round because a mismatch winds
-                  ;; the heap back to the mark below.
-                  (if ok
-                      (block
-                       (if (== cbody 0) (set cbody (coco_new_atom m "true")))
-                       (if (== has_body 0) (set body (coco_new_atom m "true")))
-                       (set ok (coco_unify m body cbody))))
-                  (if ok
-                      (return (coco_retract_at st m pi i span)))
-                  (coco_undo_to m tmark)
-                  (set (-> m heap_len) mark))))
-            (return 0))))
 
   ) ; impl-kb-consult

@@ -966,11 +966,14 @@ rr_commit(D, Shim) :-
 %% STAYS (3.64.7), as an assertz's refused write raises (3.62.6): through
 %% 3.64.6 the retract went on over the refusal, its clause gone from the
 %% program and still in the database, where a second process read it.
-%% Seven shapes stand in the stretch the shim refuses in, the first four a
+%% Eight shapes stand in the stretch the shim refuses in, the first four a
 %% predicate each: a retract with no call open (`coco_retract_at''s plain
 %% path, `R1'), one under an open call (its clause dead in place, `R2'),
 %% retractall/1 where a death waits (the sweep, told before it, `R3', and
-%% raised in retractall/1's context, `C'), retract/1's walk and its retry
+%% raised in retractall/1's context, `C'), retractall/1 of every clause of
+%% a fourth predicate (3.78.11, `coco_retractall_walk': each match dead in
+%% place and the database told once, every one given back where the write
+%% is refused, `R4'), retract/1's walk and its retry
 %% (`coco_db_walk', `coco_db_retry': `W1', `W2'), a single-sided rule
 %% asserted over the rules a fetch read back (`F': through 3.64.6 every rule
 %% read back put another last clause after it, and the rule stood behind
@@ -998,8 +1001,8 @@ rr_retract(D, Shim) :-
     atom_concat(Dir, '/rt.pl', Fx), rt_fixture(Fx),
     atom_concat(Dir, '/rrt.sh', Sweep), rrt_sweep(Sweep),
     forall(member(Goal-Filter-World-Title,
-                  [hmain-'REFUSE_SIZE=128'-'X=1'-'each request of 128 bytes the host''s retracts and asserts make refused in turn: done and said, or refused and said in its context, the program''s view a second process''s (R1, W1, F)',
-                   gmain-'REFUSE_MIN=4096'-'COCOLOG_GREEN_WORKERS=2'-'...a green task''s writes, each request of a page or more: the same, never a rule without its last clause (R1, R2, R3, C, W1, F, A1)',
+                  [hmain-'REFUSE_SIZE=128'-'X=1'-'each request of 128 bytes the host''s retracts and asserts make refused in turn: done and said, or refused and said in its context, the program''s view a second process''s (R1, R4, W1, F)',
+                   gmain-'REFUSE_MIN=4096'-'COCOLOG_GREEN_WORKERS=2'-'...a green task''s writes, each request of a page or more: the same, never a rule without its last clause (R1, R2, R3, R4, C, W1, F, A1)',
                    gfirst-'X=2'-'COCOLOG_GREEN_WORKERS=2'-'...and its first rules, by assertz and by asserta, each request of any size (A3)',
                    gretry-'X=3'-'COCOLOG_GREEN_WORKERS=2'-'...and its retract/1 that retries, each request of any size: an answer the store refused raises, never an answer (W2)']),
            ( sh_join(['sh ', Sweep, ' ', C, ' ', Shim, ' ', Fx, ' ', Dir, ' ', Goal, ' ', Filter, ' ', World], Cmd),
@@ -1029,17 +1032,18 @@ rt_fixture(Fx) :-
               'rt_fact(tomb, F) :- rt_has(gb(2), F).',
               'rt_fact(sweep, F) :- rt_has(gb(3), F).',
               'rt_fact(retry, F) :- rt_has(gc(5), F).',
+              'rt_fact(many, F) :- rt_has(gd(2), F).',
               'rt_fact(rule, F) :- rt_rule(gr(small), S), ( S == ok -> F = done ; F = not_done(S) ).',
               'rt_fact(first, F) :- rt_state(gn, S), ( S == ok -> F = done ; S == none -> F = not_done ; F = S ).',
               'rt_fact(firsta, F) :- rt_state(gm, S), ( S == ok -> F = done ; S == none -> F = not_done ; F = S ).',
               'said(Rs) :- forall(member(W-S, Rs), ( rt_fact(W, F), format("~w(~q, ~q)~n", [W, S, F]) )).',
               'rt_list(G, L) :- findall(X, ( catch(call(G, Y), _, fail), ( Y = big(_) -> X = big ; X = Y ) ), L).',
-              'left(W) :- rt_list(ga, A), rt_list(gb, B), rt_list(gc, C), rt_rule(gr(small), R), rt_state(gn, N), rt_state(gm, M), format("~w(~q, ~q, ~q, ~q, ~q, ~q)~n", [W, A, B, C, R, N, M]).',
-              'shapes([P, T, Sw, Re, Ru|Fs]) :- rt_do(retract(ga(1)), plain, P), rt_do(forall(gb(X), ( X == 2 -> retract(gb(2)) ; true )), tomb, T), rt_do(retractall(gb(3)), sweep, Sw), rt_do(( retract(gc(Y)), integer(Y), Y >= 5 ), retry, Re), rt_do(assertz((gr(small) => true)), rule, Ru), firsts(Fs).',
+              'left(W) :- rt_list(ga, A), rt_list(gb, B), rt_list(gc, C), rt_list(gd, Dd), rt_rule(gr(small), R), rt_state(gn, N), rt_state(gm, M), format("~w(~q, ~q, ~q, ~q, ~q, ~q, ~q)~n", [W, A, B, C, Dd, R, N, M]).',
+              'shapes([P, T, Sw, Ma, Re, Ru|Fs]) :- rt_do(retract(ga(1)), plain, P), rt_do(forall(gb(X), ( X == 2 -> retract(gb(2)) ; true )), tomb, T), rt_do(retractall(gb(3)), sweep, Sw), rt_do(retractall(gd(_)), many, Ma), rt_do(( retract(gc(Y)), integer(Y), Y >= 5 ), retry, Re), rt_do(assertz((gr(small) => true)), rule, Ru), firsts(Fs).',
               'firsts([Fi, Fa]) :- rt_do(assertz((gn(big(_)) => true)), first, Fi), rt_do(asserta((gm(big(_)) => true)), firsta, Fa).',
               'retries([Re]) :- rt_do(( retract(gc(Y)), integer(Y), Y >= 5 ), retry, Re).',
-              'seed :- format(atom(A), ''~*c'', [60000, 120]), forall(member(G-L, [ga-[1], gb-[1, 2, 3], gc-[4, 5, 6]]), forall(member(X, [big(A)|L]), ( T =.. [G, X], assertz(T) ))), assertz((gr(big(A)) => true)).',
-              'warm :- once(ga(_)), once(gb(_)), once(gc(_)).',
+              'seed :- format(atom(A), ''~*c'', [60000, 120]), forall(member(G-L, [ga-[1], gb-[1, 2, 3], gc-[4, 5, 6], gd-[1, 2, 3]]), forall(member(X, [big(A)|L]), ( T =.. [G, X], assertz(T) ))), assertz((gr(big(A)) => true)).',
+              'warm :- once(ga(_)), once(gb(_)), once(gc(_)), once(gd(_)).',
               'w(G) :- warm, rf_mark(''REFUSE_ON''), call(G, Rs), rf_off, said(Rs), left(left).',
               'hmain :- warm, rf_mark(''REFUSE_ON''), shapes(Rs), rf_off, said(Rs), left(host).',
               'gmain :- catch(async_run(( go(w(shapes), T), await(T) )), _, true), left(host).',
@@ -1067,11 +1071,11 @@ rrt_sweep(Path) :-
               '    s=$( timeout 30 $c --embed $kb query "use_module(\'$f\'), left(store)" 2>&1 | sed -n \'s/^store//p\' )',
               '    p=$( sed -n \'s/^host//p\' $kb.out ); [ -z "$p" ] && p=$( sed -n \'s/^left//p\' $kb.out )',
               '    mem=""; grep -q -e \'out of memory\' -e \'Not enough resources: memory\' -e \'resource_error(memory)\' $kb.out && mem=1',
-              '    grep -E \'^(plain|tomb|sweep|retry|rule|first|firsta)\\(\' $kb.out > $kb.said',
+              '    grep -E \'^(plain|tomb|sweep|many|retry|rule|first|firsta)\\(\' $kb.out > $kb.said',
               '    while read -r l; do',
               '      case "$l" in',
               '        *"(ok, done)") ;;',
-              '        "plain(resource_error(knowledge_base)-(system:retract/1), not_done)"|"tomb(resource_error(knowledge_base)-(system:retract/1), not_done)"|"retry(resource_error(knowledge_base)-(system:retract/1), not_done)"|"sweep(resource_error(knowledge_base)-(system:retractall/1), not_done)") refused=1 ;;',
+              '        "plain(resource_error(knowledge_base)-(system:retract/1), not_done)"|"tomb(resource_error(knowledge_base)-(system:retract/1), not_done)"|"retry(resource_error(knowledge_base)-(system:retract/1), not_done)"|"sweep(resource_error(knowledge_base)-(system:retractall/1), not_done)"|"many(resource_error(knowledge_base)-(system:retractall/1), not_done)") refused=1 ;;',
               '        "rule(resource_error(knowledge_base)-(system:assertz/1), not_done(matching_rule))"|"first(resource_error(knowledge_base)-(system:assertz/1), not_done)"|"firsta(resource_error(knowledge_base)-(system:asserta/1), not_done)") refused=1 ;;',
               '        "rule(resource_error(knowledge_base)-gr/1, not_done(matching_rule))"|"first(resource_error(knowledge_base)-gn/1, not_done)"|"firsta(resource_error(knowledge_base)-gm/1, not_done)") ;;',
               '        *"(resource_error(memory)"*) case "$l" in *open*) bad="$bad #$run.$i:$l";; esac ;;',

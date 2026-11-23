@@ -2334,11 +2334,6 @@
   (decl) (func coco_pred_forget_where ((coco_store * st) (coco_machine * m) (size_t pi)
                                        (u64 origin) (int mute)) (out int))
 
-  ;;; Removes the first clause whose head and body unify with the given term:
-  ;;; 1 when one went, 0 when none matched, -1 when the predicate could not be
-  ;;; read from the backend (the reason in `fetch_err', 2.11.1).
-  ;;; '$retractall'/1's; retract/1 walks the clauses itself (3.28.0).
-  (decl) (func coco_retract ((coco_store * st) (coco_machine * m) (size_t clause)) (out int))
   ;;; Clause I of PI taken out, its cells SPAN long: dead in place under an
   ;;; open call (the logical update view), else out of the predicate, and the
   ;;; backend told. 1.

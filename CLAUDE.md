@@ -2969,8 +2969,8 @@ a session must keep:
   last section the freeze and a second process.
 * **retract/1 and clause/2 are constructs that walk the clauses that stood
   when they began** (3.28.0, swipl's pl_retract and clause/2;
-  `coco_db_walk` and `coco_db_retry` in lib/solve-db.cicili; `'$retractall'/1`
-  keeps the C half, `coco_bi_retract`): keyed as a call of the predicate is
+  `coco_db_walk` and `coco_db_retry` in lib/solve-db.cicili; retractall/1
+  walks in C too, the next bullet): keyed as a call of the predicate is
   (`coco_trace_kpos`, the JIT index's argument), each candidate copied from
   the store and its head and body unified. A second candidate pushes a DB
   frame (`COCO_CH_DB`) whose `pred`, `clause_ix`, `cend`, `fera` and
@@ -2999,6 +2999,25 @@ a session must keep:
   library/flow reads both as builtins (`flow_kind`'s construct row) and
   offers them as near names (`flow_lib_pred`). test/files/retract_view.pl
   holds 110 lines to swipl, test/engine.pl's update-view section the freeze.
+  **retractall/1 is one walk in C** (3.78.11, swipl's pl_retractall;
+  `coco_retractall_walk` and `coco_bi_retractall` in lib/solve-db.cicili,
+  the Prolog half one clause over `'$retractall'((H :- _))`): the
+  candidates a call of H is offered (`coco_trace_kpos`, `coco_db_next`
+  with FERA 0, so the dead of before are none), each copied, its head
+  unified and undone, so H binds nothing. One match is taken out as
+  retract/1 takes it (`coco_retract_at`); two or more die in place as they
+  match, all of ONE death -- `coco_tomb_open`'s count where a call is open
+  on the predicate, which goes on seeing them, else the next -- then the
+  database is told once, a refusal giving every one back (`coco_ra_unkill`),
+  and the dead are swept where no call is open. Through 3.78.10
+  '$retractall'/1 took the first match and retractall/1 called it again:
+  each call walked from the first clause, and each match taken out moved
+  every clause after it -- 20 000 matches after 100 000 clauses took 70.8 s,
+  before them 4.7 s; 9 ms and 11 ms now. **A walk that takes several clauses
+  kills them in place and sweeps once**: one taken out at a time is a shift
+  of every clause after it, quadratic in the predicate. test/files/
+  retractall.pl holds 48 lines to swipl, test/engine.pl's
+  `retractall_walks` the time, test/store-lock.pl's `R4` a refused write.
   **clause/2 of a predicate written in C raises**
   error(permission_error(access, private_procedure, N/A),
   context(system:clause/2, _)) (3.38.0, swipl's pl-proc.c;

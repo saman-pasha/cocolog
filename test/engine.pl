@@ -36,7 +36,7 @@ main :-
     linear_backtracking(D), deep_recursion(D), atom_table(D), sorting(D), any_argument(D), still_the_answers,
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
-    update_view(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), repeat_runs(D), jit_runs(D),
+    update_view(D), retractall_walks(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), repeat_runs(D), jit_runs(D),
     qk_runs(D),
     gvars_runs(D), findnsols_runs(D), il_runs(D), dl_runs(D),
     btree_places, op_names_frozen(D), own_properties, own_current, own_too_long,
@@ -1977,6 +1977,39 @@ i6_builtins :-
 
 sg_spin(0) :- !.
 sg_spin(N) :- M is N - 1, sg_spin(M).
+
+%% ---- retractall/1 walks the predicate once (3.78.11) ----------------------
+%%
+%% RETRACTALL/1 TAKES ITS MATCHES IN ONE WALK, wherever they stand (the
+%% reasoning session's finding, its own sizes): 20 000 clauses after 100 000
+%% others took 70.8 s, the same before them 4.7 s, and under a call open on
+%% the predicate the walk was the first again, from the predicate's first
+%% clause at every match. Each retractall is timed by its own process's CPU
+%% against two seconds, some fifty times what it takes now, in a child
+%% under a minute's ceiling: through 3.78.10 `late' and `open' outlived the
+%% ceiling, and `early' was slow. What test/files/retractall.pl holds to
+%% swipl is what the walk takes; this is how long it takes.
+retractall_walks(D) :-
+    section('retractall/1 walks the predicate once, wherever its matches stand'),
+    atom_concat(D, '/ra.pl', F),
+    fixture(F, [
+        ':- dynamic p/2.',
+        'fill(T, A, B) :- forall(between(A, B, I), assertz(p(I, T))).',
+        'cpu(G, S) :- statistics(cputime, T0), call(G), statistics(cputime, T1), S is T1 - T0.',
+        'said(W, S) :- aggregate_all(count, p(_, _), N), ( S < 2.0 -> V = fast ; V = slow(S) ), write(W-V-N), nl.',
+        'late :- retractall(p(_, _)), fill(a, 1, 100000), fill(b, 100001, 120000),',
+        '        cpu(retractall(p(_, b)), S), said(late, S).',
+        'early :- retractall(p(_, _)), fill(b, 1, 20000), fill(a, 20001, 120000),',
+        '         cpu(retractall(p(_, b)), S), said(early, S).',
+        'open :- retractall(p(_, _)), fill(a, 1, 100000), fill(b, 100001, 120000),',
+        '        cpu(( p(X, _), X == 1 -> retractall(p(_, b)) ; true ), S), said(open, S).',
+        'all :- retractall(p(_, _)), fill(a, 1, 120000), cpu(retractall(p(_, _)), S), said(all, S).',
+        'main :- late, early, open, all, write(done), nl.']),
+    cocolog(C),
+    sh_join([C, ' run ', F, ' main 2>&1'], Cmd),
+    proc_run(Cmd, 60000, Out, _), atom_codes(O, Out),
+    check('20 000 matches after 100 000 clauses, before them, under an open call, and every one of 120 000: each fast',
+          O, 'late-fast-100000\nearly-fast-100000\nopen-fast-100000\nall-fast-0\ndone\n').
 
 %% ---- the logical update view across a freeze and across processes --------
 %%

@@ -24666,3 +24666,120 @@ async, gc and backtrace, and the syntax, term, solve, module and state
 binaries: green, no SKIP. The helper's body went under an `__APPLE__` guard after the
 round, as its two callers' are: the binary built with it is the one the
 round ran, byte for byte (md5 85066d9ada537c55ea87b76055d6a892).
+
+## retractall/1 walks the predicate once (3.78.11)
+
+A patch (the reasoning session's finding): retractall/1 was quadratic in
+its predicate's size wherever its matches stood. With the first argument
+unbound, 20 000 matching clauses after 100 000 others took 70.8 s, the
+same 20 000 before them 4.7 s, and `forall(retract(P), true)` took the
+late ones in 0.01 s.
+
+THE CAUSE. retractall/1 was two clauses over `'$retractall'/1`. That took
+the FIRST clause whose head unified with a copy of H and answered, and
+retractall/1 called itself again.
+
+- Each call walked the predicate from its first clause (`coco_retract`),
+  so matches standing late cost the predicate's size each: 20 000 walks
+  over 100 000 heads.
+- With no call open on the predicate, each clause it took went out of the
+  predicate's arrays (`coco_retract_at`'s drop), moving every clause after
+  it: matches standing early cost the rest of the predicate each.
+- With a call open, each match died in place, and the walk from the first
+  clause stayed.
+
+THE FIX (`coco_retractall_walk` in lib/solve-db.cicili). retractall/1 is
+one clause over one C walk, as swipl's pl_retractall is one loop over the
+clauses.
+
+- The candidates are the ones a call of H is offered (`coco_trace_kpos`
+  picks the argument, as retract/1's walk does). Each is read on from the
+  one before (`coco_db_next`, FERA 0: the dead of before are none), copied,
+  and its head unified with H, the bindings undone, so H binds nothing.
+- One match is taken out as retract/1 takes it (`coco_retract_at`).
+- Two or more die in place as they match, all of one death: the count
+  `coco_tomb_open` gives where a call is open on the predicate (the calls
+  open go on seeing them, ISO's logical update view), else the next. Then
+  the predicate is dynamic, the database is told once, and the dead are
+  swept where no call is open on them (`coco_tomb_try_sweep`).
+- A write the knowledge base refuses gives every one back
+  (`coco_ra_unkill`) and raises resource_error(knowledge_base) in
+  retractall/1's context, as 3.64.7's refusal does. Through 3.78.10 each
+  match was a write of its own, and a refusal left the matches before it
+  taken.
+- A copy refused outright, which finishes the machine, is no match: the
+  dead are given back and the walk answers resource_error(memory). No
+  check holds this rule: the fault it guards would show only in a green
+  task that commits the write before its machine stops.
+- `coco_retract`, the first-match walk, is gone.
+
+HELD.
+
+- test/files/retractall.pl holds 48 lines to swipl: matches late, early
+  and between others; keyed on the first argument, another, a compound and
+  none; variable heads, shared variables, rules with any body, H left
+  unbound; calls open on the predicate (one match, two, every one, a death
+  waiting, a retract/1 walk open, two nested calls); no match, the
+  declaration of a predicate with no clauses, determinism, the errors, and
+  the same clause twice. 3.78.10 agrees with it too: the change is the
+  time.
+- test/engine.pl's `retractall_walks` runs the reasoning session's sizes
+  and two more shapes, each retractall timed by its own process's CPU
+  against two seconds, in a child under a minute's ceiling: late
+  9 ms, early 5 ms, under an open call 5 ms, every one of 120 000 11 ms.
+  3.78.10 is red: its child outlived the minute.
+- test/store-lock.pl's refusal sweep has a fourth predicate retracted
+  whole (`R4`). The green task's sweep refuses its write six times, and the
+  program's view was a second process's each time.
+
+ARMS, one build of the final code each with one rule taken out:
+
+- the walk going on from the first clause after each match: red, every
+  one of 120 000 took 11.7 s (the index kept the other three shapes fast,
+  which is why the case has the fourth);
+- each match taken out as it is found, a shift each: red, the child
+  outlived its minute;
+- no death count given to the open calls: red, three lines of the case
+  (the open calls stopped seeing the clauses taken under them);
+- the head keeping a match's bindings: red, 33 lines of the case;
+- a refused write giving nothing back: red, the green sweep (the program
+  lost the clauses the database kept, and the shape said `done').
+
+Two rules are measured, not checked:
+
+- one match taken out as retract/1 takes it, no array of the dead made:
+  a counter loop of 20 000 `retractall(c(_)), assertz(c(N))' turns counts
+  131 949 565 instructions, and 152 020 966 with the one match dead in
+  place and swept as two are, some 1 000 more a call;
+- the candidates a call is offered: the late shape's retractall alone
+  counts 44.9 million instructions, and 90.1 million keyed on the first
+  argument alone.
+
+COST. The untraced engine runs 3.78.10's instructions (tools/flow/zero.sh
+at paths of one length, work less padding): nrev 65 889 897 both, queens
+39 952 767 both, lookup 48 073 140 and 48 075 409, the 2 269 more what
+the two directories' names move in a start. A start (`cocolog query
+true', each binary at the checkout's path) counts 36 336 367 and
+36 320 410: the Prolog half is one short clause where it was two.
+
+Found on the way, each as old as 3.78.10 at least:
+
+- retractall/1 of a predicate of single-sided rules takes the last clause
+  a read puts after them (`'$ssu_none'/2`), whose head unifies with any
+  call. After `retractall(p(1))` over `p(1) => true. p(2) => true. p(X),
+  X > 5 => true.`, `p(3)` fails where swipl's raises
+  existence_error(matching_rule, p(3)), and after `retractall(p(_))`
+  predicate_property/2 has no `ssu` where swipl's keeps it. The next
+  patch.
+- tutorials/library/18-thread is red run with `-s`, and green run as its
+  header and the tutorials case run it, `cocolog run FILE main`. Under
+  `-s` the file is a module, which a thread reads as it reads every
+  registered module, `:- dynamic only_here/1` with it: the thread's
+  `only_here(_)` fails where the lesson expects existence_error. The
+  parent's clause is unseen either way, and the lesson is to say so.
+
+THE RUN: the lint case first (57 s), then files, engine, errors,
+store-lock, async, thread, reconsult, gc, directives, repl, process,
+astar, cowork, trace, window, flowdebug, journal, script, backtrace,
+static, flowchart and library, and the syntax, term, solve, module and
+state binaries: green, no SKIP (md5 104f491125a6db5cb992ad9869af71e7).

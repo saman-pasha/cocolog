@@ -190,9 +190,10 @@
     ("assert"       1 coco_bi_assertz)
     ("asserta"      1 coco_bi_asserta)
     ("assertz"      1 coco_bi_assertz)
-    ;; retractall/1's own retract, its errors retractall/1's (3.0.0); retract/1
-    ;; is a construct since 3.28.0 (`coco_db_walk')
-    ("$retractall"  1 coco_bi_retract)
+    ;; retractall/1's walk (3.78.11, `coco_retractall_walk'), its errors
+    ;; retractall/1's (3.0.0); retract/1 is a construct since 3.28.0
+    ;; (`coco_db_walk')
+    ("$retractall"  1 coco_bi_retractall)
 
     ("dynamic"      1 coco_bi_dynamic)
     ;; goals as well as directives (3.1.0), each part declared in turn
