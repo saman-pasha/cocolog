@@ -22,7 +22,8 @@
 %%   * EVERY REGISTERED MODULE -- linked-in ones, and anything
 %%     `use_module' loaded BEFORE it started. The registry is
 %%     process-wide and a fresh store consults all of it on the first
-%%     goal.
+%%     goal. `cocolog -s FILE' loads FILE so, and a thread then reads
+%%     FILE's own declarations too (the last section).
 %%   * NOTHING THE PARENT ASSERTED. A thread's store starts empty.
 %%
 %% REGISTER YOUR MODULES BEFORE YOU SPAWN. `use_module' writes that
@@ -176,12 +177,17 @@ main :-
     format("~n-- and a thread's store is ITS OWN~n"),
     assertz(only_here(1)),
     thread_create(only_here(_), IdX), thread_join(IdX, SX),
-    ( SX = error(_) -> Seen = unseen ; Seen = SX ),
+    ( SX == true -> Seen = seen ; Seen = unseen ),
     must('a clause the PARENT asserted', Seen, unseen),
     retractall(only_here(_)),
     format("   Share-nothing, holding. Clauses are shared through the~n"),
     format("   DATABASE in this project, not through memory -- see~n"),
-    format("   tutorials/basics/11.~n~n"),
+    format("   tutorials/basics/11.~n"),
+    format("   HOW THE THREAD SAYS SO depends on how this file was loaded.~n"),
+    format("   Under `run' it was consulted, and the thread knows nothing~n"),
+    format("   of only_here/1: an existence error. Under `-s' the file is a~n"),
+    format("   module, which a thread reads as it reads every registered~n"),
+    format("   one, `:- dynamic only_here/1' with it: the call fails.~n~n"),
     format("done~n").
 
 :- dynamic only_here/1.
