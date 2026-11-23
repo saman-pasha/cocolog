@@ -24366,3 +24366,145 @@ depth recovery's fix is for, the rest green -- and after the fix engine
 alone, trace, window, flowdebug, files, async, gc, thread and the solve,
 state and module binaries, all green, with no SKIP; the card's 33 cites
 anchored (15 by a moved anchor).
+
+## call/N is a port where swipl calls it as a predicate, and call/N of `@`, `|` and `:` builds what swipl's builds (3.78.8)
+
+A patch, the tracer's and call/N's (backlog #325: what 3.78.6 and 3.78.7
+left in COMPAT.md's trace row). Through 3.78.7 call/N was no port
+anywhere; call/N of `@` ran the construct in place, a structure to
+call_with_depth_limit/3, its errors `'<meta-call>'/1`'s; call/N of `|` ran
+the disjunction and of `:` the qualified goal; a goal C runs that was
+call/N of a construct's name was the construct's port, the call/N's none;
+and call/1 called as a predicate (`once(call((a, b)))`, `G = call(X), G`)
+was no frame of its own, its structure a level higher than swipl's.
+
+SWIPL'S MODEL. call/1 to call/8 are predicates of boot/init.pl
+(`call(Goal) :- Goal.` and its kin). Its compiler calls them in place where
+they are written -- in a clause, in a structure it compiles (I_USERCALL0,
+I_USERCALLN) -- and a meta-called goal resolves to them as to any other
+predicate: a frame, a port that hides what the system does in it and shows
+a program's predicate, its goal a level below. So `G = call(p, X), G`
+prints `^  Call: call(p, _)`, its Exit `call(user:p, 1)`, and so do a goal
+C runs (callProlog(): with_output_to/2's, a setup's, a cleanup's) and a
+conjunction's later part a variable of a meta-called structure made
+call/N as it ran. I_USERCALLN resolves the goal call/N builds by its
+functor and compiles nothing: call/N of `@` calls boot/init.pl's @/2,
+`@(Goal, Module) :- @(Goal, Module).`, a frame whose body, Goal a variable,
+is a meta-call -- its goal two levels below @/2, a `'<meta-call>'/1`
+between that hides nothing, so a builtin in the goal is a port -- and its
+errors `context(system:(@)/2, _)`; call/N of `|` and of `:` finds no
+predicate, '|'/2 and (:)/2 having none: the unknown procedure, named by
+the frame call/N runs in, its Call printed first, and past a depth limit
+that frame fails at its call port before the error.
+
+THE FIX (lib/solve-loop.cicili, lib/solve-control.cicili, lib/solve.cicili,
+lib/builtins.cicili). Under the printer alone the call/1 and call/N arms
+ask `coco_trace_calln` (weak, cold) for the continuation G's goal goes
+before: where `coco_meta_bar` would run the goal in call/N's own frame --
+not in place in a clause or a structure (`coco_call_inline`), not a part
+of a search's root (`coco_root_part`, unless a variable of it made the
+part call/N as it ran: `coco_goal_was_var`) -- it is 3.78.7's
+`coco_trace_cpred` port and frame, which `coco_trace_cpred_p` makes hide
+what it calls and `coco_trace_cpred_shown` shows with the closure alone
+said of user (`call(user:p, 1)`, where catch/3's frame says its goal and
+recovery). The call/1 `coco_trace_forall` puts round forall/2's structures
+is no frame: swipl's forall/2 runs them as variable goals, a
+`'<meta-call>'/1` and no call/1 -- a call/1 of a control structure the
+search's own goal, `(C, \+ A)`, holds nowhere. call/N of `@` is
+`'$c_at'/2` (`coco_calln_ctl`, and `coco_c_goal`'s kind 0 for a goal C
+runs), a clause of the builtins' Prolog half in boot/init.pl's text,
+`'$c_at'(G, M) :- @(G, M).`, which the store keeps as swipl's compiler
+does, `call(@(G, M))`; `@/2` is among `coco_trace_ctl`'s structures, so the
+printer gives that call/1 its meta-call frame; `*trace-ctl-preds*` shows
+the helper as `@`, `*frame-contexts*` names its errors system:(@)/2, and
+`:- meta_predicate '$c_at'(0, +)` says its goal of user. call/N of `|` and
+`:` asks `coco_calln_nopred` before the construct's helper is chosen, and
+`coco_calln_unknown` raises the unknown procedure in the word the goal
+would have run under, its Call printed first and, past a depth limit, its
+frame failed at the limit first (`coco_depth_unknown`). Under
+call_with_depth_limit/3 call/N of `@` and `|` is no structure since
+(`coco_depth_structure_n` takes the two for structures with no arguments
+added alone), and a structure's part a variable of it made call/N as it
+ran is call/N's own frame (`coco_goal_was_var` in the depth step's call/N
+branch), as swipl counts them.
+
+THE CUTS BEFORE IT. The first build's call/N of `@` stood a level too deep
+under a depth limit (5 where swipl's is 4): `coco_depth_structure_n` still
+took `@` with arguments added for a structure, and a second helper,
+`'$c_at1'/2`, which the first `'$c_at'/2` called, was a frame of its own.
+Its `|` raised past a depth limit where swipl's frame fails first. Its
+call/N of `@` hid the builtins of its goal (cn7 to cn9), with no meta-call
+frame between: `@` was no structure to `coco_trace_ctl`. And it gave
+forall/2's call/1 a port: a structure in forall/2's condition stood a level
+too deep (trace-meta's mt30 to mt34) until the exemption above.
+
+ONE CLAUSE, TWO TEXTS. swipl's text, `'$c_at'(G, M) :- @(G, M).`, and the
+one written, `'$c_at'(G, M) :- call(@(G, M)).`, are the same stored clause:
+both systems keep `@(Var, M)` in a body as `call(@(Var, M))`, and clause/2
+answers it for either. The arm that put swipl's text in was green on every
+check, and a build of it was a start 15 198 instructions dearer (37 151 808
+against 37 136 610), the store's rewrite of the variable goal: the text
+written is the cheaper one, and the arm no rule.
+
+HELD. test/trace.pl, 531 checks, green: the new test/trace-calln.pl holds
+52 queries to swipl 9.0.4 line for line with swipl's Exception port not
+shown -- call/N of `@` (9), of `|` (3), a goal C runs (8), call/1 and
+call/N called as predicates (25: a variable goal, once/1's, catch/3's,
+ignore/1's, not/1's, call/1's and forall/2's goals, a conjunction's later
+part a variable made call/N, call/N of call/N, of `@` and of `|`, a
+qualified closure), what the frame hides (4) and a goal C runs that is
+call/N of a construct (3) -- and 11 of their ports at one depth with the
+qualifiers kept; four own lines hold cocolog's own where findall/3's depth
+keeps the trace from swipl's line for line (call/1 of findall/3's goal a
+frame, and call/1 written in a part of findall/3's and of aggregate_all/3's
+structure in place) and where it is not swipl's (a call/N a construct's
+handed-over part a variable bound, in place). 3.78.7 differs from swipl
+on 46 of the 52. test/files/call_preds.pl holds 59 lines of errors,
+answers and depths to swipl; 3.78.7 differs on 39.
+test/files/control_preds.pl, depth_limit.pl, meta_call_root.pl,
+c_call_goals.pl, det_at.pl, meta_args.pl and catch.pl are swipl's still.
+
+ARMS, one build of the final code each with one rule taken out, each run
+on test/trace.pl and on test/files/call_preds.pl, depth_limit.pl and
+control_preds.pl against swipl, every one red: call/N of `|` and `:`
+taken for the construct (`coco_calln_nopred`: 4 checks and 14 lines of
+call_preds.pl); its frame not failed at the limit first
+(`coco_depth_unknown`: 3 lines); `@` no helper's name to `coco_c_goal`
+(15 checks, 21 lines) or to `coco_calln_ctl` (13, 19); `@/2` no structure
+to `coco_trace_ctl` (12); no `*frame-contexts*` row (14 lines) and no
+`*trace-ctl-preds*` row (12 checks); no meta_predicate spec (4 checks, 2
+lines); `@` and `|` structures to `coco_depth_structure_n` whatever their
+arguments (9 lines); call/N's and call/1's arms not asking the printer (27
+and 22 checks); `coco_trace_cpred_p` not taking call/N (25); its frame's
+goal said whole of user (2: the ports at one depth); the call/1 of
+forall/2's structures a port (5: mt30 to mt34); call/N written in place a
+port (183); a part a variable made call/N no frame to the depth step (5
+lines). And `coco_root_part`'s test taken out was green everywhere at
+first: no check had call/N written in a part of a search's root structure,
+which it puts in place, as swipl's compile does. The two own lines above
+are that check, red on that build.
+
+COST, against 3.78.7's code. The untraced engine (tools/flow/zero.sh at
+paths of one length, work less padding): nrev 65 890 753 and 65 889 611,
+queens 39 953 125 and 39 952 749, lookup 48 059 773 and 48 073 553 --
+lookup's 13 780 all memcpy (16 429 more; `coco_clause_code` and
+`coco_code_put` 4 226 fewer), a realloc of the store that moved where it
+grew in place, the start having read a clause more. A turn of a thousand
+(callgrind, instructions a turn): `call(mp)` 2 718 and 2 720, `call(mq, x)`
+2 563 and 2 566, `G = call(mp), G` 3 849 and 3 856 (two call/1s), a
+conjunction's call/1 4 568 in both, `@(mp, user)` written 2 611 and 2 606,
+`once(call(mp))` 2 711 and 2 713, maplist/2 over two 6 212 and 6 218: the
+printer's test in each arm, two to three instructions a call/N; and
+`call(@, mp, user)` 3 724 and 6 570, what a predicate's frame and a
+meta-call cost. A start (`cocolog query true`, each binary swapped in at
+the checkout's path) counts 22 544 more, 37 114 066 and 37 136 610, all of
+it the reader's and the store's work on the new clause and its spec.
+
+THE RUN, on the final binary: the lint case first, then backtrace,
+engine, errors, window, journal, flowdebug, files, script, async, gc,
+directives, cyclic, library, thread, argv, flowchart and trace, the trace
+case again with the two own lines, and the solve, state and module
+binaries, all green, with no SKIP; the card's 33 cites anchored (15 by a
+moved anchor); library(flow/chart)'s tables made again for `'$c_at'/2`. A
+first round on the build of swipl's text was stopped at errors, when its
+start said that text was the dearer.

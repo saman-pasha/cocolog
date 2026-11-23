@@ -3594,7 +3594,14 @@ a session must keep:
   clauses are swipl's own file: 3.74.0's row for it raised a refused spec
   at the call's own level, where swipl's raisers are frames below it), so
   **a new C row of what swipl writes as clauses gets a line in
-  `coco_depth_row` or declines**, or its depth is 1. A nested engine (findall/3, forall/2, with_output_to/2) is armed by its
+  `coco_depth_row` or declines**, or its depth is 1. call/N is swipl's
+  there since 3.78.8: of `@` and `|` it makes no structure
+  (`coco_depth_structure_n`, extra 0 alone -- `@` with arguments added is
+  `'$c_at'/2`, a frame, and `|` the unknown procedure, whose frame
+  `coco_depth_unknown` fails at the limit before the error), and a
+  structure's part a variable of it made call/N as it ran is call/N's own
+  frame (`coco_goal_was_var`, as `coco_call_inline` asks it for the
+  printer). A nested engine (findall/3, forall/2, with_output_to/2) is armed by its
   narrow, its goal's owner the level its starter's step left (`dsub`,
   `dsk`, `droot`), and its first step asked before its loop
   (`coco_depth_first`); setup_call_cleanup/3's machinery is no frame (every
@@ -3884,6 +3891,31 @@ a session must keep:
   catch/3 gets bit 8**, or the goals below it stand a level deep. Untraced,
   once/1, ignore/1 and not/1 run 3.78.6's instructions, catch/3 six more
   (its one test of the printer) and a caught throw six.
+  **call/N is a port where it is a frame of its own** (3.78.8,
+  test/trace-calln.pl, test/files/call_preds.pl), as swipl's call/1 to
+  call/8 are boot/init.pl's predicates that a meta-called goal resolves
+  to: `coco_trace_calln`, asked by the call/1 and call/N arms under the
+  printer alone, gives call/N `coco_trace_cpred`'s port and frame wherever
+  `coco_meta_bar` would run its goal in call/N's own frame (its inline and
+  root tests asked first: in place in a clause, in a structure, as a part
+  of a search's root), a meta-called goal's, a variable goal's, a goal C
+  runs, a conjunction's later part a variable made call/N
+  (`coco_goal_was_var`); `coco_trace_cpred_p` makes the frame hide what it
+  calls and `coco_trace_cpred_shown` says the closure alone of user
+  (`call(user:p, 1)`). The call/1 `coco_trace_forall` puts round forall/2's
+  structures is no frame (swipl's variable goal there): a call/1 of a
+  structure the search's goal holds nowhere. **call/N of `@` is
+  `'$c_at'/2`** (`coco_calln_ctl`, and `coco_c_goal` kind 0 for a goal C
+  runs), `call(@(G, M))` meta-called, which `@/2` among `coco_trace_ctl`'s
+  structures gives the printer's `'<meta-call>'/1`: a port shown as `@`, its
+  goal two below, a builtin in it a port, its errors system:(@)/2's by its
+  `*frame-contexts*` row. **call/N of `|` and `:` raises the unknown
+  procedure** (`coco_calln_nopred`, `coco_calln_unknown`: in the word the
+  goal would run under, its Call printed first, and past a depth limit its
+  frame failed at the limit before the error, `coco_depth_unknown`). Two
+  tests of the printer cost call/N two to three instructions a call, and
+  call/N of `@` costs what its predicate does (3 727 instructions a turn of
+  a loop over it to 6 573).
   **A new system library says
   `:- set_prolog_flag(generate_debug_info, false).` at its head**, as the
   compiled-in halves, library/print_message.pl and library/async.pl do;
@@ -3893,10 +3925,11 @@ a session must keep:
   (findnsols/4's two whole since 3.78.3), 23 of test/trace-cleanup.pl, 10
   of test/trace-dollar.pl, 43 of test/trace-meta.pl, 49 of
   test/trace-shallow.pl, 52 of test/trace-ctlpred.pl (and 13 of their
-  ports at one depth, the qualifiers kept: `ports_at/4`) and 82 of
+  ports at one depth, the qualifiers kept: `ports_at/4`), 82 of
   test/trace-ctlframe.pl (and 14 at one depth; with swipl's Exception port
-  not shown, `traced_nx/4`), a second file
-  after one that ends under false, and 40 lines swipl has none of to
+  not shown, `traced_nx/4`) and 52 of test/trace-calln.pl (and 11 at one
+  depth), a second file
+  after one that ends under false, and 44 lines swipl has none of to
   cocolog's own; COMPAT.md has
   what is not swipl's. **The
   printer writes a goal as print/1 writes it** (3.40.0, `coco_write_print`

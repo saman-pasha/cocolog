@@ -165,6 +165,23 @@ deliberately, because SWI has them:
   deeper still. Through 3.78.5 call/N ran the structure in place, a setup's
   or a cleanup's structure was a frame of the machinery's (`'$c_and'/2`),
   no port, and with_output_to/2's goal stood one level below it.
+* **call/N is a port where SWI calls it as a predicate** (3.78.8). SWI's
+  call/1 to call/8 are predicates of boot/init.pl (`call(Goal) :- Goal.`),
+  which its compiler calls in place where they are written -- in a clause,
+  in a structure it compiles -- and which a meta-called goal resolves to as
+  to any predicate: a frame, a port that hides what the system does in it
+  and shows a program's predicate, its goal a level below. The tracer does
+  the same: `G = call(p, X), G`, `once(call((a, b)))`, a goal C runs
+  (`with_output_to(S, call(p, X))`), and a conjunction's later part that a
+  variable of a meta-called structure made call/N as it ran
+  (`call((G = call(a), G))`) each print `^  Call: call(p, _)`, its Exit
+  saying the closure of user (`call(user:p, 1)`). call/N of `@` is SWI's
+  @/2 there, a port whose goal stands two levels below it, a
+  `'<meta-call>'/1` between that hides nothing (so a builtin in its goal is
+  a port), and a call/1 of `@(G, M)` has that meta-call frame too; call/N
+  of `|` names no predicate, the unknown procedure, its Call printed
+  (`Call: a|b`). Through 3.78.7 call/N was no port anywhere, call/N of `@`
+  ran the construct in place, and call/N of `|` ran `;`.
 
 ## A library's calls
 
@@ -279,7 +296,11 @@ their goals' levels, a structure in them, a library call hidden in them,
 a retry in them, catch/3's recovery and a ball it took; swipl's
 Exception port not shown) and the ports at one depth of fourteen of them
 with their qualifiers kept, and three of `test/trace-taken.pl` (not/1 and
-ignore/1 a program took over), and
+ignore/1 a program took over), since 3.78.8 fifty-two over
+`test/trace-calln.pl` (call/N as a predicate: a meta-called call/N, a
+variable bound to one, a goal C runs, call/N of `@` and of `|`; swipl's
+Exception port not shown) and the ports at one depth of eleven of them
+with their qualifiers kept, and
 compares the port lines one for one: same ports, same order, same relative
 depths, same goals. Three things are normalised first, because the two
 writers are entitled to them: the depth base (SWI's toplevel starts about ten
@@ -294,14 +315,15 @@ Knowing divergences, all outside the ports themselves (COMPAT.md): SWI
 jumps several frame depths entering a `findall` (its inner machinery,
 hidden) where cocolog's inner engine is one deeper than the call; SWI
 says the goal of a `system:` call of once/1, ignore/1, not/1 or catch/3
-of system at its Exit, where cocolog says it of user, and calls call/1
-as a predicate where it is meta-called (`once(call((a, b)))`), a frame
-cocolog has none of; SWI prints throw/1's Call where its caller hides
-nothing, and the Exception ports, where cocolog has none; SWI calls boot/init.pl's
-`@/2` for `call(@, G, M)`, a port, where cocolog runs G in place, and
-call/3 for a goal C runs that is call/N of more than one argument
-(`with_output_to(S, call(',', a, b))`), a port with the construct's hidden
-below it, where cocolog shows the construct's; a meta-predicate SWI writes
+of system at its Exit, where cocolog says it of user; SWI's compile of a
+meta-called structure meets a variable of it as it stands then, so a part
+a construct hands over (`\+`'s goal, `->`'s condition) that a variable made
+call/N as the structure ran is a call/N frame there and none here, a
+variable made a control structure (`call((G = (a, b), G))`) is a
+`'<meta-call>'/1` there and runs in place here, and a variable bound to
+call/N before a structure built with it was called is in place there and
+a frame here; SWI prints throw/1's Call where its caller hides
+nothing, and the Exception ports, where cocolog has none; a meta-predicate SWI writes
 in Prolog says its module-sensitive arguments of user at its Exit
 (`setup_call_cleanup(user:a, user:true, user:b)`), where cocolog's shows
 them as written unless cocolog declares it too; apply's helper

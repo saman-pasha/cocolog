@@ -1192,13 +1192,16 @@
   ;;; control construct here and a transparent predicate of swipl's system,
   ;;; a frame that hides what it calls (3.78.7, `coco_trace_cpred') -- but
   ;;; for a not/1 or an ignore/1 the program took over, which is its
-  ;;; predicate's (`coco_claim_kind'), where `system:' asked for no other
+  ;;; predicate's (`coco_claim_kind'), where `system:' asked for no other --
+  ;;; and call/N (3.78.8), whose frame is asked here only where it is one
+  ;;; (`coco_trace_calln')
   (static)
   (func coco_trace_cpred_p ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(-> e m)) (u64 nm . 0) (u32 n . 0))
           (if (not (coco-tag-is FUN (nth g (-> m heap)))) (return 0))
           (set nm (coco_name_of m g))
           (set n (coco_arity m g))
+          (if (== nm (coco-id m "call")) (return 1))
           (if (== n 3) (return (== nm (coco-id m "catch"))))
           (if (!= n 1) (return 0))
           (if (== nm (coco-id m "once")) (return 1))
@@ -1460,10 +1463,14 @@
             (if (or (not (coco-tag-is ATOM (nth mo (-> m heap)))) (coco_is_nil m mo)) (return 0))
             (set d (coco_deref m (coco_arg m d 1)))))
         (if (not (coco-tag-is FUN (nth d (-> m heap)))) (return 0))
+        ;; and since 3.78.8 @/2, swipl's CONTROL_F too: `call(@(G, M))'
+        ;; (boot/init.pl's @/2 clause, '$c_at'/2's) is G a level below a
+        ;; `'<meta-call>'/1' that hides nothing
         (if (== (coco_arity m d) 2)
             (let ((u64 nm . #'(coco_name_of m d)))
               (return (or (== nm (coco-id m ",")) (== nm (coco-id m ";"))
-                          (== nm (coco-id m "->")) (== nm (coco-id m "*->"))))))
+                          (== nm (coco-id m "->")) (== nm (coco-id m "*->"))
+                          (== nm (coco-id m "@"))))))
         (return (and (== (coco_arity m d) 1)
                      (or (== (coco_name_of m d) (coco-id m "\\+")) (== (coco_name_of m d) (coco-id m "$"))))))
 
@@ -1505,16 +1512,20 @@
           (set (-> e trace_goal) d)
           (return k2)))
 
-  ;;; G, once/1, ignore/1, not/1 or catch/3, said of user as their
+  ;;; G, once/1, ignore/1, not/1, catch/3 or call/N, said of user as their
   ;;; meta_predicate specs say -- `once(user:H)', `catch(user:H, C,
-  ;;; user:R)' -- an argument qualified already its own: what swipl's Exit,
-  ;;; Fail and Redo of the call show (3.78.7)
+  ;;; user:R)', `call(user:C, A)' -- an argument qualified already its own:
+  ;;; what swipl's Exit, Fail and Redo of the call show (3.78.7, call/N
+  ;;; 3.78.8: its closure alone)
   (static)
   (func coco_trace_cpred_shown ((coco_machine * m) (size_t d)) (out size_t)
-        (let ((size_t args [3]) (u32 n . #'(coco_arity m d)))
+        (let ((size_t args [8]) (u32 n . #'(coco_arity m d))
+              (int recov . #'(and (== n 3) (== (coco_name_of m d) (coco-id m "catch")))))
+          ;; a call/N past swipl's call/8 shown as it came
+          (if (> n 8) (return d))
           (for ((u32 i . 0)) (< i n) ((++ i))
             (let ((size_t a . #'(coco_deref m (coco_arg m d i))))
-              (if (and (!= i 1) (not (coco_is_compound2 m a ":")))
+              (if (and (or (== i 0) (and (== i 2) recov)) (not (coco_is_compound2 m a ":")))
                   (set a (coco_make2 m ":" (coco_new_atom m "user") a)))
               (set (nth i args) a)))
           (return (coco_make m (coco_atom_name m (coco_name_of m d)) n args))))
@@ -4325,7 +4336,9 @@
              (cond ((== nm (coco-id m ",")) (set h "$c_and"))
                    ((== nm (coco-id m "->")) (set h "$c_ite"))
                    ((== nm (coco-id m "*->")) (set h "$c_soft"))
-                   ((== nm (coco-id m ";")) (set h "$c_or"))))
+                   ((== nm (coco-id m ";")) (set h "$c_or"))
+                   ;; and @/2 (3.78.8), whose second argument is a module
+                   ((== nm (coco-id m "@")) (set h "$c_at"))))
             ((== n 1)
              (cond ((== nm (coco-id m "\\+")) (set h "$c_not"))
                    ((== nm (coco-id m "$")) (set h "$c_det")))))
@@ -4347,7 +4360,8 @@
             (if (not (coco_is_compound2 m a ":")) (set a (coco_make2 m ":" mo a)))
             (if (== n 1) (return (coco_make1 m h a)))
             (let ((size_t c . #'(coco_deref m (coco_arg m s 1))))
-              (if (not (coco_is_compound2 m c ":")) (set c (coco_make2 m ":" mo c)))
+              (if (and (not (coco_is_compound2 m c ":")) (!= nm (coco-id m "@")))
+                  (set c (coco_make2 m ":" mo c)))
               (return (coco_make2 m h a c))))))
 
   ;;; CALL/N OF A CONTROL CONSTRUCT (3.78.6): G the goal call/N built, its
@@ -4358,20 +4372,35 @@
   ;;; predicate's: the helper `coco_c_goal' kind 0 makes (`'$c_and'/2' and its
   ;;; kin), each argument said of CQ, or of user, where that changes how it
   ;;; runs. Through 3.78.5 the structure ran in place, at call/N's level, its
-  ;;; errors `'<meta-call>'/1''s. Any other construct's name -- `:'/2, `@'/2,
-  ;;; `|'/2 -- is G as call/N made it, qualified as any closure's goal. Asked
-  ;;; where the closure's name is a construct's, by the mask the step asks of
-  ;;; any goal: a plain closure pays that test alone
+  ;;; errors `'<meta-call>'/1''s. And @/2 (3.78.8) is boot/init.pl's @/2,
+  ;;; `'$c_at'/2', a port whose goal runs two levels below and whose errors
+  ;;; are system:(@)/2's, where through 3.78.7 it ran as the construct.
+  ;;; `|'/2 and (:)/2 are no predicate of swipl's (`coco_calln_nopred', the
+  ;;; caller's). Any other construct's name is G as call/N made it, qualified
+  ;;; as any closure's goal. Asked where the closure's name is a construct's,
+  ;;; by the mask the step asks of any goal: a plain closure pays that test
+  ;;; alone
   (weak) (cold)
   (func coco_calln_ctl ((coco_engine * e) (size_t g) (int hasq) (size_t cq)) (out size_t)
         (let ((coco_machine * m . #'(-> e m)) (size_t q . g)
               (u64 nm . #'(coco_name_of (-> e m) g)) (u32 n . #'(coco_arity (-> e m) g)))
           (if hasq (set q (coco_make2_f m (coco-fid m ":" 2) cq g)))
           (if (or (and (== n 2) (or (or (== nm (coco-id m ",")) (== nm (coco-id m ";")))
-                                    (or (== nm (coco-id m "->")) (== nm (coco-id m "*->")))))
+                                    (or (or (== nm (coco-id m "->")) (== nm (coco-id m "*->")))
+                                        (== nm (coco-id m "@")))))
                   (and (== n 1) (or (== nm (coco-id m "\\+")) (== nm (coco-id m "$")))))
               (return (coco_c_goal m q 0)))
           (return (? hasq (coco_user_plain e q) g))))
+
+  ;;; WHETHER G, A GOAL CALL/N BUILT FROM A CONSTRUCT'S NAME, NAMES NO
+  ;;; PREDICATE OF SWIPL'S (3.78.8): `|'/2 and (:)/2, which a meta-call of
+  ;;; the term runs as `;' and as a qualifier, but which swipl's I_USERCALLN
+  ;;; resolves as predicates by the functor and finds none of -- the unknown
+  ;;; procedure `coco_calln_unknown' raises. Through 3.78.7 cocolog ran them
+  (static)
+  (func coco_calln_nopred ((coco_machine * m) (size_t g)) (out int)
+        (return (and (== (coco_arity m g) 2)
+                     (or (== (coco_name_of m g) (coco-id m "|")) (== (coco_name_of m g) (coco-id m ":"))))))
 
   ;;; THE GOAL A SEARCH C STARTS RUNS (3.44.0, `rootn' 4: with_output_to/2,
   ;;; format/2's `~@', a thread, an isolated run), as swipl's callProlog()
@@ -4607,5 +4636,34 @@
           (if (coco_call_inline e b k)
               (return (bitor (bitor h (coco-bar-tag b)) (coco-bar-metabit))))
           (return (bitor (bitor h (coco-bar-sysbit)) (coco-bar-of f)))))
+
+  ;;; CALL/N TO THE PRINTER, WHERE IT IS A FRAME OF ITS OWN (3.78.8): swipl's
+  ;;; call/N are predicates of its system (`call(Goal) :- Goal.'), which its
+  ;;; compiler calls in place where they are written -- in a clause, in a
+  ;;; structure it compiled -- and a goal meta-called resolves as any other:
+  ;;; a frame, which hides what it calls but a program's predicate, its goal
+  ;;; a level below. So where `coco_meta_bar' runs G's goal in call/N's own
+  ;;; frame -- a word META or SYS (once/1's goal, a call/N's built goal, a
+  ;;; meta-called goal), a variable bound to it as it ran, a search's root
+  ;;; that is no part of its structure -- G is `coco_trace_cpred''s port and
+  ;;; frame, and else nothing. B and K G's word and continuation, which the
+  ;;; caller hands `coco_meta_bar' too. Answers what G's goal goes before.
+  ;;; Through 3.78.7 call/N was no port anywhere. Not the call/1 the printer
+  ;;; puts round a structure of forall/2's search (`coco_trace_forall'),
+  ;;; which stands for swipl's variable goal in forall/2's clause -- a
+  ;;; `'<meta-call>'/1', no frame of call/1's -- and which the search's own
+  ;;; goal, `(C, \+ A)', holds nowhere
+  (weak) (cold)
+  (func coco_trace_calln ((coco_engine * e) (size_t g) (size_t b) (size_t k)) (out size_t)
+        (if (== (coco-bar-tag b) 0)
+            (let ((coco_machine * m . #'(-> e m)) (const char * who . nil) (u32 whoa . 0))
+              (if (and (coco_root_part e g) (or (== k (-> e goals)) (not (coco_goal_was_var e k))))
+                  (return k))
+              (if (and (== (-> e rootn) 2) (== (coco_arity m g) 1)
+                       (coco_trace_ctl m (coco_deref m (coco_arg m g 0)))
+                       (== (coco_query_walk e g (aof who) (aof whoa)) 0))
+                  (return k)))
+            (if (coco_call_inline e b k) (return k)))
+        (return (coco_trace_cpred e g b k)))
 
   ) ; impl-solve-control

@@ -1845,6 +1845,35 @@
                     (return k))))
           (return (coco_det_k e g b (? (and meta (-> e trace)) (coco_trace_meta e g b k) k)))))
 
+  ;;; CALL/N'S GOAL G THAT NAMES NO PREDICATE OF SWIPL'S (3.78.8,
+  ;;; `coco_calln_nopred': `|'/2, (:)/2), RAISED AS THE UNKNOWN PROCEDURE IT
+  ;;; IS THERE: under the word the goal would run under (`coco_meta_bar'), so
+  ;;; the error names the frame swipl's does -- the clause call/N is written
+  ;;; in, call/N's own where it is meta-called, a `'<meta-call>'/1' in a
+  ;;; structure -- the goal qualified by the closure's module CQ where HASQ
+  ;;; says one was met and it is not user, and under the printer its Call
+  ;;; printed first, as the step prints any call's. CG is the call/N goal, B
+  ;;; and K its word and continuation. Answers as `coco_construct' does
+  (weak) (cold)
+  (func coco_calln_unknown ((coco_engine * e) (size_t cg) (size_t g) (size_t b) (size_t k)
+                            (int hasq) (size_t cq) (int * ok) (int * ret)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (size_t mb . 0) (size_t kq . 0)
+              (int qual . 0) (u64 mid . 0) (int rc . 0) (size_t shown . g))
+          (if (and hasq (not (coco_atom_is_user m (coco_name_of m cq))))
+              (block (set qual 1) (set mid (coco_name_of m cq))
+                     (set shown (coco_make2_f m (coco-fid m ":" 2) cq g))))
+          (set mb (coco_meta_bar e g b k (cast u64 (coco-payload (nth cg (-> m heap)))) cg))
+          ;; past a depth limit its frame fails at its call port first, as
+          ;; swipl's does
+          (if (coco_depth_unknown e k mb) (block (set (cof ok) 0) (return 1)))
+          (set kq (coco_det_kq e g mb k 0))
+          (set (-> e kcall) shown)
+          (if (== (-> e trace) 1) (coco_trace_call e (+ (-> e trace_depth) 1) shown))
+          (set rc (coco_unknown_error_q e qual mid (coco_name_of m g) 2 mb kq))
+          (if (== rc 2) (return 1))
+          (set (cof ret) rc)
+          (return 2)))
+
   ;;; A META-PREDICATE'S CALL THAT IS THE INNERMOST GUARDED FRAME'S LAST
   ;;; (K its exit): once/1, ignore/1, not/1 -- swipl's transparent
   ;;; predicates, so over the caller's frame the guard goes off, else it
@@ -2197,7 +2226,12 @@
                    ;; one in it as well (`coco_goal_ok'); its goal carries the
                    ;; frame it runs in (`coco_meta_bar'). A goal user:G of a
                    ;; plain predicate is G (3.45.0, `coco_user_plain')
-                   (let ((size_t cg . #'(coco-user-plain e m (coco_arg m g 0))))
+                   (let ((size_t cg . #'(coco-user-plain e m (coco_arg m g 0)))
+                         (size_t kt . k))
+                     ;; under the printer call/1 that is a frame of its own a
+                     ;; port first (3.78.8, `coco_trace_calln'); its word and
+                     ;; continuation asked of K as before
+                     (if (== (-> e trace) 1) (set kt (coco_trace_calln e g b k)))
                      (if (not (coco_goal_ok m cg))
                          (return (coco_call_bad e g cg b k 1 ret)))
                      ;; and its goal no last call of the frame (I_USERCALL),
@@ -2206,7 +2240,7 @@
                      ;; `'<meta-call>'/1' frame (3.78.4: META 1)
                      (let ((size_t mb . #'(coco_meta_bar e cg b k
                                                          (cast u64 (coco-payload (nth g (-> m heap)))) g)))
-                       (set (-> e goals) (coco_k_push e cg mb (coco_det_kq e cg mb k 1))))))
+                       (set (-> e goals) (coco_k_push e cg mb (coco_det_kq e cg mb kt 1))))))
 
                   ((and (== n 3) (== nid (coco-id m "catch")))
                    ;; The catcher and the recovery goal are put on the heap as
@@ -2315,7 +2349,10 @@
                    ;; is why it is rebuilt rather than the extra ones being
                    ;; pushed onto it.
                    (let ((size_t c . #'(coco_deref m (coco_arg m g 0)))
-                         (size_t cq . 0) (int hasq . 0))
+                         (size_t cq . 0) (int hasq . 0) (size_t kt . k))
+                     ;; under the printer call/N that is a frame of its own a
+                     ;; port first, as call/1's (3.78.8, `coco_trace_calln')
+                     (if (== (-> e trace) 1) (set kt (coco_trace_calln e g b k)))
                      ;; A CLOSURE M:C (3.1.0) gives C the arguments and the
                      ;; goal its innermost qualifier, as swipl's call/N does
                      ;; (`call(system:succ, 1, X)', `coco_colon')
@@ -2364,7 +2401,12 @@
                          ;; a control construct's closure calls swipl's
                          ;; predicate of it (3.78.6, `coco_calln_ctl')
                          (if (coco_is_construct m cnm)
-                             (set built (coco_calln_ctl e built hasq cq))
+                             (block
+                              ;; `|'/2 and (:)/2 name no predicate of swipl's
+                              ;; (3.78.8): the unknown procedure, in its word
+                              (if (coco_calln_nopred m built)
+                                  (return (coco_calln_unknown e g built b k hasq cq ok ret)))
+                              (set built (coco_calln_ctl e built hasq cq)))
                              (if hasq (set built (coco_user_plain e (coco_make2_f m (coco-fid m ":" 2) cq built)))))
                          ;; opaque to cut, exactly as call/1 is, and run in
                          ;; the frame call/1's would be (3.1.0), no last call
@@ -2373,7 +2415,7 @@
                                                              (cast u64 (coco-payload (nth g (-> m heap))))
                                                              g)))
                            (set (-> e goals)
-                                (coco_k_push e built mb (coco_det_kq e built mb k 0))))))))
+                                (coco_k_push e built mb (coco_det_kq e built mb kt 0))))))))
 
                   ;; M:G, a goal (3.1.0)
                   ((and (== n 2) (== nid (coco-id m ":")))
@@ -2487,11 +2529,14 @@
                 ((coco-tag-is ATOM (nth s (-> m heap)))
                  (block (set nm (cast u64 (coco-payload (nth s (-> m heap))))) (set ar extra)))
                 (#t (return 0)))
+          ;; and of call/N's `@' and `|' none since 3.78.8: the first the
+          ;; system's @/2, a frame ('$c_at'/2), the second no predicate,
+          ;; the unknown procedure (`coco_calln_unknown')
           (if (== ar 2)
-              (return (or (== nm (coco-id m "|")) (== nm (coco-id m "@"))
-                          (and (== extra 0)
-                               (or (== nm (coco-id m ",")) (== nm (coco-id m ";"))
-                                   (== nm (coco-id m "->")) (== nm (coco-id m "*->")))))))
+              (return (and (== extra 0)
+                           (or (== nm (coco-id m "|")) (== nm (coco-id m "@"))
+                               (== nm (coco-id m ",")) (== nm (coco-id m ";"))
+                               (== nm (coco-id m "->")) (== nm (coco-id m "*->"))))))
           (if (== ar 1)
               (return (and (== extra 0) (or (== nm (coco-id m "\\+")) (== nm (coco-id m "$"))))))
           (return 0)))
@@ -2996,6 +3041,15 @@
           (set (-> e dcur) l)
           (return (> l (-> m dlim)))))
 
+  ;;; WHETHER THE FRAME OF AN UNKNOWN PROCEDURE CALL/N BUILT IS PAST THE
+  ;;; LIMIT (3.78.8): swipl makes the frame of `|'/2 or (:)/2 a level below
+  ;;; its owner -- the first marker on K, BAR the goal's word -- and fails
+  ;;; it at its call port before it finds no definition. 0 where no limit
+  ;;; is armed
+  (func coco_depth_unknown ((coco_engine * e) (size_t k) (u64 bar)) (out int)
+        (if (not (coco_depth_mode e)) (return 0))
+        (return (coco_depth_frame e (+ (>> (coco_depth_owner e k bar) 2) 1))))
+
   ;;; WHETHER NID/N IS A CONTROL CONSTRUCT, no frame wherever it stands:
   ;;; swipl's CONTROL_F, and the engine's own markers and steps, which no
   ;;; program writes (`$true', '$cut'/1, '$catch_exit'/1 ...)
@@ -3342,9 +3396,13 @@
                (return 1)))
           ;; call/N: in place in a clause and a structure, its goal a frame
           ;; below the owner, a structure's frame between; meta-called, a
-          ;; frame of its own
+          ;; frame of its own -- and so is a structure's part a variable
+          ;; bound as it ran made call/N (3.78.8), which swipl's compile of
+          ;; the structure met as a variable and calls as call/N, as the
+          ;; printer sees it (`coco_call_inline')
           (if (and (>= n 1) (== nid (coco-id m "call")) (!= (-> e nset) 2))
               (let ((int strc . #'(coco_depth_structure_n m (coco_arg m g 0) (- n 1))))
+                (if (and (== okd 2) (coco_goal_was_var e k)) (set okd 3))
                 (if (!= okd 3)
                     (block (if strc (coco_depth_push e (bitor (<< (+ p 1) 2) 2)))
                            (return 1)))

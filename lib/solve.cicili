@@ -821,7 +821,9 @@
     ("$c_setup" 1 "system" "$c_call_prolog" 0)
     ("$scc_run" 1 "system" "setup_call_catcher_cleanup" 4)
     ("$c_and" 2 "system" ",") ("$c_ite" 2 "system" "->") ("$c_soft" 2 "system" "*->")
-    ("$c_or" 2 "system" ";") ("$c_not" 1 "system" "\\+") ("$c_det" 1 "system" "$")))
+    ("$c_or" 2 "system" ";") ("$c_not" 1 "system" "\\+") ("$c_det" 1 "system" "$")
+    ;; and @/2's, the level between included (3.78.8)
+    ("$c_at" 2 "system" "@")))
 
 (DEFMACRO coco-emit-frame-ctx ()
   `(func coco_frame_ctx ((coco_machine * m) (u64 nid) (u32 n) (size_t * out)) (out int)
@@ -1857,6 +1859,10 @@
   ;;; whether E runs under a depth limit: a C half swipl writes as clauses
   ;;; declines to clauses of swipl's shape there (lib/lists.cicili's walks)
   (decl) (func coco_depth_mode ((coco_engine * e)) (out int))
+  ;;; and whether the frame of the unknown procedure call/N built, its
+  ;;; continuation K and word BAR, is past the limit (3.78.8,
+  ;;; `coco_calln_unknown')
+  (decl) (func coco_depth_unknown ((coco_engine * e) (size_t k) (u64 bar)) (out int))
 
   ;;; Throws BALL, exactly as `throw/1' does. A module's C half uses this to
   ;;; raise an error a program can catch, rather than filling in `err' and
@@ -2686,7 +2692,7 @@
   ;;; port, as swipl's ports show it. A macro of the table, asked in turn
   (DEFPARAMETER *trace-ctl-preds*
     '(("$c_and" 2 ",") ("$c_ite" 2 "->") ("$c_soft" 2 "*->") ("$c_or" 2 ";")
-      ("$c_not" 1 "\\+") ("$c_call1" 1 "call")))
+      ("$c_not" 1 "\\+") ("$c_call1" 1 "call") ("$c_at" 2 "@")))
   (DEFMACRO coco-trace-ctl-rows (s n)
     `(block ,@(MAPCAR (LAMBDA (r)
                         `(if (and (== ,n ,(SECOND r)) (== 0 (strcmp ,s ,(FIRST r))))

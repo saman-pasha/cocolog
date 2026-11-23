@@ -14,9 +14,8 @@
 %%
 %% Each probe is called under catch/3 and printed as the goal, then yes,
 %% no or the ball, every variable written `_'. Left out (COMPAT.md):
-%% call/N whose closure is `|' or `:' (`call('|', a, b)'), which swipl
-%% finds no predicate for and cocolog runs as the disjunction or the
-%% qualified goal; call/N's inference counts, which are cocolog's own.
+%% call/N's inference counts, which are cocolog's own. call/N whose closure
+%% is `@', `|' or `:' is test/files/call_preds.pl's since 3.78.8.
 
 e(G) :-
     (   catch(( G -> R = yes ; R = no ), E, R = E) -> true ; R = failed ),

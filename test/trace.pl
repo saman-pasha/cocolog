@@ -196,6 +196,25 @@ main :-
     %% ...and not/1 and ignore/1 a program took over are its predicates,
     %% which hide nothing (test/trace-taken.pl's tk10 to tk12)
     forall(member(Q, [ tk10, tk11, tk12 ]), traced_in(Swipl, [Taken], Q, Q)),
+    %% CALL/N WHERE SWIPL CALLS IT AS A PREDICATE (3.78.8,
+    %% test/trace-calln.pl): a meta-called goal that is call/N -- a variable
+    %% goal, once/1's, catch/3's, a goal C runs -- and a conjunction's later
+    %% part a variable of the structure made call/N as it ran, is call/N's
+    %% own frame, a port that hides what the system does in it, its goal a
+    %% level below; call/N written in a clause or a structure stays in
+    %% place. call/N of `@' is the system's @/2, a port whose goal stands two
+    %% below it, a `'<meta-call>'/1' between that hides nothing; call/N of
+    %% `|' is the unknown procedure, its Call printed. Through 3.78.7 call/N
+    %% was no port anywhere, call/N of `@' ran the construct in place and
+    %% call/N of `|' ran `;'. Held with swipl's Exception port not shown
+    %% (`traced_nx'); then the call/N and @/2 ports at one depth, the goal
+    %% said of user at the Exit (`call(user: @, cn_a, user)')
+    atom_concat(Root, '/test/trace-calln.pl', CallN),
+    forall(between(1, 52, I),
+           ( atom_concat(cn, I, Q), traced_nx(Swipl, [CallN], Q, Q) )),
+    forall(member(Q-Dp, [ cn1-2, cn3-2, cn6-2, cn13-4, cn14-4, cn21-2, cn25-2, cn35-2,
+                          cn42-2, cn44-2, cn47-2 ]),
+           ports_at(Swipl, [CallN], Q, Dp)),
     %% THE FLAG IS THE FILE'S: test/trace-library.pl ends with it false, and
     %% the file read after it is the program's again (swipl's load puts the
     %% flag back at a file's end)
@@ -599,6 +618,31 @@ own_lines :-
                   'hr2 :- notrace, hr_r(A, B), trace, ( B == 3 -> ( true ; true ), fail ; \\+ atom(a) ), A > 0.' ], hr2,
         p('Redo', _, hr2), times(2),
         'and so does the retry of a frame pushed untraced'),
+    %% CALL/1 OF FINDALL/3'S GOAL IS A FRAME OF ITS OWN (3.78.8), hidden in
+    %% findall/3's context, as swipl's findall_loop/4 calls its goal as a
+    %% variable: the goal a level below it -- swipl's six below findall/3,
+    %% through its machinery, so the trace is not held line for line
+    own(D, fc, [ 'fc_a.', 'fc :- findall(x, call(fc_a), _).' ], fc,
+        p('Call', 4, fc_a), printed,
+        'call/1 of findall/3''s goal is a frame: its goal a level below it'),
+    %% and a part a construct hands over -- `\+''s goal, `->''s condition,
+    %% `;''s first branch -- that a variable of the structure made call/N as
+    %% it ran runs in place: no port, where swipl's compile met the variable
+    %% and calls call/N's frame (COMPAT.md)
+    own(D, hp, [ 'hp_a.', 'hp :- call((G = call(hp_a), \\+ \\+ G)).' ], hp,
+        p('Call', _, 'call(hp_a)'), hidden,
+        'a handed-over part a variable made call/1 is no frame'),
+    %% but call/N written in a part of findall/3's or aggregate_all/3's
+    %% structure is in place, as swipl's compile of the structure puts it:
+    %% no frame between, its goal at the structure's own level, where its
+    %% `true' stands (swipl's at its 17, beside `true'; the depths not held
+    %% line for line, as above)
+    own(D, fs, [ 'fs_a.', 'fs :- findall(x, (true, call(fs_a)), _).' ], fs,
+        p('Call', 4, fs_a), printed,
+        'call/1 written in findall/3''s structure is in place'),
+    own(D, fn, [ 'fn_a.', 'fn :- aggregate_all(count, \\+ call(fn_a), _).' ], fn,
+        p('Call', _, 'call(fn_a)'), hidden,
+        'and in a negation aggregate_all/3''s goal is'),
     shl(['rm -rf ', D]).
 
 own(D, Base, Lines, Q, Line, Expect, Name) :-

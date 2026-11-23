@@ -362,7 +362,7 @@
            ;; boot/init.pl's): a goal the caller gives in user's context goes
            ;; as written, its Call shows it so, and the step says it of user
            ;; after that port, as swipl's ','/2 and its kin do
-           ":- meta_predicate '$c_call1'(0), '$c_and'(0, 0), '$c_ite'(0, 0), '$c_soft'(0, 0), '$c_or'(0, 0), '$c_not'(0), '$c_det'(0)."
+           ":- meta_predicate '$c_call1'(0), '$c_and'(0, 0), '$c_ite'(0, 0), '$c_soft'(0, 0), '$c_or'(0, 0), '$c_not'(0), '$c_det'(0), '$c_at'(0, +)."
            "'$c_call1'(G) :- call(G)."
            "'$scc_run'(G) :- '$c_goal'(G, 3, _), call(G)."
            "'$c_and'(A, B) :- call((A, B))."
@@ -372,6 +372,14 @@
            "'$c_or'(M:A, B) :- call(M:(A ; B))."
            "'$c_not'(G) :- \\+ call(G)."
            "'$c_det'(G) :- $(call(G))."
+           ;; and boot/init.pl's @/2 (3.78.8), `@(Goal, Module) :- @(Goal,
+           ;; Module)', which call/N and swipl's C call as a predicate: a
+           ;; port, its errors @/2's, and its goal, a variable of the clause,
+           ;; meta-called as swipl's compiler calls `@(Var, M)': a
+           ;; `'<meta-call>'/1' between, which hides nothing. Written as the
+           ;; store keeps swipl's text, the same clause, which a start reads
+           ;; for 15 198 instructions fewer
+           "'$c_at'(G, M) :- call(@(G, M))."
            ;; the frame failed into: the goal has failed
            "'$scc_fail'(Ca, C) :- '$scc_gone', '$cleanup_call'(fail, Ca, C), fail."
            ;; the goal's own ball: the goal's wins, but for a cleanup's ball
