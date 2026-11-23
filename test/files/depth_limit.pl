@@ -12,7 +12,10 @@
 %    in place (=/2, ==/2, \==/2, the type tests, arg/3, is/2 of a sum
 %    with a small integer), where called as goals of their own they are
 %    frames; a meta-call's goal a frame, a structure's goals each one, the
-%    structure none;
+%    structure none; catch/3's recovery a level below it, the structure
+%    its goal was none of the recovery's (3.78.7: under trace the
+%    recovery after a goal that was a structure stood a level deeper,
+%    which test/engine.pl's traced run of this file holds);
 %  - the builtins that run frames of their own, as deep as swipl's run:
 %    findall/3,4, forall/2, aggregate_all/3, with_output_to/2, format/2's
 %    ~@; and the predicates swipl writes as clauses where cocolog's C
@@ -212,7 +215,8 @@ constructs :-
     forall(member(G, [once(f), once((f, f)), ignore(f), ignore((f, f)), \+ \+ f,
                       call(f), call((f, f)), call(call(f)), catch(f, _, true),
                       catch((f, f), _, true), catch(throw(x), _, f),
-                      catch(throw(x), _, (f, f)), not(fail), not((fail, f)),
+                      catch(throw(x), _, (f, f)), catch((throw(x), true), _, (f, f)),
+                      catch(($(fail) ; true), _, f), not(fail), not((fail, f)),
                       (f -> f ; f), call((f -> f ; f)), (f *-> g ; f), user:f,
                       user:(f, f), call(user:(f, f)), @(f, user), $(f), call($(f)),
                       call(undefined_q), (fail ; g), (g ; f), forall(m(_), g)]),

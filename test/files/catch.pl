@@ -83,4 +83,19 @@ main :-
     f(assertz(call(x))),
     f(assertz(true)),
     f(assertz((a, b))),
+    %  ---- the recovery is opaque to cut, as call/1's goal is (3.78.7):
+    %  a `!' in it cuts what the recovery made and no more. Through 3.78.6
+    %  it cut the clause the catch/3 stood in -- the choices before the
+    %  catch, and the clause's next clauses ----
+    findall(X3, rc1(X3), L3), s(recovery_cut, L3),
+    findall(X4, rc2(X4), L4), s(recovery_cut_in_structure, L4),
+    findall(X5, rc3(X5), L5), s(recovery_cut_its_own, L5),
+    findall(X6, rc4(X6), L6), s(goal_cut_its_own, L6),
     true.
+
+rc1(X) :- ( p(X) ; X = 4 ), catch(throw(x), x, !).
+rc1(5).
+rc2(X) :- ( p(X) ; X = 4 ), catch(throw(x), x, (true, !)).
+rc2(5).
+rc3(X-Y) :- p(X), catch(throw(x), x, (p(Y), !)).
+rc4(X-Y) :- p(X), catch((p(Y), !), _, true).

@@ -24249,3 +24249,120 @@ the new and changed `.pl` files lint clean. The binary committed differs
 from that one in the version's byte and the build ID's twenty alone (the
 trace and argv cases run again on it, green); a comment corrected after
 the round reached no C.
+
+## once/1, ignore/1, not/1 and catch/3 are ports under trace, and catch/3's recovery is opaque to cut, as swipl's (3.78.7)
+
+A patch, the tracer's and catch/3's (backlog #315). Through 3.78.6 the
+four ran in place under trace: no port, no level, their goal at the
+caller's own level, a structure in them no meta-call frame. And a bug
+found on the way, untraced: a `!` in catch/3's recovery cut the clause the
+catch/3 stood in -- the choices before the catch and the clause's next
+clauses -- where swipl's recovery is opaque to cut, as call/1's goal is.
+
+SWIPL'S MODEL. once/1, ignore/1, not/1 and catch/3 are transparent
+predicates of swipl's system (`^  Call: (11) once(oa)`): frames of their
+own whose bodies meta-call the goal, a level below the call -- a control
+structure in a `'<meta-call>'/1` frame there, its parts a level below
+that -- and which hide what they call but a program's predicate. The Call
+shows the goal as written, the Exit, Fail and Redo said of user
+(`once(user:oa)`, `catch(user:om(1), _, user:true)`). catch/3's recovery
+runs a level below it, a structure in a meta-call frame; and once a ball
+is caught, B_THROW discards the choice points after the catching frame,
+its debug choice point among them: no Fail port of catch/3 after
+(`catch(throw(x), x, fail) ; true` prints its Call and no Fail), where its
+Exit, which needs no choice point, is printed when the recovery succeeds,
+and a retry in a hidden call of the recovery is catch/3's Redo.
+setup_call_cleanup/3's own machinery has no catch/3 frame: I_CALLCLEANUP
+calls the goal and frameFinished() the cleanup.
+
+THE FIX (lib/solve-control.cicili, lib/solve-loop.cicili). Under the
+printer (trace 1 alone) `coco_trace_cpred` (weak, cold) prints the call's
+Call -- hidden where its context hides, `coco_trace_call` -- and pushes a
+SPENT frame, `pred` -2, its goal the call said of user
+(`coco_trace_cpred_shown`), with an exit marker on the continuation that
+prints the Exit and puts the caller's level back. The frame hides what it
+calls: `coco_trace_hc` answers 1 for the four (`coco_trace_cpred_p`; not
+a not/1 or ignore/1 the program took over, which is its predicate) and
+`coco_trace_frame_hc` for a frame of `pred` -2. once/1, ignore/1 and
+not/1 then run their if-then-else through `coco_ite_traced`, the goal a
+structure in a meta-call frame (`coco_trace_meta`); catch/3 asks
+`coco_det_kq` with META 1 for its goal, as call/1 does. In `coco_throw`
+the recovery is pushed under the catch frame's owner over the height the
+frame stood at -- opaque to cut, untraced too -- a structure in a meta-call
+frame under the printer, and `coco_trace_caught` marks the catch's own
+frame `pred` -3: `coco_trace_spent` says no Fail of it, and the region
+walk still takes it for a frame that hides its children. The machinery's
+catch/3 is no frame (`coco_trace_cpred_quiet`: setup_call_catcher_cleanup/4's
+clause, and the rows of `*trace-scc-frames*` with bit 8, `'$scc_raised'/4`
+and `'$scc_unwind'/3`).
+
+THE CUTS BEFORE IT. The first made the machinery's catch/3 a frame like
+any: the goal of every setup_call_cleanup/3 stood a level deep, 22 checks
+of the trace case red (sc1 to sc21, findnsols/4's two, mt29, ct32). The
+first recovery ran in catch/3's context with no meta-call frame (a
+structure's builtins hidden, its parts a level high) and said Fail of a
+catch that had taken a ball. And a quiet check in the once/1 path was
+taken out again: no clause of the machinery calls once/1, ignore/1 or
+not/1, so nothing could show it.
+
+HELD. test/trace.pl, 464 checks, green: the new test/trace-ctlframe.pl
+holds 82 queries to swipl 9.0.4 line for line with swipl's Exception port
+not shown (`traced_nx/4`, which also holds setup_call_cleanup/3's two
+raising queries whole now, where `traced_from/4` held them from the call
+on) and 14 of their ports at one depth with the qualifiers kept;
+test/trace-taken.pl three more (not/1 and ignore/1 a program took over);
+call_with_inference_limit/3's two whole. 3.78.6 differs from swipl on all
+82. test/files/catch.pl holds four lines of the recovery's cut to swipl;
+3.78.6 differs on three. test/files/depth_limit.pl, 309 lines to swipl,
+holds the two goals the depth recovery's fix was for.
+
+AND ONE IT MADE, FOUND BY THE NARROW ROUND. Under a depth limit a caught
+ball's recovery passes by the marker of the structure the catch's goal was
+(`coco_depth_recovery`, which reads the catch frame's continuation), and
+the first build's catch/3 port pushed its exit marker in front of it: the
+recovery was read as that structure's and stood a level deeper traced than
+untraced. call_with_depth_limit/3's clause catches its goal's ball with
+`'$depth_limit_except'/3`, a frame, so `call_with_depth_limit($(f), 1, R)`
+under `--trace` failed in its recovery and answered depth_limit_exceeded,
+where untraced, and in swipl, it raises determinism_error(f, det, fail,
+goal) -- the engine case's traced run of test/files/depth_limit.pl, red at
+one line. `coco_depth_recovery` looks past the exit marker now and keeps
+it. test/files/depth_limit.pl holds two goals more to swipl that the build
+before the fix answered wrongly under trace: `catch((throw(x), true), _,
+(f, f))` at a limit of 3 and `catch(($(fail) ; true), _, f)` at 2.
+
+ARMS, one build of the final code each with one rule taken out, each run
+on test/trace.pl and test/files/catch.pl against swipl, every one red:
+the port itself (`coco_trace_cpred` a no-op: 100 checks), once/1's,
+ignore/1's and not/1's goal with no meta-call frame (12), catch/3's with
+META 0 (6), the frame's goal as written for its Exit (13), the four not
+hiding what they call in `coco_trace_hc` (41), `coco_trace_frame_hc`
+taking neither -2 nor -3 (16) and -3 alone (1), no caught mark (5) and its
+Fail said all the same (5), the recovery with no meta-call frame (4), the
+recovery's word the frame's own (1 check, and 3 lines of catch.pl), the
+machinery's setup_call_catcher_cleanup/4 not quiet (22), `'$scc_raised'/4`
+and `'$scc_unwind'/3` without bit 8 (1 each), and a not/1 or ignore/1 the
+program took over taken for the system's (2). The depth recovery's arm is
+the build before its fix: red in the engine case and on the two goals.
+
+COST, against 3.78.6's code. The untraced engine runs 3.78.6's
+instructions within 40 (tools/flow/zero.sh at paths of one length, work
+less padding: nrev 65 889 783 in both, queens 39 953 125 in both, lookup
+48 059 963 and 48 060 003). A turn of a thousand (callgrind): once/1,
+ignore/1 and not/1 run 3.78.6's instructions to the one -- once(true)
+1 132, once/1 and ignore/1 of a predicate 2 201 each, not(fail) 1 114,
+once/1 of a conjunction 3 279; catch/3 of a predicate 3 254 to 3 260, its
+test of the printer; a caught throw 3 518 to 3 524. The second test the first cut made in catch/3's arm
+cost 4 more; asked through `coco_det_kq`'s META, as call/1's, it is asked
+only of a goal a construct names. A start (`cocolog query true`, each
+binary swapped in at the checkout's path) counts 1 016 more, 37 107 224
+and 37 108 240. The depth recovery's fix is asked only at a caught ball's
+recovery under a depth limit, and moved none of these counts.
+
+THE RUN, on the final binary but where it says: the lint case first, then
+trace, backtrace, engine, errors, journal, files, script, directives,
+cyclic and library on the first build -- engine red at the one check the
+depth recovery's fix is for, the rest green -- and after the fix engine
+alone, trace, window, flowdebug, files, async, gc, thread and the solve,
+state and module binaries, all green, with no SKIP; the card's 33 cites
+anchored (15 by a moved anchor).

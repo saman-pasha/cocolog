@@ -22,3 +22,13 @@ tk6(N) :- system:length([a, b], N).
 tk7(X) :- system:msort([b, a], X).
 tk8(X) :- system:nth0(X, [a, b], c).
 tk9(M-N) :- length([a], M), system:length([a], N).
+
+%% not/1 and ignore/1 taken over (3.78.7) are the program's predicates,
+%% which hide nothing, where the system's hide what they call
+%% (test/trace-ctlframe.pl); once/1 beside them is the system's
+not(G) :- write(mine(G)), nl.
+ignore(G) :- write(mine(G)), nl.
+tk_a.
+tk10 :- not(fail).
+tk11 :- ignore(fail).
+tk12 :- once(tk_a).

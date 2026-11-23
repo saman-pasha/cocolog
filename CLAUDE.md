@@ -2685,7 +2685,12 @@ a session must keep:
   frame with it (1.13.4, SWI's I_EXITCATCH; through 1.13.3 a recursion that
   caught around a deterministic call kept a choice point a turn). The
   marker's arm is the (weak) `coco_catch_exit`: a store written into the
-  inlined construct code moved the step loop's registers. **forall/2's
+  inlined construct code moved the step loop's registers. **A catch/3's
+  recovery is opaque to cut** (3.78.7, swipl's, test/files/catch.pl): its
+  word the catch frame's owner over the height the frame stood at
+  (`coco_throw`); through 3.78.6 it was the frame's own word, and a `!` in
+  the recovery cut the clause the catch/3 stood in -- every choice before
+  the catch and the clause's next clauses. **forall/2's
   search ends at its first counterexample** (3.16.0, `rootn` 2 in
   `coco_engine_findall`, swipl's `\+ (C, \+ A)`): through 3.15.2 it went
   on, and every action after the one that failed ran, its writes with it.
@@ -3596,7 +3601,16 @@ a session must keep:
   `'$scc_...'`, '$cleanup_call'/3 and the catch/3 around them), its setup
   `'$c_setup'/1` where swipl's sig_atomic/1 runs it, and a failure's cleanup
   on a marker two below the frame (`coco_bi_scc_push`'s alternative);
-  library(error)'s raises are swipl's raisers, a frame each. A frozen
+  library(error)'s raises are swipl's raisers, a frame each. **A caught
+  ball's recovery passes by the marker of the structure the catch's goal
+  was** (`coco_depth_recovery`, which reads the catch frame's
+  continuation), **and under the printer the catch/3 port's exit marker
+  before it** (3.78.7): a new marker a construct pushes on a continuation
+  before the depth step's markers is one `coco_depth_recovery` looks past,
+  or the recovery stands a level deeper traced than untraced -- through
+  3.78.7's first build, call_with_depth_limit/3's own recovery failed past
+  a limit of 1 under `--trace` (test/engine.pl's traced run of
+  test/files/depth_limit.pl). A frozen
   machine keeps the depth state (section `D`, after `X`), and a resumed
   run's ceiling is sent to the port again (`coco_engine_next`); a thread
   and a green task start with none, as swipl's depth_info is its thread's.
@@ -3848,6 +3862,28 @@ a session must keep:
   0) for no structure. What stays swipl's and not (COMPAT.md, the trace
   row): call/N of `@`, `|` or `:` runs in place, and a C-called call/N of
   more than one argument is the closure's port, where swipl's is call/N's.
+  **once/1, ignore/1, not/1 and catch/3 are ports** (3.78.7,
+  test/trace-ctlframe.pl), as swipl's transparent predicates:
+  `coco_trace_cpred` prints the Call as written (hidden where its context
+  hides, `coco_trace_call`) and pushes a SPENT frame, `pred` -2, its goal
+  the call said of user (`coco_trace_cpred_shown`), an exit marker on the
+  continuation; the frame hides what it calls (`coco_trace_frame_hc`, and
+  `coco_trace_hc` by `coco_trace_cpred_p` -- not a not/1 or ignore/1 the
+  program took over, its predicate's), and its goal is meta-called a level
+  below, a structure in a meta-call frame (`coco_ite_traced` for the three,
+  catch/3's `coco_det_kq` with META 1). catch/3's recovery runs a level
+  below it, a structure in a meta-call frame too (`coco_throw`), and a
+  catch that took a ball marks its frame `pred` -3 (`coco_trace_caught`):
+  no Fail after, as swipl's B_THROW discards the frame's debug choice
+  point; its Exit and a Redo in its recovery are said still. **A new reader
+  of a SPENT frame's `pred` takes -1, -2 and -3 for no predicate.**
+  setup_call_cleanup/3's machinery's own catch/3 is no frame
+  (`coco_trace_cpred_quiet`: setup_call_catcher_cleanup/4's clause and the
+  rows of `*trace-scc-frames*` with bit 8), as swipl's I_CALLCLEANUP and
+  frameFinished() have none -- **a new clause of the machinery that calls
+  catch/3 gets bit 8**, or the goals below it stand a level deep. Untraced,
+  once/1, ignore/1 and not/1 run 3.78.6's instructions, catch/3 six more
+  (its one test of the printer) and a caught throw six.
   **A new system library says
   `:- set_prolog_flag(generate_debug_info, false).` at its head**, as the
   compiled-in halves, library/print_message.pl and library/async.pl do;
@@ -3856,8 +3892,10 @@ a session must keep:
   call. test/trace.pl holds 42 queries of test/trace-library.pl to swipl
   (findnsols/4's two whole since 3.78.3), 23 of test/trace-cleanup.pl, 10
   of test/trace-dollar.pl, 43 of test/trace-meta.pl, 49 of
-  test/trace-shallow.pl and 52 of test/trace-ctlpred.pl (and 13 of their
-  ports at one depth, the qualifiers kept: `ports_at/4`), a second file
+  test/trace-shallow.pl, 52 of test/trace-ctlpred.pl (and 13 of their
+  ports at one depth, the qualifiers kept: `ports_at/4`) and 82 of
+  test/trace-ctlframe.pl (and 14 at one depth; with swipl's Exception port
+  not shown, `traced_nx/4`), a second file
   after one that ends under false, and 40 lines swipl has none of to
   cocolog's own; COMPAT.md has
   what is not swipl's. **The

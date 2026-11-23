@@ -103,10 +103,13 @@ main :-
            own_ports(Swipl, [Library], Q, "findnsols(")),
     forall(member(Q, [ 'fn(L)', 'fm(L)' ]),
            traced_in(Swipl, [Library], Q, Q)),
-    %% CALL_WITH_INFERENCE_LIMIT/3'S OWN PORTS (3.73.0), as swipl's, read
-    %% apart from its goal's, which swipl's catch/3 puts a frame deeper
+    %% CALL_WITH_INFERENCE_LIMIT/3'S OWN PORTS (3.73.0), as swipl's -- and
+    %% since 3.78.7 its goal's, which its catch/3 puts a frame deeper, as
+    %% swipl's (through 3.78.6 cocolog's catch/3 was no frame)
     forall(member(Q, [ 'il(R)', 'ig(R)' ]),
            own_ports(Swipl, [Library], Q, "call_with_inference_limit(")),
+    forall(member(Q, [ 'il(R)', 'ig(R)' ]),
+           traced_in(Swipl, [Library], Q, Q)),
     %% A GOAL ANSWERS UNDER TRACE AS IT DOES UNTRACED (3.72.0): a clause
     %% frame the tracer keeps at its last candidate is no choice point to
     %% setup_call_cleanup/3's exit, so call_cleanup/2's cleanup runs at its
@@ -120,14 +123,16 @@ main :-
     %% of its machinery a port. Through 3.78.2 the goal was three below, a
     %% cleanup four or five, a cut printed `'$cleanup_call'(!, _, C)''s Call
     %% and Exit in the program's clause, and a raise in the goal a Redo of
-    %% `'$scc_raised'/4'. A raise is held from the call on (`traced_from'):
-    %% swipl's catch/3 is a frame, and cocolog's none
+    %% `'$scc_raised'/4'. A raise under a catch/3 is held whole since 3.78.7
+    %% (`traced_nx'), the catch/3 a frame in both; through 3.78.6 from the
+    %% call on, cocolog's catch/3 no frame. The machinery's own catch/3 is
+    %% none, as swipl has none (`coco_trace_cpred_quiet')
     atom_concat(Root, '/test/trace-cleanup.pl', Cleanup),
     forall(member(Q, [ sc1, sc2, sc3, sc4, sc5, sc6, sc7, sc8, sc9, sc10, sc11, sc12, sc13,
                        sc14, sc15, sc16, sc17, sc18, sc19, sc20, sc21 ]),
            traced_in(Swipl, [Cleanup], Q, Q)),
     forall(member(Q, [ 'catch(sx1, _, true)', 'catch(sx2, _, true)' ]),
-           traced_from(Swipl, [Cleanup], Q, "setup_call_cleanup(")),
+           traced_nx(Swipl, [Cleanup], Q, Q)),
     %% A PREDICATE WHOSE NAME BEGINS WITH `$' IS NO PORT (3.78.3,
     %% test/trace-dollar.pl), as none of swipl's is, a program's own too:
     %% what it calls is asked as any call's, and a retry inside it is the
@@ -173,6 +178,24 @@ main :-
     forall(member(Q-Dp, [ ct2-2, ct14-2, ct17-2, ct21-2, ct26-6, ct27-6, ct28-5, ct30-5,
                           ct39-4, ct40-4, ct41-4, ct53-6, ct54-5 ]),
            ports_at(Swipl, [Ctl], Q, Dp)),
+    %% ONCE/1, IGNORE/1, NOT/1 AND CATCH/3 ARE PORTS (3.78.7,
+    %% test/trace-ctlframe.pl), as swipl's transparent predicates: the goal a
+    %% level below, a structure in a `'<meta-call>'/1' frame there, what a
+    %% program defines shown and what the system does hidden; catch/3's
+    %% recovery a level below it, and no Fail after a ball it took. Through
+    %% 3.78.6 the four ran in place, no port and no level. Held with swipl's
+    %% Exception port not shown (`traced_nx'), which cocolog has none of; then
+    %% the four's own ports, the goal as the Call gives it and the Exit, Fail
+    %% and Redo say it of user, with the qualifiers the comparison takes off
+    atom_concat(Root, '/test/trace-ctlframe.pl', Frame),
+    forall(between(1, 82, I),
+           ( atom_concat(cf, I, Q), traced_nx(Swipl, [Frame], Q, Q) )),
+    forall(member(Q-Dp, [ cf1-2, cf2-2, cf5-2, cf9-2, cf16-2, cf22-2, cf23-2, cf33-2, cf38-2,
+                          cf41-2, cf42-2, cf48-2, cf66-2, cf72-2 ]),
+           ports_at(Swipl, [Frame], Q, Dp)),
+    %% ...and not/1 and ignore/1 a program took over are its predicates,
+    %% which hide nothing (test/trace-taken.pl's tk10 to tk12)
+    forall(member(Q, [ tk10, tk11, tk12 ]), traced_in(Swipl, [Taken], Q, Q)),
     %% THE FLAG IS THE FILE'S: test/trace-library.pl ends with it false, and
     %% the file read after it is the program's again (swipl's load puts the
     %% flag back at a file's end)
@@ -234,9 +257,19 @@ traced(Swipl, Program, Q) :-
 %% would print as the file is read, and swipl's run switches the tracer on
 %% after its consults
 traced_in(Swipl, Files, Q, Name) :-
+    traced_in(Swipl, Files, Q, Name, '').
+
+%% ...and with swipl's Exception port not shown (3.78.7: through 3.78.6
+%% `traced_from/4' held such a trace from a call on), which cocolog has
+%% none of: a ball's port, leashed, takes no newline before the port after
+%% it, and the line is no port of either trace
+traced_nx(Swipl, Files, Q, Name) :-
+    traced_in(Swipl, Files, Q, Name, 'visible(-exception), ').
+
+traced_in(Swipl, Files, Q, Name, Vis) :-
     findall(S1, ( member(F1, Files), sh_join(['consult(''', F1, '''), '], S1) ), Cs),
     sh_join(Cs, Consults),
-    sh_join(['yes '''' | timeout 20 ', Swipl, ' -q -g "leash(-all), ', Consults,
+    sh_join(['yes '''' | timeout 20 ', Swipl, ' -q -g "leash(-all), ', Vis, Consults,
              'trace, ( ', Q, ' -> true ; true ), notrace, halt" -t halt 2>&1'], SwiCmd),
     proc_run(SwiCmd, 30000, Swi0, _),
     cocolog(C),
@@ -248,39 +281,6 @@ traced_in(Swipl, Files, Q, Name) :-
     td_ports(Swi0, Swi), td_ports(Coco0, Coco),
     ( td_compare(Swi, Coco, 1, Q) -> R = identical ; R = differs ),
     check(Name, R, identical).
-
-%% the ports of Q's trace from the first whose goal begins with PREFIX on,
-%% those at its depth or deeper, each trace rebased there (3.78.3): a query
-%% a catch/3 stands around, swipl's frame and cocolog's none, and swipl's
-%% Exception port not shown (`visible(-exception)'), which cocolog has none
-%% of
-traced_from(Swipl, Files, Q, Prefix) :-
-    findall(S1, ( member(F1, Files), sh_join(['consult(''', F1, '''), '], S1) ), Cs),
-    sh_join(Cs, Consults),
-    sh_join(['yes '''' | timeout 20 ', Swipl, ' -q -g "leash(-all), visible(-exception), ', Consults,
-             'trace, ( ', Q, ' -> true ; true ), notrace, halt" -t halt 2>&1'], SwiCmd),
-    proc_run(SwiCmd, 30000, Swi0, _),
-    cocolog(C),
-    findall(S2, ( member(F2, Files), sh_join([F2, ' '], S2) ), Fs),
-    sh_join(Fs, Paths),
-    sh_join(['timeout 20 ', C, ' run ', Paths, '"trace, ( ', Q, ' -> true ; true ), notrace" 2>&1 >/dev/null'],
-            CocoCmd),
-    proc_run(CocoCmd, 30000, Coco0, _),
-    td_ports(Swi0, Swi1), td_ports(Coco0, Coco1),
-    tf_window(Swi1, Prefix, Swi), tf_window(Coco1, Prefix, Coco),
-    atom_concat('from the call on: ', Q, Name),
-    ( Swi \== [], td_compare(Swi, Coco, 1, Name) -> R = identical ; R = differs ),
-    check(Name, R, identical).
-
-tf_window(Rows, Prefix, Out) :-
-    append(_, [p(P0, D0, G0)|Rest], Rows),
-    atom_codes(G0, Gc),
-    append(Prefix, _, Gc),
-    !,
-    findall(p(P, D, G),
-            ( member(p(P, D1, G), [p(P0, D0, G0)|Rest]), D1 >= D0, D is D1 - D0 + 1 ),
-            Out).
-tf_window(_, _, []).
 
 %% the Exit and the Fail ports of Q traced as `traced_in/4' traces it, each
 %% goal as it was printed, its qualifiers on (3.45.0)
@@ -510,8 +510,8 @@ own_lines :-
     %% nothing defines has its Call, as swipl prints it, in a clause that
     %% hides its children too -- the system's G hides its children, any
     %% other is asked as the step asks it (`coco_colon_run'). Through 3.58.0
-    %% it had none. (swipl's catch/3 is a frame of its own, a depth apart, so
-    %% the two traces are not held line for line)
+    %% it had none. (Since 3.78.7 the whole trace is held to swipl's too,
+    %% test/trace-ctlframe.pl's cf81: catch/3 is a frame in both)
     own(D, uq, [ ':- set_prolog_flag(generate_debug_info, false).',
                  'hq :- catch(lists:nosuch_xyz, _, true).',
                  ':- set_prolog_flag(generate_debug_info, true).' ], hq,
@@ -534,9 +534,9 @@ own_lines :-
     %% once/1's else is no choice point of swipl's, so its failure prints no
     %% Redo of its clause; not/1's own fail leaves its frame, deep, and the
     %% caller's Redo is printed; and a `\+' in the goal one of the four runs
-    %% in place fails back into that goal's `;' with no Redo. (swipl's four
-    %% are frames, with ports cocolog's have none of yet: COMPAT.md, so the
-    %% traces are not held line for line)
+    %% fails back into that goal's `;' with no Redo. (The four are frames
+    %% since 3.78.7, as swipl's, their goal a meta-call's, and the whole
+    %% traces are held to swipl's too: test/trace-ctlframe.pl's cf74 to cf80)
     own(D, on, [ 'on :- once(fail).' ], on,
         p('Redo', _, on), hidden,
         'once/1''s failure prints no Redo of its clause'),

@@ -1894,6 +1894,34 @@
                                            (coco_k_push e cut b k1)))))
           (return 1)))
 
+  ;;; ...AND UNDER THE PRINTER (3.78.7): G is once/1, ignore/1 or not/1,
+  ;;; B the barrier of its word. G is a port and a frame of its own first
+  ;;; (`coco_trace_cpred'), then its goal the condition, as
+  ;;; `coco_ite_meta' runs it, under G's system word -- a structure in
+  ;;; swipl's `'<meta-call>'/1' frame (`coco_trace_meta'), its barrier
+  ;;; taken at the frame's height, as call/1's
+  (weak) (cold)
+  (func coco_ite_traced ((coco_engine * e) (size_t g) (size_t t) (size_t els) (size_t k) (size_t b))
+        (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t c . #'(coco_arg (-> e m) g 0))
+              (size_t sb . #'(coco-sys-bar b g))
+              (size_t h0 . 0) (size_t kc . 0) (size_t cb . 0))
+          (set k (coco_trace_cpred e g b k))
+          (set h0 (-> e nchoices))
+          (if (not (coco_push_choice e COCO_CH_GOAL els k sb)) (return 0))
+          (set kc (coco_k_push e (coco_make1_f m (coco-fid m "$cut" 1) (coco_new_int m (cast i64 h0)))
+                               sb (coco_k_push e t sb k)))
+          (set cb (bitor (-> e nchoices) (coco-bar-tag sb)))
+          ;; a goal that holds `$' closed by its frame's exit marker, as
+          ;; `coco_ite_meta' closes it
+          (if (and (coco_is_construct m (coco_name_of m (coco_deref m c))) (coco_det0_in m c))
+              (set kc (coco_k_push e (coco_make1_f m (coco-fid m "$det_end" 1) (coco_new_int m 0))
+                                   (bitor (-> e nchoices) (coco_mc_tag m)) kc)))
+          (set kc (coco_trace_meta e c cb kc))
+          (set (-> e goals) (coco_k_push e c cb kc))
+          (return 1)))
+
   (static)
   ;;; A CONTROL CONSTRUCT, run: `true', `fail', `,', `!', the cuts, `;',
   ;;; `->', `*->', `\+', `once', `ignore', `call', `catch', `throw' and
@@ -2091,8 +2119,12 @@
                    (if (and (!= (-> e dgk) (coco-det-none))
                             (not (coco_det_meta e k (coco-bar-tag (coco-sys-bar b g)))))
                        (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
-                   (coco_ite_meta e (coco_arg m g 0) (coco_new_atom_id m (coco-id m "$fail"))
-                                  (coco_new_atom_id m (coco-id m "$true")) k (coco-sys-bar b g)))
+                   ;; under the printer a port and a frame (3.78.7)
+                   (if (== (-> e trace) 1)
+                       (coco_ite_traced e g (coco_new_atom_id m (coco-id m "$fail"))
+                                        (coco_new_atom_id m (coco-id m "$true")) k b)
+                       (coco_ite_meta e (coco_arg m g 0) (coco_new_atom_id m (coco-id m "$fail"))
+                                      (coco_new_atom_id m (coco-id m "$true")) k (coco-sys-bar b g))))
 
                   ((and (== n 1) (== nid (coco-id m "\\+")))
                    (coco-with-parts (sb)
@@ -2127,8 +2159,11 @@
                    (if (and (!= (-> e dgk) (coco-det-none))
                             (not (coco_det_meta e k (coco-bar-tag (coco-sys-bar b g)))))
                        (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
-                   (coco_ite_meta e (coco_arg m g 0) (coco_new_atom_id m (coco-id m "$true"))
-                                  (coco_new_atom_id m (coco-id m "$fail")) k (coco-sys-bar b g)))
+                   (if (== (-> e trace) 1)
+                       (coco_ite_traced e g (coco_new_atom_id m (coco-id m "$true"))
+                                        (coco_new_atom_id m (coco-id m "$fail")) k b)
+                       (coco_ite_meta e (coco_arg m g 0) (coco_new_atom_id m (coco-id m "$true"))
+                                      (coco_new_atom_id m (coco-id m "$fail")) k (coco-sys-bar b g))))
 
                   ;; `ignore(G)' is the same construct with the failure arm
                   ;; saying yes: run G, keep the first solution's bindings if
@@ -2146,8 +2181,11 @@
                    (if (and (!= (-> e dgk) (coco-det-none))
                             (not (coco_det_meta e k (coco-bar-tag (coco-sys-bar b g)))))
                        (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
-                   (coco_ite_meta e (coco_arg m g 0) (coco_new_atom_id m (coco-id m "$true"))
-                                  (coco_new_atom_id m (coco-id m "$true")) k (coco-sys-bar b g)))
+                   (if (== (-> e trace) 1)
+                       (coco_ite_traced e g (coco_new_atom_id m (coco-id m "$true"))
+                                        (coco_new_atom_id m (coco-id m "$true")) k b)
+                       (coco_ite_meta e (coco_arg m g 0) (coco_new_atom_id m (coco-id m "$true"))
+                                      (coco_new_atom_id m (coco-id m "$true")) k (coco-sys-bar b g))))
 
                   ((and (== n 1) (== nid (coco-id m "call")))
                    ;; call/1 is opaque to cut: the goal runs under a barrier of
@@ -2202,6 +2240,16 @@
                    ;; goal's and the recovery's inside the catch, DE its
                    ;; marker's goal (`coco_det_catch'). Its goal is no last
                    ;; call of it (`coco_det_kq')
+                   ;;
+                   ;; UNDER THE PRINTER A PORT AND A FRAME (3.78.7,
+                   ;; `coco_trace_cpred'), as swipl's catch/3 is a predicate:
+                   ;; the goal and the recovery a level below it, in its
+                   ;; context, and a goal that is a structure in a
+                   ;; `'<meta-call>'/1' frame below that (`coco_trace_meta')
+                   ;; -- but in setup_call_cleanup/3's machinery, none
+                   ;; (`coco_trace_cpred_quiet')
+                   (if (and (== (-> e trace) 1) (not (coco_trace_cpred_quiet e b)))
+                       (set k (coco_trace_cpred e g b k)))
                    (let ((size_t de . 0) (size_t kr . k))
                      (if (!= (-> e dgk) (coco-det-none))
                          (block
@@ -2229,8 +2277,11 @@
                      (set mb (coco_meta_bar e (coco_arg m g 0) 0 k
                                             (cast u64 (coco-payload (nth g (-> m heap))))
                                             (cast size_t -1)))
+                     ;; under the printer a structure in a `'<meta-call>'/1'
+                     ;; frame (3.78.7: META 1, as call/1's, asked only of a
+                     ;; goal a construct names)
                      (set (-> e goals)
-                          (coco_k_push e (coco_arg m g 0) mb (coco_det_kq e (coco_arg m g 0) mb kx 0)))
+                          (coco_k_push e (coco_arg m g 0) mb (coco_det_kq e (coco_arg m g 0) mb kx 1)))
                      (if (not (coco_goal_ok m (coco_arg m g 0)))
                          (return (coco_construct_bad e g "catch" 3 ret))))))
 
@@ -3361,14 +3412,30 @@
   ;;; catch frame's continuation, which starts with the marker of the
   ;;; frame of a structure the catch's goal was, none of the recovery's --
   ;;; passed by -- and a recovery that is a structure has its own, a level
-  ;;; below the catch frame
+  ;;; below the catch frame. Under the printer the catch/3 port's Exit
+  ;;; marker stands before that marker (3.78.7, `coco_trace_cpred'): it is
+  ;;; kept, and the marker after it passed by all the same -- read as the
+  ;;; recovery's owner, a recovery that is a frame stood a level deeper
+  ;;; than it does untraced, and call_with_depth_limit/3's own,
+  ;;; '$depth_limit_except'/3, failed past a limit of 1 where untraced it
+  ;;; threw the ball on (test/engine.pl's traced depth-limit check)
   (func coco_depth_recovery ((coco_engine * e) (size_t goals) (size_t recovery)) (out size_t)
-        (let ((coco_machine * m . #'(-> e m)) (size_t f . #'(coco_deref (-> e m) goals)) (u64 ow . 0))
+        (let ((coco_machine * m . #'(-> e m)) (size_t f . #'(coco_deref (-> e m) goals)) (u64 ow . 0)
+              (size_t tx . 0))
+          (if (and (== (nth f (-> m heap)) (coco-cell FUN (coco-fid m "$k" 3)))
+                   (== (nth (coco_deref m (+ f 1)) (-> m heap)) (coco-cell FUN (coco-fid m "$trace_exit" 3))))
+              (block (set tx f) (set f (coco_deref m (+ f 3)))))
           (if (== (nth f (-> m heap)) (coco-cell FUN (coco-fid m "$k" 3)))
               (let ((size_t g . #'(coco_deref m (+ f 1))))
                 (if (and (== (nth g (-> m heap)) (coco-cell FUN (coco-fid m "$dl" 1)))
                          (== (bitand (coco-signed-payload (nth (coco_deref m (+ g 1)) (-> m heap))) 3) 2))
-                    (set goals (coco_arg m f 2)))))
+                    (if (== tx 0)
+                        (set goals (coco_arg m f 2))
+                        (let ((size_t kt . #'(coco_k_push e (coco_arg m tx 0)
+                                                          (cast size_t (coco-signed-payload
+                                                                        (nth (coco_deref m (coco_arg m tx 1)) (-> m heap))))
+                                                          (coco_arg m f 2))))
+                          (if (!= kt 0) (set goals kt)))))))
           (if (not (coco_depth_structure m recovery)) (return goals))
           (set ow (coco_depth_owner e goals 0))
           (let ((size_t mk . #'(coco_k_push e (coco_make1_f m (coco-fid m "$dl" 1)

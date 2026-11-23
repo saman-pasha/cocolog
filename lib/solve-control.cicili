@@ -1160,9 +1160,12 @@
   ;;; no ports by their names, and hiding what they call as the builtins'
   ;;; clauses do, where swipl's frame and its parts are ports (COMPAT.md). A
   ;;; macro of the table, whose rows the function asks in turn
+  ;;; Bit 8 (3.78.7): the catch/3 its clause calls is no frame of swipl's
+  ;;; (`coco_trace_cpred_quiet'), as frameFinished() calls a cleanup with
+  ;;; none
   (DEFPARAMETER *trace-scc-frames*
-    '(("$scc_run" 1 1) ("$cleanup_call" 3 1) ("$scc_fail" 2 1) ("$scc_raised" 4 1)
-      ("$scc_unwind" 3 1) ("$c_setup" 1 6) ("$c_call" 1 4)))
+    '(("$scc_run" 1 1) ("$cleanup_call" 3 1) ("$scc_fail" 2 1) ("$scc_raised" 4 9)
+      ("$scc_unwind" 3 9) ("$c_setup" 1 6) ("$c_call" 1 4)))
   (DEFMACRO coco-trace-scc-rows (s n)
     `(block ,@(MAPCAR (LAMBDA (r)
                         `(if (and (== ,n ,(SECOND r)) (== 0 (strcmp ,s ,(FIRST r))))
@@ -1185,13 +1188,32 @@
   ;;; trace (3) prints nothing. The depths count every call, a hidden one
   ;;; too, as swipl's levels do.
 
+  ;;; whether G, dereferenced, is once/1, ignore/1, not/1 or catch/3: a
+  ;;; control construct here and a transparent predicate of swipl's system,
+  ;;; a frame that hides what it calls (3.78.7, `coco_trace_cpred') -- but
+  ;;; for a not/1 or an ignore/1 the program took over, which is its
+  ;;; predicate's (`coco_claim_kind'), where `system:' asked for no other
+  (static)
+  (func coco_trace_cpred_p ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (u64 nm . 0) (u32 n . 0))
+          (if (not (coco-tag-is FUN (nth g (-> m heap)))) (return 0))
+          (set nm (coco_name_of m g))
+          (set n (coco_arity m g))
+          (if (== n 3) (return (== nm (coco-id m "catch"))))
+          (if (!= n 1) (return 0))
+          (if (== nm (coco-id m "once")) (return 1))
+          (if (and (!= nm (coco-id m "ignore")) (!= nm (coco-id m "not"))) (return 0))
+          (return (not (and (!= (-> (-> e st) ntaken) 0) (not (-> e systake))
+                            (coco_pred_taken (-> e st) nm 1))))))
+
   ;;; whether goal G's predicate hides its children: 0 for no goal (the
   ;;; toplevel's context); 1 for a builtin and a name a module claims, and a
   ;;; predicate of the store by its `pattrs' 32 (decided by its first
   ;;; clause, `coco_assert_from'), asked in the order the step dispatches
   ;;; them -- a fact under a builtin's name is the builtin's call, and the
   ;;; store may hold an entry for a module's name -- but a name the program
-  ;;; took over is its predicate's; 0 for anything else
+  ;;; took over is its predicate's; 1 for once/1, ignore/1, not/1 and
+  ;;; catch/3 (3.78.7, `coco_trace_cpred_p'); 0 for anything else
   (weak)
   (func coco_trace_hc ((coco_engine * e) (size_t g)) (out int)
         (if (== g 0) (return 0))
@@ -1201,6 +1223,7 @@
           (set g (coco_deref m g))
           (set c (nth g (-> m heap)))
           (if (not (or (coco-tag-is ATOM c) (coco-tag-is FUN c))) (return 0))
+          (if (coco_trace_cpred_p e g) (return 1))
           (set nid (coco_name_of m g))
           (set n (coco_arity m g))
           (if (> n 0)
@@ -1234,17 +1257,37 @@
   ;;; below the clause whose cut ran it -- as swipl's are. The depth limit's
   ;;; frames are its own (`coco_depth_row')
   (static)
+  (func coco_trace_scc_bits ((const char * s) (u32 n)) (out int)
+        ;; `$', 36
+        (if (or (== s nil) (!= (nth 0 s) (cast char 36))) (return 0))
+        (coco-trace-scc-rows s n)
+        (return 0))
+
+  (static)
   (func coco_trace_scc ((coco_machine * m) (size_t g)) (out int)
-        (let ((u64 c . 0) (u32 n . 0) (const char * s . nil))
+        (let ((u64 c . 0))
           (set g (coco_deref m g))
           (set c (nth g (-> m heap)))
           (if (not (coco-tag-is FUN c)) (return 0))
-          (set s (coco_atom_name m (coco_name_of m g)))
-          ;; `$', 36
-          (if (or (== s nil) (!= (nth 0 s) (cast char 36))) (return 0))
-          (set n (coco_arity m g))
-          (coco-trace-scc-rows s n)
-          (return 0)))
+          (return (coco_trace_scc_bits (coco_atom_name m (coco_name_of m g)) (coco_arity m g)))))
+
+  ;;; WHETHER ONCE/1, IGNORE/1, NOT/1 OR CATCH/3 RUNS UNDER WORD B IN
+  ;;; SETUP_CALL_CLEANUP/3'S MACHINERY (3.78.7), whose catch/3 stands for
+  ;;; what is no frame of swipl's -- I_CALLCLEANUP's call of the goal and
+  ;;; frameFinished()'s of a cleanup -- so no port and no frame there, as
+  ;;; through 3.78.6: setup_call_catcher_cleanup/4's clause, and a row of
+  ;;; `*trace-scc-frames*' with bit 8. B's owner is the clause's predicate
+  ;;; (`coco-bar-pred')
+  (static)
+  (func coco_trace_cpred_quiet ((coco_engine * e) (size_t b)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (u64 o . #'(coco-bar-pred b))
+              (coco_functor * f . nil) (const char * s . nil))
+          (if (or (== o 0) (> o (cast u64 (-> m functors_len)))) (return 0))
+          (set f (aof (nth (cast size_t (- o 1)) (-> m functors))))
+          (set s (coco_atom_name m (-> f name)))
+          (if (== s nil) (return 0))
+          (if (and (== (-> f arity) 4) (== 0 (strcmp s "setup_call_catcher_cleanup"))) (return 1))
+          (return (!= (bitand (coco_trace_scc_bits s (-> f arity)) 8) 0))))
 
   ;;; THE LEVEL THE BODY OF THE CALL AT FRAME CI RUNS AT, for the printer:
   ;;; the call's depth, but for a hidden clause of setup_call_cleanup/3's
@@ -1317,13 +1360,16 @@
         (return 1))
 
   ;;; whether the call at frame CI hides its children: its predicate's
-  ;;; `pattrs' 32
+  ;;; `pattrs' 32, and the frame of once/1, ignore/1, not/1 or catch/3,
+  ;;; which names none, by its `pred' -2, or -3 a catch that took a ball
+  ;;; (3.78.7, `coco_trace_cpred', `coco_trace_caught')
   (static)
   (func coco_trace_frame_hc ((coco_engine * e) (size_t ci)) (out int)
         (let ((coco_store * st . #'(-> e st))
               (size_t pi . #'($ (nth ci (-> e choices)) pred)))
-          (return (and (< pi (-> st npreds))
-                       (!= (bitand ($ (coco-pred-at (-> st predp) pi) pattrs) 32) 0)))))
+          (return (or (== pi (cast size_t -2)) (== pi (cast size_t -3))
+                      (and (< pi (-> st npreds))
+                           (!= (bitand ($ (coco-pred-at (-> st predp) pi) pattrs) 32) 0))))))
 
   ;;; THE FRAME A RETRY IS REPORTED ON (swipl's dbgRedoFrame), for the call
   ;;; at frame CI, which hides its children or was hidden: the outermost of
@@ -1458,6 +1504,77 @@
           (set (-> e trace_depth) td)
           (set (-> e trace_goal) d)
           (return k2)))
+
+  ;;; G, once/1, ignore/1, not/1 or catch/3, said of user as their
+  ;;; meta_predicate specs say -- `once(user:H)', `catch(user:H, C,
+  ;;; user:R)' -- an argument qualified already its own: what swipl's Exit,
+  ;;; Fail and Redo of the call show (3.78.7)
+  (static)
+  (func coco_trace_cpred_shown ((coco_machine * m) (size_t d)) (out size_t)
+        (let ((size_t args [3]) (u32 n . #'(coco_arity m d)))
+          (for ((u32 i . 0)) (< i n) ((++ i))
+            (let ((size_t a . #'(coco_deref m (coco_arg m d i))))
+              (if (and (!= i 1) (not (coco_is_compound2 m a ":")))
+                  (set a (coco_make2 m ":" (coco_new_atom m "user") a)))
+              (set (nth i args) a)))
+          (return (coco_make m (coco_atom_name m (coco_name_of m d)) n args))))
+
+  ;;; ONCE/1, IGNORE/1, NOT/1 AND CATCH/3 TO THE PRINTER (3.78.7): in
+  ;;; swipl transparent predicates of its system -- frames of their own,
+  ;;; which hide what they call and meta-call their goal -- where cocolog's
+  ;;; are control constructs. G's Call is printed as written
+  ;;; (`coco_trace_call', which hides it where its context hides, as a
+  ;;; system predicate's call is hidden) and G gets a SPENT frame, its goal
+  ;;; G said of user for its Exit, Fail and Redo (`coco_trace_cpred_shown'),
+  ;;; naming no predicate but one that hides its children (`pred' -2,
+  ;;; `coco_trace_frame_hc'), with an exit marker on K that puts the
+  ;;; caller's level and context back and gives its step back. The
+  ;;; construct then runs a level below, in G's context, which hides what
+  ;;; it calls (`coco_trace_hc'). Answers what the construct goes before:
+  ;;; the marker on K, or K where no room was left (the refusal the step's
+  ;;; next growth says)
+  (weak) (cold)
+  (func coco_trace_cpred ((coco_engine * e) (size_t g) (size_t b) (size_t k)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m)) (size_t d . #'(coco_deref (-> e m) g))
+              (int td . #'(+ (-> e trace_depth) 1)) (int pr . 0)
+              (size_t sg . 0) (size_t k2 . 0) (size_t margs [3]))
+          (set pr (coco_trace_call e td d))
+          (set sg (coco_trace_cpred_shown m d))
+          (set (nth 0 margs) (coco_new_int m (cast i64 d)))
+          (set (nth 1 margs) (coco_new_int m (cast i64 td)))
+          (set (nth 2 margs) (coco_new_int m (cast i64 (-> e trace_goal))))
+          (set k2 (coco_k_push e (coco_make_f m (coco-fid m "$trace_exit" 3) 3 margs) b k))
+          (if (== k2 0) (return k))
+          (if (not (coco_push_choice e COCO_CH_SPENT d k b)) (return k))
+          (let ((size_t ci . #'(- (-> e nchoices) 1)))
+            (set ($ (nth ci (-> e choices)) pred) (cast size_t -2))
+            (set ($ (nth ci (-> e tchoices)) goal) sg)
+            (set ($ (nth ci (-> e tchoices)) depth) td)
+            (set ($ (nth ci (-> e tchoices)) printr) pr)
+            (set ($ (nth ci (-> e tchoices)) last) 0))
+          (set (-> e trace_depth) td)
+          (set (-> e trace_goal) d)
+          (return k2)))
+
+  ;;; A BALL THE CATCH/3 FRAME AT CI TOOK, under the printer (3.78.7): the
+  ;;; catch's own frame below it -- `coco_trace_cpred''s, past a guard
+  ;;; frame $/0 put between -- is marked caught, `pred' -3, as swipl's
+  ;;; B_THROW discards the choice points after the frame that catches,
+  ;;; its debug choice point among them: no Fail is said of the call after
+  ;;; (`coco_trace_spent'), and its Exit and a Redo in its recovery are,
+  ;;; as they need none
+  (weak) (cold)
+  (func coco_trace_caught ((coco_engine * e) (size_t ci))
+        (let ((i64 f . #'(- (cast i64 ci) 1)))
+          (while (>= f 0)
+            (let ((coco_choice * c . #'(aof (nth (cast size_t f) (-> e choices)))))
+              (if (or (== (-> c kind) COCO_CH_CLAUSE) (== (-> c kind) COCO_CH_SPENT))
+                  (block
+                   (if (and (== (-> c kind) COCO_CH_SPENT) (== (-> c pred) (cast size_t -2))
+                            (== (-> c call) ($ (nth ci (-> e tchoices)) goal)))
+                       (set (-> c pred) (cast size_t -3)))
+                   (return))))
+            (set f (- f 1)))))
 
   ;;; THE ROOT OF A SEARCH A BUILTIN STARTS IN ITS CONTEXT (`coco_trace_inner'
   ;;; QUERY 0), once asked (`coco_engine_ask'): a control structure there
@@ -1806,12 +1923,14 @@
   ;;; left to try, so this is its Fail -- printed, or recorded in a window,
   ;;; the goal as backtracking left it -- unless it had exited, when it goes
   ;;; in silence as a clause frame out of heads does. No heads are recorded:
-  ;;; after the cut no other clause was tried.
+  ;;; after the cut no other clause was tried. None for a catch/3 that took
+  ;;; a ball (3.78.7, `pred' -3, `coco_trace_caught')
   (weak)
   (func coco_trace_spent ((coco_engine * e) (size_t ci))
         (if (== (-> e trace) 0) (return))
         (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
-          (if (and (!= (-> tc printr) 0) (!= (-> tc printr) 2) (== (-> tc exited) 0))
+          (if (and (!= (-> tc printr) 0) (!= (-> tc printr) 2) (== (-> tc exited) 0)
+                   (!= ($ (nth ci (-> e choices)) pred) (cast size_t -3)))
               (coco_trace_port e "Fail" (-> tc depth) (-> tc goal)))))
 
   ;;; A CLOCKED FRAME BACKTRACKED INTO (1.13.7): a retry begins, read from
@@ -2954,12 +3073,28 @@
                                 ;; body of the call the catch/3 is in
                                 (if (== (-> e trace) 2)
                                     (coco_rec_mark e COCO_REV_CATCH (-> e trace_depth)
-                                                   (-> e trace_goal) 0))))
+                                                   (-> e trace_goal) 0))
+                                ;; and under the printer the catch's own
+                                ;; frame says no Fail after (3.78.7)
+                                (if (== (-> e trace) 1) (coco_trace_caught e ci))))
                      (set (-> e nchoices) ci)
+                     ;; THE RECOVERY IS OPAQUE TO CUT (3.78.7), as swipl's
+                     ;; catch/3 calls it as call/1 calls its goal: its word
+                     ;; the catch frame's owner over the height the frame
+                     ;; stood at. Through 3.78.6 it was the frame's own
+                     ;; word, the caller's height, and a `!' in the
+                     ;; recovery cut the clause the catch/3 stood in --
+                     ;; its other clauses, and every choice before the catch
+                     (set barrier (bitor (-> e nchoices) (coco-bar-tag barrier)))
                      ;; under a depth limit (3.74.0) the recovery runs a
                      ;; level below the catch frame, and the goal's own
                      ;; structure's frame is none of it
                      (if (bitand (-> e tclock) 2) (set goals (coco_depth_recovery e goals recovery)))
+                     ;; under the printer a structure in swipl's
+                     ;; `'<meta-call>'/1' frame, a level below the catch's
+                     ;; (3.78.7, `coco_trace_meta'), its barrier the
+                     ;; frame's height
+                     (if (== (-> e trace) 1) (set goals (coco_trace_meta e recovery barrier goals)))
                      (set (-> e goals) (coco_k_push e recovery barrier goals))
                      ;; the ball is on the heap and its cell an orphan
                      (if (== bst st)

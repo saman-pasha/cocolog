@@ -259,8 +259,9 @@ the same thirty-three queries over `test/trace-program.pl`, since 3.27.0
 thirty-two over `test/trace-library.pl` (library calls, a callback, a
 search, `generate_debug_info` false and back, a second file after it), and
 since 3.78.3 twenty-three over `test/trace-cleanup.pl` (setup_call_cleanup/3's
-setup, goal and cleanups; the two that raise held from its call on, as
-swipl's catch/3 is a frame and swipl's Exception port is not shown), ten
+setup, goal and cleanups; the two that raise held whole since 3.78.7,
+swipl's Exception port not shown, and through 3.78.6 from its call on,
+cocolog's catch/3 then no frame), ten
 over `test/trace-dollar.pl` (`$` names: a program's, a library's, a
 builtin's) and findnsols/4's two whole, since 3.78.4 forty-three over
 `test/trace-meta.pl` (structures call/1 runs: their levels, a cut and a
@@ -272,7 +273,13 @@ fifty-two over `test/trace-ctlpred.pl` (the control predicates: call/N's
 closure, a setup, a cleanup, with_output_to/2's and `~@`'s goal) and the
 ports at one depth of thirteen of them with their qualifiers kept (the
 qualifiers are said apart there: swipl's Call shows the arguments as the
-caller gave them, its Exit said of user), and
+caller gave them, its Exit said of user), since 3.78.7 eighty-two over
+`test/trace-ctlframe.pl` (once/1, ignore/1, not/1 and catch/3 as ports:
+their goals' levels, a structure in them, a library call hidden in them,
+a retry in them, catch/3's recovery and a ball it took; swipl's
+Exception port not shown) and the ports at one depth of fourteen of them
+with their qualifiers kept, and three of `test/trace-taken.pl` (not/1 and
+ignore/1 a program took over), and
 compares the port lines one for one: same ports, same order, same relative
 depths, same goals. Three things are normalised first, because the two
 writers are entitled to them: the depth base (SWI's toplevel starts about ten
@@ -286,9 +293,11 @@ to cocolog's own lines.
 Knowing divergences, all outside the ports themselves (COMPAT.md): SWI
 jumps several frame depths entering a `findall` (its inner machinery,
 hidden) where cocolog's inner engine is one deeper than the call; SWI
-shows once/1, ignore/1, not/1 and catch/3 as frames of their own,
-`^  Call: once(G)`, and hides a library call in them, where here they are
-control constructs and the call is the program's; SWI calls boot/init.pl's
+says the goal of a `system:` call of once/1, ignore/1, not/1 or catch/3
+of system at its Exit, where cocolog says it of user, and calls call/1
+as a predicate where it is meta-called (`once(call((a, b)))`), a frame
+cocolog has none of; SWI prints throw/1's Call where its caller hides
+nothing, and the Exception ports, where cocolog has none; SWI calls boot/init.pl's
 `@/2` for `call(@, G, M)`, a port, where cocolog runs G in place, and
 call/3 for a goal C runs that is call/N of more than one argument
 (`with_output_to(S, call(',', a, b))`), a port with the construct's hidden
