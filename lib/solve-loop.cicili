@@ -2286,6 +2286,9 @@
                        (if (> (+ have extra) 255)
                            (block (set (cof ret) (coco_fail_err e "call/N: too many arguments")) (return 2)))
                        (let ((size_t built)
+                             ;; the closure's name, once: the goal is made by
+                             ;; it and the construct test asks it (3.78.6)
+                             (u64 cnm . #'(coco_name_of m c))
                              (size_t * args . #'(cast (size_t *)
                                                       (malloc (* (+ have extra)
                                                                  (sizeof size_t))))))
@@ -2300,15 +2303,18 @@
                            (set (nth i args) (coco_arg m c i)))
                          (for ((u32 i . 0)) (< i extra) ((++ i))
                            (set (nth (+ have i) args) (coco_arg m g (+ i 1))))
-                         (set built (coco_make m (coco_atom_name m (coco_name_of m c))
-                                             (+ have extra) args))
+                         (set built (coco_make m (coco_atom_name m cnm) (+ have extra) args))
                          (free args)
                          ;; a closure M:C is M:C' (3.1.0, swipl's): the
                          ;; arguments go to C, under its module, the
                          ;; qualifier made by its functor's id (3.45.0: by
                          ;; its name it was an intern a call), and user:C'
-                         ;; of a plain predicate is C' (`coco_user_plain')
-                         (if hasq (set built (coco_user_plain e (coco_make2_f m (coco-fid m ":" 2) cq built))))
+                         ;; of a plain predicate is C' (`coco_user_plain');
+                         ;; a control construct's closure calls swipl's
+                         ;; predicate of it (3.78.6, `coco_calln_ctl')
+                         (if (coco_is_construct m cnm)
+                             (set built (coco_calln_ctl e built hasq cq))
+                             (if hasq (set built (coco_user_plain e (coco_make2_f m (coco-fid m ":" 2) cq built)))))
                          ;; opaque to cut, exactly as call/1 is, and run in
                          ;; the frame call/1's would be (3.1.0), no last call
                          ;; of a guarded frame (3.21.0)
@@ -2414,7 +2420,10 @@
   ;;; WHETHER THE GOAL AT G, its qualifiers off, is a control structure
   ;;; swipl compiles into a frame of its own when it is called (pl-funct.c's
   ;;; CONTROL_F, `:' stripped first by i_usercall_common), EXTRA arguments
-  ;;; added to it (call/N's)
+  ;;; added to it (call/N's). Of call/N's (EXTRA past 0) `,', `;', `->',
+  ;;; `*->', `\+' and `$' are none since 3.78.6: I_USERCALLN calls the
+  ;;; system's predicate of each, a frame (`coco_calln_ctl''s helper), whose
+  ;;; clause makes the structure's frame
   (static)
   (func coco_depth_structure_n ((coco_machine * m) (size_t g) (u32 extra)) (out int)
         (let ((size_t s . #'(coco_deref m g)) (u32 hops . 0) (u64 nm . 0) (u32 ar . 0))
@@ -2428,9 +2437,12 @@
                  (block (set nm (cast u64 (coco-payload (nth s (-> m heap))))) (set ar extra)))
                 (#t (return 0)))
           (if (== ar 2)
-              (return (or (== nm (coco-id m ",")) (== nm (coco-id m ";")) (== nm (coco-id m "|"))
-                          (== nm (coco-id m "->")) (== nm (coco-id m "*->")) (== nm (coco-id m "@")))))
-          (if (== ar 1) (return (or (== nm (coco-id m "\\+")) (== nm (coco-id m "$")))))
+              (return (or (== nm (coco-id m "|")) (== nm (coco-id m "@"))
+                          (and (== extra 0)
+                               (or (== nm (coco-id m ",")) (== nm (coco-id m ";"))
+                                   (== nm (coco-id m "->")) (== nm (coco-id m "*->")))))))
+          (if (== ar 1)
+              (return (and (== extra 0) (or (== nm (coco-id m "\\+")) (== nm (coco-id m "$"))))))
           (return 0)))
   (static)
   (func coco_depth_structure ((coco_machine * m) (size_t g)) (out int)

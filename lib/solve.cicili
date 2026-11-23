@@ -2673,6 +2673,62 @@
   (func coco_autoload_install ((func h ((coco_engine * e) (u64 nid) (u32 n)) (out int)))
         (set coco_autoload_hook h))
 
+  ;;; THE CONTROL PREDICATES SWIPL CALLS AS PREDICATES (3.78.6, boot/init.pl's
+  ;;; ','/2 and its kin, and call/1): the helper `coco_c_goal' makes of each
+  ;;; -- for a setup, a cleanup, with_output_to/2's and `~@''s goal, and the
+  ;;; structure call/N builds -- and the name the printer shows its frame
+  ;;; under. Each is a port though a `$' name (`coco_trace_hidden'), hiding
+  ;;; its children as the builtins' clauses do, as swipl's system predicate
+  ;;; hides them; `'$c_det'/1' is none, as swipl meta-calls a $/1, a
+  ;;; '<meta-call>'/1 of its own. Each is declared with swipl's spec of the
+  ;;; predicate it is (the builtins' Prolog half), so its Call shows its
+  ;;; goal as the caller gave it and the step says it of user after that
+  ;;; port, as swipl's ports show it. A macro of the table, asked in turn
+  (DEFPARAMETER *trace-ctl-preds*
+    '(("$c_and" 2 ",") ("$c_ite" 2 "->") ("$c_soft" 2 "*->") ("$c_or" 2 ";")
+      ("$c_not" 1 "\\+") ("$c_call1" 1 "call")))
+  (DEFMACRO coco-trace-ctl-rows (s n)
+    `(block ,@(MAPCAR (LAMBDA (r)
+                        `(if (and (== ,n ,(SECOND r)) (== 0 (strcmp ,s ,(FIRST r))))
+                             (return ,(THIRD r))))
+                      *trace-ctl-preds*)))
+
+  ;;; the name the printer shows a frame of goal G under, where G is a
+  ;;; control predicate's helper (`*trace-ctl-preds*'), else nil
+  (func coco_trace_ctl_name ((coco_machine * m) (size_t g)) (out const char *)
+        (let ((size_t d . #'(coco_deref m g)) (const char * s . nil) (u32 n . 0))
+          (if (not (coco-tag-is FUN (nth d (-> m heap)))) (return nil))
+          (set s (coco_atom_name m (coco_name_of m d)))
+          ;; every helper's name begins `$c_' (36, 99)
+          (if (or (== s nil) (!= (nth 0 s) (cast char 36)) (!= (nth 1 s) (cast char 99))) (return nil))
+          (set n (coco_arity m d))
+          (coco-trace-ctl-rows s n)
+          (return nil)))
+
+  ;;; THE TERM THE PRINTER WRITES FOR GOAL G (3.78.6): a control predicate's
+  ;;; helper as swipl's predicate of it, its arguments as the frame holds
+  ;;; them, built on the heap; any other goal G itself
+  (static)
+  (func coco_trace_shown ((coco_engine * e) (size_t g)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m)) (const char * nm . #'(coco_trace_ctl_name (-> e m) g))
+              (size_t d . 0) (u32 n . 0) (size_t a [2]))
+          (if (== nm nil) (return g))
+          (set d (coco_deref m g))
+          (set n (coco_arity m d))
+          (for ((u32 i . 0)) (< i n) ((++ i))
+            (set (nth i a) (coco_arg m d i)))
+          (return (coco_make m nm n a))))
+
+  ;;; G's text as the printer writes it at a port (`coco_trace_shown'), the
+  ;;; term it builds a root while portray/1 may run
+  (func coco_trace_goal_text ((coco_engine * e) (coco_strbuf * b) (size_t g)) (out int)
+        (let ((size_t sh [1]) (size_t * shp . sh) (size_t nsh . 1) (int held . 0) (int r . 0))
+          (set (nth 0 sh) (coco_trace_shown e g))
+          (if (!= (nth 0 sh) g) (set held (coco_heap_root_push (-> e m) (aof shp) (aof nsh))))
+          (set r (coco_trace_text e b (nth 0 sh)))
+          (if held (coco_heap_root_pop (-> e m)))
+          (return r)))
+
   (static)
   (func coco_trace_port ((coco_engine * e) (const char * port) (int depth) (size_t g))
         ;; QUIET (`trace' 3, `--backtrace'): nothing printed, the markers
@@ -2691,10 +2747,11 @@
         ;; THE GOAL AS print/1 WRITES IT (3.40.0), as swipl's debugger writes
         ;; it (portray, so numbervars, and quoted): `'$VAR'(0)' is `A' and
         ;; `'don\'t'' swipl's escape; through 3.39.0 the engine's quoted text,
-        ;; and since 3.54.0 portray/1 asked (`coco_trace_text')
+        ;; and since 3.54.0 portray/1 asked (`coco_trace_text'); a control
+        ;; predicate's helper as swipl's predicate (3.78.6)
         (let ((coco_strbuf b))
           (coco_sb_init (aof b))
-          (coco_trace_text e (aof b) g)
+          (coco_trace_goal_text e (aof b) g)
           (coco_trace_line port depth ($ b s))
           (coco_sb_free (aof b))))
 

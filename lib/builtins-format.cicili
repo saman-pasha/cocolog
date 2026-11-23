@@ -1564,7 +1564,11 @@
                       (if (== f 2)
                           (block (set (cof fdir) (coco_m_raise_pi e fm "system" op opn))
                                  (return (coco_fmt_fail err errlen fkind 5 ""))))
-                      (set a r))
+                      ;; and a control construct runs as its system
+                      ;; predicate (3.78.6, `coco_c_goal' kind 0), a port
+                      ;; whose clause meta-calls the parts, as swipl's
+                      ;; callProlog() calls it
+                      (set a (coco_c_goal m a 0)))
                     (coco-fmt-now cs o)
                     (set wc0 (-> cs col))
                     (set wfrom (-> o len))
@@ -2061,7 +2065,9 @@
             (set f (coco_c_root_fault (coco_m_machine e) goal r (aof fm) (aof op) (aof opn)))
             (if (== f 1) (return (coco_m_raise_pi e fm "system" "with_output_to" 2)))
             (if (== f 2) (return (coco_m_raise_pi e fm "system" op opn)))
-            (set goal r))
+            ;; a control construct its system predicate, a port (3.78.6,
+            ;; `coco_c_goal' kind 0), as format/2's `~@'
+            (set goal (coco_c_goal (coco_m_machine e) goal 0)))
           (coco_sb_init (aof tb))
           (set rc (coco_out_capture_run e goal hold 1 1 0 0 (aof tb) (aof ball) (aof why)))
           (if (!= rc 1)

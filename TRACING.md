@@ -136,9 +136,35 @@ deliberately, because SWI has them:
   alone in a body), forall/2's condition and action, setup_call_cleanup/3's
   goal and a structure that is findall/3's, aggregate_all/3's or
   call_limited/3's goal stand in one too. Through 3.78.3 the structure's
-  goals stood at the call's own level. call/N of a structure it builds
-  (`call(',', a, b)`) runs it in place, where SWI calls the `','/2`
-  predicate of boot/init.pl, a port of its own (COMPAT.md).
+  goals stood at the call's own level.
+* **A control predicate SWI calls as a predicate is a port** (3.78.6).
+  Where SWI's machine calls `,`, `;`, `->`, `*->`, `\+` or `$` by name --
+  call/N whose closure names one (`call(',', a, b)`, maplist/2 over
+  `','(a)`: I_USERCALLN resolves a predicate by its functor and compiles
+  nothing), and a setup, a cleanup, with_output_to/2's goal or format/2's
+  `~@` goal that is such a structure (callProlog() calls a goal C runs as
+  a predicate) -- it runs boot/init.pl's clause of it, a port whose body
+  meta-calls the structure. The tracer does the same:
+
+  ```
+     Call: (1) ct1
+     Call: (2) ct_a,ct_b
+     Call: (4) ct_a
+     Exit: (4) ct_a
+     Call: (4) ct_b
+     Exit: (4) ct_b
+     Exit: (2) user:ct_a,user:ct_b
+     Exit: (1) ct1
+  ```
+
+  for `ct1 :- call(',', ct_a, ct_b).`: the parts two levels below the
+  port, in its clause's `'<meta-call>'/1` frame, and its Exit said of
+  user, as swipl's `meta_predicate ','(0, 0)` makes it. A goal C runs
+  (with_output_to/2's, `~@`'s) stands two levels below its builtin, under
+  callProlog()'s own frame, and a structure there is that port a level
+  deeper still. Through 3.78.5 call/N ran the structure in place, a setup's
+  or a cleanup's structure was a frame of the machinery's (`'$c_and'/2`),
+  no port, and with_output_to/2's goal stood one level below it.
 
 ## A library's calls
 
@@ -202,11 +228,12 @@ ports were printed (`'$member_'/3`, `'$nth_gen'/5`, `'$between_n'/3`).
   setup_call_cleanup/3's frame, and a library goal is hidden, its retry
   setup_call_cleanup/3's `Redo`. A setup `true` is no port (swipl's
   sig_atomic/1 runs it as nothing); a setup `fail` and a cleanup's `true`
-  are. A setup or a cleanup that is a control structure is not swipl's:
-  swipl's runs in a frame of the structure's own, `^  Call: a, b`, a port,
-  and cocolog's in a frame of the machinery's (`'$c_and'/2`), none; its
-  parts stand where swipl's do since 3.78.4, the meta-call frame of that
-  frame's call/1 between, and a builtin among them is a port (COMPAT.md).
+  are. A setup or a cleanup that is a control structure is swipl's since
+  3.78.6: the structure's own predicate, `Call: a, b`, a port (the bullet
+  on the control predicates, above), its parts in the meta-call frame of
+  its clause below it; through 3.78.5 it ran in a frame of the
+  machinery's (`'$c_and'/2`), no port, its parts where swipl's stand
+  since 3.78.4.
 * **A `;` written in a builtin's goal is no `Redo`** (3.78.3): findall/3's,
   forall/2's, call_limited/3's, with_output_to/2's -- the goal's call is
   no frame of the search's own, and through 3.78.2 its retry was a `Redo`
@@ -214,8 +241,8 @@ ports were printed (`'$member_'/3`, `'$nth_gen'/5`, `'$between_n'/3`).
   (`Redo: (2) trace`). A structure that is findall/3's, forall/2's or
   call_limited/3's goal stands in a meta-call frame since 3.78.4, which
   shows a builtin in it (`Call: fail`); swipl's findall/3 runs it frames
-  deeper than cocolog's search, and with_output_to/2's is swipl's `','/2`
-  port, which cocolog has not (COMPAT.md).
+  deeper than cocolog's search (COMPAT.md), and with_output_to/2's is
+  swipl's `','/2` port, as cocolog's is since 3.78.6.
 * **The recorder keeps every call.** The printer (`trace` 1) hides; a
   window's recorder (`library(flow/debug)`) records every call, a
   helper's too, where its chart and its profile need them, and the quiet
@@ -240,7 +267,12 @@ builtin's) and findnsols/4's two whole, since 3.78.4 forty-three over
 retry in one, a library's clause, qualifiers, a variable goal, forall/2's
 parts, setup_call_cleanup/3's goal), since 3.78.5 forty-nine over
 `test/trace-shallow.pl` (a `\+` failing into its clause's `;`, else,
-`\+` and next clause, and the deep backtracks beside them), and
+`\+` and next clause, and the deep backtracks beside them), since 3.78.6
+fifty-two over `test/trace-ctlpred.pl` (the control predicates: call/N's
+closure, a setup, a cleanup, with_output_to/2's and `~@`'s goal) and the
+ports at one depth of thirteen of them with their qualifiers kept (the
+qualifiers are said apart there: swipl's Call shows the arguments as the
+caller gave them, its Exit said of user), and
 compares the port lines one for one: same ports, same order, same relative
 depths, same goals. Three things are normalised first, because the two
 writers are entitled to them: the depth base (SWI's toplevel starts about ten
@@ -256,10 +288,14 @@ jumps several frame depths entering a `findall` (its inner machinery,
 hidden) where cocolog's inner engine is one deeper than the call; SWI
 shows once/1, ignore/1, not/1 and catch/3 as frames of their own,
 `^  Call: once(G)`, and hides a library call in them, where here they are
-control constructs and the call is the program's; SWI calls the `','/2`
-predicate for call/N of a structure it builds (`call(',', a, b)`), a port,
-where cocolog runs the structure in place; SWI shows
-with_output_to/2's goal as a frame, two levels below it; apply's helper
+control constructs and the call is the program's; SWI calls boot/init.pl's
+`@/2` for `call(@, G, M)`, a port, where cocolog runs G in place, and
+call/3 for a goal C runs that is call/N of more than one argument
+(`with_output_to(S, call(',', a, b))`), a port with the construct's hidden
+below it, where cocolog shows the construct's; a meta-predicate SWI writes
+in Prolog says its module-sensitive arguments of user at its Exit
+(`setup_call_cleanup(user:a, user:true, user:b)`), where cocolog's shows
+them as written unless cocolog declares it too; apply's helper
 is `maplist_/3` there and `'$maplist_'/3` here; a clause whose body is
 `true` alone is a fact to SWI's compiler and prints that `true`'s ports
 here; a call past call_with_depth_limit/3's limit is SWI's `Fail:

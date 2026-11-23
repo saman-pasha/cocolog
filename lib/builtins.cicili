@@ -358,6 +358,11 @@
            ;; too, which a depth limit counts as callProlog() runs it -- `true'
            ;; no frame, any other goal two below, past the query's own
            "'$c_setup'(G) :- call(G)."
+           ;; swipl's specs of the predicates the helpers are (3.78.6,
+           ;; boot/init.pl's): a goal the caller gives in user's context goes
+           ;; as written, its Call shows it so, and the step says it of user
+           ;; after that port, as swipl's ','/2 and its kin do
+           ":- meta_predicate '$c_call1'(0), '$c_and'(0, 0), '$c_ite'(0, 0), '$c_soft'(0, 0), '$c_or'(0, 0), '$c_not'(0), '$c_det'(0)."
            "'$c_call1'(G) :- call(G)."
            "'$scc_run'(G) :- '$c_goal'(G, 3, _), call(G)."
            "'$c_and'(A, B) :- call((A, B))."

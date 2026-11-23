@@ -3733,10 +3733,10 @@ a session must keep:
   their bodies at their caller's level; `'$c_setup'/1` a level deeper; and
   `'$c_setup'/1` and `'$c_call'/1` queries of their own, which hide
   nothing, as swipl's callProlog() runs a setup and a cleanup (a setup
-  `true` no port, as swipl's sig_atomic/1 runs it as nothing); the frames
-  of a setup or a cleanup that is call/1 or a control structure
-  (`'$c_and'/2` and its kin) are no ports, and the structure their call/1
-  runs stands in its meta-call frame (below). **A frame's body level is `coco_trace_bdepth`'s**: the traced entry
+  `true` no port, as swipl's sig_atomic/1 runs it as nothing); a setup or
+  a cleanup that is call/1 or a control structure is its predicate's port
+  since 3.78.6 (`'$c_call1'/1`, `'$c_and'/2` and its kin, below), and the
+  structure their call/1 runs stands in its meta-call frame (below). **A frame's body level is `coco_trace_bdepth`'s**: the traced entry
   (`coco_trace_enter`, out of line, the step's traced entry one call) and
   the search for a `;`'s call ask it, the exit marker the call's own depth
   -- so **a new clause of the machinery whose body stands elsewhere is a
@@ -3770,9 +3770,9 @@ a session must keep:
   call/1 three instructions -- and a search's in `coco_trace_inner`,
   which the untraced search already calls -- a test of its own cost
   findall/3's call seven. Under the printer alone: the recorder and the
-  quiet trace keep 3.78.3's frames. call/N of a structure it builds, and
-  catch/3's goal, run in place (META 0), where swipl's are boot/init.pl's
-  `','/2`, a port, and catch/3's frame (COMPAT.md). **A new search a
+  quiet trace keep 3.78.3's frames. catch/3's goal runs in place (META 0),
+  where swipl's is catch/3's frame (COMPAT.md), and call/N of a structure
+  it builds is the structure's predicate since 3.78.6 (below). **A new search a
   builtin starts in its context goes through `coco_trace_inner` with
   QUERY 0**, or a structure at its root stands at the search's own level.
   **A `\+` whose goal succeeds fails its clause shallow** (3.78.5,
@@ -3818,6 +3818,36 @@ a session must keep:
   called under trace 1 only, and the two questions answer 0 elsewhere).
   The two fields are the machine's, appended: on the engine they made
   the memset of every engine findall/3 starts 24 instructions longer.
+  **A control predicate swipl calls as a predicate is its port** (3.78.6;
+  test/trace-ctlpred.pl, test/files/control_preds.pl): call/N whose
+  closure names `,`, `;`, `->`, `*->`, `\+` or `$` -- swipl's I_USERCALLN
+  resolves a predicate by its functor and compiles nothing -- is made
+  (`coco_calln_ctl`, asked only where the step's call/N branch already
+  asks `coco_is_construct` of the closure's name, read once, `cnm`: a
+  second read cost every call/N seven instructions) the helper of the
+  builtins' Prolog half `coco_c_goal` names (`'$c_and'/2`, `'$c_ite'/2`,
+  `'$c_soft'/2`, `'$c_or'/2`, `'$c_not'/1`, `'$c_det'/1`), as a setup, a
+  cleanup (kind 1: `'$c_call1'(user:G)`), with_output_to/2's goal and
+  `~@`'s (kind 0) are, swipl's callProlog() calling each as a predicate;
+  call/1 there is `'$c_call1'/1`, swipl's call/1 predicate. **The helpers
+  are swipl's meta-predicates** (`:- meta_predicate '$c_call1'(0),
+  '$c_and'(0, 0), ...` in the Prolog half): in user's context the parts
+  go as written, so the Call shows them as the caller gave them and the
+  step says them of user after it (3.45.0's slow path), as swipl's Exit
+  shows; under another module `coco_c_goal` says each part of it. **The
+  printer shows a helper under swipl's name**: `*trace-ctl-preds*` in
+  lib/solve.cicili, asked by `coco_trace_ctl_name` (a `$c_` prefix first)
+  and `coco_trace_shown`, which renames and copies the arguments as the
+  frame holds them, and `coco_trace_hidden`'s `$` test passes the six and
+  `'$c_call1'/1` by -- **a new helper that stands for a predicate swipl
+  shows is a row of that table**, or it is a `$` name and no port. A goal
+  C runs stands two levels below its builtin, under callProlog()'s own
+  frame (`coco_trace_inner`'s QUERY 1), and call_with_depth_limit/3 counts
+  a helper a frame, its clause's meta-call below it, so
+  `coco_depth_structure_n` takes a construct closure of call/N (EXTRA >
+  0) for no structure. What stays swipl's and not (COMPAT.md, the trace
+  row): call/N of `@`, `|` or `:` runs in place, and a C-called call/N of
+  more than one argument is the closure's port, where swipl's is call/N's.
   **A new system library says
   `:- set_prolog_flag(generate_debug_info, false).` at its head**, as the
   compiled-in halves, library/print_message.pl and library/async.pl do;
@@ -3825,8 +3855,10 @@ a session must keep:
   reads 31). The recorder (2) and the quiet trace (3) keep 3.26's every
   call. test/trace.pl holds 42 queries of test/trace-library.pl to swipl
   (findnsols/4's two whole since 3.78.3), 23 of test/trace-cleanup.pl, 10
-  of test/trace-dollar.pl and 43 of test/trace-meta.pl, a second file
-  after one that ends under false, and 29 lines swipl has none of to
+  of test/trace-dollar.pl, 43 of test/trace-meta.pl, 49 of
+  test/trace-shallow.pl and 52 of test/trace-ctlpred.pl (and 13 of their
+  ports at one depth, the qualifiers kept: `ports_at/4`), a second file
+  after one that ends under false, and 40 lines swipl has none of to
   cocolog's own; COMPAT.md has
   what is not swipl's. **The
   printer writes a goal as print/1 writes it** (3.40.0, `coco_write_print`

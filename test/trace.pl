@@ -157,6 +157,22 @@ main :-
     atom_concat(Root, '/test/trace-shallow.pl', Shallow),
     forall(between(1, 49, I),
            ( atom_concat(sh, I, Q), traced_in(Swipl, [Shallow], Q, Q) )),
+    %% THE CONTROL PREDICATES SWIPL CALLS AS PREDICATES (3.78.6,
+    %% test/trace-ctlpred.pl): call/N's closure, a setup, a cleanup,
+    %% with_output_to/2's and `~@''s goal is boot/init.pl's ','/2 and its
+    %% kin, a port whose clause meta-calls the structure, its parts a
+    %% `'<meta-call>'/1' below it; a goal C runs two below its builtin.
+    %% Through 3.78.5 call/N ran the structure in place, a setup's and a
+    %% cleanup's frame was no port, and with_output_to/2's goal stood one
+    %% below. Then the helper's own ports, its goal as each shows it -- at the
+    %% Call as the caller gave it, at the Exit said of user -- with the
+    %% qualifiers the comparison above takes off
+    atom_concat(Root, '/test/trace-ctlpred.pl', Ctl),
+    forall(between(1, 52, I),
+           ( atom_concat(ct, I, Q), traced_in(Swipl, [Ctl], Q, Q) )),
+    forall(member(Q-Dp, [ ct2-2, ct14-2, ct17-2, ct21-2, ct26-6, ct27-6, ct28-5, ct30-5,
+                          ct39-4, ct40-4, ct41-4, ct53-6, ct54-5 ]),
+           ports_at(Swipl, [Ctl], Q, Dp)),
     %% THE FLAG IS THE FILE'S: test/trace-library.pl ends with it false, and
     %% the file read after it is the program's again (swipl's load puts the
     %% flag back at a file's end)
@@ -290,6 +306,36 @@ qp_goals(Codes, Gs) :-
                    memberchk(P, ['Exit', 'Fail']), atom_codes(G, G0) ),
             Gs).
 
+%% the ports of Q's trace at depth DEPTH, each trace rebased as
+%% `traced_in/4' rebases it, each goal its variables and spaces taken out
+%% and its qualifiers left (3.78.6): a control predicate's frame as its
+%% Call and its Exit show its goal
+ports_at(Swipl, Files, Q, Depth) :-
+    findall(S1, ( member(F1, Files), sh_join(['consult(''', F1, '''), '], S1) ), Cs),
+    sh_join(Cs, Consults),
+    sh_join(['yes '''' | timeout 20 ', Swipl, ' -q -g "leash(-all), ', Consults,
+             'trace, ( ', Q, ' -> true ; true ), notrace, halt" -t halt 2>&1'], SwiCmd),
+    proc_run(SwiCmd, 30000, Swi0, _),
+    cocolog(C),
+    findall(S2, ( member(F2, Files), sh_join([F2, ' '], S2) ), Fs),
+    sh_join(Fs, Paths),
+    sh_join(['timeout 20 ', C, ' run ', Paths, '"trace, ( ', Q, ' -> true ; true ), notrace" 2>&1 >/dev/null'],
+            CocoCmd),
+    proc_run(CocoCmd, 30000, Coco0, _),
+    pa_goals(Swi0, Depth, Swi), pa_goals(Coco0, Depth, Coco),
+    format(atom(Name), 'the ports of ~w at depth ~w', [Q, Depth]),
+    %% none from swipl is no ports to hold: the check is red
+    ( Swi == [] -> Got = none ; Got = Coco ),
+    check(Name, Got, Swi).
+
+pa_goals(Codes, Depth, Gs) :-
+    td_lines(Codes, Lines),
+    findall(D0-P-G, ( member(L, Lines), td_port(L, P, D0, G0),
+                      td_strip_var(G0, G1), td_strip_space(G1, G2), atom_codes(G, G2) ),
+            Raw),
+    ( Raw = [B0-_-_|_] -> Base is B0 - 1 ; Base = 0 ),
+    findall(P-G, ( member(D1-P-G, Raw), Depth =:= D1 - Base ), Gs).
+
 %% every port of Q's trace whose goal begins with PREFIX, its variables and
 %% spaces taken out and its qualifiers left (3.72.0)
 own_ports(Swipl, Files, Q, Prefix) :-
@@ -343,11 +389,12 @@ traced_answers(Swipl, Files, Q) :-
 %% calls is printed, the library's sum_list/2 -- swipl's program's sumlist/2
 %% is user's, the library's out of sight -- but a helper whose name begins
 %% with `$' is no port by its name (3.78.3), member/2's `'$member_'/3' among
-%% them, which through 3.78.2 this case held printed. with_output_to/2 runs its goal as a
-%% query of its own, as swipl's C does, so a library call in it is printed --
-%% swipl puts a frame of the goal between. call_limited/3's goal is in its
-%% context, as call_with_inference_limit/3's clause has it. print_message/2
-%% and async_workers/1 are a library's that says generate_debug_info false
+%% them, which through 3.78.2 this case held printed. call_limited/3's goal
+%% is in its context, as call_with_inference_limit/3's clause has it.
+%% print_message/2 and async_workers/1 are a library's that says
+%% generate_debug_info false. (with_output_to/2's goal, a query of its own
+%% whose library call is printed, is held line for line since 3.78.6:
+%% test/trace-ctlpred.pl's ct47)
 own_lines :-
     scratch(D),
     own(D, joined0, [ 'j(S) :- sumlist([1], S).' ], 'j(S)',
@@ -365,9 +412,6 @@ own_lines :-
     own(D, joined3, [ 'j(X) :- member(X, [1]).', 'member(z, [z]).' ], 'j(X)',
         p('Call', 3, '''$member_''([],_,1)'), hidden,
         'but member/2''s `$'' helper is no port by its name, joined or not'),
-    own(D, wo, [ 'wo(S) :- with_output_to(string(S), (member(X, [1]), write(X))).' ], 'wo(S)',
-        p('Call', 3, 'member(_,[1])'), printed,
-        'with_output_to/2''s goal is a query of its own: a library call in it is printed'),
     own(D, cl, [ 'cl(R) :- call_limited(member(_, [1]), 100, R).' ], 'cl(R)',
         p(_, 3, _), hidden,
         'call_limited/3''s goal is in its context: a library call in it is not printed'),
@@ -387,8 +431,8 @@ own_lines :-
     %% own. Through 3.78.2 it was the Redo of the builtin's own call, and in
     %% with_output_to/2's of the heap's first term (`Redo: (2) trace').
     %% (swipl's findall/3 runs its goal frames deeper than cocolog's search
-    %% does, and with_output_to/2's is its ';'/2 predicate's frame: the two
-    %% traces are not held line for line)
+    %% does: those traces are not held line for line; with_output_to/2's,
+    %% its ';'/2 predicate's frame, is since 3.78.6, test/trace-ctlpred.pl)
     own(D, br1, [ 'br1 :- findall(X, (fail ; X = 1), _).' ], br1,
         p('Redo', _, _), hidden,
         'a `;'' in findall/3''s goal is no Redo of findall/3'),
@@ -398,20 +442,10 @@ own_lines :-
     own(D, br3, [ 'br3 :- with_output_to(string(_), (fail ; true)).' ], br3,
         p('Redo', _, _), hidden,
         'a `;'' in with_output_to/2''s goal is no Redo of the heap''s first term'),
-    %% A SETUP OR A CLEANUP THAT IS A CONTROL STRUCTURE (3.78.3) runs in a
-    %% frame of the machinery's, `'$c_and'/2' for a conjunction: no port,
-    %% though a setup is a query of its own whose builtins are shown -- as
-    %% through 3.78.2, where setup_call_cleanup/3's frame hid the setup.
-    %% (swipl's is the ','/2 frame, `^  Call: member(_, [1, 2]), _>1', a
-    %% port: not held line for line, COMPAT.md. Its parts stand where
-    %% swipl's do since 3.78.4, the `'<meta-call>'/1' frame of the
-    %% frame's call/1 between)
-    own(D, sr1, [ 'sr1 :- setup_call_cleanup((member(X, [1, 2]), X > 1), true, true).' ], sr1,
-        p('Call', _, '''$c_and''(member(_,[1,2]),_>1)'), hidden,
-        'a setup''s conjunction runs in a frame of the machinery''s, no port'),
-    own(D, sr2, [ 'sr2 :- setup_call_cleanup((member(X, [1, 2]), X > 1), true, true).' ], sr2,
-        p('Call', 8, 'member(_,[1,2])'), printed,
-        'and its parts stand in the frame''s meta-call, six below, a library call a port'),
+    %% (A SETUP OR A CLEANUP THAT IS A CONTROL STRUCTURE is the ','/2 port
+    %% swipl's callProlog() calls since 3.78.6, held line for line by
+    %% test/trace-ctlpred.pl, ct36 the shape these lines held through 3.78.5:
+    %% its frame no port, its parts six below)
     %% A STRUCTURE IN FINDALL/3'S, AGGREGATE_ALL/3'S OR CALL_LIMITED/3'S GOAL
     %% (3.78.4) stands in a `'<meta-call>'/1' frame, as swipl's clauses
     %% meta-call it: a builtin in it is a port, two below the builtin's call

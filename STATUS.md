@@ -24104,3 +24104,148 @@ all anchored (15 by a moved anchor, accepted). The binary the arms and the
 counts were made from is the one committed, byte for byte: the rename of
 two own lines' names (`hr1`, `hr2`, which 3.78.3's setup_call_cleanup/3
 lines had as `sr1`, `sr2` already) touched comments alone.
+
+## The control predicates swipl calls as predicates are ports, as swipl's (3.78.6)
+
+A patch, the tracer's and call/N's (backlog #314). Through 3.78.5 call/N
+whose closure named a control construct (`call(',', a, b)`, maplist/2 over
+`','(a)`, `G = ','(a), call(G, b)`) ran the structure in place: no port,
+its parts at call/N's own level, its errors `'<meta-call>'/1`'s
+(`call(\+, 1)` type_error(callable, 1) there, where swipl names
+system:(\+)/1), `call(;, true, 1)` an answer where swipl's is
+type_error(callable, (true;1)), and call_with_depth_limit/3 a level or two
+short. A setup or a cleanup of setup_call_cleanup/3 that was such a
+structure ran in a frame of the machinery's (`'$c_and'/2`), no port; and
+with_output_to/2's goal, and format/2's `~@`'s, stood one level below
+their builtin and ran a structure in place.
+
+SWIPL'S MODEL. I_USERCALLN resolves a predicate by the closure's functor
+and compiles nothing, so `call(',', a, b)` calls boot/init.pl's `','/2`,
+declared `meta_predicate ','(0, 0)`, whose clause meta-calls the
+structure: a port (`^  Call: (11) ct_a, ct_b`), the parts two levels below
+it in the clause's `'<meta-call>'/1`, its Exit said of user (`user:ct_a,
+user:ct_b`), its errors the predicate's (`context(system:(',')/2, _)`, the
+structure that is no goal shown with its parts said of user). callProlog()
+calls a goal C runs -- a setup, a cleanup, with_output_to/2's, `~@`'s --
+as a predicate, under a frame of its own: the goal two levels below its
+builtin, a structure there that predicate's port, and a cleanup that is a
+structure `call(user:G)`, as swipl's handler calls it.
+
+THE FIX (lib/solve-loop.cicili, lib/solve-control.cicili, lib/solve.cicili,
+lib/builtins.cicili, lib/builtins-format.cicili). call/N's branch reads the
+closure's name once (`cnm`) and, where `coco_is_construct` says it is one,
+hands the goal it built to `coco_calln_ctl` (weak, cold), which makes a
+construct's goal of `,`, `;`, `->`, `*->`, `\+` or `$` the helper
+`coco_c_goal` names -- `'$c_and'/2`, `'$c_or'/2`, `'$c_ite'/2`,
+`'$c_soft'/2`, `'$c_not'/1`, `'$c_det'/1`, the builtins' Prolog half's
+since 3.44.0 -- and any other its old self. `coco_c_goal` makes call/1
+`'$c_call1'/1`, swipl's call/1 predicate, and a cleanup that is a control
+structure `'$c_call1'(user:G)`; with_output_to/2 and `~@` hand their goal
+to it as a setup's is. The helpers are swipl's meta-predicates now (`:-
+meta_predicate '$c_call1'(0), '$c_and'(0, 0), ...`), so in user's context
+`coco_c_goal` passes the parts as written -- the Call shows them so -- and
+the step says them of user after the port (3.45.0's slow path), as swipl's
+Exit shows; under another module each part is said of it, as before. The
+printer shows a helper under swipl's name: `*trace-ctl-preds*` (a table in
+lib/solve.cicili, read by `coco_trace_ctl_name` and `coco_trace_shown`,
+which renames and copies the arguments as the frame holds them, for the
+port's text and the Redo's), and `coco_trace_hidden`'s `$` test passes
+the seven by. `coco_trace_ctl` takes `$/1` as a structure for call/1's
+meta-call frame, as `\+` (`G = $(ct_a), call(G)`). A query C runs stands
+two levels below its builtin (`coco_trace_inner`, QUERY 1), and
+`coco_depth_structure_n` takes a construct closure of call/N for no
+structure: the helper is the frame call_with_depth_limit/3 counts, its
+clause's meta-call below it.
+
+THE CUTS BEFORE IT. The first showed every helper's Call with its `user:`
+qualifiers taken off, by a field of the frame's: it took off the ones the
+program wrote too (`call(',', user:ct_a, ct_b)` showed `ct_a,ct_b` where
+swipl's shows `user:ct_a,ct_b`), which the case's ports at one depth,
+qualifiers kept, found (`ports_at/4`); the helpers' meta specs replaced it.
+The first call/N of a construct counted a level too deep, the closure's
+structure taken for a structure as well as the helper's frame. And the
+first test of the closure read its name twice, 17 instructions a call/N
+where reading it once is 10.
+
+NOT SWI'S (COMPAT.md, the setup_call_cleanup/3 row and the trace row),
+later patches (backlog #325): call/N of `@` runs its goal in place, no
+port, at depth 1, where swipl calls boot/init.pl's `@/2`, a port, depth 2;
+`call('|', a, b)` and `call(:, M, G)` run, where swipl finds no predicate
+(existence_error(procedure, ('|')/2), `context(system:'<meta-call>'/1,
+_)`); and a goal C runs that is call/N of more than one argument
+(`with_output_to(S, call(',', a, b))`) is the closure's port, where
+swipl's callProlog() calls call/3, a port, the construct's hidden below
+it and the parts a level deeper -- its errors and its depths are swipl's.
+As before 3.78.6: setup_call_cleanup/3's own Exit, and that of every
+meta-predicate swipl writes in Prolog that cocolog does not declare,
+shows its arguments as written where swipl's says them of user
+(`findall(x, user:p, [x])`).
+
+HELD. test/trace.pl, 363 checks, green: test/trace-ctlpred.pl (new), 52
+queries held to swipl line for line -- call/N of each construct, in a
+`;`, retried, cut, failing, qualified (`call(user:(','), a, b)`, `call(',',
+user:a, b)`), built (`','(a)` given the rest), nested; setups and cleanups
+that are structures, call/1, a qualified goal and `$/1`; with_output_to/2's
+and `~@`'s goals, plain, structures, call/1, failing and retried; and call/1
+of `$(G)` -- and thirteen of their ports at one depth with the qualifiers
+kept (`ports_at/4`: the trace case's other comparisons take qualifiers off
+as text), among them ct53 and ct54, held by their ports alone because
+setup_call_cleanup/3's own Exit is as written. 3.78.5 differs from swipl
+on 49 of the 52. The own lines that held cocolog's old shapes (`wo`, `sr1`,
+`sr2`) went: their shapes are swipl's now and held line for line. And
+test/files/control_preds.pl (new, 63 lines to swipl): the errors of
+call/N of each construct and of the C-called goals, their answers, and
+the depths call_with_depth_limit/3 counts through them, findall/3,
+maplist/2, with_output_to/2, `~@`, setups and cleanups; 3.78.5 differs on
+24 lines.
+
+ARMS: one build each of the final code with one rule out, test/trace.pl,
+control_preds.pl and c_call_goals.pl against swipl; all thirteen red.
+call/N of a construct not made its helper, 26 trace checks and 25 lines;
+`$` not among the constructs `coco_calln_ctl` makes, 1 (ct18) and 5
+lines; the helpers hidden as `$` names, 54; the printer's rename off, 54;
+with_output_to/2's goal not made its predicate, 11 and a line; `~@`'s, 2
+(ct49, ct51); a query C runs one level below its builtin, 18; a cleanup
+that is a structure not said of user, 2 (the ports of ct30 and ct54);
+call/1 not made `'$c_call1'/1`, 8; `coco_trace_ctl` not taking `$/1`, 1
+(ct52); a construct closure of call/N taken for a structure, 14 lines of
+control_preds.pl (the depths), the trace green; the helpers' meta specs
+taken out, 27 checks, 15 lines and 27 of c_call_goals.pl; and the parts
+said of user in user's context, 9. (The specs' arm was run twice: the
+first put `:- true.` in the directive's place, a goal `--trace` prints as
+the half is read, and 82 checks went red for that alone.)
+
+COST, against 3.78.5's code. The untraced engine runs 3.78.5's
+instructions within 16 (tools/flow/zero.sh at paths of one length, work
+less padding: nrev 65 890 827 and 65 890 829, queens 39 953 175 in both,
+lookup 48 060 202 and 48 060 218). A turn of a thousand (callgrind, a
+turn's instructions): call/N of a plain closure 2 374 to 2 384 (the test
+of `cnm`: five instructions and the padding's), qualified 2 644 to 2 653,
+maplist/2 3 975 to 3 985; call/1 of a plain goal and of a conjunction,
+findall/3, forall/2 and `\+ \+` within 6; with_output_to/2 of a plain goal
+15 800 to 15 846 (`coco_c_goal`'s early answer), setup_call_cleanup/3 of
+plain goals 14 574 to 14 580; and what is a port now costs its port:
+call/N of `','` 4 534 to 8 242, with_output_to/2 of a conjunction 17 977
+to 21 723, a setup that is one 17 737 to 19 276 (the helper's call, its
+meta-call and the step's qualification). A start (`cocolog query true`,
+each binary swapped in at the checkout's path) counts 123 794 more,
+37 121 913: 37 544 of them the directive (its seven heads, each through
+`coco_iso_predicate`'s walk of the ISO names, and its read), measured
+against the final code with the directive taken out (37 084 369); and the
+rest strcmp's own: the reader's 37 513 calls of it at a start are the same
+in number in the three builds and dearer each by where the strings they
+compare now sit -- 837 962 instructions in 3.78.5's, 921 861 in
+3.78.6's and 929 856 in the build without the directive. The walk that
+makes those calls -- the dynamic operators asked by name at every infix
+test, 0.84 million instructions a start -- is a later patch's (backlog
+#324).
+
+THE RUN, on the binary the arms and the counts were made from: the lint
+case first, then trace, backtrace, engine, errors, window, journal,
+flowdebug, files, script, async, gc, directives, cyclic, library, thread
+and the solve, state and module binaries, each alone. All green, no SKIP;
+the dialect card's cites all anchored (15 by a moved anchor, accepted);
+the new and changed `.pl` files lint clean. The binary committed differs
+from that one in the version's byte and the build ID's twenty alone (the
+trace and argv cases run again on it, green); a comment corrected after
+the round reached no C.
