@@ -100,6 +100,7 @@ main :-
     parallel, locks, conditions, message_refused(D), flags_shared, halt_hooks(D), bags_per_thread(D),
     limits_per_thread(D),
     depths_per_thread(D),
+    sources_per_thread(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -605,3 +606,27 @@ depths_per_thread(D) :-
     cocolog_run(A1, Got1, Rc1),
     check('a thread''s limit fails in it, a thread runs free of its creator''s, and each depth is its own',
           Got1-Rc1, 'depth_limit_exceeded\n51\ntrue-true-2-true-21'-0).
+
+%% THE SOURCE FILES ARE THE PROCESS'S (3.78.0), as swipl's records are: a
+%% file a thread consults is one the main thread lists, beside the -s file,
+%% and no library a thread's store preloads is one. Its predicates are
+%% defined in the thread's store alone, so the thread finds the file of
+%% one and the main thread none, where swipl's one database finds it in
+%% both (COMPAT.md)
+sources_per_thread(D) :-
+    section('source_file/1,2 in a thread: the files the process''s'),
+    atom_concat(D, '/sf_loaded.pl', F2),
+    fixture(F2, ['sf_p(1).']),
+    atom_concat(D, '/sf_thread.pl', F1),
+    format(atom(L1), 'main :- thread_create((consult(~q), here(_)), T), thread_join(T, S),', [F2]),
+    fixture(F1, ['b(L0, L) :- findall(B, ( member(F, L0), file_base_name(F, B) ), L).',
+                 'here(R) :- findall(F, source_file(F), Fs), b(Fs, R1),',
+                 '           findall(F, source_file(sf_p(_), F), Gs), b(Gs, R2),',
+                 '           R = R1-R2, print(R), nl.',
+                 L1,
+                 '        here(_), print(S), nl.']),
+    sh_join(['-s ', F1, ' 2>&1'], A1),
+    cocolog_run(A1, Got1, Rc1),
+    check('a thread''s file is the process''s, its predicates its store''s',
+          Got1-Rc1,
+          '[\'sf_thread.pl\',\'sf_loaded.pl\']-[\'sf_loaded.pl\']\n[\'sf_thread.pl\',\'sf_loaded.pl\']-[]\ntrue'-0).

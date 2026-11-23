@@ -796,19 +796,30 @@
           ;; the time the text was read at, which if(changed) asks (2.14.0)
           (if (not (coco_file_mtime path (aof t))) (set t 0.0))
           (let ((char * nm . #'(strdup name)))
+            ;; THE NAME'S COPY AND THE REGISTRY'S GROWTH ARE A REGISTRATION'S
+            ;; ONLY REFUSALS, each memory's (3.78.0): the machine reading is
+            ;; finished (`coco_refuse'), and its load ends out of memory --
+            ;; through 3.77.0 a failed directive said `cannot register', and
+            ;; the load went on without the module
             (if (or (== nm nil)
                     (not (coco_module_register nm nil text nil)))
-                (block (free text)
-                       (snprintf err errlen "cannot register %s" path)
+                (block (free nm) (free text)
+                       (coco_refuse)
+                       (snprintf err errlen "cannot register %s: out of memory" path)
                        (return 0)))
             ;; the file it came from, which its load names (1.11.9): the
             ;; registry keeps the copy, as it keeps the name and the text --
             ;; by its absolute path (3.41.0), as every load names a file and
             ;; as predicate_property/2's file(F) names its predicates', where
             ;; `./library' on the path found it as `library/async.pl'
-            (let ((char abs [4096]))
+            (let ((char abs [4096]) (char * fc . nil))
               (lb_absolute path abs (sizeof abs))
-              (coco_module_set_file nm (strdup abs)))
+              (set fc (strdup abs))
+              ;; no file there was memory for: the module would be read as a
+              ;; compiled-in text is, no program file's, no source file
+              ;; (3.78.0), so the machine reading is finished
+              (if (== fc nil) (coco_refuse))
+              (coco_module_set_file nm fc))
             (coco_module_set_text nm text t cls))
           (return 1)))
 

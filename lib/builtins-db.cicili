@@ -604,6 +604,182 @@
             (coco_sb_free (aof b))
             (return (coco_m_unify e (coco_m_arg e g 1) k)))))
 
+  ;;; ---- source_file/1,2 and current_module/1 (3.78.0) --------------------
+  ;;;
+  ;;; swipl 9.0.4's boot/syspred.pl source_file/1,2 are clauses of the
+  ;;; Prolog half, over these halves of swipl's C helpers, named as swipl
+  ;;; names them where their errors say so ('$source_file'/2,
+  ;;; '$source_file_predicates'/2); current_module/1 is pl-modul.c's. Each
+  ;;; reads copies of the process's source files (lib/kb-consult.cicili's
+  ;;; `coco_srcf_*'), the table's lock given back before a term is built.
+
+  ;; an atom, and no list's end
+  (static)
+  (func coco_b_srcf_atom ((coco_machine * m) (size_t a)) (out int)
+        (return (and (coco-tag-is ATOM (nth a (-> m heap))) (not (coco_is_nil m a)))))
+
+  ;; the list of the atoms of the texts L, N of them, which it frees
+  (static)
+  (func coco_b_srcf_atoms ((coco_machine * m) (char ** l) (size_t n)) (out size_t)
+        (let ((size_t r . #'(coco_new_nil m)))
+          (for ((size_t i . n)) (> i 0) ((-- i))
+            (set r (coco_cons m (coco_new_atom m (nth (- i 1) l)) r)))
+          (coco_srcf_free_list l n)
+          (return r)))
+
+  ;; a head of NAME/ARITY, its arguments fresh: the atom for none, and
+  ;; (size_t) -1 where there was no room for the arguments
+  (static)
+  (func coco_b_srcf_head ((coco_machine * m) (const char * name) (u32 arity)) (out size_t)
+        (let ((size_t * a . nil) (size_t r . 0))
+          (if (== arity 0) (return (coco_new_atom m name)))
+          (set a (cast (size_t *) (malloc (* arity (sizeof size_t)))))
+          (if (== a nil) (return (cast size_t -1)))
+          (for ((u32 i . 0)) (< i arity) ((++ i)) (set (nth i a) (coco_new_var m)))
+          (set r (coco_make m name arity a))
+          (free a)
+          (return r)))
+
+  ;; a predicate defined, as swipl's isDefinedProcedure(): a live clause, or
+  ;; declared dynamic, discontiguous or multifile
+  (static)
+  (func coco_b_srcf_defined ((coco_store * st) (size_t pi)) (out int)
+        (if (>= pi (-> st npreds)) (return 0))
+        (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi))))
+          (return (or (> (coco_pred_live p) 0) (-> p dynamic) (!= 0 (bitand (-> p declared) 3))))))
+
+  ;; whether NAME is a module current_module/1 answers (below)
+  (static) (decl) (func coco_b_is_module ((const char * name)) (out int))
+
+  ;; the module whose own predicate Module MD's Head names, as swipl's
+  ;; '$source_file'/2 resolves it: MD where MD is a module, and user where
+  ;; it is none -- a name no module has is read as a module made then,
+  ;; whose default import is user, and none is made
+  (static)
+  (func coco_b_srcf_mod ((coco_machine * m) (size_t md)) (out const char *)
+        (let ((const char * t . #'(coco_atom_name m (coco_name_of m md))))
+          (return (? (coco_b_is_module t) t "user"))))
+
+  ;; the predicate of ST that Module MD's Head H names: prolog:message/3
+  ;; and prolog:error_message/3 the hooks print_message/2 reads, which the
+  ;; store files as '$prolog_message'/3 and '$prolog_error_message'/3
+  ;; (`coco_hook_head'); anything else by its own name
+  (static)
+  (func coco_b_srcf_pi ((coco_store * st) (coco_machine * m) (size_t md) (size_t h)) (out size_t)
+        (let ((const char * nm . #'(coco_atom_name m (coco_name_of m h))) (const char * to . nil))
+          (if (and (== (coco_arity m h) 3)
+                   (== 0 (strcmp (coco_atom_name m (coco_name_of m md)) "prolog")))
+              (block
+                (if (== 0 (strcmp nm "message")) (set to "$prolog_message"))
+                (if (== 0 (strcmp nm "error_message")) (set to "$prolog_error_message"))))
+          (if (== to nil) (return (coco_pred_find st (coco_name_of m h) (coco_arity m h))))
+          (return (coco_pred_find st (coco_intern m to) 3))))
+
+  ;;; '$source_files'(Files): the loaded source files' paths, in the order
+  ;;; their first defining reads began, as swipl's '$time_source_file'/3
+  ;;; walks them
+  (func coco_b_source_files ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t n . 0)
+              (char ** l . #'(coco_srcf_paths (aof n))))
+          (if (== l nil) (return (coco_m_resource_error e "memory")))
+          (return (coco_m_unify e (coco_m_arg e g 0) (coco_b_srcf_atoms m l n)))))
+
+  ;;; '$source_file_loaded'(File): File an atom that names a loaded source
+  ;;; file as its loads name it; anything else fails
+  (func coco_b_source_file_loaded ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t f . #'(coco_deref m (coco_m_arg e g 0))))
+          (if (not (coco_b_srcf_atom m f)) (return 0))
+          (return (coco_srcf_loaded (coco_atom_name m (coco_name_of m f))))))
+
+  ;;; '$source_file_predicates'(File, Predicates), swipl's: File an atom
+  ;;; (type_error(atom, File) else) that names a loaded source file, and
+  ;;; Predicates what it registered, each Module:Head with fresh
+  ;;; arguments, the last registered first, as swipl's list is consed; a
+  ;;; file that is none fails
+  (func coco_b_source_file_preds ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t f . #'(coco_deref m (coco_m_arg e g 0)))
+              (size_t n . 0) (int found . 0) (coco_srcp * ps . nil) (size_t r . 0) (int bad . 0))
+          (if (not (coco_b_srcf_atom m f)) (return (coco_m_type_error e "atom" f)))
+          (set ps (coco_srcf_preds (coco_atom_name m (coco_name_of m f)) (aof n) (aof found)))
+          (if (== found 0) (return 0))
+          (set r (coco_new_nil m))
+          (for ((size_t i . 0)) (and (< i n) (not bad)) ((++ i))
+            (let ((coco_srcp * p . #'(aof (nth i ps)))
+                  (size_t h . #'(coco_b_srcf_head m (-> p name) (-> p arity))))
+              (if (== h (cast size_t -1))
+                  (set bad 1)
+                  (set r (coco_cons m (coco_make2 m ":" (coco_new_atom m (-> p mod)) h) r)))))
+          (coco_srcf_free_preds ps n)
+          (if (or bad (== found -1)) (return (coco_m_resource_error e "memory")))
+          (return (coco_m_unify e (coco_m_arg e g 1) r))))
+
+  ;;; '$source_file'(Module:Head, File), swipl's: the file of Module's
+  ;;; Head, the first loaded source file that registered it, where its
+  ;;; predicate is defined. A Head that is no callable term is
+  ;;; type_error(callable, Head); a Module that is no atom, or a predicate
+  ;;; defined nowhere, fails
+  (func coco_b_source_file ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (coco_store * st . #'(-> e st))
+              (size_t mh . #'(coco_deref m (coco_m_arg e g 0))) (size_t md . 0) (size_t h . 0)
+              (char * path . nil) (int ok . 0) (int refused . 0))
+          (if (not (coco_is_compound2 m mh ":")) (return 0))
+          (set md (coco_deref m (coco_arg m mh 0)))
+          (set h (coco_deref m (coco_arg m mh 1)))
+          (if (not (coco_is_callable m h)) (return (coco_m_type_error e "callable" h)))
+          (if (not (coco_b_srcf_atom m md)) (return 0))
+          (if (not (coco_b_srcf_defined st (coco_b_srcf_pi st m md h)))
+              (return 0))
+          (set path (coco_srcf_of (coco_b_srcf_mod m md)
+                                  (coco_atom_name m (coco_name_of m h)) (coco_arity m h) (aof refused)))
+          (if (== path nil) (return (? refused (coco_m_resource_error e "memory") 0)))
+          (set ok (coco_m_unify e (coco_m_arg e g 1) (coco_new_atom m path)))
+          (free path)
+          (return ok)))
+
+  ;;; '$source_file_multi'(Module:Head, Files), swipl's first clause of
+  ;;; source_file/2 for a multifile predicate (multi_source_files/2): the
+  ;;; loaded source files its live clauses came from, each once, in the
+  ;;; order of the clauses, an asserted clause none's. Fails where Head is
+  ;;; no multifile predicate of Module's, a Head no callable term too
+  (func coco_b_source_file_multi ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (coco_store * st . #'(-> e st))
+              (size_t mh . #'(coco_deref m (coco_m_arg e g 0))) (size_t md . 0) (size_t h . 0)
+              (size_t pi . 0) (char ** fs . nil) (size_t nf . 0) (int refused . 0))
+          (if (not (coco_is_compound2 m mh ":")) (return 0))
+          (set md (coco_deref m (coco_arg m mh 0)))
+          (set h (coco_deref m (coco_arg m mh 1)))
+          (if (or (not (coco_is_callable m h)) (not (coco_b_srcf_atom m md))) (return 0))
+          (set pi (coco_b_srcf_pi st m md h))
+          (if (>= pi (-> st npreds)) (return 0))
+          (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi))))
+            (if (== 0 (bitand (-> p declared) 2)) (return 0))
+            ;; Module's own: a name that is no module has none, as swipl's
+            ;; '$c_current_predicate'/2 finds none there, since a predicate's
+            ;; module is user or a module a read made
+            (if (!= 0 (strcmp (? (== (-> p pmod) 0) "user" (coco_atom_name m (- (-> p pmod) 1)))
+                              (coco_atom_name m (coco_name_of m md))))
+                (return 0))
+            (set fs (cast (char **) (malloc (* (+ (-> p nclauses) 1) (sizeof (nth 0 fs))))))
+            (if (== fs nil) (return (coco_m_resource_error e "memory")))
+            (if (!= (-> p origins) nil)
+                (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
+                  (if (and (not (coco_pred_dead p i)) (!= (nth i (-> p origins)) 0) (not refused))
+                      (let ((char * path . #'(coco_srcf_of_real (coco_atom_name m (- (nth i (-> p origins)) 1))
+                                                               (aof refused)))
+                            (int dup . 0))
+                        (if (!= path nil)
+                            (block
+                              (for ((size_t k . 0)) (and (< k nf) (not dup)) ((++ k))
+                                (if (== 0 (strcmp (nth k fs) path)) (set dup 1)))
+                              (if dup
+                                  (free path)
+                                  (block (set (nth nf fs) path) (set nf (+ nf 1))))))))))
+            ;; a file's copy refused: no list, rather than a shorter one
+            (if refused
+                (block (coco_srcf_free_list fs nf) (return (coco_m_resource_error e "memory"))))
+            (return (coco_m_unify e (coco_m_arg e g 1) (coco_b_srcf_atoms m fs nf))))))
+
+
   ;;; ---- at_halt/1 and cancel_halt/1 (3.71.0) -----------------------------
   ;;;
   ;;; THE HALT'S HOOKS, swipl's '$at_halt'/2 and PL_cleanup() (boot/init.pl,
@@ -3014,6 +3190,51 @@
           (set r (coco_imp_has mod name arity))
           (pthread_mutex_unlock (aof cp_imp_mx))
           (return r)))
+
+  ;;; '$modules'(Modules): the modules there are, current_module/1's: user,
+  ;;; system and prolog, then those the program's reads defined
+  ;;; (module/2), in the order their reads began, then those of the
+  ;;; libraries it imported (`coco_imp_note'), each once
+  ;; whether NAME is one of '$modules'/1's: user, system, prolog, a program
+  ;; file's module, a library the program imported
+  (static)
+  (func coco_b_is_module ((const char * name)) (out int)
+        (let ((int r . 0))
+          (if (or (== 0 (strcmp name "user")) (== 0 (strcmp name "system"))
+                  (== 0 (strcmp name "prolog")) (coco_srcf_is_module name))
+              (return 1))
+          (pthread_mutex_lock (aof cp_imp_mx))
+          (for ((size_t i . 0)) (and (< i cp_nimps) (not r)) ((++ i))
+            (if (== 0 (strcmp ($ (nth i cp_imps) mod) name)) (set r 1)))
+          (pthread_mutex_unlock (aof cp_imp_mx))
+          (return r)))
+
+  (func coco_b_modules ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t n . 0)
+              (char ** l . #'(coco_srcf_modules (aof n))) (char ** all . nil) (size_t na . 0)
+              (size_t cap . 0) (int bad . 0))
+          (if (== l nil) (return (coco_m_resource_error e "memory")))
+          (pthread_mutex_lock (aof cp_imp_mx))
+          (set cap (+ 3 n cp_nimps))
+          (set all (cast (char **) (malloc (* (+ cap 1) (sizeof (nth 0 all))))))
+          (if (!= all nil)
+              (for ((size_t i . 0)) (< i cap) ((++ i))
+                (let ((const char * t . #'(? (== i 0) "user"
+                                            (? (== i 1) "system"
+                                               (? (== i 2) "prolog"
+                                                  (? (< i (+ 3 n)) (nth (- i 3) l)
+                                                     ($ (nth (- i (+ 3 n)) cp_imps) mod))))))
+                      (int dup . 0))
+                  (for ((size_t k . 0)) (and (< k na) (not dup)) ((++ k))
+                    (if (== 0 (strcmp (nth k all) t)) (set dup 1)))
+                  (if (not dup)
+                      (let ((char * c . #'(strdup t)))
+                        (if (== c nil) (set bad 1) (block (set (nth na all) c) (set na (+ na 1)))))))))
+          (pthread_mutex_unlock (aof cp_imp_mx))
+          (coco_srcf_free_list l n)
+          (if (or (== all nil) bad)
+              (block (coco_srcf_free_list all na) (return (coco_m_resource_error e "memory"))))
+          (return (coco_m_unify e (coco_m_arg e g 0) (coco_b_srcf_atoms m all na)))))
 
   ;;; current_predicate/1's answer of NAME/ARITY the system or a library
   ;;; defines (3.42.0, installed as `coco_cp_hook'): a predicate of swipl's

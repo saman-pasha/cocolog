@@ -999,7 +999,13 @@
               (let ((char rp [4096]))
                 (set ($ (nth i coco_modules) file) file)
                 (if (!= nil (realpath file rp))
-                    (set ($ (nth i coco_modules) real) (strdup rp)))))))
+                    (block
+                      (set ($ (nth i coco_modules) real) (strdup rp))
+                      ;; the copy refused: the module's clauses would carry
+                      ;; no origin, a multifile predicate's file unknown to
+                      ;; source_file/2 (3.78.0), so the machine reading is
+                      ;; finished
+                      (if (== ($ (nth i coco_modules) real) nil) (coco_refuse))))))))
 
   (func coco_module_set_text ((const char * name) (const char * text) (double time) (int cls))
         (if (or (== name nil) (== text nil)) (return))

@@ -70,7 +70,7 @@ full story goes in its commit message or STATUS.md.
 
 | repo | role | last seen |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; BUILD time | `cc24ae0` here, and the builds take `9b825b7` from a copy beside it (below: 3.3.0, `stat_t`'s three times to the nanosecond, `st_mtim` and Darwin's `st_mtimespec` in `lib/std/c/posix/sys-stat.cicili`, which 2.12.2's `time_file/2` needs -- an older Cicili stops at `unknown member: st_mtim of type: stat_t`; 3.2.0: `realpath` in `lib/std/c/stdlib.cicili`, which 2.11.5's needs; 3.1.0: `(cold)`, which 2.11.2's growths need -- an older Cicili stops at `unknown symbol: cold`; 3.0.0: a float literal is a double, every digit of it; 2.0.1 and 2.0.2 let `->` and `=>` through any call; 2.0.0 split `(inline)` and `(weak)`, which 1.10.7's reader needs) |
+| `../cicili` | the language cocolog is written in; BUILD time | `3ba2ca4` here, `9b825b7` and a `.gitignore` line after it, which the builds on this box take as it stands (`CICILI` and `CL_SOURCE_REGISTRY` name the checkout: no copy is beside it; below: 3.3.0, `stat_t`'s three times to the nanosecond, `st_mtim` and Darwin's `st_mtimespec` in `lib/std/c/posix/sys-stat.cicili`, which 2.12.2's `time_file/2` needs -- an older Cicili stops at `unknown member: st_mtim of type: stat_t`; 3.2.0: `realpath` in `lib/std/c/stdlib.cicili`, which 2.11.5's needs; 3.1.0: `(cold)`, which 2.11.2's growths need -- an older Cicili stops at `unknown symbol: cold`; 3.0.0: a float literal is a double, every digit of it; 2.0.1 and 2.0.2 let `->` and `=>` through any call; 2.0.0 split `(inline)` and `(weak)`, which 1.10.7's reader needs) |
 | `../ZiguratIP` | the database; RUN time and `make schema` | the owner's |
 
 **cicili is frozen**: no edits, commits, pushes, branch changes or `git add`.
@@ -495,6 +495,52 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   it; a store made after passes a failed module by, where swipl's thread
   sees what it read; and a file named through a link is that file, where
   swipl's is another.
+* **The process keeps swipl's source file records** (3.78.0, the
+  `coco_srcf_*` table in lib/kb-consult.cicili, read by source_file/1,2
+  and current_module/1 through lib/builtins-db.cicili's halves;
+  test/files/source_records.pl holds 99 lines to swipl, test/thread.pl a
+  thread's load): one table of the process's under its lock
+  (`coco_srcf_mx`), texts kept as text, as each machine has atoms of its
+  own, and no Prolog run while it is held. `coco_consult_oid` opens a
+  program file's entry before its text is read and closes it with the
+  read's `ldefs` (the machine's `sfcur` names it meanwhile, put back after
+  a nested read); a read under the store's `noexp` -- a compiled-in text,
+  a preloaded library -- opens none. A file is a source file while a read
+  of it is under way (`reading`, as swipl's '$start_consult'/2 makes the
+  record as the read begins) and after it once a read of it defined
+  something (`loaded`: the 3.6.0 rule, which is swipl's, since its
+  ensure_loaded/1 asks source_file/1); an entry no read defined in begins
+  again, after the files read since, at the next read, and a file read
+  again into the same store (`again`) lists what its new text registers.
+  A predicate registers at a read's first sight of it (`coco_reload_for`),
+  a dynamic, discontiguous or multifile declaration (`coco_decl_pi`, kinds
+  0 to 2, the goal's too) and meta_predicate/1 (`coco_pred_meta_note`),
+  under the read's module (`ssu_mod`), the message hooks as
+  prolog:message/3 and prolog:error_message/3; '$source_file'/2 asks the
+  predicate defined in this store, a qualifier that names no module read
+  as user, and '$source_file_multi'/2 a multifile one's clauses' origins.
+  current_module/1 is user, system, prolog, a program file's module/2 and a
+  library the program imported (`cp_imps`), and **a new kind of module
+  goes into both `coco_b_modules` and `coco_b_is_module`**; **a new read of
+  a program file goes through `coco_consult_oid`**, or it is no source
+  file, and **a new declaration that defines registers through
+  `coco_srcf_note`**. **A record there was no memory for finishes the
+  read's machine** (`coco_oom`: an entry, a registration, a module's name),
+  so the load ends out of memory, and a lookup refused raises
+  resource_error(memory) (test/errors.pl's `sources_refused`, each request
+  refused in turn): a record dropped in silence was a file, a predicate or
+  a module the three then answered none of. **So is a loader's copy that
+  is no record**, the faults the sweep found under it: a source file's
+  read refused is no missing file (`coco_source_refused` in
+  lib/term.cicili, *CLS -1), a library's registration refused no `cannot
+  register` (`lb_load_pl_as`), and its file's or its real path's copy
+  refused no compiled-in text, no clause without an origin
+  (`coco_module_set_file`) -- each `coco_refuse`, the thread's machine
+  finished: **a new copy a loader keeps asks its answer the same way**.
+  Not swipl's (COMPAT.md): a qualifier makes no module, a library cocolog
+  compiles in or preloads is no source file, no bookkeeping predicate is
+  listed, a thread's predicates are its store's, and `:- multifile
+  prolog:message//1.` still declares user's message/3.
 * **A load asks the program's term_expansion/2 and goal_expansion/2**
   (3.14.0, swipl's; `coco_consult_xcall` in lib/kb-consult.cicili, the
   Prolog half in lib/dcg.cicili): each term read where the file is taken --

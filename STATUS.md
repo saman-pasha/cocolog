@@ -23266,3 +23266,172 @@ with every other fixture, held to swipl 9.0.4), journal, engine,
 flowchart, library, errors, argv, flowdebug, window and trace, each
 alone. All were green with no SKIP, and the binary's md5 was the same
 before and after. The dialect card's 33 cites are all anchored.
+
+## current_module/1 and source_file/1,2 are swipl's (3.78.0)
+
+A minor: three predicates a program can call, where through 3.77.0 each
+was an unknown procedure -- `current_module/1`, `source_file/1` and
+`source_file/2`. They were the last of COMPAT.md's small built-ins a swipl
+program calls as it stands (its list's first item, gone now).
+
+THE PROCESS KEEPS swipl's SOURCE FILE RECORDS: a table of
+lib/kb-consult.cicili (`coco_srcf_*`), the process's under a lock of its
+own, its texts kept as text -- each machine has atoms of its own -- and no
+Prolog run while it is held. `coco_consult_oid`, the one door every read
+of a file goes through, opens a program file's entry before its text is
+read and closes it with the read's `ldefs`; the machine's `sfcur`
+(appended) names the entry while the read runs and is put back after a
+nested read. A read under the store's `noexp` -- a compiled-in module's
+text, a preloaded library -- opens none, as swipl's boot files are none of
+its source files. What swipl does, and so the table:
+- a file is a source file while a read of it is under way, before it has
+  defined anything (`reading`; swipl's '$start_consult'/2 makes the
+  record as the read begins), so a file of goals alone is one inside its
+  own read and none after it;
+- after the read, once a read of it defined something (`loaded`) -- the
+  3.6.0 rule, which is swipl's own: its ensure_loaded/1 reads a file
+  again unless source_file/1 holds of it;
+- an entry no read defined in begins again at the next read, after the
+  files read since; a file read again into the same store lists what its
+  new text registers; a loaded file read again with goals alone stays a
+  source file with no predicates;
+- a predicate registers at a read's first sight of it
+  (`coco_reload_for`), at a dynamic, discontiguous or multifile
+  declaration (`coco_decl_pi`, a goal's as a directive's) and at
+  meta_predicate/1 (`coco_pred_meta_note`) -- never at public/1,
+  module_transparent/1, thread_local/1 or volatile/1, nor at what a
+  directive asserts -- under the read's module, an included file's in the
+  file that includes it, once a file, the last first in the list;
+- the message hooks' clauses, which the store files as
+  '$prolog_message'/3 and '$prolog_error_message'/3, register as swipl's
+  prolog:message/3 and prolog:error_message/3, and a lookup of either
+  asks the hook.
+
+THE PREDICATES ARE swipl's boot/syspred.pl, clauses of the builtins'
+Prolog half over five C halves of lib/builtins-db.cicili named where
+swipl's errors name them: '$source_file_predicates'/2 (a file that is no
+atom type_error(atom, F)), '$source_file'/2 (a head that is no callable
+term type_error(callable, H); the predicate defined in this store, a
+clause or a dynamic, discontiguous or multifile declaration, so a
+meta_predicate/1 alone has no file), '$source_file_multi'/2 (a multifile
+predicate's files, from its live clauses' origins, in their order, each
+once), '$source_files'/1 and '$source_file_loaded'/1. A qualifier that
+names a module asks that module's own predicate; one that names none asks
+user's, as swipl's lookup reads a module it has not made (it makes none),
+and takes no multifile path. current_module/1 is one clause, as swipl's,
+over '$modules'/1: user, system, prolog, a program file's module/2, and a
+library the program imported (the import notes current_predicate/1
+keeps); an atom it holds, any other term none.
+
+NOT swipl's (COMPAT.md): a qualified assert or call makes no module (one
+namespace); a library cocolog compiles in or preloads is no source file
+(lists.pl, assoc.pl); swipl's bookkeeping predicates
+('$load_context_module'/3) are none; a predicate a library(thread)
+thread's consult defined is defined in that thread's store alone, though
+the file and its list are the process's (test/thread.pl's
+`sources_per_thread`); and `:- multifile prolog:message//1.` still
+declares user's message/3, the qualifier peeled, which 3.78.1 takes on.
+The probes found one more, absolute_file_name/2 of a list, which swipl
+refuses and cocolog reads as a name: by design, as `"file"` is codes by
+default here, and COMPAT's row on a list where a file is named says so
+now.
+
+HELD. test/files/source_records.pl, 99 lines to swipl 9.0.4 byte for
+byte, its files test/files.pl's `srec/2`: the order of the files, a file
+inside its own read and a file of goals alone there, a file read again
+after the others, each kind's registration, each predicate's file, the
+multifile files, the qualified lookups (a module, user, system, lists, a
+name that is none, the hook), twenty-four source_file goals with their
+three errors, a file read again, and current_module/1 of eleven terms and
+its walk. test/thread.pl's new section holds the process's table across
+a thread's store.
+
+ARMS, one build each of the final code with one rule out, against
+source_records.pl's 99 lines and an unfiltered list of every source file
+and module the process holds: a read under `noexp` opening none (the list:
+the compiled-in `library` and `files` texts and the preloaded libraries
+named); a read under way a source file (8 lines) and its end counted down
+(18); an entry no read defined in begun again after the files read since
+(4); a file read again listing what its new text registers (2); the kinds
+past multifile registering nothing (4: thread_local/1's predicate listed);
+meta_predicate/1 registering (2); the defined check (2: a meta_predicate/1
+alone given a file); the multifile path (6); a qualifier that names no
+module read as user (4); the hooks' names as a read registers them (4) and
+as a lookup asks them (2); the two errors' rows (6), type_error(atom) (2)
+and type_error(callable) (4); prolog a module (6); the imports in
+current_module/1 (6) and the program's modules in it (14); a predicate
+registered once a file (4); and `sfcur` put back after a nested read
+(58). The multifile path's own test that its qualifier names a module
+moved nothing (R9) -- a predicate's module is user or one a read made, so a
+name that is none matches no predicate's -- and went.
+
+A RECORD THERE WAS NO MEMORY FOR FINISHES THE READ'S MACHINE
+(`coco_oom`): an entry for the read, a predicate's registration (its copy
+or the list's growth), a module's name -- and the load ends out of memory,
+as any refusal in a read does since 3.63.2. A LOOKUP REFUSED RAISES
+resource_error(memory): a copy of a file's path, of a module's name, of a
+predicate in a file's list, '$source_file'/2's walk and copy, a multifile
+predicate's file. A record dropped in silence was a file, a predicate or a
+module the three predicates then answered none of: an exit 0 short of one,
+or a file's predicates out of their order, where a registration refused
+put the predicate's next sight of it first.
+
+AND FOUR FAULTS OF THE LOADERS UNDER IT, which the sweep found on the way,
+each a refusal of memory read as something else. A source file's read
+refused -- the stream's open, the buffer its bytes go in, the decoded
+text's room (`coco_source_text`, 3.58.0's) -- was the file's
+existence_error, `source_sink ... does not exist`, of a file that was there.
+A library's registration refused -- the copy of its name, the registry's
+growth (`lb_load_pl_as`) -- was a failed directive that said `cannot
+register` and loaded nothing, the load going on. The copy of its file's
+path refused read the module as a compiled-in text, no source file and no
+module of the program's; and the copy of its real path refused left its
+clauses no origin, a multifile predicate's file unknown to source_file/2
+(`coco_module_set_file`). Each finishes the machine reading now
+(`coco_refuse`).
+
+HELD under the shim (test/refuse.c): test/errors.pl's `sources_refused`
+refuses each of the 304 requests in turn, once and twice in a row, of a
+consult of a file of a multifile, a dynamic and a plain predicate that
+loads a module with a clause of the multifile one, and of source_file/1,2
+and current_module/1 asked of what it read: every run prints the whole
+answer or ends saying memory and prints none of it. On the code before
+these rules it was red at both, 27 runs at one refusal and 15 at two in a
+row: a file, a predicate, a module or a multifile predicate's file
+dropped, a file's predicates out of their order, the consulted file `does
+not exist`, and the module a failed directive that said `cannot read` or
+`cannot register`.
+
+ARMS of the refusals, one build each with one rule out, the sweep the
+check (runs red at one refusal and at two in a row): an entry's refusal
+unsaid (4 and 3), a registration's (7 and 4), a module name's copy (1), a
+copy that shortens a list of texts (4 and 3), '$source_file'/2's walk or
+copy (2), a multifile predicate's file (2 and 1), a file's predicates'
+copies (7 and 17), the list of files (5 and 5), a module name's copy in
+current_module/1 (4 and 3) and its list (3 and 15); and of the loaders, a
+source read's refusal (4 and 4), a library's registration (1), its file's
+copy (1) and its real path's (1); with no rule out the sweep is green.
+
+COST, counted against 3.77.0 at paths of one length: the untraced engine
+moves nothing (tools/flow/zero.sh, work less padding: nrev 66 064 359 to
+65 990 958, queens 39 953 507 to 39 953 229, lookup 48 060 374 to
+48 057 916), and a start (`cocolog query true`) is 266 821 instructions
+more, 36 561 888 to 36 828 709 (+0.73 %): some 125 000 of them the functor
+table's growth past 1 024 names (1 021 to 1 030 at a start: memcpy, memset
+and `coco_functor_id`'s rehash), some 85 000 the reading of the five new
+clauses of the builtins' Prolog half, and the rest each program file's
+entry and its notes -- `coco_srcf_note`'s test of a read with no entry
+some 7 000.
+
+THE RUN, on the binary committed (its md5 the measured copy's, built
+before the round and not after): the lint case first -- red once, two of
+the dialect card's cites in lib/library.cicili moved eleven lines by the
+loader's fix and their ranges corrected, then green alone -- and then
+files, errors, thread, library, directives, reconsult, flowchart,
+journal, trace, engine, term, syntax, module, solve, state, and with the
+server up zigurat and kbs, each alone. All were green, no SKIP. The first
+round's term, syntax, module and solve stopped at their builds: a test
+binary that emits lib/term.cicili includes no `<errno.h>`, which
+cocolog.cicili does, and `coco_source_text` asks `errno` now; the six of
+them include it, and each was run again alone. The dialect card's 33
+cites are all anchored.

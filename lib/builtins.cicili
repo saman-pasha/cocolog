@@ -150,6 +150,15 @@
     ("date_time_stamp"         2 coco_b_date_time_stamp)
     ("format_time"             3 coco_b_format_time3)
     ("format_time"             4 coco_b_format_time4)
+    ;; source_file/1,2 and current_module/1 (3.78.0): the process's source
+    ;; files (lib/kb-consult.cicili) and its modules, the halves of the
+    ;; Prolog half's clauses (lib/builtins-db.cicili)
+    ("$source_files"           1 coco_b_source_files)
+    ("$source_file_loaded"     1 coco_b_source_file_loaded)
+    ("$source_file_predicates" 2 coco_b_source_file_preds)
+    ("$source_file"            2 coco_b_source_file)
+    ("$source_file_multi"      2 coco_b_source_file_multi)
+    ("$modules"                1 coco_b_modules)
     ;; the halt's hooks (3.71.0); at_halt/1, cancel_halt/1 and the run are
     ;; clauses over them (the Prolog half)
     ("$at_halt_add"            3 coco_b_at_halt_add)
@@ -1088,7 +1097,22 @@
            ;; port (`coco_depth_step'): its clause is swipl's one frame
            ":- meta_predicate call_with_depth_limit(0, +, -)."
            "call_with_depth_limit(G, Limit, Result) :- '$depth_limit'(Limit, OLimit, OReached), ( catch(G, E, system:'$depth_limit_except'(OLimit, OReached, E)), system:'$depth_limit_true'(Limit, OLimit, OReached, Result, Det), ( Det == ! -> ! ; true ) ; system:'$depth_limit_false'(OLimit, OReached, Result) )."
-           "'$depth_limit_true'(Limit, OLimit, OReached, Result, Det) :- '$depth_limit_exit'(OLimit, OReached, Result, Det0), ( Det0 == ! -> Det = ! ; ( Det = true ; '$depth_limit_redo'(Limit, OLimit), fail ) ).")))
+           "'$depth_limit_true'(Limit, OLimit, OReached, Result, Det) :- '$depth_limit_exit'(OLimit, OReached, Result, Det0), ( Det0 == ! -> Det = ! ; ( Det = true ; '$depth_limit_redo'(Limit, OLimit), fail ) )."
+           ;; source_file/1,2 (3.78.0), swipl 9.0.4's boot/syspred.pl over
+           ;; the process's source files (lib/builtins-db.cicili): a file
+           ;; given is a loaded source file's name as its loads name it, or
+           ;; what absolute_file_name/2 makes of it; a head and its module
+           ;; given, the file of its definition, a multifile predicate's
+           ;; the files of its clauses; else each loaded source file's
+           ;; predicates, the head unqualified said of the caller's module
+           "source_file(File) :- ( ground(File) -> ( '$source_file_loaded'(File) ; absolute_file_name(File, Abs), '$source_file_loaded'(Abs) ), ! ; '$source_files'(Files), '$cp_in'(File, Files) )."
+           ":- meta_predicate source_file(:, ?)."
+           "source_file(M:Head, File) :- nonvar(M), nonvar(Head), !, ( '$source_file_multi'(M:Head, Files) -> '$cp_in'(File, Files) ; '$source_file'(M:Head, File) )."
+           "source_file(M:Head, File) :- ( nonvar(File) -> true ; source_file(File) ), '$source_file_predicates'(File, Predicates), '$cp_in'(M:Head, Predicates)."
+           ;; current_module/1 (3.78.0), one clause as swipl's over
+           ;; '$current_module'/2: a module given, an atom the modules hold,
+           ;; and any other term none; unbound, each of them ('$modules'/1)
+           "current_module(Module) :- '$modules'(Modules), ( atom(Module) -> memberchk(Module, Modules) ; var(Module) -> '$cp_in'(Module, Modules) ).")))
 
 (generic decl-builtins
   ()

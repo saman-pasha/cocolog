@@ -428,6 +428,350 @@
             (set (-> rl at) (+ k 1))
             (return 1))))
 
+  ;;; ---- the process's source files (3.78.0) ------------------------------
+  ;;;
+  ;;; SWIPL'S SOURCE FILE RECORDS, for source_file/1,2 and current_module/1:
+  ;;; a file a read of which defined something -- what the read's `ldefs'
+  ;;; counts -- in the order its first such read began, the name its
+  ;;; module/2 gave, and the predicates it registered, each the first time
+  ;;; the file gave it a clause or a dynamic, discontiguous, multifile or
+  ;;; meta_predicate declaration (an included file's in the file that
+  ;;; includes it), by its module, name and arity. `coco_consult_oid' opens
+  ;;; a program file's entry before its text is read and closes it after,
+  ;;; the machine's `sfcur' naming it while the read runs. A read under the
+  ;;; store's `noexp' -- a compiled-in module's text, a preloaded library --
+  ;;; is none of the program's, as swipl's boot files are none of
+  ;;; source_file/1's. A file is a source file while a read of it is under
+  ;;; way (`reading'), as swipl's '$start_consult'/2 makes its record as
+  ;;; the read begins, and after it once a read of it defined something
+  ;;; (`loaded'); an entry none of whose reads did is dropped as the last
+  ;;; ends, and the next read that names its file begins it again (`seq'),
+  ;;; after the files read since, as swipl's is; a file
+  ;;; read again into the same store (AGAIN) lists what its new text
+  ;;; registers, and one read into another store -- a thread's, an isolated
+  ;;; run's -- adds what it registers to what is there. PROCESS-WIDE AND
+  ;;; UNDER ITS LOCK, as swipl's records are the process's: a thread's loads
+  ;;; note here too, and the texts are kept as text, each machine having
+  ;;; atoms of its own. No Prolog runs while the lock is held. A RECORD THERE
+  ;;; WAS NO MEMORY FOR FINISHES THE READ'S MACHINE (`coco_oom'), so the load
+  ;;; ends out of memory as any refusal in a read does, and a lookup refused
+  ;;; says so to its caller: a record dropped in silence was a file or a
+  ;;; predicate source_file/1,2 then answered none of.
+  (struct coco_srcf
+    (member char *      path)
+    (member char *      real)
+    (member char *      mod)
+    (member int         loaded)
+    (member int         reading)
+    (member u64         seq)
+    (member size_t      n)
+    (member size_t      cap)
+    (member coco_srcp * preds))
+
+  (static) (var coco_srcf * coco_srcfs)
+  (static) (var size_t coco_nsrcf)
+  (static) (var size_t coco_capsrcf)
+  (static) (var u64 coco_srcf_seq)
+  (static) (var pthread_mutex_t coco_srcf_mx . PTHREAD_MUTEX_INITIALIZER)
+
+  ;; PATH's entry, or the count for none: the lock held
+  (static)
+  (func coco_srcf_at ((const char * path)) (out size_t)
+        (for ((size_t i . 0)) (< i coco_nsrcf) ((++ i))
+          (if (== 0 (strcmp ($ (nth i coco_srcfs) path) path)) (return i)))
+        (return coco_nsrcf))
+
+  ;; an entry's predicates and module forgotten, for a read that registers
+  ;; them again: the lock held
+  (static)
+  (func coco_srcf_clear ((coco_srcf * f))
+        (for ((size_t i . 0)) (< i (-> f n)) ((++ i))
+          (block
+            (free (cast (void *) ($ (nth i (-> f preds)) mod)))
+            (free (cast (void *) ($ (nth i (-> f preds)) name)))))
+        (set (-> f n) 0)
+        (free (cast (void *) (-> f mod)))
+        (set (-> f mod) nil))
+
+  ;; a predicate appended to F, 1; 0 where a growth or a copy was refused
+  ;; and none appended: the lock held
+  (static)
+  (func coco_srcf_put ((coco_srcf * f) (const char * mod) (const char * name) (u32 arity)) (out int)
+        (if (>= (-> f n) (-> f cap))
+            (let ((size_t cap . #'(? (== (-> f cap) 0) 16 (* (-> f cap) 2)))
+                  (coco_srcp * grown . #'(cast (coco_srcp *) (realloc (-> f preds) (* cap (sizeof coco_srcp))))))
+              (if (== grown nil) (return 0))
+              (set (-> f preds) grown)
+              (set (-> f cap) cap)))
+        (let ((char * md . #'(strdup mod)) (char * nm . #'(strdup name)))
+          (if (or (== md nil) (== nm nil))
+              (block (free md) (free nm) (return 0)))
+          (set ($ (nth (-> f n) (-> f preds)) mod) md)
+          (set ($ (nth (-> f n) (-> f preds)) name) nm)
+          (set ($ (nth (-> f n) (-> f preds)) arity) arity)
+          (set (-> f n) (+ (-> f n) 1))
+          (return 1)))
+
+  ;;; A READ OF PATH BEGUN: its entry plus one; 0 for no PATH, and
+  ;;; (size_t) -1 where there was no room for an entry. REAL is the path its
+  ;;; clauses' origins carry, nil for none.
+  (func coco_srcf_begin ((const char * path) (const char * real) (int again)) (out size_t)
+        (let ((size_t i . 0) (size_t r . #'(cast size_t -1)))
+          (if (== path nil) (return 0))
+          (pthread_mutex_lock (aof coco_srcf_mx))
+          (set i (coco_srcf_at path))
+          (if (== i coco_nsrcf)
+              (block
+                (if (>= coco_nsrcf coco_capsrcf)
+                    (let ((size_t cap . #'(? (== coco_capsrcf 0) 16 (* coco_capsrcf 2)))
+                          (coco_srcf * grown . #'(cast (coco_srcf *) (realloc coco_srcfs (* cap (sizeof coco_srcf))))))
+                      (if (!= grown nil) (block (set coco_srcfs grown) (set coco_capsrcf cap)))))
+                (if (< coco_nsrcf coco_capsrcf)
+                    (let ((coco_srcf * f . #'(aof (nth coco_nsrcf coco_srcfs))))
+                      (memset f 0 (sizeof coco_srcf))
+                      (set (-> f path) (strdup path))
+                      (if (!= real nil) (set (-> f real) (strdup real)))
+                      (if (and (!= (-> f path) nil) (or (== real nil) (!= (-> f real) nil)))
+                          (block (set coco_srcf_seq (+ coco_srcf_seq 1))
+                                 (set (-> f seq) coco_srcf_seq)
+                                 (set (-> f reading) 1)
+                                 (set coco_nsrcf (+ coco_nsrcf 1))
+                                 (set r coco_nsrcf))
+                          (block (free (cast (void *) (-> f path)))
+                                 (free (cast (void *) (-> f real))))))))
+              (let ((coco_srcf * f . #'(aof (nth i coco_srcfs))))
+                ;; a file no read is under way of, and none of whose reads
+                ;; defined anything, begins again after the files read since
+                (if (and (not (-> f loaded)) (== (-> f reading) 0))
+                    (block (coco_srcf_clear f)
+                           (set coco_srcf_seq (+ coco_srcf_seq 1))
+                           (set (-> f seq) coco_srcf_seq))
+                    (if again (coco_srcf_clear f)))
+                (set (-> f reading) (+ (-> f reading) 1))
+                (set r (+ i 1))))
+          (pthread_mutex_unlock (aof coco_srcf_mx))
+          (return r)))
+
+  ;;; ...and ended: LOADED when the read defined something
+  (func coco_srcf_end ((size_t sf) (int loaded))
+        (if (== sf 0) (return))
+        (pthread_mutex_lock (aof coco_srcf_mx))
+        (if (<= sf coco_nsrcf)
+            (let ((coco_srcf * f . #'(aof (nth (- sf 1) coco_srcfs))))
+              (if (> (-> f reading) 0) (set (-> f reading) (- (-> f reading) 1)))
+              (if loaded (set (-> f loaded) 1))))
+        (pthread_mutex_unlock (aof coco_srcf_mx)))
+
+  ;;; A PREDICATE THE READ UNDER WAY REGISTERS: PI of ST, under the read's
+  ;;; module (module/2's, `ssu_mod'; user before one), into the read's
+  ;;; entry once. Nothing outside a read of a program file. The
+  ;;; two hooks print_message/2 reads are prolog:message/3 and
+  ;;; prolog:error_message/3 here, as swipl's (the store files their
+  ;;; clauses as '$prolog_message'/3 and '$prolog_error_message'/3,
+  ;;; `coco_hook_head').
+  (func coco_srcf_note ((coco_store * st) (coco_machine * m) (size_t pi))
+        (if (or (== (-> m sfcur) 0) (>= pi (-> st npreds))) (return))
+        (let ((const char * name . #'(coco_atom_name m ($ (coco-pred-at (-> st predp) pi) name)))
+              (u32 arity . #'($ (coco-pred-at (-> st predp) pi) arity))
+              (const char * mod . #'(? (== (-> m ssu_mod) 0) "user" (coco_atom_name m (- (-> m ssu_mod) 1))))
+              (size_t sf . #'(-> m sfcur)) (int refused . 0))
+          (if (== arity 3)
+              (block
+                (if (== 0 (strcmp name "$prolog_message"))
+                    (block (set mod "prolog") (set name "message")))
+                (if (== 0 (strcmp name "$prolog_error_message"))
+                    (block (set mod "prolog") (set name "error_message")))))
+          (pthread_mutex_lock (aof coco_srcf_mx))
+          (if (<= sf coco_nsrcf)
+              (let ((coco_srcf * f . #'(aof (nth (- sf 1) coco_srcfs))) (int seen . 0))
+                (for ((size_t i . 0)) (and (< i (-> f n)) (not seen)) ((++ i))
+                  (if (and (== ($ (nth i (-> f preds)) arity) arity)
+                           (== 0 (strcmp ($ (nth i (-> f preds)) name) name))
+                           (== 0 (strcmp ($ (nth i (-> f preds)) mod) mod)))
+                      (set seen 1)))
+                (if (and (not seen) (not (coco_srcf_put f mod name arity))) (set refused 1))))
+          (pthread_mutex_unlock (aof coco_srcf_mx))
+          ;; refused: the machine finished, the lock given back first
+          (if refused (coco_oom m))))
+
+  ;;; THE READ'S MODULE/2: the module the file defines
+  (func coco_srcf_module ((coco_machine * m) (const char * mod))
+        (let ((int refused . 0))
+          (if (or (== (-> m sfcur) 0) (== mod nil)) (return))
+          (pthread_mutex_lock (aof coco_srcf_mx))
+          (if (<= (-> m sfcur) coco_nsrcf)
+              (let ((coco_srcf * f . #'(aof (nth (- (-> m sfcur) 1) coco_srcfs)))
+                    (char * c . #'(strdup mod)))
+                (if (== c nil)
+                    (set refused 1)
+                    (block (free (cast (void *) (-> f mod))) (set (-> f mod) c)))))
+          (pthread_mutex_unlock (aof coco_srcf_mx))
+          (if refused (coco_oom m))))
+
+  ;; the entries' indexes in the order their reads began (`seq'), the
+  ;; source files alone where ONLY -- loaded, or a read of them under way:
+  ;; a malloc'd array, nil refused, the lock held
+  (static)
+  (func coco_srcf_order ((int only) (size_t * n)) (out size_t *)
+        (let ((size_t * v . #'(cast (size_t *) (malloc (* (+ coco_nsrcf 1) (sizeof size_t)))))
+              (size_t k . 0))
+          (set (cof n) 0)
+          (if (== v nil) (return nil))
+          (for ((size_t i . 0)) (< i coco_nsrcf) ((++ i))
+            (if (or (not only) ($ (nth i coco_srcfs) loaded) (> ($ (nth i coco_srcfs) reading) 0))
+                (let ((size_t j . k))
+                  ;; an insertion by `seq': a program loads a handful of files
+                  (while (and (> j 0) (> ($ (nth (nth (- j 1) v) coco_srcfs) seq) ($ (nth i coco_srcfs) seq)))
+                    (set (nth j v) (nth (- j 1) v))
+                    (set j (- j 1)))
+                  (set (nth j v) i)
+                  (set k (+ k 1)))))
+          (set (cof n) k)
+          (return v)))
+
+  ;; the texts of the entries ORDER names, the path of each (MODS 0) or the
+  ;; module of each that has one: a malloc'd array of copies, nil refused,
+  ;; the lock held
+  (static)
+  (func coco_srcf_texts ((int only) (int mods) (size_t * n)) (out char **)
+        (let ((size_t k . 0) (size_t * v . #'(coco_srcf_order only (aof k)))
+              (char ** out . nil) (size_t got . 0))
+          (set (cof n) 0)
+          (if (== v nil) (return nil))
+          (set out (cast (char **) (malloc (* (+ k 1) (sizeof (nth 0 out))))))
+          (if (!= out nil)
+              (for ((size_t i . 0)) (and (< i k) (!= out nil)) ((++ i))
+                (let ((coco_srcf * f . #'(aof (nth (nth i v) coco_srcfs)))
+                      (const char * t . #'(? mods (-> f mod) (-> f path))))
+                  (if (!= t nil)
+                      (let ((char * c . #'(strdup t)))
+                        (if (!= c nil)
+                            (block (set (nth got out) c) (set got (+ got 1)))
+                            ;; a copy refused: no list, rather than a shorter one
+                            (block (coco_srcf_free_list out got) (set out nil) (set got 0))))))))
+          (free v)
+          (set (cof n) got)
+          (return out)))
+
+  ;;; THE LOADED SOURCE FILES' PATHS, in the order their first defining
+  ;;; reads began, and the modules the program's reads defined, each of
+  ;;; every entry (a module/2 is a definition): copies, nil refused
+  (func coco_srcf_paths ((size_t * n)) (out char **)
+        (let ((char ** r . nil))
+          (pthread_mutex_lock (aof coco_srcf_mx))
+          (set r (coco_srcf_texts 1 0 n))
+          (pthread_mutex_unlock (aof coco_srcf_mx))
+          (return r)))
+
+  (func coco_srcf_modules ((size_t * n)) (out char **)
+        (let ((char ** r . nil))
+          (pthread_mutex_lock (aof coco_srcf_mx))
+          (set r (coco_srcf_texts 0 1 n))
+          (pthread_mutex_unlock (aof coco_srcf_mx))
+          (return r)))
+
+  ;;; whether a program file's module/2 named MOD
+  (func coco_srcf_is_module ((const char * mod)) (out int)
+        (let ((int r . 0))
+          (pthread_mutex_lock (aof coco_srcf_mx))
+          (for ((size_t i . 0)) (and (< i coco_nsrcf) (not r)) ((++ i))
+            (if (and (!= ($ (nth i coco_srcfs) mod) nil)
+                     (== 0 (strcmp ($ (nth i coco_srcfs) mod) mod)))
+                (set r 1)))
+          (pthread_mutex_unlock (aof coco_srcf_mx))
+          (return r)))
+
+  (func coco_srcf_free_list ((char ** l) (size_t n))
+        (if (== l nil) (return))
+        (for ((size_t i . 0)) (< i n) ((++ i)) (free (nth i l)))
+        (free l))
+
+  ;;; whether PATH is a source file's, as its loads name it: loaded, or a
+  ;;; read of it under way
+  (func coco_srcf_loaded ((const char * path)) (out int)
+        (let ((int r . 0) (size_t i . 0))
+          (pthread_mutex_lock (aof coco_srcf_mx))
+          (set i (coco_srcf_at path))
+          (if (< i coco_nsrcf)
+              (set r (or ($ (nth i coco_srcfs) loaded) (> ($ (nth i coco_srcfs) reading) 0))))
+          (pthread_mutex_unlock (aof coco_srcf_mx))
+          (return (!= r 0))))
+
+  ;;; THE PREDICATES A SOURCE FILE REGISTERED, in the order it registered
+  ;;; them: copies, FOUND 1 (0 no such file, -1 a copy refused)
+  (func coco_srcf_preds ((const char * path) (size_t * n) (int * found)) (out coco_srcp *)
+        (let ((size_t i . 0) (coco_srcp * out . nil) (size_t got . 0))
+          (set (cof n) 0)
+          (set (cof found) 0)
+          (pthread_mutex_lock (aof coco_srcf_mx))
+          (set i (coco_srcf_at path))
+          (if (and (< i coco_nsrcf)
+                   (or ($ (nth i coco_srcfs) loaded) (> ($ (nth i coco_srcfs) reading) 0)))
+              (let ((coco_srcf * f . #'(aof (nth i coco_srcfs))))
+                (set (cof found) 1)
+                (set out (cast (coco_srcp *) (malloc (* (+ (-> f n) 1) (sizeof coco_srcp)))))
+                (if (== out nil)
+                    (set (cof found) -1)
+                    (for ((size_t k . 0)) (< k (-> f n)) ((++ k))
+                      (let ((char * md . #'(strdup ($ (nth k (-> f preds)) mod)))
+                            (char * nm . #'(strdup ($ (nth k (-> f preds)) name))))
+                        (if (or (== md nil) (== nm nil))
+                            (block (free md) (free nm) (set (cof found) -1))
+                            (block (set ($ (nth got out) mod) md)
+                                   (set ($ (nth got out) name) nm)
+                                   (set ($ (nth got out) arity) ($ (nth k (-> f preds)) arity))
+                                   (set got (+ got 1)))))))))
+          (pthread_mutex_unlock (aof coco_srcf_mx))
+          (set (cof n) got)
+          (return out)))
+
+  (func coco_srcf_free_preds ((coco_srcp * p) (size_t n))
+        (if (== p nil) (return))
+        (for ((size_t i . 0)) (< i n) ((++ i))
+          (block (free ($ (nth i p) mod)) (free ($ (nth i p) name))))
+        (free p))
+
+  ;;; THE SOURCE FILE OF MOD:NAME/ARITY, swipl's '$source_file'/2: the
+  ;;; first loaded file, in the order their reads began, that registered
+  ;;; it -- a copy of its path, nil for none, and REFUSED set where the
+  ;;; walk or the copy was refused its memory
+  (func coco_srcf_of ((const char * mod) (const char * name) (u32 arity) (int * refused)) (out char *)
+        (let ((size_t k . 0) (size_t * v . nil) (char * r . nil) (int hit . 0))
+          (set (cof refused) 0)
+          (pthread_mutex_lock (aof coco_srcf_mx))
+          (set v (coco_srcf_order 1 (aof k)))
+          (if (== v nil) (set (cof refused) 1))
+          (if (!= v nil)
+              (block
+                (for ((size_t j . 0)) (and (< j k) (not hit)) ((++ j))
+                  (let ((coco_srcf * f . #'(aof (nth (nth j v) coco_srcfs))))
+                    (for ((size_t i . 0)) (and (< i (-> f n)) (not hit)) ((++ i))
+                      (if (and (== ($ (nth i (-> f preds)) arity) arity)
+                               (== 0 (strcmp ($ (nth i (-> f preds)) name) name))
+                               (== 0 (strcmp ($ (nth i (-> f preds)) mod) mod)))
+                          (block (set hit 1)
+                                 (set r (strdup (-> f path)))
+                                 (if (== r nil) (set (cof refused) 1)))))))
+                (free v)))
+          (pthread_mutex_unlock (aof coco_srcf_mx))
+          (return r)))
+
+  ;;; the path of the loaded file whose clauses carry REAL, a copy, nil for
+  ;;; none and REFUSED set where the copy was refused its memory: a
+  ;;; clause's source, for a multifile predicate's files
+  (func coco_srcf_of_real ((const char * real) (int * refused)) (out char *)
+        (let ((char * r . nil))
+          (set (cof refused) 0)
+          (if (== real nil) (return nil))
+          (pthread_mutex_lock (aof coco_srcf_mx))
+          (for ((size_t i . 0)) (and (< i coco_nsrcf) (== r nil) (not (cof refused))) ((++ i))
+            (if (and ($ (nth i coco_srcfs) loaded) (!= ($ (nth i coco_srcfs) real) nil)
+                     (== 0 (strcmp ($ (nth i coco_srcfs) real) real)))
+                (block (set r (strdup ($ (nth i coco_srcfs) path)))
+                       (if (== r nil) (set (cof refused) 1)))))
+          (pthread_mutex_unlock (aof coco_srcf_mx))
+          (return r)))
+
   ;;; PI'S PLACE IN THE CONSULT'S SEEN SET S, and at the file's first clause
   ;;; of it the reconsult: the reload begun -- for a file read into this
   ;;; store again, or a predicate that holds the file's clauses from before
@@ -486,6 +830,8 @@
           (set (nth (-> s n) (-> s lines)) (cast size_t at))
           (set (-> s n) (+ (-> s n) 1))
           (set (-> s last) (-> s n))
+          ;; and the file being read registers it (3.78.0, source_file/2)
+          (coco_srcf_note st m pi)
           (coco_pred_forget_from st m pi origin)
           ;; THE PREDICATE'S FIRST CLAUSE A FILE READ, what predicate_property/2
           ;; says as file(F) and line_count(L) (3.41.0), a library's too, as
@@ -2284,12 +2630,27 @@
             ;; `coco_consult_owned': a local there cost a start 1 500
             ;; instructions in that function's registers
             (let ((size_t lfl . #'(-> m lfloor))
-                  (coco_machine * rwas . coco_refuse_m))
+                  (coco_machine * rwas . coco_refuse_m)
+                  ;; THE FILE'S ENTRY AMONG THE PROCESS'S SOURCE FILES
+                  ;; (3.78.0): a program file's, opened before its text is
+                  ;; read and closed with whether the read defined
+                  ;; something (the caller counts `ldefs' from 0); the
+                  ;; outer read's put back after
+                  (size_t sfwas . #'(-> m sfcur)))
+              (set (-> m sfcur)
+                   (? (or (== origin nil) (-> st noexp)) 0
+                      (coco_srcf_begin origin (? (== oid 0) nil (coco_atom_name m (- oid 1))) again)))
+              ;; no room for its entry: the machine finished, and the read
+              ;; ends out of memory at its first term
+              (if (== (-> m sfcur) (cast size_t -1))
+                  (block (set (-> m sfcur) 0) (coco_oom m)))
               (coco_refuse_give m)
               (set n (coco_consult_owned st m text origin oid (aof seen) err errlen
                                          nil nil 0))
               (if (and again (and (!= origin nil) (!= coco_reread_hook nil)))
                   (coco_reread_hook m origin (? (>= n 0) 1 2)))
+              (coco_srcf_end (-> m sfcur) (!= (-> m ldefs) 0))
+              (set (-> m sfcur) sfwas)
               (coco_refuse_give rwas)
               (set (-> m lfloor) lfl))
             ;; its end puts the last clause after each of its predicates'

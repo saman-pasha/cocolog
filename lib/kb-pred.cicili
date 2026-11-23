@@ -823,6 +823,14 @@
              (set ($ (coco-pred-at (-> st predp) pi) pattrs)
                   (bitor ($ (coco-pred-at (-> st predp) pi) pattrs) (? (== kind 3) 1 (? (== kind 4) 2 4))))
              (return 1)))
+          ;; A DECLARATION REGISTERS THE PREDICATE WITH THE FILE BEING READ
+          ;; (3.78.0, source_file/2), as swipl's: dynamic, discontiguous and
+          ;; multifile -- not thread_local/1, public/1, volatile/1 or
+          ;; module_transparent/1 (meta_predicate/1's is
+          ;; `coco_pred_meta_note')
+          (if (and (!= (-> m sfcur) 0) (<= kind 2))
+              (let ((size_t spi . #'(coco_pred_intern st nid n)))
+                (if (< spi (-> st npreds)) (coco_srcf_note st m spi))))
           ;; A MODULE/2 READ'S DECLARATION NAMES THE PREDICATE'S MODULE, as
           ;; its first clause does (3.37.0, `coco_pred_note_mod'): listing/1
           ;; writes `:- dynamic mm:md/1.' of a predicate declared alone
@@ -1023,6 +1031,8 @@
           (set (nth k s) (cast char 0))
           (set pi (coco_pred_make st (coco_name_of m t) k))
           (if (>= pi (-> st npreds)) (block (free s) (return)))
+          ;; the file being read registers it, as swipl's (3.78.0)
+          (coco_srcf_note st m pi)
           (free ($ (coco-pred-at (-> st predp) pi) pmeta))
           (set ($ (coco-pred-at (-> st predp) pi) pmeta) s)
           ;; TRANSPARENT AS THE SPEC SAYS (3.48.2), swipl's
@@ -1251,7 +1261,11 @@
           (if (and (== n 2) (== 0 (strcmp name "module")))
               (let ((size_t mn . #'(coco_deref m (coco_arg m g 0))))
                 (if (coco-tag-is ATOM (nth mn (-> m heap)))
-                    (set (-> m ssu_mod) (+ (coco_name_of m mn) 1)))
+                    (block
+                      (set (-> m ssu_mod) (+ (coco_name_of m mn) 1))
+                      ;; the module the source file defines (3.78.0,
+                      ;; current_module/1)
+                      (coco_srcf_module m (coco_atom_name m (coco_name_of m mn)))))
                 (set (-> m ldefs) (+ (-> m ldefs) 1))
                 (return 1)))
           (if (or (and (<= n 2) (>= n 1) (== 0 (strcmp name "use_module")))

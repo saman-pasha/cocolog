@@ -1286,7 +1286,14 @@
     (member u64        dclev)
     (member u64        dlptag)
     (member u64        dlids [32])
-    (member int        dlready))
+    (member int        dlready)
+    ;; THE SOURCE FILE OF THE READ UNDER WAY (3.78.0, source_file/1,2): its
+    ;; entry in the process's table of source files plus one, 0 outside
+    ;; every read of a program file -- `coco_consult_oid' sets it around
+    ;; the read and puts the outer read's back after -- where a predicate a
+    ;; clause or a declaration registers is noted (`coco_srcf_note').
+    ;; Appended.
+    (member size_t     sfcur))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -2771,17 +2778,33 @@
   ;;; reader asks of a quoted item, `coco-lex-quoted-loop'). UTF-8 with no
   ;;; NUL in it is the file's bytes as they are, the BOM moved off: no copy,
   ;;; and what every start reads its libraries by.
+  ;;;
+  ;;; A READ THERE WAS NO MEMORY FOR IS NO MISSING FILE (3.78.0): the
+  ;;; stream's open refused for memory, the buffer the bytes go in, or the
+  ;;; decoded text's room, each answers nil with *CLS -1, the refusal
+  ;;; counted on the thread and the machine running there finished
+  ;;; (`coco_refuse': an engine's run makes its machine the thread's, and
+  ;;; so does a load's read, `coco_consult_oid'), so the run ends `out of
+  ;;; memory' whatever its caller says of the nil. Through 3.77.0 each was
+  ;;; the file's existence_error, `source_sink ... does not exist', of a
+  ;;; file that was there (test/errors.pl's `sources_refused').
+  (weak) (cold)
+  (func coco_source_refused ((int * cls)) (out char *)
+        (coco_refuse)
+        (set (cof cls) -1)
+        (return nil))
+
   (func coco_source_text ((const char * path) (int ask) (int * cls)) (out char *)
         (let ((FILE * f . #'(fopen path "rb")) (char * buf . nil) (long n . 0)
               (size_t skip . 0) (int bc . -1) (int c . 0) (coco_strbuf b))
           (set (cof cls) 0)
-          (if (== f nil) (return nil))
+          (if (== f nil) (return (? (== errno ENOMEM) (coco_source_refused cls) nil)))
           (fseek f 0 SEEK_END)
           (set n (ftell f))
           (fseek f 0 SEEK_SET)
           (if (< n 0) (block (fclose f) (return nil)))
           (set buf (cast (char *) (malloc (+ (cast size_t n) 1))))
-          (if (== buf nil) (block (fclose f) (return nil)))
+          (if (== buf nil) (block (fclose f) (return (coco_source_refused cls))))
           (if (and (> n 0) (!= (cast size_t n) (fread buf 1 (cast size_t n) f)))
               (block (free buf) (fclose f) (return nil)))
           (set (nth (cast size_t n) buf) (cast char 0))
@@ -2806,7 +2829,7 @@
           (coco_sb_init (aof b))
           (let ((int k . #'(coco_text_cook (+ buf skip) (- (cast size_t n) skip) c (aof b))))
             (if (or (not k) (and (== ($ b s) nil) (not (coco_sb_putc (aof b) (cast char 0)))))
-                (block (coco_sb_free (aof b)) (free buf) (return nil)))
+                (block (coco_sb_free (aof b)) (free buf) (return (coco_source_refused cls))))
             (if (== k 2) (set (cof cls) (bitor c 16))))
           (free buf)
           (return ($ b s))))

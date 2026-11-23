@@ -325,6 +325,11 @@ fixtures(ssu_mixed, Sandbox) :- !,
 %% turning it off, whose own clauses after it are warned of again
 fixtures(style_check, Sandbox) :- !,
     forall(sc(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
+%% the files the source records case loads (`srec/2'): one that declares
+%% each kind, includes one, loads a module, a file of goals and an empty
+%% one, and one whose next version the case renames in its place
+fixtures(source_records, Sandbox) :- !,
+    forall(srec(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
 fixtures(_, _).
 
 %% each style's warning, then the style off, then on again: the reader's
@@ -355,6 +360,45 @@ sm('sw.pl', ['sp(1).', 'sp(2).']).
 sm('sw.v2.pl', ['sp(X) => X = rule.']).
 sm('sw.v3.pl', ['sp(3).', 'sp(X) => X = 4.']).
 sm('sw.v4.pl', ['sp(X) => X = again.', 'sp(5).']).
+
+%% a predicate of each kind a read registers and of each it does not, a
+%% multifile one whose clauses stand in two files with a load between them,
+%% a declaration after a clause, what a goal declares and asserts as the
+%% file loads, an included file's, a module's, a file of goals alone and an
+%% empty one; and a file read again with one predicate less and one more
+srec('sr_a.pl', [ ':- dynamic sa_dyn/1.', ':- discontiguous sa_dis/1.', ':- multifile sa_mf/1.',
+                  ':- dynamic sa_mf/1.',
+                  ':- meta_predicate sa_meta(0).', ':- public sa_pub/1.',
+                  ':- module_transparent sa_mt/1.', ':- thread_local sa_tl/1.',
+                  ':- volatile sa_vol/1.',
+                  'sa_mf(a1).', ':- ensure_loaded(sr_b).', 'sa_mf(a2).',
+                  'sa_c(1).', 'sa_late(1).', ':- dynamic sa_late/1.',
+                  ':- assertz(sa_asserted(1)).', ':- call(dynamic(sa_cdyn/1)).',
+                  ':- G = discontiguous(sa_cdis/1), G.',
+                  ':- include(sr_inc).', ':- use_module(sr_mod).',
+                  ':- ensure_loaded(sr_goals).', ':- ensure_loaded(sr_empty).',
+                  'sa_last(1).' ]).
+srec('sr_b.pl', [':- multifile sa_mf/1.', 'sa_mf(b).', 'sb_p(1).', ':- multifile sb_none/1.']).
+srec('sr_inc.pl', ['si_p(1).', 'si_q(1).']).
+srec('sr_mod.pl', [':- module(sr_mod, [sm_a/1]).', 'sm_a(1).', 'sm_b(1).', ':- dynamic sm_c/1.']).
+srec('sr_goals.pl', [':- true.', ':- X = 1, X == 1.']).
+srec('sr_empty.pl', []).
+%% a file whose first line loads another, which begins after it
+srec('sr_outer.pl', [':- ensure_loaded(sr_inner).', 'so_p(1).']).
+srec('sr_inner.pl', ['sx_p(1).']).
+srec('sr_emod.pl', [':- module(sr_emod, []).']).
+%% a file that asks for the list as it is read, and a file of goals alone it
+%% loads, which asks too
+srec('sr_q.pl', [':- files(q_first).', ':- ensure_loaded(sr_qg).', ':- files(q_after_qg).',
+                 'sq_p(1).', ':- files(q_after_clause).']).
+srec('sr_qg.pl', [':- files(qg_in).']).
+%% a file of goals alone, and the version the case renames in its place,
+%% which defines something; and a file that gives the message hook a clause
+srec('sr_g2.pl', [':- true.']).
+srec('sr_g2.v2.pl', ['sg2_p(1).']).
+srec('sr_h.pl', ['prolog:message(sr_msg) --> [hello].']).
+srec('sr_rc.pl', ['rc_a(1).', 'rc_b(1).']).
+srec('sr_rc.v2.pl', ['rc_a(2).', 'rc_c(1).']).
 
 %% what makes a file read once a source file, as swipl's, and what leaves it
 %% none, so that the next load reads it again: each file says so as it is read

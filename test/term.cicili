@@ -27,6 +27,9 @@
 
   ;; sig_atomic_t, for the engine's halted cell (2.6.0)
   (include <pthread.h>)
+  ;; errno and ENOMEM: a source file's read refused its memory (3.78.0,
+  ;; lib/term.cicili's `coco_source_text')
+  (include <errno.h>)
   (include <signal.h>)
   (import "../lib/swipl-ctype.cicili")
   (import "../lib/term.cicili")

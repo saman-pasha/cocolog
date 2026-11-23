@@ -67,6 +67,7 @@ main :-
     load_short,
     load_refused,
     list_refused,
+    sources_refused,
     read_that_failed,
     mixed_rows,
     recursive_message,
@@ -678,6 +679,73 @@ lr_sweep(Path) :-
               '        if (tag == "Warning" && (n in w) && b == w[n]) continue',
               '        v = "report:" n ":" b; break }',
               '      gsub(/ /, "_", v); print v }' ]).
+
+%% ---- the source files' table under a refusal (3.78.0) ----------------------
+%%
+%% EACH REQUEST REFUSED IN TURN, once and twice in a row, of a consult -- a
+%% file of a multifile, a dynamic and a plain predicate that loads a module
+%% with a clause of the multifile one -- and of source_file/1,2 and
+%% current_module/1 asked of what it read, between the shim's marks: every
+%% run prints the whole answer (exit 0), or ends saying memory, the answer
+%% not printed. A record the table dropped in silence was a file, a
+%% predicate or a module the three then answered none of -- an exit 0 short
+%% of one, or the predicates out of their order (the first cut's, where a
+%% refused copy appended nothing and a refused lookup failed). Through
+%% 3.77.0 the consulted file's read refused its memory was its
+%% existence_error, `source_sink ... does not exist' (`coco_source_text'),
+%% the module's registration refused a failed directive that said `cannot
+%% register' and loaded nothing (`lb_load_pl_as'), and its file's copy
+%% refused read the module as a compiled-in text, no source file, as its
+%% real path's copy left its clauses no origin (`coco_module_set_file').
+sources_refused :-
+    section('the source files'' table under a refusal'),
+    scratch(D),
+    (   refuse_shim(D, Shim)
+    ->  atom_concat(D, '/srl.pl', L),
+        fixture(L, [':- multifile srl_mf/1.', ':- dynamic srl_d/1.', 'srl_p(1).', 'srl_mf(1).', ':- use_module(srq).']),
+        atom_concat(D, '/srq.pl', Q),
+        fixture(Q, [':- module(srq, []).', 'user:srl_mf(2).']),
+        atom_concat(D, '/srm.pl', F),
+        format(atom(Go), 'go :- rf_mark(''REFUSE_ON''), consult(~q), absolute_file_name(~q, A), findall(B, ( source_file(X), file_base_name(X, B) ), Fs), findall(H, source_file(H, A), Hs), findall(B2, ( source_file(srl_p(_), X2), file_base_name(X2, B2) ), Ps), findall(B3, ( source_file(srl_mf(_), X3), file_base_name(X3, B3) ), Ms), findall(M, current_module(M), Mods0), msort(Mods0, Mods), rf_mark(''REFUSE_OFF''), \\+ \\+ ( numbervars(Fs-Hs-Ps-Ms-Mods, 0, _), print(Fs-Hs-Ps-Ms-Mods) ), nl.', [L, L]),
+        fixture(F, [ 'rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).', Go ]),
+        cocolog(C),
+        % shell/3 takes the last newline off
+        Want = '[''srm.pl'',''srl.pl'',''srq.pl'']-[srl_p(A),srl_d(B),srl_mf(C)]-[''srl.pl'']-[''srl.pl'',''srq.pl'']-[prolog,srq,system,user]',
+        forall(member(Run-Title,
+                      [1-'each request of a consult and its lookups refused once: the whole answer, or memory said and none',
+                       2-'...and two in a row, a growth refused outright: the same']),
+               ( sr_runs(C, Shim, F, Run, Runs),
+                 length(Runs, N),
+                 findall(I-Exit-Text, ( member(I-Exit-Text, Runs), \+ sr_good(Want, Exit, Text) ), Bad),
+                 check(Title, N-Bad, N-[]),
+                 ( N > 0 -> true ; check('...and its stretch made such a request', N, more) ) ))
+    ;   true
+    ),
+    shl(['rm -rf ', D]).
+
+%% the requests the stretch makes, counted, and a run with each refused
+sr_runs(C, Shim, F, Run, Runs) :-
+    sh_join(['env REFUSE_REPORT=1 LD_PRELOAD=', Shim, ' ', C, ' --no-backtrace run ', F, ' go 2>&1 >/dev/null'], Count),
+    shell(Count, CT, _),
+    (   sub_atom(CT, B, _, _, 'REFUSE count '), B1 is B + 13, sub_atom(CT, B1, _, 0, Rest),
+        split_string(Rest, "\n", " ", [S|_]), number_string(N0, S)
+    ->  N = N0
+    ;   N = 0
+    ),
+    findall(I-Exit-Text,
+            ( between(1, N, I),
+              sh_join(['env REFUSE_N=', I, ' REFUSE_RUN=', Run, ' LD_PRELOAD=', Shim, ' ', C,
+                       ' --no-backtrace run ', F, ' go 2>&1'], Cmd),
+              shell(Cmd, Text, Exit) ),
+            Runs).
+
+%% the whole answer, or a run that ended saying memory and printed none of
+%% it (the backtrace is off: it would print the goal, answer and all)
+sr_good(Want, 0, Want) :- !.
+sr_good(_, Exit, Text) :-
+    Exit =\= 0,
+    sub_atom(Text, _, _, _, memory),
+    \+ sub_atom(Text, _, _, _, '-[').
 
 %% ---- what assert keeps, and what it refuses ---------------------------------
 %%

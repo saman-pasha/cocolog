@@ -2367,6 +2367,31 @@
   (decl) (func coco_decl_pi ((coco_store * st) (coco_machine * m) (u64 nid) (u32 n) (int kind))
                (out int))
   (decl) (func coco_decl_plain ((coco_machine * m) (size_t spec)) (out int))
+  ;;; THE PROCESS'S SOURCE FILES (3.78.0, source_file/1,2 and
+  ;;; current_module/1; lib/kb-consult.cicili): a read of a program file
+  ;;; begun and ended (its entry plus one, 0 for none; whether it defined
+  ;;; something), a predicate the read under way registers, its module/2;
+  ;;; and what the builtins read back, each a copy malloc'd for the caller
+  ;;; (`coco_srcf_free_list' frees an array of texts)
+  (decl) (func coco_srcf_begin ((const char * path) (const char * real) (int again)) (out size_t))
+  (decl) (func coco_srcf_end ((size_t sf) (int loaded)))
+  (decl) (func coco_srcf_note ((coco_store * st) (coco_machine * m) (size_t pi)))
+  (decl) (func coco_srcf_module ((coco_machine * m) (const char * mod)))
+  (decl) (func coco_srcf_paths ((size_t * n)) (out char **))
+  (decl) (func coco_srcf_modules ((size_t * n)) (out char **))
+  (decl) (func coco_srcf_loaded ((const char * path)) (out int))
+  ;; a predicate a source file registered: its module (`user' where its
+  ;; read had no module/2), name and arity
+  (struct coco_srcp
+    (member char * mod)
+    (member char * name)
+    (member u32 arity))
+  (decl) (func coco_srcf_preds ((const char * path) (size_t * n) (int * found)) (out coco_srcp *))
+  (decl) (func coco_srcf_free_preds ((coco_srcp * p) (size_t n)))
+  (decl) (func coco_srcf_of ((const char * mod) (const char * name) (u32 arity) (int * refused)) (out char *))
+  (decl) (func coco_srcf_of_real ((const char * real) (int * refused)) (out char *))
+  (decl) (func coco_srcf_free_list ((char ** l) (size_t n)))
+  (decl) (func coco_srcf_is_module ((const char * mod)) (out int))
   ;;; a predicate made a non-terminal (3.14.0, `pattrs' 16)
   (decl) (func coco_pred_nt_mark ((coco_store * st) (u64 nid) (u32 n)) (out int))
 

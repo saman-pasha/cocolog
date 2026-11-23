@@ -351,6 +351,16 @@ flow_mode('$depth_limit_except', 3, ['+', '+', '+'], det).
 flow_mode('$depth_limit_false', 3, ['+', '+', '-'], semidet).
 flow_mode('$depth_limit_exit', 4, ['+', '+', '-', '-'], det).
 flow_mode('$depth_limit_redo', 2, ['+', '+'], det).
+%% source_file/1,2's and current_module/1's halves (3.78.0): the source
+%% files in their order; whether a file is one; a file's predicates, the
+%% last registered first; a predicate's file, its first; a multifile
+%% predicate's files, which fails for any other; and the modules
+flow_mode('$source_files', 1, ['-'], det).
+flow_mode('$source_file_loaded', 1, ['+'], semidet).
+flow_mode('$source_file_predicates', 2, ['+', '-'], semidet).
+flow_mode('$source_file', 2, ['+', '?'], semidet).
+flow_mode('$source_file_multi', 2, ['+', '-'], semidet).
+flow_mode('$modules', 1, ['-'], det).
 flow_mode(source_location, 2, ['-', '-'], semidet).
 %% prolog_load_context/2's C half (3.14.0): the load's file, its source and
 %% the term's place while a hook or a directive of it runs, failing
