@@ -11,8 +11,8 @@
 %% to be indexed -- and what an open call goes on seeing: a call of the
 %% predicate open when retractall/1 ran sees every clause that stood when it
 %% began, as ISO's logical update view says, and a later call none of them.
-%% Left out on purpose: a single-sided rule's predicate, whose last clause
-%% cocolog's retractall/1 takes along (backlog #335), and a builtin's name,
+%% Left out on purpose: a single-sided rule's predicate, whose rules
+%% test/files/retractall_ssu.pl holds (3.78.12), and a builtin's name,
 %% whose facts cocolog keeps where swipl refuses them (COMPAT.md).
 
 :- dynamic p/2, q/1, w/1, nd2/1, zz/0, c/2.

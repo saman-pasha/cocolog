@@ -24783,3 +24783,146 @@ store-lock, async, thread, reconsult, gc, directives, repl, process,
 astar, cowork, trace, window, flowdebug, journal, script, backtrace,
 static, flowchart and library, and the syntax, term, solve, module and
 state binaries: green, no SKIP (md5 104f491125a6db5cb992ad9869af71e7).
+
+## retractall/1 keeps a rule set's last clause, as swipl keeps an emptied predicate single-sided (3.78.12)
+
+A patch, found while 3.78.11 was measured: retractall/1 of a predicate of
+single-sided rules took the last clause a read puts after them, `H :-
+'$ssu_none'(M, H)`, whose head unifies with any call. After
+`retractall(p(1))` over `p(1) => true. p(2) => true. p(X), X > 5 =>
+true.`, `p(3)` failed where swipl's raises existence_error(matching_rule,
+p(3)), and after `retractall(p(_))` predicate_property/2 had no `ssu` where
+swipl's keeps it.
+
+WHAT SWIPL DOES. pl-proc.c's add_ssu_clause() sets or clears the
+predicate's P_SSU_DET only where it has no clauses, and refuses a clause of
+the other kind otherwise (permission_error(assert, procedure, PI), cocolog's
+since 3.65.0). Its retractall/1 takes the rules and leaves the flag, so the
+predicate stays a set of rules: a call no rule matches raises, a rule
+asserted after is a rule, and a plain clause makes it a plain predicate.
+
+THE FIX.
+
+- retractall/1's walk passes the last clause by (`coco_ra_try`: a clause
+  whose body is `'$ssu_none'(_, _)` is no candidate). So the predicate is
+  rules emptied: one live clause, their last clause.
+- A program's plain clause to rules emptied makes the predicate plain
+  (`coco_ssu_plain`): the clause added, the last clause killed in place
+  after it, a death the calls open on the predicate live through, and the
+  kind cleared. One change of the predicate and one write, which a refused
+  write takes back whole (`coco_assert_take_back`'s shapes 5 and 6, an
+  assertz's and an asserta's). The dead of before are swept first where no
+  call is open, so the last clause's place stands from the kind check to
+  the add.
+- A rule to rules emptied goes in before the last clause, as to rules that
+  stand (`coco_ssu_add`).
+- A fetch's lone last clause says rules (ISLAST). The first cut read it as
+  a clause of no kind, which made the predicate plain, and the next
+  process's plain clause went in behind it: its every call raised
+  matching_rule (test/reconsult.pl's `rules_emptied`). It is asked of a
+  predicate's first clause where the clause came with no line (`at` 0: a
+  read's end, an assert, a fetch's row), never of a file's.
+- A death there is no memory for finishes the machine, in `coco_ssu_add`
+  too. Through 3.78.11 the refused array of the dead went up as the
+  assert's answer: assertz/1 FAILED, saying nothing, and a guard that
+  asserted a rule under its own open call failed, its call raising
+  matching_rule.
+
+HELD.
+
+- test/files/retractall_ssu.pl holds 89 lines to swipl 9.0.4: rules taken
+  by a head that unifies with several (a guard's rule among them), one rule
+  of several, none; what comes to rules emptied (a plain clause by assertz
+  and twice by asserta, a rule by each, a plain clause and then a rule,
+  a rule and then a plain clause, a plain clause with the dead of a walk
+  still waiting, a cyclic plain clause refused before one that goes in);
+  retract/1 after, a second retractall/1, listing/1. 3.78.11 differs on 22
+  lines.
+- test/engine.pl's `rules_emptied`: a guard that empties its own rules
+  under its own call, then a plain clause.
+- test/reconsult.pl's `rules_emptied`: four processes over one embedded
+  store -- the rules written, emptied, read back as rules, a plain clause
+  after.
+- test/store-lock.pl's refusal sweep has a ninth shape, `E`: a plain clause
+  of 60 000 bytes to rules emptied, which the green task's sweep has the
+  store refuse six times; each time the clause is taken back and the rules
+  stand.
+- test/errors.pl's `death_refused`: each request of a kilobyte or more in
+  the stretch refused in turn, a rule a guard asserts under its open call
+  (`D1`, two requests, the second the array of the dead) and a plain clause
+  to rules emptied (`D2`): the goal answers or the run ends `out of
+  memory'. 3.78.11's D1 answers existence_error(matching_rule, t(go)).
+
+ARMS, one build of the final code each with one rule taken out:
+
+- the walk taking the last clause too (`coco_ra_try`'s test): red, 44
+  lines of the case, and test/engine.pl's call that no rule matches
+  failed;
+- the kind check finding no place for a plain clause to rules emptied:
+  red, 33 lines of the case, test/engine.pl's plain clause refused (`No
+  permission to assert procedure`), test/reconsult.pl's fourth process
+  exit 2;
+- the last clause left alive after the plain clause: red, 28 lines of the
+  case (a call reached the last clause first and raised matching_rule),
+  test/engine.pl, test/reconsult.pl;
+- the kind cleared in the kind check, before the add: red, 6 lines of the
+  case -- the cyclic plain clause, refused, left the predicate plain over
+  its last clause, and the next plain clause went in behind it;
+- the dead of before left for the add to sweep: red, the case's process
+  died of a segmentation fault (its place was taken before the add swept
+  the dead);
+- an asserta's place not moved on by one: red, 6 lines of the case (the
+  plain clause killed itself, and the last clause stood);
+- shapes 5 and 6 taken back as a rule's: red, the green task's refusal
+  sweep, seven of its 58 runs out of time;
+- a refused death in `coco_ssu_add` going up as the assert's answer: red,
+  test/errors.pl's D1 (existence_error(matching_rule, t(go)), 3.78.11's
+  answer);
+- the same in `coco_ssu_plain`: red, D2 (the assertz failed, saying
+  nothing);
+- ISLAST not asked: red, test/reconsult.pl's fourth process exit 2.
+
+COST. The untraced engine runs 3.78.11's instructions (tools/flow/zero.sh
+at paths of one length, work less padding): nrev 65 889 897, queens 39 952
+767, lookup 48 075 808, all three the same. A start counts 3 605
+instructions more (36 311 526 and 36 315 131), and a consult of 40 000
+clauses 143 580 more (408 853 593 and 408 997 173, 0.035 %):
+coco_assert_from 6.5 instructions a clause, coco_cbody_goal's placement 3.2
+fewer. Every clause a load or an assert adds runs coco_assert_from, and the
+first cuts cost it more than the rule does:
+
+- the eager first cut asked every clause with a body ISLAST, a call and a
+  strcmp, and its side and place: a start 73 624 instructions more;
+- asked only where the kind decides something, the values kept for the
+  rare branches moved the function's registers: a consult 10 to 21
+  instructions a clause more, whichever way they were kept (the place's
+  address taken, a variable of its own, the place in `lx`), and out of
+  line but not cold, 21;
+- `'$ssu_none'/2` as a row of `*functor-names*`, told by its id: a start
+  21 572 more but a consult 1.9 million, the same with other predicate
+  names -- interned at the machine's fill, the functor displaced one each
+  clause's parse looks up (coco_functor_id 5.7 instructions a lookup more)
+  and the atom names after it moved (strcmp 0.5 more a call).
+
+So a clause of its predicate's kind asks the two questions 3.78.11's did,
+and one of the other kind goes to `coco_assert_kind`, out of line and
+`(weak) (cold)`.
+
+Found on the way:
+
+- test/errors.pl's `list_refused` compared the texts it wanted with a
+  last newline that the prelude's shell/3 takes off. No run of it exited 0,
+  so the comparison never ran; it would have called a good run bad.
+- swipl refuses to assert a guarded rule `(H, G => B)`, a clause of
+  (',')/2 to it as to cocolog: the death fixture's guard is a file's rule.
+- A call made while a file is read -- a directive's goal, an
+  initialization/1 goal of either kind, under `run` and `-s` -- that none
+  of the rules read so far matches FAILS where swipl's raises
+  existence_error(matching_rule, G): the read puts the last clause after
+  its rules at its end. And a read's rule goes in after a last clause that
+  stands -- another file's of a multifile predicate, an assert's -- where
+  no call reaches it: `r(2)` of a second multifile file raises
+  matching_rule where swipl's succeeds. The next patch.
+- `coco_b_tier1_claims` calls strcmp 62 times a clause in a consult, 2.5
+  million calls and 52 million instructions of a 40 000-clause consult's
+  409 million: what a claim by name walks for every clause.

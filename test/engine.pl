@@ -2009,7 +2009,32 @@ retractall_walks(D) :-
     sh_join([C, ' run ', F, ' main 2>&1'], Cmd),
     proc_run(Cmd, 60000, Out, _), atom_codes(O, Out),
     check('20 000 matches after 100 000 clauses, before them, under an open call, and every one of 120 000: each fast',
-          O, 'late-fast-100000\nearly-fast-100000\nopen-fast-100000\nall-fast-0\ndone\n').
+          O, 'late-fast-100000\nearly-fast-100000\nopen-fast-100000\nall-fast-0\ndone\n'),
+    rules_emptied(D).
+
+%% RULES EMPTIED UNDER AN OPEN CALL TAKE A PLAIN CLAUSE OVER THEIR DEAD
+%% (3.78.12, `coco_ssu_plain'): a guard's retractall/1 takes the rules while
+%% their call is open, so they die in place and stay dead after it; the
+%% plain clause asserted next takes the last clause away, which is found
+%% once the dead are swept -- before the add, which would sweep them and
+%% move the last clause out from under its place. Not held to swipl, whose
+%% call kept the code it built as rules (S_SSU_DET) and raises after the
+%% plain clause though `ssu' is gone (COMPAT.md)
+rules_emptied(D) :-
+    section('a plain clause asserted to rules a guard emptied under their own call'),
+    atom_concat(D, '/re.pl', F),
+    fixture(F, [
+        ':- dynamic g/1.',
+        'g(1) => true.',
+        'g(_), retractall(g(_)) => true.',
+        'r(G, R) :- catch(( G -> R = yes ; R = no ), error(E, _), ( E = existence_error(K, _) -> R = K ; R = E )).',
+        'main :- r(g(2), A), r(g(9), Z), assertz(g(5)), r(g(5), B), r(g(1), C),',
+        '        findall(H-Bd, clause(g(H), Bd), L), write(A-Z-B-C-L), nl.']),
+    cocolog(C),
+    sh_join([C, ' run ', F, ' main 2>&1'], Cmd),
+    proc_run(Cmd, 60000, Out, _), atom_codes(O, Out),
+    check('the guard''s call answers, the rules emptied raise, the plain clause is the predicate, and a call it does not match fails',
+          O, 'yes-matching_rule-yes-no-[5-true]\n').
 
 %% ---- the logical update view across a freeze and across processes --------
 %%

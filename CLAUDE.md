@@ -2629,7 +2629,35 @@ a session must keep:
   fetch's rows (`nomove`): a store written through 3.64.8 may hold both
   kinds, and a row refused would leave the database at the predicate's
   next whole write. The last clause a read puts after its rules is theirs
-  (`'$ssu_none'`, passed by the check).
+  (`'$ssu_none'`, passed by the check), and **a predicate whose one live
+  clause it is has no clause** (3.78.12, swipl's add_ssu_clause(), which
+  sets the kind where number_of_clauses is 0; test/files/
+  retractall_ssu.pl): retractall/1 takes the rules and leaves the last
+  clause (`coco_ra_try`), so a rule asserted after them is a rule and a
+  call none matches raises matching_rule as before, and a program's plain
+  clause makes the predicate plain -- the clause added, the last clause
+  killed in place after it and the kind cleared (`coco_ssu_plain`, shapes 5
+  and 6 of `coco_assert_take_back`), the dead of before swept first so the
+  last clause's place stands, and a death there was no memory for
+  finishing the machine (and `coco_ssu_add`'s, which through 3.78.11 made
+  assertz/1 FAIL). **A fetch's lone last clause says rules** (ISLAST,
+  asked of a predicate's first clause where it came with no line, AT 0):
+  read as a clause of no kind, it made the predicate plain, and the next
+  process's plain clause went in behind it. Through 3.78.11 retractall/1
+  took the last clause too, and a call no rule matched failed. Not swipl's
+  (COMPAT.md): swipl decides a call by the code its first call built, so a
+  predicate called as rules, emptied and given a plain clause raises
+  matching_rule there. **A clause of its predicate's kind asks the kind
+  check two questions, and a clause of the other kind is
+  `coco_assert_kind`'s, out of line and `(weak) (cold)`**: coco_assert_from
+  is one function every clause a load or an assert adds runs, and its
+  registers move with anything it keeps -- the place kept for the rare
+  branch, the values they test -- which cost a 40 000-clause consult 10 to
+  21 instructions a clause before the work went out of line, and a start
+  20 000 while every predicate's first clause was asked ISLAST by name. (A
+  functor row for `'$ssu_none'/2` in `*functor-names*` made the start
+  cheaper and the consult 1.7 million dearer: interned at the machine's
+  fill, it displaced a functor every clause's parse looks up.)
 * **A clause is stored as swipl's compiler keeps it** (3.15.0,
   `coco_clause_compile` in lib/kb-consult.cicili, at every assert,
   consult and read of a stored clause, so clause/2, listing/1 and
@@ -3009,7 +3037,8 @@ a session must keep:
   match, all of ONE death -- `coco_tomb_open`'s count where a call is open
   on the predicate, which goes on seeing them, else the next -- then the
   database is told once, a refusal giving every one back (`coco_ra_unkill`),
-  and the dead are swept where no call is open. Through 3.78.10
+  and the dead are swept where no call is open. A rule set's last clause is
+  no candidate (3.78.12, the bullet on one kind to a predicate). Through 3.78.10
   '$retractall'/1 took the first match and retractall/1 called it again:
   each call walked from the first clause, and each match taken out moved
   every clause after it -- 20 000 matches after 100 000 clauses took 70.8 s,

@@ -633,7 +633,11 @@
   ;;; CLAUSE IX OF P TRIED BY RETRACTALL/1: copied from the store and its
   ;;; head unified with H, whatever its body, the bindings undone and the
   ;;; copy given back either way, so H binds nothing. 1 matched, SPAN its
-  ;;; cells in the store.
+  ;;; cells in the store. THE LAST CLAUSE A SET OF RULES ENDS ON IS NONE
+  ;;; (3.78.12): its head unifies with any call, and swipl keeps a predicate
+  ;;; its rules emptied a set of rules (P_SSU_DET), so a call no rule matches
+  ;;; raises after it as before. Through 3.78.11 it went with them, and the
+  ;;; call failed.
   (static)
   (func coco_ra_try ((coco_machine * m) (coco_store * st) (coco_pred * p) (size_t ix)
                      (size_t h) (size_t * span)) (out int)
@@ -642,7 +646,8 @@
               (size_t cand . #'(coco_store_get_span m st (nth ix (-> p clauses)) span))
               (size_t ch . 0) (size_t cb . 0) (int ok . 0))
           (coco_clause_parts m cand (aof ch) (aof cb))
-          (set ok (coco_unify m h ch))
+          (if (not (and (!= cb 0) (coco_is_compound2 m (coco_deref m cb) "$ssu_none")))
+              (set ok (coco_unify m h ch)))
           (coco_undo_to m tmark)
           (set (-> m heap_len) mark)
           (return ok)))

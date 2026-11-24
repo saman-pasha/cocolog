@@ -67,6 +67,7 @@ main :-
     load_short,
     load_refused,
     list_refused,
+    death_refused,
     sources_refused,
     read_that_failed,
     mixed_rows,
@@ -575,8 +576,8 @@ list_refused :-
                      'fw :- T = f(''A b'', X), rf_mark(''REFUSE_ON''), write_term(T, [quoted(true), variable_names([''X''=X])]), nl, rf_mark(''REFUSE_OFF''), writeln(after).' ]),
         cocolog(C),
         forall(member(G-Want-Shown-Title,
-                      [fa-'plain(ok)\nafter\n'-plain-'each request of 16 bytes format/2 makes refused in turn: its text whole, or nothing and out of memory (L1, L2)',
-                       fw-'f(''A b'',X)\nafter\n'-'f('-'...and write_term/2 with its options and its variables'' names (L1, L3, L4)']),
+                      [fa-'plain(ok)\nafter'-plain-'each request of 16 bytes format/2 makes refused in turn: its text whole, or nothing and out of memory (L1, L2)',
+                       fw-'f(''A b'',X)\nafter'-'f('-'...and write_term/2 with its options and its variables'' names (L1, L3, L4)']),
                ( la_runs(C, Shim, F, G, Runs),
                  length(Runs, N),
                  findall(I-Exit-Text, ( member(I-Exit-Text, Runs), \+ la_good(Want, Shown, Exit, Text) ), Bad),
@@ -607,6 +608,67 @@ la_good(Want, _, 0, Want).
 la_good(_, Shown, 2, Text) :-
     sub_atom(Text, _, _, _, 'out of memory'),
     \+ sub_atom(Text, _, _, _, Shown).
+
+%% A DEATH THERE WAS NO MEMORY TO KEEP FINISHES THE MACHINE (3.78.12): a
+%% rule asserted where a call open on its predicate would see it kills the
+%% last clause in place (shape 2 of `coco_ssu_add': here a guard's
+%% assertz/1, its call with the last clause still to try -- a guarded
+%% rule is a file's, as swipl's assert takes `(H, G => B)' for a clause of
+%% (',')/2), and a plain clause to rules retractall/1 emptied kills it too
+%% (`coco_ssu_plain'); the dead's
+%% array is made at a predicate's first death, one request of four bytes a
+%% clause the predicate has room for, which three hundred rules make a
+%% kilobyte or more. Each such request in the stretch refused in turn: the
+%% goal answers, or catches resource_error(memory), or the run ends `out of
+%% memory', exit 2. Through 3.78.11 the refused death went up as the
+%% assert's answer and assertz/1 FAILED, saying nothing: the guard that
+%% made it failed, and its call raised existence_error(matching_rule, G)
+%% (`D1'); the plain clause's own death is 3.78.12's (`D2')
+death_refused :-
+    section('a death refused its memory'),
+    scratch(D),
+    (   refuse_shim(D, Shim)
+    ->  atom_concat(D, '/dr.pl', F),
+        fixture(F, [ 'rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
+                     ':- dynamic t/1, u/1.',
+                     'res(G, R) :- catch(( G -> R = ok ; R = failed ), error(E, _), ( E = resource_error(memory) -> R = memory ; R = E )).',
+                     't(X), X == go, assertz((t(new) => true)) => true.',
+                     'ta :- forall(between(1, 300, K), assertz((t(K) => true))), rf_mark(''REFUSE_ON''), res(t(go), R), rf_mark(''REFUSE_OFF''), writeln(R).',
+                     'ua :- forall(between(1, 300, K), assertz((u(K) => true))), forall(between(1, 300, K), retractall(u(K))), rf_mark(''REFUSE_ON''), res(assertz(u(5)), R), rf_mark(''REFUSE_OFF''), writeln(R).' ]),
+        cocolog(C),
+        forall(member(G-Title,
+                      [ta-'each request of a kilobyte or more a rule''s assert under an open call makes refused in turn: answered, memory caught, or out of memory (D1)',
+                       ua-'...and a plain clause''s to rules retractall/1 emptied (D2)']),
+               ( dr_runs(C, Shim, F, G, Runs),
+                 length(Runs, N),
+                 findall(I-Exit-Text, ( member(I-Exit-Text, Runs), \+ dr_good(Exit, Text) ), Bad),
+                 check(Title, N-Bad, N-[]),
+                 ( N > 0 -> true ; check('...and its stretch made such a request', N, more) ) ))
+    ;   true
+    ),
+    shl(['rm -rf ', D]).
+
+%% each run of goal G of the fixture F with the I-th request of a kilobyte
+%% or more in its stretch refused: I, its exit status and all it said
+dr_runs(C, Shim, F, G, Runs) :-
+    sh_join(['env REFUSE_MIN=1024 REFUSE_REPORT=1 LD_PRELOAD=', Shim, ' ', C, ' run ', F, ' ', G, ' 2>&1 >/dev/null'], Count),
+    shell(Count, CT, _),
+    (   sub_atom(CT, B, _, _, 'REFUSE count '), B1 is B + 13, sub_atom(CT, B1, _, 0, Rest),
+        split_string(Rest, "\n", " ", [S|_]), number_string(N0, S)
+    ->  N = N0
+    ;   N = 0
+    ),
+    findall(I-Exit-Text,
+            ( between(1, N, I),
+              sh_join(['env REFUSE_MIN=1024 REFUSE_N=', I, ' LD_PRELOAD=', Shim, ' ', C, ' run ', F, ' ', G, ' 2>&1'], Cmd),
+              shell(Cmd, Text, Exit) ),
+            Runs).
+
+%% a run whose goal answered or caught memory, or that ended out of memory
+%% (shell/3 hands the text back with its last newline taken off)
+dr_good(0, ok).
+dr_good(0, memory).
+dr_good(2, Text) :- sub_atom(Text, _, _, _, 'out of memory').
 
 %% the file: its lines are numbered, as the sweep's warnings name them (4
 %% and 6) and the marks' own goals (2 and 9)

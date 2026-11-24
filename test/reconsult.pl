@@ -39,7 +39,7 @@ main :-
     scratch(D),
     atom_concat(D, '/prog.pl', F),
     twice(D, F), survives(D, F), edited(D, F), two_spellings(D, F),
-    a_librarys_clauses(D), abolished(D), listed(D), as_a_goal(D), loaded_once(D), when_changed(D), reports(D),
+    a_librarys_clauses(D), abolished(D), rules_emptied(D), listed(D), as_a_goal(D), loaded_once(D), when_changed(D), reports(D),
     module_reread(D), over_the_wire(F),
     shl(['rm -rf ', D]),
     checks_done.
@@ -193,6 +193,38 @@ abolished(D) :-
     cocolog_answer(A6, G6),
     check('abolish/1 takes the file and the meta arguments predicate_property/2 told of', G6,
           answer([])).
+
+%% RULES EMPTIED IN ONE PROCESS ARE RULES IN THE NEXT (3.78.12): retractall/1
+%% keeps the last clause a set of rules ends on, in the knowledge base as in
+%% the program, so a second process that read nothing raises for a call no
+%% rule matches and says `ssu'; and a plain clause asserted there makes the
+%% predicate plain for the next process too, the last clause gone from the
+%% database with it (`coco_ssu_plain'). Through 3.78.11 the first process's
+%% call failed, and every one after it
+rules_emptied(D) :-
+    section('rules retractall/1 emptied, across processes'),
+    atom_concat(D, '/restore', S),
+    sh_join(['--kb remptied --embed ', S,
+             ' query "dynamic(re/1), assertz((re(1) => true)), assertz((re(2) => true))"'], W1),
+    cocolog_out(W1, _),
+    sh_join(['--kb remptied --embed ', S,
+             ' query "retractall(re(_)), catch(re(1), error(E, _), true), write(answer(E)), nl"'], A1),
+    cocolog_answer(A1, G1),
+    check('the process that took the rules raises for a call no rule matches', G1,
+          answer(existence_error(matching_rule, re(1)))),
+    sh_join(['--kb remptied --embed ', S,
+             ' query "catch(re(1), error(E, _), true), ',
+             '( predicate_property(re(_), ssu) -> P = ssu ; P = no ), write(answer(E-P)), nl"'], A2),
+    cocolog_answer(A2, G2),
+    check('and so does a second process, the predicate still rules', G2,
+          answer(existence_error(matching_rule, re(1))-ssu)),
+    sh_join(['--kb remptied --embed ', S, ' query "assertz(re(5))"'], W3),
+    cocolog_out(W3, _),
+    sh_join(['--kb remptied --embed ', S,
+             ' query "( re(1) -> R1 = yes ; R1 = no ), ( re(5) -> R5 = yes ; R5 = no ), ',
+             '( predicate_property(re(_), ssu) -> P = ssu ; P = no ), write(answer(R1-R5-P)), nl"'], A4),
+    cocolog_answer(A4, G4),
+    check('a plain clause asserted there makes it plain for the next process', G4, answer(no-yes-no)).
 
 %% LISTING/1 READS WHAT IT LISTS FROM THE KNOWLEDGE BASE (3.37.0): a second
 %% process that consulted nothing names a consulted predicate, by
