@@ -207,15 +207,39 @@
 ;;; built from. Expanded after every file is read (cocolog.cicili imports
 ;;; them all first), and a table a build left out is skipped. A module
 ;;; loaded from a `.so' has no table here and is not answered.
+;;;
+;;; A FUNCTION OF A COND AN ARITY, A COND THE NAME'S FIRST BYTE AND A STRCMP
+;;; A ROW (3.78.14), as `coco-emit-swipl-props' is: through 3.78.13 a cond a
+;;; row, an arity test and a strcmp each, and `coco_claim_kind' asks the
+;;; claims of every clause a program file gives -- 82 rows of arity 2 and 43
+;;; of arity 1 among the tier-1 modules', 2.5 million strcmp calls and some
+;;; 52 million of a 40 000-clause consult's 409 million instructions.
 (DEFMACRO coco-emit-claims (fname &REST tables)
-  (LET ((rows (LOOP FOR tbl IN tables
-                    WHEN (BOUNDP tbl) APPEND (SYMBOL-VALUE tbl))))
+  (LET* ((rows (LOOP FOR tbl IN tables
+                     WHEN (BOUNDP tbl) APPEND (SYMBOL-VALUE tbl)))
+         (arities (SORT (REMOVE-DUPLICATES (MAPCAR #'SECOND rows)) #'<))
+         (lead (LAMBDA (s) (IF (PLUSP (LENGTH s)) (CHAR-CODE (CHAR s 0)) 0))))
     `(func ,fname ((const char * name) (u32 arity)) (out int)
-       (cond
-         ,@(MAPCAR (LAMBDA (row)
-                     `((and (== arity ,(SECOND row)) (== 0 (strcmp name ,(FIRST row)))) (return 1)))
-                   rows)
-         (#t (return 0))))))
+       (let ((int lead0 . #'(bitand (cast int (nth 0 name)) 255)))
+         (cond
+           ,@(MAPCAR
+              (LAMBDA (n)
+                (LET ((arow (REMOVE-IF-NOT (LAMBDA (row) (= (SECOND row) n)) rows)))
+                  `((== arity ,n)
+                    (cond
+                      ,@(MAPCAR
+                         (LAMBDA (k)
+                           `((== lead0 ,k)
+                             (cond
+                               ,@(LOOP FOR row IN arow
+                                       WHEN (= (FUNCALL lead (FIRST row)) k)
+                                       COLLECT `((== 0 (strcmp name ,(FIRST row))) (return 1)))
+                               (#t (return 0)))))
+                         (SORT (REMOVE-DUPLICATES (MAPCAR (LAMBDA (row) (FUNCALL lead (FIRST row))) arow))
+                               #'<))
+                      (#t (return 0))))))
+              arities)
+           (#t (return 0)))))))
 
 ;;; SWIPL'S SYSTEM PREDICATES, OFFERED ONE BY ONE (3.3.0): a function of one
 ;;; call a row of lib/swipl-system.cicili's table, for the dwim lines of an

@@ -25110,4 +25110,51 @@ cuts of the rule's road cost every plain clause more than the rule does:
 Each moved `m` out of its callee-saved register into a caller-saved one,
 reloaded after every call. A helper called only where 3.78.12 called its
 note -- under `(and (> lreads 0) isrule)` -- whose answer replaces ISRULE,
-leaves the common path 3.78.12's but for one call's arguments: the 3.8.
+leaves the common path 3.78.12's but for one call's arguments: the 4.0.
+
+## A claim is looked up by arity and the name's first byte (3.78.14)
+
+A patch, the cost 3.78.12's notes named. A load asks of every clause a
+program file gives whether a compiled-in module or a construct implements
+its name and arity (`coco_claim_kind`, 3.1.0: the clause takes the name
+over, or an ISO one is refused). The answer came from the claims tables
+the dispatchers are built from, emitted by `coco-emit-claims` as one cond
+row a claim, an arity test and a strcmp each: 185 rows for the tier-1
+modules (82 of arity 2, 43 of arity 1, 36 of arity 3) and 30 constructs.
+A clause of `f/2` walked every row, and called strcmp of each of the 82
+arity-2 names and the constructs' four. In a 40 000-clause consult that
+was 2.5 million strcmp calls and some 76 million of its 409 million
+instructions.
+
+THE CHANGE. `coco-emit-claims` emits the function as
+`coco-emit-swipl-props` emits the props table's (3.42.0): a cond on the
+arity, then one on the name's first byte, then a strcmp a row of that
+byte. The tables, their callers and every answer are as they were.
+
+HELD. The generated C of the three functions the macro makes
+(`coco_b_tier1_claims`, `coco_b_construct_claims`, `coco_b_green_claims`),
+3.78.13's and 3.78.14's, cut out of each build's cocolog.c and compiled
+side by side. They were asked of 1 022 names at every arity from 0 to 9:
+each name of a row, `\+` and `\=@=` as C has them, and each with a byte
+added at either end or taken off either end. 10 220 questions, 225 of them
+a claim, and no answer differs. The narrow round (below) holds the callers
+-- a consult's take-over and ISO refusals, current_predicate/1 named
+whole, the tracer's hiding of the system's C.
+
+COST (callgrind, each binary at the checkout's path; 3.78.13 and 3.78.14):
+
+- a consult of 40 000 facts of f/2: 409 159 758 and 332 968 418, 18.6 %
+  fewer (strcmp 54.4 million fewer, coco_b_tier1_claims 20.0 million,
+  coco_b_construct_claims 1.7 million);
+- 40 000 facts of alpha/2, whose first byte the claims' `a` rows share:
+  417 819 574 and 342 208 598, 18.1 % fewer;
+- a read of 20 000 rules: 391 550 184 and 341 895 585, 12.7 % fewer; with
+  directives among them 396 040 471 and 345 023 466, 12.9 %;
+- a start: 36 312 209 and 36 344 792, 32 583 more, all of it strcmp's --
+  the same calls from the same callers (8 223 from coco_assert_from, 6 502
+  from coco_op_infix_static), each dearer by a few instructions: the
+  functions' literals moved every literal after them, and strcmp's cost
+  goes with where its two strings lie;
+- the untraced engine (tools/flow/zero.sh at paths of one length, work
+  less padding): nrev 65 889 979 and 65 889 933, queens 39 952 861 and 39
+  952 773, lookup 48 075 716 and 48 076 296.

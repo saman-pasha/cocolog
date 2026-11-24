@@ -1574,7 +1574,10 @@ a session must keep:
   arity, `*callable-constructs*`: the construct table also holds the
   engine's markers, `'$k'`, `[]`, `:-`, which are no predicates), a C
   builtin of the engine or of a compiled-in module (from the tables the
-  dispatchers are built from: `coco-emit-claims`), and any predicate of
+  dispatchers are built from: `coco-emit-claims`, looked up by arity and
+  the name's first byte as the props table is since 3.78.14 -- a load asks
+  it of every clause a program file gives, and a strcmp a row of the
+  arity's cost a 40 000-clause consult 18.6 % of its instructions), and any predicate of
   the store; `M:H` is H, so `user:H` walks the program's. **Its answers
   are swipl 9.0.4's since 3.41.0** (`coco_b_pred_props` in
   lib/builtins-db.cicili, test/files/predicate_property.pl), in swipl's
