@@ -3004,13 +3004,40 @@ a session must keep:
   instructions a call, nrev +0.64 % of 2.2.5's work where this is +0.32 %.
   The clock is placement's here (STATUS.md): nrev +10 % as built and +1.9 %
   with every function on a 64-byte line, queens +0.1 % and +5.3 %.
-  The dead are taken out (`coco_pred_sweep`) when no frame is open on the
-  predicate: a retract, assert or reconsult then, every 256th out-of-line
-  probe, a walk of retract/1's or clause/2's as it begins (through 3.27.0
-  clause/2's `'$pred_count'`), and every query's start (`coco_tomb_sweep_all`
-  over the store's `tpreds`) -- on a store no other machine shares (3.28.0,
-  `machines` nil: through 3.27.0 a green task's start swept the dead under
-  another task's open call, which went on from a place that had moved).
+  **A retract with no call open kills its clause in place too** (3.78.15,
+  `coco_retract_at`) where the predicate holds more than eight clauses or
+  dead ones already, a death of its own count (`tera` moved, so a call
+  opened after it never lives through it), and **the dead are taken out
+  (`coco_pred_sweep`) once they are due** (`coco-tomb-due` in
+  lib/kb.cicili) -- many, more than an eighth of the live
+  (`coco-tomb-many`), or paid for (`coco-tomb-paid`): `tprobe` counts each
+  call the out-of-line probe takes and each dead clause a call or a walk
+  passes (`coco-tomb-charge`, in `coco_pred_probe_dead` and
+  `coco_frame_next`), and once it reaches the predicate's clauses, 256 at
+  least, passing the dead has cost a sweep. Where no frame is open on the
+  predicate they go at a retract, a retractall/1 that took several, an
+  assertz, a walk of retract/1's or clause/2's as it begins (through
+  3.27.0 clause/2's `'$pred_count'`) and the probe; before an asserta, a
+  re-read's insert and a reconsult whatever their number; and at every
+  query's start (`coco_tomb_sweep_all` over the store's `tpreds`) -- on a
+  store no other machine shares (3.28.0, `machines` nil: through 3.27.0 a
+  green task's start swept the dead under another task's open call, which
+  went on from a place that had moved). **A try the probe makes under an
+  open frame doubles what the next must have paid** (`tback`, twenty
+  doublings at most, in the 4-byte hole before `aix` so no member moved):
+  a refused try walks the choices down to that frame, and below 300 000
+  choices a try every ten calls took 6.6 s where 3.78.14's every 256th
+  took 0.04. Through 3.78.14 a retract with no call open took its clause
+  out of the arrays and dropped every index for the next call to build
+  again, and each of those sites took any dead, so a retract of one key
+  cost the predicate's size: 20 000 retractall/1 of one key each among
+  120 000 facts took 60.5 s (the reasoning session's finding), 0.03 s now.
+  Many alone, the first cut's rule, let a big predicate's calls pass up to
+  an eighth of it dead: 100 000 calls after 12 000 deaths at the front of
+  120 000 clauses took 4.3 s, 0.04 now. **A new site that sweeps asks
+  `coco-tomb-due` first** unless it moves every clause anyway, or a
+  retract costs the predicate's size again; **a new walk that passes the
+  dead charges them** (`coco-tomb-charge`), or they wait for their number.
   **A reclamation of the whole store asks `machines` first**: a green
   world's tasks share the store, and a task's own heap and its query's
   start say nothing of another task's frames and environments. `coco_frames_on` walks `m->eng` and each
@@ -3051,11 +3078,21 @@ a session must keep:
   restore) **and as a `;`'s GOAL frame where the printer's Redo is**
   (`coco_trace_redo_at`): its shadow frame holds its context, never a
   call's depth. **A walk sweeps its predicate's dead as it begins**, where
-  no frame is open on them (`coco_tomb_try_sweep`, as clause/2's
-  `'$pred_count'/3` did): a retract under the walk's own frame leaves the
-  clause dead in place, and a drain by `once(retract(q(_)))` that swept
-  none counted nothing dead and never compacted the store (test/gc.pl's
-  thousand of 1 500 wide clauses), though it ran 38 % faster. `'$clause'/3`
+  no frame is open on them and they are due (3.78.15; `coco_tomb_due_sweep`,
+  out of line and cold behind the one `ntomb` test 3.78.14 made there: the
+  due test inline cost a counter of one clause four instructions a turn in
+  the registers of the walk that sweeps nothing; as clause/2's
+  `'$pred_count'/3` did): a retract under the walk's own frame
+  leaves the clause dead in place, and a drain by `once(retract(q(_)))` that
+  swept none counted nothing dead and never compacted the store (test/gc.pl's
+  thousand of 1 500 wide clauses), though it ran 38 % faster. **A retry
+  looks for its next candidate from the frame's place** (3.78.15,
+  `coco_db_retry` over `coco_db_next`), one past the clause tried, the dead
+  the frame never lived through passed by, as a clause frame's retry looks
+  (`coco_select_clause`): through 3.78.14 it tried the place itself, and
+  where that held a clause dead before the walk began -- another call open
+  on the predicate, so no sweep took it -- clause/2 showed it and retract/1
+  took it again (test/files/retract_kept.pl's `k14`). `'$clause'/3`
   and `'$pred_count'/3`, clause/2's halves through 3.27.0, are gone, and
   cocolint's card row R1 with them (27 rows):
   library/flow reads both as builtins (`flow_kind`'s construct row) and
@@ -3071,7 +3108,8 @@ a session must keep:
   match, all of ONE death -- `coco_tomb_open`'s count where a call is open
   on the predicate, which goes on seeing them, else the next -- then the
   database is told once, a refusal giving every one back (`coco_ra_unkill`),
-  and the dead are swept where no call is open. A rule set's last clause is
+  and the dead are swept where no call is open and they are due (3.78.15,
+  the update-view bullet above). A rule set's last clause is
   no candidate (3.78.12, the bullet on one kind to a predicate). Through 3.78.10
   '$retractall'/1 took the first match and retractall/1 called it again:
   each call walked from the first clause, and each match taken out moved
@@ -3080,7 +3118,9 @@ a session must keep:
   kills them in place and sweeps once**: one taken out at a time is a shift
   of every clause after it, quadratic in the predicate. test/files/
   retractall.pl holds 48 lines to swipl, test/engine.pl's
-  `retractall_walks` the time, test/store-lock.pl's `R4` a refused write.
+  `retractall_walks` the time and `keyed_removals` a key's (3.78.15),
+  test/files/retract_kept.pl the dead that wait to swipl, test/store-lock.pl's
+  `R4` a refused write.
   **clause/2 of a predicate written in C raises**
   error(permission_error(access, private_procedure, N/A),
   context(system:clause/2, _)) (3.38.0, swipl's pl-proc.c;

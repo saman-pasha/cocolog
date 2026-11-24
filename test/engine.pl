@@ -2010,6 +2010,84 @@ retractall_walks(D) :-
     proc_run(Cmd, 60000, Out, _), atom_codes(O, Out),
     check('20 000 matches after 100 000 clauses, before them, under an open call, and every one of 120 000: each fast',
           O, 'late-fast-100000\nearly-fast-100000\nopen-fast-100000\nall-fast-0\ndone\n'),
+    keyed_removals(D).
+
+%% A REMOVAL OF ONE KEY COSTS THE KEY, NOT THE PREDICATE (3.78.15,
+%% `coco-tomb-many'; the reasoning session's finding, its own sizes): with
+%% no call open, a retract took its clause out of the arrays and dropped
+%% every index, which the next call built again over the whole predicate,
+%% so 20 000 retractall/1 of one key each among 120 000 facts took 60.5 s
+%% there (24.6 s here) where under an open call they took 0.09. The clause
+%% dies in place now, and the dead go once they pass an eighth of the live.
+%% Each shape is timed by its own process's CPU against two seconds, some
+%% forty times what it takes now and a fifth of what the slowest took on
+%% 3.78.14: retractall/1 of the first keys and of the last, retract/1 of
+%% each key, two clauses a key, and an update -- a retract of a row, an
+%% assertz of its new value -- in a child under two minutes' ceiling. And
+%% the sweep the calls pay for (`coco-tomb-paid'): an update that finds
+%% its row by a call first, where a call that swept whatever dead it met
+%% would sweep at every update; 100 000 calls after 12 000 deaths at the
+%% front, fewer than an eighth, which each call passed when only their
+%% number called a sweep (4.3 s); and the same calls over a frame open
+%% below 300 000 choices, where each try the calls pay for is turned down
+%% after a walk of them all, and a try every ten calls took 6.6 s
+%% (`tback' doubles what the next must pay). And every row of 120 000
+%% deleted by key, after which the store holds less than a tenth of what
+%% the rows took: the retract that makes the dead due sweeps them, where
+%% nothing else would (no call or walk passes them), and the dead held
+%% every cell. And a drain of 200 000 from the front by one retract/1 a
+%% call, whose walks pay for the sweep the dead before them want: by their
+%% number alone it was quadratic, 3.0 s.
+%% test/files/retract_kept.pl holds what each takes and leaves to swipl.
+keyed_removals(D) :-
+    section('a retract or retractall/1 of one key costs the key, not the predicate'),
+    atom_concat(D, '/rk.pl', F),
+    fixture(F, [
+        ':- dynamic p/2, u/2, q/1.',
+        'fill(N) :- retractall(p(_, _)), forall(between(1, N, I), assertz(p(I, x))).',
+        'cpu(G, S) :- statistics(cputime, T0), call(G), statistics(cputime, T1), S is T1 - T0.',
+        'said(W, S, N) :- ( S < 2.0 -> V = fast ; V = slow(S) ), write(W-V-N), nl.',
+        'first :- fill(120000), cpu(forall(between(1, 20000, K), retractall(p(K, _))), S),',
+        '         aggregate_all(count, p(_, _), N), said(first, S, N).',
+        'last :- fill(120000), cpu(forall(between(100001, 120000, K), retractall(p(K, _))), S),',
+        '        aggregate_all(count, p(_, _), N), said(last, S, N).',
+        'each :- fill(120000), cpu(forall(between(1, 20000, K), retract(p(K, _))), S),',
+        '        aggregate_all(count, p(_, _), N), said(each, S, N).',
+        'two :- retractall(p(_, _)), forall(between(1, 60000, I), ( assertz(p(I, x)), assertz(p(I, y)) )),',
+        '       cpu(forall(between(1, 10000, K), retractall(p(K, _))), S),',
+        '       aggregate_all(count, p(_, _), N), said(two, S, N).',
+        'update :- retractall(u(_, _)), forall(between(1, 60000, I), assertz(u(I, 0))),',
+        '          cpu(forall(between(1, 30000, J), ( K is (J * 7919) mod 60000 + 1, retract(u(K, V)),',
+        '                                             W is V + 1, assertz(u(K, W)) )), S),',
+        '          aggregate_all(sum(V), u(_, V), N), said(update, S, N).',
+        'look :- retractall(u(_, _)), forall(between(1, 60000, I), assertz(u(I, 0))),',
+        '        cpu(forall(between(1, 30000, J), ( K is (J * 7919) mod 60000 + 1, u(K, V), retract(u(K, V)),',
+        '                                           W is V + 1, assertz(u(K, W)) )), S),',
+        '        aggregate_all(sum(V), u(_, V), N), said(look, S, N).',
+        'front :- fill(120000), forall(between(1, 12000, K), retract(p(K, _))),',
+        '         cpu(forall(between(1, 100000, _), once(p(_, _))), S),',
+        '         aggregate_all(count, p(_, _), N), said(front, S, N).',
+        'cp(0) :- !.',
+        'cp(N) :- ( true ; true ), N1 is N - 1, cp(N1).',
+        'deep :- fill(300), forall(between(1, 30, I), retract(p(I, _))),',
+        '        once(( p(A, _), A == 31, cp(300000), cpu(forall(between(1, 100000, _), once(p(_, _))), S) )),',
+        '        aggregate_all(count, p(_, _), N), said(deep, S, N).',
+        'drop :- retractall(p(_, _)), garbage_collect, statistics(store_used, B),',
+        '        forall(between(1, 120000, I), assertz(p(I, f(I, I, I)))),',
+        '        garbage_collect, statistics(store_used, U0),',
+        '        cpu(forall(between(1, 120000, K), retractall(p(K, _))), S),',
+        '        garbage_collect, statistics(store_used, U1),',
+        '        ( (U1 - B) * 10 < U0 - B -> N = freed ; N = held(B, U0, U1) ), said(drop, S, N).',
+        'drain :- retractall(q(_)), forall(between(1, 200000, I), assertz(q(I))), cpu(drain_, S),',
+        '         aggregate_all(count, q(_), N), said(drain, S, N).',
+        'drain_ :- retract(q(_)), !, drain_.',
+        'drain_.',
+        'main :- first, last, each, two, update, look, front, deep, drop, drain, write(done), nl.']),
+    cocolog(C),
+    sh_join([C, ' run ', F, ' main 2>&1'], Cmd),
+    proc_run(Cmd, 120000, Out, _), atom_codes(O, Out),
+    check('20 000 keys among 120 000 facts, first and last, by retractall/1 and by retract/1, two clauses a key, an update, one found by a call, calls past dead at the front, under a deep open frame, every row by key, its store freed, and a drain from the front: each fast',
+          O, 'first-fast-100000\nlast-fast-100000\neach-fast-100000\ntwo-fast-100000\nupdate-fast-30000\nlook-fast-30000\nfront-fast-108000\ndeep-fast-270\ndrop-fast-freed\ndrain-fast-0\ndone\n'),
     rules_emptied(D).
 
 %% RULES EMPTIED UNDER AN OPEN CALL TAKE A PLAIN CLAUSE OVER THEIR DEAD

@@ -1039,16 +1039,20 @@
   ;;; candidate from FROM on, short of the frame's end (CEND), and dead only
   ;;; if it died while the frame was open (FERA the first death it lived
   ;;; through, 0 for none, so a death of FERA or after). The dead of before
-  ;;; are not its.
+  ;;; are not its, and each it passes is charged to the sweep that would
+  ;;; take them (`coco-tomb-charge', 3.78.15).
   (static)
   (func coco_frame_next ((coco_store * st) (coco_machine * m) (coco_pred * p) (u32 kpos)
                          (u64 key) (size_t from) (u32 cend) (u32 fera)) (out size_t)
         (let ((size_t ix . #'(? (== kpos 0) (coco_pred_next_clause st p key from)
-                                 (coco_pred_next_at st m p kpos key from))))
+                                 (coco_pred_next_at st m p kpos key from)))
+              (size_t paid . 0))
           (while (and (< ix (cast size_t cend)) (!= (nth ix (-> p tomb)) 0)
                       (or (== fera 0) (< (nth ix (-> p tomb)) fera)))
+            (set paid (+ paid 1))
             (set ix (? (== kpos 0) (coco_pred_next_clause st p key (+ ix 1))
                        (coco_pred_next_at st m p kpos key (+ ix 1)))))
+          (if (!= paid 0) (coco-tomb-charge p paid))
           (return ix)))
 
   ;;; THE SELECTION OF A PREDICATE WITH DEAD CLAUSES (the logical update

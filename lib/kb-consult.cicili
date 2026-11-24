@@ -966,7 +966,8 @@
           (if (!= (-> p tomb) nil)
               (block (free (cast (void *) (-> p tomb)))
                      (set (-> p tomb) nil) (set (-> p tomb_cap) 0)
-                     (set (-> p ntomb) 0) (set (-> p tprobe) 0) (set (-> p tera) 0)))
+                     (set (-> p ntomb) 0) (set (-> p tprobe) 0) (set (-> p tback) 0)
+                     (set (-> p tera) 0)))
           (coco_pred_nprobe p)
           (coco_pred_unindex p)
           (if (== gone 0) (return 0))
@@ -5518,17 +5519,30 @@
                   (set (-> p dynamic) 1)
                   (coco-retract-told (coco-tomb-unset p i))
                   (return 1))))
-          ;; none open, and the dead of an earlier change go with it -- once
-          ;; the database is told, while the clause is dead in place for a
-          ;; refusal to give back (a backend's write passes the dead by,
-          ;; `coco_zg_sync_pred'; through 3.64.6 the sweep came first)
-          (if (!= (-> p ntomb) 0)
+          ;; NONE OPEN (3.78.15, `coco-tomb-due'): it dies in place all the
+          ;; same, a death of its own count (TERA, so a call opened after it
+          ;; that lives through a later death is never shown it), and waits
+          ;; with the others for the sweep their number, or the calls that
+          ;; passed them, call. Where they are due they go now, with it --
+          ;; once the database is told, while the clause is dead in place for
+          ;; a refusal to give back (a backend's write passes the dead by,
+          ;; `coco_zg_sync_pred'; through 3.64.6 the sweep came first) -- and
+          ;; where no other is dead and it would be many alone, a predicate
+          ;; of eight clauses or fewer, it is taken out of the arrays below,
+          ;; as a retract always took it. Through 3.78.14 that was every
+          ;; retract with no call open: the arrays shifted and every index
+          ;; dropped, for the next call to build over the whole predicate
+          ;; again.
+          ;; (A predicate of more than eight clauses with none dead, or one
+          ;; with dead: asked first, so a small one's retract asks no more.)
+          (if (and (or (!= (-> p ntomb) 0) (> (-> p nclauses) 8)) (coco_tomb_ready st pi))
               (block
-               (coco_tomb_set p i 1)
-               (set (-> p dynamic) 1)
-               (coco-retract-told (coco-tomb-unset p i))
-               (coco_pred_sweep st m pi)
-               (return 1)))
+                (set (-> p tera) (+ (-> p tera) 1))
+                (coco_tomb_set p i (-> p tera))
+                (set (-> p dynamic) 1)
+                (coco-retract-told (coco-tomb-unset p i))
+                (if (coco-tomb-due p) (coco_tomb_try_sweep st m pi))
+                (return 1)))
           ;; drop it from the predicate; the cells are orphaned until the
           ;; next compaction (`coco_store_compact'), and its compiled
           ;; program goes now. What a refusal puts back is kept: the clause,

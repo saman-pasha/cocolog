@@ -135,6 +135,47 @@
           (coco_pred_nprobe ,p)
           (set (-> ,p tver) (+ (-> ,p tver) 1))))
 
+;;; THE DEAD OF P ARE MANY (3.78.15): more than an eighth of its live
+;;; clauses, past which they are swept where no frame is open on them, and
+;;; short of which they wait for the calls to pay (`coco-tomb-paid'). A
+;;; sweep is a pass over the whole predicate
+;;; and every index it had built after it (`coco_pred_sweep',
+;;; `coco_pred_unindex'), so the deaths between two sweeps pay for it a
+;;; few clauses each; and a walk passes no more dead than an eighth of the
+;;; live. Through 3.78.14 the dead went at the first chance -- a retract
+;;; with no call open took its clause out of the arrays and dropped every
+;;; index, and the next call built the first argument's again -- so a
+;;; retract cost the predicate's size: 20 000 retractall/1 of one key each
+;;; among 120 000 facts took 60.5 s (the reasoning session's finding).
+;;; P is evaluated twice.
+(DEFMACRO coco-tomb-many (p)
+  `(> (* (-> ,p ntomb) 9) (-> ,p nclauses)))
+
+;;; THE CALLS HAVE PAID FOR A SWEEP OF P (3.78.15): `tprobe' counts a call
+;;; that met the dead one (`coco_pred_probe_dead') and a dead clause a call
+;;; or a walk passed by (`coco_frame_next'), and once it is as big as the
+;;; predicate -- 256 at least -- passing them has cost what a sweep does;
+;;; twice that for each try an open frame turned down since (`tback').
+;;; Without it the dead an eighth of the live leaves were passed by every
+;;; call: 12 000 dead at the front of 120 000 clauses, and 100 000 calls
+;;; with the first argument unbound took 4.4 s. P is evaluated three times.
+(DEFMACRO coco-tomb-paid (p)
+  `(>= (cast size_t (-> ,p tprobe))
+       (<< (? (> (-> ,p nclauses) 256) (-> ,p nclauses) 256) (-> ,p tback))))
+
+;;; N MORE TO WHAT THE CALLS HAVE PAID (3.78.15), held at what 32 bits
+;;; count: past it the sweep is due long since, and a wrap would put it off.
+;;; P is evaluated three times, N twice.
+(DEFMACRO coco-tomb-charge (p n)
+  `(set (-> ,p tprobe) (? (> ,n (- 4294967295 (-> ,p tprobe))) 4294967295
+                          (+ (-> ,p tprobe) ,n))))
+
+;;; THE DEAD OF P ARE DUE TO GO (3.78.15): many, or paid for. Asked by each
+;;; site that may sweep them, a walk's start out of line
+;;; (`coco_tomb_due_sweep').
+(DEFMACRO coco-tomb-due (p)
+  `(or (coco-tomb-many ,p) (coco-tomb-paid ,p)))
+
 ;;; THE RULES A READ HAS GIVEN AND NOT CLOSED (3.78.13, `coco_ssu_note'):
 ;;; the machine's `ssu_pis' holds three words an entry -- the predicate,
 ;;; bit 62 set where the store was muted as its rules came; the read's
@@ -1074,6 +1115,13 @@
     (member size_t   nvar)             ;   and how many there are
     (member size_t   kmax)             ; the most clauses one key's chain holds
     (member int      indexed)
+    ;; THE SWEEPS THE CALLS PAID FOR THAT A FRAME STILL OPEN TURNED DOWN,
+    ;; since the last sweep (3.78.15, `coco_pred_probe_dead'): each doubles
+    ;; what the next must pay (`coco-tomb-paid'), so the walk of the frames
+    ;; a refusal costs is paid for however many choices stand over the open
+    ;; one. A member of the logical update view's kept here, where it fills
+    ;; the hole before `aix' and moves no other.
+    (member u32      tback)
     ;; THE OTHER ARGUMENTS' INDEXES, the second to the eighth, one
     ;; `coco_argix' each, made at the first call that wants one: a call
     ;; whose first argument is unbound, or keyed on a value most clauses

@@ -1903,6 +1903,7 @@
           (set (-> p tomb) nil)
           (set (-> p tomb_cap) 0)
           (set (-> p tprobe) 0)
+          (set (-> p tback) 0)
           ;; no frame is open on it, so the count of deaths starts again
           (set (-> p tera) 0)
           ;; the positions after each dead one have moved
@@ -1926,30 +1927,57 @@
           (coco_pred_sweep st m pi)
           (return 1)))
 
+  ;;; THE DEAD OF PI TAKEN OUT WHERE THEY ARE DUE (`coco-tomb-due', 3.78.15)
+  ;;; and no frame is open on them: what a retract/1 or clause/2 walk asks
+  ;;; as it begins, once a clause of PI is dead. Out of line and cold, so
+  ;;; the walk keeps the one test of `ntomb' it made through 3.78.14: the
+  ;;; due test inline cost a counter of one clause four instructions a turn
+  ;;; in the registers of the walk that sweeps nothing. The sites that only
+  ;;; a predicate with dead clauses, or a big one, reaches ask it inline: out
+  ;;; of line there too, a table of 20 rows updated in place paid nineteen
+  ;;; an update for the calls.
+  (weak) (cold)
+  (func coco_tomb_due_sweep ((coco_store * st) (coco_machine * m) (size_t pi))
+        (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi))))
+          (if (coco-tomb-due p) (coco_tomb_try_sweep st m pi))))
+
   ;;; THE PROBE OF A PREDICATE WITH DEAD CLAUSES, out of line: the first
   ;;; LIVE candidate and whether there is a second, a new call seeing none
-  ;;; of the dead. And now and then -- every 256th such call -- the dead
-  ;;; are taken out first if no frame is open on the predicate any more,
-  ;;; so that a predicate read and no longer changed after a death does
-  ;;; not pay for its dead for ever. Weak, so never inlined into the probe
-  ;;; every call makes.
+  ;;; of the dead. Each such call pays one, and one more for each dead
+  ;;; clause it passes (`coco-tomb-charge'), and once the calls have paid
+  ;;; for a sweep (`coco-tomb-paid', 3.78.15) the dead are taken out first
+  ;;; if no frame is open on the predicate any more -- so that a predicate
+  ;;; read and no longer changed after a death does not pay for its dead
+  ;;; for ever, and the dead an eighth of the live leaves are not passed by
+  ;;; every call of a big one. A frame still open doubles what the calls
+  ;;; must have paid for the next try (`tback', twenty doublings at most):
+  ;;; the try walked the choices down to that frame, and below a deep search
+  ;;; a try every few calls would cost more than the dead (a count put back
+  ;;; to 0 as well moved nothing measurable). Through 3.78.14 every 256th
+  ;;; call took them, a pass over the predicate a few hundred calls however
+  ;;; big it was, and a walk of the choices as often while a frame stayed
+  ;;; open. Weak, so never inlined into the probe every call makes.
   (weak)
   (func coco_pred_probe_dead ((coco_store * st) (coco_pred * p) (u64 key) (size_t * ix)
                               (coco_machine * m) (u32 pos)) (out int)
-        (set (-> p tprobe) (+ (-> p tprobe) 1))
-        (if (and (!= (-> p ntomb) 0) (== (bitand (-> p tprobe) 255) 0) (!= m nil))
+        (if (and (!= (-> p ntomb) 0) (!= m nil) (coco-tomb-paid p))
             (let ((size_t pi . #'(coco_pred_find st (-> p name) (-> p arity))))
               (if (coco_tomb_try_sweep st m pi)
-                  (return (coco_pred_probe_at st m p pos key ix)))))
+                  (return (coco_pred_probe_at st m p pos key ix)))
+              (if (< (-> p tback) 20) (set (-> p tback) (+ (-> p tback) 1)))))
         (let ((size_t a . #'(coco_pred_next_at st m p pos key 0))
-              (size_t b . 0))
+              (size_t b . 0) (size_t paid . 1))
           (while (and (!= a (coco_no_clause)) (coco_pred_dead p a))
+            (set paid (+ paid 1))
             (set a (coco_pred_next_at st m p pos key (+ a 1))))
-          (if (== a (coco_no_clause)) (return 0))
+          (if (== a (coco_no_clause))
+              (block (coco-tomb-charge p paid) (return 0)))
           (set (cof ix) a)
           (set b (coco_pred_next_at st m p pos key (+ a 1)))
           (while (and (!= b (coco_no_clause)) (coco_pred_dead p b))
+            (set paid (+ paid 1))
             (set b (coco_pred_next_at st m p pos key (+ b 1))))
+          (coco-tomb-charge p paid)
           (return (? (== b (coco_no_clause)) 1 2))))
 
   ;;; WHERE A PROBE GOES WHEN `nprobe' IS 0: no clause, or a dead one, or
@@ -3104,8 +3132,14 @@
   (func coco_pred_add_clause ((coco_store * st) (coco_machine * m) (size_t pi) (size_t clause)
                             (int at_end) (u64 key) (u64 origin) (int muted)) (out int)
         (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi))))
-          ;; the dead gone first if no frame is open to want them
-          (if (!= (-> p ntomb) 0) (coco_tomb_try_sweep st m pi))
+          ;; the dead gone first if no frame is open to want them: before an
+          ;; asserta, which moves every clause anyway, and before an assertz
+          ;; only once they are due (3.78.15, `coco-tomb-due'), the new
+          ;; clause going after the dead. Through 3.78.14 any dead went
+          ;; first, and an update -- a retract, then an assertz of the new
+          ;; value -- cost the predicate's size at the assertz
+          (if (and (!= (-> p ntomb) 0) (or (not at_end) (coco-tomb-due p)))
+              (coco_tomb_try_sweep st m pi))
           ;; A PREDICATE WITH NO ROOM FOR ONE MORE CLAUSE FINISHES THE MACHINE
           ;; THAT ASKED (3.62.3, `coco_oom'): its arrays were refused even
           ;; the little that was needed. Through 3.62.2 the answer was 0 and

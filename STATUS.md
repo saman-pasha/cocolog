@@ -25158,3 +25158,193 @@ COST (callgrind, each binary at the checkout's path; 3.78.13 and 3.78.14):
 - the untraced engine (tools/flow/zero.sh at paths of one length, work
   less padding): nrev 65 889 979 and 65 889 933, queens 39 952 861 and 39
   952 773, lookup 48 075 716 and 48 076 296.
+
+## A retract of one key costs the key, not the predicate (3.78.15)
+
+A patch, from the reasoning session's finding. 3.78.14 fixed retractall/1
+with its first argument unbound: 20 000 rows after 100 000 others went from
+76 s to 0.01 s. With a bound key, though, it was five times slower than
+3.73.2. 20 000 retractall/1 calls of one key each, among 120 000 rows, took
+60.5 s there against 3.73.2's 11.8 s, the same as a retract/1 for each key.
+The same rows went in 0.09 s while a call on the predicate stayed open.
+
+THE CAUSE. With no call open on the predicate, `coco_retract_at` took the
+clause out of the arrays. The five arrays after it shifted down one, and
+every index was dropped (`coco_pred_unindex`). With a call open, the clause
+died in place and the index kept it, which is why the open call's removals
+were fast. 3.78.11's retractall/1 walk finds its candidates through the
+first argument's index (`coco_db_next`), so each removal's next call built
+that index again over the whole predicate: a memset of its slot table and a
+chain entry for each clause. A callgrind run of 2 000 keys among 12 000 rows
+was 3.35 billion instructions. 84 % of them were the rebuild (the memset
+62.6 %, `coco_pred_reindex` 21.0 %) and 12.5 % the shift. 3.73.2's
+'$retractall'/1 scanned the keys linearly and never asked the index, so it
+paid the shift alone. The other sites that sweep the dead took them at the
+first chance too: an assertz, a retract/1 or clause/2 walk as it begins, a
+retractall/1 that took several, and every 256th call that met them. So an
+update -- a retract of a row, then an assertz of its new value -- cost the
+predicate's size twice.
+
+THE CHANGE. The dead are swept once they are due (`coco-tomb-due`, a macro
+in lib/kb.cicili). That is, once they are many -- more than an eighth of the
+live (`coco-tomb-many`) -- or once they are paid for (`coco-tomb-paid`). A
+sweep's pass over the predicate is paid for by the work before it: the
+deaths, a few clauses each, or the calls that passed the dead.
+
+- A retract with no call open kills its clause in place, as one under an
+  open call does, where the predicate holds more than eight clauses or
+  already has dead ones. The death takes a count of its own (`tera` moved),
+  so a call opened after it that lives through a later death is never shown
+  it. Where the death makes the dead due, they go with it at once
+  (`coco_tomb_try_sweep`). A predicate of eight clauses or fewer, with none
+  dead, still takes the clause out of the arrays, so a counter's retract
+  asks one test more than it did.
+- An assertz, a retract/1 or clause/2 walk as it begins, and a retractall/1
+  that took several sweep only once the dead are due. An asserta, a
+  re-read's insert and a reconsult still take any dead first, as they move
+  every clause anyway.
+- `tprobe` counts each call the out-of-line probe takes and each dead clause
+  a call or a walk passes (`coco-tomb-charge`, in `coco_pred_probe_dead` and
+  `coco_frame_next`). Once it reaches the predicate's clauses, or 256 if
+  that is more, passing the dead has cost what a sweep costs, and the probe
+  sweeps. The first cut had the many rule alone, and it let a big
+  predicate's calls pass up to an eighth of it dead: 100 000 calls after
+  12 000 deaths at the front of 120 000 clauses took 4.3 s. Through 3.78.14
+  the probe swept at every 256th such call whatever the predicate's size,
+  a pass over 300 000 clauses every few hundred calls.
+- A try the probe makes under an open frame doubles what the next try must
+  have paid (`tback`, at most twenty doublings). It sits in the 4-byte hole
+  before `aix`, so no member of the predicate moved. A refused try walks the
+  choices down to the open frame. Below 300 000 choices, a try every ten
+  calls -- the paid rule with no backoff -- took 6.6 s, where 3.78.14's
+  every 256th took 0.04 s.
+
+AND A BUG THE WAITING DEAD FOUND, there since 3.28.0. A DB frame's retry
+(`coco_db_retry`) tried its place, one past the clause just tried, as a
+candidate. A clause frame's retry looks from its place for the next
+candidate instead (`coco_select_clause`). Where the place held a clause
+that died before the walk began -- with another call open on the
+predicate, so no sweep took it -- clause/2 showed the dead clause and
+retract/1 took it a second time:
+
+    q5, ( q(A), A == 1, retract(q(3)), findall(X, clause(q(X), true), L) )
+
+L was [1,2,3,4,5] on 3.73.2 and 3.78.14, where swipl's is [1,2,4,5]. The
+waiting dead would have made this common: the new case's first run showed
+k01's dead clause 5. The retry now finds its first candidate from its place
+with `coco_db_next`, passing by the dead the frame never lived through.
+
+HELD. test/files/retract_kept.pl holds 74 lines to swipl 9.0.4, on
+predicates of twenty clauses or more, where the dead now wait. It covers:
+
+- the answers and their order after a death;
+- the choice points a call leaves, by key, by the second argument, and over
+  every clause;
+- an assertz, an asserta and an update beside the dead;
+- a drain from the front;
+- the logical update view of a call open at a later death, with an earlier
+  death out of its view behind it and, in `k06`'s second part, ahead of it;
+- an asserta under such a call;
+- two walks opened between deaths;
+- the sweep the dead's number calls;
+- retractall/1 of one match and of two;
+- listing/1, clause/2 and number_of_clauses;
+- a set of rules retractall/1 emptied one rule of;
+- the walk begun after a death under another open call (`k14`);
+- the sweep the calls pay for, tried under an open call and made after it
+  (`k15`).
+
+3.78.14 differs on 3 lines and 3.73.2 on 4. test/engine.pl's
+`keyed_removals` times ten shapes in a child, each against two seconds
+(the drop shape also asks what the store holds after it):
+
+| shape | 3.73.2 | 3.78.14 | 3.78.15 |
+|---|---|---|---|
+| retractall/1 of the first 20 000 keys among 120 000 | 7.3 s | 24.1 s | 0.02 to 0.03 s |
+| the last 20 000 | 16.3 s | 18.9 s | 0.015 to 0.026 s |
+| retract/1 of each of 20 000 | 37.5 s | 23.3 s | 0.015 s |
+| two clauses a key, 10 000 keys among 120 000 | 19.5 s | 11.1 s | 0.01 s |
+| an update of 30 000 rows among 60 000 | 18.7 s | 18.0 to 18.4 s | 0.055 to 0.063 s |
+| the same, the row found by a call first | 19.3 s | 18.3 to 19.5 s | 0.067 to 0.088 s |
+| 100 000 calls after 12 000 deaths at the front of 120 000 | 0.042 s (the deaths 15.4 s) | 0.035 s (15.1 s) | 0.035 s (0.012 s) |
+| the same calls over a frame open below 300 000 choices, 30 dead of 300 | 0.038 s | 0.038 s | 0.063 to 0.065 s |
+| every row of 120 000 deleted by key, its store freed | | 90.1 s | 0.15 s |
+| a drain of 120 000 from the front by retract/1 | 20.5 s | 20.1 s | 0.15 s |
+
+The 3.73.2 times in the first four rows come from the pattern benchmark
+(`ra`, `rae`, `rt` and `ra2` of the shapes below, each with its fill), not
+from the check itself.
+
+Across processes: one process writes 30 facts and removes four with no call
+open (two by retract/1, two by retractall/1, the dead waiting). A second
+process that consulted nothing reads the 27 live facts back, under `--embed`
+and through the server.
+
+ARMS. One build of the final code each, with one rule taken out:
+
+| arm | the rule taken out | red in |
+|---|---|---|
+| A1 | a retract with no call open kills its clause in place (3.78.14's shift for all) | keyed_removals, over its two minutes; the pattern shapes over 120 s |
+| A2 | the death takes a count of its own (`tera` moved) | retract_kept.pl `k06_ahead`: the call open at the second death shown the first, ahead of it |
+| A3 | the retract that makes the dead due sweeps them | keyed_removals `drop`: every row deleted by key, the store held all 13 271 360 cells |
+| A4 | an assertz sweeps only when the dead are due | `update` 23.1 s, `look` 22.9 s |
+| A5 | a walk's start sweeps only when they are due | `each` 27.2 s, `update` 20.2 s, `look` 20.8 s; the drain of 120 000 22.4 s |
+| A6 | a retractall/1 that took several sweeps only when they are due | `two` 13.8 s |
+| A7 | the probe sweeps only once the calls have paid | keyed_removals, over its two minutes |
+| A8 | a DB frame's retry looks from its place (`coco_db_next`) | retract_kept.pl `k01_clause`, `k14_clause`, `k14_retract`, `k14_two`, `k14_kept`; the probe of the bug |
+| A9 | the probe charges the dead it passes | `front` 3.8 s |
+| A10 | a walk charges the dead it passes (`coco_frame_next`) | `drain`, 200 000 from the front, 3.1 s |
+| A11 | a refused try doubles what the next must pay (`tback`) | `deep` 68.8 s |
+
+The final build is green on every check. A3 and A10 were green on the
+checks the round began with: `drop` and `drain` were written for them,
+and each arm's binary was run again on them.
+
+THE OTHER SHAPES (the pattern benchmark, CPU seconds with each shape's
+fill; 3.73.2 and 3.78.14 ran side by side, 3.78.15 alone, twice):
+
+| shape | 3.73.2 | 3.78.14 | 3.78.15 |
+|---|---|---|---|
+| a call open on the predicate, 20 000 keys among 120 000 | 15.0 | 0.12 | 0.14 |
+| a queue of 1 000, 100 000 turns (assertz at the end, retract/1 at the front) | 0.45 | 0.80 | 0.08 to 0.10 |
+| a queue of 20 000, 40 000 turns | 2.20 | 2.12 | 0.063 |
+| a drain from the front, one retract/1 a call, 30 000 | 1.65 | 1.19 | 0.04 to 0.07 |
+| an update of 30 000 rows, 30 000 turns | 20.2 | 7.8 | 0.10 to 0.12 |
+| 200 000 lookups after 2 000 deaths among 60 000 | 2.38 | 1.35 | 0.15 |
+| a counter, 200 000 turns | 0.14 | 0.13 | 0.13 to 0.16 (clock noise; counted below) |
+| a table of 20 rows updated 200 000 times | 0.23 | 0.21 | 0.21 to 0.23 |
+
+In instructions: the queue of 1 000 over 30 000 turns, 328.5 million on the
+first cut (many alone) and 309.9 million now; a drain of 60 000, 3 519
+million and 982 million; 200 000 lookups after 2 000 deaths, 1 333.7 million
+and 1 334.2 million (the count's own cost, +0.04 %).
+
+WHAT IS LEFT. A drain from the front by one retract/1 a call sweeps every
+few hundred deaths, so it is n to the 1.5 with a small constant: 0.04 s for
+30 000 and 0.15 s for 120 000, where 3.78.14 took 1.19 s and 20.1 s. A
+call open on the predicate keeps the dead that died before it, and every
+call meanwhile passes them: the deep shape takes 0.063 to 0.065 s against
+3.78.14's 0.038 s, whose 30 deaths had been taken out at once.
+
+COST (callgrind, each binary at the checkout's path; 3.78.14 and 3.78.15):
+
+- the untraced engine (tools/flow/zero.sh at paths of one length, work less
+  padding): nrev 65 889 942 both, queens 39 952 773 both, lookup
+  48 076 021 both;
+- a start: 36 356 160 and 36 357 164 (+1 004). A consult of 40 000 facts:
+  332 958 701 and 332 959 701. Of 40 000 alpha/2 facts: 342 198 769 and
+  342 199 769. Each is +1 000, one fixed amount and nothing per clause. A
+  read of 20 000 rules: 341 885 793 and 341 866 785 (19 008 fewer); with
+  directives, 345 027 676 and 345 008 668 (the same 19 008, where the
+  rules' reads are laid out);
+- a counter of one clause, 50 000 turns of retract/1 and assertz/1:
+  385 542 091 and 385 634 710, +1.9 instructions a turn (+0.02 %). All
+  of it is `coco_retract_at`'s one test of the predicate's size, which a
+  predicate of eight clauses or fewer with none dead asks. With the due
+  test inline at every site a turn cost +6, four of them at a retract/1
+  walk's start, in the registers of the walk that sweeps nothing. Out of
+  line at every site (`coco_tomb_due_sweep`) the counter cost +0.9 but the
+  table below 19 an update, for the two calls each update makes. So it is
+  out of line at the walk's start alone;
+- a table of 20 rows, 50 000 updates: 540 668 432 and 540 812 400, +2.9
+  an update (+0.03 %).

@@ -736,7 +736,9 @@
             (set (-> p dynamic) 1)
             (if tell (set (nth 0 (-> st write_err)) (cast char 0)))
             (coco-retract-told (coco_ra_unkill p cend era))
-            (coco_tomb_try_sweep st m pi)
+            ;; swept where no call is open and they are due (3.78.15,
+            ;; `coco-tomb-due'), as one match's death is
+            (if (coco-tomb-due p) (coco_tomb_try_sweep st m pi))
             (return 1))))
 
   ;;; '$retractall'((H :- _)), retractall/1's C half (3.78.11: the whole of
@@ -815,14 +817,16 @@
                                                      (coco_indicator m (coco_name_of m h)
                                                                      (coco_arity m h)))
                               ret)))
-                 ;; THE DEAD GO FIRST where no frame is open on them, as
-                 ;; clause/2's '$pred_count'/3 took them through 3.27.0: a
-                 ;; retract under a walk's own frame leaves its clause
-                 ;; dead in place, and a drain by once(retract(q(_))) left
-                 ;; with none swept counted nothing dead and never
-                 ;; compacted the store (test/gc.pl), though it was 38 %
-                 ;; faster
-                 (if (!= ($ (coco-pred-at (-> st predp) pi) ntomb) 0) (coco_tomb_try_sweep st m pi))
+                 ;; THE DEAD GO FIRST where no frame is open on them and
+                 ;; they are due (3.78.15, `coco_tomb_due_sweep'), as
+                 ;; clause/2's '$pred_count'/3 took any through 3.27.0: a
+                 ;; retract under a walk's own frame leaves its clause dead
+                 ;; in place, and a drain by once(retract(q(_))) left with
+                 ;; none swept counted nothing dead and never compacted the
+                 ;; store (test/gc.pl), though it was 38 % faster. Through
+                 ;; 3.78.14 any dead went, and a retract/1 of one key each
+                 ;; time cost a pass over the predicate at the walk's start
+                 (if (!= ($ (coco-pred-at (-> st predp) pi) ntomb) 0) (coco_tomb_due_sweep st m pi))
                  (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi)))
                        ;; none to walk where the system's is no store's
                        (u32 cend . #'(? (== pv 2) 0 (cast u32 ($ (coco-pred-at (-> st predp) pi) nclauses))))
@@ -889,6 +893,15 @@
           (coco_db_parts m g mode (aof h) (aof bd) (aof ssu) (aof sysq))
           (set key (? (== kpos 0) (coco_arg_key m h)
                           (coco_call_arg_key m (aof (coco-pred-at (-> (-> e st) predp) pi)) h kpos)))
+          ;; THE FRAME'S PLACE IS WHERE THE NEXT CANDIDATE IS LOOKED FOR, one
+          ;; past the clause tried, as a clause frame's is (`coco_frame_next'):
+          ;; the candidate from it on, the dead the frame did not live through
+          ;; passed by (3.78.15). Through 3.78.14 the place itself was tried,
+          ;; and where it held a clause that died before the walk began --
+          ;; with another call open on the predicate, so no sweep took it --
+          ;; clause/2 showed it and retract/1 took it again
+          (set ix (coco_db_next (-> e st) m (aof (coco-pred-at (-> (-> e st) predp) pi)) kpos key ix cend
+                                ($ (nth ci (-> e choices)) fera)))
           (set r (coco_db_from e pi kpos key ix cend mode h bd 1 ci))
           ;; A RETRACT THE KNOWLEDGE BASE REFUSED (3.64.7) goes on to throw
           ;; the refusal, a goal of its own, for a catch to take or the run
