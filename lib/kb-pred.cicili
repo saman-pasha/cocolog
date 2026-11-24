@@ -1318,6 +1318,12 @@
                  (coco_write_term m (aof b) (coco_deref m (coco_arg m g 0)) 1 0)
                  ;; WHAT IT IMPORTS (3.42.0), noted before the load too
                  (if (!= coco_import_hook nil) (coco_import_hook st m g))
+                 ;; the rules the reads under way gave stand with their last
+                 ;; clause where the load's goals run (3.78.13), as where a
+                 ;; goal's do: the module's read is one of its own, muted,
+                 ;; and its goals settle none of this read's, so a call they
+                 ;; made of this file's rules failed where swipl's raises
+                 (coco_consult_ssu_settle st m)
                  (set (-> m dgc) vouch)
                  (set r (coco_use_module_hook st m (coco_arg m g 0) err errlen))
                  (set (-> m dgc) 0)
@@ -1461,6 +1467,7 @@
                        (set (nth 0 place) (cast char 0))
                        (if (!= (-> m sloc_file) nil)
                            (snprintf place (sizeof place) "%s:%d: " (-> m sloc_file) line))
+                       (coco_consult_ssu_settle st m)
                        (set (-> m dgc) vouch)
                        (set r (coco_goal_hook st m (coco_arg m g 0) 1 err errlen))
                        (set (-> m dgc) 0)
@@ -1519,6 +1526,9 @@
           (let ((int r . 0) (size_t * gp . nil) (size_t gl . 1) (int held . 0))
             (set gp (aof g))
             (set held (coco_heap_root_push m (aof gp) (aof gl)))
+            ;; the rules the reads under way gave stand with their last
+            ;; clause where the goal runs (3.78.13, `coco_consult_ssu_settle')
+            (coco_consult_ssu_settle st m)
             (set (-> m dgc) (? held vouch 0))
             (set r (coco_goal_hook st m g 0 err errlen))
             (set (-> m dgc) 0)

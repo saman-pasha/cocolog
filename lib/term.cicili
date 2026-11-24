@@ -1087,7 +1087,10 @@
     ;; last clause after each, `H :- '$ssu_none'(Mod, H)', which raises
     ;; swipl's existence_error(matching_rule, ...) when no head matched
     ;; (`coco_consult_ssu_close'). MOD is the read's module/2 name, its atom
-    ;; id plus one, 0 for user. Appended.
+    ;; id plus one, 0 for user. Appended. Since 3.78.13 an entry is three
+    ;; words, the predicate with its mute bit, the read's origin and its
+    ;; module (`coco-ssu-word'), and SSU_CAP counts entries: a goal a read
+    ;; runs puts each one's last clause first (`coco_consult_ssu_settle').
     (member size_t *   ssu_pis)
     (member size_t     nssu)
     (member size_t     ssu_cap)

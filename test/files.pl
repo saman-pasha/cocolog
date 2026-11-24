@@ -330,7 +330,39 @@ fixtures(style_check, Sandbox) :- !,
 %% one, and one whose next version the case renames in its place
 fixtures(source_records, Sandbox) :- !,
     forall(srec(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
+%% the files the case's reads consult (3.78.13): one whose directive calls
+%% the case's rules while the case's own read is under way, one that gives
+%% a multifile predicate a rule after the case's file has given it its last
+%% clause, and a module a use_module/1 directive loads, whose directive
+%% asserts a rule for a predicate the case's file is giving rules
+fixtures(ssu_read, Sandbox) :- !,
+    atom_concat(Sandbox, '/nest.pl', N),
+    fixture(N, [':- t(p(3)), t(p(6)).']),
+    atom_concat(Sandbox, '/inner.pl', I),
+    fixture(I, [':- module(inner, []).', ':- assertz(user:(ip(5) => true)).',
+                ':- user:t(user:ip(9)).']),
+    atom_concat(Sandbox, '/plainq.pl', Q),
+    fixture(Q, [':- t(eq(8)).']),
+    atom_concat(Sandbox, '/mfb.pl', B),
+    fixture(B, [':- multifile r/1.', 'r(2) => true.', ':- t(r(2)), t(r(8)).']).
+%% each file of rules and the version the case renames in its place (`sr/2')
+fixtures(ssu_reread, Sandbox) :- !,
+    forall(sr(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
 fixtures(_, _).
+
+%% ssu_reread's files (3.78.13): a rule asserted between two reads, a rule
+%% the second read places past every clause it holds, and a module file's
+%% rules for a predicate another file gave its last clause
+sr('g.pl', [':- dynamic gp/1.', 'gp(1) => true.']).
+sr('g.v2.pl', [':- dynamic gp/1.', 'gp(1) => true.', ':- t(gp(9)).', 'gp(2) => true.',
+               ':- t(gp(2)), t(gp(8)).']).
+sr('h.pl', [':- dynamic hp/1.', 'hp(1) => true.']).
+sr('h.v2.pl', [':- dynamic hp/1.', 'hp(1) => true.', 'hp(5) => true.',
+               ':- initialization(t(hp(9)), now).', 'hp(7) => true.', ':- t(hp(7)), t(hp(8)).']).
+sr('ma.pl', [':- multifile mr/1.', 'mr(1) => true.']).
+sr('mb.pl', [':- module(mb, []).', ':- multifile user:mr/1.', 'user:mr(2) => true.']).
+sr('mb.v2.pl', [':- module(mb, []).', ':- multifile user:mr/1.', 'user:mr(2) => true.',
+                'user:mr(3) => true.']).
 
 %% each style's warning, then the style off, then on again: the reader's
 %% singletons and the compiler's (singleton), a test (no_effect), the

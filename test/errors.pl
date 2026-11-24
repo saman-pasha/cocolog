@@ -68,6 +68,7 @@ main :-
     load_refused,
     list_refused,
     death_refused,
+    note_refused,
     sources_refused,
     read_that_failed,
     mixed_rows,
@@ -647,6 +648,47 @@ death_refused :-
     ;   true
     ),
     shl(['rm -rf ', D]).
+
+%% A NOTE OF A READ'S RULES THERE WAS NO MEMORY FOR FINISHES THE MACHINE
+%% (3.78.13, `coco_ssu_note'): a read of 140 predicates' rules grows the
+%% machine's list of them past a kilobyte, and each request of a kilobyte or
+%% more the read makes is refused in turn. A run's directive calls every one
+%% of the 140 with a goal no rule matches, so each raises, or a goal caught
+%% memory, or the run ended out of memory -- never a call that FAILED, which
+%% a note dropped in silence made: its predicate had no last clause. (Asked
+%% of the last predicate alone, the check was green with the note dropped:
+%% the note refused is the 33rd predicate's, the 65th's or the 129th's, at
+%% the growth the refusal falls on, and the notes after it are made.)
+note_refused :-
+    section('a read''s note of its rules refused its memory'),
+    scratch(D),
+    (   refuse_shim(D, Shim)
+    ->  atom_concat(D, '/nf.pl', NF),
+        numlist(1, 140, Ks),
+        findall(L, ( member(K, Ks), format(atom(L), 'nr~w(a) => true.', [K]) ), Rules),
+        append(Rules, [':- nr_res(R), nb_setval(nr_res, R).'], NLines),
+        fixture(NF, NLines),
+        atom_concat(D, '/nr.pl', F),
+        sh_join(['nr :- rf_mark(''REFUSE_ON''), catch(consult(''', NF, '''), error(resource_error(memory), _), ',
+                 'nb_setval(nr_res, memory)), rf_mark(''REFUSE_OFF''), nb_getval(nr_res, R), writeln(R).'], Main),
+        fixture(F, [ 'rf_mark(N) :- catch(( getenv(N, _) -> true ; true ), _, true).',
+                     'nr_res(R) :- catch(nr_all(R), error(E, _), ( E = resource_error(memory) -> R = memory ; R = E )).',
+                     'nr_all(R) :- ( between(1, 140, K), atom_concat(nr, K, N), G =.. [N, z], \\+ nr_raises(G) -> R = failed(N) ; R = raised ).',
+                     'nr_raises(G) :- catch(( call(G) -> fail ; fail ), error(existence_error(matching_rule, _), _), true).',
+                     Main ]),
+        cocolog(C),
+        dr_runs(C, Shim, F, nr, Runs),
+        length(Runs, N),
+        findall(I-Exit-Text, ( member(I-Exit-Text, Runs), \+ nr_good(Exit, Text) ), Bad),
+        check('each request of a kilobyte or more a read of 140 predicates'' rules makes refused in turn: raised, memory caught, or out of memory', N-Bad, N-[]),
+        ( N > 0 -> true ; check('...and its stretch made such a request', N, more) )
+    ;   true
+    ),
+    shl(['rm -rf ', D]).
+
+nr_good(0, raised).
+nr_good(0, memory).
+nr_good(2, Text) :- sub_atom(Text, _, _, _, 'out of memory').
 
 %% each run of goal G of the fixture F with the I-th request of a kilobyte
 %% or more in its stretch refused: I, its exit status and all it said

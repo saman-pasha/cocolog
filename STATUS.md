@@ -24926,3 +24926,188 @@ Found on the way:
 - `coco_b_tier1_claims` calls strcmp 62 times a clause in a consult, 2.5
   million calls and 52 million instructions of a 40 000-clause consult's
   409 million: what a claim by name walks for every clause.
+
+## Calls during a read raise where swipl's do, and a read's rule goes in before a last clause that stands (3.78.13)
+
+A patch, the two 3.78.12 found on its way.
+
+- A call made while a file is read -- a directive's goal, a goal of the
+  file a use_module/1 or ensure_loaded/1 directive loads, an
+  initialization/1 goal of either kind, an expansion hook's -- that none of
+  the rules read so far matched FAILED, where swipl's raises
+  existence_error(matching_rule, G). The read put the last clause after
+  its rules, `H :- '$ssu_none'(M, H)`, only at its end.
+- A read's rule for a predicate whose last clause already stood went in
+  after that clause, where no call reached it: another file's of a
+  multifile predicate, an assert's, a fetch's row, rules retractall/1
+  emptied. With two files of a multifile predicate, the second file's
+  `r(2) => true` raised matching_rule for `r(2)`.
+- An assert while a read was under way went after the rules as the read's
+  own did, noted for the read's end, so a call in the same goal that no
+  rule matched failed too.
+
+swipl's machine raises at the call wherever it is made, its rules compiled
+as they come; cocolog's last clause has to stand before any call, then.
+
+THE FIX.
+
+- Before a goal a read runs (`coco_consult_ssu_settle`: a directive's, the
+  load a use_module/1 or ensure_loaded/1 directive starts, an
+  `initialization(G, now)`, an after-load or main goal's, an expansion
+  hook's), each predicate a read under way noted gets the last clause its
+  read's end would put, with that read's origin and module, and is marked
+  `pattrs` 4096. The read's later rules for it go in before that clause, as
+  an assert's do (`coco_assert_rule`, then `coco_ssu_add`), and the read's
+  end puts none (`coco_consult_ssu_end`). A settle passes by an entry noted
+  under another mute than the store's: a library read nested in a
+  program's load puts no last clause of the program's.
+- A read's first sight of a predicate whose last clause stands marks it 4096
+  too (`coco_ssu_note`).
+- A file read again goes the same way. Its old last clause went with its
+  old clauses at its first sight (`coco_reload_for`), so a settle gives the
+  predicate a new one after its last clause, where the read's end would put
+  it. A clause the re-read places past that clause goes in before it
+  (`coco_reload_insert`): the reload puts a new clause before swipl's
+  pointer, and after the last where nothing from the pointer is still
+  there. A last clause that stands at the re-read's first sight is
+  another's -- a multifile predicate's first file's, an assert's -- and
+  marks the predicate 4096 as on a first read, so the read's end puts no
+  second one. The first cut passed a reload's entry by at the settle and at
+  its first sight: a goal the re-read ran failed where swipl's raises, and
+  a module file read again over another file's rules put its own last
+  clause in before the other's, so a call no rule matched named the module
+  (`mb:mr(9)`, where swipl names `mr(9)`).
+- An entry of the machine's `ssu_pis` is three words (`coco-ssu-word`): the
+  predicate with the mute's bit, the read's origin, its module.
+- An assert while a read is under way is an assert's (AT 0): every goal a
+  read runs comes after a settle, so the rules it gave stand with their last
+  clause by then. The first final cut settled nothing before the load a
+  use_module/1 or ensure_loaded/1 directive starts (`coco_directive` hands
+  it to the library's hook before any goal), and that load reads its file
+  as a module, muted, whose goals settle no entry of an unmuted read's:
+  under `run` a call its directive made of the file's rules FAILED where
+  swipl's raises, and an assert of a rule there needed a guard of its own,
+  which went as the read's own rule did. The settle there does both, and
+  the guard is gone.
+- A note there is no memory for finishes the machine. Through 3.78.12 it
+  was dropped in silence: the predicate's rules had no last clause, and a
+  call no rule matched failed.
+- `coco_ssu_last_ix` reads the stored clause where it lies
+  (`coco_ssu_stored_last`: its body's functor and one strcmp). Through
+  3.78.12 each candidate was copied to the heap first, some 1 600
+  instructions every time an assert or a read put a rule in before a last
+  clause.
+
+HELD.
+
+- test/files/ssu_read.pl holds 44 lines to swipl 9.0.4, with four fixtures
+  (nest.pl, mfb.pl, inner.pl, plainq.pl): directives that call the rules
+  read so far, a rule read right before an `initialization(G, now)`, an
+  after-load goal, a nested consult's directive, a directive's assert and
+  the file's rules after it, a module a use_module/1 directive loads that
+  asserts a rule for a predicate the file is giving rules and calls one, a
+  file an ensure_loaded/1 directive loads that calls one (each a muted read
+  of its own, whose goals settle nothing of the file's), a term_expansion/2
+  hook that calls a rule read before it, an assert after the read, and a
+  multifile predicate's second file. 3.78.12 differs on 17 lines, the first
+  final cut of 3.78.13 on 2 (`user:ip(9)`, `eq(8)`).
+- test/files/ssu_reread.pl holds 22 lines to swipl, each file and the
+  version renamed in its place written by test/files.pl (`sr/2`): a rule
+  asserted between two reads and the second read's directives, a rule the
+  second read places past every clause it holds after an
+  `initialization(G, now)`, and a module file's rules for a predicate
+  another file gave its rules, read again. 3.78.12 differs on 7 lines, the
+  first cut of 3.78.13 on 5.
+- test/engine.pl's `rules_read_on`: a file under `-s`, whose load is muted
+  and settles under its own mute, and under `run` -- an after-load goal
+  that calls a rule read after the last directive, a rule asserted before
+  a consult/1 that gives the predicate another, and an assert after it --
+  a file run by `initialization(main, main)`, under both, and an `-s` file
+  whose consult directive reads a file that asserts a rule between the
+  `-s` file's two. 3.78.12 is red on all four of the first.
+- test/reconsult.pl's `rules_read_on`: four processes over one embedded
+  store. The first asserts a rule and empties another predicate's rules,
+  the second reads a file that gives both rules and calls them in its
+  directives, the third reads those answers back, and the fourth, which
+  read nothing, calls each rule. 3.78.12 is red on both checks.
+- test/errors.pl's `note_refused`: a read of 140 predicates' rules, each of
+  the 22 requests of a kilobyte or more it makes refused in turn, three of
+  them the note list's growth (the 4th, 9th and 15th). Each run's directive
+  calls all 140 with a goal no rule matches, and each raises, or the run
+  catches memory or ends out of memory. Asked of the last predicate alone,
+  the first cut of the check was green with the note dropped in silence:
+  the note refused is the 33rd predicate's, the 65th's or the 129th's, and
+  the notes after it are made. 3.78.12 answers `failed(nr1)`.
+
+ARMS, one build of the final code each with one rule taken out, checked by
+the two cases against swipl's lines, test/engine.pl's and
+test/reconsult.pl's `rules_read_on` and test/errors.pl's `note_refused`:
+
+- no settle before a directive's goal: red, 5 lines of ssu_read (`p(2)`
+  and `q(b)` fail, `d(4)` twice and `d(6)` behind the last clause a
+  directive's assert gave), 2 of ssu_reread (`gp(9)`, `gp(8)` fail),
+  test/engine.pl's four, the reconsult's directives, and two runs of the
+  refused note (`failed(nr1)`: its directive's calls fail);
+- none before an `initialization(G, now)`: red, ssu_read's `s(2)` and
+  ssu_reread's `hp(9)` fail;
+- none before an after-load or main goal: red, test/engine.pl's four
+  (`ru(2)`, `rc(2)`);
+- none before an expansion hook: red, ssu_read's `made(2, no)`;
+- none before the load a use_module/1 or ensure_loaded/1 directive starts:
+  red, ssu_read's `ip(2)` behind the last clause the module's assert gave,
+  and `eq(8)` fails. Found after the first final cut's arms, by a probe of
+  a module's directive calling the file's rules under `run`: the cases'
+  first checks took their asserts from an `-s` file's consult directive,
+  which settles the file's rules before the nested read begins, or from a
+  file read under the same mute, whose directive settles them too;
+- a first sight that marks nothing: red, ssu_read's multifile `r(2)`
+  twice, ssu_reread's `mr(2)` twice and `mr(3)` behind the other file's
+  last clause, test/engine.pl's two, the reconsult's two;
+- a read's rule after a settle going as the read's own, not before the
+  last clause: red, 7 lines of ssu_read, ssu_reread's `mr(2)`, the engine's
+  four, the reconsult's two;
+- an assert in a goal of the read going as the read's own: red, 7 lines of
+  ssu_read (`d(2)`, `d(4)` twice, `w(2)` failing, `ip(2)`, `ip(5)`,
+  `d(6)`) and the engine's two (the `-s` file's consult);
+- the read's end putting a last clause where one stands: red, ssu_read's
+  `d(6)` and `r(2)` twice, the engine's `rb(4)`;
+- a note there was no memory for dropped in silence: red, the refused note
+  (runs 4, 9 and 15, `failed(nr33)`, `failed(nr65)`, `failed(nr129)`);
+- the settle passing a re-read's predicates by (the first cut): red, 4
+  lines of ssu_reread (`gp(9)`, `gp(8)`, `hp(9)`, `hp(8)` fail);
+- a re-read's place past the last clause standing: red, ssu_reread's
+  `hp(7)` twice;
+- a re-read's first sight marking nothing: red, ssu_reread's last line,
+  `mb:mr(9)` where swipl names `mr(9)`.
+
+COST. The untraced engine runs 3.78.12's instructions to within a hundred
+(tools/flow/zero.sh at paths of one length, work less padding): nrev 65
+889 897 and 65 889 965, queens 39 952 767 and 39 952 861, lookup 48 075
+808 and 48 075 817. A start counts 2 208 instructions more (36 310 001 and
+36 312 209: coco_ssu_note 4 489, memcmp's calls at other addresses 5 267
+fewer), and a consult of 40 000 clauses 163 171 more (408 996 587 and 409
+159 758, 0.04 %), coco_assert_from's 4.0 instructions a clause. A read of
+20 000 rules and no directive counts 14.7 million fewer (406 236 827 and
+391 550 184), of which strcmp's 16.3 million fewer are its calls from
+coco_b_tier1_claims at other addresses (the same calls); coco_assert_rule
+and coco_ssu_note are 1.4 million more. The same rules with directives
+among them count 6.0 million more (390 077 828 and 396 040 471, 1.5 %):
+after the first settle each rule goes in before the last clause, as an
+assert's rule does (coco_pred_insert_at 1.8 million, coco_ssu_last_ix 1.6
+million, coco_ssu_add 0.7 million, coco_pred_add_clause 1.4 million fewer).
+The settle at a load directive and the guard it made needless move the
+first final cut's counts by some 430 instructions a run.
+
+Every clause a load or an assert adds runs coco_assert_from, and the first
+cuts of the rule's road cost every plain clause more than the rule does:
+
+- the rule's logic in place, or `at` folded into ISRULE: +10 instructions a
+  clause of the consult;
+- all of it in an out-of-line helper called for every rule, its place
+  handed back by address: +16;
+- the same with the fold before the kind check: +18.
+
+Each moved `m` out of its callee-saved register into a caller-saved one,
+reloaded after every call. A helper called only where 3.78.12 called its
+note -- under `(and (> lreads 0) isrule)` -- whose answer replaces ISRULE,
+leaves the common path 3.78.12's but for one call's arguments: the 3.8.

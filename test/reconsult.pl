@@ -39,7 +39,7 @@ main :-
     scratch(D),
     atom_concat(D, '/prog.pl', F),
     twice(D, F), survives(D, F), edited(D, F), two_spellings(D, F),
-    a_librarys_clauses(D), abolished(D), rules_emptied(D), listed(D), as_a_goal(D), loaded_once(D), when_changed(D), reports(D),
+    a_librarys_clauses(D), abolished(D), rules_emptied(D), rules_read_on(D), listed(D), as_a_goal(D), loaded_once(D), when_changed(D), reports(D),
     module_reread(D), over_the_wire(F),
     shl(['rm -rf ', D]),
     checks_done.
@@ -225,6 +225,46 @@ rules_emptied(D) :-
              '( predicate_property(re(_), ssu) -> P = ssu ; P = no ), write(answer(R1-R5-P)), nl"'], A4),
     cocolog_answer(A4, G4),
     check('a plain clause asserted there makes it plain for the next process', G4, answer(no-yes-no)).
+
+%% A FILE'S RULES FOR A PREDICATE THE KNOWLEDGE BASE HOLDS GO IN BEFORE ITS
+%% LAST CLAUSE (3.78.13): an asserted rule's (rq/1) or the one rules emptied
+%% keep (re/1), read back at the file's first sight of the predicate, and the
+%% one a directive's call put after the rules read so far (rp/1, its later
+%% rule read after that call). The calls the file's directives make are
+%% written as they answered (rr_seen/1), and a fourth process that read
+%% nothing calls each again. Through 3.78.12 the file's rq(2) and re(2)
+%% stood after the last clause, where no call reached them, and a directive's
+%% call that no rule matched failed
+rules_read_on(D) :-
+    section('a file read into a knowledge base that holds rules, across processes'),
+    atom_concat(D, '/rrstore', S),
+    atom_concat(D, '/rrfile.pl', F),
+    fixture(F, [ ':- dynamic rr_seen/1.', ':- discontiguous rp/1.',
+                 'rr_t(G) :- catch(( G -> R = yes ; R = no ), error(E, _), R = E), assertz(rr_seen(G-R)).',
+                 'rq(2) => true.', ':- rr_t(rq(1)), rr_t(rq(2)), rr_t(rq(9)).',
+                 're(2) => true.', ':- rr_t(re(1)), rr_t(re(2)).',
+                 'rp(2) => true.', ':- rr_t(rp(5)), rr_t(rp(2)).',
+                 'rp(1) => true.', ':- rr_t(rp(3)).' ]),
+    sh_join(['--kb rreadon --embed ', S,
+             ' query "assertz((rq(1) => true)), assertz((re(1) => true)), retractall(re(_))"'], W1),
+    cocolog_out(W1, _),
+    sh_join(['--kb rreadon --embed ', S, ' run ', F, ' true'], W2),
+    cocolog_out(W2, _),
+    sh_join(['--kb rreadon --embed ', S, ' query "findall(X, rr_seen(X), L), writeq(answer(L)), nl"'], A3),
+    cocolog_answer(A3, G3),
+    check('the file\'s directives reached the rules read so far, and raised for none', G3,
+          answer([rq(1)-yes, rq(2)-yes, rq(9)-existence_error(matching_rule, rq(9)),
+                  re(1)-existence_error(matching_rule, re(1)), re(2)-yes,
+                  rp(5)-existence_error(matching_rule, rp(5)), rp(2)-yes,
+                  rp(3)-existence_error(matching_rule, rp(3))])),
+    sh_join(['--kb rreadon --embed ', S,
+             ' query "findall(G-R, ( member(G, [rq(1), rq(2), rq(3), re(1), re(2), rp(1), rp(2), rp(3)]), ',
+             'catch(( G -> R = yes ; R = no ), error(E, _), R = E) ), L), writeq(answer(L)), nl"'], A4),
+    cocolog_answer(A4, G4),
+    check('and a process that read nothing calls each rule the file gave', G4,
+          answer([rq(1)-yes, rq(2)-yes, rq(3)-existence_error(matching_rule, rq(3)),
+                  re(1)-existence_error(matching_rule, re(1)), re(2)-yes,
+                  rp(1)-yes, rp(2)-yes, rp(3)-existence_error(matching_rule, rp(3))])).
 
 %% LISTING/1 READS WHAT IT LISTS FROM THE KNOWLEDGE BASE (3.37.0): a second
 %% process that consulted nothing names a consulted predicate, by

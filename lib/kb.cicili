@@ -135,6 +135,16 @@
           (coco_pred_nprobe ,p)
           (set (-> ,p tver) (+ (-> ,p tver) 1))))
 
+;;; THE RULES A READ HAS GIVEN AND NOT CLOSED (3.78.13, `coco_ssu_note'):
+;;; the machine's `ssu_pis' holds three words an entry -- the predicate,
+;;; bit 62 set where the store was muted as its rules came; the read's
+;;; origin; its module -- and `pattrs' 4096 says the predicate's last clause
+;;; stands after its rules while a read is under way, so the read's later
+;;; rules go in before it and its end puts none (`coco_consult_ssu_settle')
+(DEFMACRO coco-ssu-muted () `(<< (cast size_t 1) 62))
+(DEFMACRO coco-ssu-word (m i k) `(nth (+ (* 3 ,i) ,k) (-> ,m ssu_pis)))
+(DEFMACRO coco-ssu-pi (m i) `(bitand (coco-ssu-word ,m ,i 0) (- (coco-ssu-muted) 1)))
+
 ;;; A TABLE OF N KEYS FILLED (3.64.0): X's arrays grown to hold N, its
 ;;; slots to stay under half full, and entry I's key -- KEY, an expression
 ;;; of I -- linked into its chain (`coco_aix_add'). Answers nil from the
@@ -1150,7 +1160,12 @@
     ;; declared after a call, is gone in 3.46.0); and (3.65.0) 1024 its
     ;; clauses single-sided rules, the kind its live clauses keep
     ;; (`coco_assert_from': set as a clause comes to it empty, asked only
-    ;; while it has live ones)
+    ;; while it has live ones); and (3.78.13) 4096 the last clause stands
+    ;; after its rules while a read that gives it rules is under way -- a
+    ;; goal of the read put it there (`coco_consult_ssu_settle'), or it
+    ;; stood at the read's first sight (`coco_ssu_note') -- so the read's
+    ;; later rules go in before it and its end puts none; cleared at the
+    ;; read's end (`coco_consult_ssu_end')
     (member int      pattrs)
     ;; THE FIRST ARGUMENT'S SPEEDUP AS SWIPL ASSESSES IT (3.24.0), what
     ;; `coco_argix''s AVER and ASPD are to the others: asked by the JIT
@@ -2106,11 +2121,14 @@
   ;;; note of its predicate, and its end's last clause after each it noted;
   ;;; the body clause/2 shows for a stored body -- the rule's guard, cut and
   ;;; body as swipl's is -- and the clause listing/1 writes, `Head => Body';
-  ;;; -1 for the last clause, which both hide
+  ;;; -1 for the last clause, which both hide. And (3.78.13) the rules every
+  ;;; read under way gave, settled before a goal a read runs: each with its
+  ;;; last clause, `coco_consult_ssu_settle'
   (decl) (func coco_ssu_clause ((coco_machine * m) (size_t clause)) (out int))
-  (decl) (func coco_ssu_note ((coco_machine * m) (size_t pi)))
+  (decl) (func coco_ssu_note ((coco_store * st) (coco_machine * m) (size_t pi) (u64 origin)))
   (decl) (func coco_consult_ssu_close ((coco_store * st) (coco_machine * m) (size_t base)
-                                     (u64 oid) (coco_origin_seen * seen)))
+                                     (coco_origin_seen * seen)))
+  (decl) (func coco_consult_ssu_settle ((coco_store * st) (coco_machine * m)))
   (decl) (func coco_ssu_body ((coco_machine * m) (size_t b)) (out size_t))
   (decl) (func coco_ssu_rule ((coco_machine * m) (size_t t)) (out size_t))
   ;;; the module a read under module/2 names a predicate with (3.26.0)

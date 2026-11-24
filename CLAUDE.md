@@ -2567,7 +2567,38 @@ a session must keep:
   end puts `H :- '$ssu_none'(Mod, H)` after each predicate it gave rules
   (`ssu_pis` on the machine from the read's own base, `ssu_mod` set by
   module/2), and an assert keeps it last; it raises
-  `existence_error(matching_rule, Goal)`. **A rule's assert is one change
+  `existence_error(matching_rule, Goal)`. **Where Prolog runs during a
+  read, the rules read so far stand with their last clause** (3.78.13,
+  `coco_consult_ssu_settle` in lib/kb-consult.cicili; test/files/
+  ssu_read.pl): before a directive's goal, the load a use_module/1 or
+  ensure_loaded/1 directive starts (whose module's read is muted, its goals
+  settling no entry of an unmuted read's), an initialization/1 goal of
+  either kind and an expansion hook's, each predicate a read under way
+  noted gets the last clause its read's end would put and is marked
+  `pattrs` 4096, so the read's later rules go in before it
+  (`coco_assert_rule`) and its end puts none; through 3.78.12 a call there
+  that no rule matched FAILED. **A new place a load runs a goal settles
+  first**, or its calls of the read's rules fail. A read's first sight of
+  a predicate whose last clause stands already -- another file's, an
+  assert's, a fetch's row, rules retractall/1 emptied -- marks it 4096 too
+  (`coco_ssu_note`): through 3.78.12 the read's rules went after that
+  clause, where no call reached them. **A file read again settles too**
+  (test/files/ssu_reread.pl): its old last clause went with its old
+  clauses at its first sight, the settle puts the new one after the
+  predicate's last clause, and a clause the re-read places past it goes in
+  before it (`coco_reload_insert`: the reload appends where nothing from
+  swipl's pointer is still there) -- **a new way to place a clause while a
+  read is under way keeps a last clause that stands (4096) after it**. An
+  entry of `ssu_pis` is three words (`coco-ssu-word`: the predicate with
+  the mute's bit, the read's origin, its module), a note there is no
+  memory for finishes the machine, and a settle passes by an entry of
+  another mute (a library read nested in a program's load); an assert
+  while a read is under way is an assert's (AT 0), the read's rules
+  standing with their last clause by then. The rule's road is out of
+  line and cold (`coco_assert_rule`), asked where 3.78.12 asked its note:
+  asked of every clause in coco_assert_from, the first cuts moved `m` out
+  of its callee-saved register and cost every plain clause ten to eighteen
+  instructions. **A rule's assert is one change
   of the predicate and one write** (3.64.7, `coco_ssu_add` in
   lib/kb-consult.cicili, its shapes taken back whole by
   `coco_assert_take_back`): an assertz goes in before the last clause

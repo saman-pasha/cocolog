@@ -408,7 +408,13 @@
   ;;; where an assertz goes, the index kept. A call open on PI that has a
   ;;; clause before that place still to try and one after it would see the
   ;;; new one, which came after it began: then the clauses from the place
-  ;;; come again after the new one (`coco_reload_relocate').
+  ;;; come again after the new one (`coco_reload_relocate'). RULES WHOSE
+  ;;; LAST CLAUSE STANDS WHILE THE READ IS UNDER WAY (3.78.13, `pattrs'
+  ;;; 4096: a goal of the read put it there, or it stood at the read's
+  ;;; first sight) keep it after them: a place past it is its own, as an
+  ;;; assert's rule goes in before it (`coco_ssu_add').
+  (static) (decl) (func coco_ssu_last_ix ((coco_store * st) (coco_machine * m) (size_t pi))
+                        (out size_t))
   (static)
   (func coco_reload_insert ((coco_store * st) (coco_machine * m) (coco_reload * rl)
                             (size_t pi) (size_t clause) (u64 key) (u64 origin) (int muted))
@@ -419,6 +425,9 @@
           ;; place found below is where the clause goes
           (if (!= (-> p ntomb) 0) (coco_tomb_try_sweep st m pi))
           (set k (coco_reload_pos rl p))
+          (if (!= 0 (bitand (-> p pattrs) 4096))
+              (let ((size_t lx . #'(coco_ssu_last_ix st m pi)))
+                (if (< lx k) (set k lx))))
           (if (>= k (-> p nclauses))
               (return (coco_pred_add_clause st m pi clause 1 key origin muted)))
           (with-green-write nil
@@ -1786,21 +1795,43 @@
           (if (and (!= 0 (strcmp mn "user")) (!= 0 (strcmp mn "system")))
               (set ($ (coco-pred-at (-> st predp) pi) pmod) (-> m ssu_mod)))))
 
-  ;;; A READ NOTES THE PREDICATE, once, from its own base on
-  ;;; (`coco_consult_oid'): its end puts the last clause after it
-  (func coco_ssu_note ((coco_machine * m) (size_t pi))
+  ;;; A READ NOTES THE PREDICATE IT GIVES RULES, once, from its own base on
+  ;;; (`coco_consult_oid'): its end puts the last clause after them, or a
+  ;;; goal the read runs before it (`coco_consult_ssu_settle'). The entry is
+  ;;; three words (`coco-ssu-word'): PI, with the store's mute as a bit;
+  ;;; ORIGIN, the read's; and the read's module. AT ITS FIRST SIGHT A
+  ;;; PREDICATE WHOSE LAST CLAUSE STANDS (3.78.13) -- another file's of a
+  ;;; predicate two files give rules, an assert's, a fetch's row, rules
+  ;;; retractall/1 emptied -- is marked 4096: the read's rules go in before
+  ;;; that clause, as an assert's do (`coco_ssu_add'), or as a re-read
+  ;;; places them and no further (`coco_reload_insert'), and its end puts
+  ;;; none. A re-read has taken the file's own clauses out by then
+  ;;; (`coco_reload_for'), its old last clause among them, so what stands is
+  ;;; another's. Through 3.78.12 the rules went in after it, where no call
+  ;;; reached them. A note there is no memory for finishes the machine:
+  ;;; dropped, the rules had no last clause, and a call no rule matched
+  ;;; failed.
+  (func coco_ssu_note ((coco_store * st) (coco_machine * m) (size_t pi) (u64 origin))
         (let ((size_t i . #'(-> m nssu)))
           (while (> i 0)
-            (if (== (nth (- i 1) (-> m ssu_pis)) pi) (return))
+            (if (== (coco-ssu-pi m (- i 1)) pi) (return))
             (set i (- i 1))))
         (if (>= (-> m nssu) (-> m ssu_cap))
             (let ((size_t ncap . #'(? (== (-> m ssu_cap) 0) 16 (* (-> m ssu_cap) 2)))
-                  (void * grown . #'(realloc (cast (void *) (-> m ssu_pis)) (* ncap (sizeof size_t)))))
-              (if (== grown nil) (return))
+                  (void * grown . #'(realloc (cast (void *) (-> m ssu_pis))
+                                             (* ncap (* 3 (sizeof size_t))))))
+              (if (== grown nil) (block (coco_oom m) (return)))
               (set (-> m ssu_pis) (cast (size_t *) grown))
               (set (-> m ssu_cap) ncap)))
-        (set (nth (-> m nssu) (-> m ssu_pis)) pi)
-        (set (-> m nssu) (+ (-> m nssu) 1)))
+        (set (coco-ssu-word m (-> m nssu) 0)
+             (bitor pi (? (coco_store_is_muted st) (coco-ssu-muted) 0)))
+        (set (coco-ssu-word m (-> m nssu) 1) (cast size_t origin))
+        (set (coco-ssu-word m (-> m nssu) 2) (cast size_t (-> m ssu_mod)))
+        (set (-> m nssu) (+ (-> m nssu) 1))
+        (if (and (!= (coco_pred_live (aof (coco-pred-at (-> st predp) pi))) 0)
+                 (!= (coco_ssu_last_ix st m pi) (cast size_t -1)))
+            (set ($ (coco-pred-at (-> st predp) pi) pattrs)
+                 (bitor ($ (coco-pred-at (-> st predp) pi) pattrs) 4096))))
 
   ;;; THE LAST CLAUSE, `H :- '$ssu_none'(Mod, G)', H the predicate's head of
   ;;; fresh variables, MOD the module's atom id plus one, 0 for user, and
@@ -1849,23 +1880,36 @@
                 (#t (set md (coco_new_atom_id m (- mod 1)))))
           (return (coco_make2 m ":-" h (coco_make2 m "$ssu_none" md g)))))
 
+  ;;; WHETHER THE STORED CLAUSE CL IS THE RULES' LAST CLAUSE, `H :-
+  ;;; '$ssu_none'(M, G)', read where it lies in the store (3.78.13): its
+  ;;; body's functor and one strcmp. Through 3.78.12 the clause was copied
+  ;;; to the heap first, some 1 600 instructions every time an assert or a
+  ;;; read put a rule in before one
+  (static) (inline)
+  (func coco_ssu_stored_last ((coco_store * st) (coco_machine * m) (size_t cl)) (out int)
+        (let ((size_t h . 0) (size_t b . 0) (u64 c . 0))
+          (coco_store_clause_parts st m cl (coco-id m ":-") (aof h) (aof b))
+          (if (== b 0) (return 0))
+          (set c (nth (coco_store_deref st b) (-> st cells)))
+          (if (not (coco-tag-is FUN c)) (return 0))
+          (let ((coco_functor * f . #'(aof (nth (cast size_t (coco-payload c)) (-> m functors)))))
+            (return (and (== (-> f arity) 2)
+                         (== 0 (strcmp (coco_atom_name m (-> f name)) "$ssu_none")))))))
+
   ;;; WHERE THE RULES' LAST CLAUSE STANDS (3.64.7): the index of PI's last
   ;;; live clause where that is `H :- '$ssu_none'(M, G)', else -1
   (static)
   (func coco_ssu_last_ix ((coco_store * st) (coco_machine * m) (size_t pi)) (out size_t)
         (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi)))
               (size_t i . #'(-> p nclauses))
-              (size_t mark . #'(-> m heap_len))
               (size_t at . #'(cast size_t -1)))
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
           (while (> i 0)
             (set i (- i 1))
             (if (not (coco_pred_dead p i))
-                (let ((size_t t . #'(coco_deref m (coco_store_get m st (nth i (-> p clauses))))))
-                  (if (and (coco_is_compound2 m t ":-")
-                           (coco_is_compound2 m (coco_deref m (coco_arg m t 1)) "$ssu_none"))
-                      (set at i))
+                (block
+                  (if (coco_ssu_stored_last st m (nth i (-> p clauses))) (set at i))
                   break)))
-          (set (-> m heap_len) mark)
           (return at)))
 
   ;;; A PROGRAM'S RULE PUT IN WITH THE LAST CLAUSE AFTER IT, ONE CHANGE OF
@@ -1956,14 +2000,61 @@
   ;;; A READ'S END (`coco_consult_oid'): the last clause after each
   ;;; predicate it noted from BASE on, the file's own -- a re-read puts it
   ;;; where the last one stood -- and the notes taken back. It names no
-  ;;; path, so it is never a clause the not-together warning speaks of
-  (func coco_consult_ssu_close ((coco_store * st) (coco_machine * m) (size_t base)
-                                (u64 oid) (coco_origin_seen * seen))
+  ;;; path, so it is never a clause the not-together warning speaks of. A
+  ;;; predicate marked 4096 has its last clause already (3.78.13: a goal of
+  ;;; the read's settled it, or it stood at the read's first sight of it),
+  ;;; and its mark goes; so it does where the read ended short (CLOSE 0)
+  (static)
+  (func coco_consult_ssu_end ((coco_store * st) (coco_machine * m) (size_t base)
+                              (coco_origin_seen * seen) (int close))
         (let ((size_t i . #'(+ base 0)))
           (while (< i (-> m nssu))
-            (coco_assert_from st m (coco_ssu_last st m (nth i (-> m ssu_pis)) (-> m ssu_mod)) 1 oid nil 0 seen)
+            (let ((size_t pi . #'(coco-ssu-pi m i)))
+              (if (!= 0 (bitand ($ (coco-pred-at (-> st predp) pi) pattrs) 4096))
+                  (set ($ (coco-pred-at (-> st predp) pi) pattrs)
+                       (bitand ($ (coco-pred-at (-> st predp) pi) pattrs) -4097))
+                (if close
+                    (coco_assert_from st m (coco_ssu_last st m pi (-> m ssu_mod)) 1
+                                      (cast u64 (coco-ssu-word m i 1)) nil 0 seen))))
             (set i (+ i 1))))
         (set (-> m nssu) base))
+  (func coco_consult_ssu_close ((coco_store * st) (coco_machine * m) (size_t base)
+                                (coco_origin_seen * seen))
+        (coco_consult_ssu_end st m base seen 1))
+
+  ;;; THE RULES EVERY READ UNDER WAY HAS GIVEN STAND WITH THEIR LAST CLAUSE
+  ;;; WHERE PROLOG RUNS (3.78.13), swipl's, whose machine raises where no
+  ;;; rule matched: before a goal a read runs -- a directive's, the load a
+  ;;; use_module/1 or ensure_loaded/1 directive starts, an initialization/1
+  ;;; goal's of either kind, an expansion hook's -- each
+  ;;; predicate a read under way noted gets the last clause its read's end
+  ;;; would put (that read's origin and module) and is marked 4096, so the
+  ;;; read's later rules for it go in before that clause (`coco_ssu_add')
+  ;;; and its end puts none. A file read again goes the same way: its old
+  ;;; last clause went with its old clauses at its first sight
+  ;;; (`coco_reload_for'), the new one goes after its predicate's last
+  ;;; clause, where the read's end would put it, and the read places its
+  ;;; later clauses before it (`coco_reload_insert'). Passed by: a predicate
+  ;;; noted under another mute than the store's now -- a library read nested
+  ;;; in a program's load puts no last clause of the program's, which would
+  ;;; be a module's clause and never reach the knowledge base. Through
+  ;;; 3.78.12 the last clause came at the read's end alone, and a call such a
+  ;;; goal made that no rule matched FAILED where swipl's raises
+  ;;; existence_error(matching_rule, G).
+  (func coco_consult_ssu_settle ((coco_store * st) (coco_machine * m))
+        (if (== (-> m nssu) 0) (return))
+        (let ((size_t mark . #'(-> m heap_len))
+              (size_t mu . #'(? (coco_store_is_muted st) (coco-ssu-muted) 0)))
+          (for ((size_t i . 0)) (and (< i (-> m nssu)) (not (-> m oom))) ((++ i))
+            (let ((size_t w . #'(coco-ssu-word m i 0)) (size_t pi . #'(coco-ssu-pi m i)))
+              (if (and (== (bitand w (coco-ssu-muted)) mu)
+                       (== 0 (bitand ($ (coco-pred-at (-> st predp) pi) pattrs) 4096)))
+                  (block
+                    (if (coco_assert_from st m (coco_ssu_last st m pi (cast u64 (coco-ssu-word m i 2)))
+                                          1 (cast u64 (coco-ssu-word m i 1)) nil 0 nil)
+                        (set ($ (coco-pred-at (-> st predp) pi) pattrs)
+                             (bitor ($ (coco-pred-at (-> st predp) pi) pattrs) 4096)))
+                    (set (-> m heap_len) mark)))))))
 
   ;;; WHAT clause/2 AND listing/1 SHOW for a stored body B: a rule's guard,
   ;;; its cut and its body as swipl's clause/2 does -- `Guard, !, Body', and
@@ -2131,6 +2222,39 @@
                            (coco-assert-refused "No permission to assert procedure `%s'")))
                 (return (+ lx 2))))
           (return 1)))
+
+  ;;; WHERE A SINGLE-SIDED RULE GOES WHILE A READ IS UNDER WAY (3.78.13),
+  ;;; before a re-read adopts it (REREAD: a re-read's place is in hand).
+  ;;; Answers 1 where the rule goes as an assert's does (3.64.7,
+  ;;; `coco_ssu_add': before the last clause, or with a first one), 0 where
+  ;;; it is appended as a read's, and the caller's ISRULE becomes the answer
+  ;;; (a rule's LX is -1, so 0 asks nothing more of it). The read's own rule
+  ;;; (AT, its line) is noted for the read's end (`coco_ssu_note'), which
+  ;;; puts the last clause after its predicate's rules unless a goal the
+  ;;; read ran put it first (`coco_consult_ssu_settle') or it stood at the
+  ;;; read's first sight (`pattrs' 4096): then the rule goes as an assert's.
+  ;;; A rule a goal of the read asserts (AT 0) goes as an assert's -- through
+  ;;; 3.78.12 it went after the rules like the read's own, and a call in the
+  ;;; same goal that no rule matched failed. Every goal a read runs comes
+  ;;; after a settle, a load a directive starts too (`coco_directive'), so
+  ;;; the rules a read under way gave stand with their last clause by then.
+  ;;; A rule a re-read places goes by its place (`coco_reload_insert', before
+  ;;; a last clause that stands). A row a backend's fetch reads back
+  ;;; (`nomove') is the predicate as it was written, its last clause the row
+  ;;; after its rules, which the caller's SSU passes by. Out of line and
+  ;;; cold, as `coco_assert_kind' is, and asked where 3.78.12 asked its
+  ;;; note: asked of every rule in coco_assert_from, the first cuts moved `m'
+  ;;; out of its callee-saved register and cost every plain clause a load
+  ;;; adds ten to eighteen instructions.
+  (weak) (cold)
+  (func coco_assert_rule ((coco_store * st) (coco_machine * m) (size_t pi) (u64 origin)
+                          (int at) (int reread)) (out int)
+        (if (!= at 0) (coco_ssu_note st m pi origin))
+        (if (-> st nomove) (return 1))
+        (if reread (return 0))
+        (if (!= at 0)
+            (return (!= 0 (bitand ($ (coco-pred-at (-> st predp) pi) pattrs) 4096))))
+        (return 1))
 
   (func coco_assert_from ((coco_store * st) (coco_machine * m) (size_t clause)
                           (int at_end) (u64 origin) (const char * origin_path)
@@ -2498,9 +2622,12 @@
                     (let ((size_t kd . #'(coco_assert_kind st m pi clause head isrule (!= rl nil))))
                       (if (== kd 0) (return 0))
                       (if (> kd 1) (set lx (- kd 2)))))))
-            ;; a single-sided rule a read gives (3.19.0): the read's end puts
-            ;; the last clause after its predicate's rules
-            (if (and (> (-> m lreads) 0) isrule) (coco_ssu_note m pi))
+            ;; a single-sided rule a read gives (3.19.0): noted for the read's
+            ;; end, which puts the last clause after its predicate's rules, or
+            ;; placed before the last clause as an assert's is
+            ;; (`coco_assert_rule', 3.78.13)
+            (if (and (> (-> m lreads) 0) isrule)
+                (set isrule (coco_assert_rule st m pi origin at (!= rl nil))))
             (if (and (!= rl nil) (coco_reload_adopt st m rl pi clause origin))
                 (return 1))
             ;; A CYCLIC CLAUSE IS REFUSED (1.10.19), as SWI refuses one with
@@ -2540,8 +2667,10 @@
             ;; (`nomove'): the predicate as it was written, its last clause
             ;; the row after its rules (through 3.64.6 each rule read back
             ;; put another after it, and a rule asserted after them stood
-            ;; behind one: existence_error(matching_rule, G) of its own head)
-            (set ssu (and (== (-> m lreads) 0) (not (-> st nomove)) (== rl nil) isrule))
+            ;; behind one: existence_error(matching_rule, G) of its own head).
+            ;; While a read is under way ISRULE says which rules go so
+            ;; (`coco_assert_rule')
+            (set ssu (and isrule (not (-> st nomove)) (== rl nil)))
             (if ssu (set lx (coco_ssu_last_ix st m pi)))
             (if (and ssu (or at_end (== lx (cast size_t -1))))
                 (block
@@ -2832,8 +2961,8 @@
             ;; its end puts the last clause after each of its predicates'
             ;; rules, a read's own as the rules are
             (if (>= n 0)
-                (coco_consult_ssu_close st m sbase oid (? reread (aof seen) nil))
-                (set (-> m nssu) sbase))
+                (coco_consult_ssu_close st m sbase (? reread (aof seen) nil))
+                (coco_consult_ssu_end st m sbase nil 0))
             (set (-> m ssu_mod) smod)
             (set (-> m nodbg) snodbg)
             (set (-> m style) sstyle)
@@ -3763,6 +3892,7 @@
           (set (-> m sloc_tp) tp)
           (set (-> m sloc_rd) (? (== rc 1) (cast (void *) rr) (? (== rc 3) srd nil)))
           (set (-> m lhook) 1)
+          (coco_consult_ssu_settle st m)
           (set r (coco_goal_hook st m g 0 err errlen))
           (set (-> m lhook) 0)
           (set (-> m sloc_file) sfile) (set (-> m sloc_line) sline) (set (-> m sloc_src) ssrc)
@@ -5286,7 +5416,10 @@
                     ;; reach the knowledge base; muted, G's stayed in this
                     ;; process and ended with it.
                     ;; and it may collect, with the mark it is wound back to
-                    ;; registered -- nothing else of the heap is read after
+                    ;; registered -- nothing else of the heap is read after.
+                    ;; The rules the reads under way gave are settled first,
+                    ;; under the read's own mute (3.78.13)
+                    (coco_consult_ssu_settle st m)
                     (let ((int was . #'(-> st muted)) (size_t * bp . nil) (size_t bl . 1)
                           (int pushed . 0))
                       (set bp (aof back))

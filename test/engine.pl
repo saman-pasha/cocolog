@@ -2034,7 +2034,90 @@ rules_emptied(D) :-
     sh_join([C, ' run ', F, ' main 2>&1'], Cmd),
     proc_run(Cmd, 60000, Out, _), atom_codes(O, Out),
     check('the guard''s call answers, the rules emptied raise, the plain clause is the predicate, and a call it does not match fails',
-          O, 'yes-matching_rule-yes-no-[5-true]\n').
+          O, 'yes-matching_rule-yes-no-[5-true]\n'),
+    rules_read_on(D).
+
+%% A CALL WHILE A FILE IS READ RAISES WHERE NO RULE READ SO FAR MATCHES, AND
+%% A RULE READ AFTER IT IS REACHED (3.78.13, `coco_consult_ssu_settle'): the
+%% same file under `-s', whose load is muted and settles under its own mute,
+%% and under `run', which consults; and a rule asserted before a consult/1
+%% that gives the predicate another, which goes in before the asserted rule's
+%% last clause. test/files/ssu_read.pl holds the shapes to swipl; these two
+%% are cocolog's own ways in, and swipl's consult would redefine rb/1, the
+%% asserted rule gone (COMPAT.md's by-design row: cocolog keeps what each
+%% wrote). Through 3.78.12 the directive's ra(2) failed and the consulted
+%% rb(2) raised
+rules_read_on(D) :-
+    section('calls during a read reach the rules read so far, under -s and run'),
+    atom_concat(D, '/ra.pl', F),
+    atom_concat(D, '/rb.pl', B),
+    fixture(B, ['rb(2) => true.']),
+    sh_join(['main :- assertz((rb(1) => true)), consult(''', B, '''),'], M1),
+    %% ru(1) is read after the file's last directive, and the after-load
+    %% goal is the first goal to call it (the read's end closes it after)
+    fixture(F, [
+        ':- dynamic seen/1.',
+        't(G) :- catch(( G -> R = yes ; R = no ), error(E, _), ( E = existence_error(K, _) -> R = K ; R = E )), assertz(seen(G-R)).',
+        ':- initialization(t(ru(2))).',
+        'ra(1) => true.',
+        ':- t(ra(1)), t(ra(2)).',
+        'ra(2) => true.',
+        ':- t(ra(2)), t(ra(3)).',
+        'ru(1) => true.',
+        M1,
+        '        t(rb(1)), t(rb(2)), t(rb(3)), assertz((rb(4) => true)), t(rb(4)),',
+        '        findall(X, seen(X), L), write(L), nl.']),
+    cocolog(C),
+    %% rb(4), asserted after the consult, goes before the one last clause
+    %% rb/1 has: a second, put by the consult's end, would stand after it
+    W = '[ra(1)-yes,ra(2)-matching_rule,ra(2)-yes,ra(3)-matching_rule,ru(2)-matching_rule,rb(1)-yes,rb(2)-yes,rb(3)-matching_rule,rb(4)-yes]\n',
+    sh_join([C, ' -s ', F, ' 2>&1'], Cmd1),
+    proc_run(Cmd1, 60000, Out1, _), atom_codes(O1, Out1),
+    check('under -s: the directive raises for ra(2) and reaches the ra(2) read after it, the after-load goal raises for ru(2), and rb(2) is reached', O1, W),
+    sh_join([C, ' --local run ', F, ' main 2>&1'], Cmd2),
+    proc_run(Cmd2, 60000, Out2, _), atom_codes(O2, Out2),
+    check('and under run, which consults', O2, W),
+    %% the program an initialization(G, main) runs is a goal of the read too:
+    %% it runs at the outermost read's end, before its last clauses are put
+    atom_concat(D, '/rc.pl', R),
+    fixture(R, [
+        't(G) :- catch(( G -> R = yes ; R = no ), error(E, _), ( E = existence_error(K, _) -> R = K ; R = E )), write(G-R), nl.',
+        ':- initialization(rc_main, main).',
+        'rc(1) => true.',
+        'rc_main :- t(rc(1)), t(rc(2)).']),
+    sh_join([C, ' -s ', R, ' 2>&1'], Cmd3),
+    proc_run(Cmd3, 60000, Out3, _), atom_codes(O3, Out3),
+    check('a main goal raises for a call no rule read before it matches, under -s', O3,
+          'rc(1)-yes\nrc(2)-matching_rule\n'),
+    sh_join([C, ' --local run ', R, ' true 2>&1'], Cmd4),
+    proc_run(Cmd4, 60000, Out4, _), atom_codes(O4, Out4),
+    check('and under run', O4, 'rc(1)-yes\nrc(2)-matching_rule\n'),
+    %% a rule a consult nested in the read asserts: the -s file's load is
+    %% muted and the consult's read is not, but the -s file's directive that
+    %% starts the consult settles the file's rules first, under its own
+    %% mute, so the assert goes in before the last clause and the -s file's
+    %% next rule after it -- swipl's order, rp(5) asserted between rp(1) and
+    %% rp(2). (A load a use_module/1 directive starts settles nothing first:
+    %% test/files/ssu_read.pl's ip/1)
+    atom_concat(D, '/re.pl', RE),
+    fixture(RE, [':- assertz((rp(5) => true)).']),
+    atom_concat(D, '/rd.pl', RD),
+    sh_join([':- consult(''', RE, ''').'], CR),
+    fixture(RD, [
+        ':- dynamic rp/1.',
+        't(G) :- catch(( G -> R = yes ; R = no ), error(E, _), ( E = existence_error(K, _) -> R = K ; R = E )), write(G-R), nl.',
+        'rp(1) => true.',
+        CR,
+        'rp(2) => true.',
+        ':- t(rp(1)), t(rp(2)), t(rp(5)), t(rp(3)).',
+        'main :- t(rp(2)), t(rp(4)).']),
+    WD = 'rp(1)-yes\nrp(2)-yes\nrp(5)-yes\nrp(3)-matching_rule\nrp(2)-yes\nrp(4)-matching_rule\n',
+    sh_join([C, ' -s ', RD, ' 2>&1'], Cmd5),
+    proc_run(Cmd5, 60000, Out5, _), atom_codes(O5, Out5),
+    check('under -s, a nested consult''s assert of a rule goes between the -s file''s rules, and a call no rule matches raises', O5, WD),
+    sh_join([C, ' --local run ', RD, ' main 2>&1'], Cmd6),
+    proc_run(Cmd6, 60000, Out6, _), atom_codes(O6, Out6),
+    check('and under run', O6, WD).
 
 %% ---- the logical update view across a freeze and across processes --------
 %%
