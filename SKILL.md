@@ -12,7 +12,7 @@ ZiguratIP server, Zeytun over HTTP — in which a clause is a row, and a running
 proof is a term that can be frozen into rows and resumed by another process.
 It is one binary, written in **Cicili** (C in S-expressions).
 
-Version at the time of writing: cocolog 3.64.0, built with
+Version at the time of writing: cocolog 3.78.16, built with
 Cicili 3.3.0. `./cocolog --version` answers it.
 
 **Part A** is for writing and running Prolog on cocolog. **Part B** is for
@@ -44,7 +44,7 @@ The documents, and what each one answers:
 | [`TRACING.md`](TRACING.md) | the tracer, backtraces, a recorded window, the journal |
 | [`STATUS.md`](STATUS.md) | what is proven, release by release, with its numbers |
 | [`DESIGN-flow.md`](DESIGN-flow.md), [`DESIGN-compiling.md`](DESIGN-compiling.md) | the plans behind the flow libraries and the clause compiler |
-| [`tutorials/`](tutorials) | 131 lessons that run: the fastest way to learn one library |
+| [`tutorials/`](tutorials) | 132 lessons that run: the fastest way to learn one library |
 | [`tools/cocolint/GUIDE.md`](tools/cocolint/GUIDE.md) | the linter, the dialect card, the retrieval index |
 | [`../cicili/SKILL.md`](../cicili/SKILL.md), [`../cicili/lib/README.md`](../cicili/lib/README.md) | the language of the C half, and its declarations |
 
@@ -83,6 +83,10 @@ and swipl 9.0.4 disagree and `COMPAT.md` has no row for it, that is a bug.
   says nothing, as `swipl -q`), 2 an uncaught error (its message and a
   backtrace on stderr, `-q` or not), N after `halt(N)`. `query` exits 0
   whether it answered or printed `false.`, and 1 on an error.
+- `halt/0,1` ends the process from inside any search, `findall/3`'s too. The
+  `at_halt/1` goals run at every way out: at a `halt`, where one that calls
+  `cancel_halt/1` makes the halt fail, and at the program's own end, where
+  nothing cancels it.
 - **A program's arguments come after `--`**:
   `current_prolog_flag(argv, [Exe|Args])`. `library(main)` parses them: define
   `main(Argv)` and `opt_type/3`, one row for each spelling of a flag
@@ -117,7 +121,7 @@ SWI-Prolog programmer expects. The first four are the ones that bite a port.
 | `tcp_connect/2`, `proc_run/4` | unknown until its module is loaded: a first call loads library(stream), library(thread), library(signal) and library(sort) alone (`thread_create/2` and `predsort/3` among them), and `shell/1,2` is built in | `:- use_module(library(tcp)).`, `library(process)` (`sh/1`, `proc_run/4`) (§4) |
 | `:- table p/2.`, `freeze/2`, `dif/2`, `when/2`, attributed variables, dicts, `recorda/2`, `assertion/1`, `random_between/3`, `read_string/3`, a postfix operator | not there, on purpose: an existence error stops a port where a near-copy would differ in silence. `:- table` reads and the load reports `table/1` unknown; `op(200, xf, f)` is a domain error | write it out: `msort/2` or `sort/4`, `must_be/2`, `X is random(N)` |
 | `call_with_inference_limit/3` | swipl's since 3.73.0: raises inside the goal, once, and keeps its choice points; what it counts is cocolog's count (an `is/2` and a meta-called control construct are inferences here) | give the limit room. `call_limited(G, Limit, R)` stops the goal's own search instead and commits to the first solution, R `true` or `inference_limit_exceeded`; `call_metered(G, Limit, Used, R)` also says what G spent |
-| `current_prolog_flag(F, V)` of any flag | fails: twenty flags answer. `set_prolog_flag/2` of an unknown flag is `existence_error(prolog_flag, F)` | keep state with `nb_setval/2`; do not branch on flags |
+| `current_prolog_flag(F, V)` of any flag | fails: twenty flags answer, and `exit_status` once a halt has begun. `set_prolog_flag/2` of an unknown flag is `existence_error(prolog_flag, F)` | keep state with `nb_setval/2`, or swipl's `flag/3`; do not branch on flags |
 | `functor(T, '[\|]', 2)` | the list cell is `'.'/2` | `T = [_\|_]`. (`[]` is not `'[]'`, as in SWI 7.) |
 | a string asserted into a database store, or sent down a channel | comes back a code list: both carry canonical text | store atoms; convert at the edge |
 | `catch(G, error(T, context(_, _)), R)` | misses a loader's error, whose context is unbound, and a refusal, `error(cocolog_error(Text), _)` | `error(T, _)` |
@@ -134,7 +138,8 @@ Three more facts hold everywhere:
 - **Every builtin written in C is deterministic.** The ones that enumerate are
   the ones that enumerate in swipl, and they do here: `between/3`, `member/2`,
   `nth0/3`, `select/3`, `sub_atom/5`, `atom_concat/3`, `clause/2`,
-  `retract/1`, `arg/3`, `char_type/2`, `current_op/3`, `repeat/0`.
+  `retract/1`, `arg/3`, `char_type/2`, `current_op/3`, `repeat/0`,
+  `source_file/1,2`, `current_module/1`, `current_flag/1`.
 
 What is swipl's and worth knowing it is: error terms with their contexts
 (`error(type_error(integer, a), context(system:succ/2, _))`) and the messages
@@ -142,8 +147,11 @@ printed for them; the logical update view; first-argument, just-in-time and
 deep indexing; `setup_call_cleanup/3`; single-sided rules (`Head => Body`); the
 determinism guards `$/0` and `$/1`; `print_message/2` with `message_hook/3`;
 `term_expansion/2` and `goal_expansion/2`; `:- include/1`, `:- encoding/1`;
-cyclic terms; every option of `write_term/2`; `listing/1`'s layout; a float's
-text.
+`style_check/1`; cyclic terms; every option of `write_term/2`; `listing/1`'s
+layout; a float's text; the ports the tracer prints and the depth it prints
+them at; `at_halt/1`; `findnsols/4`; the limits of
+`call_with_inference_limit/3` and `call_with_depth_limit/3`; the clock's
+dates.
 
 [`COMPAT.md`](COMPAT.md) is the whole table, about 150 rows: search it for
 the predicate before calling a difference a bug.
@@ -169,10 +177,13 @@ rows a port trips on most.
   ```
 
 - The load warns as swipl's: singleton variables, a predicate's clauses not
-  together, a test the compiler can decide. Every file of this tree loads with
-  no warning. Keep it so: a variable used once is `_`, a variable used twice
-  is not named `_X`, and a helper goes after the predicate that calls it,
-  never between two of its clauses.
+  together, a test the compiler can decide. `style_check/1` turns each off or
+  on for the rest of the file, as swipl's does (`-singleton`,
+  `-discontiguous`, `-no_effect`; `+var_branches` and `+charset`, off at the
+  start). Every file of this tree loads with no warning. Keep it so: a
+  variable used once is `_`, a variable used twice is not named `_X`, and a
+  helper goes after the predicate that calls it, never between two of its
+  clauses.
 - Consulting a file again replaces the clauses it put there last time and
   leaves asserted clauses and other files' alone.
 
@@ -182,22 +193,22 @@ rows a port trips on most.
 
 | area | predicates |
 |---|---|
-| control | `,` `;` `->` `*->` `\+` `!` `call/1..` `once/1` `ignore/1` `not/1` `catch/3` `throw/1` `findall/3,4` `forall/2` `bagof/3` `setof/3` `aggregate_all/3` `between/3` `repeat/0` `halt/0,1` `setup_call_cleanup/3` `call_cleanup/2` `call_limited/3` `call_metered/4` `$/0` `$/1` `G@M` `apply/2` |
-| type and order | `var nonvar atom number integer float rational atomic compound callable is_list string ground` `acyclic_term/1` `cyclic_term/1` `= \= == \== @< @=< @> @>=` `compare/3` `=@=` `\=@=` `unify_with_occurs_check/2` `subsumes_term/2` |
-| arithmetic | `is =:= =\= < =< > >=` `succ/2` `plus/3` `set_random/1`; functions `+ - * / // div mod rem min max ** ^ gcd lcm >> << /\ \/ xor \ msb lsb popcount getbit powm abs sign float integer truncate round floor ceiling ceil sqrt exp log log10 sin cos tan asin acos atan atan2 sinh cosh tanh asinh acosh atanh erf erfc lgamma copysign nexttoward rdiv rational rationalize numerator denominator float_integer_part float_fractional_part eval roundtoward cputime random random_float pi e inf nan epsilon` |
-| terms | `functor/3` `arg/3` `=../2` `copy_term/2` `compound_name_arity/3` `compound_name_arguments/3` `setarg/3` `nb_setarg/3` `term_variables/2` `numbervars/3,4` |
+| control | `,` `;` `->` `*->` `\+` `!` `call/1..` `once/1` `ignore/1` `not/1` `catch/3` `throw/1` `findall/3,4` `findnsols/4,5` `forall/2` `bagof/3` `setof/3` `aggregate_all/3` `between/3` `repeat/0` `halt/0,1` `at_halt/1` `cancel_halt/1` `setup_call_cleanup/3` `setup_call_catcher_cleanup/4` `call_cleanup/2` `call_with_inference_limit/3` `call_with_depth_limit/3` `call_limited/3` `call_metered/4` `$/0` `$/1` `G@M` `apply/2` |
+| type and order | `var nonvar atom number integer float rational atomic compound callable is_list string ground` `acyclic_term/1` `cyclic_term/1` `= \= == \== @< @=< @> @>=` `compare/3` `=@=` `\=@=` `?=/2` `same_term/2` `unify_with_occurs_check/2` `subsumes_term/2` `unifiable/3` |
+| arithmetic | `is =:= =\= < =< > >=` `succ/2` `plus/3` `divmod/4` `nth_integer_root_and_remainder/4` `bounded_number/3` `float_class/2` `float_parts/4` `set_random/1`; functions `+ - * / // div mod rem min max ** ^ gcd lcm >> << /\ \/ xor \ msb lsb popcount getbit powm abs sign float integer truncate round floor ceiling ceil sqrt exp log log10 sin cos tan asin acos atan atan2 sinh cosh tanh asinh acosh atanh erf erfc lgamma copysign nexttoward rdiv rational rationalize numerator denominator float_integer_part float_fractional_part eval roundtoward cputime random random_float pi e inf nan epsilon` |
+| terms | `functor/3` `arg/3` `=../2` `copy_term/2` `compound_name_arity/3` `compound_name_arguments/3` `setarg/3` `nb_setarg/3` `term_variables/2,3` `term_singletons/2` `numbervars/3,4` |
 | atoms and text | `atom_codes atom_chars char_code atom_length atom_concat/3 sub_atom/5 atom_number number_codes number_chars upcase_atom downcase_atom atomic_list_concat/2,3 term_to_atom atom_to_term/3 read_term_from_atom/3 char_type/2 code_type/2 name/2 atom_string` |
 | strings | `string_concat/3 sub_string/5 string_length string_chars string_codes string_code/3 string_to_atom string_lower string_upper number_string split_string/4 string_bytes/3 term_string/2,3 text_concat/3 text_to_string/2` |
 | lists | `append/2,3 member memberchk length nth0/3,4 nth1/3,4 last reverse msort sort/2,4 keysort select/3,4 selectchk subtract intersection union subset delete flatten sum_list max_list min_list max_member min_member numlist/3 list_to_set is_set permutation prefix nextto same_length proper_length clumped` |
 | apply | `maplist/2..5 foldl/4..7 include/3 exclude/3 partition/4,5 convlist/3 scanl/4..7`, and yall's lambdas: `[X, Y]>>Goal`, `Free/[X]>>Goal` |
 | database | `assert/1 asserta/1 assertz/1 retract/1 retractall/1 abolish/1,2 clause/2 dynamic/1 discontiguous/1 multifile/1 listing/0,1 portray_clause/1 current_predicate/1 predicate_property/2 op/3 current_op/3`, and swipl's `source_file/1,2` (the files the program loaded, in their order, and each one's predicates) and `current_module/1` (user, system, prolog, a file's module/2 and a library the program imported; one namespace, so a qualifier makes no module) |
-| globals | `nb_setval/2 nb_getval/2 nb_current/2` (kept across backtracking), `b_setval/2 b_getval/2` (undone by it) |
+| globals | `nb_setval/2 nb_getval/2 nb_current/2 nb_delete/1` (kept across backtracking), `b_setval/2 b_getval/2` (undone by it); swipl's `flag/3 get_flag/2 set_flag/2 current_flag/1`, one table of the process's that every thread and green task shares |
 | output | `write/1 writeln/1 print/1 writeq/1 write_canonical/1 write_term/2 nl/0 tab/1 format/1,2,3 with_output_to/2 flush_output/0 print_message/2 message_to_string/2` |
-| files and the system | `exists_file exists_directory access_file size_file time_file delete_file rename_file make_directory make_directory_path delete_directory directory_files working_directory tmp_file read_file_to_codes/2 write_file_from_codes/2 append_file_from_codes/2 absolute_file_name/2,3 file_base_name file_directory_name file_name_extension same_file read_link/3 expand_file_name` `getenv/2 setenv/2 unsetenv/1 get_time/1 sleep/1 statistics/2 garbage_collect/0`, and the clock as swipl's: `stamp_date_time/3` (a stamp's `date(Y,M,D,H,Mn,S,Off,TZ,DST)` in `'UTC'`, `local` or an offset in seconds WEST of UTC), `date_time_stamp/2` and `format_time/3,4` (strftime's directives to any format/3 sink; the names English with `posix`). `read_file_to_codes/2` FAILS for a missing file or a directory (ask `exists_file/1` first), and raises `resource_error(stack)` for a file whose codes pass the stack limit: a code is 24 bytes of list, so the default 1 GB holds a file of 44 MB; read a bigger one a line at a time through `library(stream)` |
-| loading | `consult/1 load_files/2 ensure_loaded/1 use_module/1,2 include/1 initialization/1,2 module/2 source_location/2 prolog_load_context/2 expand_term/2 expand_goal/2 current_prolog_flag/2 set_prolog_flag/2` |
+| files and the system | `exists_file exists_directory access_file size_file time_file delete_file rename_file make_directory make_directory_path delete_directory directory_files working_directory tmp_file read_file_to_codes/2 write_file_from_codes/2 append_file_from_codes/2 absolute_file_name/2,3 file_base_name file_directory_name file_name_extension same_file read_link/3 expand_file_name` `getenv/2 setenv/2 unsetenv/1 shell/1,2 get_time/1 sleep/1 statistics/2 garbage_collect/0 garbage_collect_atoms/0 garbage_collect_clauses/0 trim_stacks/0`, and the clock as swipl's: `stamp_date_time/3` (a stamp's `date(Y,M,D,H,Mn,S,Off,TZ,DST)` in `'UTC'`, `local` or an offset in seconds WEST of UTC), `date_time_stamp/2` and `format_time/3,4` (strftime's directives to any format/3 sink; the names English with `posix`). `read_file_to_codes/2` FAILS for a missing file or a directory (ask `exists_file/1` first), and raises `resource_error(stack)` for a file whose codes pass the stack limit: a code is 24 bytes of list, so the default 1 GB holds a file of 44 MB; read a bigger one a line at a time through `library(stream)` |
+| loading | `consult/1 load_files/2 ensure_loaded/1 use_module/1,2 include/1 initialization/1,2 module/2 source_location/2 prolog_load_context/2 expand_term/2 expand_goal/2 style_check/1 current_prolog_flag/2 set_prolog_flag/2` |
 | grammars | `-->` `phrase/2,3` `call_dcg/3` `dcg_translate_rule/2`; `library(dcg/basics)`: `blank blanks white whites digits//1 integer//1 float//1 number//1 string//1 string_without//2 nonblanks//1 xinteger//1 eos eol remainder//1`; `library(dcg/high_order)`: `sequence//2,3,5 optional//2 foreach//2,3` |
 | errors | `must_be/2 is_of_type/2 type_error/2 domain_error/2 instantiation_error/1` |
-| SWI's own libraries, vendored unmodified | `assoc` (`list_to_assoc put_assoc get_assoc ...`), `pairs`, `ordsets`, `ugraphs`, `aggregate` (`aggregate/3,4 aggregate_all/3,4 foreach/2`), `yall` |
+| SWI's own libraries, vendored unmodified | `assoc` (`list_to_assoc put_assoc get_assoc ...`), `pairs`, `ordsets`, `ugraphs`, `aggregate` (`aggregate/3,4 aggregate_all/3,4 foreach/2`), `yall`, all read at start-up; and `sort` (`predsort/3 locale_sort/2`), read at the first call of one of its names (lesson 57) |
 | green threads | `library(async)`, §6 |
 | the store's connection | `zigurat_begin/0 zigurat_commit/0 zigurat_rollback/0 zigurat_isolation/1 zigurat_call/2,3` (§5), `vacuum_kb/0,1` |
 
@@ -278,7 +289,14 @@ process and who else can see it.
 - A writing process rewrites the whole predicate and the old rows stay dead
   until `vacuum`. A store that has grown slow wants a vacuum.
 - The first call of a predicate fetches all its clauses. A predicate the store
-  cannot read raises `resource_error(knowledge_base)`.
+  cannot read raises `resource_error(knowledge_base)`, and so does a write it
+  refuses, in `assertz/1`, `retract/1` and `retractall/1`, the program left
+  as it stood before the write.
+- `retract/1` and `retractall/1` of one key cost that key's clauses however
+  big the predicate is, as swipl's do, so facts make a fair queue, counter or
+  cache. A clause retracted from a predicate of more than eight dies in
+  place, and the dead are swept once they are many or have cost a sweep in
+  the calls that pass them.
 - A store is in the writing machine's byte order and does not travel.
 - Lesson: `tutorials/basics/11-the-knowledge-base.pl`.
 
@@ -339,6 +357,11 @@ conc_os(Status) :-                                % Status = true
   Wait outside the search where the program allows it.
 - A store write in a green world stops every worker while it lands. Write
   seldom, and do the first call of each predicate before the world starts.
+- A task waiting in `sleep/1`, a socket's accept or read, a child process
+  (`proc_run/4`, `proc_wait/3`), `thread_join/2` or a curl transfer holds its
+  worker, but no other task's store write waits for it.
+- swipl's `flag/3`, `get_flag/2`, `set_flag/2` and `current_flag/1` keep one
+  table for the process: the one thing every thread and green task shares.
 - Size work from `async_workers/1`, never from a number: a machine may have
   three cores.
 - Mutexes and conditions (`with_mutex/2`) serialise the world outside — a
@@ -643,8 +666,15 @@ that costs a thousand.
   raised in instead, as `[Depth] Goal` (the run is slower). `--no-backtrace`
   prints the message alone.
 - `--trace`, or `trace/0` and `notrace/0` from inside, prints swipl's four
-  ports on stderr. It hides what swipl's hides: a library predicate shows its
-  own call, not its helpers.
+  ports on stderr, at the depths swipl's prints them. It hides what swipl's
+  hides: a library predicate shows its own call, not its helpers, and a `$`
+  name is never a port. `once/1`, `ignore/1`, `not/1` and `catch/3` are ports
+  of their own, their goal a level below, and so is `call/N` where swipl calls
+  it as a predicate (meta-called, or a goal a variable stood for); a control
+  structure `call/1` runs stands in swipl's `'<meta-call>'/1` frame; a `\+`
+  whose goal succeeds fails its clause with no Redo; `setup_call_cleanup/3`'s
+  setup, goal and cleanup stand where swipl's do. `test/trace.pl` holds the
+  ports to swipl 9.0.4's, and `COMPAT.md` says where they still differ.
 - `statistics(inferences, N)`, `call_metered/4` and `statistics(cputime, T)`
   measure from inside.
 - [`TRACING.md`](TRACING.md) has the ports, the inference clock, a recorded
@@ -778,10 +808,11 @@ wrong guess there compiles to something that fails much later.
 | `lib/dcg.cicili` | the grammar translator, `phrase/2,3`, term and goal expansion |
 | `lib/kb.cicili`, `kb-compile`, `kb-pred`, `kb-consult` | the clause store and its five backend hooks; compiled clauses, guards, environments; predicates, indexes, the update view, compaction; assert, consult, retract |
 | `lib/solve.cicili`, `solve-journal`, `solve-control`, `solve-gc`, `solve-loop`, `solve-arith`, `solve-text`, `solve-db` | the engine: tables and declarations; the journal; continuations, choice points, throwing, error text, the tracer; the collector; the step loop; arithmetic; text; the database, listing and dispatch |
-| `lib/builtins.cicili`, `builtins-format`, `builtins-db` | the builtins module: its table and Prolog half; `format` and the character classes; the database half and the dispatcher |
-| `lib/lists.cicili`, `apply`, `files`, `library` | `library(lists)`, `library(apply)`, the Files library; `use_module` and the library path |
+| `lib/builtins.cicili`, `builtins-format`, `builtins-time`, `builtins-db` | the builtins module: its table and Prolog half; `format` and the character classes; the clock, swipl's pl-tai.c ported; the database half and the dispatcher |
+| `lib/lists.cicili`, `apply`, `files`, `library` | `library(lists)`, `library(apply)`, the Files library; `use_module`, the library path and the autoloader |
+| `lib/autoload.cicili` | which of cocolog's own modules holds which name, and the exports of `lib/swipl`'s libraries read when asked: GENERATED by `tools/autoload/tables.pl` from their sources. Run it again, never edit the table |
 | `lib/swipl-ctype.cicili`, `swipl-det`, `swipl-props`, `swipl-system` | tables GENERATED under the reference swipl by `tools/ctype`, `tools/det`, `tools/props`, `tools/dwim`: run the generator again, never edit the table |
-| `lib/swipl/` | SWI's eight vendored libraries, unmodified: do not edit |
+| `lib/swipl/` | SWI's nine vendored libraries, unmodified: do not edit. Eight are read at start-up, `sort.pl` at the first call of one of its names |
 | `lib/state.cicili` | the frozen machine: freeze and thaw |
 | `lib/green.cicili` | the green scheduler: workers, channels, the write barrier |
 | `lib/module.cicili`, `lib/sdk.cicili` | the module seam, and the SDK a loadable module is written against |
@@ -899,12 +930,15 @@ Prolog cases, each with its seconds.
 - **Add to the table, never to the generated code.** The tables emit several
   things that must not drift apart: `*builtins*`, `*operators*`,
   `*arith-names*`, `*functor-names*`, `*construct-names*`, `*error-contexts*`,
-  `*frame-contexts*`, `*wt-options*`, `*coco-ct-classes*`.
+  `*frame-contexts*`, `*wt-options*`, `*coco-ct-classes*`,
+  `*trace-ctl-preds*`, `*trace-scc-frames*`.
 - **A new C builtin wants four things**: its row; an `*error-contexts*` row,
   or its errors name nothing; a line in `library/flow/modes.pl`; and
   `make modules` and `make index` afterwards, so the flow tables and the
-  linter's blocklist know it. A new library helper wants a `*frame-contexts*`
-  row under swipl's name for it.
+  linter's blocklist know it. One that swipl writes as clauses wants a fifth,
+  a line in `coco_depth_row` or a decline under a depth limit, or
+  `call_with_depth_limit/3` counts it one frame. A new library helper wants a
+  `*frame-contexts*` row under swipl's name for it.
 - **A builtin raises swipl's error through `coco_raise`**, catchably. What a
   `coco_m_*_error` returns is the predicate's ANSWER (2), not a status: pass
   it through, never test `not`.
@@ -914,14 +948,43 @@ Prolog cases, each with its seconds.
 - **A cell index held across a step is a root** the collector must be told
   (`coco_heap_root_push`, `coco_store_root_push`). The store's compaction
   moves cells.
+- **A ground global's copy and a `b_setval/2` box stand in for swipl's
+  long-lived global**, made lazily where swipl's lives from the start. A
+  write into one is undone as swipl's is, whatever the cell's age
+  (`coco-gc-stand-in`, asked by the collector's trail pass). A new stand-in
+  goes into that macro, and a reader that trusts a kept copy without its
+  sentinel asks `coco_gcache_ok`.
 - **A new field of the machine is appended**, never inserted: a field in the
   middle moves every offset after it.
 - **The step loop is measured, not reasoned about.** A branch, a call, a lock
   or a `defer` added to anything it reaches can move its registers. Slow paths
   go out of line (`(weak) (cold)`); count before and after (§18).
 - **The logical update view**: a call sees the clauses that stood when it
-  began. A reader of the clause list skips the dead; a writer of the counts
-  calls `coco_pred_nprobe`.
+  began. A retract kills its clause in place where a call is open on the
+  predicate or the predicate holds more than eight clauses or dead ones
+  already, and the dead are swept once they are due (`coco-tomb-due`). A
+  reader of the clause list skips the dead; a writer of the counts calls
+  `coco_pred_nprobe`; a new site that sweeps asks `coco-tomb-due` first, or a
+  retract costs the predicate's size again; a new walk that passes the dead
+  charges them (`coco-tomb-charge`).
+- **A first call of a name one of cocolog's own modules holds loads that
+  module** (`lb_autoload`, asked where the step would raise the unknown
+  procedure, so a call that has a definition asks nothing). A new module that
+  holds what swipl has built in goes into `at_modules/1` in
+  `tools/autoload/tables.pl`, a vendored library read when asked into
+  `at_libraries/1`, and the table is generated again. No load runs while
+  another thread runs an engine, so a new way to start a thread that runs one
+  counts it.
+- **A load that runs Prolog settles first.** Before a directive's goal, a
+  nested load, an initialization goal or an expansion hook, the single-sided
+  rules read so far get their last clause (`coco_consult_ssu_settle`), or a
+  call there that no rule matches fails where swipl's raises.
+- **The tracer's frames are swipl's.** A helper the program must not see is a
+  `$` name, never a port. A helper that stands for a predicate swipl shows
+  (`'$c_and'/2` for `','/2`) is a row of `*trace-ctl-preds*`, and a clause of
+  setup_call_cleanup/3's machinery whose body stands elsewhere a row of
+  `*trace-scc-frames*`. A new search a builtin starts goes through
+  `coco_trace_inner`. `TRACING.md` and `test/trace.pl` are the reference.
 - **A feature that touches the knowledge base must consider all three
   arrangements**: local (no hooks), Zigurat (all five), Zeytun (`fetch` and
   `warm` only).
@@ -939,11 +1002,17 @@ function**: each bullet is there because its fact has already cost a day.
   world goes on. Writes are dear and reads run in parallel. Every piece of
   metadata a first call makes — a predicate created, a clause compiled, an
   index built — is a write too.
+- **Nothing read before a barrier is used after it.** Waiting at one, a
+  worker answers the other workers' writes, so a count, a slot or a pointer
+  read before it may be stale. A predicate is taken by its `coco_pred *`
+  (`coco-pred-at`: a predicate never moves) or its index, never by an address
+  into an array that grows, and nothing a retry calls waits at one.
 - A blocking C call that touches no store declares itself
   (`coco_g_foreign_begin`/`_end`) and is not waited for; its return syncs with
   a write in flight. A call that touches the store must not declare itself.
-- The name tables are shared across the machines of a world: an intern hit
-  takes no lock, a miss takes the names mutex, and a growth publishes a new
+- The name tables are shared across the machines of a world: an atom's or a
+  functor's hit takes no lock and reads no slot past what its machine synced,
+  a miss takes the names mutex and looks again, and a growth publishes a new
   array and never frees the old one while the world lives.
 - `findall/3`'s results and a caught ball live in **private per-engine
   stores**; their puts skip the barrier. Only a ball no catch takes is copied
@@ -980,7 +1049,10 @@ function**: each bullet is there because its fact has already cost a day.
   naive reverse, queens and lookup, the jump padding apart. The two binaries
   must stand at paths of one length, in sibling directories.
 - A start: `valgrind --tool=callgrind ./cocolog query true`. A function's own
-  count is callgrind's.
+  count is callgrind's. Count each binary's start with it copied in turn to
+  the checkout's own path: two paths of one length still hash apart (3.78.4's
+  start read 1 804 instructions more than 3.78.3's from two such paths, and
+  548 more from one).
 - **A count is not a clock.** Count to find a cost, time to confirm it. This
   box drifts about 20 % between runs of one build: compare two builds in one
   round, alternating, and do not read a ratio under a tenth from ten rounds.

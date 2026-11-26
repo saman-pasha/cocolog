@@ -49,10 +49,10 @@ it. See [The flow libraries](#the-flow-libraries) below.
 
 | | |
 |---|---|
-| **A language** | A Prolog: the ISO core, DCGs, exceptions, `format`, eight libraries copied unmodified from SWI and read at start-up. The places it deliberately differs from the reference implementations are one table, every row checked by running the same goal on both: [COMPAT.md](COMPAT.md). |
+| **A language** | A Prolog: the ISO core, DCGs, exceptions, `format`, and the small built-ins a swipl program calls as it stands, from `style_check/1`, `flag/3` and `at_halt/1` to `format_time/3` and `source_file/2`; nine libraries copied unmodified from SWI, eight read at start-up and `library(sort)` at its first call. The places it deliberately differs from the reference implementations are one table, every row checked by running the same goal on both: [COMPAT.md](COMPAT.md). |
 | **A state machine** | A proof is a term. Freeze it, store it, read it back in another process, go on. The store is MVCC (ZiguratIP's MVCCS), transactional by the turn, and a clause is a row. |
 | **A concurrency model** | Green threads as in Go -- `go`, `yield`, `await`, channels -- over ONE shared store, one worker a core, preempted at 10,000 steps. Real threads, which share nothing and copy terms. |
-| **A bridge** | Twenty loadable modules over C and C++ libraries, each declared in a Cicili binding and called as Prolog: sockets, TLS, HTTP, WebSocket, OpenCV, raylib, libtorch, TensorFlow, curl, cryptography. No C pasted into Prolog strings. |
+| **A bridge** | Twenty-one loadable modules over C and C++ libraries, each declared in a Cicili binding and called as Prolog: sockets, TLS, HTTP, WebSocket, OpenCV, raylib, libtorch, TensorFlow, curl, PCRE2, cryptography. No C pasted into Prolog strings. |
 
 One binary. The knowledge base is chosen at run time: in memory (`--local`,
 the default), in a ZiguratIP server over its binary protocol (`--kb`), over
@@ -89,7 +89,8 @@ states in the code why it does not.
 * **The letter of the language, where it matters.** Not "familiar": the same
   text, the same errors, the same exit statuses. A float is written as the
   shortest text that reads back as the same double; `catch/3` stops catching
-  once its goal exits; a cyclic term prints `@(S_1,[S_1=f(S_1)])`.
+  once its goal exits; a cyclic term prints `@(S_1,[S_1=f(S_1)])`; `--trace`
+  prints the ports swipl's prints, at the depths it prints them.
   `test/files/*.pl` runs the same files under a reference Prolog and compares
   every answer, and [COMPAT.md](COMPAT.md) is the one table of the places
   cocolog does not agree.
@@ -99,14 +100,14 @@ states in the code why it does not.
   losses in: syntax errors, tabling, strings, ecosystem. See
   [bench/README.md](bench/README.md).
 * **Documentation that runs.** Every tutorial is a program whose claims are
-  `must/3` checks; the suite runs all 131 lessons. A lesson that stops being
+  `must/3` checks; the suite runs all 132 lessons. A lesson that stops being
   true fails and names both answers. The whole tree lints clean, held there by
   `cocolint` and `test/lint.pl`.
 * **One mechanism, not two.** Errors are catchable and carry the raised ball; a
   module is a C API bound in Cicili; a library is clauses; a server page is a
   clause; a grammar is compiled in the engine. There is no second language
   hiding under the first.
-* **Nothing rewritten that can be imported.** Eight of SWI's libraries, copied
+* **Nothing rewritten that can be imported.** Nine of SWI's libraries, copied
   unmodified (BSD-2) into `lib/swipl/`; OpenSSL for crypto and TLS; libcurl for
   curl; ZiguratIP for the durable store; cicili for the language. The repository
   owns what it must -- the engine, the state format, the seam -- and borrows the
@@ -122,8 +123,10 @@ states in the code why it does not.
 agree with the standard text; compiled clauses (head and body programs keyed by the clause's cell);
 guards that run a body's leading arithmetic as its clause is entered;
 environments for bodies with constructs; a sliding mark-compact heap collector;
-a tracer and recorder that record exactly what they print; limits in inferences
-and steps; a backtrace carried by the throw itself.
+a tracer that prints swipl's ports at swipl's depths, and a recorder that
+records exactly what it prints; limits in inferences, steps and depth; a
+backtrace carried by the throw itself; an autoloader that reads the module
+holding a name at the name's first call.
 
 **The state format** (`lib/state.cicili`) -- a suspended machine as text; four
 sections plus the names; thawed, resumed and finished by any process.
@@ -146,18 +149,21 @@ BSD-2 headers into `lib/swipl/` and read at start-up**, so they need no import:
 `dcg_high_order`; `async`; and since 2.16.0 `print_message`, swipl's
 `print_message/2` with `message_to_string/2`, `print_message_lines/3`,
 `message_hook/3` and `prolog:message//1`, the kinds, prefixes and error text
-held to swipl 9.0.4. Tier 2 is loaded on demand from
-`$COCOLOG_LIBRARY`:
+held to swipl 9.0.4. A ninth of SWI's, `sort` (`predsort/3`, `locale_sort/2`,
+since 3.76.0), is read at the first call of one of its names. So, since 3.66.0,
+is a module of cocolog's own that holds a name swipl has built in: a first
+`open/3` loads `library(stream)`, a first `thread_create/2` `library(thread)`.
+Tier 2 is loaded on demand from `$COCOLOG_LIBRARY`:
 `http`, `httpd`, `websocket`, `json`, `xml`, `html`, `ca`, `kbs`, `cowork`,
 `main`, `astar`, `hex`, `template`, `clay_ray`, `tensor_expr`, `llm`, plus the
 family below -- `library/flow/`.
 
-**The modules** (twenty; `sh modules/NAME/build.sh`, not part of `make`):
+**The modules** (twenty-one; `sh modules/NAME/build.sh`, not part of `make`):
 
 | needs nothing | `tcp` `thread` `process` `text` `os` `signal` `clay` `stream` |
 |---|---|
 | a built ZiguratIP | `sha` `aes` `der` `x509` `tls` `bigint` |
-| an external library | `curl`, `torch`, `tensorflow`, `ray`, `numpy`, `opencv` |
+| an external library | `curl`, `regex`, `torch`, `tensorflow`, `ray`, `numpy`, `opencv` |
 
 **The tools** -- `cocolint` (the dialect linter; the whole tree is clean);
 `library(flow/chart)` and `library(flow/debug)` (below); `tools/compile/`
@@ -166,7 +172,7 @@ wrappers every build uses); `bench/langs.sh` and `bench/concurrency.sh` (the
 benchmarks against CPython, Go, Rust, asyncio and the reference Prolog),
 and `bench/tokens.pl` (what a model spends writing the same programs in
 cocolog and in Python);
-`tutorials/` (131 lessons that run); `test/` (the suite).
+`tutorials/` (132 lessons that run); `test/` (the suite).
 
 ## Solutions to real problems
 
@@ -189,7 +195,8 @@ over data read once. The table and the method are in
 **Concurrency with one truth.** Green threads share one store: an `assertz` in
 one task is seen by the next, because it is their store, and writes take the
 world's barrier to make that true. Real threads get a machine, a store and a
-connection of their own and copy terms through channels. `library(httpd)`
+connection of their own and copy terms through channels; swipl's `flag/3`
+table is the one thing they all share. `library(httpd)`
 serves under three modes -- `concurrency(none)` on the calling thread,
 `concurrency(thread(N))` with each request an isolated proof (fresh machine and
 store, one commit), and `concurrency(green(N))` with green tasks over the one
@@ -257,6 +264,9 @@ in any of the four knowledge-base arrangements.
 | catch the traps of this dialect before they bite | `sh tools/cocolint/lint.sh FILE.pl`; the card, the index, `make lint` |
 | Go-style concurrency inside one process | `library(async)`, tier 1: `async_run`, `go`, `yield`, `await`, channels |
 | messages, warnings and an error's text as swipl prints them | `print_message/2`, tier 1, with `message_hook/3` and `prolog:message//1`; lesson 56 |
+| a sort by an order of your own | `predsort/3`, swipl's own `library(sort)`, read at its first call; lesson 57 |
+| a goal bounded by inferences or by depth | `call_with_inference_limit/3`, `call_with_depth_limit/3`, swipl's; `call_limited/3`, cocolog's, which stops the goal's search instead |
+| dates and times as swipl writes them | `stamp_date_time/3`, `date_time_stamp/2`, `format_time/3,4`, built in |
 | an HTTP server whose pages are clauses | `library(httpd)` -- `concurrency(none/thread/green)`; lesson 16 |
 | a durable store, embedded or served | `--embed`; `--kb` to a ZiguratIP server; `library(kbs)` for named jobs |
 | frames, images, vision, ML | `library(opencv)`, `library(ray)`, `library(torch)`, `library(tensorflow)`, `library(tensor_expr)` |
@@ -300,6 +310,8 @@ the verdict.
   reference Prologs and ISO, each row checked by running the same goal on
   both.
 * [MODULES.md](MODULES.md) -- how to write a module in Cicili.
+* [TRACING.md](TRACING.md) -- the tracer's ports as swipl's prints them, a
+  backtrace, a recorded window and the journal.
 * [SKILL.md](SKILL.md) -- the working guide, for a person or an agent: how to
   run a program, where the dialect parts from SWI-Prolog's, every library
   with its lesson, `library(tensor_expr)` and the flow libraries in working
@@ -310,5 +322,5 @@ the verdict.
 * [emacs/README.md](emacs/README.md) -- cocolog-mode: the colour-variable
   reading, the in-comment tests, the shadow engine and its checks.
 
-cocolog 3.64.0. README.md says what it is, STATUS.md what is proven, MODULES.md
+cocolog 3.78.16. README.md says what it is, STATUS.md what is proven, MODULES.md
 how a module is written.
