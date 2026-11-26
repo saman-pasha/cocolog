@@ -3022,7 +3022,9 @@ a session must keep:
   (`coco-tomb-many`), or paid for (`coco-tomb-paid`): `tprobe` counts each
   call the out-of-line probe takes and each dead clause a call or a walk
   passes (`coco-tomb-charge`, in `coco_pred_probe_dead` and
-  `coco_frame_next`), and once it reaches the predicate's clauses, 256 at
+  `coco_frame_next`; a new call's charge in a green world through the
+  task's machine, 64 at a time, `coco_tomb_charge_at`, 3.78.19), and once
+  it reaches the predicate's clauses, 256 at
   least, passing the dead has cost a sweep. Where no frame is open on the
   predicate they go at a retract, a retractall/1 that took several, an
   assertz, a walk of retract/1's or clause/2's as it begins (through
@@ -5476,20 +5478,30 @@ a session must keep:
   128-byte lines of its own); and through 3.78.17 the step's slow way
   noted every predicate it resolved called (`pattrs` 128) at each call
   that came there, which a meta-predicate's every call does (stored where
-  it is clear since 3.78.18). Eight tasks over one loop took 1.3 to 3.2
-  times the time of eight with a copy each, and the benchmark's store
-  lane, its lookups the bulk of it, 2.1 times 3.78.17's. **A flag a call
-  sets on the store's shared metadata -- a predicate, a code, a functor --
-  is stored only where it changes, and what a worker makes for every task
-  to read goes on lines of its own**: the test costs a single thread two
-  instructions, where the store cost eight tasks up to twice their work
-  again. Helgrind sees none of it: the world's lock between quanta orders
-  every access. The rest of what a worker builds there -- an argument's
-  table, a deep node, an index built again, a predicate's grown arrays --
-  was measured in 3.78.18 and shared no line in the fixtures (`shared_lines`'
-  method, the tables built in the timed world too); given 128-byte blocks
-  of its own it bought nothing, so it stays where malloc puts it
-  (STATUS.md).
+  it is clear since 3.78.18); and through 3.78.18 a call of a predicate
+  with dead clauses stored what it owed their sweep into the predicate
+  (`tprobe`, 3.78.15) -- a task's machine holds it now and puts it in 64
+  at a time (`coco_tomb_charge_at`, 3.78.19: 2.3 to 2.8 times the copies'
+  time at four calls a turn, 0.9 now). Eight tasks over one loop took 1.3
+  to 3.2 times the time of eight with a copy each, and the benchmark's
+  store lane, its lookups the bulk of it, 2.1 times 3.78.17's. **A flag a
+  call sets on the store's shared metadata -- a predicate, a code, a
+  functor -- is stored only where it changes, a count a call keeps there
+  is kept on the calling task's machine and put in now and then, and what
+  a worker makes for every task to read goes on lines of its own**: the
+  test costs a single thread two instructions, where the store cost eight
+  tasks up to twice their work again. Helgrind sees none of it: the
+  world's lock between quanta orders every access. The rest of what a
+  worker builds there -- an argument's table, a deep node, an index built
+  again, a predicate's arrays a task's assertz grows, a block of
+  predicates -- is made in 128-byte blocks of whole lines while a world
+  shares the store (`coco_meta_move`, `coco_store_grow_meta`; the
+  owner's word, 3.78.19), though neither 3.78.18's fixtures nor 3.78.19's
+  found a line shared there (`shared_lines`' method, the tables built in
+  the timed world too): it measured nothing either way. **A growth
+  outside a world stays `coco_store_grow`'s, inlined where it is asked**:
+  out of line, a call for each of the seven arrays of a predicate's first
+  clause cost a start 256 000 instructions (STATUS.md).
   **THE 2.8.0 SCHEDULER BUGS ARE FIXED (2.8.1)**: the block was
   set under the world lock but the task's state only later, in the run's
   rc-0 handler, so a target finishing in the window woke nobody and the

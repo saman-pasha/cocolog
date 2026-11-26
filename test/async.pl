@@ -2897,7 +2897,7 @@ barrier_run(Path, Out-Exit) :-
     sh_join(['ulimit -v 4194304; COCOLOG_GREEN_WORKERS=4 ', C, ' run ', Path, ' main 2>&1'], Cmd),
     shell(Cmd, Out, Exit, 60000).
 
-%% ---- the lines the workers share (3.78.17, 3.78.18) -----------------------
+%% ---- the lines the workers share (3.78.17 to 3.78.19) ----------------------
 %%
 %% EIGHT TASKS THAT SHARE ONE LOOP TAKE THE TIME OF EIGHT WITH A COPY EACH,
 %% on the same workers, in the same child: the work is the same, and the
@@ -2912,7 +2912,12 @@ barrier_run(Path, Out-Exit) :-
 %% predicate of four clauses and fails back over them (1.3 to 3.2 times),
 %% `meta' one that calls a meta-predicate four times a turn: its every
 %% call goes the step's slow way, which noted the predicate called
-%% (`pattrs' 128) at each call through 3.78.17 (1.6 to 1.7 times).
+%% (`pattrs' 128) at each call through 3.78.17 (1.6 to 1.7 times), and
+%% `dead' one that calls a predicate with four dead clauses four times a
+%% turn, while a task of its own holds a frame open on it so that no sweep
+%% takes them: each call stored what it owed their sweep into the predicate
+%% (`tprobe') through 3.78.18 (2.3 to 2.8 times). Its predicates are made
+%% afresh each round, as a round's end leaves the dead free to go.
 %% A child times five alternating rounds of each and takes each side's
 %% least; a ratio past the bar is measured again by a second child and the
 %% less kept, since a pause only adds. min(4, the world's size) workers,
@@ -2926,7 +2931,7 @@ shared_lines :-
         atom_concat(D, '/lines.pl', Path),
         lines_fixture(Lines),
         fixture(Path, Lines),
-        forall(member(Kind, [env, bt, meta]),
+        forall(member(Kind, [env, bt, meta, dead]),
                ( lines_ratio(Path, W, Kind, V),
                  format(atom(Says), '~w: one loop for eight tasks costs what a loop each does, ~w workers',
                         [Kind, W]),
@@ -2962,12 +2967,48 @@ lines_fixture(Lines) :-
              'loop(bt, own, K, N, G) :- atom_concat(l, K, L), G =.. [L, N].',
              'loop(env, own, K, N, G) :- atom_concat(e, K, E), G =.. [E, N].',
              'loop(meta, own, K, N, G) :- atom_concat(v, K, V), G =.. [V, N].',
+             'world(dead, How, N) :- !, dtimed(How, N, _).',
              'world(Kind, How, N) :-',
              '    findall(G, ( between(1, 8, K), loop(Kind, How, K, N, G) ), Gs),',
              '    async_run(( spawn_all(Gs, Ids), await_all(Ids) ), _).',
              'spawn_all([], []).',
              'spawn_all([G|Gs], [Id|Ids]) :- go(G, Id), spawn_all(Gs, Ids).',
+             'timed(dead, How, N, T) :- !, dtimed(How, N, T).',
              'timed(Kind, How, N, T) :- get_time(T0), world(Kind, How, N), get_time(T1), T is T1 - T0.',
+             % the `dead' kind: P of 64 facts, its last four retracted (dead in
+             % place, and not due), and a loop L that calls P(5) four times a
+             % turn; fresh names each round
+             ':- dynamic(dround/1).',
+             'dround(0).',
+             'dmake(P, L) :-',
+             '    forall(between(1, 64, I), ( F =.. [P, I], assertz(F) )),',
+             '    forall(between(61, 64, I), ( F =.. [P, I], retract(F) )),',
+             '    G =.. [P, 5], L0 =.. [L, 0], LN =.. [L, N], LN1 =.. [L, N1],',
+             '    assertz((L0 :- !)), assertz((LN :- G, G, G, G, N1 is N - 1, LN1)).',
+             'dnames(How, R, K, P, L) :-',
+             '    ( How == shared -> T = s ; T = K ),',
+             '    atomic_list_concat([dp, T, x, R], P), atomic_list_concat([dl, T, x, R], L).',
+             'dprep(How, Ps, Ls) :-',
+             '    retract(dround(R0)), R is R0 + 1, assertz(dround(R)),',
+             '    (   How == shared',
+             '    ->  dnames(shared, R, 0, P, L), dmake(P, L), Ps = [P], findall(L, between(1, 8, _), Ls)',
+             '    ;   findall(P-L, ( between(1, 8, K), dnames(own, R, K, P, L), dmake(P, L) ), PLs),',
+             '        pairs_keys_values(PLs, Ps, Ls) ).',
+             % a holder's frame on its P is open while the eight tasks run
+             'dhold(P, Ready, Rel) :- G =.. [P, _], G, channel_send(Ready, ok), channel_recv(Rel, _), !.',
+             'dholders([], _, _, []).',
+             'dholders([P|Ps], Ready, Rel, [H|Hs]) :- go(dhold(P, Ready, Rel), H), dholders(Ps, Ready, Rel, Hs).',
+             'drecv(0, _) :- !.',
+             'drecv(K, C) :- channel_recv(C, _), K1 is K - 1, drecv(K1, C).',
+             'dsend(0, _) :- !.',
+             'dsend(K, C) :- channel_send(C, go), K1 is K - 1, dsend(K1, C).',
+             'dworld(Ps, Gs, T) :-',
+             '    channel(Ready), channel(Rel), dholders(Ps, Ready, Rel, Hs), length(Ps, NP), drecv(NP, Ready),',
+             '    get_time(T0), spawn_all(Gs, Ids), await_all(Ids), get_time(T1), T is T1 - T0,',
+             '    dsend(NP, Rel), await_all(Hs).',
+             'dtimed(How, N, T) :-',
+             '    dprep(How, Ps, Ls), findall(G, ( member(L, Ls), G =.. [L, N] ), Gs),',
+             '    async_run(dworld(Ps, Gs, T0), dworld(_, _, T0)), T = T0.',
              'main :-',
              '    current_prolog_flag(argv, [_, Kind|_]),',
              '    world(Kind, shared, 10), world(Kind, own, 10),',

@@ -322,13 +322,16 @@
         (if (< (-> st npreds) (-> st pred_cap)) (return 1))
         (let ((size_t b . #'(/ (-> st pred_cap) 256))
               (coco_pred * blk . nil))
-          (if (not (coco_store_grow st (cast (void **) (aof (-> st pchunk))) (aof (-> st pchunk_cap))
-                                    (+ b 1) (sizeof (coco_pred *))))
+          (if (not (coco_store_grow_meta st (cast (void **) (aof (-> st pchunk))) (aof (-> st pchunk_cap))
+                                         (+ b 1) (sizeof (coco_pred *))))
               (return 0))
-          (if (not (coco_store_grow st (cast (void **) (aof (-> st predp))) (aof (-> st predp_cap))
-                                    (+ (-> st pred_cap) 256) (sizeof (coco_pred *))))
+          (if (not (coco_store_grow_meta st (cast (void **) (aof (-> st predp))) (aof (-> st predp_cap))
+                                         (+ (-> st pred_cap) 256) (sizeof (coco_pred *))))
               (return 0))
-          (set blk (cast (coco_pred *) (malloc (* 256 (sizeof coco_pred)))))
+          ;; a block a task makes in a world on lines of its own (3.78.19,
+          ;; `coco-meta-moved'): every call reads its predicates
+          (set blk (cast (coco_pred *) (coco-meta-moved st nil 0 (* 256 (sizeof coco_pred))
+                                                        (malloc (* 256 (sizeof coco_pred))))))
           (if (== blk nil) (block (set (-> st oom) 1) (return 0)))
           (set (nth b (-> st pchunk)) blk)
           (for ((size_t k . 0)) (< k 256) ((++ k))
@@ -1651,8 +1654,10 @@
           (let ((size_t want . 16))
             (while (< want (* (-> p nclauses) 2)) (set want (* want 2)))
             (if (!= (-> p nslots) want)
-                (let ((void * ns . #'(realloc (cast (void *) (-> p slots))
-                                              (* want (sizeof coco_kslot)))))
+                (let ((void * ns . #'(coco-meta-moved st (cast (void *) (-> p slots)) 0
+                                                      (* want (sizeof coco_kslot))
+                                                      (realloc (cast (void *) (-> p slots))
+                                                               (* want (sizeof coco_kslot))))))
                   (if (== ns nil) (block (set (-> st oom) 1) (return 0)))
                   (set (-> p slots) (cast (coco_kslot *) ns))
                   (set (-> p nslots) want)))
@@ -1838,7 +1843,8 @@
         (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi))))
           (if (== (-> p tomb) nil)
               (let ((size_t cap . #'(? (> (-> p clause_cap) 0) (-> p clause_cap) 1)))
-                (set (-> p tomb) (cast (u32 *) (calloc cap (sizeof u32))))
+                (set (-> p tomb) (cast (u32 *) (coco-meta-moved st nil 0 (* cap (sizeof u32))
+                                                                (calloc cap (sizeof u32)))))
                 (if (== (-> p tomb) nil) (return 0))
                 (set (-> p tomb_cap) cap)))
           (if (not (-> p tlisted))
@@ -1941,10 +1947,34 @@
         (let ((coco_pred * p . #'(aof (coco-pred-at (-> st predp) pi))))
           (if (coco-tomb-due p) (coco_tomb_try_sweep st m pi))))
 
+  ;;; WHAT A CALL THAT MET THE DEAD OWES THEIR SWEEP (3.78.19): put into
+  ;;; the predicate's `tprobe' at once where no green world shares the
+  ;;; store, and else held on the calling task's machine (`tcp', `tcn') and
+  ;;; put in 64 at a time, when the task's calls move to another predicate
+  ;;; with dead clauses, and as the machine is freed (`coco_tomb_flush').
+  ;;; The predicate's line is read by every worker's call of it: through
+  ;;; 3.78.18 each call stored into it, and eight tasks calling one
+  ;;; predicate with dead clauses that a frame kept from their sweep took
+  ;;; 1.1 to 1.5 times eight with a predicate each at one call a turn,
+  ;;; and 2.3 to 2.8 times at four (STATUS.md). What the calls have paid is
+  ;;; counted as before, up to 63 a machine late, and a sweep is tried as
+  ;;; they have paid for it. Only a task's machine holds a count back (an
+  ;;; alias, `tbase'): it is freed before the store it counts for, which
+  ;;; the host's machine is not.
+  (static)
+  (func coco_tomb_charge_at ((coco_store * st) (coco_machine * m) (coco_pred * p) (size_t paid))
+        (if (or (== m nil) (== (-> st machines) nil) (== (-> m tbase) nil))
+            (block (coco-tomb-charge p paid) (return)))
+        (if (!= (-> m tcp) (aof (-> p tprobe)))
+            (block (coco_tomb_flush m) (set (-> m tcp) (aof (-> p tprobe)))))
+        (set (-> m tcn) (? (> paid (- 4294967295 (-> m tcn))) 4294967295
+                           (+ (-> m tcn) paid)))
+        (if (>= (-> m tcn) 64) (coco_tomb_flush m)))
+
   ;;; THE PROBE OF A PREDICATE WITH DEAD CLAUSES, out of line: the first
   ;;; LIVE candidate and whether there is a second, a new call seeing none
   ;;; of the dead. Each such call pays one, and one more for each dead
-  ;;; clause it passes (`coco-tomb-charge'), and once the calls have paid
+  ;;; clause it passes (`coco_tomb_charge_at'), and once the calls have paid
   ;;; for a sweep (`coco-tomb-paid', 3.78.15) the dead are taken out first
   ;;; if no frame is open on the predicate any more -- so that a predicate
   ;;; read and no longer changed after a death does not pay for its dead
@@ -1971,13 +2001,13 @@
             (set paid (+ paid 1))
             (set a (coco_pred_next_at st m p pos key (+ a 1))))
           (if (== a (coco_no_clause))
-              (block (coco-tomb-charge p paid) (return 0)))
+              (block (coco_tomb_charge_at st m p paid) (return 0)))
           (set (cof ix) a)
           (set b (coco_pred_next_at st m p pos key (+ a 1)))
           (while (and (!= b (coco_no_clause)) (coco_pred_dead p b))
             (set paid (+ paid 1))
             (set b (coco_pred_next_at st m p pos key (+ b 1))))
-          (coco-tomb-charge p paid)
+          (coco_tomb_charge_at st m p paid)
           (return (? (== b (coco_no_clause)) 1 2))))
 
   ;;; WHERE A PROBE GOES WHEN `nprobe' IS 0: no clause, or a dead one, or
@@ -2144,7 +2174,8 @@
              (with-green-write nil
                (if (== (-> p aix) nil)
                    (block
-                    (set (-> p aix) (cast (coco_aixs *) (calloc 1 (sizeof coco_aixs))))
+                    (set (-> p aix) (cast (coco_aixs *) (coco-meta-moved st nil 0 (sizeof coco_aixs)
+                                                                         (calloc 1 (sizeof coco_aixs)))))
                     (if (== (-> p aix) nil) (set (-> st oom) 1)))))))
         (return (-> p aix)))
 
@@ -2295,8 +2326,8 @@
               (let ((u64 k . #'(nth i keys)))
                 (if (or (== k 0) (== k (-> d fkey)))
                     (block
-                     (if (not (coco_store_grow st (cast (void **) (aof (-> d mem))) (aof (-> d mcap))
-                                               (+ (-> d nmem) 1) (sizeof size_t)))
+                     (if (not (coco_store_grow_meta st (cast (void **) (aof (-> d mem))) (aof (-> d mcap))
+                                                    (+ (-> d nmem) 1) (sizeof size_t)))
                          (return nil))
                      (set (nth (-> d nmem) (-> d mem)) (? (== pd nil) i (nth i (-> pd mem))))
                      (set (-> d nmem) (+ (-> d nmem) 1))))))
@@ -2400,8 +2431,8 @@
           (for ((u32 i . 0)) (< i (-> ax nnodes)) ((++ i))
             (let ((coco_dnode * d . #'(nth i (-> ax nodes))))
               (if (and (-> d built) (!= (coco_store_path_walk st m clause neck d (aof t)) 0))
-                  (if (not (coco_store_grow st (cast (void **) (aof (-> d mem))) (aof (-> d mcap))
-                                            (+ (-> d nmem) 1) (sizeof size_t)))
+                  (if (not (coco_store_grow_meta st (cast (void **) (aof (-> d mem))) (aof (-> d mcap))
+                                                 (+ (-> d nmem) 1) (sizeof size_t)))
                       (coco_dnode_unbuild d)
                       (let ((size_t mi . #'(-> d nmem)))
                         (set (nth mi (-> d mem)) at)
@@ -2410,10 +2441,10 @@
                           (let ((coco_argix * x . #'(aof (nth j (-> d tabs)))))
                             (if (-> x indexed)
                                 (if (and (< (* (-> d nmem) 2) (-> x nslots))
-                                         (coco_store_grow st (cast (void **) (aof (-> x keys))) (aof (-> x key_cap))
-                                                          (-> d nmem) (sizeof u64))
-                                         (coco_store_grow st (cast (void **) (aof (-> x chain))) (aof (-> x chain_cap))
-                                                          (-> d nmem) (sizeof size_t)))
+                                         (coco_store_grow_meta st (cast (void **) (aof (-> x keys))) (aof (-> x key_cap))
+                                                               (-> d nmem) (sizeof u64))
+                                         (coco_store_grow_meta st (cast (void **) (aof (-> x chain))) (aof (-> x chain_cap))
+                                                               (-> d nmem) (sizeof size_t)))
                                     (block
                                      (set (nth mi (-> x keys)) (coco_store_deep_key st m clause neck d j))
                                      (coco_aix_add x (nth mi (-> x keys)) mi))
@@ -2990,20 +3021,26 @@
             (if (>= (-> ax nnodes) (-> ax ncap))
                 (let ((u32 nc . #'(? (== (-> ax ncap) 0) 8 (* (-> ax ncap) 2)))
                       (void * g . nil))
-                  (set g (realloc (cast (void *) (-> ax nodes)) (* (cast size_t nc) (sizeof (coco_dnode *)))))
+                  (set g (coco-meta-moved st (cast (void *) (-> ax nodes))
+                                          (* (cast size_t (-> ax ncap)) (sizeof (coco_dnode *)))
+                                          (* (cast size_t nc) (sizeof (coco_dnode *)))
+                                          (realloc (cast (void *) (-> ax nodes))
+                                                   (* (cast size_t nc) (sizeof (coco_dnode *))))))
                   (if (== g nil) (block (set (-> st oom) 1) (return (coco_dnode_none))))
                   (set (-> ax nodes) (cast (coco_dnode **) g))
                   (set (-> ax ncap) nc)))
             (if (>= (* (+ (-> ax nnodes) 1) 2) (-> ax nhcap))
                 (let ((u32 hc . #'(? (== (-> ax nhcap) 0) 16 (* (-> ax nhcap) 2)))
                       (u32 * h . nil))
-                  (set h (cast (u32 *) (calloc (cast size_t hc) (sizeof u32))))
+                  (set h (cast (u32 *) (coco-meta-moved st nil 0 (* (cast size_t hc) (sizeof u32))
+                                                        (calloc (cast size_t hc) (sizeof u32)))))
                   (if (== h nil) (block (set (-> st oom) 1) (return (coco_dnode_none))))
                   (free (cast (void *) (-> ax nhash)))
                   (set (-> ax nhash) h)
                   (set (-> ax nhcap) hc)
                   (for ((u32 i . 0)) (< i (-> ax nnodes)) ((++ i)) (coco_dnode_hput ax i))))
-            (let ((coco_dnode * d . #'(cast (coco_dnode *) (calloc 1 (sizeof coco_dnode)))))
+            (let ((coco_dnode * d . #'(cast (coco_dnode *) (coco-meta-moved st nil 0 (sizeof coco_dnode)
+                                                                            (calloc 1 (sizeof coco_dnode))))))
               (if (== d nil) (block (set (-> st oom) 1) (return (coco_dnode_none))))
               (set (-> d parent) par)
               (set (-> d apos) apos)
@@ -3020,8 +3057,11 @@
               (set (-> d depth) (+ (-> d depth) 1))
               (if (> (-> d arity) 0)
                   (block
-                   (set (-> d tabs) (cast (coco_argix *) (calloc (cast size_t (coco_dnode_ntabs d))
-                                                                 (sizeof coco_argix))))
+                   (set (-> d tabs) (cast (coco_argix *)
+                                          (coco-meta-moved st nil 0
+                                                           (* (cast size_t (coco_dnode_ntabs d)) (sizeof coco_argix))
+                                                           (calloc (cast size_t (coco_dnode_ntabs d))
+                                                                   (sizeof coco_argix)))))
                    (if (== (-> d tabs) nil)
                        (block (free (cast (void *) d)) (set (-> st oom) 1) (return (coco_dnode_none))))))
               (set ni (-> ax nnodes))
@@ -3093,38 +3133,38 @@
   (static)
   (func coco_pred_room ((coco_store * st) (coco_pred * p) (size_t more)) (out int)
         (let ((size_t need . #'(+ (-> p nclauses) more)))
-          (if (not (coco_store_grow st (cast (void **) (aof (-> p origins)))
-                                  (aof (-> p origin_cap)) need
-                                  (sizeof u64)))
+          (if (not (coco_store_grow_meta st (cast (void **) (aof (-> p origins)))
+                                       (aof (-> p origin_cap)) need
+                                       (sizeof u64)))
               (return 0))
           ;; and the dead's own list grows with the others while there is one
           (if (and (!= (-> p tomb) nil)
-                   (not (coco_store_grow st (cast (void **) (aof (-> p tomb)))
-                                         (aof (-> p tomb_cap)) need
-                                         (sizeof u32))))
+                   (not (coco_store_grow_meta st (cast (void **) (aof (-> p tomb)))
+                                              (aof (-> p tomb_cap)) need
+                                              (sizeof u32))))
               (return 0))
-          (if (not (coco_store_grow st (cast (void **) (aof (-> p clauses)))
-                                  (aof (-> p clause_cap)) need
-                                  (sizeof size_t)))
+          (if (not (coco_store_grow_meta st (cast (void **) (aof (-> p clauses)))
+                                       (aof (-> p clause_cap)) need
+                                       (sizeof size_t)))
               (return 0))
           ;; the two parallel arrays grow with it, each with a cap of its own
           ;; -- three caps that always agree, rather than one the grower would
           ;; have to be taught to share
-          (if (not (coco_store_grow st (cast (void **) (aof (-> p keys)))
-                                  (aof (-> p key_cap)) need
-                                  (sizeof u64)))
+          (if (not (coco_store_grow_meta st (cast (void **) (aof (-> p keys)))
+                                       (aof (-> p key_cap)) need
+                                       (sizeof u64)))
               (return 0))
-          (if (not (coco_store_grow st (cast (void **) (aof (-> p chain)))
-                                  (aof (-> p chain_cap)) need
-                                  (sizeof size_t)))
+          (if (not (coco_store_grow_meta st (cast (void **) (aof (-> p chain)))
+                                       (aof (-> p chain_cap)) need
+                                       (sizeof size_t)))
               (return 0))
-          (if (not (coco_store_grow st (cast (void **) (aof (-> p muted)))
-                                  (aof (-> p muted_cap)) need
-                                  (sizeof int)))
+          (if (not (coco_store_grow_meta st (cast (void **) (aof (-> p muted)))
+                                       (aof (-> p muted_cap)) need
+                                       (sizeof int)))
               (return 0))
-          (if (not (coco_store_grow st (cast (void **) (aof (-> p codes)))
-                                  (aof (-> p codes_cap)) need
-                                  (sizeof size_t)))
+          (if (not (coco_store_grow_meta st (cast (void **) (aof (-> p codes)))
+                                       (aof (-> p codes_cap)) need
+                                       (sizeof size_t)))
               (return 0))
           (return 1)))
 
@@ -3209,10 +3249,10 @@
                   (let ((coco_argix * x . #'(aof (nth j (-> (-> p aix) args)))))
                     (if (-> x indexed)
                         (if (and (< (* (-> p nclauses) 2) (-> x nslots))
-                                 (coco_store_grow st (cast (void **) (aof (-> x keys))) (aof (-> x key_cap))
-                                                  (-> p nclauses) (sizeof u64))
-                                 (coco_store_grow st (cast (void **) (aof (-> x chain))) (aof (-> x chain_cap))
-                                                  (-> p nclauses) (sizeof size_t)))
+                                 (coco_store_grow_meta st (cast (void **) (aof (-> x keys))) (aof (-> x key_cap))
+                                                       (-> p nclauses) (sizeof u64))
+                                 (coco_store_grow_meta st (cast (void **) (aof (-> x chain))) (aof (-> x chain_cap))
+                                                       (-> p nclauses) (sizeof size_t)))
                             (block
                              (set (nth at (-> x keys)) (coco_store_arg_key st m clause neck (+ j 1)))
                              (coco_aix_add x (nth at (-> x keys)) at))

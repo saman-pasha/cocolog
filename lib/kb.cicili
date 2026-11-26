@@ -158,7 +158,9 @@
 ;;; twice that for each try an open frame turned down since (`tback').
 ;;; Without it the dead an eighth of the live leaves were passed by every
 ;;; call: 12 000 dead at the front of 120 000 clauses, and 100 000 calls
-;;; with the first argument unbound took 4.4 s. P is evaluated three times.
+;;; with the first argument unbound took 4.4 s. In a green world a new call
+;;; pays through the task's machine, 64 at a time (`coco_tomb_charge_at',
+;;; 3.78.19). P is evaluated three times.
 (DEFMACRO coco-tomb-paid (p)
   `(>= (cast size_t (-> ,p tprobe))
        (<< (? (> (-> ,p nclauses) 256) (-> ,p nclauses) 256) (-> ,p tback))))
@@ -186,6 +188,41 @@
 (DEFMACRO coco-ssu-word (m i k) `(nth (+ (* 3 ,i) ,k) (-> ,m ssu_pis)))
 (DEFMACRO coco-ssu-pi (m i) `(bitand (coco-ssu-word ,m ,i 0) (- (coco-ssu-muted) 1)))
 
+;;; A BLOCK OF BYTES FOR WHAT A GREEN WORLD'S CALLS READ (3.78.19): PLAIN,
+;;; the site's own call, where no world shares the store, else OLD's first
+;;; KEEP bytes moved into a block on lines of its own (`coco_meta_move'),
+;;; the rest zeroes. Asked of `machines' as the code's seal is, a hint
+;;; read with no lock, either answer running the same.
+(DEFMACRO coco-meta-moved (st old keep bytes plain)
+  `(? (== (-> ,st machines) nil) ,plain (coco_meta_move ,old ,keep ,bytes)))
+
+;;; THE STORE'S GROWTH OF BUF TO NEED ENTRIES OF ESIZE, written once for
+;;; `coco_store_grow' and `coco_store_grow_world' (3.78.19): a doubling,
+;;; and where it is refused what is needed and a sixteenth, `memreq' set;
+;;; refused too, `oom'. META 1 moves the block by `coco_meta_move', the
+;;; old capacity kept, where 0 reallocs it (tested with EQL as it expands:
+;;; this package's `nil' is no Lisp false).
+(DEFMACRO coco-store-grow-body (meta)
+  `(block
+     (if (<= need (cof cap)) (return 1))
+     (let ((size_t ncap . #'(? (== (cof cap) 0) 64 (cof cap)))
+           (void * nbuf))
+       (while (< ncap need) (set ncap (* ncap 2)))
+       (set nbuf ,(IF (EQL meta 1)
+                      '(coco_meta_move (cof buf) (* (cof cap) esize) (* ncap esize))
+                      '(realloc (cof buf) (* ncap esize))))
+       (if (== nbuf nil)
+           (block
+             (set ncap (+ need (+ (/ need 16) 64)))
+             (set nbuf ,(IF (EQL meta 1)
+                            '(coco_meta_move (cof buf) (* (cof cap) esize) (* ncap esize))
+                            '(realloc (cof buf) (* ncap esize))))
+             (if (== nbuf nil) (block (set (-> st oom) 1) (return 0)))
+             (if (== (-> st memreq) 0) (set (-> st memreq) 1))))
+       (set (cof buf) nbuf)
+       (set (cof cap) ncap)
+       (return 1))))
+
 ;;; A TABLE OF N KEYS FILLED (3.64.0): X's arrays grown to hold N, its
 ;;; slots to stay under half full, and entry I's key -- KEY, an expression
 ;;; of I -- linked into its chain (`coco_aix_add'). Answers nil from the
@@ -194,15 +231,18 @@
 ;;; deep index's (`coco_dtab_get'), whose entries are a node's members.
 (DEFMACRO coco-argix-fill (x n i key)
   `(let ((size_t want . 16))
-     (if (not (coco_store_grow st (cast (void **) (aof (-> ,x keys))) (aof (-> ,x key_cap))
-                               (+ ,n 1) (sizeof u64)))
+     (if (not (coco_store_grow_meta st (cast (void **) (aof (-> ,x keys))) (aof (-> ,x key_cap))
+                                    (+ ,n 1) (sizeof u64)))
          (return nil))
-     (if (not (coco_store_grow st (cast (void **) (aof (-> ,x chain))) (aof (-> ,x chain_cap))
-                               (+ ,n 1) (sizeof size_t)))
+     (if (not (coco_store_grow_meta st (cast (void **) (aof (-> ,x chain))) (aof (-> ,x chain_cap))
+                                    (+ ,n 1) (sizeof size_t)))
          (return nil))
      (while (< want (* (+ ,n 1) 2)) (set want (* want 2)))
      (if (!= (-> ,x nslots) want)
-         (let ((void * ns . #'(realloc (cast (void *) (-> ,x slots)) (* want (sizeof coco_kslot)))))
+         (let ((void * ns . #'(coco-meta-moved st (cast (void *) (-> ,x slots)) 0
+                                               (* want (sizeof coco_kslot))
+                                               (realloc (cast (void *) (-> ,x slots))
+                                                        (* want (sizeof coco_kslot))))))
            (if (== ns nil) (block (set (-> st oom) 1) (return nil)))
            (set (-> ,x slots) (cast (coco_kslot *) ns))
            (set (-> ,x nslots) want)))
@@ -1157,8 +1197,10 @@
     (member size_t   ntomb)
     (member u32      tera)
     ;; new calls that met the dead, counted to ask now and then whether
-    ;; they may go (`coco_pred_probe_dead'), and whether the predicate is
-    ;; on the store's list of those with dead clauses (`tpreds')
+    ;; they may go (`coco_pred_probe_dead'; in a green world a task's
+    ;; machine holds its count back and puts it in 64 at a time,
+    ;; `coco_tomb_charge_at', 3.78.19), and whether the predicate is on
+    ;; the store's list of those with dead clauses (`tpreds')
     (member u32      tprobe)
     (member int      tlisted)
     ;; A CLAUSE FRAME MAY BE OPEN ON IT: set by every push of one, and
@@ -2993,20 +3035,53 @@
   (static)
   (func coco_store_grow ((coco_store * st) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
         (out int)
+        (coco-store-grow-body 0))
+
+  ;;; METADATA ON LINES OF ITS OWN (3.78.19), as 3.78.17's code is
+  ;;; (`coco_code_seal'): BYTES in one block, 128-byte aligned and a whole
+  ;;; number of 128 bytes long, OLD's first KEEP bytes and zeroes after
+  ;;; them, OLD freed. What a call reads of a predicate -- its clause
+  ;;; arrays, its first argument's table, its other arguments' tables and
+  ;;; the deep index's nodes and theirs, the blocks the predicates are in --
+  ;;; is built by the first task to want it, on its worker, from that
+  ;;; worker's malloc arena, where the allocator put it beside what the
+  ;;; worker's tasks write at every step, and each such write took the line
+  ;;; away from every other worker's reads. Asked only while a green world
+  ;;; shares the store (`coco-meta-moved', `coco_store_grow_meta'): a store
+  ;;; one thread runs on shares no line. nil where the block is refused,
+  ;;; OLD kept.
+  (static)
+  (func coco_meta_move ((void * old) (size_t keep) (size_t bytes)) (out void *)
+        (let ((size_t n . #'(* (/ (+ bytes 127) 128) 128))
+              (char * p . nil))
+          (if (< n bytes) (return nil))
+          (if (== n 0) (set n 128))
+          (set p (cast (char *) (aligned_alloc 128 n)))
+          (if (== p nil) (return nil))
+          (if (> keep bytes) (set keep bytes))
+          (if (and (> keep 0) (!= old nil)) (memcpy (cast (void *) p) (cast (const void *) old) keep))
+          (memset (cast (void *) (aof (nth keep p))) 0 (- n keep))
+          (if (!= old nil) (free old))
+          (return (cast (void *) p))))
+
+  ;;; `coco_store_grow' of an array a green world's calls read: the same
+  ;;; growth, its blocks `coco_meta_move''s while a world shares the store.
+  ;;; Inline, and with no world the growth `coco_store_grow''s as 3.78.18
+  ;;; made it, which clang inlines where it is asked; the world's growth is
+  ;;; out of line and cold. Out of line, a call for each of the seven arrays
+  ;;; of a predicate's first clause cost a start 256 000 instructions
+  ;;; (3.78.19's first cut), and with the room test alone inline 221 000.
+  (static) (cold)
+  (func coco_store_grow_world ((coco_store * st) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
+        (out int)
+        (coco-store-grow-body 1))
+
+  (static) (inline)
+  (func coco_store_grow_meta ((coco_store * st) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
+        (out int)
         (if (<= need (cof cap)) (return 1))
-        (let ((size_t ncap . #'(? (== (cof cap) 0) 64 (cof cap)))
-              (void * nbuf))
-          (while (< ncap need) (set ncap (* ncap 2)))
-          (set nbuf (realloc (cof buf) (* ncap esize)))
-          (if (== nbuf nil)
-              (block
-                (set ncap (+ need (+ (/ need 16) 64)))
-                (set nbuf (realloc (cof buf) (* ncap esize)))
-                (if (== nbuf nil) (block (set (-> st oom) 1) (return 0)))
-                (if (== (-> st memreq) 0) (set (-> st memreq) 1))))
-          (set (cof buf) nbuf)
-          (set (cof cap) ncap)
-          (return 1)))
+        (if (== (-> st machines) nil) (return (coco_store_grow st buf cap need esize)))
+        (return (coco_store_grow_world st buf cap need esize)))
 
   ;;; `memreq' handed to the engine the machine is running (`haltp')
   (func coco_store_memreq ((coco_store * st) (coco_machine * m))

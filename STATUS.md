@@ -25680,3 +25680,116 @@ NOT DONE. A predicate with clauses that died in place charges each call
 that passes them (`tprobe`, `coco-tomb-charge`, 3.78.15): a store into the
 predicate at every such call, while its dead wait for their sweep -- which
 in a world comes only where no task's frame is open on them. Not measured.
+
+## A call that meets the dead no longer writes its predicate, and the metadata on lines of its own (3.78.19)
+
+The store 3.78.18 left as NOT DONE, measured and taken out, and the
+allocations it held back, shipped at the owner's word ("Ship that and
+measure per-call store").
+
+THE STORE. A call of a predicate with clauses that died in place goes the
+probe's out-of-line way, `coco_pred_probe_dead`, which charges the sweep
+that would take them -- one for the call and one for each dead clause it
+passed -- by adding into the predicate's `tprobe` (3.78.15, the paid rule):
+a store into the predicate's line at every such call, the line every
+worker's call of it reads (`ntomb`, `tomb` and `tback` beside it). The dead
+wait for their sweep where a frame is open on them, which in a green world
+is any task's: a task that walks the predicate with a choice point left
+keeps the charge going for as long as its frame stands.
+
+THE FIXTURE (test/async.pl's `shared_lines`, a fourth kind, `dead`, and a
+copy of it that takes a count of calls a turn, for the numbers below).
+P holds 64 facts P(1..64) and its last four are retracted: they die in
+place (more than eight clauses) and are not due (four of sixty, nothing
+paid). A holder task calls P(_), keeps its frame open and waits on a
+channel; eight tasks call P(5) in a loop; the holder is let go after them.
+Shared: one P and its holder; own: eight, each with its own. Fresh names
+each round, as a round's end leaves the dead free to go. `live`, the same
+without the retract, is the control.
+
+MEASURED on 3.78.18, four workers, each side's least of five rounds:
+- one call a turn: 1.09 to 1.52 of the copies' time, the shared side 0.155
+  to 0.190 s; the control 0.82 to 1.11;
+- four calls a turn: 2.31 to 2.80, the shared side 0.47 to 0.59 s.
+An arm that charges nothing while a world shares the store took the shared
+side to 0.096-0.113 s and the ratio to 0.91-1.04: the store is the cost.
+That arm is no fix: the charge is how a world's calls ask for the sweep,
+and without it a world never takes the dead its calls pass -- 3.78.15's
+case of 12 000 dead at the front of 120 000 clauses, 4.4 s, would come back
+in any world.
+
+THE FIX (lib/kb-pred.cicili's `coco_tomb_charge_at`, lib/term.cicili's
+`coco_tomb_flush`). While a world shares the store, a task's machine holds
+the charge back -- `tcp`, the counter it is for, and `tcn`, what it owes --
+and puts it into the predicate at 64, when the task's calls move to
+another predicate with dead clauses, and as the machine is freed, so a task
+that ends short of 64 pays all the same. What the calls have paid is
+counted as before, up to 63 a machine late, and a sweep is tried as they
+have paid for it. Only a task's machine holds a count (an alias, `tbase`):
+it is freed before the store it counts for, which the host's is not, and
+the host's calls charge at once. `coco_frame_next`'s charge -- a retry that
+passes dead clauses its frame did not live through -- is as it was: it
+stores only where the retry passed some.
+
+MEASURED, three rounds of 3.78.18 and 3.78.19 in turn:
+- one call a turn: 1.30-1.43 to 0.66-0.74, the shared side 0.166-0.188 s
+  to 0.097-0.106 (0.57 of its time);
+- four calls a turn: 2.31-2.78 to 0.89-0.91, the shared side 0.465-0.547
+  s to 0.169-0.196 (0.38 of its time);
+- the control 0.93-0.99 and 0.84-1.11.
+The copies' side is as it was (0.127-0.146 s at one call a turn): each of
+its eight predicates has its own holder, and the tries at its sweep -- each
+a write barrier, which waits for every other worker's quantum to end, and
+fails on the holder's frame -- are as many as before, `tback`'s doublings
+bounding them to the log of the calls (the arm that charged nothing tried
+none, and its copies' side was 0.099-0.116 s).
+
+THE ALLOCATIONS. 3.78.18's seal for the rest of the store's metadata while
+a world shares it: a block 128-byte aligned and a whole number of 128 bytes
+long, the old contents copied and the rest zeroed (`coco_meta_move`;
+`coco_store_grow_meta` for the arrays the store grows), at every site that
+makes or grows an argument's table, a deep node, the first argument's
+index, a predicate's clause arrays and a block of predicates. 3.78.18's
+rotation read `aix` and `reidx` 6 to 11 % slower with it. Four rounds of
+3.78.18, the charge alone and 3.78.19's first build, in rotation, over the
+eight kinds of 3.78.18's fixtures: level, the shared sides' means `aix`
+0.119, 0.124 and 0.120 s, `reidx` 0.104, 0.097 and 0.097, `deep` 0.122,
+0.124 and 0.122, `grow` 0.193, 0.187 and 0.186, `meta` 0.149, 0.145 and
+0.149, `aixw` 0.124, 0.125 and 0.118, `deepw` 0.127, 0.129 and 0.127,
+`reidxw` 0.093, 0.091 and 0.091. On the final build `aix`'s shared side
+read 0.134 against 0.119 in a rotation of four, and 0.131 against 0.123 in
+a rotation of six of four builds (the charge alone 0.125, the allocations
+alone 0.123), its runs overlapping 3.78.18's; on one worker its
+instructions differ by 0.17 %, two padding no-ops a call in
+`coco_pred_next_at` (the same instructions else) and glibc's realloc
+copies, 31.5 million more of `memcpy` -- the heap's layout, not work. It
+measured nothing either way, and is shipped because the owner asked.
+
+THE START. As 3.78.18 wrote it, `coco_store_grow_meta` was a function the
+seven arrays of a predicate's first clause each called, room or none, and
+a start cost 256 690 instructions more (36 607 937). With the room test
+inline it was 221 596; with the growth outside a world `coco_store_grow`'s
+as before, inlined where it is asked, and only the world's growth out of
+line (`coco_store_grow_world`, cold), a start is 9 457 more (36 360 704
+against 36 351 247): the test of `machines` after each growth.
+
+HELD. `shared_lines`' fourth kind, `dead`, under the bar of 1.25: 3.78.18
+red (2.99 and 2.52, then 2.59 and 2.86), the allocations without the charge's
+fix red (2.63 and 2.48), 3.78.19 green (0.96 and 0.90, then 0.98 and
+0.80); the other three kinds level on both. Not held: the flush at a
+machine's free, which moves only when the dead are swept, which nothing a
+program asks can see.
+
+COST. `tools/flow/zero.sh` against 3.78.18: nrev and queens the same to
+the instruction, lookup 5 more (48 062 434 to 48 062 439, work less
+padding). A start 9 457 more, above. The C the committed sources make is
+the measured binary's, byte for byte. The narrow round on it green:
+async, engine, gc, reconsult, trace, window, flowdebug, cowork, thread,
+files, solve, state, module, and lint rerun alone once the dialect card's
+row I1 took the two ranges the edits moved.
+
+NOT DONE. A try at a sweep in a world is a write barrier, which waits for
+each worker's quantum to end, and while a frame stays open on the dead it
+fails: `tback` doubles what the next must have paid, so the tries are the
+log of the calls, some ten a predicate over 200 000 calls, and the
+fixture's eight predicates each held so paid about 0.03 s of their 0.13.

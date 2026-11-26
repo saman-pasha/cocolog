@@ -277,13 +277,19 @@ cost 0.36. The work and light lanes are level with 3.78.16's, whose green
 task cost 9.52 us with the start apart and a yield 2.32: 61 times cheaper
 than a cocolog OS thread and 5.9 times cheaper than a Rust thread, with
 Go's goroutine 17 times cheaper still (bench/README.md, Concurrency Run I).
-3.78.18 takes out the last such store a call made: the slow way's note that
+3.78.18 takes out one more store a call made: the slow way's note that
 a predicate was called, which every call of a meta-predicate stored. Eight
 tasks calling one meta-predicate four times a turn took 1.6 to 1.7 times
-eight calling one each, and take what those do now. The metadata a task
-builds -- argument tables, deep-index nodes, an index built again -- shared
-no line where it was measured, and stays where malloc puts it (STATUS.md,
-3.78.18).
+eight calling one each, and take what those do now. 3.78.19 takes out the
+last: a call of a predicate with dead clauses stored what it owed their
+sweep into the predicate, and eight tasks calling one that a frame kept
+from its sweep took 2.3 to 2.8 times eight calling one each at four calls
+a turn, and 0.9 now -- the task's machine holds the count and puts it in
+64 at a time. The metadata a task builds -- argument tables, deep-index
+nodes, an index built again -- is made in 128-byte blocks of whole lines
+while a world runs (3.78.19, at the owner's word), though it shared no line
+where it was measured, with or without them (STATUS.md, 3.78.18 and
+3.78.19).
 
 **One core**: `real1` runs the real work lane under `taskset -c 0` on Linux,
 the like-for-like scheduler comparison with the world's workers. In Run H's

@@ -1317,7 +1317,17 @@
     ;; locals the compiler held in registers across the whole pass, read
     ;; or not, and a setarg/3 loop's collections cost three times what
     ;; they do with these (STATUS.md, 3.78.16). Appended.
-    (member size_t     gcsb [4]))
+    (member size_t     gcsb [4])
+    ;; THE DEAD-CLAUSE CHARGE THIS MACHINE HOLDS BACK (3.78.19,
+    ;; `coco_tomb_charge_at' in lib/kb-pred.cicili): while a green world
+    ;; shares the store, what a task's calls of a predicate with dead
+    ;; clauses owe its sweep, TCN, waits here for the counter TCP names (that
+    ;; predicate's `tprobe'), and goes into it at 64, when the task's calls
+    ;; move to another such predicate, and as the machine is freed
+    ;; (`coco_tomb_flush'). Through 3.78.18 each call stored into the
+    ;; predicate, the line every worker's call of it reads. Appended.
+    (member u32 *      tcp)
+    (member u32        tcn))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -1455,6 +1465,9 @@
   ;; ---- lifecycle ----
   (decl) (func coco_machine_init ((coco_machine * m)) (out int))
   (decl) (func coco_machine_free ((coco_machine * m)))
+  ;; what the machine holds back of a dead-clause charge, put into its
+  ;; counter (3.78.19)
+  (decl) (func coco_tomb_flush ((coco_machine * m)))
   ;; A MACHINE OVER ANOTHER MACHINE'S TABLES: a green thread's, with its
   ;; own heap, trail and choices and the root's names. It links itself into
   ;; the root's alias list; freeing it unlinks and leaves the tables.
@@ -2120,7 +2133,22 @@
         (if (and (> (-> m fnbn) 0) (!= coco_fnbag_free_hook nil)) (coco_fnbag_free_hook m))
         (free (-> m fnb)))
 
+  ;;; WHAT THE MACHINE HOLDS BACK OF A DEAD-CLAUSE CHARGE, PUT INTO ITS
+  ;;; COUNTER (3.78.19): `coco_tomb_charge_at' counts there while a green
+  ;;; world shares the store, and the machine's free puts in what is left,
+  ;;; so the calls of a task that ends short of 64 are paid all the same. A
+  ;;; predicate never moves (`predp', 3.64.0) and the store outlives the
+  ;;; world's machines, so the counter is there to be written. Held at what
+  ;;; 32 bits count, as `coco-tomb-charge' holds it.
+  (func coco_tomb_flush ((coco_machine * m))
+        (if (and (!= (-> m tcp) nil) (!= (-> m tcn) 0))
+            (let ((u32 * q . #'(-> m tcp)))
+              (set (cof q) (? (> (-> m tcn) (- 4294967295 (cof q))) 4294967295
+                              (+ (cof q) (-> m tcn))))))
+        (set (-> m tcn) 0))
+
   (func coco_machine_free ((coco_machine * m))
+        (coco_tomb_flush m)
         (coco_fnbags_free m)
         (if (!= (-> m tbase) nil)
             (block
