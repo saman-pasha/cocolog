@@ -1680,10 +1680,13 @@ a session must keep:
   calls (`bix`: K + 2, 1 none or taken), so **a new way to call a builtin
   by its row asks `bix`, never the table alone**, and a body compiled
   against a row hands its goal over when the row is gone
-  (`coco_env_place`). Grep a predicate name before writing it: **cocolog consults the
-  clauses of one name that are not together in the file without a word**
-  (SWI warns; cocolint does not), so a helper given an existing name joins
-  that predicate. library(flow/chart) names each such predicate it charts
+  (`coco_env_place`). Grep a predicate name before writing it: **a helper
+  given an existing name joins that predicate**. A load warns as swipl's
+  does where the predicate's clauses are not together in the file
+  (`Clauses of N/A are not together in the source-file`, since 3.17.0;
+  silent through 3.16), but cocolint says nothing, and a helper whose
+  clauses stand right after the predicate's draws no warning at all.
+  library(flow/chart) names each such predicate it charts
   (the `discontiguous` finding, 1.10.27), and as an error one DEFINED TWICE
   -- a clause that repeats an earlier run's, or a head an earlier run's
   fact covers (`defined_twice`, 1.10.28): the translator has 38 and none
@@ -4198,10 +4201,12 @@ a session must keep:
   exponent, as SWI: `1.0NaN` is its syntax error), and `-0.0` keeps its
   sign, in the reader and in `-/1` (both did `0 - x`). 21,000 doubles of a
   run are written by swipl to the letter and read back bit for bit
-  (`test/files/floats.pl` holds 40 to swipl's text). Not SWI's yet:
-  term_to_atom/2 reads the first term of its text and ignores the rest
-  (`'1.0 x'` is `1.0`; `inf` and `nan` are evaluable since 2.2.2). A
-  frozen machine still writes `%.17g` (lib/state.cicili). **A prefix
+  (`test/files/floats.pl` holds 40 to swipl's text). term_to_atom/2 of a
+  text with more after its term raises swipl's syntax error (3.10.0:
+  `'1.0 x'` is error(syntax_error(operator_expected), string("1.0 x . ",
+  3)), where through 3.9 it read `1.0` and dropped the rest), and `inf`
+  and `nan` are evaluable since 2.2.2. Not SWI's yet: a frozen machine
+  still writes `%.17g` (lib/state.cicili). **A prefix
   operator takes a space before a digit only when it is `-`** (2.2.3,
   swipl's: `- 1`, because `-1` is the integer, but `+1`, `\1`, `\+1` and
   `?-1`, which read back as the operator applied to 1; through 2.2.2 every

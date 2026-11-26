@@ -138,7 +138,7 @@ listed so that nobody looks for them again.
 - `print_message/2` and `sumlist/2` (2.16.0).
 - `term_to_atom/2` of a text with more after its term (`'1.0 x'`) raises
   swipl's `syntax_error(operator_expected)` with swipl's
-  `string("1.0 x . ", 3)`. Checked on 3.78.21.
+  `string("1.0 x . ", 3)` (since 3.10.0). Checked on 3.78.21.
 - swipl's declaration operators, `table`, `thread_local`, `volatile`,
   `module_transparent` and `public` at 1150 fx (3.2.0).
 - The `However, there are definitions for:` lines after an unknown
@@ -165,15 +165,11 @@ listed so that nobody looks for them again.
 - The note in 3.62.5 about `$` guards was a misreading, corrected in 3.62.7:
   `a :- $, p(_)` over two clauses of p/1 raises
   `determinism_error(p/1, det, nondet, guard_in_caller)` in both systems.
-
-## Stale lines in CLAUDE.md
-
-- The bullet "A float is written as SWI 9 writes it" still says
-  `term_to_atom/2` reads the first term of its text and ignores the rest.
-  It raises swipl's syntax error now (above).
-- The bullet on dispatch ("Dispatch is construct, C builtin, module, store")
-  still says cocolog loads the clauses of one name that are not together in
-  a file without a word. The load has warned as swipl's does since 3.17.0.
+- Two stale lines in CLAUDE.md, corrected on 2026-11-26:
+  - The bullet "A float is written as SWI 9 writes it" said `term_to_atom/2`
+    reads the first term of its text and ignores the rest.
+  - The bullet on dispatch said a load takes the clauses of one name that
+    are not together in a file without a word.
 
 ## Postfix operators: notes from the paused work
 
