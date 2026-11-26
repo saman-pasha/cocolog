@@ -860,6 +860,45 @@
   (func coco_g_here () (out int)
         (return (and (!= green_now nil) (!= green_me nil))))
 
+  ;;; A FRAME OPEN ON PREDICATE PI THAT STANDS STILL (3.78.20): 1 where the
+  ;;; calling task's own machine, the host's, or the machine of a task no
+  ;;; worker is running holds a frame open on PI of the world's store --
+  ;;; what the write barrier's walk would find too (`coco_frames_on'),
+  ;;; found without stopping the world -- and 0 where none does, outside a
+  ;;; world, and inside a write, where the world is stopped already and the
+  ;;; walk is the barrier's own. A try at a sweep asks it first
+  ;;; (`coco_tomb_try_sweep'): through 3.78.19 every try was a barrier,
+  ;;; which waits for each other worker's quantum to end -- for the whole
+  ;;; of a nested search, which no quantum ends -- and while a frame stayed
+  ;;; open on the dead it failed: eight tasks over eight predicates whose
+  ;;; holders waited on a channel paid some 0.03 s of their 0.13 for it.
+  ;;;
+  ;;; UNDER THE WORLD'S LOCK A TASK THAT IS NO WORKER'S `cur' RUNS NOTHING:
+  ;;; a pick, a run's end and a nested wait's inline run each set `cur'
+  ;;; under it, and a task that is not being run moves only once it is
+  ;;; picked. Its machine's engines are then the one it keeps (`keep_eng')
+  ;;; or, a nested waiter's, the chain its wait stands in, and the host's
+  ;;; the one that called async_run/1,2 -- read here, never written, as no
+  ;;; write runs while a task does. A running task's are passed by: only
+  ;;; the barrier stops it, and a frame of its keeps the try to the walk.
+  (func coco_g_frame_still ((coco_machine * m) (coco_store * st) (size_t pi)) (out int)
+        (if (or (== green_now nil) (== green_me nil)) (return 0))
+        (if (!= green_in_write 0) (return 0))
+        (if (!= st (-> green_now host_st)) (return 0))
+        ;; this task's own, which only it moves
+        (if (coco_frames_on_one m st pi) (return 1))
+        (let ((green_world * wd . green_now) (int found . 0))
+          (pthread_mutex_lock (aof (-> wd lock)))
+          (if (and (!= (-> wd host) m) (coco_frames_on_one (-> wd host) st pi))
+              (set found 1))
+          (for ((int i . 0)) (and (== found 0) (< i (-> wd nthreads))) ((++ i))
+            (let ((green_thread * t . #'(aof (nth i (-> wd threads)))))
+              (if (and (!= ($ (nth (-> t worker) (-> wd workers)) cur) (-> t id))
+                       (and (!= (-> t m) nil) (!= (-> t m) m)))
+                  (if (coco_frames_on_one (-> t m) st pi) (set found 1)))))
+          (pthread_mutex_unlock (aof (-> wd lock)))
+          (return found)))
+
   ;;; THE CLEANUP-ATTRIBUTE FORM: bound with `(defer () ...)' on the
   ;;; barrier's let variable, the C runs it on EVERY exit from the scope,
   ;;; the early returns included; the plain `(defer () (forms))' form ran

@@ -25793,3 +25793,79 @@ each worker's quantum to end, and while a frame stays open on the dead it
 fails: `tback` doubles what the next must have paid, so the tries are the
 log of the calls, some ten a predicate over 200 000 calls, and the
 fixture's eight predicates each held so paid about 0.03 s of their 0.13.
+
+## A try at a sweep that a frame standing still turns down stops no world (3.78.20)
+
+3.78.19's NOT DONE, taken out at the owner's word ("Fix the sweep barriers
+in a world").
+
+THE BARRIER. Once the calls of a predicate with dead clauses have paid for
+a sweep (`coco-tomb-paid`), the probe tries one (`coco_tomb_try_sweep`), as
+a retract, an assertz and a walk's start do where the dead are due. In a
+world the try took the write barrier first (`with-green-write`): each other
+worker is asked to acknowledge at its loop's top, which a task's worker
+reaches at the quantum's end -- and a nested search (findall/3 and its kin)
+runs to its end under no quantum, so a worker inside one answers when the
+search is done. Then the walk of every machine's frames (`coco_frames_on`);
+a frame open on the predicate turned the try down, and doubled what the
+next must have paid (`tback`). In a world the dead wait for as long as any
+task holds a frame on them, and each of the log of the calls' tries waited
+for the whole world first.
+
+THE FIXTURE (test/async.pl's `still_frames`). sp/1 of 64 facts, its last
+four dead in place and not due; each clause the timed world calls compiled
+and sp/1's index built before it, each a barrier of its own in a world. A
+holder task calls sp(_) and waits on a channel with its frame open; a long
+task runs a findall/3 that the clock ends 0.6 s after it began; a caller on
+the third of four workers waits for it to begin and 50 ms more, then calls
+sp(5) 2000 times, which pays for three tries.
+
+MEASURED on 3.78.19, three runs: the caller's 2000 calls took 0.5506 to
+0.5513 s, the rest of the long task's run -- its first try waited for the
+long task's worker.
+
+THE FIX (lib/green.cicili's `coco_g_frame_still`, asked by
+`coco_tomb_try_sweep` before the barrier where the predicate is `framed`;
+lib/solve-db.cicili's `coco_frames_on_one`; the frame test of both walks one
+macro, `coco-frame-on`). Under the world's lock a task that is no worker's
+`cur` runs nothing -- a pick, a run's end and a nested wait's inline run
+each set `cur` under it -- so its machine's engines stand still: the one it
+keeps (`keep_eng`), or a nested waiter's chain. The try walks the caller's
+own machine, then under the lock the host's and those of the tasks no
+worker is running, and a frame open on the predicate there turns it down
+with no barrier, as the barrier's walk would have. A frame a running task
+holds is passed by and found by the barrier's walk as before; inside a
+write the world is stopped already, and the walk is the barrier's own.
+`framed` is read with no lock: a stale 1 is a walk for nothing, a stale 0
+the barrier that finds the truth.
+
+MEASURED, three runs of each in turn: the caller's calls 0.0004 s on
+3.78.20 against 0.5506-0.5513 on 3.78.19, the long task 0.6000-0.6005 s on
+both. And 3.78.19's dead-clause fixture, three rounds of the two in turn,
+each side the least of five rounds:
+- one call a turn: the copies' side 0.136-0.157 s to 0.103-0.117, the
+  control without dead clauses 0.097-0.134 on both in the same rounds; the
+  shared side 0.113-0.133 to 0.095-0.101;
+- four calls a turn: the copies' side 0.181-0.229 to 0.155-0.184, the
+  shared side 0.165-0.197 and 0.162-0.202, level.
+The copies paid the barriers -- each of their eight holders turned down its
+own predicate's tries -- and the shared side paid one predicate's: so the
+ratio `shared_lines`' `dead` kind reads at four calls a turn is 1.04-1.11
+now, where it read 0.76-0.98 with the copies' barriers in it, under its bar
+of 1.25 still.
+
+HELD. test/async.pl's `still_frames`, the caller's calls under a quarter of
+the long task's 0.6 s: 3.78.19 red (0.5508 and 0.5539 s, its two children),
+3.78.20 green (0.0004).
+
+COST. tools/flow/zero.sh against 3.78.19 at paths of one length: nrev,
+queens and lookup the same to the instruction, padding too. A start is 65
+instructions more (36 360 769 against 36 360 704), all of them the dynamic
+loader's strcmp: two names more in the binary's symbols.
+
+NOT DONE. A frame a running task holds still turns a try down only under
+the barrier, which waits for that task's worker; `tback` bounds those tries
+to the log of the calls, as before. And the shared side's 4 to 11 % over
+the copies at four calls a turn is not attributed: one candidate is the
+batched charge's flush, which puts its 64 into the one predicate's line
+where each copy's goes to its own, some 100 000 stores in a run.

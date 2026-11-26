@@ -1217,6 +1217,7 @@
   (func coco_g_write_end () (return))
   (func coco_g_write_end_cleanup ((int * began)) (return))
   (func coco_g_here () (out int) (return 0))
+  (func coco_g_frame_still ((coco_machine * m) (coco_store * st) (size_t pi)) (out int) (return 0))
   (@endif)
 
   ;;; ---- laying a clause out as swipl does (3.18.0) -----------------------
@@ -2346,10 +2347,7 @@
           (return 1)))
 
   ;;; THE FRAMES OPEN ON PREDICATE PI of ST -- see the declaration in
-  ;;; lib/kb.cicili. A clause frame or a clocked one (a clause frame a
-  ;;; window's clock marked), or retract/1's or clause/2's walk of the
-  ;;; predicate (a DB frame, 3.28.0); a spent one tries nothing more, and a
-  ;;; frame of any other kind keeps something else in `pred' and `clause_ix'. The
+  ;;; lib/kb.cicili -- each as `coco-frame-on' says (lib/solve.cicili). The
   ;;; engines of the chain are every one a program can still fail back
   ;;; into: no builtin leaves a choice point behind, so a nested engine is
   ;;; on the chain for as long as it has frames anybody may try, and a
@@ -2376,9 +2374,7 @@
                       (while (> i 0)
                         (set i (- i 1))
                         (let ((coco_choice * c . #'(aof (nth i (-> e choices)))))
-                          (if (and (or (== (-> c kind) COCO_CH_CLAUSE) (== (-> c kind) COCO_CH_CLOCKED)
-                                       (== (-> c kind) COCO_CH_DB))
-                                   (== (-> c pred) pi))
+                          (if (coco-frame-on c pi)
                               (block
                                (set open (+ open 1))
                                (cond
@@ -2408,6 +2404,25 @@
           ;; none open: no walk until a frame is pushed on it again
           (if (== open 0) (set ($ (coco-pred-at (-> st predp) pi) framed) 0))
           (return n)))
+
+  ;;; WHETHER A FRAME IS OPEN ON PREDICATE PI IN MACHINE MM'S ENGINES over
+  ;;; ST (3.78.20): `coco_frames_on''s question at ACT 0, of one machine --
+  ;;; its running chain, or the engine a task suspended keeps -- and read,
+  ;;; never written. A try at a sweep in a green world asks it of the
+  ;;; machines that stand still before it stops the world
+  ;;; (`coco_g_frame_still'); whoever asks it holds MM's engines still.
+  (func coco_frames_on_one ((coco_machine * mm) (coco_store * st) (size_t pi)) (out int)
+        (let ((coco_engine * e . #'(cast (coco_engine *) (-> mm eng))))
+          (if (== e nil) (set e (cast (coco_engine *) (-> mm keep_eng))))
+          (while (!= e nil)
+            (if (== (-> e st) st)
+                (let ((size_t i . #'(-> e nchoices)))
+                  (while (> i 0)
+                    (set i (- i 1))
+                    (let ((coco_choice * c . #'(aof (nth i (-> e choices)))))
+                      (if (coco-frame-on c pi) (return 1))))))
+            (set e (cast (coco_engine *) (-> e outer))))
+          (return 0)))
 
   ;;; The dispatcher comes last because it names every builtin above it, and a
   ;;; call needs the definition to have been seen.

@@ -1928,6 +1928,16 @@
         (if (== ($ (coco-pred-at (-> st predp) pi) ntomb) 0) (return 1))
         ;; a sweep measures what it orphans on a machine's heap
         (if (== m nil) (return 0))
+        ;; IN A GREEN WORLD A FRAME THAT STANDS STILL SAYS NO WITHOUT THE
+        ;; BARRIER (3.78.20, `coco_g_frame_still'): the caller's own, the
+        ;; host's, or a task's no worker is running. Through 3.78.19 each try
+        ;; stopped the world first -- a wait for every other worker's quantum
+        ;; to end -- and a frame held open on the dead turned it down after.
+        ;; `framed' is read with no lock: a stale answer is a barrier more
+        (if (and (!= (-> st machines) nil)
+                 (and ($ (coco-pred-at (-> st predp) pi) framed)
+                      (coco_g_frame_still m st pi)))
+            (return 0))
         (with-green-write nil
           (if (!= (coco_frames_on m st pi 0 0 0) 0) (return 0))
           (coco_pred_sweep st m pi)

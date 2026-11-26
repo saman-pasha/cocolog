@@ -2287,6 +2287,13 @@
   ;;; is.
   (decl) (func coco_frames_on ((coco_machine * m) (coco_store * st) (size_t pi)
                                (int act) (u32 era) (size_t at)) (out size_t))
+  ;;; Whether one machine's engines over ST hold a frame open on PI (ACT 0
+  ;;; of one machine, 3.78.20), and whether a green world's machines that
+  ;;; stand still do -- the caller's own, the host's, and each task no
+  ;;; worker is running -- asked before a try at a sweep stops the world
+  ;;; (`coco_tomb_try_sweep'); 0 outside a world and inside a write.
+  (decl) (func coco_frames_on_one ((coco_machine * mm) (coco_store * st) (size_t pi)) (out int))
+  (decl) (func coco_g_frame_still ((coco_machine * m) (coco_store * st) (size_t pi)) (out int))
   ;;; How many of P's clauses before position IX are live: IX itself when
   ;;; none is dead -- the ordinal a frame's next clause has in a list that
   ;;; holds no dead (a frozen machine's, `coco_freeze').

@@ -284,6 +284,7 @@ main :-
     portray_worlds,
     portray_wait,
     shared_lines,
+    still_frames,
     checks_done.
 
 %% ---- values ------------------------------------------------------------
@@ -3031,3 +3032,78 @@ lines_copy(K, L) :-
     atomic_list_concat(Parts, '~', F),
     atom_number(KA, K),
     atomic_list_concat(Parts, KA, L).
+
+%% ---- a try at a sweep that a frame standing still turns down (3.78.20) ----
+%%
+%% A FRAME OPEN ON THE DEAD IN A TASK NO WORKER IS RUNNING TURNS A TRY AT
+%% THEIR SWEEP DOWN WITHOUT STOPPING THE WORLD. Through 3.78.19 every try
+%% was a write barrier first, which waits for each other worker to reach its
+%% loop's top -- its quantum's end, or a nested search's, which no quantum
+%% ends -- and the holder's frame turned it down after. The child, on four
+%% workers: sp/1 of 64 facts, its last four dead in place and not due, each
+%% clause it calls compiled and its index built before the world (each a
+%% barrier of its own in one); a holder task calls sp(_) and waits on a
+%% channel with its frame open; a long task runs a findall/3 that the clock
+%% ends 0.6 s after it began; a caller, on the third worker, waits for it to
+%% begin and 50 ms more, then calls sp(5) 2000 times, which pays for three
+%% tries. Through 3.78.19 the calls took the rest of the long task's run,
+%% 0.55 s; they take their own, a millisecond. A time past the bar is
+%% measured again by a second child and the less kept.
+still_frames :-
+    section('a try at a sweep that a frame standing still turns down stops no world'),
+    scratch(D),
+    atom_concat(D, '/still.pl', Path),
+    still_fixture(Lines),
+    fixture(Path, Lines),
+    still_times(Path, V),
+    check('a caller whose tries a waiting holder turns down waits for no long task', V, quick),
+    shl(['rm -rf ', D]).
+
+%% `quick', or the two runs' times (or a run's text that was none)
+still_times(Path, V) :-
+    still_run(Path, R1),
+    (   still_quick(R1)
+    ->  V = quick
+    ;   still_run(Path, R2),
+        ( still_quick(R2) -> V = quick ; V = slow(R1, R2) )
+    ).
+
+%% the calls under a quarter of the long task's 0.6 s, which it took
+still_quick(Tc-Tl) :- number(Tc), number(Tl), Tl >= 0.6, Tc < 0.15.
+
+still_run(Path, R) :-
+    cocolog(C),
+    sh_join(['COCOLOG_GREEN_WORKERS=4 ', C, ' -s ', Path, ' 2>&1'], Cmd),
+    shell(Cmd, Out, _, 60000),
+    (   atomic_list_concat([TcA, TlA], ' ', Out),
+        atom_number(TcA, Tc), atom_number(TlA, Tl)
+    ->  R = Tc-Tl
+    ;   R = Out
+    ).
+
+still_fixture(
+    [ ':- dynamic(sp/1).',
+      'sp_make :- forall(between(1, 64, I), assertz(sp(I))), forall(between(61, 64, I), retract(sp(I))).',
+      'sc(0) :- !.',
+      'sc(N) :- sp(5), N1 is N - 1, sc(N1).',
+      'shold(Ready, Rel) :- sp(_), channel_send(Ready, ok), channel_recv(Rel, _), !.',
+      'slong(Started, L, T) :-',
+      '    get_time(T0), channel_send(Started, go),',
+      '    findall(x, ( repeat, get_time(T1), T1 - T0 > L, ! ), _),',
+      '    get_time(T2), T is T2 - T0.',
+      'scall(Started, G, T) :-',
+      '    channel_recv(Started, _), sleep(0.05),',
+      '    get_time(T0), call(G), get_time(T1), T is T1 - T0.',
+      'sworld(L, N, Tc, Tl) :-',
+      '    channel(Ready), channel(Rel), channel(1, Started),',
+      '    go(shold(Ready, Rel), H), channel_recv(Ready, _),',
+      '    go(slong(Started, L, _), Lg), go(scall(Started, sc(N), _), Cg),',
+      '    await(Cg, scall(_, _, Tc)), await(Lg, slong(_, _, Tl)),',
+      '    channel_send(Rel, go), await(H, _).',
+      % every clause the timed world calls compiled first, sp/1's index built:
+      % the first world's tasks compile their own
+      'main :-',
+      '    sp_make, sc(1), once(sp(_)),',
+      '    async_run(sworld(0.0, 0, _, _), _),',
+      '    async_run(sworld(0.6, 2000, Tc, Tl), sworld(_, _, Tc, Tl)),',
+      '    format("~4f ~4f~n", [Tc, Tl]).' ]).

@@ -3038,7 +3038,15 @@ a session must keep:
   doublings at most, in the 4-byte hole before `aix` so no member moved):
   a refused try walks the choices down to that frame, and below 300 000
   choices a try every ten calls took 6.6 s where 3.78.14's every 256th
-  took 0.04. Through 3.78.14 a retract with no call open took its clause
+  took 0.04. **In a green world a try asks the machines that stand still
+  first** (3.78.20, `coco_g_frame_still` before the write barrier in
+  `coco_tomb_try_sweep`): a frame open on the dead in the caller's own
+  machine, the host's, or a task no worker's `cur` names -- under the
+  world's lock, which every pick and every run's end takes -- turns the try
+  down with no barrier. Through 3.78.19 each try stopped the world first, a
+  wait for every other worker's quantum or a nested search's end, and a
+  caller beside a long findall/3 waited 0.55 s for three tries; a frame a
+  running task holds is still the barrier's walk to find. Through 3.78.14 a retract with no call open took its clause
   out of the arrays and dropped every index for the next call to build
   again, and each of those sites took any dead, so a retract of one key
   cost the predicate's size: 20 000 retractall/1 of one key each among
@@ -3874,8 +3882,9 @@ a session must keep:
   printed no Fail (and a window's call never ended, `fate="open"`). A
   frame's kind is asked in ten places -- `coco_backtrack`'s drop test,
   the `$trace_exit` marker's search, the `;` Redo's search,
-  `coco_trace_reopen`, `$catch_exit`'s scan, `coco_frames_on`'s walk
-  (the update view's), since 3.20.0 `$det_exit`'s scan (`coco_det_exit`),
+  `coco_trace_reopen`, `$catch_exit`'s scan, the update view's test
+  (`coco-frame-on`, one macro since 3.78.20 for `coco_frames_on`'s walk
+  and `coco_frames_on_one`, a world's sweep try's), since 3.20.0 `$det_exit`'s scan (`coco_det_exit`),
   since 3.21.0 a guard's (`coco_det_live`) and since 3.27.0 the printer's
   region walk and its search for a `;`'s call (`coco_trace_region`,
   `coco_trace_redo_at`) -- and a new kind goes to all ten (3.28.0's DB

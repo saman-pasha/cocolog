@@ -350,6 +350,19 @@
                   ($ (nth ,i (-> ,e tchoices)) printr)
                   ($ (nth ,i (-> ,e tchoices)) last)))))
 
+;;; CHOICE FRAME C IS OPEN ON PREDICATE PI (3.78.20): a clause frame or a
+;;; clocked one (a clause frame a window's clock marked), or retract/1's or
+;;; clause/2's walk of it (a DB frame, 3.28.0); a spent one tries nothing
+;;; more, and a frame of any other kind keeps something else in `pred' and
+;;; `clause_ix'. What `coco_frames_on' walks every machine for, and what a
+;;; try at a sweep in a world asks first of the machines that stand still
+;;; (`coco_frames_on_one'): a new kind of frame that holds a place in a
+;;; predicate's clauses goes here, for both. C is evaluated four times.
+(DEFMACRO coco-frame-on (c pi)
+  `(and (or (== (-> ,c kind) COCO_CH_CLAUSE) (== (-> ,c kind) COCO_CH_CLOCKED)
+            (== (-> ,c kind) COCO_CH_DB))
+        (== (-> ,c pred) ,pi)))
+
 ;;; WHETHER A VALUE ENTRY'S CELL STANDS IN FOR A GLOBAL (3.78.16), KEEP set
 ;;; to 1 where cell A does: a cell of a ground global's copy the machine
 ;;; keeps, pinned or not (`gcache', its block LO .. HI, every one within

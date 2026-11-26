@@ -289,7 +289,11 @@ a turn, and 0.9 now -- the task's machine holds the count and puts it in
 nodes, an index built again -- is made in 128-byte blocks of whole lines
 while a world runs (3.78.19, at the owner's word), though it shared no line
 where it was measured, with or without them (STATUS.md, 3.78.18 and
-3.78.19).
+3.78.19). 3.78.20 takes out the barrier a try at that sweep stopped the
+world with: a frame open on the dead in a machine that stands still -- the
+caller's own, the host's, a task no worker is running -- turns the try down
+without one, and a caller beside a long findall/3 no longer waits for it
+(0.55 s to 0.0004).
 
 **One core**: `real1` runs the real work lane under `taskset -c 0` on Linux,
 the like-for-like scheduler comparison with the world's workers. In Run H's
