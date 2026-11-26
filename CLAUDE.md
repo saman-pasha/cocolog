@@ -5473,7 +5473,10 @@ a session must keep:
   code of a clause, compiled by the first task to select it, lay in its
   worker's malloc arena beside what that task wrote at every step (sealed
   now, while a world shares the store: `coco_code_seal`, one block on
-  128-byte lines of its own). Eight tasks over one loop took 1.3 to 3.2
+  128-byte lines of its own); and through 3.78.17 the step's slow way
+  noted every predicate it resolved called (`pattrs` 128) at each call
+  that came there, which a meta-predicate's every call does (stored where
+  it is clear since 3.78.18). Eight tasks over one loop took 1.3 to 3.2
   times the time of eight with a copy each, and the benchmark's store
   lane, its lookups the bulk of it, 2.1 times 3.78.17's. **A flag a call
   sets on the store's shared metadata -- a predicate, a code, a functor --
@@ -5481,7 +5484,12 @@ a session must keep:
   to read goes on lines of its own**: the test costs a single thread two
   instructions, where the store cost eight tasks up to twice their work
   again. Helgrind sees none of it: the world's lock between quanta orders
-  every access.
+  every access. The rest of what a worker builds there -- an argument's
+  table, a deep node, an index built again, a predicate's grown arrays --
+  was measured in 3.78.18 and shared no line in the fixtures (`shared_lines`'
+  method, the tables built in the timed world too); given 128-byte blocks
+  of its own it bought nothing, so it stays where malloc puts it
+  (STATUS.md).
   **THE 2.8.0 SCHEDULER BUGS ARE FIXED (2.8.1)**: the block was
   set under the world lock but the task's state only later, in the run's
   rc-0 handler, so a target finishing in the window woke nobody and the

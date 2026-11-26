@@ -2897,7 +2897,7 @@ barrier_run(Path, Out-Exit) :-
     sh_join(['ulimit -v 4194304; COCOLOG_GREEN_WORKERS=4 ', C, ' run ', Path, ' main 2>&1'], Cmd),
     shell(Cmd, Out, Exit, 60000).
 
-%% ---- the lines the workers share (3.78.17) --------------------------------
+%% ---- the lines the workers share (3.78.17, 3.78.18) -----------------------
 %%
 %% EIGHT TASKS THAT SHARE ONE LOOP TAKE THE TIME OF EIGHT WITH A COPY EACH,
 %% on the same workers, in the same child: the work is the same, and the
@@ -2909,7 +2909,10 @@ barrier_run(Path, Out-Exit) :-
 %% other workers read it from lines that worker kept taking away. `env' is
 %% a loop whose clause makes an environment (1.8 to 3.0 times the copies'
 %% time through 3.78.16), `bt' one that leaves a choice point on a
-%% predicate of four clauses and fails back over them (1.3 to 3.2 times).
+%% predicate of four clauses and fails back over them (1.3 to 3.2 times),
+%% `meta' one that calls a meta-predicate four times a turn: its every
+%% call goes the step's slow way, which noted the predicate called
+%% (`pattrs' 128) at each call through 3.78.17 (1.6 to 1.7 times).
 %% A child times five alternating rounds of each and takes each side's
 %% least; a ratio past the bar is measured again by a second child and the
 %% less kept, since a pause only adds. min(4, the world's size) workers,
@@ -2923,7 +2926,7 @@ shared_lines :-
         atom_concat(D, '/lines.pl', Path),
         lines_fixture(Lines),
         fixture(Path, Lines),
-        forall(member(Kind, [env, bt]),
+        forall(member(Kind, [env, bt, meta]),
                ( lines_ratio(Path, W, Kind, V),
                  format(atom(Says), '~w: one loop for eight tasks costs what a loop each does, ~w workers',
                         [Kind, W]),
@@ -2958,6 +2961,7 @@ lines_fixture(Lines) :-
            [ 'loop(Kind, shared, _, N, G) :- loop(Kind, own, 0, N, G).',
              'loop(bt, own, K, N, G) :- atom_concat(l, K, L), G =.. [L, N].',
              'loop(env, own, K, N, G) :- atom_concat(e, K, E), G =.. [E, N].',
+             'loop(meta, own, K, N, G) :- atom_concat(v, K, V), G =.. [V, N].',
              'world(Kind, How, N) :-',
              '    findall(G, ( between(1, 8, K), loop(Kind, How, K, N, G) ), Gs),',
              '    async_run(( spawn_all(Gs, Ids), await_all(Ids) ), _).',
@@ -2978,7 +2982,11 @@ lines_copy(K, L) :-
                 'l~(0) :- !.',
                 'l~(N) :- ( p~(_), fail ; true ), N1 is N - 1, l~(N1).',
                 'e~(0) :- !.',
-                'e~(N) :- ( N > 0 -> true ; true ), N1 is N - 1, e~(N1).' ]),
+                'e~(N) :- ( N > 0 -> true ; true ), N1 is N - 1, e~(N1).',
+                ':- meta_predicate(m~(0)).',
+                'm~(G) :- G.',
+                'v~(0) :- !.',
+                'v~(N) :- m~(true), m~(true), m~(true), m~(true), N1 is N - 1, v~(N1).' ]),
     atomic_list_concat(Parts, '~', F),
     atom_number(KA, K),
     atomic_list_concat(Parts, KA, L).

@@ -4248,11 +4248,16 @@
                              ;; call is made in (`coco_step_meta'). Every
                              ;; predicate called is noted so (128): a
                              ;; declaration after a call changes nothing a call
-                             ;; does, as swipl's (`coco_pred_meta_note')
+                             ;; does, as swipl's (`coco_pred_meta_note') --
+                             ;; stored only where it is not set yet (3.78.18):
+                             ;; a meta-predicate's every call comes here, and
+                             ;; the store took the predicate's line away from
+                             ;; every other green worker
                              (if (< pi ($ (cof st) npreds))
                                  (block
-                                  (set ($ (coco-pred-at ($ (cof st) predp) pi) pattrs)
-                                       (bitor ($ (coco-pred-at ($ (cof st) predp) pi) pattrs) 128))
+                                  (if (== (bitand ($ (coco-pred-at ($ (cof st) predp) pi) pattrs) 128) 0)
+                                      (set ($ (coco-pred-at ($ (cof st) predp) pi) pattrs)
+                                           (bitor ($ (coco-pred-at ($ (cof st) predp) pi) pattrs) 128)))
                                   (if (!= (bitand ($ (coco-pred-at ($ (cof st) predp) pi) pattrs) 512) 0)
                                       (set g (coco_step_meta e pi g b))
                                       (if (and (not (coco_is_construct m nid))

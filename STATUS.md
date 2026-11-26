@@ -25600,3 +25600,83 @@ built again, a predicate's arrays grown by a task's assertz, a new block of
 predicates -- is still allocated from the worker's arena with no line of
 its own. None of it was measured; each is built once and read by every
 call keyed on it, as the code is.
+
+## A meta-predicate's call no longer writes its predicate (3.78.18)
+
+3.78.17's NOT DONE, taken up: the rest of the store's metadata a green
+worker builds -- an argument's table, a node of the deep index, the first
+argument's index built again, a predicate's arrays a task's assertz grows,
+a new block of predicates -- measured, and every store a call makes into a
+predicate looked for again. One store was there, and it is out; the
+allocations measured nothing, and stay as they are.
+
+THE FIXTURE. shared_lines' method: eight green tasks through one predicate
+against eight with a copy each, on four workers, five alternating rounds,
+each side's least, the ratio the shared side's time over the copies'. One
+kind a piece of metadata: `aix`, sixteen facts called with the first
+argument unbound and the second bound (the second argument's table);
+`deep`, sixteen `f(I)` facts called with `f(5)` (a node of the deep
+index); `reidx`, a dynamic predicate given a clause by asserta/1 before
+each world (its first argument's index built again); `grow`, a predicate
+of 64 facts a task's assertz makes in the world; and `meta`, a
+meta-predicate called each turn. The first four with their index built in a
+warm-up world, and three of them again (`aixw`, `deepw`, `reidxw`) over
+predicates made afresh each round, so that the first task to call one
+builds its index inside the timed world, beside what that task writes at
+every step.
+
+WHAT 3.78.17 READ. The metadata was level: four rounds in rotation, `aix`
+0.91 to 1.05, `deep` 0.97 to 1.05, `reidx` 0.90 to 1.09, `grow` 0.94 to
+1.13, and the in-world kinds 0.77 to 1.06 -- where the eight copies are
+made eight times and the shared side once, the shared side cheaper, if
+anything. `meta` was not: 1.09 to 1.40. Every call of a meta-predicate goes
+the step's slow way (3.45.0: its functor is never stamped a plain
+predicate), and the slow way noted the predicate called, `pattrs` 128
+(3.46.0, `pmq`'s rule), by storing the bit at every call: eight tasks
+calling one meta-predicate took its line from each other at every turn,
+and eight calling one each stored into lines the others' predicates read.
+The note is now stored only where it is not set (lib/solve-loop.cicili),
+as 3.78.17's `framed` is.
+
+MEASURED. Four rounds of 3.78.17, the fix alone and the fix with the
+allocations below, in rotation: `meta`'s shared side 0.206 s to 0.163 (0.79
+of its time), its ratio 1.11-1.21 to 0.92-1.06, the copies' side 0.178 to
+0.168. A loop of four meta-predicate calls a turn, three runs each: 1.60 to
+1.69 on 3.78.17, 0.99 to 1.26 on the fix; the shared side 0.65-0.70 s to
+0.37-0.47, the copies' 0.40-0.43 to 0.37-0.39. What declares one is a
+program's `:- meta_predicate` naming a module-sensitive argument, and of
+the libraries' own predicates aggregate_all/3 (library(aggregate)'s
+vendored clauses), yall's lambdas and max_member/3 and min_member/3.
+
+THE ALLOCATIONS, not shipped. Every site that makes or grows the metadata
+above was given 3.78.17's seal while a world shares the store: a block
+128-byte aligned and a whole number of 128 bytes long, the old contents
+copied and the rest zeroed (`coco_meta_move`; `coco_store_grow_meta` for
+the arrays the store grows, the realloc or calloc of each other site kept
+outside a world). In the same rotation it bought nothing: `aix` 0.126 s to
+0.135 on the shared side and 0.126 to 0.134 on the copies', `reidx` 0.103
+to 0.112 and 0.108 to 0.120, the rest level within the noise (`deep`
+0.134 and 0.134, `aixw` 0.133 and 0.137, `deepw` 0.151 and 0.137,
+`reidxw` 0.098 and 0.100). A change that moves nothing measurable is not
+shipped. Where the allocator put a table's arrays did not, in these
+fixtures, put them beside what a task writes at every step; a code (3.78.17)
+is compiled in pieces at each clause's first selection, the task's own
+allocations around it, and is read whole at every entry.
+
+HELD. test/async.pl's `shared_lines` takes a third kind, `meta`: the loop of
+four meta-predicate calls a turn, under the same bar. 3.78.17 is red on it
+(1.85, and 1.74 on the child that measures again); 3.78.18 green.
+
+COST. `tools/flow/zero.sh` against 3.78.17, work less padding: nrev 3
+instructions more (65 889 885 to 65 889 888), queens 6 (39 975 651 to
+39 975 657), lookup 2 (48 062 418 to 48 062 420), the padding the same. A
+start the same, 36 351 247 instructions (each binary in turn at the
+checkout's path). The C the committed sources make is the arm's that was
+measured, but for the version's text. The narrow round on the final binary
+green: lint, async, engine, gc, reconsult, trace, window, flowdebug,
+cowork, thread, files, solve, state, module.
+
+NOT DONE. A predicate with clauses that died in place charges each call
+that passes them (`tprobe`, `coco-tomb-charge`, 3.78.15): a store into the
+predicate at every such call, while its dead wait for their sweep -- which
+in a world comes only where no task's frame is open on them. Not measured.
