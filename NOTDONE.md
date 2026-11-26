@@ -12,7 +12,9 @@ that entry has the detail.
 
 - **Postfix operators** (3.2.0). `op(200, xf, ff)` raises
   `domain_error(operator_specifier, xf)`. swipl accepts `xf` and `yf`, and
-  reads `a ff` as `ff(a)`.
+  reads `a ff` as `ff(a)`. Work on this began on 2026-11-26 and was paused
+  before any code changed. The section "Postfix operators: notes from the
+  paused work", below, has what it found and the plan.
 - **Dicts** (3.2.0). `_{a:1}` is a syntax error (`operator_expected`).
   swipl reads it as a dict, and has the `.` operator that dicts use.
 - **`thread_initialization/1`** (3.2.0; COMPAT.md has the row). It runs its
@@ -172,3 +174,171 @@ listed so that nobody looks for them again.
 - The bullet on dispatch ("Dispatch is construct, C builtin, module, store")
   still says cocolog loads the clauses of one name that are not together in
   a file without a word. The load has warned as swipl's does since 3.17.0.
+
+## Postfix operators: notes from the paused work
+
+Work on postfix operators began on 2026-11-26. At the owner's word, it was
+paused before any code changed. These notes record what that work found, so
+that it can start again from here.
+
+Every answer below is swipl 9.0.4's own. Its source explains them:
+`pl-read.c`'s `complex_term()`, `pl-write.c` and `pl-op.c`.
+
+The examples use these declarations:
+
+```prolog
+:- op(200, xf, ff).   :- op(200, yf, gg).   :- op(300, xf, tf).
+:- op(500, xf, fv).   :- op(800, xf, hi).   :- op(1100, xf, hh).
+:- op(500, yfx, ip).  :- op(200, xf, ip).   % ip is infix and postfix
+:- op(200, fy, pq).   :- op(200, xf, pq).   % pq is prefix and postfix
+:- op(200, fx, gx).
+```
+
+### op/3 and current_op/3
+
+- `op/3` takes `xf` and `yf`.
+- One name may be a prefix, an infix and a postfix operator at once. swipl
+  does not apply ISO's rule against an infix and a postfix operator of one
+  name.
+- `op(P, xf, ',')` raises `permission_error(modify, operator, ',')`.
+  `op(P, xf, '|')` raises `permission_error(create, operator, '|')` at any
+  priority. `[]`, `'[]'` and `{}` are accepted.
+- `op(0, xf, ff)` removes the operator. A second `op/3` of the same kind
+  replaces it.
+- `current_op/3` lists a name's kinds in the order prefix, infix, postfix:
+  `ip` gives `500 yfx` and then `200 xf`.
+- swipl declares no postfix operators of its own.
+
+### Reading
+
+swipl's reader keeps a stack of operators and a stack of operands. cocolog's
+reader has worked the same way since 3.62.0.
+
+After an operand, a name is taken as an infix operator if it is one, and as
+a postfix operator only otherwise. A postfix operator then does three
+things:
+
+1. It reduces the operators before it that its left side admits, as an
+   infix operator would.
+2. It is applied at once if both of these hold:
+   - its priority is no more than the right priority of the operator before
+     it (1201 if there is none, or if that operator is postfix);
+   - its operand fits.
+3. Otherwise it waits on the stack, and takes whatever term is built above
+   it later.
+
+Where no operator is before it (1201) and its operand does not fit, the
+clash is reported at once, at the postfix operator. In every other case it
+is reported where the term ends.
+
+| text | swipl |
+|---|---|
+| `a ff` | `ff(a)` |
+| `a gg gg` | `gg(gg(a))` |
+| `a ff ff` | operator_clash at the second `ff` |
+| `a ff ff b` | operator_clash at the second `ff`, at once |
+| `x = a ff ff b` | operator_expected at `b` (the clash would come at the end) |
+| `a ff gg` / `a gg ff` | `gg(ff(a))` / operator_clash |
+| `- a ff` / `- a gg` / `- a tf` | `-(ff(a))` / `gg(-(a))` / `tf(-(a))` |
+| `x = a ff` / `x = a hi` | `x = ff(a)` / `hi(x = a)` |
+| `a, b hh` / `a hh, b` | `hh((a, b))` / operator_clash at the `,` |
+| `x - a fv` | operator_clash at the end of the `-` |
+| `gx a ff` | operator_clash at the end of `gx` |
+| `a ff b` / `a ff(b)` | operator_expected |
+| `f(a ff)`, `[a ff\|T]`, `{a ff}` | the postfix term inside |
+
+A prefix operator followed by a postfix operator becomes its atom when the
+postfix operator's left priority is more than the prefix operator's right
+priority. So `- tf` reads `tf(-)`, but `- ff` reads `-(ff)`.
+
+An infix operator that is also postfix, waiting for its right operand,
+becomes postfix in three cases (swipl's `modify_op()`):
+
+- the term ends there;
+- an infix operator follows whose left priority is more than the waiting
+  operator's right priority;
+- a postfix operator follows under the same test.
+
+When it becomes postfix it is applied to its left operand with no priority
+check. A prefix operator after it is read as prefix first.
+
+| text | swipl |
+|---|---|
+| `a ip` | `ip(a)` |
+| `a ip ip` | `ip(ip(a))`, although `ip` is `xf` 200 |
+| `a ip = b` / `a ip, b` | `ip(a) = b` / `(ip(a), b)` |
+| `a ip hi` | `hi(ip(a))` |
+| `a ip ff` / `a ip - b` | `ip(a, ff)` / `ip(a, -(b))` |
+| `a ip \| b` | quoted_punctuation |
+
+A postfix operator's clash is placed at its start. An infix operator whose
+left operand is too big (a postfix term) has its clash placed at the infix
+operator's start: `a hi = b` reports operator_clash at the `=`.
+
+A postfix term's position is
+`term_position(ArgFrom, OpTo, OpFrom, OpTo, [ArgPos])`. For example,
+`a ff + b gg` gives
+`term_position(0,11,5,6,[term_position(0,4,2,4,[0-1]),term_position(7,11,9,11,[7-8])])`.
+
+### Writing
+
+A compound of one argument is written prefix if its name is a prefix
+operator, so prefix wins over postfix. Otherwise it is written postfix if
+its name is a postfix operator:
+
+- the operand comes first, at the operator's priority less one (`xf`) or at
+  its priority (`yf`);
+- the name follows;
+- the whole is bracketed where its priority is more than the context
+  allows.
+
+An atom that is an operator of any kind, postfix included, is bracketed
+where it stands as an operator's operand.
+
+| term | `writeq/1` |
+|---|---|
+| `ff(a)`, `gg(gg(a))`, `ff(1)`, `ff(-1)` | `a ff`, `a gg gg`, `1 ff`, `-1 ff` |
+| `ff(ff(a))`, `ff(-(a))`, `ff(-(1))` | `(a ff)ff`, `(-a)ff`, `(- 1)ff` |
+| `ff(ff)`, `ff+a`, `-(ff)` | `(ff)ff`, `(ff)+a`, `- (ff)` |
+| `-(ff(a))`, `hi(a=b)`, `hi(a)=b` | `-a ff`, `a=b hi`, `(a hi)=b` |
+| `ff("s")`, `ff([])`, `ff(f(x))` | `"s"ff`, `[]ff`, `f(x)ff` |
+| `'++'(a)`, `'++'('++'(a))` | `a++`, `(a++)++` |
+
+`write_canonical/1` and `ignore_ops(true)` write `ff(a)`. In a clause body,
+`portray_clause/1` writes `a ff`.
+
+### The plan for cocolog (not built)
+
+- **op/3:**
+  - Postfix operators go in the table a program adds to, as kind 2. There
+    are no built-in ones.
+  - `xf` and `yf` are added to `*op-types*` and `coco_op_type_of`.
+  - A count of the declared postfix operators is kept. Every new check in
+    the reader and the writer asks it first, so a program that declares none
+    takes exactly the paths it takes now.
+- **The reader:** the loop in `coco-parse-term-body` keeps its present
+  path, and the new work goes in four places.
+  - *A postfix operator after an operand.* It is read in a cold block that
+    has its own loop over the tokens after it. A postfix operator that
+    waits gets a frame of a new kind, a unary one whose operand is the
+    frame's term. After a postfix term, an infix operator must ask whether
+    its left operand fits. Where it does not, the frame never reduces, and
+    its clash is said at the operator's start when the term ends.
+  - *An infix operator that is also postfix.* At its push, behind the
+    count, the token after it is asked whether `modify_op()` would make the
+    operator postfix.
+  - *A prefix operator before a postfix operator.* This is handled in
+    `coco_starts_term` and `coco_term_px_atom`.
+  - *Errors and positions.* `coco_term_misfit` places a clash by the
+    frame's kind, `coco_term_pending` takes the two new kinds, and a
+    `coco_pos_postfix` builds the position.
+- **The writer:** a postfix branch after the prefix one. Bracketing an atom
+  that is only a postfix operator also asks the count.
+- **Everything else that knows the operator kinds:**
+  - `current_op/3`'s `'$ops'/4`;
+  - the operators a frozen machine keeps (`lib/state.cicili`);
+  - any table that lists operator types.
+- **The case:** `test/files/postfix.pl`, run by both systems under the files
+  case, built like `test/files/op_reduce.pl`.
+- **What to watch:** the cost of a start and of a consult. 3.62.0's notes
+  in STATUS.md record how a small change in that loop moved its registers.
