@@ -25869,3 +25869,175 @@ to the log of the calls, as before. And the shared side's 4 to 11 % over
 the copies at four calls a turn is not attributed: one candidate is the
 batched charge's flush, which puts its 64 into the one predicate's line
 where each copy's goes to its own, some 100 000 stores in a run.
+
+## A try at a sweep asks the tasks that run, and a task's machine holds four predicates' charges, a sixteenth of the need at a time (3.78.21)
+
+3.78.20's two NOT DONE, at the owner's word ("Do all opened tasks"), and a
+third that measuring the second found.
+
+THE QUESTION. 3.78.20 had a try at a sweep walk the machines that stand
+still under the world's lock, and turn the try down where one held a frame
+open on the dead; a task another worker was running was passed by, and
+where none standing still held one the try took the write barrier, which
+waits for that worker's next safe point -- its quantum's end, or the end of
+a nested search, which no quantum ends -- and the walk after it found the
+frame. Each of the log of the calls' tries, and the caller with it, waited
+for the running holder.
+
+THE FIXTURE (test/async.pl's `ask_frames`). sp/1 as `still_frames` has it;
+a holder calls sp(_) and, its frame open, runs a findall/3 that the clock
+ends 0.6 s after it began; a caller on another of four workers waits for it
+to begin and 50 ms more, then calls sp(5) 2000 times, which pays for three
+tries. MEASURED on 3.78.20, three runs: the caller's calls 0.5506-0.5519 s,
+the rest of the holder's search.
+
+THE FIX (lib/green.cicili's `coco_g_sq_ask`, asked by `coco_g_frame_still`
+where no machine standing still holds a frame). The world holds one
+question -- whether a frame stands open on predicate PI of ST (`sq_st`,
+`sq_pi`) -- put to each task another worker is running (`coco_g_sq_put`,
+each asked worker's `sq_seq` and `sq_tid`), with the answers owed counted
+(`sq_left`) and whether one found a frame (`sq_held`). A worker answers at
+its task's run's end, under the lock and before the end can free the
+machine (`coco_g_sq_answer`, from `coco_g_run`); a try answers for an
+asked task that stands still now -- in its nested wait or a foreign call,
+or ended -- with the walk it makes of the still, and for itself where it
+is the task asked (`coco_g_sq_settle`, below). A try
+is turned down while answers are owed, or puts the question and is turned
+down; it takes the barrier where every answer is in and none found a frame,
+or no other worker runs a task. An answer that found a frame is stale by the
+next try, and the question is put again. A try turned down doubles what the
+next must pay, as one always did (`tback`), so the tries stay the log of the
+calls; and the last of answers that found no frame gives the predicate back
+the doublings made while the question stood (`sq_back`, never raising
+`tback`), so its next call tries again and takes the barrier, which may
+sweep.
+
+A TASK INSIDE ITS NESTED WAIT OR A DECLARED FOREIGN CALL STANDS STILL
+(`coco_g_task_still`): the waiter (state 3) moves only under the lock and
+leaves the wait there; the call's end takes the lock before the task goes
+on, and the call touches no engine. Walked, not asked: such a task cannot
+answer before its call returns, and a question waiting for it would turn
+every try in the world down meanwhile -- a task asleep in accept/2 for an
+hour, every sweep for the hour. The fixture (`ask_still`): dp/1 of 9000
+facts, its first 1000 dead in place (not many, not paid); a task W runs
+0.6 s, asleep in sleep/1 or awake in a findall/3; a caller on another worker
+calls once(dp(_)) 40 000 times, each call passing the dead until a sweep
+takes them. Asleep, W is walked and the first try sweeps; awake, W is asked
+and the calls pass the dead while it runs. The check: the calls beside W
+asleep take under a third of their time beside W awake.
+
+A TASK ASKED THAT TRIES A SWEEP ITSELF ANSWERS FOR ITSELF
+(`coco_g_sq_settle`'s second test): its machine is its own to walk, and
+left owed, its own tries were turned down until its run's end -- for a
+task inside a nested search, the search's end. Found reading the first
+build's code over: no fixture above puts a question to a task that then
+tries. The fixture (test/async.pl's `ask_self`): dq/1 of 9000 facts, its
+first 1000 dead in place (not many, not paid), and dr/1 of 8000 with none;
+a task S runs one findall/3, a spin of 2 000 000 steps that calls no
+predicate of the store and then 100 000 calls of once(dq(_)), each passing
+the dead until a sweep takes them; a task A on another worker wakes as S
+begins and makes 12 calls, whose try asks S. The check: S's search over
+dq/1 under twice the same world's over dr/1. MEASURED, S's search against
+the world over dr/1, six runs of the build without it and three of
+3.78.21: without it 0.3715-0.4268 s against 0.0864-0.0998 (its tries turned
+down for the whole search, 100 000 calls passing the 1000 dead), 3.78.21
+0.0847-0.1023 against 0.0869-0.1543. 3.78.20, three runs: 0.0915-0.1325
+against 0.0913-0.1038, A's twelve calls waiting 0.0598-0.0904 s at the
+barrier for S's spin, where 3.78.21's take 0.0000-0.0001.
+
+MEASURED. `ask_frames`' caller 0.0004-0.0006 s on 3.78.21 against
+0.5506-0.5519 on 3.78.20, three runs each, the holder 0.6000-0.6004 s on
+both. The foreign-call fixture's caller at 20 000 calls, beside W asleep
+and awake: 3.78.20 0.0059 and 0.5550 s (its first try waits for W's search,
+then sweeps), 3.78.21 0.0052 and 0.1040 (it passes the dead while W runs,
+and waits for nothing).
+
+THE FLUSH, ATTRIBUTED. 3.78.20 named a candidate for the shared side's 4 to
+11 % over the copies at four calls a turn: the batched charge's put
+(3.78.19), 64 calls' worth into the one predicate's line, which every
+worker's call reads -- some 100 000 stores in the run's 6.4 million calls,
+by the rule. An arm that never put the charge in (a batch of 2^20) against
+3.78.20, four rounds in turn, each side the least of five: the ratio
+0.95-0.99 against 1.01-1.07, the shared side 0.148-0.155 s against
+0.157-0.166, the copies' side level. The put was the residual.
+
+THE FIX (lib/kb.cicili's `coco-tomb-batch`, lib/kb-pred.cicili's
+`coco_tomb_charge_at`). A machine puts its charge in at a sixteenth of what
+the next try needs, 64 at least, so each doubling of the need is some
+sixteen puts however many calls it takes -- some 150 in the run, by the
+rule. The count is late by a batch a machine at most: the try comes when
+the calls have paid up to half as much again at eight tasks, where 64 a
+machine made it 512 calls late.
+
+THE ALTERNATION. One slot a machine: a task whose calls went from one
+predicate with dead clauses to another put the first's charge in, so a loop
+that called two such predicates in turn put it in at every call -- 3.78.18's
+store a call again. The fixture (scratchpad dead2.pl, dead.pl's shape): P
+and Q of 64 facts, the last four dead and each held by a waiting task, and
+a loop calling P(5) and Q(5) in turn, four calls a turn; shared, one P and
+one Q for eight tasks; own, a pair a task. MEASURED on 3.78.20: 2.43 times
+(0.529 s against 0.218), the one-predicate control 1.03.
+
+THE FIX. Four slots a machine (`tcp [4]`, `tcn [4]`, appended where the
+one stood), the newest first; a predicate the machine holds none for puts
+the oldest slot's charge in, moves the others back one and takes the front;
+the machine's free puts every slot in (`coco_tomb_flush`, over
+`coco_tomb_flush_at`).
+
+MEASURED, the final rotation (scratchpad meta21/rotfin.sh), each line the
+least of five rounds a side. dead.pl at four calls a turn, six rounds of
+four builds in rotation -- ratio (median), shared side (median):
+- 3.78.20: 0.955-1.108 (1.047), 0.162-0.187 s (0.170);
+- the no-flush arm: 0.849-1.076 (0.963), 0.152-0.173 (0.160);
+- 3.78.21 without the slots: 0.912-0.980 (0.943), 0.150-0.165 (0.156);
+- 3.78.21: 0.813-0.978 (0.965), 0.158-0.167 (0.161).
+The batch takes out what the no-flush arm does. dead2.pl at four calls a
+turn, four rounds of two builds in turn: alternating, without the slots
+2.73-3.23 (the shared side 0.510-0.542 s), 3.78.21 0.95-1.12 (0.170-0.205);
+one predicate, 0.88-1.00 and 0.85-1.06, level.
+
+ARMS, each a build of 3.78.21 with one rule taken out:
+- Q0, no question (the try takes the barrier as 3.78.20's did):
+  `ask_frames` red (0.5508 and 0.5510 s), `ask_still` green;
+- E0, a task inside a foreign call or its nested wait not standing still:
+  `ask_still` red (asleep 0.2288 and 0.1383 s against awake 0.1311 and
+  0.2074), `ask_frames` green;
+- S0, no self-answer (the build before it): `ask_self` red (0.3651 and
+  0.3640 s against 0.0887 and 0.0898), `ask_frames` and `ask_still`'s
+  fixtures read as their checks want (0.0004 s; 0.0065 asleep against
+  0.0599-0.0904 awake);
+- R0, no doublings given back: the restore fixture (scratchpad restore.pl:
+  W awake 0.3 s holding no frame, the caller's 300 000 calls) 0.490-0.588 s
+  against 3.78.21's 0.340-0.353, three runs each in turn -- without it the
+  dead stay for as many calls again once W's answer is in;
+- the batch and the slots are each the one rule of 3.78.21 that dead.pl and
+  dead2.pl exercise (their holders stand still, so no question is put, and
+  dead.pl's tasks call one predicate each), so 3.78.20 against 3.78.21
+  without the slots is the batch's arm on dead.pl, and that build against
+  3.78.21 the slots' on dead2.pl.
+3.78.20 itself: `ask_frames` red (0.5514 and 0.5509 s), `ask_still` and
+`ask_self` green (it asks no question: the asker waits at the barrier).
+The rotation and the arms Q0, E0 and R0 were made on 3.78.21 before the
+self-answer, which changes `coco_g_sq_settle` alone: no question is put on
+dead.pl or dead2.pl, whose holders stand still, and the final binary's
+fixtures read as that build's -- `ask_frames`' caller 0.0004 s against
+0.0004, `ask_still`'s 0.0067 asleep and 0.0628-0.1114 awake (six runs)
+against 0.0065 and 0.0599-0.0904, the restore fixture's 0.3515 against
+0.3445.
+
+COST. tools/flow/zero.sh against 3.78.20 at paths of one length: nrev,
+queens and lookup the same to the instruction, padding too. A start, each
+binary swapped in at the checkout's path: 1 882 instructions fewer
+(36 358 887 against 36 360 769, twice), of which cocolog's own are 77 more
+-- `coco_machine_free` 13 and its memset 64, the four slots flushed and
+cleared -- and the rest libc's strcmp (2 200 fewer) and memcmp (1 222 more)
+and the dynamic loader's strcmp (981 fewer), which move with the layout.
+
+NOT DONE. One question a world: a try for another predicate while one is
+owed is turned down, though nothing may hold a frame on it. A task that
+runs a long nested search keeps a question owed for its whole search, and
+every try in the world is turned down meanwhile -- no sweep until it ends,
+which the barrier would have waited for too. A loop over five or more
+predicates with dead clauses puts a slot in at each change again. The
+restore and the probe's doubling store `tback` with no lock: a lost store
+is a try a doubling later.

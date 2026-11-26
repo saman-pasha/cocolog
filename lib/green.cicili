@@ -205,7 +205,14 @@
     (member int            wgen)
     (member int            wseen)
     (member pthread_t      tid)
-    (member pthread_cond_t wake))
+    (member pthread_cond_t wake)
+    ;; THE QUESTION THIS WORKER OWES AN ANSWER TO (3.78.21): the world's
+    ;; `sq_seq' when the try asked it, 0 none, about task SQ_TID, which it
+    ;; was running then. Answered at that task's run's end, or by a try that
+    ;; finds the task standing still or is the task's own
+    ;; (`coco_g_sq_settle'). Appended.
+    (member int            sq_seq)
+    (member int            sq_tid))
 
   (struct green_world
     (member green_thread *    threads)
@@ -264,7 +271,19 @@
     ;; under the world lock, or a freed read (the light lane's hang and
     ;; SIGSEGV, one run in twelve). The list has its own mutex, never held
     ;; across anything else, and the world lock is never taken under it.
-    (member pthread_mutex_t   mmx))
+    (member pthread_mutex_t   mmx)
+    ;; THE QUESTION A TRY AT A SWEEP PUTS TO THE TASKS RUNNING (3.78.21,
+    ;; `coco_g_sq_ask'): whether a frame of theirs stands open on predicate
+    ;; SQ_PI of SQ_ST. SQ_SEQ numbers it (0, none was put), SQ_LEFT counts
+    ;; the answers still owed (each asked worker's `sq_seq'), SQ_HELD says
+    ;; an answer found a frame, and SQ_BACK is the predicate's `tback' as
+    ;; it was put. Under the lock, all of it. Appended.
+    (member coco_store *      sq_st)
+    (member size_t            sq_pi)
+    (member int               sq_seq)
+    (member int               sq_left)
+    (member int               sq_held)
+    (member u32               sq_back))
 
   ;;; <pthread.h>'s, which Cicili's std does not declare
   (decl) (func pthread_attr_getstacksize ((const pthread_attr_t * attr) (size_t * stacksize)) (out int))
@@ -879,8 +898,104 @@
   ;;; picked. Its machine's engines are then the one it keeps (`keep_eng')
   ;;; or, a nested waiter's, the chain its wait stands in, and the host's
   ;;; the one that called async_run/1,2 -- read here, never written, as no
-  ;;; write runs while a task does. A running task's are passed by: only
-  ;;; the barrier stops it, and a frame of its keeps the try to the walk.
+  ;;; write runs while a task does. NOR DOES ONE ITS WORKER RUNS THAT IS
+  ;;; INSIDE A NESTED WAIT OR A DECLARED FOREIGN CALL (3.78.21): the waiter
+  ;;; (state 3) moves only under the lock, and leaves the wait there
+  ;;; (`coco_g_wait_leave'); the call's end takes the lock before the task
+  ;;; goes on (`coco_g_foreign_end'), and the call touches no engine.
+  ;;;
+  ;;; A TASK THAT RUNS IS ASKED, AND THE TRY IS TURNED DOWN (3.78.21,
+  ;;; `coco_g_sq_ask'): through 3.78.20 it was passed by, and the barrier
+  ;;; after waited for its worker -- the end of its quantum, or of a whole
+  ;;; nested search -- to find the frame it held: a caller beside a holder
+  ;;; in a findall/3 of 0.6 s waited for the rest of it, 0.55 s for three
+  ;;; tries its calls paid for in a millisecond (test/async.pl,
+  ;;; `ask_frames'). The try that finds every answer in and none a frame
+  ;;; takes the barrier, which may sweep; an asked task's own try answers
+  ;;; for it, or its tries wait for its run's end (`ask_self').
+  (static)
+  (func coco_g_task_still ((green_world * wd) (green_thread * t)) (out int)
+        (let ((green_worker * tw . #'(aof (nth (-> t worker) (-> wd workers)))))
+          (return (or (!= (-> tw cur) (-> t id))
+                      (or (== (-> t state) 3) (> (-> tw foreign) 0))))))
+
+  ;;; W'S ANSWER ABOUT TASK T, WHICH STANDS STILL (the caller holds the
+  ;;; lock): whether T's machine holds a frame open on the predicate asked
+  ;;; about. A worker's answer to a question put since is no answer. The
+  ;;; last answer of a question that found no frame gives the predicate back
+  ;;; the doublings its tries made while it was put (`tback', never above
+  ;;; what it was then), so that its next call tries again, and takes the
+  ;;; barrier.
+  (static)
+  (func coco_g_sq_answer ((green_world * wd) (green_worker * w) (green_thread * t))
+        (let ((int owed . #'(and (!= (-> w sq_seq) 0)
+                                 (and (== (-> w sq_seq) (-> wd sq_seq))
+                                      (> (-> wd sq_left) 0)))))
+          (set (-> w sq_seq) 0)
+          (if (not owed) (return))
+          (if (and (!= (-> t m) nil)
+                   (coco_frames_on_one (-> t m) (-> wd sq_st) (-> wd sq_pi)))
+              (set (-> wd sq_held) 1))
+          (set (-> wd sq_left) (- (-> wd sq_left) 1))
+          (if (and (== (-> wd sq_left) 0) (== (-> wd sq_held) 0))
+              (let ((coco_store * qs . #'(-> wd sq_st)))
+                (if (> ($ (coco-pred-at (-> qs predp) (-> wd sq_pi)) tback) (-> wd sq_back))
+                    (set ($ (coco-pred-at (-> qs predp) (-> wd sq_pi)) tback) (-> wd sq_back)))))))
+
+  ;;; THE ANSWERS STILL OWED BY TASKS THAT STAND STILL NOW: a task that
+  ;;; entered a nested wait or a foreign call, or ended, since it was asked
+  ;;; has had no run's end to answer at. And the caller's own: a task asked
+  ;;; that tries a sweep itself answers for itself, its machine its own to
+  ;;; walk -- left owed, it turned its own tries down till its run's end.
+  (static)
+  (func coco_g_sq_settle ((green_world * wd))
+        (if (== (-> wd sq_left) 0) (return))
+        (for ((int i . 0)) (< i (-> wd nworkers)) ((++ i))
+          (let ((green_worker * x . #'(aof (nth i (-> wd workers)))))
+            (if (and (!= (-> x sq_seq) 0) (== (-> x sq_seq) (-> wd sq_seq)))
+                (let ((green_thread * t . #'(aof (nth (-> x sq_tid) (-> wd threads)))))
+                  (if (or (coco_g_task_still wd t)
+                          (and (== x green_me) (== (-> x sq_tid) (-> x cur))))
+                      (coco_g_sq_answer wd x t)))))))
+
+  ;;; PUT THE QUESTION ABOUT PI OF ST to every task another worker is
+  ;;; running, and answer how many were asked: none, and the world's slot
+  ;;; is empty.
+  (static)
+  (func coco_g_sq_put ((green_world * wd) (coco_store * st) (size_t pi)) (out int)
+        (let ((int n . 0))
+          (set (-> wd sq_seq) (+ (-> wd sq_seq) 1))
+          (if (<= (-> wd sq_seq) 0) (set (-> wd sq_seq) 1))
+          (for ((int i . 0)) (< i (-> wd nworkers)) ((++ i))
+            (let ((green_worker * x . #'(aof (nth i (-> wd workers)))))
+              (if (and (!= x green_me) (>= (-> x cur) 0))
+                  (let ((green_thread * t . #'(aof (nth (-> x cur) (-> wd threads)))))
+                    (if (and (!= (-> t m) nil) (not (coco_g_task_still wd t)))
+                        (block (set (-> x sq_seq) (-> wd sq_seq))
+                               (set (-> x sq_tid) (-> x cur))
+                               (set n (+ n 1))))))))
+          (set (-> wd sq_st) (? (> n 0) st nil))
+          (set (-> wd sq_pi) pi)
+          (set (-> wd sq_left) n)
+          (set (-> wd sq_held) 0)
+          (set (-> wd sq_back) ($ (coco-pred-at (-> st predp) pi) tback))
+          (return n)))
+
+  ;;; A TRY NO FRAME STANDING STILL TURNED DOWN (the caller holds the lock):
+  ;;; 1, turned down, where a question about this predicate waits for
+  ;;; answers or one is put now, or another predicate's waits for its own;
+  ;;; 0, the barrier, where every answer is in and none found a frame, or
+  ;;; no other worker runs a task. A question whose answers found a frame
+  ;;; is put again: the frame may have closed, and its task stood still.
+  (static)
+  (func coco_g_sq_ask ((green_world * wd) (coco_store * st) (size_t pi)) (out int)
+        (coco_g_sq_settle wd)
+        (if (> (-> wd sq_left) 0) (return 1))
+        (if (and (and (== (-> wd sq_st) st) (== (-> wd sq_pi) pi))
+                 (== (-> wd sq_held) 0))
+            (block (set (-> wd sq_st) nil) (return 0)))
+        (return (> (coco_g_sq_put wd st pi) 0)))
+
   (func coco_g_frame_still ((coco_machine * m) (coco_store * st) (size_t pi)) (out int)
         (if (or (== green_now nil) (== green_me nil)) (return 0))
         (if (!= green_in_write 0) (return 0))
@@ -893,9 +1008,10 @@
               (set found 1))
           (for ((int i . 0)) (and (== found 0) (< i (-> wd nthreads))) ((++ i))
             (let ((green_thread * t . #'(aof (nth i (-> wd threads)))))
-              (if (and (!= ($ (nth (-> t worker) (-> wd workers)) cur) (-> t id))
-                       (and (!= (-> t m) nil) (!= (-> t m) m)))
+              (if (and (and (!= (-> t m) nil) (!= (-> t m) m))
+                       (coco_g_task_still wd t))
                   (if (coco_frames_on_one (-> t m) st pi) (set found 1)))))
+          (if (== found 0) (set found (coco_g_sq_ask wd st pi)))
           (pthread_mutex_unlock (aof (-> wd lock)))
           (return found)))
 
@@ -983,6 +1099,11 @@
               ;; cleanup's own goals may want
               (if (== rc 1) (coco_engine_cut en))
               (pthread_mutex_lock (aof (-> wd lock)))
+              ;; A QUESTION THIS WORKER OWES ABOUT THE TASK IT RAN is
+              ;; answered here, where the task stands still and before its
+              ;; end can free its machine (3.78.21, `coco_g_sq_ask')
+              (if (and (!= (-> w sq_seq) 0) (== (-> w sq_tid) ti))
+                  (coco_g_sq_answer wd w t))
               (cond
                   ;; A HALT IS THE PROCESS'S (3.62.1; swipl's halt/1 ends
                   ;; the process from whatever called Prolog, and 3.57.0's

@@ -285,6 +285,9 @@ main :-
     portray_wait,
     shared_lines,
     still_frames,
+    ask_frames,
+    ask_still,
+    ask_self,
     checks_done.
 
 %% ---- values ------------------------------------------------------------
@@ -3107,3 +3110,203 @@ still_fixture(
       '    async_run(sworld(0.0, 0, _, _), _),',
       '    async_run(sworld(0.6, 2000, Tc, Tl), sworld(_, _, Tc, Tl)),',
       '    format("~4f ~4f~n", [Tc, Tl]).' ]).
+
+%% ---- a try at a sweep that a running task's frame may turn down (3.78.21)
+%%
+%% A TASK THAT RUNS IS ASKED, AND THE TRY IS TURNED DOWN WITHOUT STOPPING
+%% THE WORLD. Through 3.78.20 a frame no machine standing still held sent
+%% the try to the write barrier, which waits for each other worker to reach
+%% its loop's top -- for a task inside a nested search, the search's end --
+%% and the walk after it found the frame. The child, on four workers: sp/1
+%% as still_frames has it; a holder task calls sp(_) and, its frame open,
+%% runs a findall/3 that the clock ends 0.6 s after it began; a caller on
+%% another worker waits for it to begin and 50 ms more, then calls sp(5)
+%% 2000 times, which pays for three tries. Through 3.78.20 the calls took
+%% the rest of the holder's search, 0.55 s; they take their own. A time
+%% past the bar is measured again by a second child and the less kept.
+ask_frames :-
+    section('a try at a sweep that a running task may turn down asks it and waits for none'),
+    scratch(D),
+    atom_concat(D, '/ask.pl', Path),
+    ask_fixture(Lines),
+    fixture(Path, Lines),
+    still_times(Path, V),
+    check('a caller whose tries a running holder may turn down waits for no long search', V, quick),
+    shl(['rm -rf ', D]).
+
+ask_fixture(
+    [ ':- dynamic(sp/1).',
+      'sp_make :- forall(between(1, 64, I), assertz(sp(I))), forall(between(61, 64, I), retract(sp(I))).',
+      'sc(0) :- !.',
+      'sc(N) :- sp(5), N1 is N - 1, sc(N1).',
+      'ahold(Started, L, T) :-',
+      '    sp(_), get_time(T0), channel_send(Started, go),',
+      '    findall(x, ( repeat, get_time(T1), T1 - T0 > L, ! ), _),',
+      '    get_time(T2), T is T2 - T0, !.',
+      'acall(Started, G, T) :-',
+      '    channel_recv(Started, _), sleep(0.05),',
+      '    get_time(T0), call(G), get_time(T1), T is T1 - T0.',
+      'aworld(L, N, Tc, Tl) :-',
+      '    channel(1, Started),',
+      '    go(ahold(Started, L, _), H), go(acall(Started, sc(N), _), Cg),',
+      '    await(Cg, acall(_, _, Tc)), await(H, ahold(_, _, Tl)).',
+      % every clause the timed world calls compiled first, sp/1's index built:
+      % the first world's tasks compile their own
+      'main :-',
+      '    sp_make, sc(1), once(sp(_)),',
+      '    async_run(aworld(0.0, 0, _, _), _),',
+      '    async_run(aworld(0.6, 2000, Tc, Tl), aworld(_, _, Tc, Tl)),',
+      '    format("~4f ~4f~n", [Tc, Tl]).' ]).
+
+%% ---- a task in a declared foreign call stands still (3.78.21) ----------
+%%
+%% A TASK WHOSE WORKER IS INSIDE A DECLARED FOREIGN CALL IS WALKED, NOT
+%% ASKED: it cannot answer before the call returns, and a question waiting
+%% for it would turn every try down -- a task waiting on accept/2 for an
+%% hour would hold every sweep in the world for the hour. The child, on four
+%% workers: dp/1 of 9000 facts, its first 1000 dead in place (not many, not
+%% paid); a task W runs for 0.6 s, asleep in sleep/1 or awake in a findall/3;
+%% a caller on another worker calls once(dp(_)) 40 000 times, each call
+%% passing the dead until a sweep takes them. Asleep, W is walked and the
+%% first try sweeps; awake, W is asked and the calls pass the dead while it
+%% runs. A walk of W asleep makes the calls a third of their time beside W
+%% awake at most; asked instead, the two times are one.
+ask_still :-
+    section('a task inside a foreign call is walked and turns no try down by a question'),
+    scratch(D),
+    atom_concat(D, '/still.pl', Path),
+    ask_still_fixture(Lines),
+    fixture(Path, Lines),
+    ask_still_times(Path, V),
+    check('a caller beside a task asleep in sleep/1 has its dead swept at its first try', V, quick),
+    shl(['rm -rf ', D]).
+
+%% `quick', or the two runs' pairs of times (or a run's text that was none)
+ask_still_times(Path, V) :-
+    ask_still_pair(Path, P1),
+    (   ask_still_quick(P1)
+    ->  V = quick
+    ;   ask_still_pair(Path, P2),
+        ( ask_still_quick(P2) -> V = quick ; V = slow(P1, P2) )
+    ).
+
+ask_still_quick((Ts-Tw)/(Ta-_)) :-
+    number(Ts), number(Ta), number(Tw), Tw >= 0.6, Ts * 3 < Ta.
+
+ask_still_pair(Path, R1/R2) :-
+    ask_still_run(Path, sleep, R1),
+    ask_still_run(Path, search, R2).
+
+ask_still_run(Path, K, R) :-
+    cocolog(C),
+    sh_join(['COCOLOG_GREEN_WORKERS=4 ', C, ' -s ', Path, ' -- ', K, ' 2>&1'], Cmd),
+    shell(Cmd, Out, _, 60000),
+    (   atomic_list_concat([TcA, TwA], ' ', Out),
+        atom_number(TcA, Tc), atom_number(TwA, Tw)
+    ->  R = Tc-Tw
+    ;   R = Out
+    ).
+
+ask_still_fixture(
+    [ ':- dynamic(dp/1).',
+      'dp_make :- forall(between(1, 9000, I), assertz(dp(I))), forall(between(1, 1000, I), retract(dp(I))).',
+      'dc(0) :- !.',
+      'dc(N) :- once(dp(_)), N1 is N - 1, dc(N1).',
+      'wsleep(Started, L, T) :- get_time(T0), channel_send(Started, go), sleep(L), get_time(T1), T is T1 - T0.',
+      'wsearch(Started, L, T) :-',
+      '    get_time(T0), channel_send(Started, go),',
+      '    findall(x, ( repeat, get_time(T1), T1 - T0 > L, ! ), _),',
+      '    get_time(T2), T is T2 - T0.',
+      'dcall(Started, G, T) :-',
+      '    channel_recv(Started, _), sleep(0.05),',
+      '    get_time(T0), call(G), get_time(T1), T is T1 - T0.',
+      'dworld(How, L, N, Tc, Tw) :-',
+      '    channel(1, Started),',
+      '    W =.. [How, Started, L, _],',
+      '    go(W, Wg), go(dcall(Started, dc(N), _), Cg),',
+      '    await(Cg, dcall(_, _, Tc)), await(Wg, W1), arg(3, W1, Tw).',
+      % every clause the timed world calls compiled first: the first world's
+      % tasks compile their own
+      'main :-',
+      '    current_prolog_flag(argv, [_, K|_]),',
+      '    ( K == sleep -> How = wsleep ; How = wsearch ),',
+      '    dp_make, dc(1),',
+      '    async_run(dworld(How, 0.0, 0, _, _), _),',
+      '    async_run(dworld(How, 0.6, 40000, Tc, Tw), dworld(_, _, _, Tc, Tw)),',
+      '    format("~4f ~4f~n", [Tc, Tw]).' ]).
+
+%% ---- a task asked that tries a sweep itself answers for itself (3.78.21)
+%%
+%% A TASK OWED AN ANSWER THAT TRIES A SWEEP ITSELF ANSWERS FOR ITSELF: its
+%% machine is its own to walk. Left owed, its own tries were turned down
+%% until its run's end -- for a task inside a nested search, the search's
+%% end. The child, on four workers: dq/1 of 9000 facts, its first 1000 dead
+%% in place (not many, not paid), and dr/1 of 8000 with none; a task S runs
+%% one findall/3, a spin that calls no predicate of the store and then
+%% 100 000 calls of once(dq(_)), each passing the dead until a sweep takes
+%% them; a task A on another worker wakes as S begins and makes 12 calls,
+%% whose try asks S. Answered at its run's end alone, S's own tries were
+%% turned down for its whole search, which took four times the same world's
+%% over dr/1; answered by S for itself, its first try sweeps, and the two
+%% are one. A time past the bar is measured again by a second child and the
+%% less kept.
+ask_self :-
+    section('a task asked that tries a sweep itself answers for itself'),
+    scratch(D),
+    atom_concat(D, '/self.pl', Path),
+    ask_self_fixture(Lines),
+    fixture(Path, Lines),
+    ask_self_times(Path, V),
+    check('a task owed an answer has its dead swept at its own first try', V, quick),
+    shl(['rm -rf ', D]).
+
+%% `quick', or the two runs' times (or a run's text that was none)
+ask_self_times(Path, V) :-
+    ask_self_run(Path, R1),
+    (   ask_self_quick(R1)
+    ->  V = quick
+    ;   ask_self_run(Path, R2),
+        ( ask_self_quick(R2) -> V = quick ; V = slow(R1, R2) )
+    ).
+
+%% the search over the dead under twice the search over none
+ask_self_quick(Ts-Tc) :- number(Ts), number(Tc), Ts < 2 * Tc.
+
+ask_self_run(Path, R) :-
+    cocolog(C),
+    sh_join(['COCOLOG_GREEN_WORKERS=4 ', C, ' -s ', Path, ' 2>&1'], Cmd),
+    shell(Cmd, Out, _, 60000),
+    (   atomic_list_concat([TsA, TcA], ' ', Out),
+        atom_number(TsA, Ts), atom_number(TcA, Tc)
+    ->  R = Ts-Tc
+    ;   R = Out
+    ).
+
+ask_self_fixture(
+    [ ':- dynamic(dq/1).',
+      ':- dynamic(dr/1).',
+      'mk :- forall(between(1, 9000, I), assertz(dq(I))),',
+      '      forall(between(1, 1000, I), retract(dq(I))),',
+      '      forall(between(1, 8000, I), assertz(dr(I))).',
+      'dc(_, 0) :- !.',
+      'dc(P, N) :- G =.. [P, _], once(G), N1 is N - 1, dc(P, N1).',
+      'spin(0) :- !.',
+      'spin(K) :- K1 is K - 1, spin(K1).',
+      'ssearch(Started, P, K, N, T) :-',
+      '    G =.. [P, _],',
+      '    get_time(T0), channel_send(Started, go),',
+      '    findall(x, ( spin(K), fail ; between(1, N, _), once(G) ), L),',
+      '    get_time(T1), T is T1 - T0, length(L, N).',
+      'sask(Started, P) :- channel_recv(Started, _), dc(P, 12).',
+      'sworld(P, K, N, T) :-',
+      '    channel(1, Started),',
+      '    go(ssearch(Started, P, K, N, _), Sg), go(sask(Started, P), Ag),',
+      '    await(Ag, _), await(Sg, ssearch(_, _, _, _, T)).',
+      % every clause the timed worlds call compiled first: the first world's
+      % tasks compile their own
+      'main :-',
+      '    mk, dc(dq, 1), dc(dr, 1),',
+      '    async_run(sworld(dr, 10, 1, _), _),',
+      '    async_run(sworld(dq, 2000000, 100000, Ts), sworld(_, _, _, Ts)),',
+      '    async_run(sworld(dr, 2000000, 100000, Tc), sworld(_, _, _, Tc)),',
+      '    format("~4f ~4f~n", [Ts, Tc]).' ]).

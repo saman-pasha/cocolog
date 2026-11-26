@@ -3023,7 +3023,8 @@ a session must keep:
   call the out-of-line probe takes and each dead clause a call or a walk
   passes (`coco-tomb-charge`, in `coco_pred_probe_dead` and
   `coco_frame_next`; a new call's charge in a green world through the
-  task's machine, 64 at a time, `coco_tomb_charge_at`, 3.78.19), and once
+  task's machine, `coco_tomb_charge_at`, 3.78.19: a sixteenth of the need
+  at a time, `coco-tomb-batch`, in one of four slots, 3.78.21), and once
   it reaches the predicate's clauses, 256 at
   least, passing the dead has cost a sweep. Where no frame is open on the
   predicate they go at a retract, a retractall/1 that took several, an
@@ -3041,12 +3042,26 @@ a session must keep:
   took 0.04. **In a green world a try asks the machines that stand still
   first** (3.78.20, `coco_g_frame_still` before the write barrier in
   `coco_tomb_try_sweep`): a frame open on the dead in the caller's own
-  machine, the host's, or a task no worker's `cur` names -- under the
-  world's lock, which every pick and every run's end takes -- turns the try
-  down with no barrier. Through 3.78.19 each try stopped the world first, a
-  wait for every other worker's quantum or a nested search's end, and a
-  caller beside a long findall/3 waited 0.55 s for three tries; a frame a
-  running task holds is still the barrier's walk to find. Through 3.78.14 a retract with no call open took its clause
+  machine, the host's, or a task no worker's `cur` names, or whose worker
+  is inside its nested wait or a declared foreign call (3.78.21,
+  `coco_g_task_still`) -- under the world's lock, which every pick and
+  every run's end takes -- turns the try down with no barrier. **A task
+  another worker runs is asked** (3.78.21, `coco_g_sq_ask`: the world's one
+  question, answered at the task's run's end, `coco_g_sq_answer`, or by a
+  try that finds it standing still or is its own, `coco_g_sq_settle`:
+  left owed, an asked task's own tries waited for its run's end,
+  test/async.pl's `ask_self`), the try turned
+  down until every answer is in, and the last of answers that found no
+  frame gives the predicate back the doublings its tries made meanwhile.
+  Through 3.78.19 each try stopped the world first, a wait for every other
+  worker's quantum or a nested search's end, and a caller beside a long
+  findall/3 waited 0.55 s for three tries; through 3.78.20 a frame a
+  running task held was the barrier's to find, and a caller beside a
+  holder in a long findall/3 waited 0.55 s. **A new way for a task to
+  stand still under the world's lock goes into `coco_g_task_still`**, or a
+  question waits for a task that cannot answer and turns every try in the
+  world down meanwhile -- a task asleep in accept/2 for an hour, every
+  sweep for the hour (test/async.pl's `ask_still`). Through 3.78.14 a retract with no call open took its clause
   out of the arrays and dropped every index for the next call to build
   again, and each of those sites took any dead, so a retract of one key
   cost the predicate's size: 20 000 retractall/1 of one key each among
@@ -5489,9 +5504,12 @@ a session must keep:
   that came there, which a meta-predicate's every call does (stored where
   it is clear since 3.78.18); and through 3.78.18 a call of a predicate
   with dead clauses stored what it owed their sweep into the predicate
-  (`tprobe`, 3.78.15) -- a task's machine holds it now and puts it in 64
-  at a time (`coco_tomb_charge_at`, 3.78.19: 2.3 to 2.8 times the copies'
-  time at four calls a turn, 0.9 now). Eight tasks over one loop took 1.3
+  (`tprobe`, 3.78.15) -- a task's machine holds it now and puts it in a
+  sixteenth of the need at a time, four predicates' at once
+  (`coco_tomb_charge_at`, 3.78.19 and 3.78.21: 2.3 to 2.8 times the
+  copies' time at four calls a turn, 0.9 now; a loop over two such
+  predicates put its one slot in at every call through 3.78.20, 2.43
+  times). Eight tasks over one loop took 1.3
   to 3.2 times the time of eight with a copy each, and the benchmark's
   store lane, its lookups the bulk of it, 2.1 times 3.78.17's. **A flag a
   call sets on the store's shared metadata -- a predicate, a code, a

@@ -159,11 +159,31 @@
 ;;; Without it the dead an eighth of the live leaves were passed by every
 ;;; call: 12 000 dead at the front of 120 000 clauses, and 100 000 calls
 ;;; with the first argument unbound took 4.4 s. In a green world a new call
-;;; pays through the task's machine, 64 at a time (`coco_tomb_charge_at',
-;;; 3.78.19). P is evaluated three times.
+;;; pays through the task's machine, a sixteenth of the need at a time
+;;; (`coco_tomb_charge_at', 3.78.19; `coco-tomb-batch', 3.78.21). P is
+;;; evaluated four times.
 (DEFMACRO coco-tomb-paid (p)
-  `(>= (cast size_t (-> ,p tprobe))
-       (<< (? (> (-> ,p nclauses) 256) (-> ,p nclauses) 256) (-> ,p tback))))
+  `(>= (cast size_t (-> ,p tprobe)) (coco-tomb-need ,p)))
+
+;;; WHAT THE CALLS MUST HAVE PAID FOR THE NEXT TRY AT A SWEEP OF P: the
+;;; predicate's size, 256 at least, doubled for each try turned down since
+;;; (`tback'). P is evaluated three times.
+(DEFMACRO coco-tomb-need (p)
+  `(<< (? (> (-> ,p nclauses) 256) (-> ,p nclauses) 256) (-> ,p tback)))
+
+;;; WHAT A TASK'S MACHINE HOLDS BACK OF ITS CALLS' CHARGE BEFORE IT PUTS IT
+;;; INTO P (3.78.21, `coco_tomb_charge_at'): a sixteenth of what the next
+;;; try needs, 64 at least, so that each doubling of the need is some
+;;; sixteen puts however many calls it takes. A put is a store into the
+;;; predicate's line, which every worker's call of P reads: at 64 a put,
+;;; eight tasks calling one predicate that a frame kept from its sweep put
+;;; 100 000 times in 6.4 million calls, and took 1.01 to 1.07 times the
+;;; time of eight with a predicate each at four calls a turn, 0.95 to 0.99
+;;; with no puts at all (STATUS.md). The count is late by a sixteenth of
+;;; the need a machine at most, so the try comes when the calls have paid
+;;; up to half as much again at eight tasks. P is evaluated six times.
+(DEFMACRO coco-tomb-batch (p)
+  `(? (> (coco-tomb-need ,p) 1024) (>> (coco-tomb-need ,p) 4) 64))
 
 ;;; N MORE TO WHAT THE CALLS HAVE PAID (3.78.15), held at what 32 bits
 ;;; count: past it the sweep is due long since, and a wrap would put it off.
@@ -1198,8 +1218,9 @@
     (member u32      tera)
     ;; new calls that met the dead, counted to ask now and then whether
     ;; they may go (`coco_pred_probe_dead'; in a green world a task's
-    ;; machine holds its count back and puts it in 64 at a time,
-    ;; `coco_tomb_charge_at', 3.78.19), and whether the predicate is on
+    ;; machine holds its count back and puts it in a sixteenth of the need
+    ;; at a time, `coco_tomb_charge_at', 3.78.19, `coco-tomb-batch',
+    ;; 3.78.21), and whether the predicate is on
     ;; the store's list of those with dead clauses (`tpreds')
     (member u32      tprobe)
     (member int      tlisted)
@@ -2290,8 +2311,11 @@
   ;;; Whether one machine's engines over ST hold a frame open on PI (ACT 0
   ;;; of one machine, 3.78.20), and whether a green world's machines that
   ;;; stand still do -- the caller's own, the host's, and each task no
-  ;;; worker is running -- asked before a try at a sweep stops the world
-  ;;; (`coco_tomb_try_sweep'); 0 outside a world and inside a write.
+  ;;; worker is running, or whose worker is inside its nested wait or a
+  ;;; declared foreign call -- asked before a try at a sweep stops the world
+  ;;; (`coco_tomb_try_sweep'); 0 outside a world and inside a write. Where
+  ;;; none does and other workers run tasks, 1 too until each of those has
+  ;;; answered at its next standstill that it holds none (3.78.21).
   (decl) (func coco_frames_on_one ((coco_machine * mm) (coco_store * st) (size_t pi)) (out int))
   (decl) (func coco_g_frame_still ((coco_machine * m) (coco_store * st) (size_t pi)) (out int))
   ;;; How many of P's clauses before position IX are live: IX itself when

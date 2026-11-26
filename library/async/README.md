@@ -293,7 +293,16 @@ where it was measured, with or without them (STATUS.md, 3.78.18 and
 world with: a frame open on the dead in a machine that stands still -- the
 caller's own, the host's, a task no worker is running -- turns the try down
 without one, and a caller beside a long findall/3 no longer waits for it
-(0.55 s to 0.0004).
+(0.55 s to 0.0004). 3.78.21 asks the tasks that run rather than stop them:
+each answers at its next standstill whether it holds a frame on the dead,
+the try is turned down until every answer is in, and a caller beside a
+holder inside a long findall/3 no longer waits for it either (0.55 s to
+0.0004); a task asleep in a foreign call or inside its nested wait stands
+still and is walked, not asked. And the count goes in a sixteenth of what
+the next try needs at a time, four predicates' at once: the put every 64
+calls was the shared side's last 4 to 11 % at four calls a turn (1.05 to
+0.96), and a loop over two such predicates, which put it in at every call,
+took 2.7 to 3.2 times eight with a pair each and takes 0.95 to 1.12.
 
 **One core**: `real1` runs the real work lane under `taskset -c 0` on Linux,
 the like-for-like scheduler comparison with the world's workers. In Run H's

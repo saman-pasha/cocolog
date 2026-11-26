@@ -1933,6 +1933,10 @@
         ;; host's, or a task's no worker is running. Through 3.78.19 each try
         ;; stopped the world first -- a wait for every other worker's quantum
         ;; to end -- and a frame held open on the dead turned it down after.
+        ;; NOR DOES A FRAME A RUNNING TASK MAY HOLD (3.78.21): the tasks
+        ;; running are asked, and the try is turned down until each has
+        ;; answered at its next standstill, where the barrier waited for
+        ;; that standstill.
         ;; `framed' is read with no lock: a stale answer is a barrier more
         (if (and (!= (-> st machines) nil)
                  (and ($ (coco-pred-at (-> st predp) pi) framed)
@@ -1960,26 +1964,45 @@
   ;;; WHAT A CALL THAT MET THE DEAD OWES THEIR SWEEP (3.78.19): put into
   ;;; the predicate's `tprobe' at once where no green world shares the
   ;;; store, and else held on the calling task's machine (`tcp', `tcn') and
-  ;;; put in 64 at a time, when the task's calls move to another predicate
-  ;;; with dead clauses, and as the machine is freed (`coco_tomb_flush').
-  ;;; The predicate's line is read by every worker's call of it: through
-  ;;; 3.78.18 each call stored into it, and eight tasks calling one
-  ;;; predicate with dead clauses that a frame kept from their sweep took
-  ;;; 1.1 to 1.5 times eight with a predicate each at one call a turn,
-  ;;; and 2.3 to 2.8 times at four (STATUS.md). What the calls have paid is
-  ;;; counted as before, up to 63 a machine late, and a sweep is tried as
+  ;;; put in a sixteenth of what the next try needs at a time, 64 at least
+  ;;; (`coco-tomb-batch', 3.78.21; 64 through 3.78.20), when the task's
+  ;;; calls move to another predicate with dead clauses, and as the machine
+  ;;; is freed (`coco_tomb_flush'). The predicate's line is read by every
+  ;;; worker's call of it: through 3.78.18 each call stored into it, and
+  ;;; eight tasks calling one predicate with dead clauses that a frame kept
+  ;;; from their sweep took 1.1 to 1.5 times eight with a predicate each at
+  ;;; one call a turn, and 2.3 to 2.8 times at four (STATUS.md); at 64 a
+  ;;; put, 1.01 to 1.07 times at four. What the calls have paid is counted
+  ;;; as before, a batch a machine late at most, and a sweep is tried as
   ;;; they have paid for it. Only a task's machine holds a count back (an
   ;;; alias, `tbase'): it is freed before the store it counts for, which
   ;;; the host's machine is not.
+  ;;;
+  ;;; FOUR PREDICATES' CHARGES AT ONCE (3.78.21): a slot a predicate, the
+  ;;; newest first; a predicate the machine holds no slot for puts the
+  ;;; oldest slot's charge in and takes the front. Through 3.78.20 the
+  ;;; machine held one, and a loop that called two such predicates in turn
+  ;;; put its charge in at every call: eight tasks calling the same two took
+  ;;; 2.43 times eight with a pair each at four calls a turn (STATUS.md).
   (static)
   (func coco_tomb_charge_at ((coco_store * st) (coco_machine * m) (coco_pred * p) (size_t paid))
         (if (or (== m nil) (== (-> st machines) nil) (== (-> m tbase) nil))
             (block (coco-tomb-charge p paid) (return)))
-        (if (!= (-> m tcp) (aof (-> p tprobe)))
-            (block (coco_tomb_flush m) (set (-> m tcp) (aof (-> p tprobe)))))
-        (set (-> m tcn) (? (> paid (- 4294967295 (-> m tcn))) 4294967295
-                           (+ (-> m tcn) paid)))
-        (if (>= (-> m tcn) 64) (coco_tomb_flush m)))
+        (let ((u32 * q . #'(aof (-> p tprobe))) (int k . 0))
+          (while (and (< k 4) (!= (nth k (-> m tcp)) q)) (set k (+ k 1)))
+          (if (== k 4)
+              (block
+               (coco_tomb_flush_at m 3)
+               (for ((int j . 3)) (> j 0) ((-- j))
+                 (set (nth j (-> m tcp)) (nth (- j 1) (-> m tcp)))
+                 (set (nth j (-> m tcn)) (nth (- j 1) (-> m tcn))))
+               (set (nth 0 (-> m tcp)) q)
+               (set (nth 0 (-> m tcn)) 0)
+               (set k 0)))
+          (set (nth k (-> m tcn)) (? (> paid (- 4294967295 (nth k (-> m tcn)))) 4294967295
+                                     (+ (nth k (-> m tcn)) paid)))
+          (if (>= (cast size_t (nth k (-> m tcn))) (coco-tomb-batch p))
+              (coco_tomb_flush_at m k))))
 
   ;;; THE PROBE OF A PREDICATE WITH DEAD CLAUSES, out of line: the first
   ;;; LIVE candidate and whether there is a second, a new call seeing none
