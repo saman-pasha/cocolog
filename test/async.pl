@@ -283,6 +283,7 @@ main :-
     retry_walks,
     portray_worlds,
     portray_wait,
+    shared_lines,
     checks_done.
 
 %% ---- values ------------------------------------------------------------
@@ -2895,3 +2896,89 @@ barrier_run(Path, Out-Exit) :-
     cocolog(C),
     sh_join(['ulimit -v 4194304; COCOLOG_GREEN_WORKERS=4 ', C, ' run ', Path, ' main 2>&1'], Cmd),
     shell(Cmd, Out, Exit, 60000).
+
+%% ---- the lines the workers share (3.78.17) --------------------------------
+%%
+%% EIGHT TASKS THAT SHARE ONE LOOP TAKE THE TIME OF EIGHT WITH A COPY EACH,
+%% on the same workers, in the same child: the work is the same, and the
+%% one copy is read by every worker. Through 3.78.16 it was written by them
+%% too, at every turn -- an environment's entry stored `envd' into its
+%% clause's code, a clause frame's push stored `framed' into its predicate
+%% -- and the code, compiled by the first task to select the clause, lay in
+%% its worker's malloc arena beside what that task wrote at every step: the
+%% other workers read it from lines that worker kept taking away. `env' is
+%% a loop whose clause makes an environment (1.8 to 3.0 times the copies'
+%% time through 3.78.16), `bt' one that leaves a choice point on a
+%% predicate of four clauses and fails back over them (1.3 to 3.2 times).
+%% A child times five alternating rounds of each and takes each side's
+%% least; a ratio past the bar is measured again by a second child and the
+%% less kept, since a pause only adds. min(4, the world's size) workers,
+%% at least two.
+shared_lines :-
+    section('tasks that share a loop run in the time of tasks with a copy each'),
+    async_workers(W0),
+    W is min(4, W0),
+    (   W >= 2
+    ->  scratch(D),
+        atom_concat(D, '/lines.pl', Path),
+        lines_fixture(Lines),
+        fixture(Path, Lines),
+        forall(member(Kind, [env, bt]),
+               ( lines_ratio(Path, W, Kind, V),
+                 format(atom(Says), '~w: one loop for eight tasks costs what a loop each does, ~w workers',
+                        [Kind, W]),
+                 check(Says, V, level) )),
+        shl(['rm -rf ', D])
+    ;   format("   SKIP (a world of one worker shares no line)~n", [])
+    ).
+
+%% `level', or the two ratios that passed the bar (or a run's text that
+%% was no ratio)
+lines_ratio(Path, W, Kind, V) :-
+    lines_run(Path, W, Kind, R1),
+    (   lines_level(R1)
+    ->  V = level
+    ;   lines_run(Path, W, Kind, R2),
+        ( lines_level(R2) -> V = level ; V = dearer(R1, R2) )
+    ).
+
+lines_level(R) :- number(R), R < 1.25.
+
+lines_run(Path, W, Kind, R) :-
+    cocolog(C),
+    sh_join(['COCOLOG_GREEN_WORKERS=', W, ' ', C, ' -s ', Path, ' -- ', Kind, ' 2>&1'], Cmd),
+    shell(Cmd, Out, _, 120000),
+    ( atom_number(Out, R) -> true ; R = Out ).
+
+%% nine copies of each loop, the 0th the one the eight tasks share; the
+%% least time of each side, shared over the copies'
+lines_fixture(Lines) :-
+    findall(L, ( between(0, 8, K), lines_copy(K, L) ), Copies),
+    append(Copies,
+           [ 'loop(Kind, shared, _, N, G) :- loop(Kind, own, 0, N, G).',
+             'loop(bt, own, K, N, G) :- atom_concat(l, K, L), G =.. [L, N].',
+             'loop(env, own, K, N, G) :- atom_concat(e, K, E), G =.. [E, N].',
+             'world(Kind, How, N) :-',
+             '    findall(G, ( between(1, 8, K), loop(Kind, How, K, N, G) ), Gs),',
+             '    async_run(( spawn_all(Gs, Ids), await_all(Ids) ), _).',
+             'spawn_all([], []).',
+             'spawn_all([G|Gs], [Id|Ids]) :- go(G, Id), spawn_all(Gs, Ids).',
+             'timed(Kind, How, N, T) :- get_time(T0), world(Kind, How, N), get_time(T1), T is T1 - T0.',
+             'main :-',
+             '    current_prolog_flag(argv, [_, Kind|_]),',
+             '    world(Kind, shared, 10), world(Kind, own, 10),',
+             '    findall(S-O, ( between(1, 5, _), timed(Kind, shared, 200000, S),',
+             '                   timed(Kind, own, 200000, O) ), Ps),',
+             '    pairs_keys_values(Ps, Ss, Os), min_list(Ss, Ts), min_list(Os, To),',
+             '    R is Ts / To, format("~4f~n", [R]).' ],
+           Lines).
+
+lines_copy(K, L) :-
+    member(F, [ 'p~(1). p~(2). p~(3). p~(4).',
+                'l~(0) :- !.',
+                'l~(N) :- ( p~(_), fail ; true ), N1 is N - 1, l~(N1).',
+                'e~(0) :- !.',
+                'e~(N) :- ( N > 0 -> true ; true ), N1 is N - 1, e~(N1).' ]),
+    atomic_list_concat(Parts, '~', F),
+    atom_number(KA, K),
+    atomic_list_concat(Parts, KA, L).

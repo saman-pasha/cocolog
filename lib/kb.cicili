@@ -645,6 +645,7 @@
 ;;; variable as it stood at entry, not what it is bound to now, which is
 ;;; what a freeze needs of a goal a choice frame will come back to.
 (DEFMACRO cc-env-slot (K) `(coco_deref m (+ eb (cast size_t ,K))))
+(DEFMACRO cc-r8 (X) `(* (/ (+ ,X 7) 8) 8))
 (DEFMACRO cc-env-slot1 (K) `(cast size_t (coco-payload (nth (+ eb (cast size_t ,K)) (-> m heap)))))
 
 ;;; THE LATER GOALS AT ENTRY, AND THE ENVIRONMENT (Stage 5): the entry
@@ -689,7 +690,6 @@
                 ;; environment of this code: one block (`etmpl')
                 (memcpy (cast (void *) (aof (nth (+ eh (+ (+ nes ntm) 4)) (-> m heap))))
                         (cast (const void *) (-> cd etmpl)) (* (+ nsl npos) (sizeof u64)))
-                (set (-> cd envd) 1)
                 (set (-> er next) (+ eh (+ ps (- (cast size_t (-> cd eu0)) 1))))))))))
 
 ;;; THE GUARDS' RUNNER, WRITTEN ONCE AND EMITTED THREE TIMES (Stage 6): the
@@ -1929,8 +1929,11 @@
     ;; (3.21.0) a body that holds $/0, built whole and closed by its
     ;; frame's exit marker (`coco_try_clause_det')
     (member u32    ex)
-    ;; AN ENVIRONMENT HAS NAMED THIS CODE (`envd'), so a clause that dies
-    ;; retires it instead of freeing it (`coco_code_drop'); GCMARK is the
+    ;; THE CODE MAKES AN ENVIRONMENT (`envd', set as it is compiled since
+    ;; 3.78.17, never at an entry: a store into this line at every entry
+    ;; took `ex' beside it away from every other green worker), so a
+    ;; clause that dies retires it instead of freeing it
+    ;; (`coco_code_drop'); GCMARK is the
     ;; heap collection that last found one naming it, RNEXT the next on the
     ;; store's retired list (a `coco_code *', which this struct cannot name
     ;; inside itself).
@@ -1955,7 +1958,10 @@
     ;; `coco_dl_mask'): DLM bit I the I-th goal it may compile in place,
     ;; reckoned the first time the clause is entered under a limit (DLK 1)
     (member u64    dlm)
-    (member u32    dlk))
+    (member u32    dlk)
+    ;; THE CODE IS ONE BLOCK ON CACHE LINES OF ITS OWN (3.78.17,
+    ;; `coco_code_seal'): its struct and every program of it, freed whole
+    (member u32    sealed))
 
   ;;; The clause's code, compiled on the first ask; null when it could not
   ;;; be compiled (out of memory, a head that is not callable), and the

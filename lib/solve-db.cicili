@@ -850,7 +850,8 @@
                              (set ($ (nth ci (-> e choices)) ixpos) kpos)
                              (set ($ (nth ci (-> e choices)) clause_ix) ix)
                              (set ($ (nth ci (-> e tchoices)) printr) tport)
-                             (set ($ (coco-pred-at (-> st predp) pi) framed) 1)))
+                             (if (not ($ (coco-pred-at (-> st predp) pi) framed))
+                                 (set ($ (coco-pred-at (-> st predp) pi) framed) 1))))
                         (set r (coco_db_from e pi kpos key ix cend mode h bd fr ci))))))))
           ;; a retract the knowledge base refused raises, as the walk's
           ;; other errors do (3.64.7)
@@ -2334,7 +2335,8 @@
                 ;; library predicate is empty until then.
                 (set (-> c cend) 4294967295)
                 (set (-> e cunbound) 1)
-                (set ($ (coco-pred-at ($ (cof (-> e st)) predp) pi) framed) 1)))
+                (if (not ($ (coco-pred-at ($ (cof (-> e st)) predp) pi) framed))
+                    (set ($ (coco-pred-at ($ (cof (-> e st)) predp) pi) framed) 1))))
           (set (-> e nchoices) (+ (-> e nchoices) 1))
           ;; a setup_call_cleanup/3 frame is counted again (3.1.0): the heap
           ;; it names is the thawed one, read before the frames

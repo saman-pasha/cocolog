@@ -1628,11 +1628,13 @@
           (set (-> cd efid) (coco_functor_id m (coco_intern m "$e")
                                              (+ (+ (+ (+ ($ uc nes) ($ uc nterm)) ($ uc nslot)) ($ uc nu)) 3)))
           (set (-> cd env) 1)
+          (set (-> cd envd) 1)
           (return 1)))
 
   (static)
   (func coco_code_free ((coco_code * cd))
         (if (== cd nil) (return))
+        (if (-> cd sealed) (block (free cd) (return)))
         (free (-> cd head))
         (free (-> cd body))
         (free (-> cd rbody))
@@ -1643,6 +1645,73 @@
         (free (-> cd xbody))
         (free (-> cd etmpl))
         (free cd))
+
+  ;;; A CODE ON CACHE LINES OF ITS OWN (3.78.17): the code a clause is
+  ;;; compiled into, its struct and every program of it, copied into ONE
+  ;;; block, 128-byte aligned and a whole number of 128 bytes long -- Apple
+  ;;; silicon's line, and the pair of lines x86's prefetcher fetches
+  ;;; together. Every task
+  ;;; of a green world reads the code of the clauses they share, and the
+  ;;; first task to select a clause compiles it on its worker, from that
+  ;;; worker's malloc arena: in pieces the allocator puts beside what the
+  ;;; task writes at every step, each write took the line away from the
+  ;;; other workers' reads of the code, and eight tasks over one predicate
+  ;;; took 1.3 times the time of eight over a predicate each. ONLY WHILE A
+  ;;; WORLD SHARES THE STORE (`machines', a hint read with no lock: either
+  ;;; answer runs the same): sealed always, every fact a program asserted
+  ;;; and called paid some 430 instructions more at its compile -- lookup
+  ;;; +1.78 % of its work (tools/flow/zero.sh), all of it the allocator's
+  ;;; and the copy -- and a store one thread runs on shares no line. The
+  ;;; pieces hold offsets, never pointers into one another, so each is
+  ;;; copied as it is; a block the allocator refuses leaves the code as it
+  ;;; was compiled, which runs the same.
+  (static)
+  (func cc_seal_part ((char * blk) (size_t * off) (void * src) (size_t bytes)) (out void *)
+        (if (== src nil) (return nil))
+        (let ((void * dst . #'(cast (void *) (aof (nth (cof off) blk)))))
+          (if (> bytes 0) (memcpy dst (cast (const void *) src) bytes))
+          (set (cof off) (+ (cof off) (cc-r8 bytes)))
+          (return dst)))
+
+  (static)
+  (func coco_code_seal ((coco_code * cd)) (out coco_code *)
+        (let ((size_t hb . #'(* (-> cd hlen) (sizeof u64)))
+              (size_t bb . #'(* (-> cd blen) (sizeof u64)))
+              (size_t rb . #'(* (-> cd rblen) (sizeof u64)))
+              (size_t gb . #'(* (-> cd gblen) (sizeof u64)))
+              (size_t ib . 0) (size_t ub . 0) (size_t eb . 0) (size_t xb . 0) (size_t tb . 0)
+              (size_t total . 0) (size_t off . 0))
+          ;; the environment's pieces: EINIT as it was made (a slot a frame
+          ;; variable), EGOALS units 0 to NUNIT, ETMPL the slots and the
+          ;; positions
+          (if (!= (-> cd env) 0)
+              (block
+               (set ib (* (+ (cast size_t (-> cd nvars)) 1) (sizeof u32)))
+               (set ub (* (+ (cast size_t (-> cd nunit)) 1) (sizeof coco_egoal)))
+               (set eb (* (-> cd eblen) (sizeof u64)))
+               (set xb (* (-> cd xblen) (sizeof u64)))
+               (set tb (* (+ (cast size_t (-> cd nslot)) (cast size_t (-> cd nunit))) (sizeof u64)))))
+          (set total (+ (+ (+ (cc-r8 (sizeof coco_code)) (cc-r8 hb)) (+ (cc-r8 bb) (cc-r8 rb)))
+                        (+ (+ (cc-r8 gb) (cc-r8 ib))
+                           (+ (+ (cc-r8 ub) (cc-r8 eb)) (+ (cc-r8 xb) (cc-r8 tb))))))
+          (set total (* (/ (+ total 127) 128) 128))
+          (let ((char * blk . #'(cast (char *) (aligned_alloc 128 total))))
+            (if (== blk nil) (return cd))
+            (memcpy (cast (void *) blk) (cast (const void *) cd) (sizeof coco_code))
+            (let ((coco_code * nc . #'(cast (coco_code *) (cast (void *) blk))))
+              (set off (cc-r8 (sizeof coco_code)))
+              (set (-> nc head) (cast (u64 *) (cc_seal_part blk (aof off) (cast (void *) (-> cd head)) hb)))
+              (set (-> nc body) (cast (u64 *) (cc_seal_part blk (aof off) (cast (void *) (-> cd body)) bb)))
+              (set (-> nc rbody) (cast (u64 *) (cc_seal_part blk (aof off) (cast (void *) (-> cd rbody)) rb)))
+              (set (-> nc gbody) (cast (u64 *) (cc_seal_part blk (aof off) (cast (void *) (-> cd gbody)) gb)))
+              (set (-> nc einit) (cast (u32 *) (cc_seal_part blk (aof off) (cast (void *) (-> cd einit)) ib)))
+              (set (-> nc egoals) (cast (coco_egoal *) (cc_seal_part blk (aof off) (cast (void *) (-> cd egoals)) ub)))
+              (set (-> nc ebody) (cast (u64 *) (cc_seal_part blk (aof off) (cast (void *) (-> cd ebody)) eb)))
+              (set (-> nc xbody) (cast (u64 *) (cc_seal_part blk (aof off) (cast (void *) (-> cd xbody)) xb)))
+              (set (-> nc etmpl) (cast (u64 *) (cc_seal_part blk (aof off) (cast (void *) (-> cd etmpl)) tb)))
+              (set (-> nc sealed) 1)
+              (coco_code_free cd)
+              (return nc)))))
 
   (func coco_code_table_clear ((coco_store * st))
         (for ((size_t i . 0)) (< i (-> st code_cap)) ((++ i))
@@ -1702,9 +1771,12 @@
   ;;; of the body gave before -- and reads its code at every goal. Kept on
   ;;; the store's retired list until a heap collection finds no environment
   ;;; naming it (`coco_code_sweep'), a query starts with nothing running
-  ;;; (`coco_code_retired_free'), or the store is freed. A code no
-  ;;; environment ever named -- a fact, a body of one goal, a clause never
-  ;;; entered since it was compiled -- is freed at once as before.
+  ;;; (`coco_code_retired_free'), or the store is freed. A code that makes
+  ;;; no environment -- a fact, a body of one goal -- is freed at once as
+  ;;; before. One that makes one is marked so as it is compiled (`envd',
+  ;;; 3.78.17), entered or not: through 3.78.16 each entry stored the mark,
+  ;;; into the line of the code every green worker entering the clause
+  ;;; reads, and a code compiled and never entered was freed at once.
   (static)
   (func coco_code_retire ((coco_store * st) (coco_code * cd))
         (if (== cd nil) (return))
@@ -2291,6 +2363,7 @@
             ;; (`coco_det_enter')
             (if (and (!= body 0) (cc_det_inline_last st m head body))
                 (set (-> cd dlast) 1))
+            (if (!= (-> st machines) nil) (set cd (coco_code_seal cd)))
             (if (not (coco_code_put st clause cd))
                 (block (coco_code_free cd) (return nil)))
             (return cd)))))

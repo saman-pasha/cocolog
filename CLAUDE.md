@@ -3051,13 +3051,15 @@ a session must keep:
   world's tasks share the store, and a task's own heap and its query's
   start say nothing of another task's frames and environments. `coco_frames_on` walks `m->eng` and each
   engine's `outer` over the same store, the predicate's `framed` saying
-  whether a frame may be open (set at every push and restore, cleared by a
-  walk that finds none). **A new reader of the clause list skips
+  whether a frame may be open (set by a push or a restore where it is
+  clear, cleared by a walk that finds none: stored at every push through
+  3.78.16, it took the predicate's line away from every other green
+  worker at each call that left a choice point). **A new reader of the clause list skips
   `coco_pred_dead`** (listing, the backends' sync, predicate_property/2's
   counts; retract/1's and clause/2's walk through `coco_frame_next`, which
   tries a dead clause only where the walk lived through its death), **a new writer
   of `nclauses` or `ntomb` calls `coco_pred_nprobe`**, and **a new push of a
-  clause frame sets `cend` and `framed`**. A freeze writes a frame's next
+  clause frame sets `cend`, and `framed` where it is clear**. A freeze writes a frame's next
   clause and its end as counts of LIVE clauses (`C`, `L`), the knowledge base
   a thaw reloads holding no others; a frame thawed from a blob with no `L`
   has `cend` 4294967295 until the run's first step binds it to the reloaded
@@ -3600,7 +3602,10 @@ a session must keep:
     writes; test/async.pl runs it under valgrind where there is one). A clause that dies while an environment is
     part way through its body goes on running that code -- the logical
     update view -- so the code is retired, not freed (`coco_code_retire`),
-    and a compaction keys kept codes again.
+    and a compaction keys kept codes again. A code that makes an
+    environment is marked so as it is compiled (`envd`, 3.78.17): through
+    3.78.16 every entry stored the mark, into the line of the code every
+    green worker entering the clause reads (`ex` beside it).
   - **What the take reads is settled at compile time** -- each offset the
     header plus one number, the kind a switch, a call's variable arguments
     copied slot to register in the take -- and a goal it hands over is
@@ -5458,6 +5463,25 @@ a session must keep:
   reads what it uses after the barrier, and takes a predicate by its
   `coco_pred *` or its index, never by an address into an array that
   grows; and nothing a retry calls waits at one.**
+  **NOTHING A CALL DOES STORES INTO WHAT THE TASKS SHARE** (3.78.17;
+  Concurrency Run I, test/async.pl's `shared_lines`): a store into a line
+  every worker reads -- the value it already holds too -- takes the line
+  away from all of them, and a read after it waits for the line to come
+  back. Through 3.78.16 an environment's entry stored `envd` into its
+  clause's code (marked as the code is compiled now), a clause frame's
+  push `framed` into its predicate (stored where it is clear now), and the
+  code of a clause, compiled by the first task to select it, lay in its
+  worker's malloc arena beside what that task wrote at every step (sealed
+  now, while a world shares the store: `coco_code_seal`, one block on
+  128-byte lines of its own). Eight tasks over one loop took 1.3 to 3.2
+  times the time of eight with a copy each, and the benchmark's store
+  lane, its lookups the bulk of it, 2.1 times 3.78.17's. **A flag a call
+  sets on the store's shared metadata -- a predicate, a code, a functor --
+  is stored only where it changes, and what a worker makes for every task
+  to read goes on lines of its own**: the test costs a single thread two
+  instructions, where the store cost eight tasks up to twice their work
+  again. Helgrind sees none of it: the world's lock between quanta orders
+  every access.
   **THE 2.8.0 SCHEDULER BUGS ARE FIXED (2.8.1)**: the block was
   set under the world lock but the task's state only later, in the run's
   rc-0 handler, so a target finishing in the window woke nobody and the

@@ -4135,6 +4135,219 @@ quantum's stops, the world's lock at each run and its workers' turns on one
 core cost the work a twentieth, and eight OS threads, each a machine and a
 store of its own, cost it a fifth.
 
+**CONCURRENCY RUN I** -- 2026-11-26, cocolog 3.78.16, and 3.78.17, the
+patch it found. Run AB's box, a four-vCPU Emerald Rapids microVM (Linux
+6.18), after Run AB's sittings, the harness the only busy process. The
+same command `sh bench/concurrency.sh` with its defaults (work N=8,
+M=1,000,000; light 10,000 tasks, 1,000 OS threads, 10 yields; store 8
+units x 20,000 lookups over 10,000 rows; REPS=3), run three times back to
+back, 32, 21 and 20 s (steal 0.63, 0.83 and 1.04 %, Run H's 0.28); Go
+1.24.7, rustc 1.97.0, Python 3.11.18; the `--kb` lane is ZiguratIP 1.0.4
+on 127.0.0.1:2160. Four workers, eight units each lane, as in Run H, and
+every lane answered `answer(done)` in every run. Each figure is the median
+of the three runs' printed figures, each run's the least of three timed
+runs after a warm-up, the three's range beside it.
+
+THE BOX WAS SLOWER THAN AT RUN H, by about what Run AB found it slower
+than Run AA: the serial lane 1.28 times Run H's, Python's 1.31, Go's and
+Rust's 1.4. So the run is read by its ratios, and 3.78.16 is held to
+3.62.3 by alternating pairs on this box, in this sitting (3.62.3's own
+binary and library, both from a scratch copy, run from one directory).
+
+Work lanes, N=8, M=1,000,000:
+
+| lane | 3.78.16 | Run H (3.62.3) |
+|---|---|---|
+| serial | 327.7 ms (268.9-327.8) | 256.1 ms |
+| real threads (8 OS threads) | 109.7 ms (105.1-129.2) | 97.7 ms |
+| green threads (8 green threads on 4 workers) | 109.9 ms (103.5-151.9) | 85.8 ms |
+| goroutines (Go, 8) | 4.8 ms (4.2-5.2) | 3.4 ms |
+| rust threads (std::thread, 8) | 4.7 ms (4.1-5.3) | 3.3 ms |
+| coroutines (asyncio, 8) | 356.7 ms (330.3-378.0) | 272.5 ms |
+
+Store lanes, 8 units x 20,000 keyed lookups over 10,000 rows:
+
+| lane | wall | per lookup | Run H |
+|---|---|---|---|
+| goroutines over SQLite | 38.6 ms (37.8-44.0) | 0.24 us | 0.20 us |
+| green threads over `--embed` | 84.7 ms (83.8-99.4) | 0.53 us | 0.45 us |
+| green threads over `--kb` | 112.1 ms (98.2-119.8) | 0.70 us | 0.52 us |
+
+Light lanes (10,000 tasks, 1,000 OS threads, 10 yields):
+
+| lane | per task | per yield | Run H |
+|---|---|---|---|
+| real threads | 493.46 us (411.66-668.13) | 63.04 us (55.28-66.91) | 256.71, 38.08 |
+| green threads | 11.42 us (10.25-11.97) | 3.47 us (3.26-3.61) | 11.84, 3.63 |
+| goroutines | 0.96 us (0.91-1.03) | 0.71 us (0.67-0.80) | 0.78, 0.51 |
+| rust threads | 57.22 us (56.15-64.53) | 6.07 us (5.74-6.70) | 36.40, 4.05 |
+| coroutines | 13.41 us (11.36-16.32) | 2.58 us (2.51-2.88) | 8.76, 1.83 |
+
+One core, `real1`: 389.5 ms (379.4-428.4), Run H's 271.6.
+
+**THE GREEN WORK LANE IS 3.62.3'S, AND THE OS THREADS CAUGHT UP.** Green
+took 2.98 times the serial lane's speed, as in Run H; the OS threads 2.99,
+where Run H's took 2.62, so the two are level (1.00, Run H 0.88). Ten
+rounds in rotation after the harness (medians, the process start
+included): serial 318.1 ms, the OS threads 138.9 (2.29x) and green 121.9
+(2.61x), green 0.88 of the OS threads -- Run H's 2.18x, 2.56x and 0.85,
+so the harness's level pair is its least-of-three meeting two noisy
+lanes. Against 3.62.3 in ten alternating pairs, the work lanes are the
+same: serial 1.01 (medians; paired 0.97), green 1.02 (paired 1.02). One
+unit alone takes the green world 59.7 ms and the serial lane 49.7 (Run H
+50.1 and 37.1): the world's start and end is 10 ms here.
+
+**A GREEN TASK IS A QUARTER CHEAPER THAN 3.62.3'S, ON A SLOWER BOX.**
+Ten rounds of each light lane in rotation, the start apart:
+
+| lane | at one task | per task, the start apart | per yield, the creation apart | Run H |
+|---|---|---|---|---|
+| real threads (1,000) | 25.0 ms | 585 us | none to read | 410 us |
+| green threads (10,000) | 15.7 ms | 9.52 us | 2.32 us | 11.95, 2.64 |
+| goroutines (10,000) | 4.7 ms | 0.56 us | 0.58 us | 0.56, 0.50 |
+| rust threads (1,000) | 4.6 ms | 56.39 us | 0.20 us | 42.76, 0.10 |
+| coroutines (10,000) | 80.6 ms | 5.01 us | 1.31 us | 4.73, 1.18 |
+
+Every other lane is dearer than Run H's, as the box is; green's task and
+yield are cheaper. The alternating pairs against 3.62.3 say how much:
+the light green lane 0.73 of 3.62.3's time (paired 0.75), with yields
+0.71 (paired 0.71) -- 3.64.3's functor hit that takes no lock, which
+STATUS.md measured at 0.70 and 0.67 of 3.64.2's. A green task is now 61
+times cheaper than a cocolog OS thread and 5.9 times cheaper than a Rust
+thread, start apart; a goroutine 17 times cheaper than a green task and 4
+times a switch; asyncio 1.9 and 1.8 times.
+
+**One core**, ten rounds in rotation after the harness, each lane's median
+and range, the process start included:
+
+| lane | wall | against serial on one core |
+|---|---|---|
+| serial, `taskset -c 0` | 288.7 ms (277.9-467.1) | 1.00 |
+| real threads, `taskset -c 0` (`real1`) | 377.8 ms (355.6-438.5) | 1.31 |
+| green, `taskset -c 0`, the world's four workers on the one core | 339.0 ms (300.3-508.3) | 1.17 |
+| green, `taskset -c 0` and `COCOLOG_GREEN_WORKERS=1` | 331.1 ms (302.1-507.9) | 1.15 |
+| serial, unpinned | 318.1 ms (281.8-403.0) | |
+| real threads, unpinned | 138.9 ms (123.0-154.0) | |
+| green, unpinned | 121.9 ms (100.6-149.8) | |
+
+At the minima of the ten -- the medians carry rounds the box stalled --
+eight OS threads on one core take 1.28 times the serial run and eight
+green tasks 1.08 and 1.09 (Run H 1.27, 1.11 and 1.10): the same
+twentieth of the quantum's stops and the world's turns, and the same
+fifth for eight machines of their own.
+
+**THE STORE LANE WAS THE ONE THAT GOT DEARER, AND IT WAS NOT ITS WORK.**
+The store lane took 1.10 times 3.62.3's time in ten alternating pairs
+(paired 1.09), and its lookups more than that: five alternating rounds at
+20,000 lookups a unit and at none put a lookup at 0.30 us over `--embed`,
+0.34 over `--kb`, 0.23 for SQLite's goroutines (Run H 0.23, 0.32, 0.19).
+With the lookups the bulk of the lane -- eight units of 200,000 -- twenty
+alternating rounds took 1.23 times 3.62.3's time (paired, 1.01 to 1.47,
+slower in every round), and one unit of 1,600,000 on one worker 0.99
+times (0.88 to 1.31): the same work, level, alone. Callgrind counted a
+lookup 2,535 instructions against 2,510 and the eight-unit world 593.9
+million against 591.5. User time was a third more, system time and the
+context switches the same. On one worker the eight units took 0.87 of
+3.62.3's time, on two 1.13, on four 1.22, and on four with every thread
+on one malloc arena 1.03. Builds of the releases between did not order --
+3.63.1 1.06 times 3.62.3's time, 3.63.2 1.22, 3.64.0 1.01, 3.64.5 1.33 --
+the mark of a store into lines the workers all read, landing near a read
+or not as the allocator laid things out. There were three such stores,
+and 3.78.17 takes them out (STATUS.md):
+
+- an environment's entry stored `envd` into its clause's code at every
+  entry, beside `ex`, which every entry of the clause reads -- the probe's
+  clause has an if-then-else. With that store gone alone, the eight units
+  of 200,000 took 0.56 of 3.78.16's time and 0.70 of 3.62.3's, which paid
+  it too;
+- a clause frame's push stored `framed` into its predicate, every call
+  that left a choice point -- eight tasks of a million turns backtracking
+  over one predicate of four clauses: 1.25 to 1.75 s with the first store
+  gone, 0.58 to 0.79 with this one too;
+- a clause's code, compiled by the first task to select it, lay in its
+  worker's arena beside what that task wrote at every step: eight tasks
+  over one shared loop took 1.27 to 1.41 times eight over a copy each,
+  and the same shared clauses compiled on the host before the world 0.92
+  to 1.00. A code compiled while a world shares the store is put on
+  128-byte lines of its own.
+
+**3.78.17 TAKES THE STORE LANE BELOW 3.62.3'S TIME, AND THE BACKTRACKING
+LOOP TO A THIRD OF IT.** The harness three times more on 3.78.17, 19, 18
+and 17 s (steal 0.80, 0.72 and 0.88 %), every lane answering
+`answer(done)`:
+
+| lane | 3.78.17 | 3.78.16 |
+|---|---|---|
+| serial | 284.9 ms (278.9-300.8) | 327.7 ms |
+| real threads | 115.7 ms (108.7-124.6) | 109.7 ms |
+| green threads | 103.7 ms (95.8-116.1) | 109.9 ms |
+| goroutines | 4.3 ms (4.0-4.3) | 4.8 ms |
+| rust threads | 4.5 ms (4.2-4.6) | 4.7 ms |
+| coroutines | 336.5 ms (318.9-338.5) | 356.7 ms |
+| store, goroutines over SQLite | 40.1 ms (39.8-42.5), 0.25 us a lookup | 38.6 ms, 0.24 us |
+| store, green over `--embed` | 68.7 ms (64.8-71.4), 0.43 us | 84.7 ms, 0.53 us |
+| store, green over `--kb` | 109.3 ms (108.3-110.0), 0.68 us | 112.1 ms, 0.70 us |
+| light, real threads | 537.04 us (444.89-557.60) a task | 493.46 us |
+| light, green threads | 10.02 us (9.82-10.23) | 11.42 us |
+| light, goroutines | 0.89 us (0.87-0.94) | 0.96 us |
+| light, rust threads | 50.83 us (48.11-50.98) | 57.22 us |
+| light, coroutines | 11.66 us (11.43-12.05) | 13.41 us |
+| yield, real threads | 50.94 us (50.54-62.10) | 63.04 us |
+| yield, green threads | 3.07 us (3.01-3.08) | 3.47 us |
+| yield, goroutines | 0.63 us (0.57-0.65) | 0.71 us |
+| yield, rust threads | 4.98 us (4.66-5.28) | 6.07 us |
+| yield, coroutines | 2.39 us (2.38-2.51) | 2.58 us |
+| `real1` | 355.8 ms (344.2-364.1) | 389.5 ms |
+
+The box was a little faster for these three than for 3.78.16's (Python's
+lane 0.94 of its time, Rust's light lane 0.89), so again the pairs
+decide. Ten rounds of 3.62.3, 3.78.16 and 3.78.17 in rotation, each in
+turn first (medians, the process start included; a paired ratio is the
+median of each round's own):
+
+| lane | 3.62.3 | 3.78.16 | 3.78.17 | 3.78.17 / 3.78.16 | 3.78.17 / 3.62.3 |
+|---|---|---|---|---|---|
+| serial, 8 x 1,000,000 | 310.0 ms | 312.0 ms | 291.5 ms | 0.96 | 0.97 |
+| green, 8 x 1,000,000 | 113.0 ms | 96.0 ms | 104.5 ms | 1.04 | 0.96 |
+| light green, 10,000 tasks | 140.5 ms | 102.5 ms | 104.0 ms | 0.99 | 0.72 |
+| light green, 10 yields each | 448.5 ms | 323.0 ms | 310.5 ms | 0.98 | 0.70 |
+| store over `--embed`, 8 x 20,000 | 80.5 ms | 90.5 ms | 70.5 ms | 0.76 | 0.89 |
+| store over `--embed`, 8 x 200,000 | 340.0 ms | 482.5 ms | 230.0 ms | 0.48 | 0.67 |
+| backtracking, 8 tasks x 1,000,000 turns | 1697.5 ms | 1130.0 ms | 535.5 ms | 0.47 | 0.33 |
+
+The store's user time goes with its wall, 1,467 ms to 532 for eight units
+of 200,000 (0.36 of 3.78.16's, 0.56 of 3.62.3's) and 174 to 89 at the
+harness's size. The backtracking loop is the `bt` shape of
+test/async.pl's `shared_lines`, each task's turn calling a predicate of
+four clauses with its argument unbound, failing back over them, in a
+clause whose `;` makes an environment: both stores at every turn, which
+3.62.3 paid as well. The green work lane is level: its 1.04 is a lane
+whose rounds ranged from 0.80 to 1.49; thirty alternating pairs read it
+1.06 and, the order the other way round, 0.99; ten pairs of 10,000,000
+steps a unit on one worker read 1.01 (user time 1.02, the serial lane
+0.97); and on one worker it counts 5,043,585,026 instructions against
+5,043,381,227 (+0.004 %). With the fixed cost apart, both builds against
+one server state, five alternating rounds at 20,000 lookups a unit and at
+none (medians, the minima's difference in brackets):
+
+| lane | fixed cost, no lookups | at 20,000 a unit | per lookup, the fixed cost apart |
+|---|---|---|---|
+| goroutines over SQLite | 7.3 ms | 48.4 ms | 0.26 us (0.22) |
+| green over `--embed`, 3.78.16 | 44.7 ms | 102.4 ms | 0.36 us (0.31) |
+| green over `--embed`, 3.78.17 | 40.9 ms | 77.5 ms | 0.23 us (0.19) |
+| green over `--kb`, 3.78.16 | 93.9 ms | 147.7 ms | 0.34 us (0.36) |
+| green over `--kb`, 3.78.17 | 94.9 ms | 134.3 ms | 0.25 us (0.22) |
+
+So A KEYED LOOKUP COSTS A GREEN TASK WHAT IT COSTS A SQLITE GOROUTINE
+AGAIN, as Run H found with 3.62.3 (0.23 and 0.19 there), where 3.78.16's
+was 1.4 times SQLite's in this sitting. The per-lookup
+figures move by a fifth between sittings -- the five rounds of 3.78.16
+alone, above, read 0.30 over `--embed` -- and the pairs in one sitting are
+what to read; the `--kb` lane's fixed cost, 67 ms a sitting before and 94
+here, is the server's uptime (CLAUDE.md, Hazards), the same for both
+builds. Every round's cocolog run at 20,000 lookups a unit summed its
+probes to 79,920,000.
+
 ## The token benchmark
 
 `bench/tokens.pl` asks the question the language benchmark does not: what

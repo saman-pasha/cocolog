@@ -25483,3 +25483,120 @@ copies of it, the copy that asks out of line, the whole pass a function
 of its own -- moved another of the collector's loops by more, the
 tracer markers' walk reading its word of mark bits again at every bit,
 up to +2.4 % of the setarg loop's work.
+
+## Green workers no longer write the lines they share (3.78.17)
+
+A patch, found by Concurrency Run I (bench/README.md). On 3.78.16 the
+benchmark's store lane -- eight green tasks of 20 000 keyed lookups each
+over `--embed`, the world's four workers -- read 0.53 us a lookup where
+Run H's 3.62.3 read 0.45. The box was slower than at Run H, but against
+3.62.3 on the same box, in one sitting, the lane took 1.10 times its time
+(ten alternating rounds), and with the lookups the bulk of it (8 x 200 000)
+1.23 times, slower in all twenty rounds. The instructions were level:
+callgrind counted a lookup 2 535 against 2 510, the eight-task world 593.9
+million against 591.5. User time rose by a third (924-1 270 ms to
+1 369-1 544), system time and context switches did not. One task on one
+worker was level (paired 0.99), eight on one worker 3.78.16's faster
+(0.87), eight on two workers 1.13 times 3.62.3's, on four 1.22 -- and with
+every thread on one malloc arena (MALLOC_ARENA_MAX=1) level (1.03). And the
+builds left from earlier work did not order: 3.63.1 1.06 times 3.62.3's,
+3.63.2 1.22, 3.64.0 1.01, 3.64.5 1.33, 3.78.16 and its variants 1.18 to
+1.34. Workers were writing lines they all read, and where the allocator
+put things decided how often a write landed on a read. Three things did:
+
+THE ENVIRONMENT'S MARK (1.9.3's, shared by the workers since 2.9.0's one
+store). An environment's entry (`cc-env-entry`, lib/kb.cicili) stored
+`envd = 1` into its clause's code at every entry: the mark that retires,
+rather than frees, a code whose clause dies while an environment may be
+part way through it. The field sits beside `ex`, which every entry of the
+clause reads, so each worker entering a clause the tasks share took that
+line from all the others, every turn. The mark is now set as the code is
+compiled, where the code is given its environment (`cc_compile_env`), and
+the entry stores nothing; a code made with an environment and never
+entered is retired too, and goes at the next sweep or query start. Alone,
+the four-worker store lane of 8 x 200 000 took 0.56 of 3.78.16's time and
+0.70 of 3.62.3's: 3.62.3 had paid it too.
+
+THE PREDICATE'S `framed` (2.3.0's update view, shared since 2.9.0). Every
+push of a clause frame stored `framed = 1` into its predicate, five sites
+in lib/solve-loop.cicili, lib/solve-control.cicili and
+lib/solve-db.cicili: eight tasks backtracking over one predicate took its
+line from each other at every call that left a choice point. Each push now
+stores it only where it is clear, a load and a test more: queens, which
+pushes a frame at most calls, +0.057 % of its work. Eight tasks of a
+million turns, each leaving a choice point on one shared predicate of four
+clauses and failing back over it: 1 249-1 746 ms with the mark fixed
+alone, 577-787 with this.
+
+THE CODE'S LINES (since 2.9.0's one store). A clause's code is compiled by
+the first task to select it, from its worker's malloc arena, in pieces --
+the struct, the head and body programs, the environment's tables -- the
+allocator puts among what that worker's task writes at every step. Every
+other worker reads the code at every entry, and missed whenever that task
+wrote beside it. With both stores gone, eight tasks over one shared loop
+still took 1.27 to 1.41 times eight tasks over a copy each; the shared
+clauses compiled on the host before the world, 0.92 to 1.00; every thread
+on one arena, 0.79 to 1.21. A code compiled while a green world shares the
+store (`machines`) is now SEALED (`coco_code_seal`, lib/kb-compile.cicili):
+its struct and every program of it copied into one block, 128-byte aligned
+and a whole number of 128 bytes long -- Apple silicon's line, and the pair
+of lines x86's prefetcher fetches together -- freed whole (`sealed`). The
+pieces hold offsets, never pointers into one another, so each is copied as
+it is. A block the allocator refuses leaves the code as compiled. Outside a
+world nothing is sealed: sealed always, every clause compiled paid some 430
+instructions more, all the allocator's and the copy's (lookup, which
+asserts 2 000 facts and calls each, +1.78 % of its work).
+
+MEASURED (bench/README.md, Run I's last part). Ten rounds of 3.62.3,
+3.78.16 and 3.78.17 in rotation, each in turn first, the paired ratio
+each round's own: the store lane at the harness's size 0.76 of 3.78.16's
+time and 0.89 of 3.62.3's (user time 0.48 and 0.69); its lookups the bulk
+of it (8 x 200 000) 0.48 and 0.67 (user 0.36 and 0.56); the backtracking
+loop of eight tasks (8 x 1 000 000) 0.47 and 0.33; the light lanes 0.99
+and 0.98 of 3.78.16's; the serial lane, the control, 0.96. The green work
+lane read 1.04 there, a lane whose rounds ranged from 0.80 to 1.49: thirty
+alternating pairs read it 1.06 and, the order the other way round, 0.99;
+ten of 10 000 000 steps a unit on one worker 1.01 (the serial lane 0.97);
+and one worker counts 5 043 585 026 instructions against 5 043 381 227
+(+0.004 %) -- level. With the fixed cost apart, five alternating rounds at
+20 000 lookups a unit and at none, in one sitting: a lookup over `--embed`
+0.23 us (0.19 at the minima) where 3.78.16's is 0.36 (0.31) and a SQLite
+goroutine's 0.26 (0.22), and over `--kb` 0.25 (0.22) where it is 0.34
+(0.36). So a green task's keyed lookup costs what a SQLite goroutine's
+does again, as Run H found with 3.62.3. The harness itself, three runs on
+3.78.17: store-green 68.7 ms and 0.43 us a lookup (3.78.16 84.7 and 0.53,
+Run H's 3.62.3 72.5 and 0.45), light-green 10.02 us a task and 3.07 a
+yield (11.42 and 3.47).
+
+HELD. test/async.pl's `shared_lines` (new): a child times eight tasks
+through one loop against eight with a copy each, five alternating rounds
+and each side's least, on min(4, the world's size) workers -- `env`, a loop
+whose clause makes an environment, and `bt`, one that leaves a choice point
+on a predicate of four clauses and fails back over them -- and holds the
+ratio under 1.25, a ratio past it measured again by a second child and the
+less kept. 3.78.16, three children each: `env` 2.24 to 2.30, `bt` 2.69 to
+3.15; the final code 0.90 to 1.04 and 1.03 to 1.11.
+
+THREE ARMS, one build each, on the final code, each red: the entry's
+store of the mark back, `env` dearer (2.36, 2.43) and `bt` (1.71, 1.67),
+whose loop makes an environment too; the pushes' stores of `framed` back,
+`bt` dearer (1.68, 1.93), `env` level; no seal, `bt` dearer (1.35, 1.39),
+`env` level. Helgrind sees none of the three: the world's lock between
+quanta orders every access, the unconditional stores' build among them.
+
+COST. `tools/flow/zero.sh` against 3.78.16, work less padding: nrev the
+same but for 2 instructions (65 889 896 to 65 889 898), queens +0.057 %
+(39 952 773 to 39 975 651: the push's test), lookup -0.03 % (48 076 365 to
+48 062 378: the store gone from its if-then-else's entry). A start 456
+instructions fewer (36 351 703 to 36 351 247, each binary in turn at the
+checkout's path). The narrow round on the final binary green: lint, async,
+engine, gc, reconsult, trace, window, flowdebug, cowork, thread, files,
+solve, state; the C the committed sources make is the binary's to the
+byte.
+
+NOT DONE. The rest of the store's metadata a worker builds in a world --
+an argument's table, a node of the deep index, the first argument's index
+built again, a predicate's arrays grown by a task's assertz, a new block of
+predicates -- is still allocated from the worker's arena with no line of
+its own. None of it was measured; each is built once and read by every
+call keyed on it, as the code is.

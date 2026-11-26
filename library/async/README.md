@@ -260,6 +260,24 @@ before the probes (SQLite's goroutines 32.5 ms, the green tasks over
 0.23 us against a SQLite goroutine's 0.19, and the fixed cost is cocolog's
 start, the store's open, the warm and the world, 32 ms against 6.
 
+**Run I** (cocolog 3.78.16 and 3.78.17, the same box two weeks on and a
+quarter slower): 3.78.16's store lane had grown to 1.10 times 3.62.3's
+time, and 1.23 with the lookups the bulk of it, at the same instructions
+-- the workers were writing lines they all read. An environment's entry
+stored a mark into its clause's code, a clause frame's push stored one
+into its predicate, and a code a task compiled lay in its worker's arena
+beside what that task wrote at every step. 3.78.17 stores neither mark at
+a call and puts a code compiled in a world on cache lines of its own
+(STATUS.md, 3.78.17). In ten rounds in rotation its store lane takes 0.76
+of 3.78.16's time and 0.89 of 3.62.3's (0.48 and 0.67 with the lookups the
+bulk of it), and a loop of eight tasks backtracking over one predicate 0.47
+and 0.33; with the fixed cost apart a lookup over `--embed` costs 0.23 us
+against a SQLite goroutine's 0.26 in the same sitting, where 3.78.16's
+cost 0.36. The work and light lanes are level with 3.78.16's, whose green
+task cost 9.52 us with the start apart and a yield 2.32: 61 times cheaper
+than a cocolog OS thread and 5.9 times cheaper than a Rust thread, with
+Go's goroutine 17 times cheaper still (bench/README.md, Concurrency Run I).
+
 **One core**: `real1` runs the real work lane under `taskset -c 0` on Linux,
 the like-for-like scheduler comparison with the world's workers. In Run H's
 ten rounds in rotation, on one core eight OS threads take 1.20 times the

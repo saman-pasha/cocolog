@@ -910,7 +910,7 @@
             (set ($ (nth ci (-> e choices)) clause_ix) 0)
             (set ($ (nth ci (-> e choices)) ixpos) (coco_trace_kpos e cp kh))
             (set ($ (nth ci (-> e choices)) cend) (cast u32 (-> cp nclauses)))
-            (set (-> cp framed) 1)
+            (if (not (-> cp framed)) (set (-> cp framed) 1))
             (if tport
                 (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
                   (set (-> tc goal) gl)
@@ -4359,7 +4359,7 @@
                                   ;; there are now (the logical update view)
                                   (let ((coco_pred * cp . #'(aof (coco-pred-at ($ (cof st) predp) pi))))
                                     (set ($ (nth ci (-> e choices)) cend) (cast u32 (-> cp nclauses)))
-                                    (set (-> cp framed) 1))
+                                    (if (not (-> cp framed)) (set (-> cp framed) 1)))
                                   ;; this frame IS the traced call; a window
                                   ;; keeps the key its selection reads
                                   (if tport
