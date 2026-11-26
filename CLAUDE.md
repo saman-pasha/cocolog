@@ -1198,6 +1198,15 @@ expansion can be read.
   (1 256 of them coco_intern_len's probes, on the same code, the same
   13 651 interns and the same atoms) and 548 more with each copied in
   turn to one path, all of them the dynamic loader's strcmp.
+* **nrev's count carries glibc's realloc copies** (bench/README.md, Run
+  AB): a realloc that cannot grow its array in place copies it
+  (`_int_realloc`'s `__memcpy_avx_unaligned_erms`), and which reallocs
+  copy is the allocator's layout. In one invocation, ten such copies were
+  410 142 instructions of 3.62.3's nrev work and nine were 180 327 of
+  3.78.16's, while the engine's own functions ran within 0.02 %. The same
+  3.62.3 counted 230 442 more nrev work there than at Run AA, its padding
+  the same to the instruction. Read a step in nrev less libc's memory
+  calls (callgrind's per-function counts) before calling it the engine's.
 * **An inference count moves with where the binary stands too** (3.62.3):
   a program that takes the executable's path apart counts its components.
   a library's library-path walk does, with append/3, an inference a
