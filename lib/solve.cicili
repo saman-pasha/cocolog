@@ -350,6 +350,46 @@
                   ($ (nth ,i (-> ,e tchoices)) printr)
                   ($ (nth ,i (-> ,e tchoices)) last)))))
 
+;;; WHETHER A VALUE ENTRY'S CELL STANDS IN FOR A GLOBAL (3.78.16), KEEP set
+;;; to 1 where cell A does: a cell of a ground global's copy the machine
+;;; keeps, pinned or not (`gcache', its block LO .. HI, every one within
+;;; GCSB[0] .. GCSB[1]), or the value cell of a b_setval/2 box (GCSB[2] ..
+;;; GCSB[3] the bounds). Each is made where its key is first read or set,
+;;; after choice points that swipl's global is older than, so swipl undoes
+;;; a write into it there. The collector's trail pass drops a write into a
+;;; cell younger than its barrier, as swipl never trails one: backtracking
+;;; takes the cell. A freeze after the collection keeps the cell past that
+;;; barrier -- nb_setarg/3's raised marks, a copy's pin -- and through
+;;; 3.78.15 the write it no longer knew how to undo stood: `\+ \+ (setarg
+;;; on a copy, a collection, a switch's nb_setarg/3)' left the copy
+;;; written, and a box made inside it lived. The copies it asks are the
+;;; ones the collector's mark found standing: an entry whose copy is gone
+;;; has its VER cleared there. A MACRO THAT ONLY READS, asked only of an
+;;; entry the barrier's test would drop: as a call in the trail pass, cold
+;;; or not, the call that might write the machine had the loop read the
+;;; trail's base from it again at every entry and keep two of its values
+;;; on the stack -- three instructions an entry of every trail a
+;;; collection walks, a binding's too, in a program with no global: naive
+;;; reverse +0.47 % of a run collected every 20 000 cells. Inline it moves
+;;; one register, an instruction an entry, +0.14 %; its bounds are the
+;;; machine's, as four locals held in registers across the pass cost the
+;;; setarg/3 loops three times that; and every layout that kept the pass
+;;; free of the question -- two copies of it, the copy that asks out of
+;;; line, the whole pass a function -- moved another of the collector's
+;;; loops by more (STATUS.md, 3.78.16).
+(DEFMACRO coco-gc-stand-in (keep m a)
+  `(block
+    (if (and (>= ,a (nth 0 (-> ,m gcsb))) (< ,a (nth 1 (-> ,m gcsb))))
+        (for ((size_t sx . 0)) (< sx (-> ,m gcache_cap)) ((++ sx))
+          (if (and (!= ($ (nth sx (-> ,m gcache)) ver) 0)
+                   (<= ($ (nth sx (-> ,m gcache)) lo) ,a) (< ,a ($ (nth sx (-> ,m gcache)) hi)))
+              (block (set ,keep 1) break))))
+    (if (and (not ,keep) (>= ,a (nth 2 (-> ,m gcsb))) (< ,a (nth 3 (-> ,m gcsb))))
+        (for ((size_t sx . 0)) (< sx (-> ,m gvb_len)) ((++ sx))
+          (if (and (>= ($ (nth sx (-> ,m gvb)) box) 0)
+                   (== (+ (cast size_t ($ (nth sx (-> ,m gvb)) box)) 2) ,a))
+              (block (set ,keep 1) break))))))
+
 ;;; THE EVALUABLE FUNCTORS, interned beside the dispatch names (1.8.46).
 ;;; `is/2' compared the operator's name with `strcmp' down a chain -- the
 ;;; name read back from the atom table, then `+', `-', `*', `/' ... until

@@ -25348,3 +25348,138 @@ COST (callgrind, each binary at the checkout's path; 3.78.14 and 3.78.15):
   out of line at the walk's start alone;
 - a table of 20 rows, 50 000 updates: 540 668 432 and 540 812 400, +2.9
   an update (+0.03 %).
+
+## A global read after a switch's nb_setarg/3 is the global (3.78.16)
+
+A patch, from the reasoning session's report: a program whose on/off
+switch was written with nb_setarg/3 read a global as `<?>`, and its logic
+case failed with `memberchk(class, <?>)`. With the switch in b_setval/2
+the case passed, and it passed with COCOLOG_GC_CELLS=1000000000, no
+collection run. A review of it that came with the report put the fault on
+the collector, a forward reference it did not move, and on 3.78.2 as the
+fix. Neither holds: the collector moves every reference both ways, its
+slide rewriting each REF by the rank of its target, and 3.78.2 fixed an
+aliasing of an atomic argument, where 3.78.1 wrote the word in the
+argument and so had no reference to lose. Two faults were behind it, both
+in the copies a machine keeps of its ground globals (1.12.1), and the
+second needed a collection.
+
+THE PIN TOOK A COPY THAT WAS GONE (since 1.12.1). A ground global is
+handed out as a copy the machine keeps (`gcache`), made at the global's
+first read, its sentinel on the trail. Backtracking past the copy undoes
+the sentinel and takes the cells, and the next read copies again. An
+nb_setarg/3 into a copy pins every copy the machine holds, raising every
+mark over them (`coco_gcache_pin`), and a pinned entry is trusted whatever
+its sentinel says (`coco_gcache_ok`). The pin took every entry it held,
+copies backtracking had already taken among them. So a global read
+before a failure, and read again after a switch's nb_setarg/3, was what
+stood in its cells by then: the switch's own copy, an environment's goal
+cell (written `<?>`), a continuation frame, another global's value.
+
+    main :- nb_setval(cls, [a, b, class, c]), nb_setval(sw, s(off)),
+            ignore((nb_getval(cls, L0), memberchk(class, L0), fail)),
+            nb_getval(sw, S), nb_setarg(1, S, on),
+            nb_getval(cls, L), writeq(L), nl.
+
+printed `s(on)` on every version from 2.14.1 to 3.78.15, collections or
+none (swipl: `[a,b,class,c]`). Now the pin takes only the copies
+`coco_gcache_ok` vouches for, and a write is a write into a copy only
+where the copy stands: through 3.78.15 a write into a fresh term built
+where a taken copy had stood was taken for one, and raised every mark --
+a failure-driven loop doing it kept every turn's cells.
+
+A COLLECTION DROPPED A WRITE A FREEZE THEN KEPT (since 1.12.1 for a copy,
+3.52.0 for a b_setval/2 box; far likelier since 3.78.2). The trail pass
+drops the undo of a setarg/3 into a cell younger than its barrier: the
+backtracking that would undo it takes the cell. swipl never trails such
+a write. But a freeze after the collection -- nb_setarg/3's raised marks,
+a copy's pin -- keeps the cell past that barrier, and the write stood. For
+an ordinary term nothing reaches the cell after the backtrack. For the
+two stand-ins cocolog makes lazily for swipl's long-lived globals,
+something does:
+
+- a ground global's copy, made at its first read after the choice point.
+  `\+ \+ ( nb_getval(k, K), setarg(1, K, b), garbage_collect,
+  <the switch's nb_setarg/3> )` left k at `s(b)`; swipl's is `s(a)`.
+- a b_setval/2 box, made at the key's first b_setval/2 after it.
+  `\+ \+ ( b_setval(bk, v1), garbage_collect, nb_setarg(1, T, y) )`, T
+  older, left bk at v1; swipl's is unset. 3.52.0 answered unset, as its
+  atomic nb_setarg/3 froze nothing. Since 3.78.2 every atomic
+  nb_setarg/3 has a cell of its own and freezes, so this was far likelier.
+
+The trail pass keeps a value entry whose cell stands in for a global --
+a cell of a copy the machine keeps, pinned or not, or a box's value cell
+(`coco-gc-stand-in`, a macro of the head) -- whatever its age. The copies
+are the ones the collector's mark found standing, as it clears every
+entry whose copy is gone, so a write into a fresh term built where a
+taken copy stood is dropped as before: a deterministic setarg/3 loop
+there keeps its trail bounded (measured, 15 256 bytes after 300 000
+writes and 389 collections, as 3.78.15). The question is asked only of
+an entry the barrier's test would drop, inside bounds taken once a
+collection and kept on the machine (`gcsb`).
+
+The collector-only half matches the report: the reasoner's switch and its
+class list are a pinned copy and a copy, a write into one stood after a
+failure, and with no collection there was nothing to drop.
+
+FOUND BY a fuzzer: random programs of global reads and writes (nb_setval/2,
+nb_getval/2, nb_setarg/3 and setarg/3 into the copies, b_setval/2, assert
+and retract, garbage), each statement under one of nine control shapes
+(\+ \+, a failure-driven loop, findall/3, forall/2, catch/3 and throw/1,
+once/1, ignore/1, member/2's two turns, with_output_to/2), held to swipl
+9.0.4's output. In four modes -- a collection every 2000 cells, none, each
+collection through a freeze's materialisation, and the default -- 3.78.15
+differed on 13 of 300 programs of the first generator and 92 of 600 of the
+second (3 of them only under collections, the second fault). 3.78.16
+agrees on all 1 700 programs, in all four modes.
+
+HELD. test/files/global_pin.pl (new) holds 32 lines to swipl: the pin
+past a copy a failure, a \+, findall/3's end, a throw and forall/2 took;
+a copy that stands pinned beside one that does not; a reasoner's turns;
+the switch's own copy taken; a fresh term where a taken copy stood; and
+the undo across a collection of a setarg/3 into a copy and of a box, made
+before the choice point and after, under a pin and under a plain
+nb_setarg/3. 3.78.15 differs on 12 of them. test/engine.pl's `gpin_runs`
+runs the file traced, under a collector every 2000 cells and with each
+collection a freeze's materialisation, put back and kept, and a
+failure-driven loop that writes into fresh terms where taken copies stood
+keeps none of its 2000 turns.
+
+FOUR ARMS, one build each, on the final code, each red on its own
+checks: the pin taking every entry the machine held, global_pin.pl's p1
+to p6 and p9 differing from swipl with collections and without, and 196
+of the fuzzer's 210 runs of its seeds; a write taken for one into a copy
+wherever a copy had stood (the hit loop's `coco_gcache_ok` out), the
+turns fixture keeping 7 008 112 bytes of heap where it keeps none; no copy
+among the stand-ins, c1, c6 and c7 differing, and one fuzzer run; no box
+among them, c2 and c3. Narrow round green: lint, files, engine, gc,
+async, thread, lessons basics/12 and library/37. The fuzzer, again on
+the final binary: 0 differences in 1 700 programs, in all four modes.
+
+COST. `tools/flow/zero.sh` against 3.78.15: nrev, queens and lookup the
+same to the instruction (65 889 786, 39 952 659 and 48 076 306 of work
+less padding). A start 406 instructions fewer (36 350 058 to 36 349 652).
+nb_setarg/3 asks the copies' span where it calls the pin, as the pin
+grown past inlining was a call every write paid: the counter idiom on a
+local term and on a global's copy, and the reasoner's switch, 50 000
+writes each, 0.03 % less work. The trail pass is the cost: an
+instruction more an entry, a register the question moved -- the loop's
+code but for it
+is 3.78.15's, and the question is asked of no entry the barrier's test
+keeps. A binding-heavy run, naive reverse of 200 elements 300 times
+under a choice point: +0.136 % of its work with the default collector,
++0.150 % collected every 20 000 cells (+0.26 % of its instructions, the
+padding's moves with them). A setarg/3 loop of 200 000 writes into a term
+older than its choice point: +0.074 % of its work by default, +0.229 %
+every 20 000 cells, and after 300 globals read and 300 boxes set +0.263 %;
+its instructions with the padding 0.93 %, 1.14 % and 1.06 % FEWER. The
+layouts tried before this one each cost more, all of it the collector's
+registers: the question as a call, cold or not, three instructions an
+entry (the trail's base read from the machine again at each, as the call
+might write it), +0.47 % and +0.74 % of the two binding runs; the bounds
+in four locals, kept in registers across the pass, +0.65 % of the setarg
+loop; and every layout that kept the pass free of the question -- two
+copies of it, the copy that asks out of line, the whole pass a function
+of its own -- moved another of the collector's loops by more, the
+tracer markers' walk reading its word of mark bits again at every bit,
+up to +2.4 % of the setarg loop's work.

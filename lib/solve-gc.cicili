@@ -631,7 +631,23 @@
           ;; the order they were made (`tmp', `hmp': every engine's choice
           ;; points and each nested engine's starting marks) ----
           (let ((size_t tl . #'(-> m trail_len))
-                (size_t kept . 0) (size_t f . 0))
+                (size_t kept . 0) (size_t f . 0)
+                (size_t * sb . #'(-> m gcsb)))
+            ;; the bounds of the cells that stand in for a global
+            ;; (3.78.16, `coco-gc-stand-in'): the copies kept -- the mark
+            ;; above dropped every one gone -- and the boxes live
+            (set (nth 0 sb) (cast size_t -1)) (set (nth 1 sb) 0)
+            (set (nth 2 sb) (cast size_t -1)) (set (nth 3 sb) 0)
+            (for ((size_t i . 0)) (< i (-> m gcache_cap)) ((++ i))
+              (if (!= ($ (nth i (-> m gcache)) ver) 0)
+                  (block
+                   (if (< ($ (nth i (-> m gcache)) lo) (nth 0 sb)) (set (nth 0 sb) ($ (nth i (-> m gcache)) lo)))
+                   (if (> ($ (nth i (-> m gcache)) hi) (nth 1 sb)) (set (nth 1 sb) ($ (nth i (-> m gcache)) hi))))))
+            (for ((size_t i . 0)) (< i (-> m gvb_len)) ((++ i))
+              (if (>= ($ (nth i (-> m gvb)) box) 0)
+                  (let ((size_t vc . #'(+ (cast size_t ($ (nth i (-> m gvb)) box)) 2)))
+                    (if (< vc (nth 2 sb)) (set (nth 2 sb) vc))
+                    (if (>= vc (nth 3 sb)) (set (nth 3 sb) (+ vc 1))))))
             (for ((size_t p . 0)) (< p tl) ((++ p))
               ;; every barrier made at or before this entry: its new trail
               ;; mark is the number of entries kept before it
@@ -646,8 +662,10 @@
                                (set kept (+ kept 1))))
                   ;; A VALUE ENTRY (1.12.0), its two words kept or dropped
                   ;; together -- kept while the cell it restores is
-                  ;; reachable and older than the barrier, as a binding is;
-                  ;; no mark falls between them. A GLOBAL'S SENTINEL (1.12.1)
+                  ;; reachable and older than the barrier, as a binding is,
+                  ;; or stands in for a global, whatever its age (3.78.16,
+                  ;; `coco-gc-stand-in'); no mark falls between them. A
+                  ;; GLOBAL'S SENTINEL (1.12.1)
                   ;; is kept as it is, and its copy told where it now
                   ;; stands, while the machine still holds that copy, not
                   ;; pinned, and a barrier older than the sentinel could
@@ -668,13 +686,15 @@
                                              (set (-> g tpos) kept)
                                              (set kept (+ kept 2)))
                                     (set (-> g tpos) (cast size_t -1))))))
-                      (if (and (> f 0) (< a n) (< a (cof (nth (- f 1) hmp)))
-                               (coco_gc_marked bits a) (< s n) (coco_gc_marked bits s))
-                          (block (set (nth kept (-> m trail))
-                                      (bitor (coco_gc_rank bits pre s) (coco-trail-pair)))
-                                 (set (nth (+ kept 1) (-> m trail))
-                                      (bitor (coco_gc_rank bits pre a) (coco-trail-pair)))
-                                 (set kept (+ kept 2)))))
+                      (if (and (> f 0) (< a n))
+                          (let ((int keep . #'(< a (cof (nth (- f 1) hmp)))))
+                            (if (not keep) (coco-gc-stand-in keep m a))
+                            (if (and keep (coco_gc_marked bits a) (< s n) (coco_gc_marked bits s))
+                                (block (set (nth kept (-> m trail))
+                                            (bitor (coco_gc_rank bits pre s) (coco-trail-pair)))
+                                       (set (nth (+ kept 1) (-> m trail))
+                                            (bitor (coco_gc_rank bits pre a) (coco-trail-pair)))
+                                       (set kept (+ kept 2)))))))
                     (set p (+ p 1))))))
             (while (< f nbar)
               (set (cof (nth f tmp)) kept)

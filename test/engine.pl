@@ -38,7 +38,7 @@ main :-
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
     update_view(D), retractall_walks(D), sleeps(D), compiled(D), det_traced(D), det_guard_runs(D), repeat_runs(D), jit_runs(D),
     qk_runs(D),
-    gvars_runs(D), findnsols_runs(D), il_runs(D), dl_runs(D),
+    gvars_runs(D), gpin_runs(D), findnsols_runs(D), il_runs(D), dl_runs(D),
     btree_places, op_names_frozen(D), own_properties, own_current, own_too_long,
     clock_machine,
     shl(['rm -rf ', D]),
@@ -2618,6 +2618,47 @@ gvars_runs(D) :-
     sh_join(['COCOLOG_GC_CELLS=100000000 ', C, ' --local run ', CF, ' main 2>&1'], CCmd),
     shell(CCmd, COut, CExit),
     check('a directive''s copy of a ground global, shared by the directives after it', COut-CExit, shared-0).
+
+%% A GROUND GLOBAL'S COPY, THE PIN AND THE COLLECTOR (3.78.16):
+%% test/files/global_pin.pl holds swipl's answers untraced; here the same
+%% file's under trace, under a collector that runs every 2000 cells and with
+%% each collection a freeze's materialisation, put back and kept. And a
+%% write into a fresh term built where a taken copy stood pins nothing: a
+%% failure-driven loop whose every turn reads a global, fails past its copy,
+%% builds a term there and nb_setarg/3s all of it keeps none of its turns --
+%% the freeze raises only the marks over the term, its turn's own -- where a
+%% write the pin took for one into the taken copy raised every mark, and two
+%% thousand turns kept their cells.
+gpin_runs(D) :-
+    section('a global''s copy, the pin and the collector'),
+    cocolog(C),
+    absolute_file_name('test/files/global_pin.pl', F),
+    findall(Tag-Out,
+            ( member(Tag-Pre-Opt, [ plain-''-'', trace-''-'--trace ',
+                                    gc-'COCOLOG_GC_CELLS=2000 '-'',
+                                    kmat1-'COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=1 '-'',
+                                    kmat2-'COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 '-'' ]),
+              sh_join([Pre, C, ' ', Opt, '--local run ', F, ' main 2>/dev/null'], Cmd),
+              proc_run(Cmd, 120000, O, _), atom_codes(Out, O) ),
+            [_-U, _-T, _-G, _-K1, _-K2]),
+    ( sub_atom(U, _, _, _, 'c7-yes([a,b,class,c])') -> H = yes ; H = no ),
+    check('untraced: the case answers', H, yes),
+    check('traced: the same answers', T, U),
+    check('a collection every 2000 cells: the same answers', G, U),
+    check('each collection a freeze''s materialisation put back: the same answers', K1, U),
+    check('each collection a freeze''s materialisation kept: the same answers', K2, U),
+    atom_concat(D, '/gpin_turns.pl', PF),
+    fixture(PF, [ 'fill(_, I, N) :- I > N, !.',
+                  'fill(T, I, N) :- nb_setarg(I, T, x), I1 is I + 1, fill(T, I1, N).',
+                  'main :- nb_setval(g, [a, b, c]), statistics(globalused, U0),',
+                  '        ( between(1, 2000, _), ( nb_getval(g, L), L = [_|_], fail ; true ),',
+                  '          functor(T, f, 16), fill(T, 1, 16), fail',
+                  '        ; true ),',
+                  '        statistics(globalused, U1), Dif is U1 - U0,',
+                  '        ( Dif < 4000 -> write(none_kept) ; write(Dif) ), nl.' ]),
+    sh_join(['COCOLOG_GC_CELLS=100000000 ', C, ' --local run ', PF, ' main 2>&1'], PCmd),
+    shell(PCmd, POut, PExit),
+    check('a write into a fresh term where a taken copy stood: no turn kept', POut-PExit, none_kept-0).
 
 %% FINDNSOLS/4,5'S BAGS (3.72.0) under trace, under a collector that runs
 %% every 2000 cells and with each collection a freeze's materialisation:

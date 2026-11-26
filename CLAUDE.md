@@ -3216,7 +3216,38 @@ a session must keep:
   into it pins it (`coco_gcache_pin`: every mark raised, as SWI's
   freezeGlobal()). So **a new wind-back of the heap across Prolog
   execution undoes the trail to its mark or registers its position**, or
-  a stale copy is read. Raising every mark at each fill instead kept what
+  a stale copy is read. **A pinned entry is trusted whatever its sentinel
+  says, so the pin takes only a copy that stands** (3.78.16,
+  `coco_gcache_ok` asked of each entry, and of the write's own: a write
+  into a taken copy's old cells is a write into whatever term stands
+  there now): through 3.78.15 it took every entry the machine held, and a
+  global read before a failure and read again after a switch's
+  nb_setarg/3 was what stood in its cells since -- the switch's own copy,
+  `<?>`, a continuation frame (the reasoning session's `memberchk(class,
+  <?>)`; test/files/global_pin.pl). **A new reader that trusts an entry
+  without its sentinel asks `coco_gcache_ok` where it takes the entry.**
+  And **a write into a copy, or a b_setval/2 box, is undone as swipl's
+  global's is, whatever the cell's age** (3.78.16, `coco-gc-stand-in`, a
+  macro of the head the collector's trail pass expands, its bounds the
+  machine's `gcsb`): each stand-in is made where its key is first read or
+  set, after choice points swipl's global is older than, and through
+  3.78.15 a collection dropped the undo of a write into one younger than
+  its barrier -- backtracking would take the cell -- which a freeze after
+  the collection then kept past that barrier, the write standing (`\+ \+`
+  around a setarg/3 into a copy, a collection and a switch's nb_setarg/3
+  left the copy written; a box made inside lived on). The copies it asks
+  are the ones the collector's mark found standing: an entry whose copy is
+  gone has its `ver` cleared there. **A new stand-in a machine makes
+  lazily for a long-lived term goes into `coco-gc-stand-in`**, and **a
+  question added to the trail pass reads memory only, and asks nothing of
+  an entry the barrier's test keeps**: as a call, cold or not, the loop
+  read the trail's base again at every entry (the call might write the
+  machine), three instructions an entry, a binding's too; inline, one, a
+  register the pass's other values took (+0.14 % of a binding-heavy run's
+  work); and every layout that kept the pass free of the question -- two
+  copies of it, the one that asks out of line, the whole pass a function
+  of its own -- moved another of the collector's loops by more (STATUS.md,
+  3.78.16). Raising every mark at each fill instead kept what
   backtracking had always given back: the translator's case 12 % slower,
   16 collections become 34. Only 5 % of the translator's reads find their
   copy alive -- it backtracks past nearly every one -- so its gain is the

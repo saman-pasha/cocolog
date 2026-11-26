@@ -1309,7 +1309,15 @@
     ;; two fields more in the engine made the memset of every engine
     ;; findall/3 starts 24 instructions longer. Appended.
     (member int        tshal)
-    (member int        tscont))
+    (member int        tscont)
+    ;; THE CELLS THAT STAND IN FOR A GLOBAL, to a collection's trail pass
+    ;; (3.78.16, `coco-gc-stand-in'): GCSB[0] .. GCSB[1] the copies the
+    ;; machine keeps, GCSB[2] .. GCSB[3] the live boxes' value cells, made
+    ;; as each pass begins. The machine's, not the pass's locals: four
+    ;; locals the compiler held in registers across the whole pass, read
+    ;; or not, and a setarg/3 loop's collections cost three times what
+    ;; they do with these (STATUS.md, 3.78.16). Appended.
+    (member size_t     gcsb [4]))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends

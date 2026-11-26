@@ -454,17 +454,32 @@
   ;;; it, and over every other copy the machine holds, which are all pinned
   ;;; with it: none can be cut away now. A cell outside every copy not yet
   ;;; pinned (`gspan_lo' .. `gspan_hi', then the table) pins nothing.
+  ;;;
+  ;;; ONLY A COPY THAT STILL STANDS IS PINNED (3.78.16), and only a write
+  ;;; into one pins: a copy whose cells backtracking took -- its sentinel
+  ;;; undone, `coco_gcache_ok' -- is left as it is, for the next read or
+  ;;; collection to find gone, and a write into its old cells is a write
+  ;;; into whatever term stands there now. A pinned entry is trusted
+  ;;; whatever its sentinel says, and through 3.78.15 the pin took every
+  ;;; entry it held: a global read before a failure and read again after a
+  ;;; switch's nb_setarg/3 was what stood in its cells by then -- the
+  ;;; switch's own copy, an environment's goal (written `<?>'), a
+  ;;; continuation frame (the reasoning session's report; since 1.12.1).
+  ;;; And a write into those cells raised every mark, so a failure-driven
+  ;;; loop kept every turn's cells.
   (func coco_gcache_pin ((coco_engine * e) (size_t a))
         (let ((coco_machine * m . #'(-> e m)) (int hit . 0))
           (if (or (< a (-> m gspan_lo)) (>= a (-> m gspan_hi))) (return))
           (for ((size_t i . 0)) (< i (-> m gcache_cap)) ((++ i))
             (if (and (!= ($ (nth i (-> m gcache)) ver) 0) (not ($ (nth i (-> m gcache)) pinned))
-                     (<= ($ (nth i (-> m gcache)) lo) a) (< a ($ (nth i (-> m gcache)) hi)))
+                     (<= ($ (nth i (-> m gcache)) lo) a) (< a ($ (nth i (-> m gcache)) hi))
+                     (coco_gcache_ok m i))
                 (block (set hit 1) break)))
           (if (not hit) (return))
           (coco_heap_freeze e 0)
           (for ((size_t i . 0)) (< i (-> m gcache_cap)) ((++ i))
-            (if (!= ($ (nth i (-> m gcache)) ver) 0) (set ($ (nth i (-> m gcache)) pinned) 1)))
+            (if (and (!= ($ (nth i (-> m gcache)) ver) 0) (coco_gcache_ok m i))
+                (set ($ (nth i (-> m gcache)) pinned) 1)))
           (set (-> m gspan_lo) (cast size_t -1))
           (set (-> m gspan_hi) 0)))
 
@@ -490,8 +505,12 @@
             (let ((u64 nw . #'(coco_setarg_word m v)))
               (if (-> m oom) (return 0))
               ;; a ground global's copy written into is kept as the global
-              ;; (1.12.1): its write lasts, as SWI's
-              (coco_gcache_pin e a)
+              ;; (1.12.1): its write lasts, as SWI's. The pin is called
+              ;; only for a cell among the copies not pinned yet (3.78.16):
+              ;; its own first test, which every write paid as a call once
+              ;; the pin had grown too big for clang to inline -- ten
+              ;; instructions a write of the counter idiom
+              (if (and (>= a (-> m gspan_lo)) (< a (-> m gspan_hi))) (coco_gcache_pin e a))
               (if (> (coco-payload nw) a) (coco_heap_freeze e (+ a 1)))
               (set (nth a (-> m heap)) nw)
               (return 1)))))
