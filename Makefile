@@ -35,11 +35,12 @@ ZIGURATIP      ?= $(HOME)/ZiguratIP
 # where `make' needed ZIGURATIP alone)
 ZIGURATIP_HOME ?= $(ZIGURATIP)/home
 # `sbcl' BY NAME IS tools/cc/sbcl, because the Cicili step below runs with
-# tools/cc first on PATH: it gives the real sbcl a 4096 MB dynamic space
+# tools/cc first on PATH: it gives the real sbcl an 8192 MB dynamic space
 # when that SBCL's default is smaller -- Debian's and Ubuntu's 2.2.9 start
-# with 1 GB, and the transpile of cocolog.cicili exhausts it midway. A
-# --dynamic-space-size named here (SBCL="sbcl --dynamic-space-size 8192")
-# is obeyed as written; COCO_SBCL_HEAP=N changes the 4096.
+# with 1 GB, and the transpile of cocolog.cicili exhausts it midway, and
+# 4096 MB no longer holds it either (tools/cc/sbcl says why). A
+# --dynamic-space-size named here (SBCL="sbcl --dynamic-space-size 12288")
+# is obeyed as written; COCO_SBCL_HEAP=N changes the 8192.
 SBCL           ?= sbcl
 
 # ---- which compiler ---------------------------------------------------------

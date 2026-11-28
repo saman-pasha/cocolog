@@ -26076,3 +26076,59 @@ prove: the run the owner asked for is started by hand on this commit.
 NOT DONE. No Mac built the embedded store, the modules or the test binaries
 after cocolog.c stopped, so a fault of their own since 3.62.4 is the next
 run's to find.
+
+## The Apple silicon build again: the transpile's heap (cocolog stays 3.78.22)
+
+CI run 46127352029, started by hand on 3.78.22 (e2ace97), proved the
+getrlimit() fix on both Macs: macOS 26 Intel built and ran its suite, and
+macOS 15 (Apple silicon, Apple clang 17, SBCL 2.6.10) compiled cocolog.c
+with no error. Then it stopped in Cicili's final pass:
+
+```
+-------------------- cicili: compiling target cocolog.c
+Heap exhausted during garbage collection: 16 bytes available, 144 requested.
+ Gen ...       Alloc
+  3    ...  2166160656
+  7    ...  2086008080
+Tot    ...  4288091392 [99.8% of 4294967296 max]
+fatal error encountered in SBCL pid 13289 pthread 0x1fcff2300:
+Heap exhausted, game over.
+```
+
+and so had run 46124694961's macOS 15 job, past its C error. tools/cc/sbcl
+gave SBCL 4096 MB. Cicili's final pass keeps a backtrace of every position
+it writes (`set-ast-line` in its core.lisp stores `(cdr (backtrace))`, the
+frames up to COMPILE-TARGET with their arguments), read only when a C
+error lands on the position (`compile-path<`, which prints the COMPILE-
+and SPECIFY- frames). So what the pass holds grows with the C it writes,
+and a collection that copies the oldest generation wants as much again
+free: generation 3 held 2.17 GB, the copy had reached 2.09 GB, and the
+4 GB were spent.
+
+Not the SBCL: 3.62.4 built on the same 2.6.10 bottle (run 43514888184, 13
+November); the C has grown since. Not Apple's alone: on this box's SBCL
+2.2.9 the transpile run with the GC's log on (`sb-ext:gc-logfile`, set by a
+script that then loads cicili.lisp, the process's resident size sampled
+from /proc every half second) died at 4096 MB in the same pass, `GC
+invariant lost, file "gencgc.c", line 523`, its collections having left
+2.23 GB at most and its resident peak 4.12 GB -- where a `make` here that
+morning, and the run's Ubuntu and Intel Mac jobs, had built. It was luck
+which build met a collection at the wrong moment. Under 8192 MB the same
+run built: 74 collections, the most one left 2.39 GB, the most the heap
+held 2.79 GB, the process's resident peak 3.15 GB.
+
+So tools/cc/sbcl gives 8192 MB now (`COCO_SBCL_HEAP`'s default), and the
+Makefile, MORE.md and CLAUDE.md say so. The size is reserved, not taken.
+
+PROVED. `make` here through the shim, no `COCO_SBCL_HEAP` set: both Cicili
+runs (cocolog.cicili, the embedded store's) said `sbcl reserved memory
+size: 8589934592 Bs`, and the binary is the one built at 08:44 under 4096
+MB, byte for byte (`cmp`). Nothing the build emits changes, so cocolog stays
+3.78.22. The Apple silicon build is the next CI run's to prove, started by
+hand on this commit.
+
+NOT DONE. What the final pass holds could be cut in Cicili, which is frozen:
+`backtrace` keeping only the frames `compile-path<` prints, and of each only
+its `sp` arguments, would keep a few conses a position where it keeps the
+whole stack. Proposed to the owner, not applied. Until then the heap a
+build wants grows with the C.

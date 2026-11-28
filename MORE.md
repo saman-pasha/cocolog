@@ -371,9 +371,14 @@ What the build needs on the machine:
 * **SBCL** — Cicili is Lisp that emits C, and `sbcl` runs it. Needed only to
   build. Debian's and Ubuntu's 2.2.9 starts with a 1 GB heap, which a build
   of cocolog exhausts midway; every build step here runs `sbcl` through
-  `tools/cc/sbcl`, which gives it 4096 MB when its own default is smaller
+  `tools/cc/sbcl`, which gives it 8192 MB when its own default is smaller
   (`COCO_SBCL_HEAP=N` for another size; a `--dynamic-space-size` you pass,
-  as in `make SBCL="sbcl --dynamic-space-size 8192"`, is obeyed as written).
+  as in `make SBCL="sbcl --dynamic-space-size 12288"`, is obeyed as
+  written). The size is reserved, not taken: the transpile of
+  cocolog.cicili holds about 2.4 GB at its peak and its process's resident
+  peak is about 3.2 GB, the C compiler's beside it at the end; 4096 MB, the
+  size through 3.78.22's first commit, no longer has room for its
+  collections.
 * **Cicili 2.0.0 or later** — since 1.10.7 cocolog's reader asks Cicili's
   `(inline)` to inline a static function. Through 1.0.1 `(inline)` emitted a
   weak symbol, which clang refuses on a static function (`weak declaration

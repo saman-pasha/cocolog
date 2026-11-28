@@ -10,12 +10,26 @@
 # garbage collection ... GC invariant lost", midway, in COMPILE-ATOM <
 # COMPILE-ARGS < COMPILE-CALL < COMPILE-SIZEOF. A plain `make' stopped there,
 # and so did every script that ran one (reported from cicili-lang, Ubuntu
-# 24.04). So the real sbcl is handed a dynamic space of 4096 MB whenever its
+# 24.04). So the real sbcl is handed a dynamic space of 8192 MB whenever its
 # own default is smaller and the caller named none; a default that is
 # already larger is left alone. The size is reserved, not taken: SBCL maps
 # it and touches only what it uses.
 #
-#   COCO_SBCL_HEAP=N    the size to give, in MB (4096)
+# 4096 MB, THE SIZE THROUGH 3.78.22's FIRST COMMIT, NO LONGER HELD IT.
+# Cicili's final pass (`compiling target cocolog.c') keeps a backtrace of
+# every position it writes (set-ast-line in its core.lisp, for the path an
+# error names), so what the pass holds grows with the C it writes, and a
+# collection that copies the oldest generation wants as much again free.
+# 3.78.22's pass held 2.39 GB after its collections on this box's SBCL
+# 2.2.9: under 4096 MB a collection at the wrong moment had no room, and it
+# was luck which build met one. CI run 46127352029's macOS 15 job (SBCL
+# 2.6.10, on which 3.62.4 had built) stopped at "Heap exhausted during
+# garbage collection" with 2.17 GB in one generation, and a run here at
+# "GC invariant lost", both in that pass, where the run's Ubuntu and Intel
+# Mac jobs and a `make' here built. Under 8192 MB the run here built, its
+# process's resident peak 3.15 GB.
+#
+#   COCO_SBCL_HEAP=N    the size to give, in MB (8192)
 #   --dynamic-space-size on the command line is obeyed as written
 #
 # THE REAL sbcl IS LOOKED UP WITHOUT THIS DIRECTORY, AND RUN WITH IT. Unlike
@@ -43,7 +57,7 @@ for d in $PATH; do
 done
 IFS=$save
 [ -n "$real" ] || { echo "tools/cc/sbcl: no sbcl on PATH besides this shim" >&2; exit 127; }
-want=${COCO_SBCL_HEAP:-4096}
+want=${COCO_SBCL_HEAP:-8192}
 for a in "$@"; do
   case "$a" in --dynamic-space-size|--dynamic-space-size=*) exec "$real" "$@" ;; esac
 done

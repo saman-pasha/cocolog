@@ -156,8 +156,17 @@ sh tools/cloud/docker-build.sh  # the same two images on a Claude Code session's
   exhausts** (a heap-exhaustion report from Cicili, midway). Since 1.10.28
   `tools/cc/sbcl` is the `sbcl` every build step runs (the Makefile's Cicili
   step, `env.sh` for each `build.sh`, `test/run.pl`): it hands the real
-  sbcl 4096 MB when its default is smaller (`COCO_SBCL_HEAP=N`; a
-  `--dynamic-space-size` given is obeyed). **It must not take `tools/cc`
+  sbcl 8192 MB when its default is smaller (`COCO_SBCL_HEAP=N`; a
+  `--dynamic-space-size` given is obeyed). **4096 MB, the size through
+  3.78.22's first commit, no longer holds the transpile**: Cicili's final
+  pass keeps a backtrace of every position it writes (`set-ast-line`), so
+  what it holds grows with the C -- 2.39 GB after its collections on
+  3.78.22 -- and a collection that copies the oldest generation wants as
+  much again free. Under 4096 it was luck which build met one at the wrong
+  moment (`Heap exhausted during garbage collection` or `GC invariant
+  lost` after `compiling target cocolog.c`: CI run 46127352029's Apple
+  silicon job, a run here); under 8192 the transpile's resident peak here
+  is 3.15 GB. **It must not take `tools/cc`
   off PATH** for the sbcl it runs, as the wrappers do before they exec the
   compiler: the Cicili inside compiles by naming `gcc`, and its first
   version built cocolog with Ubuntu's gcc (the tell, `readelf -p .comment
