@@ -26041,3 +26041,38 @@ which the barrier would have waited for too. A loop over five or more
 predicates with dead clauses puts a slot in at each change again. The
 restore and the probe's doubling store `tback` with no lock: a lost store
 is a try a doubling later.
+
+## The Mac builds again: getrlimit()'s declaration is Linux's alone (3.78.22)
+
+A patch, found by CI run 46124694961 -- the first since 3.62.4's, the
+owner's for the release. Both its macOS jobs stopped at `make`, macOS 15's
+Apple clang 17 and macOS 26 Intel's Apple clang 21 alike:
+
+```
+cocolog.c:10276:31: error: conflicting types for 'getrlimit'
+  10276 |                    extern int getrlimit(int, struct coco_rlim *);
+.../MacOSX.sdk/usr/include/sys/resource.h:575:9: note: previous declaration is here
+  575 | int     getrlimit(int, struct rlimit *) __DARWIN_ALIAS(getrlimit);
+```
+
+3.62.6's `coco_rlimit_cur` (lib/syntax.cicili) declares getrlimit() in the
+raw-C escape with a struct of its own, no header the emitted C included
+declaring it. Since 3.70.0's shell/2, cocolog.cicili includes
+`<sys/wait.h>`, and Darwin's includes `<sys/resource.h>`, whose getrlimit()
+takes a `struct rlimit`: two declarations, conflicting types to clang, so
+every Mac build of 3.70.0 to 3.78.21 stopped there, unseen while every push
+carried `[skip ci]`. The function's two callers are Linux's alone
+(`coco_cstack_reserve`, the Linux branch of `coco_cstack_bounds`), and its
+numbers are Linux's (RLIMIT_AS is 9 there, 5 on Darwin), so on Darwin it
+declares nothing now and answers SIZE_MAX, as where the system would not
+say.
+
+PROVED. On Linux the binary and `.libs/cocolog.o` built with the fix, before
+the bump, are 3.78.21's byte for byte; the C differs by the `#ifdef` and
+Cicili's numbered block comments. The clang logs of the failed jobs named
+this one error and no other in cocolog.c. On the Macs the build is CI's to
+prove: the run the owner asked for is started by hand on this commit.
+
+NOT DONE. No Mac built the embedded store, the modules or the test binaries
+after cocolog.c stopped, so a fault of their own since 3.62.4 is the next
+run's to find.

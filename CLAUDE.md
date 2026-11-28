@@ -5811,6 +5811,15 @@ than its cause:
   `wc` and `sed` as they are.
 * **There is no `/proc/self/exe`**: `lb_exedir` asks `_NSGetExecutablePath`;
   programs read `current_prolog_flag(executable, P)`.
+* **A libc function the raw-C escape declares itself conflicts with
+  Darwin's header for it** (3.78.22): `coco_rlimit_cur`'s `extern int
+  getrlimit(int, struct coco_rlim *)` is sound where no header the emitted C
+  includes declares getrlimit() -- Linux -- and was a second declaration on
+  Darwin from 3.70.0 on, whose `<sys/wait.h>` (shell/2's) includes
+  `<sys/resource.h>`: every Mac build of 3.70.0 to 3.78.21 stopped there,
+  unseen while pushes carried `[skip ci]` (CI run 46124694961, both macOS
+  jobs). A declaration of one's own goes under the branch that needs it
+  (`@ifdef (code "__APPLE__")`), as the Linux-only ones beside it are.
 * **`make schema` builds as it stands on Apple clang 17 and 21** (macos-15
   and macos-26-intel, CI, 2026-10-29: 38 objects, no flag): nothing in
   either tree names `std::binary_function` now. It once died in libc++,

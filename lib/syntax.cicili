@@ -3953,13 +3953,24 @@
   ;;; A RESOURCE LIMIT'S SOFT VALUE, by its number (3.62.6): SIZE_MAX where
   ;;; it has none, or where the system would not say. Asked through the
   ;;; raw-C escape here alone: two declarations of getrlimit(), each with a
-  ;;; struct of its own, are conflicting types to clang.
+  ;;; struct of its own, are conflicting types to clang. LINUX'S ALONE, as
+  ;;; its two callers are, and by Linux's numbers (RLIMIT_AS is 9 there, 5
+  ;;; on Darwin) (3.78.22): since 3.70.0's shell/2 the emitted C includes
+  ;;; <sys/wait.h>, which on Darwin includes <sys/resource.h>, whose
+  ;;; getrlimit() takes a struct rlimit, so the declaration below was a
+  ;;; second one there and every Mac build stopped at it (CI run
+  ;;; 46124694961's two macOS jobs, the first Mac builds since 3.62.4's).
+  ;;; Darwin answers SIZE_MAX, the system saying nothing.
   (func coco_rlimit_cur ((int which)) (out size_t)
+        (@ifdef (code "__APPLE__"))
+        (return (cast size_t -1))
+        (@else)
         (let ((size_t v . #'(cast size_t -1)))
           (code "{ struct coco_rlim { unsigned long cur; unsigned long max; } rl;
                    extern int getrlimit(int, struct coco_rlim *);
                    if (getrlimit(which, &rl) == 0 && rl.cur != (unsigned long) -1) v = (size_t) rl.cur; }")
-          (return v)))
+          (return v))
+        (@endif))
 
   ;;; WHETHER THE FIRST THREAD'S STACK [LO, TOP) IS THE KERNEL'S (3.78.10):
   ;;; the start of the stack the kernel recorded at the exec, the stack
